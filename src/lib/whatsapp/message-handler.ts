@@ -21,16 +21,21 @@ export function initializeMessageHandler() {
                 .single()
 
             if (agentError || !agent || !agent.is_active) {
-                console.log('Agent not found or inactive:', agentId)
+                console.log('❌ Agent not found or inactive:', agentId, agentError)
                 return
             }
+            console.log('✅ Agent found:', agent.name)
 
             // Get or create conversation
-            const phoneNumber = message.from.replace('@s.whatsapp.net', '')
+            // Clean phone number from all WhatsApp suffixes
+            const phoneNumber = message.from
+                .replace('@s.whatsapp.net', '')
+                .replace('@lid', '')
+                .replace('@g.us', '')
 
             let { data: conversation } = await supabase
                 .from('conversations')
-                .select('id')
+                .select('id, bot_paused')
                 .eq('agent_id', agentId)
                 .eq('contact_phone', phoneNumber)
                 .single()
@@ -44,8 +49,9 @@ export function initializeMessageHandler() {
                         contact_phone: phoneNumber,
                         contact_push_name: message.pushName,
                         status: 'active',
+                        bot_paused: false
                     })
-                    .select('id')
+                    .select('id, bot_paused')
                     .single()
                 conversation = newConv
             } else {
@@ -59,8 +65,15 @@ export function initializeMessageHandler() {
             }
 
             if (!conversation) {
-                console.error('Failed to create/get conversation')
+                console.error('❌ Failed to create/get conversation')
                 return
+            }
+            console.log('✅ Conversation ID:', conversation.id)
+
+            // Check if bot is paused (human takeover)
+            const isBotPaused = (conversation as any).bot_paused === true
+            if (isBotPaused) {
+                console.log('⏸️ Bot is paused for this conversation - skipping AI response')
             }
 
             // Save incoming message
@@ -75,6 +88,12 @@ export function initializeMessageHandler() {
                     message_type: message.messageType,
                     status: 'read',
                 })
+
+            // If bot is paused, stop here - don't generate AI response
+            if (isBotPaused) {
+                console.log('📩 Message saved but bot is paused - no AI response will be sent')
+                return
+            }
 
             // Get conversation history for context
             const { data: messages } = await supabase
@@ -97,12 +116,24 @@ export function initializeMessageHandler() {
                 .single()
 
             if (!profile || profile.credits_balance <= 0) {
-                console.log('User has no credits left')
+                console.log('❌ User has no credits left - balance:', profile?.credits_balance)
                 // Optionally send a message about low credits
                 return
             }
+            console.log('✅ Credits OK:', profile.credits_balance)
+
+            // Fetch products for the user (to include in AI context)
+            const { data: products } = await supabase
+                .from('products')
+                .select('name, price_fcfa, description')
+                .eq('user_id', agent.user_id)
+                .eq('is_available', true)
+                .limit(20)
+
+            console.log(`📦 Found ${products?.length || 0} products for AI context`)
 
             // Generate AI response
+            console.log('🧠 Generating AI response...')
             const aiResponse = await generateAIResponse({
                 model: agent.model || 'gpt-4o-mini',
                 temperature: agent.temperature || 0.7,
@@ -113,15 +144,19 @@ export function initializeMessageHandler() {
                 agentName: agent.name,
                 useEmojis: agent.use_emojis,
                 language: agent.language || 'fr',
+                products: products || [],
             })
+            console.log('✅ AI Response generated:', aiResponse.content.substring(0, 100), '...')
 
             // Send the response via WhatsApp
+            console.log('📤 Sending message via WhatsApp to:', message.from)
             const sendResult = await sendMessageWithTyping(
                 agentId,
                 message.from,
                 aiResponse.content,
                 (agent.response_delay_seconds || 2) * 1000
             )
+            console.log('📤 Send result:', sendResult.success ? '✅ SUCCESS' : '❌ FAILED', sendResult)
 
             // Save AI response to database
             await supabase
@@ -175,4 +210,44 @@ export function initializeMessageHandler() {
     })
 
     console.log('WhatsApp message handler initialized')
+
+    // Restore sessions for all active agents
+    restoreSessions()
+}
+
+async function restoreSessions() {
+    console.log('🔄 Restoring WhatsApp sessions...')
+    const supabase = createAdminClient()
+    const { hasStoredSession, initWhatsAppSession } = await import('@/lib/whatsapp/baileys')
+
+    try {
+        const { data: agents, error } = await supabase
+            .from('agents')
+            .select('id, name')
+            .eq('is_active', true)
+            .eq('whatsapp_connected', true)
+
+        if (error) {
+            console.error('Error fetching agents for restoration:', error)
+            return
+        }
+
+        console.log(`Found ${agents?.length || 0} active agents to check`)
+
+        for (const agent of agents || []) {
+            if (hasStoredSession(agent.id)) {
+                console.log(`Restoring session for agent ${agent.name} (${agent.id})...`)
+                try {
+                    await initWhatsAppSession(agent.id)
+                    console.log(`✅ Session restored for ${agent.name}`)
+                } catch (err) {
+                    console.error(`❌ Failed to restore session for ${agent.name}:`, err)
+                }
+            } else {
+                console.log(`No stored session found for ${agent.name}`)
+            }
+        }
+    } catch (err) {
+        console.error('Critical error in session restoration:', err)
+    }
 }

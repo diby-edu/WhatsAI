@@ -75,7 +75,12 @@ export async function middleware(request: NextRequest) {
 
     // For admin routes, check if user is admin
     if (pathname.startsWith('/admin') && user) {
-        // Get user profile to check role
+        // 1. Check user metadata (Fastest & avoids RLS issues)
+        if (user.user_metadata?.role === 'admin') {
+            return supabaseResponse
+        }
+
+        // 2. Fallback: Get user profile to check role (DB query, subject to RLS)
         const { data: profile } = await supabase
             .from('profiles')
             .select('role')

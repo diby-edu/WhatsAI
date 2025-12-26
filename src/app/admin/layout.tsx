@@ -21,7 +21,10 @@ import {
     BarChart3,
     FileText,
     Gauge,
-    X
+    X,
+    Zap,
+    Activity,
+    TestTube2
 } from 'lucide-react'
 
 const adminLinks = [
@@ -29,10 +32,12 @@ const adminLinks = [
     { href: '/admin/users', label: 'Utilisateurs', icon: Users },
     { href: '/admin/agents', label: 'Agents IA', icon: Bot },
     { href: '/admin/conversations', label: 'Conversations', icon: MessagesSquare },
+    { href: '/admin/plans', label: 'Plans', icon: Zap },
     { href: '/admin/subscriptions', label: 'Abonnements', icon: CreditCard },
-    { href: '/admin/payments', label: 'Paiements', icon: BarChart3 },
+    { href: '/admin/payments', label: 'Test Paiement', icon: TestTube2 },
+    { href: '/admin/diagnostics', label: 'Diagnostic', icon: Activity },
     { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
-    { href: '/admin/logs', label: 'Logs d\'audit', icon: FileText },
+    { href: '/admin/logs', label: 'Logs', icon: FileText },
     { href: '/admin/settings', label: 'Paramètres', icon: Settings },
 ]
 

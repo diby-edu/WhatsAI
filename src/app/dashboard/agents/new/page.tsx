@@ -187,6 +187,7 @@ export default function NewAgentPage() {
     const connectWhatsApp = async () => {
         if (!createdAgent) return
 
+        console.log('INITIATING WHATSAPP CONNECTION for agent:', createdAgent.id)
         setWhatsappStatus('connecting')
         setError(null)
 
@@ -197,7 +198,9 @@ export default function NewAgentPage() {
                 body: JSON.stringify({ agentId: createdAgent.id }),
             })
 
+            console.log('Connect response status:', response.status)
             const data = await response.json()
+            console.log('Connect response data:', data)
 
             if (!response.ok) {
                 throw new Error(data.error || 'Erreur de connexion')
@@ -211,6 +214,7 @@ export default function NewAgentPage() {
                 setConnectedPhone(data.phoneNumber)
             }
         } catch (err) {
+            console.error('CONNECT ERROR:', err)
             setError((err as Error).message)
             setWhatsappStatus('error')
         }

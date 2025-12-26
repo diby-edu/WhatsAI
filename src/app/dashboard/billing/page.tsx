@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import {
@@ -47,6 +47,18 @@ interface Payment {
 }
 
 export default function BillingPage() {
+    return (
+        <Suspense fallback={
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 300 }}>
+                <Loader2 style={{ width: 32, height: 32, color: '#34d399', animation: 'spin 1s linear infinite' }} />
+            </div>
+        }>
+            <BillingContent />
+        </Suspense>
+    )
+}
+
+function BillingContent() {
     const searchParams = useSearchParams()
     const [isLoading, setIsLoading] = useState<string | null>(null)
     const [userData, setUserData] = useState<UserData | null>(null)

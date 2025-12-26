@@ -1,0 +1,110 @@
+import { NextRequest } from 'next/server'
+import { createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
+
+export async function GET(request: NextRequest) {
+    const supabase = await createApiClient()
+    const { user, error: authError } = await getAuthUser(supabase)
+
+    if (authError || !user) {
+        return errorResponse(authError || 'Unauthorized', 401)
+    }
+
+    try {
+        // Fetch User Profile (Plan info)
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('plan, credits_balance')
+            .eq('id', user.id)
+            .single()
+
+        // Fetch Agents with real data
+        const { data: agents, error: agentsError } = await supabase
+            .from('agents')
+            .select('id, name, is_active, total_messages')
+            .eq('user_id', user.id)
+
+        if (agentsError) throw agentsError
+
+        // Get real conversation count from conversations table
+        const { count: conversationCount } = await supabase
+            .from('conversations')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', user.id)
+
+        // Get total messages from messages table for accurate count
+        const agentIds = agents?.map(a => a.id) || []
+        let totalMessages = 0
+
+        if (agentIds.length > 0) {
+            const { count: messageCount } = await supabase
+                .from('messages')
+                .select('*', { count: 'exact', head: true })
+                .in('agent_id', agentIds)
+            totalMessages = messageCount || 0
+        }
+
+        // Get recent conversations
+        const { data: recentConvs } = await supabase
+            .from('conversations')
+            .select(`
+                id,
+                contact_phone,
+                contact_push_name,
+                updated_at,
+                agent:agents(name)
+            `)
+            .eq('user_id', user.id)
+            .order('updated_at', { ascending: false })
+            .limit(5)
+
+        const recentConversations = (recentConvs || []).map((c: any) => ({
+            id: c.id,
+            contact: c.contact_push_name || formatPhoneNumber(c.contact_phone),
+            time: formatRelativeTime(c.updated_at),
+            lastMessage: '',
+            status: 'active'
+        }))
+
+        return successResponse({
+            stats: {
+                totalMessages,
+                activeAgents: agents?.filter(a => a.is_active).length || 0,
+                totalConversations: conversationCount || 0,
+                plan: profile?.plan || 'Free',
+                credits: profile?.credits_balance || 0
+            },
+            agents: agents || [],
+            recentConversations
+        })
+
+    } catch (err) {
+        console.error('Dashboard overview API error:', err)
+        return errorResponse('Erreur serveur', 500)
+    }
+}
+
+// Helper to format phone number for display
+function formatPhoneNumber(phone: string): string {
+    if (!phone) return 'Inconnu'
+    // Clean WhatsApp suffixes
+    const clean = phone.replace(/@s\.whatsapp\.net|@lid|@g\.us/g, '')
+    // Format with spaces for readability
+    if (clean.length > 10) {
+        return '+' + clean.substring(0, 3) + ' ' + clean.substring(3)
+    }
+    return clean
+}
+
+// Helper to format relative time
+function formatRelativeTime(dateStr: string): string {
+    const date = new Date(dateStr)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+
+    if (diffMins < 1) return 'À l\'instant'
+    if (diffMins < 60) return `${diffMins} min`
+    if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h`
+    return date.toLocaleDateString('fr-FR')
+}
+

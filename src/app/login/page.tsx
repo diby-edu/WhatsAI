@@ -15,6 +15,7 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
+
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault()
         setLoading(true)
@@ -30,8 +31,35 @@ export default function LoginPage() {
             if (error) {
                 setError(error.message)
             } else {
-                router.push('/dashboard')
-                router.refresh()
+                // Check if user is admin (via Metadata OR Profile)
+                const { data: { user } } = await supabase.auth.getUser()
+
+                if (user) {
+                    let isAdmin = false
+
+                    // 1. Check Metadata (Faster, no RLS issues)
+                    if (user.user_metadata?.role === 'admin') {
+                        isAdmin = true
+                    } else {
+                        // 2. Check Profile (Fallback)
+                        const { data: profile } = await supabase
+                            .from('profiles')
+                            .select('role')
+                            .eq('id', user.id)
+                            .single()
+
+                        if (profile?.role === 'admin') {
+                            isAdmin = true
+                        }
+                    }
+
+                    if (isAdmin) {
+                        router.push('/admin')
+                    } else {
+                        router.push('/dashboard')
+                    }
+                    router.refresh()
+                }
             }
         } catch (err) {
             setError('Une erreur est survenue. Veuillez réessayer.')

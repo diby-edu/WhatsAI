@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import {
     Users,
@@ -16,62 +17,39 @@ import {
     ArrowUpRight
 } from 'lucide-react'
 
-// Mock data for demonstration
-const stats = [
+// Base configuration for stats cards
+const statsConfig = [
     {
+        id: 'users',
         label: 'Utilisateurs totaux',
-        value: '12,847',
-        change: '+12.5%',
-        trend: 'up',
         icon: Users,
         gradient: 'linear-gradient(135deg, #3b82f6, #06b6d4)',
     },
     {
+        id: 'agents',
         label: 'Agents actifs',
-        value: '3,254',
-        change: '+8.2%',
-        trend: 'up',
         icon: Bot,
         gradient: 'linear-gradient(135deg, #a855f7, #ec4899)',
     },
     {
+        id: 'messages',
         label: 'Messages ce mois',
-        value: '2.4M',
-        change: '+23.1%',
-        trend: 'up',
         icon: MessageSquare,
         gradient: 'linear-gradient(135deg, #10b981, #34d399)',
     },
     {
+        id: 'revenue',
         label: 'Revenus du mois',
-        value: '4.2M FCFA',
-        change: '+15.3%',
-        trend: 'up',
         icon: DollarSign,
         gradient: 'linear-gradient(135deg, #f59e0b, #f97316)',
     },
 ]
 
-const recentUsers = [
-    { name: 'Kouassi Jean', email: 'kouassi@email.com', plan: 'Pro', status: 'active', date: 'Il y a 2h' },
-    { name: 'Aminata Diallo', email: 'aminata@email.com', plan: 'Starter', status: 'active', date: 'Il y a 4h' },
-    { name: 'Mohamed Traoré', email: 'mohamed@email.com', plan: 'Business', status: 'active', date: 'Il y a 6h' },
-    { name: 'Fatou Konaté', email: 'fatou@email.com', plan: 'Free', status: 'pending', date: 'Il y a 8h' },
-    { name: 'Ibrahim Coulibaly', email: 'ibrahim@email.com', plan: 'Pro', status: 'active', date: 'Il y a 12h' },
-]
+// Empty state until real payments API is integrated
+const recentPayments: any[] = []
 
-const recentPayments = [
-    { user: 'Kouassi Jean', amount: '35,000 FCFA', plan: 'Pro', status: 'completed', date: 'Il y a 1h' },
-    { user: 'Société ABC', amount: '85,000 FCFA', plan: 'Business', status: 'completed', date: 'Il y a 3h' },
-    { user: 'Aminata Diallo', amount: '15,000 FCFA', plan: 'Starter', status: 'pending', date: 'Il y a 5h' },
-]
-
-const systemStatus = [
-    { name: 'API WhatsApp', status: 'operational', latency: '45ms' },
-    { name: 'OpenAI Gateway', status: 'operational', latency: '120ms' },
-    { name: 'Base de données', status: 'operational', latency: '12ms' },
-    { name: 'CinetPay', status: 'warning', latency: '230ms' },
-]
+// System status will be dynamically checked in the future
+const systemStatus: any[] = []
 
 const getBadgeStyle = (type: string) => {
     const styles: Record<string, React.CSSProperties> = {
@@ -85,6 +63,54 @@ const getBadgeStyle = (type: string) => {
 }
 
 export default function AdminDashboard() {
+    const [stats, setStats] = useState<any[]>([])
+    const [recentUsers, setRecentUsers] = useState<any[]>([])
+    const [loading, setLoading] = useState(true)
+
+    useEffect(() => {
+        fetchDashboardData()
+    }, [])
+
+    const fetchDashboardData = async () => {
+        try {
+            const res = await fetch('/api/admin/dashboard')
+            const data = await res.json()
+
+            if (data.data?.stats) {
+                const s = data.data.stats
+                // Map API stats to UI config
+                const mappedStats = statsConfig.map(config => {
+                    let value = '0'
+                    let change = '+0%' // Placeholder
+
+                    if (config.id === 'users') value = s.totalUsers.toLocaleString()
+                    if (config.id === 'agents') value = s.activeAgents.toLocaleString()
+                    if (config.id === 'messages') value = s.totalMessages.toLocaleString()
+                    if (config.id === 'revenue') value = (s.revenue || 0) + ' FCFA'
+
+                    return { ...config, value, change, trend: 'up' }
+                })
+                setStats(mappedStats)
+            }
+
+            if (data.data?.recentUsers) {
+                const mappedUsers = data.data.recentUsers.map((u: any) => ({
+                    name: u.full_name || 'Utilisateur',
+                    email: u.email,
+                    plan: 'Free', // Default
+                    status: 'active', // Default
+                    date: new Date(u.created_at).toLocaleDateString('fr-FR')
+                }))
+                setRecentUsers(mappedUsers)
+            }
+
+        } catch (err) {
+            console.error('Error fetching dashboard:', err)
+        } finally {
+            setLoading(false)
+        }
+    }
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
             {/* Page Header */}
@@ -214,7 +240,7 @@ export default function AdminDashboard() {
                                                     fontWeight: 700,
                                                     fontSize: 14
                                                 }}>
-                                                    {user.name.split(' ').map(n => n[0]).join('')}
+                                                    {user.name.split(' ').map((n: string) => n[0]).join('')}
                                                 </div>
                                                 <div>
                                                     <div style={{ fontWeight: 500, color: 'white' }}>{user.name}</div>

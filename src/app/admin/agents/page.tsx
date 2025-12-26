@@ -1,16 +1,39 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Bot, Plus, Search, MoreVertical, Power, Activity, MessageCircle } from 'lucide-react'
 
-const agents = [
-    { id: 1, name: 'Agent Commercial', status: 'active', user: 'Kouassi Jean', messages: 1250, created: '2024-12-15' },
-    { id: 2, name: 'Support Client', status: 'active', user: 'Aminata Diallo', messages: 890, created: '2024-12-18' },
-    { id: 3, name: 'Agent Immobilier', status: 'paused', user: 'Mohamed Traoré', messages: 456, created: '2024-12-10' },
-    { id: 4, name: 'Bot E-commerce', status: 'active', user: 'Fatou Konaté', messages: 2100, created: '2024-12-08' },
-]
-
 export default function AdminAgentsPage() {
+    const [agents, setAgents] = useState<any[]>([])
+    const [loading, setLoading] = useState(true)
+
+    useEffect(() => {
+        fetchAgents()
+    }, [])
+
+    const fetchAgents = async () => {
+        try {
+            const res = await fetch('/api/admin/agents')
+            const data = await res.json()
+            if (data.data?.agents) {
+                const mappedAgents = data.data.agents.map((a: any) => ({
+                    id: a.id,
+                    name: a.name,
+                    status: a.is_active ? 'active' : 'paused',
+                    user: a.profiles?.full_name || a.profiles?.email || 'Inconnu',
+                    messages: a.total_messages || 0,
+                    created: new Date(a.created_at).toLocaleDateString('fr-FR')
+                }))
+                setAgents(mappedAgents)
+            }
+        } catch (err) {
+            console.error('Error fetching admin agents:', err)
+        } finally {
+            setLoading(false)
+        }
+    }
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
