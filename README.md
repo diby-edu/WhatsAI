@@ -1,36 +1,193 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# WhatsAI 🤖💬
 
-## Getting Started
+> Plateforme SaaS d'automatisation WhatsApp propulsée par l'IA
 
-First, run the development server:
+WhatsAI permet aux entreprises d'automatiser leurs conversations WhatsApp grâce à des agents IA intelligents qui qualifient les leads, répondent aux clients 24/7 et boostent les conversions.
+
+## 🚀 Fonctionnalités
+
+- ✅ **Agents IA** - Créez des assistants virtuels personnalisés
+- ✅ **Multi-WhatsApp** - Connectez plusieurs numéros WhatsApp
+- ✅ **Réponses automatiques** - IA conversationnelle 24/7
+- ✅ **Qualification de leads** - Identifiez les prospects chauds
+- ✅ **Analytics** - Suivez vos performances
+- ✅ **Base de connaissances** - Entraînez vos agents sur vos données
+
+## 🛠️ Stack Technique
+
+| Technologie | Usage |
+|-------------|-------|
+| **Next.js 14** | Frontend + API Routes |
+| **TypeScript** | Type safety |
+| **Supabase** | Auth, Database, Storage |
+| **TailwindCSS** | Styling |
+| **Framer Motion** | Animations |
+| **Baileys** | WhatsApp integration |
+| **OpenAI** | IA conversationnelle |
+| **CinetPay** | Paiements |
+
+## 📦 Installation
+
+### Prérequis
+
+- Node.js 18+
+- npm ou yarn
+- Compte Supabase
+- Clé API OpenAI (optionnel pour le dev)
+
+### 1. Cloner le projet
+
+```bash
+cd h:/WHATSAPP/wazzap-clone
+```
+
+### 2. Installer les dépendances
+
+```bash
+npm install
+```
+
+### 3. Configurer l'environnement
+
+Copier le fichier template :
+
+```bash
+cp env.template .env.local
+```
+
+Puis éditer `.env.local` avec vos credentials :
+
+```env
+# Supabase (obligatoire)
+NEXT_PUBLIC_SUPABASE_URL=votre_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=votre_anon_key
+SUPABASE_SERVICE_ROLE_KEY=votre_service_role_key
+
+# OpenAI (pour l'IA)
+OPENAI_API_KEY=votre_cle_openai
+
+# CinetPay (pour les paiements)
+CINETPAY_SITE_ID=votre_site_id
+CINETPAY_API_KEY=votre_api_key
+```
+
+### 4. Configurer la base de données
+
+Dans le dashboard Supabase, exécutez les migrations SQL :
+
+1. Allez dans **SQL Editor**
+2. Exécutez `supabase/migrations/001_initial_schema.sql`
+3. Exécutez `supabase/migrations/002_rls_policies.sql`
+
+### 5. Lancer le serveur
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Ouvrez [http://localhost:3000](http://localhost:3000)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 📁 Structure du Projet
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+wazzap-clone/
+├── src/
+│   ├── app/                    # Pages Next.js (App Router)
+│   │   ├── api/                # API Routes
+│   │   │   ├── agents/         # CRUD agents
+│   │   │   ├── conversations/  # Conversations
+│   │   │   ├── dashboard/      # Stats
+│   │   │   └── profile/        # Profil utilisateur
+│   │   ├── dashboard/          # Dashboard pages
+│   │   ├── login/              # Authentification
+│   │   └── register/           # Inscription
+│   ├── components/             # Composants réutilisables
+│   ├── lib/                    # Utilitaires
+│   │   ├── supabase/           # Clients Supabase
+│   │   ├── api-utils.ts        # Helpers API
+│   │   └── plans.ts            # Configuration plans
+│   └── types/                  # Types TypeScript
+├── supabase/
+│   └── migrations/             # Schéma SQL
+└── env.template                # Template variables d'env
+```
 
-## Learn More
+## 📊 Base de Données
 
-To learn more about Next.js, take a look at the following resources:
+### Tables
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Table | Description |
+|-------|-------------|
+| `profiles` | Profils utilisateurs (extends auth.users) |
+| `agents` | Agents IA configurés |
+| `whatsapp_sessions` | Sessions WhatsApp actives |
+| `conversations` | Conversations avec contacts |
+| `messages` | Messages échangés |
+| `knowledge_base` | Documents d'entraînement |
+| `subscriptions` | Abonnements actifs |
+| `payments` | Historique paiements |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 💰 Plans Tarifaires
 
-## Deploy on Vercel
+| Plan | Prix/mois | Messages | Agents | WhatsApp |
+|------|-----------|----------|--------|----------|
+| Gratuit | 0 FCFA | 100 | 1 | 1 |
+| Starter | 15,000 FCFA | 2,000 | 1 | 1 |
+| Pro | 35,000 FCFA | 5,000 | 2 | 2 |
+| Business | 85,000 FCFA | 30,000 | 4 | 4 |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 🔧 API Routes
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Agents
+- `GET /api/agents` - Liste des agents
+- `POST /api/agents` - Créer un agent
+- `GET /api/agents/:id` - Détails d'un agent
+- `PATCH /api/agents/:id` - Modifier un agent
+- `DELETE /api/agents/:id` - Supprimer un agent
+
+### Conversations
+- `GET /api/conversations` - Liste des conversations
+- `GET /api/conversations/:id` - Conversation + messages
+- `PATCH /api/conversations/:id` - Modifier statut
+
+### Dashboard
+- `GET /api/dashboard/stats` - Statistiques
+
+### Profil
+- `GET /api/profile` - Profil utilisateur
+- `PATCH /api/profile` - Modifier profil
+
+## 📱 WhatsApp Integration
+
+L'intégration WhatsApp utilise **Baileys** (solution non-officielle).
+
+### Connexion
+1. **Desktop** : Scanner le QR code affiché
+2. **Mobile** : Utiliser le code de liaison à 8 chiffres
+
+### Fonctionnement
+1. Utilisateur scanne le QR / entre le code
+2. Session WhatsApp sauvegardée en base
+3. Messages entrants traités par l'IA
+4. Réponses envoyées automatiquement
+
+## 🚀 Déploiement
+
+### Vercel
+
+```bash
+npm run build
+vercel --prod
+```
+
+### Variables d'environnement à configurer sur Vercel :
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `OPENAI_API_KEY`
+- `CINETPAY_SITE_ID`
+- `CINETPAY_API_KEY`
+
+## 📝 License
+
+MIT
