@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import {
     Search,
@@ -18,22 +18,43 @@ import {
     Download
 } from 'lucide-react'
 
-// Mock data
-const users = [
-    { id: 1, name: 'Kouassi Jean', email: 'kouassi@email.com', phone: '+225 07 12 34 56', plan: 'Pro', status: 'active', agents: 2, messages: 1250, created: '2024-12-15' },
-    { id: 2, name: 'Aminata Diallo', email: 'aminata@email.com', phone: '+225 05 98 76 54', plan: 'Starter', status: 'active', agents: 1, messages: 450, created: '2024-12-18' },
-    { id: 3, name: 'Mohamed Traoré', email: 'mohamed@email.com', phone: '+225 01 23 45 67', plan: 'Business', status: 'active', agents: 4, messages: 5200, created: '2024-12-10' },
-    { id: 4, name: 'Fatou Konaté', email: 'fatou@email.com', phone: '+225 07 65 43 21', plan: 'Free', status: 'pending', agents: 1, messages: 45, created: '2024-12-20' },
-    { id: 5, name: 'Ibrahim Coulibaly', email: 'ibrahim@email.com', phone: '+225 05 11 22 33', plan: 'Pro', status: 'active', agents: 2, messages: 890, created: '2024-12-12' },
-    { id: 6, name: 'Marie Bamba', email: 'marie@email.com', phone: '+225 07 44 55 66', plan: 'Starter', status: 'suspended', agents: 1, messages: 120, created: '2024-12-08' },
-    { id: 7, name: 'Oumar Sanogo', email: 'oumar@email.com', phone: '+225 01 77 88 99', plan: 'Business', status: 'active', agents: 3, messages: 3400, created: '2024-12-05' },
-    { id: 8, name: 'Aïcha Touré', email: 'aicha@email.com', phone: '+225 05 00 11 22', plan: 'Free', status: 'active', agents: 1, messages: 78, created: '2024-12-22' },
-]
+// Mock data removed
 
 export default function AdminUsersPage() {
+    const [users, setUsers] = useState<any[]>([])
+    const [loading, setLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedPlan, setSelectedPlan] = useState('all')
     const [selectedStatus, setSelectedStatus] = useState('all')
+
+    useEffect(() => {
+        fetchUsers()
+    }, [])
+
+    const fetchUsers = async () => {
+        try {
+            const res = await fetch('/api/admin/users')
+            const data = await res.json()
+            if (data.data?.users) {
+                // Map DB fields to UI fields if necessary
+                const mappedUsers = data.data.users.map((u: any) => ({
+                    ...u,
+                    name: u.full_name || u.email?.split('@')[0] || 'Utilisateur',
+                    phone: u.phone || 'N/A',
+                    plan: 'Free', // Default for now
+                    status: 'active', // Default for now
+                    agents: 0, // Pending real count
+                    messages: 0, // Pending real count
+                    created: u.created_at
+                }))
+                setUsers(mappedUsers)
+            }
+        } catch (err) {
+            console.error('Error fetching users:', err)
+        } finally {
+            setLoading(false)
+        }
+    }
 
     const filteredUsers = users.filter(user => {
         const matchesSearch = user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -133,7 +154,7 @@ export default function AdminUsersPage() {
                                 <td>
                                     <div className="flex items-center gap-3">
                                         <div className="avatar">
-                                            {user.name.split(' ').map(n => n[0]).join('')}
+                                            {user.name.split(' ').map((n: string) => n[0]).join('')}
                                         </div>
                                         <div>
                                             <div className="font-medium text-white">{user.name}</div>
@@ -155,9 +176,9 @@ export default function AdminUsersPage() {
                                 </td>
                                 <td>
                                     <span className={`badge ${user.plan === 'Business' ? 'badge-accent' :
-                                            user.plan === 'Pro' ? 'badge-primary' :
-                                                user.plan === 'Starter' ? 'badge-warning' :
-                                                    'bg-dark-700 text-dark-300 border-dark-600'
+                                        user.plan === 'Pro' ? 'badge-primary' :
+                                            user.plan === 'Starter' ? 'badge-warning' :
+                                                'bg-dark-700 text-dark-300 border-dark-600'
                                         }`}>
                                         {user.plan}
                                     </span>
@@ -166,8 +187,8 @@ export default function AdminUsersPage() {
                                 <td className="text-white">{user.messages.toLocaleString()}</td>
                                 <td>
                                     <span className={`badge ${user.status === 'active' ? 'badge-success' :
-                                            user.status === 'pending' ? 'badge-warning' :
-                                                'badge-error'
+                                        user.status === 'pending' ? 'badge-warning' :
+                                            'badge-error'
                                         }`}>
                                         {user.status === 'active' ? 'Actif' :
                                             user.status === 'pending' ? 'En attente' : 'Suspendu'}

@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import {
     MessageSquare,
@@ -13,59 +14,90 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 
-// Mock data - will be replaced with real data from API
-const stats = [
+// Base stats config
+const statsConfig = [
     {
+        id: 'messages',
         label: 'Messages ce mois',
-        value: '1,234',
-        change: '+12%',
-        positive: true,
         icon: MessageSquare,
         color: '#3b82f6',
         bgColor: 'rgba(59, 130, 246, 0.1)',
     },
     {
-        label: 'Leads qualifiés',
-        value: '89',
-        change: '+8%',
-        positive: true,
-        icon: Users,
+        id: 'agents',
+        label: 'Agents actifs',
+        icon: Users, // Or Bot
         color: '#10b981',
         bgColor: 'rgba(16, 185, 129, 0.1)',
     },
     {
-        label: 'Taux de conversion',
-        value: '24%',
-        change: '+3%',
-        positive: true,
+        id: 'conversations',
+        label: 'Conversations',
         icon: TrendingUp,
         color: '#a855f7',
         bgColor: 'rgba(168, 85, 247, 0.1)',
     },
     {
+        id: 'credits',
         label: 'Crédits restants',
-        value: '1,850',
-        change: '-15%',
-        positive: false,
         icon: Zap,
         color: '#f97316',
         bgColor: 'rgba(249, 115, 22, 0.1)',
     },
 ]
 
-const recentConversations = [
-    { id: 1, contact: 'Jean Dupont', lastMessage: 'Merci pour les informations !', time: 'Il y a 5 min', status: 'active' },
-    { id: 2, contact: 'Marie Martin', lastMessage: 'Je souhaite prendre un rendez-vous', time: 'Il y a 12 min', status: 'active' },
-    { id: 3, contact: '+225 07 XX XX XX', lastMessage: 'Bonjour, quels sont vos tarifs ?', time: 'Il y a 25 min', status: 'closed' },
-    { id: 4, contact: 'Paul Bernard', lastMessage: 'Parfait, à vendredi alors !', time: 'Il y a 1h', status: 'closed' },
-]
-
-const agents = [
-    { id: 1, name: 'Assistant Commercial', status: 'active', conversations: 45, lastActive: 'En ligne' },
-    { id: 2, name: 'Support Client', status: 'active', conversations: 23, lastActive: 'En ligne' },
-]
-
 export default function DashboardPage() {
+    const [stats, setStats] = useState<any[]>([])
+    const [agents, setAgents] = useState<any[]>([])
+    const [recentConversations, setRecentConversations] = useState<any[]>([])
+    const [loading, setLoading] = useState(true)
+
+    useEffect(() => {
+        fetchDashboardData()
+    }, [])
+
+    const fetchDashboardData = async () => {
+        try {
+            const res = await fetch('/api/dashboard/overview')
+            const data = await res.json()
+
+            if (data.data?.stats) {
+                const s = data.data.stats
+                const mappedStats = statsConfig.map(config => {
+                    let value = '0'
+                    let change = '' // Placeholder
+                    let positive = true
+
+                    if (config.id === 'messages') value = s.totalMessages.toLocaleString()
+                    if (config.id === 'agents') value = s.activeAgents.toLocaleString()
+                    if (config.id === 'conversations') value = s.totalConversations.toLocaleString()
+                    if (config.id === 'credits') value = s.credits.toLocaleString()
+
+                    return { ...config, value, change, positive }
+                })
+                setStats(mappedStats)
+            }
+
+            if (data.data?.agents) {
+                const mappedAgents = data.data.agents.slice(0, 3).map((a: any) => ({
+                    id: a.id,
+                    name: a.name,
+                    status: a.is_active ? 'active' : 'inactive',
+                    conversations: a.total_conversations || 0,
+                    lastActive: a.is_active ? 'En ligne' : 'Hors ligne'
+                }))
+                setAgents(mappedAgents)
+            }
+
+            // Recent conversations are returned as empty array for now from API
+            setRecentConversations(data.data?.recentConversations || [])
+
+        } catch (err) {
+            console.error('Error fetching dashboard:', err)
+        } finally {
+            setLoading(false)
+        }
+    }
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
             {/* Header */}

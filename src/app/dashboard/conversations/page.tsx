@@ -1,15 +1,70 @@
 'use client'
 
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { MessageCircle, User, Bot, Clock, Search } from 'lucide-react'
+import { MessageCircle, User, Bot, Clock, Search, Loader2, ChevronRight } from 'lucide-react'
 
-const conversations = [
-    { id: 1, phone: '+225 07 12 34 56', name: 'Client 1', agent: 'Agent Commercial', messages: 12, lastMessage: 'Merci pour votre réponse !', date: 'Il y a 5 min' },
-    { id: 2, phone: '+225 05 98 76 54', name: 'Client 2', agent: 'Support Client', messages: 8, lastMessage: 'D\'accord, je comprends', date: 'Il y a 15 min' },
-    { id: 3, phone: '+225 01 23 45 67', name: 'Client 3', agent: 'Agent Commercial', messages: 23, lastMessage: 'Quand puis-je passer commande ?', date: 'Il y a 1h' },
-]
+interface Conversation {
+    id: string
+    contact_phone: string
+    contact_push_name: string | null
+    agent: { id: string; name: string } | null
+    messages_count: number
+    last_message: string
+    last_message_at: string
+}
 
 export default function DashboardConversationsPage() {
+    const router = useRouter()
+    const [conversations, setConversations] = useState<Conversation[]>([])
+    const [loading, setLoading] = useState(true)
+    const [searchTerm, setSearchTerm] = useState('')
+
+    useEffect(() => {
+        fetchConversations()
+    }, [])
+
+    const fetchConversations = async () => {
+        try {
+            const res = await fetch('/api/conversations')
+            const data = await res.json()
+            if (data.data?.conversations) {
+                setConversations(data.data.conversations)
+            }
+        } catch (err) {
+            console.error('Error fetching conversations:', err)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const filteredConversations = conversations.filter(c =>
+        c.contact_phone.includes(searchTerm) ||
+        c.contact_push_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        c.agent?.name.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+
+    const formatDate = (dateStr: string) => {
+        const date = new Date(dateStr)
+        const now = new Date()
+        const diffMs = now.getTime() - date.getTime()
+        const diffMins = Math.floor(diffMs / 60000)
+
+        if (diffMins < 1) return 'À l\'instant'
+        if (diffMins < 60) return `Il y a ${diffMins} min`
+        if (diffMins < 1440) return `Il y a ${Math.floor(diffMins / 60)}h`
+        return date.toLocaleDateString('fr-FR')
+    }
+
+    if (loading) {
+        return (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 300 }}>
+                <Loader2 style={{ width: 32, height: 32, color: '#34d399', animation: 'spin 1s linear infinite' }} />
+            </div>
+        )
+    }
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -21,6 +76,8 @@ export default function DashboardConversationsPage() {
                     <Search style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', width: 18, height: 18, color: '#64748b' }} />
                     <input
                         placeholder="Rechercher..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
                         style={{
                             padding: '12px 12px 12px 44px',
                             background: 'rgba(30, 41, 59, 0.5)',
@@ -34,64 +91,93 @@ export default function DashboardConversationsPage() {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {conversations.map((conv, i) => (
-                    <motion.div
-                        key={conv.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: i * 0.1 }}
-                        style={{
-                            background: 'rgba(30, 41, 59, 0.5)',
-                            border: '1px solid rgba(148, 163, 184, 0.1)',
-                            borderRadius: 16,
-                            padding: 20,
-                            cursor: 'pointer',
-                            transition: 'all 0.2s ease'
-                        }}
-                    >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                            <div style={{
-                                width: 50,
-                                height: 50,
-                                borderRadius: 14,
-                                background: 'linear-gradient(135deg, #10b981, #059669)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center'
-                            }}>
-                                <User style={{ width: 24, height: 24, color: 'white' }} />
-                            </div>
-                            <div style={{ flex: 1 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                                    <span style={{ fontWeight: 600, color: 'white' }}>{conv.phone}</span>
+                {filteredConversations.length === 0 ? (
+                    <div style={{
+                        background: 'rgba(30, 41, 59, 0.5)',
+                        border: '1px solid rgba(148, 163, 184, 0.1)',
+                        borderRadius: 16,
+                        padding: 48,
+                        textAlign: 'center'
+                    }}>
+                        <MessageCircle style={{ width: 48, height: 48, color: '#64748b', margin: '0 auto 16px' }} />
+                        <h3 style={{ color: 'white', fontWeight: 600, marginBottom: 8 }}>Aucune conversation</h3>
+                        <p style={{ color: '#64748b', fontSize: 14 }}>
+                            {searchTerm ? 'Aucun résultat pour cette recherche' : 'Les conversations WhatsApp apparaîtront ici'}
+                        </p>
+                    </div>
+                ) : (
+                    filteredConversations.map((conv, i) => (
+                        <motion.div
+                            key={conv.id}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: i * 0.05 }}
+                            onClick={() => router.push(`/dashboard/conversations/${conv.id}`)}
+                            whileHover={{ scale: 1.01, borderColor: 'rgba(16, 185, 129, 0.3)' }}
+                            style={{
+                                background: 'rgba(30, 41, 59, 0.5)',
+                                border: '1px solid rgba(148, 163, 184, 0.1)',
+                                borderRadius: 16,
+                                padding: 20,
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease'
+                            }}
+                        >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                                <div style={{
+                                    width: 50,
+                                    height: 50,
+                                    borderRadius: 14,
+                                    background: 'linear-gradient(135deg, #10b981, #059669)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                }}>
+                                    <User style={{ width: 24, height: 24, color: 'white' }} />
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                                        <span style={{ fontWeight: 600, color: 'white' }}>{conv.contact_phone}</span>
+                                        {conv.agent && (
+                                            <span style={{
+                                                padding: '2px 8px',
+                                                borderRadius: 6,
+                                                fontSize: 11,
+                                                background: 'rgba(168, 85, 247, 0.15)',
+                                                color: '#c084fc'
+                                            }}>{conv.agent.name}</span>
+                                        )}
+                                    </div>
+                                    <p style={{ color: '#94a3b8', fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 400 }}>
+                                        {conv.last_message || 'Aucun message'}
+                                    </p>
+                                </div>
+                                <div style={{ textAlign: 'right' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#64748b', fontSize: 12, marginBottom: 4 }}>
+                                        <Clock style={{ width: 12, height: 12 }} />
+                                        {formatDate(conv.last_message_at)}
+                                    </div>
                                     <span style={{
-                                        padding: '2px 8px',
-                                        borderRadius: 6,
-                                        fontSize: 11,
-                                        background: 'rgba(168, 85, 247, 0.15)',
-                                        color: '#c084fc'
-                                    }}>{conv.agent}</span>
+                                        padding: '4px 10px',
+                                        borderRadius: 100,
+                                        fontSize: 12,
+                                        fontWeight: 600,
+                                        background: 'rgba(16, 185, 129, 0.15)',
+                                        color: '#34d399'
+                                    }}>{conv.messages_count} msg</span>
                                 </div>
-                                <p style={{ color: '#94a3b8', fontSize: 14 }}>{conv.lastMessage}</p>
                             </div>
-                            <div style={{ textAlign: 'right' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#64748b', fontSize: 12, marginBottom: 4 }}>
-                                    <Clock style={{ width: 12, height: 12 }} />
-                                    {conv.date}
-                                </div>
-                                <span style={{
-                                    padding: '4px 10px',
-                                    borderRadius: 100,
-                                    fontSize: 12,
-                                    fontWeight: 600,
-                                    background: 'rgba(16, 185, 129, 0.15)',
-                                    color: '#34d399'
-                                }}>{conv.messages} msg</span>
-                            </div>
-                        </div>
-                    </motion.div>
-                ))}
+                        </motion.div>
+                    ))
+                )}
             </div>
+
+            <style jsx global>{`
+                @keyframes spin {
+                    from { transform: rotate(0deg); }
+                    to { transform: rotate(360deg); }
+                }
+            `}</style>
         </div>
     )
 }

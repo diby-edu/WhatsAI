@@ -3,25 +3,26 @@
 import { motion } from 'framer-motion'
 import { BarChart3, TrendingUp, Users, MessageCircle, DollarSign } from 'lucide-react'
 
+// Empty state - will be populated from API when analytics backend is implemented
 const stats = [
-    { label: 'Utilisateurs actifs', value: '2,847', change: '+12%', icon: Users },
-    { label: 'Messages aujourd\'hui', value: '45,821', change: '+23%', icon: MessageCircle },
-    { label: 'Taux de conversion', value: '4.2%', change: '+0.5%', icon: TrendingUp },
-    { label: 'Revenus du jour', value: '285,000 FCFA', change: '+8%', icon: DollarSign },
+    { label: 'Utilisateurs actifs', value: '0', change: '--', icon: Users },
+    { label: 'Messages aujourd\'hui', value: '0', change: '--', icon: MessageCircle },
+    { label: 'Taux de conversion', value: '--', change: '--', icon: TrendingUp },
+    { label: 'Revenus du jour', value: '0 FCFA', change: '--', icon: DollarSign },
 ]
 
 const chartData = [
-    { day: 'Lun', messages: 8500, users: 420 },
-    { day: 'Mar', messages: 9200, users: 480 },
-    { day: 'Mer', messages: 10100, users: 520 },
-    { day: 'Jeu', messages: 9800, users: 510 },
-    { day: 'Ven', messages: 11200, users: 590 },
-    { day: 'Sam', messages: 7800, users: 380 },
-    { day: 'Dim', messages: 6200, users: 310 },
+    { day: 'Lun', messages: 0, users: 0 },
+    { day: 'Mar', messages: 0, users: 0 },
+    { day: 'Mer', messages: 0, users: 0 },
+    { day: 'Jeu', messages: 0, users: 0 },
+    { day: 'Ven', messages: 0, users: 0 },
+    { day: 'Sam', messages: 0, users: 0 },
+    { day: 'Dim', messages: 0, users: 0 },
 ]
 
 export default function AdminAnalyticsPage() {
-    const maxMessages = Math.max(...chartData.map(d => d.messages))
+    const maxMessages = Math.max(...chartData.map(d => d.messages), 1)
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -61,8 +62,8 @@ export default function AdminAnalyticsPage() {
                                 borderRadius: 100,
                                 fontSize: 12,
                                 fontWeight: 600,
-                                background: 'rgba(34, 197, 94, 0.15)',
-                                color: '#4ade80'
+                                background: 'rgba(100, 116, 139, 0.15)',
+                                color: '#64748b'
                             }}>
                                 {stat.change}
                             </span>
@@ -90,11 +91,11 @@ export default function AdminAnalyticsPage() {
                         <div key={d.day} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
                             <motion.div
                                 initial={{ height: 0 }}
-                                animate={{ height: `${(d.messages / maxMessages) * 100}%` }}
+                                animate={{ height: `${Math.max((d.messages / maxMessages) * 100, 5)}%` }}
                                 transition={{ delay: 0.5 + i * 0.1, duration: 0.5 }}
                                 style={{
                                     width: '100%',
-                                    background: 'linear-gradient(180deg, #10b981, #059669)',
+                                    background: d.messages > 0 ? 'linear-gradient(180deg, #10b981, #059669)' : 'rgba(100, 116, 139, 0.3)',
                                     borderRadius: 8,
                                     minHeight: 20
                                 }}
@@ -103,7 +104,11 @@ export default function AdminAnalyticsPage() {
                         </div>
                     ))}
                 </div>
+                <p style={{ textAlign: 'center', color: '#64748b', fontSize: 14, marginTop: 24 }}>
+                    Les données s'afficheront une fois que le système d'analytics sera implémenté.
+                </p>
             </motion.div>
         </div>
     )
 }
+

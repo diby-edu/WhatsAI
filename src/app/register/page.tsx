@@ -68,7 +68,12 @@ function RegisterForm() {
                 setSuccess(true)
             }
         } catch (err) {
-            setError('Une erreur est survenue. Veuillez réessayer.')
+            console.error('Registration error:', err)
+            // Debug: Check if env vars are loaded
+            console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL ? 'Loaded' : 'Missing')
+            console.log('Supabase Key:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'Loaded' : 'Missing')
+
+            setError(`Une erreur est survenue: ${err instanceof Error ? err.message : String(err)}`)
         } finally {
             setLoading(false)
         }

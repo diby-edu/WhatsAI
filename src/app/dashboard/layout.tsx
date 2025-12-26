@@ -18,7 +18,9 @@ import {
     ChevronRight,
     Menu,
     X,
-    Zap
+    Zap,
+    Package,
+    ShoppingBag
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -26,6 +28,8 @@ const sidebarLinks = [
     { href: '/dashboard', label: 'Tableau de bord', icon: LayoutDashboard },
     { href: '/dashboard/agents', label: 'Agents', icon: Bot },
     { href: '/dashboard/conversations', label: 'Conversations', icon: MessagesSquare },
+    { href: '/dashboard/products', label: 'Produits', icon: Package },
+    { href: '/dashboard/orders', label: 'Commandes', icon: ShoppingBag },
     { href: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },
     { href: '/dashboard/playground', label: 'Playground', icon: Zap },
     { href: '/dashboard/billing', label: 'Facturation', icon: CreditCard },

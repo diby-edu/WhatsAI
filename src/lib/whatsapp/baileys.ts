@@ -59,6 +59,7 @@ let onMessageReceived: MessageHandler | null = null
 let onStatusChange: StatusHandler | null = null
 
 export function setMessageHandler(handler: MessageHandler) {
+    console.log('📬 Message handler registered!')
     onMessageReceived = handler
 }
 
@@ -169,11 +170,19 @@ export async function initWhatsAppSession(
 
     // Handle incoming messages
     socket.ev.on('messages.upsert', async ({ messages, type }) => {
-        if (type !== 'notify') return
+        console.log(`📨 messages.upsert event received for ${agentId} - type: ${type}, count: ${messages.length}`)
+        if (type !== 'notify') {
+            console.log('⏭️ Skipping non-notify message type')
+            return
+        }
 
         for (const msg of messages) {
+            console.log(`📩 Processing message - fromMe: ${msg.key.fromMe}, remoteJid: ${msg.key.remoteJid}`)
             // Ignore messages from self
-            if (msg.key.fromMe) continue
+            if (msg.key.fromMe) {
+                console.log('⏭️ Skipping self message')
+                continue
+            }
 
             // Extract message content
             const messageContent = msg.message
@@ -217,11 +226,15 @@ export async function initWhatsAppSession(
 
             // Call message handler
             if (onMessageReceived) {
+                console.log(`🤖 Calling message handler for agent ${agentId}`)
                 try {
                     await onMessageReceived(agentId, whatsappMessage)
+                    console.log(`✅ Message handler completed for agent ${agentId}`)
                 } catch (error) {
-                    console.error('Error handling message:', error)
+                    console.error('❌ Error handling message:', error)
                 }
+            } else {
+                console.warn('⚠️ No message handler registered!')
             }
         }
     })

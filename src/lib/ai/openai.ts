@@ -20,6 +20,7 @@ export interface GenerateResponseOptions {
     agentName?: string
     useEmojis?: boolean
     language?: string
+    products?: Array<{ name: string; price_fcfa: number; description: string | null }>
 }
 
 export interface AIResponse {
@@ -47,7 +48,17 @@ export async function generateAIResponse(
         agentName = 'Assistant',
         useEmojis = true,
         language = 'fr',
+        products = [],
     } = options
+
+    // Build products catalog text
+    let productsCatalog = ''
+    if (products.length > 0) {
+        productsCatalog = `\n\nCatalogue de produits/services disponibles:
+${products.map(p => `- ${p.name}: ${p.price_fcfa.toLocaleString('fr-FR')} FCFA${p.description ? ` - ${p.description}` : ''}`).join('\n')}
+
+Tu peux mentionner ces produits quand c'est pertinent et aider les clients à passer commande.`
+    }
 
     // Build the system message
     const enhancedSystemPrompt = `${systemPrompt}
@@ -58,7 +69,7 @@ Instructions supplémentaires:
 - ${useEmojis ? 'Utilise des emojis de manière appropriée pour rendre la conversation plus chaleureuse.' : 'N\'utilise pas d\'emojis.'}
 - Réponds principalement en ${language === 'fr' ? 'français' : language}.
 - Garde tes réponses concises (adaptées à WhatsApp).
-- Si tu ne peux pas aider avec quelque chose, suggère poliment de contacter un humain.`
+- Si tu ne peux pas aider avec quelque chose, suggère poliment de contacter un humain.${productsCatalog}`
 
     // Build messages array
     const messages: OpenAI.ChatCompletionMessageParam[] = [

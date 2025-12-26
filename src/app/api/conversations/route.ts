@@ -1,45 +1,61 @@
 import { NextRequest } from 'next/server'
 import { createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
 
-// GET /api/conversations - List all conversations for current user
 export async function GET(request: NextRequest) {
     const supabase = await createApiClient()
     const { user, error: authError } = await getAuthUser(supabase)
 
-    if (authError) {
-        return errorResponse(authError, 401)
+    if (authError || !user) {
+        return errorResponse('Unauthorized', 401)
     }
 
-    // Get query params
-    const { searchParams } = new URL(request.url)
-    const agentId = searchParams.get('agent_id')
-    const status = searchParams.get('status')
-    const limit = parseInt(searchParams.get('limit') || '50')
-    const offset = parseInt(searchParams.get('offset') || '0')
+    try {
+        // Get user's conversations with agent info and message counts
+        const { data: conversations, error } = await supabase
+            .from('conversations')
+            .select(`
+                id,
+                contact_phone,
+                contact_push_name,
+                status,
+                created_at,
+                updated_at,
+                agent:agents(id, name)
+            `)
+            .eq('user_id', user.id)
+            .order('updated_at', { ascending: false })
 
-    let query = supabase
-        .from('conversations')
-        .select(`
-      *,
-      agent:agents(id, name, avatar_url)
-    `)
-        .eq('user_id', user!.id)
-        .order('last_message_at', { ascending: false, nullsFirst: false })
-        .range(offset, offset + limit - 1)
+        if (error) {
+            console.error('Error fetching conversations:', error)
+            return errorResponse(error.message, 500)
+        }
 
-    if (agentId) {
-        query = query.eq('agent_id', agentId)
+        // Get message counts and last message for each conversation
+        const conversationsWithDetails = await Promise.all((conversations || []).map(async (conv: any) => {
+            const { count } = await supabase
+                .from('messages')
+                .select('*', { count: 'exact', head: true })
+                .eq('conversation_id', conv.id)
+
+            const { data: lastMsg } = await supabase
+                .from('messages')
+                .select('content, created_at')
+                .eq('conversation_id', conv.id)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .single()
+
+            return {
+                ...conv,
+                messages_count: count || 0,
+                last_message: lastMsg?.content || '',
+                last_message_at: lastMsg?.created_at || conv.updated_at
+            }
+        }))
+
+        return successResponse({ conversations: conversationsWithDetails })
+    } catch (err) {
+        console.error('Error in conversations API:', err)
+        return errorResponse('Erreur serveur', 500)
     }
-
-    if (status) {
-        query = query.eq('status', status)
-    }
-
-    const { data: conversations, error, count } = await query
-
-    if (error) {
-        return errorResponse(error.message, 500)
-    }
-
-    return successResponse({ conversations, count })
 }

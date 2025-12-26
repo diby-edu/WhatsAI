@@ -22,6 +22,14 @@ export async function GET(
         .single()
 
     if (error) {
+        console.error('FETCH AGENT ERROR:', error)
+        console.log('User ID:', user!.id)
+        console.log('Requested Agent ID:', id)
+
+        // Debug: Check if agent exists at all (ignoring user_id)
+        const { data: anyAgent } = await supabase.from('agents').select('user_id').eq('id', id).single()
+        console.log('Agent Real Owner:', anyAgent?.user_id)
+
         return errorResponse('Agent non trouvé', 404)
     }
 

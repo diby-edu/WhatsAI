@@ -1,19 +1,15 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { CreditCard, Users, TrendingUp, Calendar } from 'lucide-react'
+import { CreditCard, Users, TrendingUp, Calendar, FileText } from 'lucide-react'
 
-const subscriptions = [
-    { id: 1, user: 'Kouassi Jean', plan: 'Pro', amount: '35,000 FCFA', status: 'active', startDate: '2024-12-01', endDate: '2025-01-01' },
-    { id: 2, user: 'Aminata Diallo', plan: 'Starter', amount: '15,000 FCFA', status: 'active', startDate: '2024-12-15', endDate: '2025-01-15' },
-    { id: 3, user: 'Mohamed Traoré', plan: 'Business', amount: '85,000 FCFA', status: 'active', startDate: '2024-12-10', endDate: '2025-01-10' },
-    { id: 4, user: 'Fatou Konaté', plan: 'Free', amount: '0 FCFA', status: 'active', startDate: '2024-12-20', endDate: '—' },
-]
+// Empty state until real subscription data API is created
+const subscriptions: any[] = []
 
 const stats = [
-    { label: 'Abonnements actifs', value: '847', icon: Users, color: '#10b981' },
-    { label: 'Revenus mensuels', value: '4.2M FCFA', icon: TrendingUp, color: '#a855f7' },
-    { label: 'Nouveaux ce mois', value: '+124', icon: CreditCard, color: '#f59e0b' },
+    { label: 'Abonnements actifs', value: '0', icon: Users, color: '#10b981' },
+    { label: 'Revenus mensuels', value: '0 FCFA', icon: TrendingUp, color: '#a855f7' },
+    { label: 'Nouveaux ce mois', value: '0', icon: CreditCard, color: '#f59e0b' },
 ]
 
 export default function AdminSubscriptionsPage() {
@@ -66,7 +62,8 @@ export default function AdminSubscriptionsPage() {
                 backdropFilter: 'blur(20px)',
                 border: '1px solid rgba(148, 163, 184, 0.1)',
                 borderRadius: 20,
-                overflow: 'hidden'
+                overflow: 'hidden',
+                minHeight: 300
             }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
@@ -87,44 +84,63 @@ export default function AdminSubscriptionsPage() {
                         </tr>
                     </thead>
                     <tbody>
-                        {subscriptions.map((sub) => (
-                            <tr key={sub.id}>
-                                <td style={{ padding: '16px 24px', borderBottom: '1px solid rgba(148, 163, 184, 0.05)', color: 'white', fontWeight: 500 }}>
-                                    {sub.user}
-                                </td>
-                                <td style={{ padding: '16px 24px', borderBottom: '1px solid rgba(148, 163, 184, 0.05)' }}>
-                                    <span style={{
-                                        padding: '6px 14px',
-                                        borderRadius: 100,
-                                        fontSize: 12,
-                                        fontWeight: 600,
-                                        background: sub.plan === 'Business' ? 'rgba(168, 85, 247, 0.15)' : sub.plan === 'Pro' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(51, 65, 85, 0.5)',
-                                        color: sub.plan === 'Business' ? '#c084fc' : sub.plan === 'Pro' ? '#34d399' : '#94a3b8'
-                                    }}>
-                                        {sub.plan}
-                                    </span>
-                                </td>
-                                <td style={{ padding: '16px 24px', borderBottom: '1px solid rgba(148, 163, 184, 0.05)', color: '#34d399', fontWeight: 600 }}>
-                                    {sub.amount}
-                                </td>
-                                <td style={{ padding: '16px 24px', borderBottom: '1px solid rgba(148, 163, 184, 0.05)' }}>
-                                    <span style={{
-                                        padding: '6px 14px',
-                                        borderRadius: 100,
-                                        fontSize: 12,
-                                        fontWeight: 600,
-                                        background: 'rgba(34, 197, 94, 0.15)',
-                                        color: '#4ade80'
-                                    }}>Actif</span>
-                                </td>
-                                <td style={{ padding: '16px 24px', borderBottom: '1px solid rgba(148, 163, 184, 0.05)', color: '#94a3b8' }}>
-                                    {sub.startDate}
-                                </td>
-                                <td style={{ padding: '16px 24px', borderBottom: '1px solid rgba(148, 163, 184, 0.05)', color: '#94a3b8' }}>
-                                    {sub.endDate}
+                        {subscriptions.length === 0 ? (
+                            <tr>
+                                <td colSpan={6} style={{ padding: 48, textAlign: 'center' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+                                        <div style={{
+                                            width: 64, height: 64, borderRadius: '50%', background: 'rgba(148, 163, 184, 0.1)',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                        }}>
+                                            <FileText style={{ width: 32, height: 32, color: '#64748b' }} />
+                                        </div>
+                                        <div>
+                                            <h3 style={{ color: 'white', fontWeight: 600, marginBottom: 4 }}>Aucun abonnement</h3>
+                                            <p style={{ color: '#64748b', fontSize: 14 }}>Les abonnements apparaîtront ici une fois créés.</p>
+                                        </div>
+                                    </div>
                                 </td>
                             </tr>
-                        ))}
+                        ) : (
+                            subscriptions.map((sub) => (
+                                <tr key={sub.id}>
+                                    <td style={{ padding: '16px 24px', borderBottom: '1px solid rgba(148, 163, 184, 0.05)', color: 'white', fontWeight: 500 }}>
+                                        {sub.user}
+                                    </td>
+                                    <td style={{ padding: '16px 24px', borderBottom: '1px solid rgba(148, 163, 184, 0.05)' }}>
+                                        <span style={{
+                                            padding: '6px 14px',
+                                            borderRadius: 100,
+                                            fontSize: 12,
+                                            fontWeight: 600,
+                                            background: 'rgba(51, 65, 85, 0.5)',
+                                            color: '#94a3b8'
+                                        }}>
+                                            {sub.plan}
+                                        </span>
+                                    </td>
+                                    <td style={{ padding: '16px 24px', borderBottom: '1px solid rgba(148, 163, 184, 0.05)', color: '#34d399', fontWeight: 600 }}>
+                                        {sub.amount}
+                                    </td>
+                                    <td style={{ padding: '16px 24px', borderBottom: '1px solid rgba(148, 163, 184, 0.05)' }}>
+                                        <span style={{
+                                            padding: '6px 14px',
+                                            borderRadius: 100,
+                                            fontSize: 12,
+                                            fontWeight: 600,
+                                            background: 'rgba(34, 197, 94, 0.15)',
+                                            color: '#4ade80'
+                                        }}>Actif</span>
+                                    </td>
+                                    <td style={{ padding: '16px 24px', borderBottom: '1px solid rgba(148, 163, 184, 0.05)', color: '#94a3b8' }}>
+                                        {sub.startDate}
+                                    </td>
+                                    <td style={{ padding: '16px 24px', borderBottom: '1px solid rgba(148, 163, 184, 0.05)', color: '#94a3b8' }}>
+                                        {sub.endDate}
+                                    </td>
+                                </tr>
+                            ))
+                        )}
                     </tbody>
                 </table>
             </div>
