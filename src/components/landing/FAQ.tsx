@@ -280,41 +280,8 @@ export default function FAQ() {
                         <FAQItem key={index} faq={faq} index={index} />
                     ))}
                 </div>
-
-                {/* Contact CTA */}
-                <motion.div
-                    initial={{ opacity: 0, y: 40 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    style={{
-                        marginTop: 48,
-                        textAlign: 'center',
-                        padding: '32px',
-                        borderRadius: 20,
-                        background: 'rgba(30, 41, 59, 0.3)',
-                        border: '1px solid rgba(148, 163, 184, 0.1)'
-                    }}
-                >
-                    <p style={{ color: '#94a3b8', marginBottom: 12 }}>
-                        Vous avez d'autres questions ?
-                    </p>
-                    <a
-                        href="mailto:support@whatsai.com"
-                        style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 8,
-                            color: '#34d399',
-                            fontWeight: 600,
-                            textDecoration: 'none',
-                            fontSize: 16
-                        }}
-                    >
-                        <MessageCircle style={{ width: 18, height: 18 }} />
-                        Contactez notre équipe
-                    </a>
-                </motion.div>
             </div>
         </section>
     )
 }
+

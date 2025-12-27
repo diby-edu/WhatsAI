@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
-import { MessageCircle, Menu, X, ChevronDown, Sparkles } from 'lucide-react'
+import { MessageCircle, Menu, X, ChevronDown, Sparkles, LayoutDashboard } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 const navLinks = [
     {
@@ -11,12 +12,10 @@ const navLinks = [
         href: '#features',
         children: [
             { label: 'Fonctionnalités', href: '#features' },
-            { label: 'Intégrations', href: '#integrations' },
             { label: 'Comment ça marche', href: '#how-it-works' },
         ]
     },
     { label: 'Tarifs', href: '#pricing' },
-    { label: 'Blog', href: '/blog' },
     { label: 'FAQ', href: '#faq' },
 ]
 
@@ -25,6 +24,7 @@ export default function Navbar() {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
     const [activeDropdown, setActiveDropdown] = useState<string | null>(null)
     const [isMobile, setIsMobile] = useState(false)
+    const [isAuthenticated, setIsAuthenticated] = useState(false)
 
     useEffect(() => {
         const handleScroll = () => setScrolled(window.scrollY > 20)
@@ -35,6 +35,19 @@ export default function Navbar() {
 
         window.addEventListener('scroll', handleScroll)
         window.addEventListener('resize', checkMobile)
+
+        // Check authentication status
+        const checkAuth = async () => {
+            try {
+                const supabase = createClient()
+                const { data: { session } } = await supabase.auth.getSession()
+                setIsAuthenticated(!!session)
+            } catch (error) {
+                console.error('Auth check error:', error)
+            }
+        }
+        checkAuth()
+
         return () => {
             window.removeEventListener('scroll', handleScroll)
             window.removeEventListener('resize', checkMobile)
@@ -190,41 +203,71 @@ export default function Navbar() {
                         {/* CTA Buttons - Desktop */}
                         {!isMobile && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                <Link
-                                    href="/login"
-                                    style={{
-                                        padding: '10px 20px',
-                                        color: '#cbd5e1',
-                                        fontWeight: 500,
-                                        textDecoration: 'none',
-                                        transition: 'color 0.2s ease'
-                                    }}
-                                >
-                                    Connexion
-                                </Link>
-                                <Link href="/register" style={{ textDecoration: 'none' }}>
-                                    <motion.button
-                                        whileHover={{ scale: 1.02 }}
-                                        whileTap={{ scale: 0.98 }}
-                                        style={{
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            gap: 8,
-                                            padding: '12px 24px',
-                                            fontWeight: 600,
-                                            fontSize: 15,
-                                            borderRadius: 14,
-                                            border: 'none',
-                                            cursor: 'pointer',
-                                            background: 'linear-gradient(135deg, #10b981 0%, #059669 50%, #047857 100%)',
-                                            color: 'white',
-                                            boxShadow: '0 4px 20px rgba(16, 185, 129, 0.4)'
-                                        }}
-                                    >
-                                        <Sparkles style={{ width: 16, height: 16 }} />
-                                        Essai gratuit
-                                    </motion.button>
-                                </Link>
+                                {isAuthenticated ? (
+                                    // User is logged in - show Dashboard button
+                                    <Link href="/dashboard" style={{ textDecoration: 'none' }}>
+                                        <motion.button
+                                            whileHover={{ scale: 1.02 }}
+                                            whileTap={{ scale: 0.98 }}
+                                            style={{
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: 8,
+                                                padding: '12px 24px',
+                                                fontWeight: 600,
+                                                fontSize: 15,
+                                                borderRadius: 14,
+                                                border: 'none',
+                                                cursor: 'pointer',
+                                                background: 'linear-gradient(135deg, #10b981 0%, #059669 50%, #047857 100%)',
+                                                color: 'white',
+                                                boxShadow: '0 4px 20px rgba(16, 185, 129, 0.4)'
+                                            }}
+                                        >
+                                            <LayoutDashboard style={{ width: 16, height: 16 }} />
+                                            Dashboard
+                                        </motion.button>
+                                    </Link>
+                                ) : (
+                                    // User is not logged in - show Connexion and Essai gratuit
+                                    <>
+                                        <Link
+                                            href="/login"
+                                            style={{
+                                                padding: '10px 20px',
+                                                color: '#cbd5e1',
+                                                fontWeight: 500,
+                                                textDecoration: 'none',
+                                                transition: 'color 0.2s ease'
+                                            }}
+                                        >
+                                            Connexion
+                                        </Link>
+                                        <Link href="/register" style={{ textDecoration: 'none' }}>
+                                            <motion.button
+                                                whileHover={{ scale: 1.02 }}
+                                                whileTap={{ scale: 0.98 }}
+                                                style={{
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    gap: 8,
+                                                    padding: '12px 24px',
+                                                    fontWeight: 600,
+                                                    fontSize: 15,
+                                                    borderRadius: 14,
+                                                    border: 'none',
+                                                    cursor: 'pointer',
+                                                    background: 'linear-gradient(135deg, #10b981 0%, #059669 50%, #047857 100%)',
+                                                    color: 'white',
+                                                    boxShadow: '0 4px 20px rgba(16, 185, 129, 0.4)'
+                                                }}
+                                            >
+                                                <Sparkles style={{ width: 16, height: 16 }} />
+                                                Essai gratuit
+                                            </motion.button>
+                                        </Link>
+                                    </>
+                                )}
                             </div>
                         )}
 
@@ -362,46 +405,75 @@ export default function Navbar() {
                                 </nav>
 
                                 <div style={{ marginTop: 32, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                    <Link
-                                        href="/login"
-                                        onClick={() => setMobileMenuOpen(false)}
-                                        style={{
-                                            display: 'block',
-                                            width: '100%',
-                                            padding: '12px',
-                                            textAlign: 'center',
-                                            color: '#e2e8f0',
-                                            background: 'rgba(255, 255, 255, 0.05)',
-                                            borderRadius: 12,
-                                            textDecoration: 'none'
-                                        }}
-                                    >
-                                        Connexion
-                                    </Link>
-                                    <Link
-                                        href="/register"
-                                        onClick={() => setMobileMenuOpen(false)}
-                                        style={{ textDecoration: 'none' }}
-                                    >
-                                        <button style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            gap: 8,
-                                            width: '100%',
-                                            padding: '12px 24px',
-                                            fontWeight: 600,
-                                            fontSize: 15,
-                                            borderRadius: 14,
-                                            border: 'none',
-                                            cursor: 'pointer',
-                                            background: 'linear-gradient(135deg, #10b981 0%, #059669 50%, #047857 100%)',
-                                            color: 'white'
-                                        }}>
-                                            <Sparkles style={{ width: 16, height: 16 }} />
-                                            Essai gratuit
-                                        </button>
-                                    </Link>
+                                    {isAuthenticated ? (
+                                        <Link
+                                            href="/dashboard"
+                                            onClick={() => setMobileMenuOpen(false)}
+                                            style={{ textDecoration: 'none' }}
+                                        >
+                                            <button style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                gap: 8,
+                                                width: '100%',
+                                                padding: '12px 24px',
+                                                fontWeight: 600,
+                                                fontSize: 15,
+                                                borderRadius: 14,
+                                                border: 'none',
+                                                cursor: 'pointer',
+                                                background: 'linear-gradient(135deg, #10b981 0%, #059669 50%, #047857 100%)',
+                                                color: 'white'
+                                            }}>
+                                                <LayoutDashboard style={{ width: 16, height: 16 }} />
+                                                Dashboard
+                                            </button>
+                                        </Link>
+                                    ) : (
+                                        <>
+                                            <Link
+                                                href="/login"
+                                                onClick={() => setMobileMenuOpen(false)}
+                                                style={{
+                                                    display: 'block',
+                                                    width: '100%',
+                                                    padding: '12px',
+                                                    textAlign: 'center',
+                                                    color: '#e2e8f0',
+                                                    background: 'rgba(255, 255, 255, 0.05)',
+                                                    borderRadius: 12,
+                                                    textDecoration: 'none'
+                                                }}
+                                            >
+                                                Connexion
+                                            </Link>
+                                            <Link
+                                                href="/register"
+                                                onClick={() => setMobileMenuOpen(false)}
+                                                style={{ textDecoration: 'none' }}
+                                            >
+                                                <button style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    gap: 8,
+                                                    width: '100%',
+                                                    padding: '12px 24px',
+                                                    fontWeight: 600,
+                                                    fontSize: 15,
+                                                    borderRadius: 14,
+                                                    border: 'none',
+                                                    cursor: 'pointer',
+                                                    background: 'linear-gradient(135deg, #10b981 0%, #059669 50%, #047857 100%)',
+                                                    color: 'white'
+                                                }}>
+                                                    <Sparkles style={{ width: 16, height: 16 }} />
+                                                    Essai gratuit
+                                                </button>
+                                            </Link>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                         </motion.div>
