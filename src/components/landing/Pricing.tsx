@@ -1,21 +1,21 @@
 'use client'
 
-import { motion, useInView } from 'framer-motion'
-import { useRef, useState, useEffect } from 'react'
-import { Check, Sparkles, Zap, Crown, Building2, ArrowRight, Star, Loader2, Gift } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { Check, Zap, Crown, Sparkles, ArrowRight, Gift } from 'lucide-react'
 import Link from 'next/link'
+import { useState, useEffect } from 'react'
 
 interface Plan {
     id: string
     name: string
-    price: number
-    credits: number
-    features: string[]
-    billing_cycle: string
+    price_monthly: number
+    price_yearly: number
+    credits_per_month: number
     max_agents: number
     max_whatsapp_numbers: number
     is_popular: boolean
     description: string
+    features: string[]
 }
 
 // Fallback plans if API fails
@@ -23,381 +23,434 @@ const fallbackPlans: Plan[] = [
     {
         id: 'starter',
         name: 'Starter',
-        price: 5000,
-        credits: 500,
-        features: ['500 crédits/mois', '2 agents', 'Support email', 'Statistiques de base'],
-        billing_cycle: 'monthly',
+        price_monthly: 5000,
+        price_yearly: 50000,
+        credits_per_month: 500,
         max_agents: 2,
         max_whatsapp_numbers: 1,
         is_popular: false,
-        description: 'Parfait pour démarrer'
+        description: 'Parfait pour démarrer',
+        features: ['500 crédits/mois', '2 agents IA', '1 numéro WhatsApp', 'Support email', 'Analytics de base']
     },
     {
         id: 'pro',
         name: 'Pro',
-        price: 15000,
-        credits: 2000,
-        features: ['2000 crédits/mois', '5 agents', 'Support prioritaire', 'Analytics avancés'],
-        billing_cycle: 'monthly',
+        price_monthly: 15000,
+        price_yearly: 150000,
+        credits_per_month: 2000,
         max_agents: 5,
-        max_whatsapp_numbers: 2,
+        max_whatsapp_numbers: 3,
         is_popular: true,
-        description: 'Le plus populaire'
+        description: 'Pour les entreprises en croissance',
+        features: ['2000 crédits/mois', '5 agents IA', '3 numéros WhatsApp', 'Support prioritaire', 'Analytics avancés', 'API Access']
     },
     {
         id: 'business',
         name: 'Business',
-        price: 45000,
-        credits: 10000,
-        features: ['10000 crédits/mois', 'Agents illimités', 'Support téléphonique', 'API access', 'Formation incluse'],
-        billing_cycle: 'monthly',
+        price_monthly: 35000,
+        price_yearly: 350000,
+        credits_per_month: 10000,
         max_agents: -1,
-        max_whatsapp_numbers: 5,
+        max_whatsapp_numbers: 10,
         is_popular: false,
-        description: 'Pour les équipes'
+        description: 'Solution complète',
+        features: ['10000 crédits/mois', 'Agents illimités', '10 numéros WhatsApp', 'Support dédié 24/7', 'Formation incluse', 'API Premium']
     }
 ]
 
-const getIconForPlan = (name: string) => {
-    const lowerName = name.toLowerCase()
-    if (lowerName.includes('business') || lowerName.includes('enterprise')) return Building2
-    if (lowerName.includes('pro')) return Crown
-    return Zap
+const planIcons = {
+    'Starter': Zap,
+    'Pro': Crown,
+    'Business': Sparkles
 }
 
-const getGradientsForPlan = (name: string, index: number) => {
-    const lowerName = name.toLowerCase()
-
-    if (lowerName.includes('business') || lowerName.includes('enterprise')) {
-        return {
-            gradient: 'from-violet-400 via-purple-500 to-fuchsia-600',
-            iconGradient: 'from-violet-400 to-purple-600',
-            borderGradient: 'from-violet-400/50 via-purple-500/50 to-fuchsia-600/50'
-        }
-    }
-    if (lowerName.includes('pro')) {
-        return {
-            gradient: 'from-emerald-400 via-green-500 to-teal-600',
-            iconGradient: 'from-emerald-400 to-green-600',
-            borderGradient: 'from-emerald-400/60 via-green-500/60 to-teal-600/60'
-        }
-    }
-    return {
-        gradient: 'from-sky-400 via-blue-500 to-indigo-600',
-        iconGradient: 'from-sky-400 to-blue-600',
-        borderGradient: 'from-sky-400/50 via-blue-500/50 to-indigo-600/50'
-    }
-}
-
-const PricingCard = ({ plan, index, isYearly }: { plan: Plan, index: number, isYearly: boolean }) => {
-    const ref = useRef(null)
-    const isInView = useInView(ref, { once: true, margin: "-50px" })
-    const yearlyPrice = Math.round(plan.price * 10)
-    const savings = Math.round((plan.price * 12 - yearlyPrice) / 1000)
-
-    const Icon = getIconForPlan(plan.name)
-    const gradients = getGradientsForPlan(plan.name, index)
-
-    return (
-        <motion.div
-            ref={ref}
-            initial={{ opacity: 0, y: 50, scale: 0.95 }}
-            animate={isInView ? { opacity: 1, y: 0, scale: 1 } : {}}
-            transition={{ duration: 0.6, delay: index * 0.15, ease: "easeOut" }}
-            className={`relative group ${plan.is_popular ? 'lg:-mt-6 lg:mb-6 z-10' : ''}`}
-        >
-            {/* Popular Badge */}
-            {plan.is_popular && (
-                <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.5 }}
-                    className="absolute -top-5 left-1/2 -translate-x-1/2 z-20"
-                >
-                    <div className="flex items-center gap-2 px-5 py-2 rounded-full bg-gradient-to-r from-emerald-500 to-green-600 text-white text-sm font-bold shadow-lg shadow-emerald-500/30">
-                        <Star className="w-4 h-4 fill-current" />
-                        Plus populaire
-                        <Star className="w-4 h-4 fill-current" />
-                    </div>
-                </motion.div>
-            )}
-
-            {/* Animated gradient border */}
-            <div className={`absolute -inset-[2px] rounded-[32px] bg-gradient-to-b ${gradients.borderGradient} opacity-0 group-hover:opacity-100 transition-all duration-500 ${plan.is_popular ? 'opacity-100' : ''}`} />
-
-            {/* Card */}
-            <div className={`relative h-full rounded-[30px] overflow-hidden ${plan.is_popular
-                ? 'bg-gradient-to-b from-slate-800 via-slate-800/95 to-slate-900'
-                : 'bg-gradient-to-b from-slate-900 via-slate-800/80 to-slate-900'
-                } backdrop-blur-xl border border-white/[0.05]`}>
-
-                {/* Top glow for popular */}
-                {plan.is_popular && (
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-32 bg-gradient-to-b from-emerald-500/20 to-transparent pointer-events-none" />
-                )}
-
-                <div className="relative p-8 lg:p-10 flex flex-col h-full">
-                    {/* Header */}
-                    <div className="mb-8">
-                        <div className="relative mb-6">
-                            <div className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${gradients.iconGradient} blur-xl opacity-40`} />
-                            <div className={`relative w-16 h-16 rounded-2xl bg-gradient-to-br ${gradients.iconGradient} flex items-center justify-center shadow-xl`}>
-                                <Icon className="w-8 h-8 text-white" />
-                            </div>
-                        </div>
-
-                        <h3 className={`text-2xl font-bold bg-gradient-to-r ${gradients.gradient} bg-clip-text text-transparent mb-2`}>
-                            {plan.name}
-                        </h3>
-                        <p className="text-slate-400 text-sm">{plan.description || 'Mensuel'}</p>
-                    </div>
-
-                    {/* Price */}
-                    <div className="mb-8">
-                        <div className="flex items-baseline gap-1">
-                            <span className="text-5xl lg:text-6xl font-bold text-white tracking-tight">
-                                {(isYearly ? yearlyPrice : plan.price).toLocaleString('fr-FR')}
-                            </span>
-                            <span className="text-lg text-slate-400 font-medium">
-                                FCFA{isYearly ? '/an' : '/mois'}
-                            </span>
-                        </div>
-                        {isYearly && (
-                            <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                                <span className="text-sm font-medium text-emerald-400">
-                                    Économisez {savings}K FCFA
-                                </span>
-                            </div>
-                        )}
-                        <p className="mt-3 text-sm text-slate-500">
-                            {plan.credits.toLocaleString()} crédits/mois inclus
-                        </p>
-                    </div>
-
-                    {/* Features */}
-                    <ul className="space-y-4 mb-10 flex-1">
-                        {plan.features.map((feature, i) => (
-                            <motion.li
-                                key={i}
-                                initial={{ opacity: 0, x: -10 }}
-                                animate={isInView ? { opacity: 1, x: 0 } : {}}
-                                transition={{ delay: 0.3 + i * 0.05 }}
-                                className="flex items-start gap-3"
-                            >
-                                <div className={`w-5 h-5 rounded-full bg-gradient-to-br ${gradients.iconGradient} flex items-center justify-center flex-shrink-0 mt-0.5 shadow-lg`}>
-                                    <Check className="w-3 h-3 text-white" strokeWidth={3} />
-                                </div>
-                                <span className="text-slate-300 text-sm leading-relaxed">{feature}</span>
-                            </motion.li>
-                        ))}
-                    </ul>
-
-                    {/* CTA Button */}
-                    <Link href={`/register?plan=${plan.id}`} className="block">
-                        <motion.button
-                            whileHover={{ scale: 1.02, y: -2 }}
-                            whileTap={{ scale: 0.98 }}
-                            className={`w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all duration-300 ${plan.is_popular
-                                ? `bg-gradient-to-r ${gradients.gradient} text-white shadow-xl shadow-green-500/20 hover:shadow-green-500/30`
-                                : 'bg-white/5 border border-white/10 text-white hover:bg-white/10 hover:border-white/20'
-                                }`}
-                        >
-                            Choisir ce plan
-                            <ArrowRight className="w-5 h-5" />
-                        </motion.button>
-                    </Link>
-                </div>
-            </div>
-        </motion.div>
-    )
-}
-
-// Free plan card component
-const FreePlanCard = () => {
-    const ref = useRef(null)
-    const isInView = useInView(ref, { once: true, margin: "-50px" })
-
-    return (
-        <motion.div
-            ref={ref}
-            initial={{ opacity: 0, y: 30 }}
-            animate={isInView ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.5 }}
-            className="mb-12"
-        >
-            <div className="max-w-md mx-auto rounded-2xl bg-gradient-to-r from-slate-800/50 to-slate-700/50 border border-slate-600/30 p-6">
-                <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-slate-500 to-slate-600 flex items-center justify-center">
-                        <Gift className="w-6 h-6 text-white" />
-                    </div>
-                    <div className="flex-1">
-                        <h3 className="text-lg font-bold text-white">Plan Gratuit</h3>
-                        <p className="text-sm text-slate-400">100 crédits offerts pour tester</p>
-                    </div>
-                    <Link href="/register">
-                        <motion.button
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            className="px-6 py-2 rounded-xl bg-white/10 border border-white/20 text-white font-medium hover:bg-white/20 transition-all"
-                        >
-                            Essayer
-                        </motion.button>
-                    </Link>
-                </div>
-            </div>
-        </motion.div>
-    )
+const planGradients = {
+    'Starter': { bg: 'linear-gradient(135deg, #3b82f6, #60a5fa)', glow: 'rgba(59, 130, 246, 0.3)' },
+    'Pro': { bg: 'linear-gradient(135deg, #25D366, #10b981)', glow: 'rgba(37, 211, 102, 0.4)' },
+    'Business': { bg: 'linear-gradient(135deg, #f59e0b, #f97316)', glow: 'rgba(245, 158, 11, 0.3)' }
 }
 
 export default function Pricing() {
     const [isYearly, setIsYearly] = useState(false)
-    const [plans, setPlans] = useState<Plan[]>([])
-    const [loading, setLoading] = useState(true)
-    const headerRef = useRef(null)
-    const isHeaderInView = useInView(headerRef, { once: true })
+    const [plans, setPlans] = useState<Plan[]>(fallbackPlans)
 
     useEffect(() => {
-        fetchPlans()
+        fetch('/api/plans')
+            .then(res => res.json())
+            .then(data => {
+                if (data.plans && data.plans.length > 0) {
+                    const formattedPlans = data.plans.map((p: any) => ({
+                        ...p,
+                        features: p.features || [
+                            `${p.credits_per_month} crédits/mois`,
+                            `${p.max_agents === -1 ? 'Illimité' : p.max_agents} agents`,
+                            `${p.max_whatsapp_numbers} numéro(s) WhatsApp`,
+                            p.is_popular ? 'Support prioritaire' : 'Support email'
+                        ]
+                    }))
+                    setPlans(formattedPlans)
+                }
+            })
+            .catch(() => setPlans(fallbackPlans))
     }, [])
 
-    const fetchPlans = async () => {
-        try {
-            const res = await fetch('/api/plans')
-            const data = await res.json()
-
-            if (data.plans && data.plans.length > 0) {
-                // Filter out free plans (price = 0) for the main grid
-                const paidPlans = data.plans.filter((p: Plan) => p.price > 0)
-                setPlans(paidPlans)
-            } else {
-                setPlans(fallbackPlans)
-            }
-        } catch (err) {
-            console.error('Error fetching plans:', err)
-            setPlans(fallbackPlans)
-        } finally {
-            setLoading(false)
-        }
+    const formatPrice = (price: number) => {
+        return new Intl.NumberFormat('fr-FR').format(price)
     }
 
     return (
-        <section id="pricing" className="py-28 lg:py-36 relative overflow-hidden">
-            {/* Background decorations */}
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary-900/10 via-transparent to-transparent" />
-            <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-purple-500/5 rounded-full blur-3xl" />
-            <div className="absolute top-1/4 right-0 w-[400px] h-[400px] bg-cyan-500/5 rounded-full blur-3xl" />
+        <section id="pricing" style={{
+            padding: '120px 24px',
+            background: 'linear-gradient(180deg, #020617 0%, #0f172a 50%, #020617 100%)',
+            position: 'relative',
+            overflow: 'hidden'
+        }}>
+            {/* Background glow */}
+            <div style={{
+                position: 'absolute',
+                top: '30%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                width: 800,
+                height: 800,
+                background: 'radial-gradient(circle, rgba(37, 211, 102, 0.08) 0%, transparent 70%)',
+                pointerEvents: 'none'
+            }} />
 
-            <div className="container relative z-10">
+            <div style={{ maxWidth: 1200, margin: '0 auto', position: 'relative', zIndex: 1 }}>
                 {/* Header */}
                 <motion.div
-                    ref={headerRef}
-                    initial={{ opacity: 0, y: 40 }}
-                    animate={isHeaderInView ? { opacity: 1, y: 0 } : {}}
-                    transition={{ duration: 0.8 }}
-                    className="text-center max-w-3xl mx-auto mb-16"
+                    initial={{ opacity: 0, y: 30 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.6 }}
+                    style={{ textAlign: 'center', marginBottom: 60 }}
                 >
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={isHeaderInView ? { opacity: 1, scale: 1 } : {}}
-                        transition={{ duration: 0.5, delay: 0.2 }}
-                        className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 mb-8 backdrop-blur-sm"
-                    >
-                        <Crown className="w-4 h-4 text-amber-400" />
-                        <span className="text-sm font-semibold bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent">
-                            Tarification simple
-                        </span>
-                    </motion.div>
-
-                    <h2 className="text-4xl lg:text-6xl font-bold mb-6 leading-tight">
-                        <span className="text-white">Des prix </span>
-                        <span className="bg-gradient-to-r from-primary-400 via-accent-400 to-cyan-400 bg-clip-text text-transparent">
-                            transparents
-                        </span>
+                    <h2 style={{
+                        fontSize: 'clamp(32px, 5vw, 48px)',
+                        fontWeight: 700,
+                        color: 'white',
+                        marginBottom: 16,
+                        lineHeight: 1.2
+                    }}>
+                        Des tarifs{' '}
+                        <span style={{
+                            background: 'linear-gradient(135deg, #25D366, #6ee7b7)',
+                            WebkitBackgroundClip: 'text',
+                            WebkitTextFillColor: 'transparent'
+                        }}>transparents</span>
                     </h2>
-
-                    <p className="text-xl text-slate-400 mb-10 leading-relaxed">
-                        Commencez gratuitement avec 100 crédits.
-                        <br className="hidden sm:block" />
-                        Évoluez selon vos besoins.
+                    <p style={{ fontSize: 18, color: '#94a3b8', maxWidth: 500, margin: '0 auto 32px' }}>
+                        Choisissez le plan adapté à votre activité. Changez à tout moment.
                     </p>
 
                     {/* Toggle */}
-                    <div className="inline-flex items-center gap-1 p-1.5 rounded-2xl bg-slate-800/80 border border-white/10 backdrop-blur-sm">
+                    <div style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 16,
+                        padding: 6,
+                        borderRadius: 100,
+                        background: 'rgba(30, 41, 59, 0.6)',
+                        border: '1px solid rgba(148, 163, 184, 0.1)'
+                    }}>
                         <button
                             onClick={() => setIsYearly(false)}
-                            className={`px-8 py-3 rounded-xl text-sm font-semibold transition-all duration-300 ${!isYearly
-                                ? 'bg-gradient-to-r from-primary-500 to-accent-500 text-white shadow-lg'
-                                : 'text-slate-400 hover:text-white'
-                                }`}
+                            style={{
+                                padding: '12px 24px',
+                                borderRadius: 100,
+                                border: 'none',
+                                background: !isYearly ? 'linear-gradient(135deg, #25D366, #128C7E)' : 'transparent',
+                                color: !isYearly ? 'white' : '#94a3b8',
+                                fontWeight: 600,
+                                fontSize: 14,
+                                cursor: 'pointer',
+                                transition: 'all 0.3s'
+                            }}
                         >
                             Mensuel
                         </button>
                         <button
                             onClick={() => setIsYearly(true)}
-                            className={`px-8 py-3 rounded-xl text-sm font-semibold transition-all duration-300 flex items-center gap-2 ${isYearly
-                                ? 'bg-gradient-to-r from-primary-500 to-accent-500 text-white shadow-lg'
-                                : 'text-slate-400 hover:text-white'
-                                }`}
+                            style={{
+                                padding: '12px 24px',
+                                borderRadius: 100,
+                                border: 'none',
+                                background: isYearly ? 'linear-gradient(135deg, #25D366, #128C7E)' : 'transparent',
+                                color: isYearly ? 'white' : '#94a3b8',
+                                fontWeight: 600,
+                                fontSize: 14,
+                                cursor: 'pointer',
+                                transition: 'all 0.3s',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 8
+                            }}
                         >
                             Annuel
-                            <span className="px-2 py-0.5 rounded-full bg-emerald-400/20 text-emerald-400 text-xs font-bold">
+                            <span style={{
+                                padding: '4px 10px',
+                                borderRadius: 100,
+                                background: 'rgba(245, 158, 11, 0.2)',
+                                color: '#f59e0b',
+                                fontSize: 12,
+                                fontWeight: 700
+                            }}>
                                 -17%
                             </span>
                         </button>
                     </div>
                 </motion.div>
 
-                {/* Free Plan */}
-                <FreePlanCard />
+                {/* Free trial banner */}
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 16,
+                        padding: '16px 32px',
+                        borderRadius: 100,
+                        background: 'linear-gradient(135deg, rgba(37, 211, 102, 0.1), rgba(16, 185, 129, 0.05))',
+                        border: '1px solid rgba(37, 211, 102, 0.2)',
+                        marginBottom: 48,
+                        maxWidth: 500,
+                        margin: '0 auto 48px'
+                    }}
+                >
+                    <Gift style={{ width: 24, height: 24, color: '#25D366' }} />
+                    <div style={{ color: 'white', fontWeight: 500 }}>
+                        <span style={{ color: '#25D366', fontWeight: 700 }}>100 crédits gratuits</span> pour tester
+                    </div>
+                    <Link href="/register" style={{ textDecoration: 'none' }}>
+                        <motion.span
+                            whileHover={{ x: 5 }}
+                            style={{ color: '#25D366', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                        >
+                            Essayer <ArrowRight style={{ width: 16, height: 16 }} />
+                        </motion.span>
+                    </Link>
+                </motion.div>
 
-                {/* Loading State */}
-                {loading ? (
-                    <div className="flex justify-center py-20">
-                        <Loader2 className="w-8 h-8 animate-spin text-primary-500" />
-                    </div>
-                ) : (
-                    /* Pricing Cards */
-                    <div className="grid lg:grid-cols-3 gap-6 lg:gap-8 max-w-6xl mx-auto items-start">
-                        {plans.map((plan, index) => (
-                            <PricingCard key={plan.id} plan={plan} index={index} isYearly={isYearly} />
-                        ))}
-                    </div>
-                )}
+                {/* Plans */}
+                <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                    gap: 32,
+                    alignItems: 'stretch'
+                }}>
+                    {plans.map((plan, index) => {
+                        const Icon = planIcons[plan.name as keyof typeof planIcons] || Zap
+                        const colors = planGradients[plan.name as keyof typeof planGradients] || planGradients.Starter
+                        const price = isYearly ? Math.round(plan.price_monthly * 10) : plan.price_monthly
+
+                        return (
+                            <motion.div
+                                key={plan.id}
+                                initial={{ opacity: 0, y: 40 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                viewport={{ once: true }}
+                                transition={{ duration: 0.5, delay: index * 0.15 }}
+                                whileHover={{ y: -10, transition: { duration: 0.2 } }}
+                                style={{
+                                    padding: 40,
+                                    borderRadius: 32,
+                                    background: plan.is_popular
+                                        ? 'linear-gradient(180deg, rgba(37, 211, 102, 0.1) 0%, rgba(15, 23, 42, 0.8) 100%)'
+                                        : 'rgba(15, 23, 42, 0.6)',
+                                    backdropFilter: 'blur(20px)',
+                                    border: plan.is_popular
+                                        ? '2px solid rgba(37, 211, 102, 0.4)'
+                                        : '1px solid rgba(148, 163, 184, 0.1)',
+                                    position: 'relative',
+                                    overflow: 'hidden',
+                                    display: 'flex',
+                                    flexDirection: 'column'
+                                }}
+                            >
+                                {/* Popular badge */}
+                                {plan.is_popular && (
+                                    <div style={{
+                                        position: 'absolute',
+                                        top: 24,
+                                        right: 24,
+                                        padding: '8px 16px',
+                                        borderRadius: 100,
+                                        background: 'linear-gradient(135deg, #25D366, #10b981)',
+                                        color: 'white',
+                                        fontSize: 12,
+                                        fontWeight: 700,
+                                        textTransform: 'uppercase',
+                                        letterSpacing: 1
+                                    }}>
+                                        Populaire
+                                    </div>
+                                )}
+
+                                {/* Icon & Name */}
+                                <div style={{
+                                    width: 64,
+                                    height: 64,
+                                    borderRadius: 20,
+                                    background: colors.bg,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    marginBottom: 24,
+                                    boxShadow: `0 15px 35px ${colors.glow}`
+                                }}>
+                                    <Icon style={{ width: 32, height: 32, color: 'white' }} />
+                                </div>
+
+                                <h3 style={{
+                                    fontSize: 24,
+                                    fontWeight: 700,
+                                    color: 'white',
+                                    marginBottom: 8
+                                }}>
+                                    {plan.name}
+                                </h3>
+                                <p style={{ fontSize: 14, color: '#64748b', marginBottom: 24 }}>
+                                    {plan.description}
+                                </p>
+
+                                {/* Price */}
+                                <div style={{ marginBottom: 32 }}>
+                                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                                        <span style={{
+                                            fontSize: 48,
+                                            fontWeight: 800,
+                                            background: plan.is_popular
+                                                ? 'linear-gradient(135deg, #25D366, #6ee7b7)'
+                                                : 'linear-gradient(135deg, #fff, #94a3b8)',
+                                            WebkitBackgroundClip: 'text',
+                                            WebkitTextFillColor: 'transparent'
+                                        }}>
+                                            {formatPrice(price)}
+                                        </span>
+                                        <span style={{ fontSize: 18, color: '#64748b', fontWeight: 500 }}>
+                                            FCFA/{isYearly ? 'an' : 'mois'}
+                                        </span>
+                                    </div>
+                                    <div style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>
+                                        {formatPrice(plan.credits_per_month)} crédits inclus
+                                    </div>
+                                </div>
+
+                                {/* Features */}
+                                <div style={{ flex: 1, marginBottom: 32 }}>
+                                    {plan.features.map((feature, i) => (
+                                        <div key={i} style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 12,
+                                            marginBottom: 14
+                                        }}>
+                                            <div style={{
+                                                width: 22,
+                                                height: 22,
+                                                borderRadius: '50%',
+                                                background: plan.is_popular
+                                                    ? 'rgba(37, 211, 102, 0.2)'
+                                                    : 'rgba(148, 163, 184, 0.1)',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center'
+                                            }}>
+                                                <Check style={{
+                                                    width: 14,
+                                                    height: 14,
+                                                    color: plan.is_popular ? '#25D366' : '#94a3b8'
+                                                }} />
+                                            </div>
+                                            <span style={{ fontSize: 15, color: '#e2e8f0' }}>
+                                                {feature}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* CTA Button */}
+                                <Link href="/register" style={{ textDecoration: 'none' }}>
+                                    <motion.button
+                                        whileHover={{ scale: 1.02 }}
+                                        whileTap={{ scale: 0.98 }}
+                                        style={{
+                                            width: '100%',
+                                            padding: '16px 24px',
+                                            borderRadius: 16,
+                                            border: plan.is_popular ? 'none' : '2px solid rgba(148, 163, 184, 0.2)',
+                                            background: plan.is_popular
+                                                ? 'linear-gradient(135deg, #25D366, #128C7E)'
+                                                : 'transparent',
+                                            color: plan.is_popular ? 'white' : '#e2e8f0',
+                                            fontWeight: 600,
+                                            fontSize: 16,
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            gap: 8
+                                        }}
+                                    >
+                                        Choisir {plan.name}
+                                        <ArrowRight style={{ width: 18, height: 18 }} />
+                                    </motion.button>
+                                </Link>
+                            </motion.div>
+                        )
+                    })}
+                </div>
 
                 {/* Enterprise CTA */}
                 <motion.div
-                    initial={{ opacity: 0, y: 40 }}
+                    initial={{ opacity: 0, y: 30 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
-                    transition={{ duration: 0.6, delay: 0.4 }}
-                    className="mt-20"
+                    style={{
+                        marginTop: 64,
+                        padding: '32px 48px',
+                        borderRadius: 24,
+                        background: 'rgba(30, 41, 59, 0.4)',
+                        border: '1px solid rgba(148, 163, 184, 0.1)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        flexWrap: 'wrap',
+                        gap: 24
+                    }}
                 >
-                    <div className="relative rounded-[28px] overflow-hidden">
-                        <div className="absolute inset-0 bg-gradient-to-r from-violet-500/30 via-fuchsia-500/30 to-pink-500/30" />
-
-                        <div className="relative m-[1px] rounded-[27px] bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-8 lg:p-10">
-                            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-                                <div className="text-center md:text-left">
-                                    <h3 className="text-2xl font-bold text-white mb-2">
-                                        Besoin d'une solution sur-mesure ?
-                                    </h3>
-                                    <p className="text-slate-400">
-                                        Contactez-nous pour un plan personnalisé adapté à votre entreprise.
-                                    </p>
-                                </div>
-                                <Link href="/contact">
-                                    <motion.button
-                                        whileHover={{ scale: 1.05 }}
-                                        whileTap={{ scale: 0.95 }}
-                                        className="px-8 py-4 rounded-2xl font-bold bg-gradient-to-r from-violet-500 via-fuchsia-500 to-pink-500 text-white shadow-xl shadow-fuchsia-500/20 hover:shadow-fuchsia-500/30 transition-all whitespace-nowrap flex items-center gap-2"
-                                    >
-                                        Contacter l'équipe
-                                        <ArrowRight className="w-5 h-5" />
-                                    </motion.button>
-                                </Link>
-                            </div>
-                        </div>
+                    <div>
+                        <h4 style={{ fontSize: 20, fontWeight: 600, color: 'white', marginBottom: 8 }}>
+                            Besoin d'une solution sur-mesure ?
+                        </h4>
+                        <p style={{ fontSize: 15, color: '#94a3b8' }}>
+                            Contactez-nous pour un plan personnalisé adapté à votre entreprise.
+                        </p>
                     </div>
+                    <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        style={{
+                            padding: '14px 28px',
+                            borderRadius: 12,
+                            border: '2px solid rgba(37, 211, 102, 0.4)',
+                            background: 'rgba(37, 211, 102, 0.1)',
+                            color: '#25D366',
+                            fontWeight: 600,
+                            fontSize: 15,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8
+                        }}
+                    >
+                        Contacter l'équipe
+                        <ArrowRight style={{ width: 16, height: 16 }} />
+                    </motion.button>
                 </motion.div>
             </div>
         </section>
