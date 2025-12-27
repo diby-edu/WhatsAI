@@ -47,11 +47,15 @@ export async function POST(request: NextRequest) {
             .from('subscription_plans')
             .insert({
                 name: body.name,
-                price_fcfa: body.price_fcfa,
-                credits_included: body.credits_included,
+                price_fcfa: body.price_fcfa || 0,
+                credits_included: body.credits_included || 100,
                 features: body.features || [],
                 is_active: body.is_active ?? true,
-                billing_cycle: body.billing_cycle || 'monthly'
+                billing_cycle: body.billing_cycle || 'monthly',
+                max_agents: body.max_agents || 1,
+                max_whatsapp_numbers: body.max_whatsapp_numbers || 1,
+                is_popular: body.is_popular || false,
+                description: body.description || ''
             })
             .select()
             .single()
