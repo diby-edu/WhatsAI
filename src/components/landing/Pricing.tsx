@@ -1,9 +1,11 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Check, Zap, Crown, Sparkles, ArrowRight, Gift } from 'lucide-react'
+import { Check, Zap, Crown, Sparkles, ArrowRight, Gift, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { createBrowserClient } from '@supabase/ssr'
 
 interface Plan {
     id: string
@@ -75,8 +77,28 @@ const planGradients: Record<string, { bg: string; glow: string }> = {
 }
 
 export default function Pricing() {
+    const router = useRouter()
     const [isYearly, setIsYearly] = useState(false)
     const [plans, setPlans] = useState<Plan[]>(fallbackPlans)
+    const [isAuthenticated, setIsAuthenticated] = useState(false)
+    const [loadingPlan, setLoadingPlan] = useState<string | null>(null)
+
+    // Check authentication status
+    useEffect(() => {
+        const checkAuth = async () => {
+            try {
+                const supabase = createBrowserClient(
+                    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+                )
+                const { data: { session } } = await supabase.auth.getSession()
+                setIsAuthenticated(!!session)
+            } catch (e) {
+                setIsAuthenticated(false)
+            }
+        }
+        checkAuth()
+    }, [])
 
     useEffect(() => {
         fetch('/api/plans')
@@ -345,32 +367,69 @@ export default function Pricing() {
                                 </div>
 
                                 {/* CTA Button */}
-                                <Link href="/register" style={{ textDecoration: 'none' }}>
-                                    <motion.button
-                                        whileHover={{ scale: 1.02 }}
-                                        whileTap={{ scale: 0.98 }}
-                                        style={{
-                                            width: '100%',
-                                            padding: '12px 20px',
-                                            borderRadius: 12,
-                                            border: plan.is_popular ? 'none' : '1px solid rgba(148, 163, 184, 0.2)',
-                                            background: plan.is_popular
-                                                ? 'linear-gradient(135deg, #25D366, #128C7E)'
-                                                : 'transparent',
-                                            color: plan.is_popular ? 'white' : '#e2e8f0',
-                                            fontWeight: 600,
-                                            fontSize: 14,
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            gap: 6
-                                        }}
-                                    >
-                                        {plan.price === 0 ? 'Essayer' : 'Choisir'}
-                                        <ArrowRight style={{ width: 16, height: 16 }} />
-                                    </motion.button>
-                                </Link>
+                                <motion.button
+                                    whileHover={{ scale: 1.02 }}
+                                    whileTap={{ scale: 0.98 }}
+                                    disabled={loadingPlan === plan.id}
+                                    onClick={async () => {
+                                        if (!isAuthenticated) {
+                                            // Not logged in - redirect to register
+                                            router.push('/register')
+                                            return
+                                        }
+
+                                        if (plan.price === 0) {
+                                            // Free plan - just go to dashboard
+                                            router.push('/dashboard')
+                                            return
+                                        }
+
+                                        // Authenticated with paid plan - initiate payment
+                                        setLoadingPlan(plan.id)
+                                        try {
+                                            const res = await fetch('/api/payments/initialize', {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ type: 'subscription', planId: plan.id }),
+                                            })
+                                            const data = await res.json()
+
+                                            if (data.data?.paymentUrl) {
+                                                window.location.href = data.data.paymentUrl
+                                            } else {
+                                                alert(data.error || 'Erreur lors du paiement')
+                                                setLoadingPlan(null)
+                                            }
+                                        } catch (err) {
+                                            alert('Erreur réseau')
+                                            setLoadingPlan(null)
+                                        }
+                                    }}
+                                    style={{
+                                        width: '100%',
+                                        padding: '12px 20px',
+                                        borderRadius: 12,
+                                        border: plan.is_popular ? 'none' : '1px solid rgba(148, 163, 184, 0.2)',
+                                        background: plan.is_popular
+                                            ? 'linear-gradient(135deg, #25D366, #128C7E)'
+                                            : 'transparent',
+                                        color: plan.is_popular ? 'white' : '#e2e8f0',
+                                        fontWeight: 600,
+                                        fontSize: 14,
+                                        cursor: loadingPlan === plan.id ? 'wait' : 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: 6,
+                                        opacity: loadingPlan === plan.id ? 0.7 : 1
+                                    }}
+                                >
+                                    {loadingPlan === plan.id ? (
+                                        <><Loader2 style={{ width: 16, height: 16, animation: 'spin 1s linear infinite' }} /> Chargement...</>
+                                    ) : (
+                                        <>{plan.price === 0 ? 'Essayer' : 'Choisir'} <ArrowRight style={{ width: 16, height: 16 }} /></>
+                                    )}
+                                </motion.button>
                             </motion.div>
                         )
                     })}

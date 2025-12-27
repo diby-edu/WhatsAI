@@ -5,7 +5,7 @@ import {
     generateTransactionId,
     PaymentInitData
 } from '@/lib/payments/cinetpay'
-import { PLANS, CREDIT_PACKS } from '@/lib/plans'
+import { CREDIT_PACKS } from '@/lib/plans'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
@@ -38,24 +38,38 @@ export async function POST(request: NextRequest) {
         let metadata: Record<string, any>
 
         if (type === 'subscription') {
-            // Subscription payment
-            const plan = PLANS[planId as keyof typeof PLANS]
-            if (!plan || plan.id === 'free') {
-                return errorResponse('Plan invalide', 400)
+            // Fetch plan from database instead of constants
+            const adminSupabase = createAdminClient()
+            const { data: plan, error: planError } = await adminSupabase
+                .from('subscription_plans')
+                .select('*')
+                .eq('id', planId)
+                .eq('is_active', true)
+                .single()
+
+            if (planError || !plan) {
+                console.error('Plan not found:', planId, planError)
+                return errorResponse('Plan invalide ou non trouvé', 400)
             }
-            amount = plan.price
+
+            if (plan.price_fcfa <= 0) {
+                return errorResponse('Ce plan est gratuit', 400)
+            }
+
+            amount = plan.price_fcfa
             description = `Abonnement WhatsAI - ${plan.name}`
             metadata = {
                 type: 'subscription',
                 plan_id: planId,
+                plan_name: plan.name,
                 user_id: user!.id,
-                credits: plan.credits,
+                credits: plan.credits_included,
             }
         } else if (type === 'credits') {
-            // Credit pack purchase
+            // Credit pack purchase (still uses constants)
             const pack = CREDIT_PACKS.find(p => p.id === packId)
             if (!pack) {
-                return errorResponse('Pack invalide', 400)
+                return errorResponse('Pack de crédits invalide', 400)
             }
             amount = pack.price
             description = `Pack de ${pack.credits} crédits WhatsAI`
@@ -103,7 +117,7 @@ export async function POST(request: NextRequest) {
             customerEmail: profile.email,
             customerPhone: profile.phone || '',
             returnUrl: `${APP_URL}/dashboard/billing?payment=${payment.id}`,
-            notifyUrl: `${APP_URL}/api/payments/webhook`,
+            notifyUrl: `${APP_URL}/api/payments/cinetpay/webhook`,
             metadata: {
                 ...metadata,
                 payment_id: payment.id,
@@ -119,7 +133,7 @@ export async function POST(request: NextRequest) {
                 .update({ status: 'failed' })
                 .eq('id', payment.id)
 
-            return errorResponse(result.error || 'Échec de l\'initialisation', 500)
+            return errorResponse(result.error || 'Échec de l\'initialisation du paiement', 500)
         }
 
         // Update payment with token
