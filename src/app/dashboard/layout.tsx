@@ -85,7 +85,7 @@ export default function DashboardLayout({
                     alignItems: 'center',
                     justifyContent: 'space-between'
                 }}>
-                    <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
+                    <Link href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
                         <div style={{
                             width: 36,
                             height: 36,
@@ -154,7 +154,7 @@ export default function DashboardLayout({
                             }}
                         >
                             <div style={{ padding: 20, borderBottom: '1px solid rgba(148, 163, 184, 0.1)' }}>
-                                <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none' }}>
+                                <Link href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none' }}>
                                     <div style={{
                                         width: 44,
                                         height: 44,
@@ -246,7 +246,7 @@ export default function DashboardLayout({
                         justifyContent: 'space-between',
                         borderBottom: '1px solid rgba(148, 163, 184, 0.1)'
                     }}>
-                        <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none' }}>
+                        <Link href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none' }}>
                             <div style={{
                                 width: 44,
                                 height: 44,

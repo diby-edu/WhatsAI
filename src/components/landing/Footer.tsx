@@ -43,7 +43,7 @@ const socialLinks = [
 
 export default function Footer() {
     return (
-        <footer className="relative pt-32 pb-8 overflow-hidden">
+        <footer className="relative pt-12 pb-6 overflow-hidden">
             {/* Background */}
             <div className="absolute inset-0 bg-grid opacity-20" />
             <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary-500/20 to-transparent" />
@@ -54,7 +54,7 @@ export default function Footer() {
                     initial={{ opacity: 0, y: 40 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
-                    className="relative glass-card rounded-3xl p-12 mb-20 overflow-hidden"
+                    className="relative glass-card rounded-3xl p-10 mb-12 overflow-hidden"
                 >
                     {/* Background Glow */}
                     <div className="absolute top-0 right-0 w-96 h-96 bg-primary-500/10 rounded-full blur-3xl" />
@@ -122,7 +122,7 @@ export default function Footer() {
                 </motion.div>
 
                 {/* Footer Links */}
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-16">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-8">
                     {/* Brand */}
                     <div className="col-span-2 md:col-span-1">
                         <Link href="/" className="flex items-center gap-3 mb-6">
