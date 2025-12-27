@@ -290,7 +290,7 @@ async function initSession(agentId, agentName) {
 
                 await supabase.from('agents').update({
                     whatsapp_connected: true,
-                    whatsapp_phone_number: phoneNumber,
+                    whatsapp_phone: phoneNumber,
                     whatsapp_qr_code: null,
                     whatsapp_status: 'connected'
                 }).eq('id', agentId)
