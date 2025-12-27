@@ -1,30 +1,30 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { QrCode, Settings, Zap, ArrowRight } from 'lucide-react'
+import { Bot, QrCode, Zap, ArrowRight } from 'lucide-react'
 
 const steps = [
     {
         number: '01',
-        icon: QrCode,
-        title: 'Connectez WhatsApp',
-        description: 'Scannez simplement le QR code pour lier votre numéro WhatsApp Business.',
-        gradient: 'linear-gradient(135deg, #f472b6, #ec4899)',
+        icon: Bot,
+        title: 'Créez votre agent IA',
+        description: 'Définissez la personnalité, le ton et configurez les réponses de votre assistant.',
+        gradient: 'linear-gradient(135deg, #818cf8, #6366f1)',
         delay: 0
     },
     {
         number: '02',
-        icon: Settings,
-        title: 'Configurez votre agent',
-        description: 'Définissez la personnalité, le ton et les connaissances de votre assistant IA.',
-        gradient: 'linear-gradient(135deg, #818cf8, #6366f1)',
+        icon: QrCode,
+        title: 'Connectez WhatsApp',
+        description: 'Scannez le QR code pour lier votre numéro WhatsApp Business à votre agent.',
+        gradient: 'linear-gradient(135deg, #f472b6, #ec4899)',
         delay: 0.2
     },
     {
         number: '03',
         icon: Zap,
-        title: 'Activez l\'automatisation',
-        description: 'Votre IA commence à répondre automatiquement. Suivez tout depuis le dashboard.',
+        title: 'L\'IA répond 24h/24',
+        description: 'Votre agent commence à répondre automatiquement. Suivez tout depuis le dashboard.',
         gradient: 'linear-gradient(135deg, #34d399, #10b981)',
         delay: 0.4
     }
@@ -33,7 +33,7 @@ const steps = [
 export default function HowItWorks() {
     return (
         <section id="how-it-works" style={{
-            padding: '120px 24px',
+            padding: '100px 24px',
             background: '#020617',
             position: 'relative',
             overflow: 'hidden'
@@ -55,7 +55,7 @@ export default function HowItWorks() {
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ duration: 0.6 }}
-                    style={{ textAlign: 'center', marginBottom: 80 }}
+                    style={{ textAlign: 'center', marginBottom: 64 }}
                 >
                     <h2 style={{
                         fontSize: 'clamp(32px, 5vw, 48px)',
@@ -110,7 +110,7 @@ export default function HowItWorks() {
                                     zIndex: 10,
                                     display: 'flex',
                                     alignItems: 'center'
-                                }}>
+                                }} className="step-arrow">
                                     <motion.div
                                         animate={{ x: [0, 5, 0] }}
                                         transition={{ duration: 1.5, repeat: Infinity }}
@@ -134,8 +134,8 @@ export default function HowItWorks() {
                                 whileHover={{ y: -10, transition: { duration: 0.2 } }}
                                 style={{
                                     flex: 1,
-                                    padding: 40,
-                                    borderRadius: 32,
+                                    padding: 36,
+                                    borderRadius: 28,
                                     background: 'linear-gradient(180deg, rgba(30, 41, 59, 0.5) 0%, rgba(15, 23, 42, 0.5) 100%)',
                                     backdropFilter: 'blur(20px)',
                                     border: '1px solid rgba(148, 163, 184, 0.1)',
@@ -147,11 +147,11 @@ export default function HowItWorks() {
                                 {/* Step number background */}
                                 <div style={{
                                     position: 'absolute',
-                                    top: 20,
-                                    right: 20,
-                                    fontSize: 80,
+                                    top: 16,
+                                    right: 16,
+                                    fontSize: 72,
                                     fontWeight: 900,
-                                    color: 'rgba(148, 163, 184, 0.05)',
+                                    color: 'rgba(148, 163, 184, 0.06)',
                                     lineHeight: 1
                                 }}>
                                     {step.number}
@@ -161,31 +161,31 @@ export default function HowItWorks() {
                                 <motion.div
                                     whileHover={{ scale: 1.1, rotate: 5 }}
                                     style={{
-                                        width: 80,
-                                        height: 80,
-                                        borderRadius: 24,
+                                        width: 72,
+                                        height: 72,
+                                        borderRadius: 20,
                                         background: step.gradient,
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
-                                        margin: '0 auto 28px',
+                                        margin: '0 auto 24px',
                                         boxShadow: `0 20px 40px rgba(0,0,0,0.3)`
                                     }}
                                 >
-                                    <step.icon style={{ width: 36, height: 36, color: 'white' }} />
+                                    <step.icon style={{ width: 32, height: 32, color: 'white' }} />
                                 </motion.div>
 
                                 {/* Content */}
                                 <h3 style={{
-                                    fontSize: 22,
+                                    fontSize: 20,
                                     fontWeight: 700,
                                     color: 'white',
-                                    marginBottom: 14
+                                    marginBottom: 12
                                 }}>
                                     {step.title}
                                 </h3>
                                 <p style={{
-                                    fontSize: 15,
+                                    fontSize: 14,
                                     color: '#94a3b8',
                                     lineHeight: 1.7
                                 }}>
@@ -199,7 +199,7 @@ export default function HowItWorks() {
 
             <style jsx global>{`
                 @media (max-width: 900px) {
-                    section#how-it-works > div > div:last-child > div > div:last-child {
+                    .step-arrow {
                         display: none !important;
                     }
                 }
