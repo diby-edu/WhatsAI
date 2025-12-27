@@ -1,199 +1,209 @@
 'use client'
 
-import { motion, useInView } from 'framer-motion'
-import { useRef } from 'react'
-import { QrCode, Settings, Zap, MessageCircle, ArrowRight } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { QrCode, Settings, Zap, ArrowRight } from 'lucide-react'
 
 const steps = [
     {
         number: '01',
         icon: QrCode,
         title: 'Connectez WhatsApp',
-        description: 'Scannez le QR code ou utilisez le code de liaison pour connecter votre numéro en quelques secondes.',
-        gradient: 'from-blue-500 to-cyan-400',
+        description: 'Scannez simplement le QR code pour lier votre numéro WhatsApp Business.',
+        gradient: 'linear-gradient(135deg, #f472b6, #ec4899)',
+        delay: 0
     },
     {
         number: '02',
         icon: Settings,
         title: 'Configurez votre agent',
-        description: 'Définissez la personnalité, les instructions et la base de connaissances de votre assistant IA.',
-        gradient: 'from-purple-500 to-pink-500',
+        description: 'Définissez la personnalité, le ton et les connaissances de votre assistant IA.',
+        gradient: 'linear-gradient(135deg, #818cf8, #6366f1)',
+        delay: 0.2
     },
     {
         number: '03',
         icon: Zap,
         title: 'Activez l\'automatisation',
-        description: 'Votre IA commence à répondre automatiquement. Surveillez les conversations depuis le dashboard.',
-        gradient: 'from-primary-500 to-emerald-400',
-    },
+        description: 'Votre IA commence à répondre automatiquement. Suivez tout depuis le dashboard.',
+        gradient: 'linear-gradient(135deg, #34d399, #10b981)',
+        delay: 0.4
+    }
 ]
 
 export default function HowItWorks() {
-    const headerRef = useRef(null)
-    const isHeaderInView = useInView(headerRef, { once: true })
-
     return (
-        <section id="how-it-works" className="py-32 relative overflow-hidden">
-            {/* Background */}
-            <div className="absolute inset-0 bg-gradient-to-b from-dark-950 via-dark-900/50 to-dark-950" />
-            <div className="absolute inset-0 bg-grid opacity-20" />
+        <section id="how-it-works" style={{
+            padding: '120px 24px',
+            background: '#020617',
+            position: 'relative',
+            overflow: 'hidden'
+        }}>
+            {/* Background effects */}
+            <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: 1,
+                background: 'linear-gradient(90deg, transparent, rgba(37, 211, 102, 0.3), transparent)'
+            }} />
 
-            <div className="container relative z-10">
+            <div style={{ maxWidth: 1200, margin: '0 auto', position: 'relative', zIndex: 1 }}>
                 {/* Header */}
                 <motion.div
-                    ref={headerRef}
-                    initial={{ opacity: 0, y: 40 }}
-                    animate={isHeaderInView ? { opacity: 1, y: 0 } : {}}
+                    initial={{ opacity: 0, y: 30 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
                     transition={{ duration: 0.6 }}
-                    className="text-center max-w-3xl mx-auto mb-20"
+                    style={{ textAlign: 'center', marginBottom: 80 }}
                 >
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={isHeaderInView ? { opacity: 1, scale: 1 } : {}}
-                        transition={{ duration: 0.5, delay: 0.2 }}
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary-500/10 border border-primary-500/20 mb-6"
-                    >
-                        <Zap className="w-4 h-4 text-primary-400" />
-                        <span className="text-sm font-medium text-primary-400">
-                            Simple et rapide
-                        </span>
-                    </motion.div>
-
-                    <h2 className="text-4xl lg:text-5xl font-bold mb-6">
-                        <span className="text-white">3 étapes pour </span>
-                        <span className="text-gradient">automatiser</span>
+                    <h2 style={{
+                        fontSize: 'clamp(32px, 5vw, 48px)',
+                        fontWeight: 700,
+                        color: 'white',
+                        marginBottom: 16,
+                        lineHeight: 1.2
+                    }}>
+                        3 étapes pour{' '}
+                        <span style={{
+                            background: 'linear-gradient(135deg, #25D366, #6ee7b7)',
+                            WebkitBackgroundClip: 'text',
+                            WebkitTextFillColor: 'transparent'
+                        }}>automatiser</span>
                     </h2>
-
-                    <p className="text-xl text-dark-400">
-                        Configurez votre assistant IA en moins de 5 minutes.
+                    <p style={{ fontSize: 18, color: '#94a3b8', maxWidth: 500, margin: '0 auto' }}>
+                        Configurez votre assistant IA en moins de 5 minutes.<br />
                         Aucune compétence technique requise.
                     </p>
                 </motion.div>
 
                 {/* Steps */}
-                <div className="relative">
-                    {/* Connection Line */}
-                    <div className="hidden lg:block absolute top-1/2 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-primary-500/20 -translate-y-1/2" />
-
-                    <div className="grid lg:grid-cols-3 gap-8">
-                        {steps.map((step, index) => {
-                            const ref = useRef(null)
-                            const isInView = useInView(ref, { once: true, margin: "-50px" })
-
-                            return (
-                                <motion.div
-                                    ref={ref}
-                                    key={step.number}
-                                    initial={{ opacity: 0, y: 40 }}
-                                    animate={isInView ? { opacity: 1, y: 0 } : {}}
-                                    transition={{ duration: 0.5, delay: index * 0.2 }}
-                                    className="relative"
-                                >
-                                    {/* Arrow between steps */}
-                                    {index < steps.length - 1 && (
-                                        <div className="hidden lg:flex absolute top-1/2 -right-4 z-10 -translate-y-1/2">
-                                            <motion.div
-                                                animate={{ x: [0, 4, 0] }}
-                                                transition={{ duration: 1.5, repeat: Infinity }}
-                                                className="w-8 h-8 rounded-full bg-dark-800 border border-dark-700 flex items-center justify-center"
-                                            >
-                                                <ArrowRight className="w-4 h-4 text-dark-400" />
-                                            </motion.div>
-                                        </div>
-                                    )}
-
-                                    <div className="glass-card p-8 rounded-3xl h-full text-center relative overflow-hidden group">
-                                        {/* Background Glow */}
-                                        <div
-                                            className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-                                            style={{
-                                                background: `radial-gradient(circle at center, ${step.gradient.includes('blue') ? 'rgba(59, 130, 246, 0.1)' : step.gradient.includes('purple') ? 'rgba(168, 85, 247, 0.1)' : 'rgba(16, 185, 129, 0.1)'} 0%, transparent 70%)`
-                                            }}
-                                        />
-
-                                        {/* Step Number */}
-                                        <div className="relative">
-                                            <div className="text-6xl font-bold text-dark-800 mb-4">
-                                                {step.number}
-                                            </div>
-
-                                            {/* Icon */}
-                                            <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${step.gradient} flex items-center justify-center mx-auto mb-6 shadow-lg group-hover:scale-110 transition-transform duration-300`}>
-                                                <step.icon className="w-8 h-8 text-white" />
-                                            </div>
-                                        </div>
-
-                                        <h3 className="text-xl font-bold text-white mb-3">
-                                            {step.title}
-                                        </h3>
-                                        <p className="text-dark-400 leading-relaxed">
-                                            {step.description}
-                                        </p>
-                                    </div>
-                                </motion.div>
-                            )
-                        })}
-                    </div>
-                </div>
-
-                {/* Demo Video Placeholder */}
-                <motion.div
-                    initial={{ opacity: 0, y: 40 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.6, delay: 0.4 }}
-                    className="mt-20"
-                >
-                    <div className="glass-card rounded-3xl p-1 max-w-4xl mx-auto">
-                        <div className="aspect-video rounded-2xl bg-gradient-to-br from-dark-800 to-dark-900 flex items-center justify-center relative overflow-hidden">
-                            {/* Placeholder for video */}
-                            <div className="absolute inset-0 bg-grid opacity-30" />
-
-                            {/* Phone Mockup */}
-                            <div className="relative z-10 animate-float">
-                                <div className="w-64 h-[500px] bg-dark-800 rounded-[40px] border-4 border-dark-700 p-3 shadow-2xl">
-                                    <div className="w-full h-full bg-dark-900 rounded-[32px] overflow-hidden">
-                                        {/* WhatsApp Header */}
-                                        <div className="bg-primary-600 p-4 flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-                                                <MessageCircle className="w-5 h-5 text-white" />
-                                            </div>
-                                            <div>
-                                                <div className="text-white font-semibold">WhatsAI Bot</div>
-                                                <div className="text-white/70 text-xs">En ligne</div>
-                                            </div>
-                                        </div>
-
-                                        {/* Chat Messages */}
-                                        <div className="p-4 space-y-3">
-                                            <div className="bg-dark-700 rounded-lg rounded-tl-none p-3 max-w-[80%]">
-                                                <p className="text-white text-sm">Bonjour ! Comment puis-je vous aider ? 👋</p>
-                                            </div>
-                                            <div className="bg-primary-500 rounded-lg rounded-tr-none p-3 max-w-[80%] ml-auto">
-                                                <p className="text-white text-sm">Je veux des infos sur vos prix</p>
-                                            </div>
-                                            <div className="bg-dark-700 rounded-lg rounded-tl-none p-3 max-w-[80%]">
-                                                <p className="text-white text-sm">Bien sûr ! Nous avons 3 forfaits...</p>
-                                            </div>
-                                        </div>
-                                    </div>
+                <div style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'stretch',
+                    gap: 24,
+                    flexWrap: 'wrap'
+                }}>
+                    {steps.map((step, index) => (
+                        <motion.div
+                            key={step.number}
+                            initial={{ opacity: 0, y: 40 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ duration: 0.6, delay: step.delay }}
+                            style={{
+                                flex: '1 1 300px',
+                                maxWidth: 360,
+                                position: 'relative',
+                                display: 'flex',
+                                alignItems: 'stretch'
+                            }}
+                        >
+                            {/* Arrow connector */}
+                            {index < steps.length - 1 && (
+                                <div style={{
+                                    position: 'absolute',
+                                    right: -16,
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    zIndex: 10,
+                                    display: 'flex',
+                                    alignItems: 'center'
+                                }}>
+                                    <motion.div
+                                        animate={{ x: [0, 5, 0] }}
+                                        transition={{ duration: 1.5, repeat: Infinity }}
+                                        style={{
+                                            width: 32,
+                                            height: 32,
+                                            borderRadius: '50%',
+                                            background: 'rgba(37, 211, 102, 0.2)',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center'
+                                        }}
+                                    >
+                                        <ArrowRight style={{ width: 16, height: 16, color: '#25D366' }} />
+                                    </motion.div>
                                 </div>
-                            </div>
+                            )}
 
-                            {/* Play button */}
-                            <div className="absolute inset-0 flex items-center justify-center">
-                                <motion.button
-                                    whileHover={{ scale: 1.1 }}
-                                    whileTap={{ scale: 0.95 }}
-                                    className="w-20 h-20 rounded-full bg-primary-500/90 backdrop-blur flex items-center justify-center shadow-lg shadow-primary-500/25"
+                            {/* Card */}
+                            <motion.div
+                                whileHover={{ y: -10, transition: { duration: 0.2 } }}
+                                style={{
+                                    flex: 1,
+                                    padding: 40,
+                                    borderRadius: 32,
+                                    background: 'linear-gradient(180deg, rgba(30, 41, 59, 0.5) 0%, rgba(15, 23, 42, 0.5) 100%)',
+                                    backdropFilter: 'blur(20px)',
+                                    border: '1px solid rgba(148, 163, 184, 0.1)',
+                                    textAlign: 'center',
+                                    position: 'relative',
+                                    overflow: 'hidden'
+                                }}
+                            >
+                                {/* Step number background */}
+                                <div style={{
+                                    position: 'absolute',
+                                    top: 20,
+                                    right: 20,
+                                    fontSize: 80,
+                                    fontWeight: 900,
+                                    color: 'rgba(148, 163, 184, 0.05)',
+                                    lineHeight: 1
+                                }}>
+                                    {step.number}
+                                </div>
+
+                                {/* Icon */}
+                                <motion.div
+                                    whileHover={{ scale: 1.1, rotate: 5 }}
+                                    style={{
+                                        width: 80,
+                                        height: 80,
+                                        borderRadius: 24,
+                                        background: step.gradient,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        margin: '0 auto 28px',
+                                        boxShadow: `0 20px 40px rgba(0,0,0,0.3)`
+                                    }}
                                 >
-                                    <div className="w-0 h-0 border-t-8 border-t-transparent border-l-12 border-l-white border-b-8 border-b-transparent ml-1" />
-                                </motion.button>
-                            </div>
-                        </div>
-                    </div>
-                </motion.div>
+                                    <step.icon style={{ width: 36, height: 36, color: 'white' }} />
+                                </motion.div>
+
+                                {/* Content */}
+                                <h3 style={{
+                                    fontSize: 22,
+                                    fontWeight: 700,
+                                    color: 'white',
+                                    marginBottom: 14
+                                }}>
+                                    {step.title}
+                                </h3>
+                                <p style={{
+                                    fontSize: 15,
+                                    color: '#94a3b8',
+                                    lineHeight: 1.7
+                                }}>
+                                    {step.description}
+                                </p>
+                            </motion.div>
+                        </motion.div>
+                    ))}
+                </div>
             </div>
+
+            <style jsx global>{`
+                @media (max-width: 900px) {
+                    section#how-it-works > div > div:last-child > div > div:last-child {
+                        display: none !important;
+                    }
+                }
+            `}</style>
         </section>
     )
 }
