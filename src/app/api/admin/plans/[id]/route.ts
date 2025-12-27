@@ -27,16 +27,23 @@ export async function PUT(
     try {
         const body = await request.json()
 
+        // Build update object with all possible fields
+        const updateData: Record<string, any> = {}
+
+        if (body.name !== undefined) updateData.name = body.name
+        if (body.price_fcfa !== undefined) updateData.price_fcfa = body.price_fcfa
+        if (body.credits_included !== undefined) updateData.credits_included = body.credits_included
+        if (body.features !== undefined) updateData.features = body.features
+        if (body.is_active !== undefined) updateData.is_active = body.is_active
+        if (body.billing_cycle !== undefined) updateData.billing_cycle = body.billing_cycle
+        if (body.max_agents !== undefined) updateData.max_agents = body.max_agents
+        if (body.max_whatsapp_numbers !== undefined) updateData.max_whatsapp_numbers = body.max_whatsapp_numbers
+        if (body.is_popular !== undefined) updateData.is_popular = body.is_popular
+        if (body.description !== undefined) updateData.description = body.description
+
         const { data: plan, error } = await supabase
             .from('subscription_plans')
-            .update({
-                name: body.name,
-                price_fcfa: body.price_fcfa,
-                credits_included: body.credits_included,
-                features: body.features,
-                is_active: body.is_active,
-                billing_cycle: body.billing_cycle
-            })
+            .update(updateData)
             .eq('id', id)
             .select()
             .single()
