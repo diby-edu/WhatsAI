@@ -224,7 +224,17 @@ export async function initWhatsAppSession(
                 messageId: msg.key.id || '',
             }
 
-            // Call message handler
+            // Call message handler - auto-initialize if not registered
+            if (!onMessageReceived) {
+                console.log('🔄 Message handler not registered, auto-initializing...')
+                try {
+                    const { initializeMessageHandler } = await import('@/lib/whatsapp/message-handler')
+                    initializeMessageHandler()
+                } catch (e) {
+                    console.error('❌ Failed to auto-initialize message handler:', e)
+                }
+            }
+
             if (onMessageReceived) {
                 console.log(`🤖 Calling message handler for agent ${agentId}`)
                 try {
@@ -234,7 +244,7 @@ export async function initWhatsAppSession(
                     console.error('❌ Error handling message:', error)
                 }
             } else {
-                console.warn('⚠️ No message handler registered!')
+                console.warn('⚠️ No message handler registered after auto-init attempt!')
             }
         }
     })
