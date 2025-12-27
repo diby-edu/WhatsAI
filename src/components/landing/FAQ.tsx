@@ -1,41 +1,57 @@
 'use client'
 
-import { motion, useInView } from 'framer-motion'
+import { motion, useInView, AnimatePresence } from 'framer-motion'
 import { useRef, useState } from 'react'
-import { Plus, Minus } from 'lucide-react'
+import { ChevronDown, HelpCircle, MessageCircle, CreditCard, Shield, Smartphone, Calendar, Lock, XCircle } from 'lucide-react'
 
 const faqs = [
     {
         question: "Comment fonctionne WhatsAI ?",
-        answer: "WhatsAI se connecte à votre WhatsApp via un QR code (comme WhatsApp Web). Une fois connecté, notre IA analyse les messages entrants et génère des réponses personnalisées basées sur vos instructions et votre base de connaissances. Tout est automatique et en temps réel."
+        answer: "WhatsAI se connecte à votre WhatsApp via un QR code (comme WhatsApp Web). Une fois connecté, notre IA analyse les messages entrants et génère des réponses personnalisées basées sur vos instructions. Tout est automatique et en temps réel.",
+        icon: MessageCircle,
+        category: "Général"
     },
     {
         question: "Est-ce que WhatsApp peut me bannir ?",
-        answer: "Notre système utilise Baileys, une solution éprouvée qui simule le comportement humain. En respectant les bonnes pratiques (délais de réponse, personnalisation des messages), le risque est minimal. Nous avons des milliers d'utilisateurs actifs sans problème."
+        answer: "Notre système utilise Baileys, une solution éprouvée qui simule le comportement humain. En respectant les bonnes pratiques (délais de réponse, personnalisation), le risque est minimal. Des milliers d'utilisateurs actifs sans problème.",
+        icon: Shield,
+        category: "Sécurité"
     },
     {
         question: "Puis-je tester gratuitement ?",
-        answer: "Absolument ! Créez un compte et recevez 100 crédits gratuits pour tester toutes les fonctionnalités. Aucune carte de crédit requise. Vous pouvez passer à un plan payant quand vous êtes prêt."
+        answer: "Absolument ! Créez un compte et recevez 100 crédits gratuits pour tester toutes les fonctionnalités. Aucune carte de crédit requise. Passez à un plan payant quand vous êtes prêt.",
+        icon: HelpCircle,
+        category: "Général"
     },
     {
         question: "Comment fonctionne le système de crédits ?",
-        answer: "1 crédit = 1 message envoyé par l'IA. Les messages reçus ne consomment pas de crédits. Vos crédits se renouvellent chaque mois selon votre forfait. Vous pouvez acheter des crédits supplémentaires à tout moment."
+        answer: "1 crédit = 1 message envoyé par l'IA. Les messages reçus ne consomment pas de crédits. Vos crédits se renouvellent chaque mois selon votre forfait.",
+        icon: CreditCard,
+        category: "Facturation"
     },
     {
         question: "Puis-je utiliser plusieurs numéros WhatsApp ?",
-        answer: "Oui ! Le nombre de numéros dépend de votre forfait. Starter : 1 numéro, Pro : 2 numéros, Business : 4 numéros. Chaque numéro peut avoir son propre agent IA avec des instructions différentes."
+        answer: "Oui ! Le nombre de numéros dépend de votre forfait. Starter : 1, Pro : 2, Business : 4. Chaque numéro peut avoir son propre agent IA avec des instructions différentes.",
+        icon: Smartphone,
+        category: "Fonctionnalités"
     },
     {
         question: "L'IA peut-elle prendre des rendez-vous ?",
-        answer: "Oui ! Vous pouvez configurer votre agent pour collecter des informations et proposer des créneaux. L'intégration avec Google Calendar et d'autres outils est disponible sur les plans Pro et Business."
+        answer: "Oui ! Configurez votre agent pour collecter des informations et proposer des créneaux. L'intégration avec Google Calendar est disponible sur les plans Pro et Business.",
+        icon: Calendar,
+        category: "Fonctionnalités"
     },
     {
         question: "Mes données sont-elles sécurisées ?",
-        answer: "Absolument. Nous utilisons un chiffrement de bout en bout, vos sessions WhatsApp sont stockées de manière sécurisée, et nous sommes conformes au RGPD. Nous ne lisons jamais vos conversations."
+        answer: "Absolument. Chiffrement de bout en bout, sessions stockées de manière sécurisée, et conformité RGPD. Nous ne lisons jamais vos conversations.",
+        icon: Lock,
+        category: "Sécurité"
     },
     {
         question: "Puis-je annuler à tout moment ?",
-        answer: "Oui, sans engagement ! Vous pouvez annuler votre abonnement à tout moment depuis votre tableau de bord. Vos crédits restants seront utilisables jusqu'à la fin de la période de facturation."
+        answer: "Oui, sans engagement ! Annulez votre abonnement à tout moment depuis votre tableau de bord. Vos crédits restants sont utilisables jusqu'à la fin de la période.",
+        icon: XCircle,
+        category: "Facturation"
     },
 ]
 
@@ -43,6 +59,7 @@ const FAQItem = ({ faq, index }: { faq: typeof faqs[0], index: number }) => {
     const [isOpen, setIsOpen] = useState(false)
     const ref = useRef(null)
     const isInView = useInView(ref, { once: true, margin: "-50px" })
+    const Icon = faq.icon
 
     return (
         <motion.div
@@ -51,40 +68,119 @@ const FAQItem = ({ faq, index }: { faq: typeof faqs[0], index: number }) => {
             animate={isInView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.4, delay: index * 0.05 }}
         >
-            <button
+            <motion.button
                 onClick={() => setIsOpen(!isOpen)}
-                className={`w-full flex items-start gap-4 p-6 rounded-2xl text-left transition-all ${isOpen
-                        ? 'bg-gradient-to-r from-primary-500/10 to-transparent border border-primary-500/20'
-                        : 'glass-card hover:bg-dark-800/50'
-                    }`}
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.99 }}
+                style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 16,
+                    padding: '20px 24px',
+                    borderRadius: 16,
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    border: isOpen ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(148, 163, 184, 0.1)',
+                    background: isOpen
+                        ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0.02) 100%)'
+                        : 'rgba(30, 41, 59, 0.5)',
+                    backdropFilter: 'blur(10px)',
+                    transition: 'all 0.3s ease',
+                    boxShadow: isOpen ? '0 8px 32px rgba(16, 185, 129, 0.15)' : 'none'
+                }}
             >
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-all ${isOpen
-                        ? 'bg-primary-500 rotate-180'
-                        : 'bg-dark-700'
-                    }`}>
-                    {isOpen ? (
-                        <Minus className="w-5 h-5 text-white" />
-                    ) : (
-                        <Plus className="w-5 h-5 text-dark-400" />
-                    )}
+                {/* Icon */}
+                <div style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: 12,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    background: isOpen
+                        ? 'linear-gradient(135deg, #10b981, #059669)'
+                        : 'rgba(51, 65, 85, 0.5)',
+                    transition: 'all 0.3s ease'
+                }}>
+                    <Icon style={{
+                        width: 22,
+                        height: 22,
+                        color: isOpen ? 'white' : '#94a3b8',
+                        transition: 'all 0.3s ease'
+                    }} />
                 </div>
-                <div className="flex-1">
-                    <h3 className={`text-lg font-semibold transition-colors ${isOpen ? 'text-white' : 'text-dark-200'
-                        }`}>
+
+                {/* Content */}
+                <div style={{ flex: 1 }}>
+                    {/* Category badge */}
+                    <span style={{
+                        display: 'inline-block',
+                        fontSize: 11,
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
+                        color: isOpen ? '#34d399' : '#64748b',
+                        marginBottom: 6
+                    }}>
+                        {faq.category}
+                    </span>
+
+                    <h3 style={{
+                        fontSize: 17,
+                        fontWeight: 600,
+                        color: isOpen ? 'white' : '#e2e8f0',
+                        marginBottom: 0,
+                        lineHeight: 1.4
+                    }}>
                         {faq.question}
                     </h3>
-                    <motion.div
-                        initial={false}
-                        animate={{ height: isOpen ? 'auto' : 0, opacity: isOpen ? 1 : 0 }}
-                        transition={{ duration: 0.3 }}
-                        className="overflow-hidden"
-                    >
-                        <p className="mt-4 text-dark-400 leading-relaxed">
-                            {faq.answer}
-                        </p>
-                    </motion.div>
+
+                    <AnimatePresence>
+                        {isOpen && (
+                            <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                transition={{ duration: 0.3 }}
+                                style={{ overflow: 'hidden' }}
+                            >
+                                <p style={{
+                                    marginTop: 12,
+                                    color: '#94a3b8',
+                                    lineHeight: 1.7,
+                                    fontSize: 15
+                                }}>
+                                    {faq.answer}
+                                </p>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
-            </button>
+
+                {/* Chevron */}
+                <motion.div
+                    animate={{ rotate: isOpen ? 180 : 0 }}
+                    transition={{ duration: 0.3 }}
+                    style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: 8,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: isOpen ? 'rgba(16, 185, 129, 0.2)' : 'rgba(51, 65, 85, 0.3)',
+                        flexShrink: 0
+                    }}
+                >
+                    <ChevronDown style={{
+                        width: 18,
+                        height: 18,
+                        color: isOpen ? '#34d399' : '#64748b'
+                    }} />
+                </motion.div>
+            </motion.button>
         </motion.div>
     )
 }
@@ -94,50 +190,128 @@ export default function FAQ() {
     const isHeaderInView = useInView(headerRef, { once: true })
 
     return (
-        <section id="faq" className="py-32 relative overflow-hidden">
-            {/* Background */}
-            <div className="absolute inset-0 bg-dots opacity-30" />
+        <section id="faq" style={{
+            padding: '80px 0',
+            position: 'relative',
+            overflow: 'hidden',
+            background: 'linear-gradient(180deg, transparent 0%, rgba(16, 185, 129, 0.02) 50%, transparent 100%)'
+        }}>
+            {/* Background elements */}
+            <div style={{
+                position: 'absolute',
+                top: '20%',
+                left: '-10%',
+                width: 400,
+                height: 400,
+                borderRadius: '50%',
+                background: 'radial-gradient(circle, rgba(16, 185, 129, 0.08) 0%, transparent 70%)',
+                filter: 'blur(60px)'
+            }} />
+            <div style={{
+                position: 'absolute',
+                bottom: '10%',
+                right: '-5%',
+                width: 300,
+                height: 300,
+                borderRadius: '50%',
+                background: 'radial-gradient(circle, rgba(6, 182, 212, 0.06) 0%, transparent 70%)',
+                filter: 'blur(60px)'
+            }} />
 
-            <div className="container relative z-10">
+            <div style={{ maxWidth: 900, margin: '0 auto', padding: '0 24px', position: 'relative', zIndex: 10 }}>
                 {/* Header */}
                 <motion.div
                     ref={headerRef}
                     initial={{ opacity: 0, y: 40 }}
                     animate={isHeaderInView ? { opacity: 1, y: 0 } : {}}
                     transition={{ duration: 0.6 }}
-                    className="text-center max-w-3xl mx-auto mb-16"
+                    style={{ textAlign: 'center', marginBottom: 48 }}
                 >
-                    <h2 className="text-4xl lg:text-5xl font-bold mb-6">
-                        <span className="text-white">Questions </span>
-                        <span className="text-gradient">fréquentes</span>
+                    {/* Badge */}
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={isHeaderInView ? { opacity: 1, scale: 1 } : {}}
+                        transition={{ delay: 0.2 }}
+                        style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            padding: '8px 16px',
+                            borderRadius: 50,
+                            background: 'rgba(16, 185, 129, 0.1)',
+                            border: '1px solid rgba(16, 185, 129, 0.2)',
+                            marginBottom: 20
+                        }}
+                    >
+                        <HelpCircle style={{ width: 16, height: 16, color: '#34d399' }} />
+                        <span style={{ fontSize: 13, fontWeight: 600, color: '#34d399' }}>FAQ</span>
+                    </motion.div>
+
+                    <h2 style={{
+                        fontSize: 'clamp(32px, 5vw, 48px)',
+                        fontWeight: 800,
+                        marginBottom: 16,
+                        lineHeight: 1.2
+                    }}>
+                        <span style={{ color: 'white' }}>Questions </span>
+                        <span style={{
+                            background: 'linear-gradient(135deg, #34d399, #06b6d4)',
+                            WebkitBackgroundClip: 'text',
+                            WebkitTextFillColor: 'transparent'
+                        }}>fréquentes</span>
                     </h2>
-                    <p className="text-xl text-dark-400">
+                    <p style={{
+                        fontSize: 18,
+                        color: '#94a3b8',
+                        maxWidth: 500,
+                        margin: '0 auto'
+                    }}>
                         Tout ce que vous devez savoir sur WhatsAI
                     </p>
                 </motion.div>
 
-                {/* FAQ Grid */}
-                <div className="max-w-3xl mx-auto space-y-4">
+                {/* FAQ Grid - 2 columns on desktop */}
+                <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 400px), 1fr))',
+                    gap: 12
+                }}>
                     {faqs.map((faq, index) => (
                         <FAQItem key={index} faq={faq} index={index} />
                     ))}
                 </div>
 
-                {/* Still have questions */}
+                {/* Contact CTA */}
                 <motion.div
                     initial={{ opacity: 0, y: 40 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
-                    className="mt-16 text-center"
+                    style={{
+                        marginTop: 48,
+                        textAlign: 'center',
+                        padding: '32px',
+                        borderRadius: 20,
+                        background: 'rgba(30, 41, 59, 0.3)',
+                        border: '1px solid rgba(148, 163, 184, 0.1)'
+                    }}
                 >
-                    <p className="text-dark-400 mb-4">
+                    <p style={{ color: '#94a3b8', marginBottom: 12 }}>
                         Vous avez d'autres questions ?
                     </p>
                     <a
                         href="mailto:support@whatsai.com"
-                        className="text-primary-400 hover:text-primary-300 font-medium transition-colors"
+                        style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            color: '#34d399',
+                            fontWeight: 600,
+                            textDecoration: 'none',
+                            fontSize: 16
+                        }}
                     >
-                        Contactez notre équipe →
+                        <MessageCircle style={{ width: 18, height: 18 }} />
+                        Contactez notre équipe
                     </a>
                 </motion.div>
             </div>
