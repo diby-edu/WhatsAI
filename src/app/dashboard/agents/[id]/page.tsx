@@ -193,6 +193,7 @@ export default function AgentDetailsPage({ params }: { params: Promise<{ id: str
 
     // Poll for connection status
     useEffect(() => {
+        // Poll when connecting or waiting for QR
         if (whatsappStatus !== 'qr_ready' && whatsappStatus !== 'connecting') return
 
         const interval = setInterval(async () => {
@@ -201,19 +202,25 @@ export default function AgentDetailsPage({ params }: { params: Promise<{ id: str
                 const data = await response.json()
                 const result = data.data || data
 
-                console.log('Polling status:', result.status)
+                console.log('Polling status:', result)
 
-                if (result.status === 'connected') {
+                if (result.status === 'connected' || result.connected) {
                     setWhatsappStatus('connected')
                     setConnectedPhone(result.phoneNumber)
+                    setQrCode(null)
                     clearInterval(interval)
-                } else if (result.qrCode && result.qrCode !== qrCode) {
+                } else if (result.status === 'qr_ready' && result.qrCode) {
                     setQrCode(result.qrCode)
+                    setWhatsappStatus('qr_ready')
+                } else if (result.qrCode && result.qrCode !== qrCode) {
+                    // QR code available from database
+                    setQrCode(result.qrCode)
+                    setWhatsappStatus('qr_ready')
                 }
             } catch (err) {
                 console.error('Polling error:', err)
             }
-        }, 3000)
+        }, 2000) // Poll every 2 seconds for faster QR display
 
         return () => clearInterval(interval)
     }, [whatsappStatus, agentId, qrCode])
