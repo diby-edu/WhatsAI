@@ -2,9 +2,6 @@
  * WhatsApp Service - Standalone Process
  * This runs independently from the Next.js app
  * It should NEVER be restarted during deployments
- * 
- * Run with: node whatsapp-service.js
- * Or with PM2: pm2 start whatsapp-service.js --name whatsapp-service
  */
 
 const { createClient } = require('@supabase/supabase-js')
@@ -15,6 +12,7 @@ const {
     fetchLatestBaileysVersion,
     makeCacheableSignalKeyStore
 } = require('@whiskeysockets/baileys')
+const QRCode = require('qrcode')
 const pino = require('pino')
 const path = require('path')
 const fs = require('fs')
@@ -27,7 +25,7 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY
 const SESSION_BASE_DIR = process.env.WHATSAPP_SESSION_PATH || './.whatsapp-sessions'
-const CHECK_INTERVAL = 10000 // Check for new agents every 10 seconds
+const CHECK_INTERVAL = 5000 // Check every 5 seconds
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
     console.error('❌ Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY')
@@ -40,10 +38,15 @@ const logger = pino({ level: 'warn' })
 
 // Store active sessions
 const activeSessions = new Map()
+const pendingConnections = new Set()
 
 // Ensure session directory exists
 function ensureSessionDir(agentId) {
-    const sessionDir = path.join(SESSION_BASE_DIR, agentId)
+    const baseDir = path.resolve(SESSION_BASE_DIR)
+    const sessionDir = path.join(baseDir, agentId)
+    if (!fs.existsSync(baseDir)) {
+        fs.mkdirSync(baseDir, { recursive: true })
+    }
     if (!fs.existsSync(sessionDir)) {
         fs.mkdirSync(sessionDir, { recursive: true })
     }
@@ -231,118 +234,158 @@ async function handleMessage(agentId, message) {
 
 // Initialize WhatsApp session for an agent
 async function initSession(agentId, agentName) {
-    if (activeSessions.has(agentId)) {
+    if (activeSessions.has(agentId) && activeSessions.get(agentId).status === 'connected') {
         console.log(`Session already active for ${agentName}`)
         return
     }
 
+    if (pendingConnections.has(agentId)) {
+        console.log(`Connection already pending for ${agentName}`)
+        return
+    }
+
+    pendingConnections.add(agentId)
     console.log(`🔌 Initializing WhatsApp for ${agentName}...`)
 
-    const sessionDir = ensureSessionDir(agentId)
-    const { state, saveCreds } = await useMultiFileAuthState(sessionDir)
-    const { version } = await fetchLatestBaileysVersion()
+    try {
+        const sessionDir = ensureSessionDir(agentId)
+        const { state, saveCreds } = await useMultiFileAuthState(sessionDir)
+        const { version } = await fetchLatestBaileysVersion()
 
-    const socket = makeWASocket({
-        version,
-        logger,
-        printQRInTerminal: false,
-        auth: {
-            creds: state.creds,
-            keys: makeCacheableSignalKeyStore(state.keys, logger)
-        },
-        generateHighQualityLinkPreview: true
-    })
+        const socket = makeWASocket({
+            version,
+            logger,
+            printQRInTerminal: false,
+            auth: {
+                creds: state.creds,
+                keys: makeCacheableSignalKeyStore(state.keys, logger)
+            },
+            generateHighQualityLinkPreview: true
+        })
 
-    const session = { socket, status: 'connecting', agentName }
-    activeSessions.set(agentId, session)
+        const session = { socket, status: 'connecting', agentName }
+        activeSessions.set(agentId, session)
 
-    // Handle connection updates
-    socket.ev.on('connection.update', async (update) => {
-        const { connection, lastDisconnect, qr } = update
+        // Handle connection updates
+        socket.ev.on('connection.update', async (update) => {
+            const { connection, lastDisconnect, qr } = update
 
-        if (qr) {
-            session.status = 'qr_waiting'
-            console.log(`📱 QR code ready for ${agentName}`)
-        }
+            if (qr) {
+                session.status = 'qr_waiting'
+                console.log(`📱 QR code ready for ${agentName}`)
 
-        if (connection === 'open') {
-            session.status = 'connected'
-            const phoneNumber = socket.user?.id.split(':')[0] || null
-            console.log(`✅ ${agentName} connected: ${phoneNumber}`)
-
-            await supabase.from('agents').update({
-                whatsapp_connected: true,
-                whatsapp_phone_number: phoneNumber
-            }).eq('id', agentId)
-        }
-
-        if (connection === 'close') {
-            const statusCode = lastDisconnect?.error?.output?.statusCode
-            const shouldReconnect = statusCode !== DisconnectReason.loggedOut
-
-            console.log(`❌ ${agentName} disconnected, reconnect: ${shouldReconnect}`)
-
-            if (shouldReconnect) {
-                activeSessions.delete(agentId)
-                setTimeout(() => initSession(agentId, agentName), 5000)
-            } else {
-                activeSessions.delete(agentId)
-                fs.rmSync(sessionDir, { recursive: true, force: true })
+                // Convert QR to data URL and store in database
+                const qrDataUrl = await QRCode.toDataURL(qr)
                 await supabase.from('agents').update({
-                    whatsapp_connected: false,
-                    whatsapp_phone_number: null
+                    whatsapp_qr_code: qrDataUrl,
+                    whatsapp_status: 'qr_ready'
                 }).eq('id', agentId)
             }
-        }
-    })
 
-    // Handle credentials update
-    socket.ev.on('creds.update', saveCreds)
+            if (connection === 'open') {
+                session.status = 'connected'
+                pendingConnections.delete(agentId)
+                const phoneNumber = socket.user?.id.split(':')[0] || null
+                console.log(`✅ ${agentName} connected: ${phoneNumber}`)
 
-    // Handle incoming messages
-    socket.ev.on('messages.upsert', async ({ messages: msgs, type }) => {
-        if (type !== 'notify') return
-
-        for (const msg of msgs) {
-            if (msg.key.fromMe) continue
-
-            let text = ''
-            if (msg.message?.conversation) {
-                text = msg.message.conversation
-            } else if (msg.message?.extendedTextMessage?.text) {
-                text = msg.message.extendedTextMessage.text
-            } else if (msg.message?.imageMessage?.caption) {
-                text = msg.message.imageMessage.caption
-            } else {
-                continue
+                await supabase.from('agents').update({
+                    whatsapp_connected: true,
+                    whatsapp_phone_number: phoneNumber,
+                    whatsapp_qr_code: null,
+                    whatsapp_status: 'connected'
+                }).eq('id', agentId)
             }
 
-            await handleMessage(agentId, {
-                from: msg.key.remoteJid,
-                pushName: msg.pushName,
-                text,
-                messageId: msg.key.id
-            })
-        }
-    })
+            if (connection === 'close') {
+                const statusCode = lastDisconnect?.error?.output?.statusCode
+                const shouldReconnect = statusCode !== DisconnectReason.loggedOut
+
+                console.log(`❌ ${agentName} disconnected, code: ${statusCode}, reconnect: ${shouldReconnect}`)
+                pendingConnections.delete(agentId)
+
+                if (shouldReconnect) {
+                    activeSessions.delete(agentId)
+                    setTimeout(() => initSession(agentId, agentName), 5000)
+                } else {
+                    activeSessions.delete(agentId)
+                    try {
+                        fs.rmSync(sessionDir, { recursive: true, force: true })
+                    } catch (e) { }
+                    await supabase.from('agents').update({
+                        whatsapp_connected: false,
+                        whatsapp_phone_number: null,
+                        whatsapp_qr_code: null,
+                        whatsapp_status: 'disconnected'
+                    }).eq('id', agentId)
+                }
+            }
+        })
+
+        // Handle credentials update
+        socket.ev.on('creds.update', saveCreds)
+
+        // Handle incoming messages
+        socket.ev.on('messages.upsert', async ({ messages: msgs, type }) => {
+            if (type !== 'notify') return
+
+            for (const msg of msgs) {
+                if (msg.key.fromMe) continue
+
+                let text = ''
+                if (msg.message?.conversation) {
+                    text = msg.message.conversation
+                } else if (msg.message?.extendedTextMessage?.text) {
+                    text = msg.message.extendedTextMessage.text
+                } else if (msg.message?.imageMessage?.caption) {
+                    text = msg.message.imageMessage.caption
+                } else {
+                    continue
+                }
+
+                await handleMessage(agentId, {
+                    from: msg.key.remoteJid,
+                    pushName: msg.pushName,
+                    text,
+                    messageId: msg.key.id
+                })
+            }
+        })
+    } catch (error) {
+        console.error(`Error initializing session for ${agentName}:`, error)
+        pendingConnections.delete(agentId)
+    }
 }
 
 // Check for agents that need connection
 async function checkAgents() {
     try {
-        // Get all agents that should be connected
-        const { data: agents } = await supabase
+        // 1. Check for agents requesting connection (whatsapp_status = 'connecting')
+        const { data: connectingAgents } = await supabase
+            .from('agents')
+            .select('id, name')
+            .eq('is_active', true)
+            .eq('whatsapp_status', 'connecting')
+
+        for (const agent of connectingAgents || []) {
+            if (!activeSessions.has(agent.id) && !pendingConnections.has(agent.id)) {
+                console.log(`🔄 New connection request for ${agent.name}`)
+                await initSession(agent.id, agent.name)
+            }
+        }
+
+        // 2. Check for agents that should be connected and have session files
+        const { data: connectedAgents } = await supabase
             .from('agents')
             .select('id, name')
             .eq('is_active', true)
             .eq('whatsapp_connected', true)
 
-        for (const agent of agents || []) {
-            const sessionDir = path.join(SESSION_BASE_DIR, agent.id)
+        for (const agent of connectedAgents || []) {
+            const sessionDir = path.join(path.resolve(SESSION_BASE_DIR), agent.id)
             const credsFile = path.join(sessionDir, 'creds.json')
 
-            // Only init if session files exist and not already connected
-            if (fs.existsSync(credsFile) && !activeSessions.has(agent.id)) {
+            if (fs.existsSync(credsFile) && !activeSessions.has(agent.id) && !pendingConnections.has(agent.id)) {
+                console.log(`🔄 Restoring session for ${agent.name}`)
                 await initSession(agent.id, agent.name)
             }
         }
@@ -354,7 +397,12 @@ async function checkAgents() {
 // Main loop
 async function main() {
     console.log('🚀 WhatsApp Service starting...')
-    console.log('📁 Session directory:', SESSION_BASE_DIR)
+    console.log('📁 Session directory:', path.resolve(SESSION_BASE_DIR))
+
+    // Ensure session directory exists
+    if (!fs.existsSync(SESSION_BASE_DIR)) {
+        fs.mkdirSync(SESSION_BASE_DIR, { recursive: true })
+    }
 
     // Initial check
     await checkAgents()
