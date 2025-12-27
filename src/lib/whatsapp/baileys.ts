@@ -136,6 +136,22 @@ export async function initWhatsAppSession(
             session.phoneNumber = phoneNumber
 
             console.log(`WhatsApp connected for agent ${agentId}: ${phoneNumber}`)
+
+            // Update database to mark as connected
+            try {
+                const { createAdminClient } = await import('@/lib/api-utils')
+                const supabase = createAdminClient()
+                await supabase
+                    .from('agents')
+                    .update({
+                        whatsapp_connected: true,
+                        whatsapp_phone_number: phoneNumber
+                    })
+                    .eq('id', agentId)
+                console.log(`✅ Database updated: agent ${agentId} marked as connected`)
+            } catch (dbError) {
+                console.error('Failed to update database:', dbError)
+            }
         }
 
         // Connection closed
@@ -155,6 +171,22 @@ export async function initWhatsAppSession(
                 // Clear session files if logged out
                 if (statusCode === DisconnectReason.loggedOut) {
                     fs.rmSync(sessionDir, { recursive: true, force: true })
+
+                    // Update database to mark as disconnected
+                    try {
+                        const { createAdminClient } = await import('@/lib/api-utils')
+                        const supabase = createAdminClient()
+                        await supabase
+                            .from('agents')
+                            .update({
+                                whatsapp_connected: false,
+                                whatsapp_phone_number: null
+                            })
+                            .eq('id', agentId)
+                        console.log(`✅ Database updated: agent ${agentId} marked as disconnected`)
+                    } catch (dbError) {
+                        console.error('Failed to update database:', dbError)
+                    }
                 }
             }
         }
