@@ -1,14 +1,8 @@
 import { NextRequest } from 'next/server'
-import { createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
-import {
-    initWhatsAppSession,
-    getSessionStatus,
-    closeWhatsAppSession,
-    logoutWhatsApp,
-    hasStoredSession
-} from '@/lib/whatsapp/baileys'
+import { createApiClient, getAuthUser, errorResponse, successResponse, createAdminClient } from '@/lib/api-utils'
 
-// POST /api/whatsapp/connect - Initialize WhatsApp connection
+// POST /api/whatsapp/connect - Request WhatsApp connection
+// The standalone whatsapp-service.js will pick this up and generate QR
 export async function POST(request: NextRequest) {
     const supabase = await createApiClient()
     const { user, error: authError } = await getAuthUser(supabase)
@@ -19,7 +13,7 @@ export async function POST(request: NextRequest) {
 
     try {
         const body = await request.json()
-        const { agentId, useLinkingCode, phoneNumber } = body
+        const { agentId } = body
 
         if (!agentId) {
             return errorResponse('agentId is required', 400)
@@ -28,7 +22,7 @@ export async function POST(request: NextRequest) {
         // Verify agent belongs to user
         const { data: agent, error } = await supabase
             .from('agents')
-            .select('id, name')
+            .select('id, name, whatsapp_connected, whatsapp_status, whatsapp_qr_code')
             .eq('id', agentId)
             .eq('user_id', user!.id)
             .single()
@@ -37,35 +31,27 @@ export async function POST(request: NextRequest) {
             return errorResponse('Agent non trouvé', 404)
         }
 
-        // If using linking code, phone number is required
-        if (useLinkingCode && !phoneNumber) {
-            return errorResponse('phoneNumber is required for linking code', 400)
+        // If already connected, return status
+        if (agent.whatsapp_connected) {
+            return successResponse({
+                status: 'connected',
+                message: 'WhatsApp déjà connecté'
+            })
         }
 
-        // Initialize WhatsApp session
-        const result = await initWhatsAppSession(agentId, {
-            useLinkingCode,
-            phoneNumber,
-        })
-
-        // Update agent status in database
-        await supabase
+        // Set status to 'connecting' - the standalone service will detect this
+        const adminClient = createAdminClient()
+        await adminClient
             .from('agents')
             .update({
-                whatsapp_connected: result.status === 'connected',
-                whatsapp_session_id: agentId,
+                whatsapp_status: 'connecting',
+                whatsapp_qr_code: null
             })
             .eq('id', agentId)
 
         return successResponse({
-            status: result.status,
-            qrCode: result.qrCode,
-            linkingCode: result.linkingCode,
-            message: result.status === 'qr_ready'
-                ? 'Scannez le QR code ou utilisez le code de liaison'
-                : result.status === 'connected'
-                    ? 'WhatsApp connecté avec succès'
-                    : 'Connexion en cours...',
+            status: 'connecting',
+            message: 'Demande de connexion envoyée. Le QR code sera généré sous peu...'
         })
     } catch (err) {
         console.error('WhatsApp connect error:', err)
@@ -73,7 +59,7 @@ export async function POST(request: NextRequest) {
     }
 }
 
-// GET /api/whatsapp/connect - Get connection status
+// GET /api/whatsapp/connect - Get connection status and QR code
 export async function GET(request: NextRequest) {
     const supabase = await createApiClient()
     const { user, error: authError } = await getAuthUser(supabase)
@@ -89,10 +75,10 @@ export async function GET(request: NextRequest) {
         return errorResponse('agentId is required', 400)
     }
 
-    // Verify agent belongs to user
+    // Get agent with WhatsApp status
     const { data: agent, error } = await supabase
         .from('agents')
-        .select('id')
+        .select('id, whatsapp_connected, whatsapp_phone_number, whatsapp_status, whatsapp_qr_code')
         .eq('id', agentId)
         .eq('user_id', user!.id)
         .single()
@@ -101,15 +87,11 @@ export async function GET(request: NextRequest) {
         return errorResponse('Agent non trouvé', 404)
     }
 
-    const session = getSessionStatus(agentId)
-    const hasStored = hasStoredSession(agentId)
-
     return successResponse({
-        status: session?.status || 'disconnected',
-        phoneNumber: session?.phoneNumber,
-        qrCode: session?.qrCode,
-        linkingCode: session?.linkingCode,
-        hasStoredSession: hasStored,
+        status: agent.whatsapp_connected ? 'connected' : (agent.whatsapp_status || 'disconnected'),
+        phoneNumber: agent.whatsapp_phone_number,
+        qrCode: agent.whatsapp_qr_code,
+        connected: agent.whatsapp_connected
     })
 }
 
@@ -124,7 +106,6 @@ export async function DELETE(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const agentId = searchParams.get('agentId')
-    const logout = searchParams.get('logout') === 'true'
 
     if (!agentId) {
         return errorResponse('agentId is required', 400)
@@ -142,23 +123,20 @@ export async function DELETE(request: NextRequest) {
         return errorResponse('Agent non trouvé', 404)
     }
 
-    if (logout) {
-        await logoutWhatsApp(agentId)
-    } else {
-        await closeWhatsAppSession(agentId)
-    }
-
-    // Update agent status
-    await supabase
+    // Set status to 'disconnecting' - the standalone service will handle cleanup
+    const adminClient = createAdminClient()
+    await adminClient
         .from('agents')
         .update({
             whatsapp_connected: false,
-            whatsapp_phone: null,
+            whatsapp_phone_number: null,
+            whatsapp_status: 'disconnected',
+            whatsapp_qr_code: null
         })
         .eq('id', agentId)
 
     return successResponse({
         success: true,
-        message: logout ? 'Déconnecté et session supprimée' : 'Déconnecté',
+        message: 'Demande de déconnexion envoyée'
     })
 }
