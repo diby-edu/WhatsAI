@@ -12,6 +12,13 @@ export const metadata: Metadata = {
   description: "WhatsAI est une solution d'automatisation WhatsApp qui vous permet de gérer vos conversations, qualifier vos leads et prendre des rendez-vous automatiquement grâce à l'intelligence artificielle.",
   keywords: ["WhatsApp", "IA", "automatisation", "chatbot", "leads", "CRM", "Afrique"],
   authors: [{ name: "WhatsAI" }],
+  icons: {
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/favicon.ico', sizes: 'any' },
+    ],
+    apple: '/icon.svg',
+  },
   openGraph: {
     title: "WhatsAI - Automatisez votre WhatsApp avec l'IA",
     description: "Transformez votre WhatsApp en machine à leads avec l'intelligence artificielle",
