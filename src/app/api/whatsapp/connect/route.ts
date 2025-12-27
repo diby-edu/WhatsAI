@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
     // Get agent with WhatsApp status
     const { data: agent, error } = await supabase
         .from('agents')
-        .select('id, whatsapp_connected, whatsapp_phone_number, whatsapp_status, whatsapp_qr_code')
+        .select('id, whatsapp_connected, whatsapp_phone, whatsapp_status, whatsapp_qr_code')
         .eq('id', agentId)
         .eq('user_id', user!.id)
         .single()
@@ -89,7 +89,7 @@ export async function GET(request: NextRequest) {
 
     return successResponse({
         status: agent.whatsapp_connected ? 'connected' : (agent.whatsapp_status || 'disconnected'),
-        phoneNumber: agent.whatsapp_phone_number,
+        phoneNumber: agent.whatsapp_phone,
         qrCode: agent.whatsapp_qr_code,
         connected: agent.whatsapp_connected
     })
@@ -129,7 +129,7 @@ export async function DELETE(request: NextRequest) {
         .from('agents')
         .update({
             whatsapp_connected: false,
-            whatsapp_phone_number: null,
+            whatsapp_phone: null,
             whatsapp_status: 'disconnected',
             whatsapp_qr_code: null
         })
