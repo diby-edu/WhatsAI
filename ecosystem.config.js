@@ -15,6 +15,8 @@ module.exports = {
             autorestart: true,
             watch: false,
             max_memory_restart: '1G',
+            wait_ready: true,
+            listen_timeout: 15000, // 15 secondes max pour démarrer
             error_file: '/root/.pm2/logs/whatsai-web-error.log',
             out_file: '/root/.pm2/logs/whatsai-web-out.log'
         },
