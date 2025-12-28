@@ -1,6 +1,5 @@
 import { NextRequest } from 'next/server'
 import { successResponse } from '@/lib/api-utils'
-import OpenAI from 'openai'
 
 export async function GET(request: NextRequest) {
     const results: any = {
@@ -9,44 +8,23 @@ export async function GET(request: NextRequest) {
         supabase: { status: 'unknown', message: '' }
     }
 
-    // 1. OpenAI Rate Limit Check
-    try {
-        const openai = new OpenAI({
-            apiKey: process.env.OPENAI_API_KEY
-        })
-
-        // Make a minimal API call to check rate limits
-        const response = await openai.chat.completions.create({
-            model: 'gpt-3.5-turbo',
-            messages: [{ role: 'user', content: 'Hi' }],
-            max_tokens: 1
-        })
-
-        // OpenAI doesn't return rate limit headers easily in SDK
-        // But if the call succeeds, we're within limits
+    // 1. OpenAI - Check configuration (no actual API call to save costs)
+    const openaiKey = process.env.OPENAI_API_KEY
+    if (openaiKey && openaiKey.startsWith('sk-')) {
         results.openai = {
             status: 'ok',
-            message: 'Dans les limites',
-            details: 'API fonctionnelle',
-            model: response.model
+            message: 'API configurée',
+            details: 'Clé sk-*** détectée'
         }
-    } catch (err: any) {
-        if (err.status === 429) {
-            results.openai = {
-                status: 'error',
-                message: 'Rate limit atteint',
-                details: err.message
-            }
-        } else if (err.status === 401) {
-            results.openai = {
-                status: 'error',
-                message: 'Clé API invalide'
-            }
-        } else {
-            results.openai = {
-                status: 'warning',
-                message: err.message || 'Erreur vérification'
-            }
+    } else if (openaiKey) {
+        results.openai = {
+            status: 'warning',
+            message: 'Format de clé inhabituel'
+        }
+    } else {
+        results.openai = {
+            status: 'error',
+            message: 'Clé API non configurée'
         }
     }
 
