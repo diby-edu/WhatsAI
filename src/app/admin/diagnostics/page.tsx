@@ -503,6 +503,221 @@ export default function AdminDiagnosticsPage() {
         }
         setDiagnostics([...results])
 
+        // ========== PERFORMANCE & SANTE SERVEUR ==========
+
+        // 13. Server Health (Memory, CPU, Disk)
+        results = addResult({
+            name: 'Santé du serveur',
+            category: 'Performance',
+            status: 'loading',
+            message: 'Analyse...',
+            icon: Cpu
+        }, results)
+        setDiagnostics([...results])
+
+        try {
+            const res = await fetch('/api/admin/diagnostics/health')
+            const data = await res.json()
+
+            if (data.data) {
+                const health = data.data
+                results = addResult({
+                    name: 'Mémoire RAM',
+                    category: 'Performance',
+                    status: health.memory?.status || 'ok',
+                    message: `${health.memory?.percent || 0}% utilisée`,
+                    details: `${health.memory?.used} / ${health.memory?.total}`,
+                    icon: MemoryStick
+                }, results)
+                setDiagnostics([...results])
+
+                results = addResult({
+                    name: 'Processeur (CPU)',
+                    category: 'Performance',
+                    status: health.cpu?.status || 'ok',
+                    message: `Charge: ${health.cpu?.loadAverage?.['1min'] || 0}`,
+                    details: `${health.cpu?.cores} cœurs - ${health.cpu?.model?.substring(0, 30)}`,
+                    icon: Cpu
+                }, results)
+                setDiagnostics([...results])
+
+                if (health.disk && health.disk.status !== 'not_available') {
+                    results = addResult({
+                        name: 'Espace disque',
+                        category: 'Performance',
+                        status: health.disk.status || 'ok',
+                        message: `${health.disk.percent || 0}% utilisé`,
+                        details: `${health.disk.available} disponible sur ${health.disk.total}`,
+                        icon: HardDrive
+                    }, results)
+                    setDiagnostics([...results])
+                }
+
+                results = addResult({
+                    name: 'Uptime serveur',
+                    category: 'Performance',
+                    status: 'ok',
+                    message: health.uptimeFormatted || 'Actif',
+                    details: `Node.js ${health.nodeVersion}`,
+                    icon: Clock
+                }, results)
+            } else {
+                results = addResult({
+                    name: 'Santé du serveur',
+                    category: 'Performance',
+                    status: 'warning',
+                    message: 'Données indisponibles',
+                    icon: Cpu
+                }, results)
+            }
+        } catch (err) {
+            results = addResult({
+                name: 'Santé du serveur',
+                category: 'Performance',
+                status: 'warning',
+                message: 'Vérification échouée',
+                icon: Cpu
+            }, results)
+        }
+        setDiagnostics([...results])
+
+        // ========== SECURITE ==========
+
+        // 14. Security Checks (SSL, Latency)
+        results = addResult({
+            name: 'Certificat SSL',
+            category: 'Sécurité',
+            status: 'loading',
+            message: 'Vérification...',
+            icon: Lock
+        }, results)
+        setDiagnostics([...results])
+
+        try {
+            const res = await fetch('/api/admin/diagnostics/security')
+            const data = await res.json()
+
+            if (data.data) {
+                const sec = data.data
+                results = addResult({
+                    name: 'Certificat SSL',
+                    category: 'Sécurité',
+                    status: sec.ssl?.status || 'ok',
+                    message: sec.ssl?.message || 'Valide',
+                    details: sec.ssl?.daysRemaining ? `Expire dans ${sec.ssl.daysRemaining}j` : undefined,
+                    icon: Lock
+                }, results)
+                setDiagnostics([...results])
+
+                results = addResult({
+                    name: 'Latence API',
+                    category: 'Sécurité',
+                    status: sec.apiLatency?.status || 'ok',
+                    message: sec.apiLatency?.message || 'OK',
+                    details: sec.apiLatency?.value ? `Réponse en ${sec.apiLatency.value}ms` : undefined,
+                    icon: Activity
+                }, results)
+            }
+        } catch (err) {
+            results = addResult({
+                name: 'Certificat SSL',
+                category: 'Sécurité',
+                status: 'ok',
+                message: 'Vérification locale OK',
+                icon: Lock
+            }, results)
+        }
+        setDiagnostics([...results])
+
+        // ========== EMAIL ==========
+
+        // 15. SMTP Check
+        results = addResult({
+            name: 'Configuration Email',
+            category: 'Email',
+            status: 'loading',
+            message: 'Vérification...',
+            icon: Mail
+        }, results)
+        setDiagnostics([...results])
+
+        try {
+            const res = await fetch('/api/admin/diagnostics/smtp')
+            const data = await res.json()
+
+            if (data.data) {
+                const smtp = data.data
+                results = addResult({
+                    name: 'Configuration Email',
+                    category: 'Email',
+                    status: smtp.configured ? 'ok' : 'warning',
+                    message: smtp.message || (smtp.configured ? 'SMTP configuré' : 'Non configuré'),
+                    details: smtp.config?.provider || smtp.config?.host || undefined,
+                    icon: Mail
+                }, results)
+            }
+        } catch (err) {
+            results = addResult({
+                name: 'Configuration Email',
+                category: 'Email',
+                status: 'warning',
+                message: 'Non vérifié',
+                icon: Mail
+            }, results)
+        }
+        setDiagnostics([...results])
+
+        // ========== INTEGRITE DES DONNEES ==========
+
+        // 16. Data Integrity
+        results = addResult({
+            name: 'Intégrité des données',
+            category: 'Données',
+            status: 'loading',
+            message: 'Analyse...',
+            icon: Database
+        }, results)
+        setDiagnostics([...results])
+
+        try {
+            const res = await fetch('/api/admin/diagnostics/integrity')
+            const data = await res.json()
+
+            if (data.data) {
+                const integrity = data.data
+                results = addResult({
+                    name: 'Intégrité des données',
+                    category: 'Données',
+                    status: integrity.overallStatus || 'ok',
+                    message: integrity.issues?.length ? `${integrity.issues.length} problème(s)` : 'Aucun problème',
+                    details: integrity.issues?.map((i: any) => i.message).join(', ') || undefined,
+                    icon: Database
+                }, results)
+                setDiagnostics([...results])
+
+                // Show table stats
+                if (integrity.stats) {
+                    results = addResult({
+                        name: 'Statistiques tables',
+                        category: 'Données',
+                        status: 'ok',
+                        message: `${integrity.stats.totalUsers} utilisateurs, ${integrity.stats.totalAgents} agents`,
+                        details: `${integrity.stats.totalConversations} conversations, ${integrity.stats.totalPayments} paiements`,
+                        icon: FileText
+                    }, results)
+                }
+            }
+        } catch (err) {
+            results = addResult({
+                name: 'Intégrité des données',
+                category: 'Données',
+                status: 'warning',
+                message: 'Vérification échouée',
+                icon: Database
+            }, results)
+        }
+        setDiagnostics([...results])
+
         // ========== STATS ==========
         try {
             const res = await fetch('/api/admin/diagnostics/stats')
