@@ -7,9 +7,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "security:lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "security:quick": "eslint . --ext .js,.jsx,.ts,.tsx",
     "security:deps": "npm audit --audit-level=moderate",
-    "security:full": "npm run security:lint && npm run security:deps"
+    "security:snyk-code": "npx snyk code test",
+    "security:snyk-deps": "npx snyk test",
+    "security:ultimate": "echo 🔍 SCAN ESLINT... && npm run security:quick && echo ✅ ESLint OK && echo 🔍 SCAN DEPENDENCIES... && npm run security:deps && echo ✅ Dependencies OK"
   },
   "dependencies": {
     "@supabase/ssr": "^0.8.0",
