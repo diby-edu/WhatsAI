@@ -35,10 +35,27 @@ export default function AdminPaymentPage() {
     const [verifyTransactionId, setVerifyTransactionId] = useState('')
     const [verifyResult, setVerifyResult] = useState<any>(null)
     const [verifying, setVerifying] = useState(false)
+    const [cinetpayConfig, setCinetpayConfig] = useState<{ apiKey: boolean, siteId: boolean }>({ apiKey: false, siteId: false })
 
     useEffect(() => {
         fetchPayments()
+        fetchCinetpayConfig()
     }, [])
+
+    const fetchCinetpayConfig = async () => {
+        try {
+            const res = await fetch('/api/admin/diagnostics/env')
+            const data = await res.json()
+            // Check if CINETPAY vars are in configured list (not in missing)
+            const missing = data.data?.missing || []
+            setCinetpayConfig({
+                apiKey: !missing.includes('CINETPAY_API_KEY'),
+                siteId: !missing.includes('CINETPAY_SITE_ID')
+            })
+        } catch (err) {
+            console.error('Error checking config:', err)
+        }
+    }
 
     const fetchPayments = async () => {
         try {
@@ -526,14 +543,14 @@ export default function AdminPaymentPage() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', padding: 12, background: 'rgba(15, 23, 42, 0.3)', borderRadius: 8 }}>
                             <span style={{ color: '#94a3b8', fontSize: 13 }}>CINETPAY_API_KEY</span>
-                            <span style={{ color: process.env.NEXT_PUBLIC_CINETPAY_KEY ? '#4ade80' : '#f87171', fontSize: 13 }}>
-                                {process.env.NEXT_PUBLIC_CINETPAY_KEY ? '✓ Configurée' : '✗ Non configurée'}
+                            <span style={{ color: cinetpayConfig.apiKey ? '#4ade80' : '#f87171', fontSize: 13 }}>
+                                {cinetpayConfig.apiKey ? '✓ Configurée' : '✗ Non configurée'}
                             </span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', padding: 12, background: 'rgba(15, 23, 42, 0.3)', borderRadius: 8 }}>
                             <span style={{ color: '#94a3b8', fontSize: 13 }}>CINETPAY_SITE_ID</span>
-                            <span style={{ color: process.env.NEXT_PUBLIC_CINETPAY_SITE_ID ? '#4ade80' : '#f87171', fontSize: 13 }}>
-                                {process.env.NEXT_PUBLIC_CINETPAY_SITE_ID ? '✓ Configurée' : '✗ Non configurée'}
+                            <span style={{ color: cinetpayConfig.siteId ? '#4ade80' : '#f87171', fontSize: 13 }}>
+                                {cinetpayConfig.siteId ? '✓ Configurée' : '✗ Non configurée'}
                             </span>
                         </div>
                     </div>
