@@ -57,6 +57,27 @@ export default function DashboardConversationsPage() {
         return date.toLocaleDateString('fr-FR')
     }
 
+    const formatPhoneNumber = (phone: string) => {
+        if (!phone) return 'Inconnu'
+        // Clean WhatsApp suffixes
+        const clean = phone.replace(/@s\.whatsapp\.net|@lid|@g\.us/g, '')
+        // Format with proper spacing
+        if (clean.length >= 11) {
+            const countryCode = clean.substring(0, 3)
+            const rest = clean.substring(3)
+            const formatted = rest.replace(/(\d{3})(?=\d)/g, '$1 ')
+            return '+' + countryCode + ' ' + formatted.trim()
+        }
+        return '+' + clean
+    }
+
+    const getDisplayName = (conv: Conversation) => {
+        if (conv.contact_push_name && conv.contact_push_name !== 'undefined') {
+            return conv.contact_push_name
+        }
+        return formatPhoneNumber(conv.contact_phone)
+    }
+
     if (loading) {
         return (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 300 }}>
@@ -137,7 +158,7 @@ export default function DashboardConversationsPage() {
                                 </div>
                                 <div style={{ flex: 1 }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                                        <span style={{ fontWeight: 600, color: 'white' }}>{conv.contact_phone}</span>
+                                        <span style={{ fontWeight: 600, color: 'white' }}>{getDisplayName(conv)}</span>
                                         {conv.agent && (
                                             <span style={{
                                                 padding: '2px 8px',

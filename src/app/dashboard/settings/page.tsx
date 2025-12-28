@@ -1,243 +1,564 @@
 'use client'
 
-import { useState } from 'react'
-import { motion } from 'framer-motion'
+import { useState, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
-    Settings,
     User,
     Bell,
-    Lock,
-    CreditCard,
-    Trash2,
+    Shield,
+    AlertTriangle,
     Save,
     Loader2,
-    Check
+    Check,
+    Mail,
+    Phone,
+    Building,
+    Lock,
+    Eye,
+    EyeOff,
+    Trash2
 } from 'lucide-react'
+
+interface Profile {
+    id: string
+    email: string
+    full_name: string
+    phone: string
+    company: string
+}
+
+interface NotificationSettings {
+    email_new_conversation: boolean
+    email_daily_summary: boolean
+    email_low_credits: boolean
+    push_enabled: boolean
+}
+
+const tabs = [
+    { id: 'profile', label: 'Profil', icon: User },
+    { id: 'notifications', label: 'Notifications', icon: Bell },
+    { id: 'security', label: 'Sécurité', icon: Shield },
+    { id: 'danger', label: 'Zone de danger', icon: AlertTriangle }
+]
 
 export default function SettingsPage() {
     const [activeTab, setActiveTab] = useState('profile')
-    const [loading, setLoading] = useState(false)
+    const [loading, setLoading] = useState(true)
+    const [saving, setSaving] = useState(false)
     const [saved, setSaved] = useState(false)
+    const [showPassword, setShowPassword] = useState(false)
 
-    const [profile, setProfile] = useState({
-        fullName: 'John Doe',
-        email: 'john@example.com',
-        phone: '+225 07 XX XX XX',
-        company: 'Ma Société',
+    // Profile state
+    const [profile, setProfile] = useState<Profile>({
+        id: '',
+        email: '',
+        full_name: '',
+        phone: '',
+        company: ''
     })
 
-    const [notifications, setNotifications] = useState({
-        email_new_lead: true,
+    // Notification state
+    const [notifications, setNotifications] = useState<NotificationSettings>({
+        email_new_conversation: true,
         email_daily_summary: true,
-        email_weekly_report: false,
-        push_new_message: true,
-        push_escalation: true,
+        email_low_credits: true,
+        push_enabled: false
     })
 
-    const handleSave = async () => {
-        setLoading(true)
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        setLoading(false)
-        setSaved(true)
-        setTimeout(() => setSaved(false), 2000)
+    // Password state
+    const [passwords, setPasswords] = useState({
+        current: '',
+        new: '',
+        confirm: ''
+    })
+
+    useEffect(() => {
+        fetchProfile()
+    }, [])
+
+    const fetchProfile = async () => {
+        try {
+            const res = await fetch('/api/profile')
+            const data = await res.json()
+            if (data.data?.profile) {
+                setProfile(data.data.profile)
+            }
+        } catch (err) {
+            console.error('Error:', err)
+        } finally {
+            setLoading(false)
+        }
     }
 
-    const tabs = [
-        { id: 'profile', label: 'Profil', icon: User },
-        { id: 'notifications', label: 'Notifications', icon: Bell },
-        { id: 'security', label: 'Sécurité', icon: Lock },
-        { id: 'danger', label: 'Zone de danger', icon: Trash2 },
-    ]
+    const handleSaveProfile = async () => {
+        setSaving(true)
+        try {
+            const res = await fetch('/api/profile', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    full_name: profile.full_name,
+                    phone: profile.phone,
+                    company: profile.company
+                })
+            })
+            if (res.ok) {
+                setSaved(true)
+                setTimeout(() => setSaved(false), 3000)
+            }
+        } catch (err) {
+            console.error('Error:', err)
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    const handleSaveNotifications = async () => {
+        setSaving(true)
+        // Simulate save - implement actual API later
+        setTimeout(() => {
+            setSaving(false)
+            setSaved(true)
+            setTimeout(() => setSaved(false), 3000)
+        }, 500)
+    }
+
+    const handleChangePassword = async () => {
+        if (passwords.new !== passwords.confirm) {
+            alert('Les mots de passe ne correspondent pas')
+            return
+        }
+        setSaving(true)
+        // Implement password change API
+        setTimeout(() => {
+            setSaving(false)
+            setSaved(true)
+            setPasswords({ current: '', new: '', confirm: '' })
+            setTimeout(() => setSaved(false), 3000)
+        }, 500)
+    }
+
+    if (loading) {
+        return (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 300 }}>
+                <Loader2 style={{ width: 32, height: 32, color: '#34d399', animation: 'spin 1s linear infinite' }} />
+            </div>
+        )
+    }
 
     return (
-        <div className="max-w-4xl mx-auto">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
             {/* Header */}
-            <div className="mb-8">
-                <h1 className="text-2xl font-bold">Paramètres</h1>
-                <p className="text-gray-600 dark:text-gray-400">
-                    Gérez votre compte et vos préférences
-                </p>
+            <div>
+                <h1 style={{ fontSize: 28, fontWeight: 700, color: 'white', marginBottom: 8 }}>Paramètres</h1>
+                <p style={{ color: '#94a3b8' }}>Gérez votre compte et vos préférences</p>
             </div>
 
-            <div className="flex flex-col md:flex-row gap-6">
-                {/* Tabs */}
-                <div className="md:w-48 flex md:flex-col gap-2">
+            <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+                {/* Sidebar Tabs */}
+                <div style={{
+                    width: 220,
+                    background: 'rgba(15, 23, 42, 0.6)',
+                    backdropFilter: 'blur(20px)',
+                    border: '1px solid rgba(148, 163, 184, 0.1)',
+                    borderRadius: 16,
+                    padding: 12,
+                    flexShrink: 0
+                }}>
                     {tabs.map((tab) => (
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
-                            className={`flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-colors ${activeTab === tab.id
-                                    ? 'bg-green-50 dark:bg-green-900/20 text-green-600'
-                                    : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400'
-                                }`}
+                            style={{
+                                width: '100%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 12,
+                                padding: '14px 16px',
+                                background: activeTab === tab.id
+                                    ? tab.id === 'danger'
+                                        ? 'rgba(239, 68, 68, 0.15)'
+                                        : 'rgba(16, 185, 129, 0.15)'
+                                    : 'transparent',
+                                border: 'none',
+                                borderRadius: 12,
+                                color: activeTab === tab.id
+                                    ? tab.id === 'danger' ? '#f87171' : '#34d399'
+                                    : '#94a3b8',
+                                fontWeight: activeTab === tab.id ? 600 : 400,
+                                cursor: 'pointer',
+                                transition: 'all 0.2s',
+                                textAlign: 'left'
+                            }}
                         >
-                            <tab.icon className="w-5 h-5" />
-                            <span className="font-medium text-sm">{tab.label}</span>
+                            <tab.icon style={{ width: 20, height: 20 }} />
+                            {tab.label}
                         </button>
                     ))}
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 card">
-                    {activeTab === 'profile' && (
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            className="space-y-6"
-                        >
-                            <h2 className="text-lg font-semibold">Informations du profil</h2>
-
-                            <div className="grid md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium mb-2">Nom complet</label>
-                                    <input
-                                        type="text"
-                                        value={profile.fullName}
-                                        onChange={(e) => setProfile({ ...profile, fullName: e.target.value })}
-                                        className="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
+                <div style={{
+                    flex: 1,
+                    minWidth: 300,
+                    background: 'rgba(15, 23, 42, 0.6)',
+                    backdropFilter: 'blur(20px)',
+                    border: '1px solid rgba(148, 163, 184, 0.1)',
+                    borderRadius: 16,
+                    padding: 28
+                }}>
+                    <AnimatePresence mode="wait">
+                        {/* Profile Tab */}
+                        {activeTab === 'profile' && (
+                            <motion.div
+                                key="profile"
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -20 }}
+                            >
+                                <h2 style={{ fontSize: 20, fontWeight: 600, color: 'white', marginBottom: 24 }}>
+                                    Informations du profil
+                                </h2>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                                    <InputField
+                                        label="Nom complet"
+                                        icon={User}
+                                        value={profile.full_name}
+                                        onChange={(v) => setProfile({ ...profile, full_name: v })}
+                                        placeholder="Votre nom"
                                     />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-2">Email</label>
-                                    <input
-                                        type="email"
+                                    <InputField
+                                        label="Email"
+                                        icon={Mail}
                                         value={profile.email}
-                                        onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-                                        className="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
+                                        disabled
+                                        placeholder="email@exemple.com"
                                     />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-2">Téléphone</label>
-                                    <input
-                                        type="tel"
+                                    <InputField
+                                        label="Téléphone"
+                                        icon={Phone}
                                         value={profile.phone}
-                                        onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-                                        className="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
+                                        onChange={(v) => setProfile({ ...profile, phone: v })}
+                                        placeholder="+225 XX XX XX XX"
                                     />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-2">Entreprise</label>
-                                    <input
-                                        type="text"
+                                    <InputField
+                                        label="Entreprise"
+                                        icon={Building}
                                         value={profile.company}
-                                        onChange={(e) => setProfile({ ...profile, company: e.target.value })}
-                                        className="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
+                                        onChange={(v) => setProfile({ ...profile, company: v })}
+                                        placeholder="Nom de l'entreprise"
                                     />
                                 </div>
-                            </div>
+                                <SaveButton saving={saving} saved={saved} onClick={handleSaveProfile} />
+                            </motion.div>
+                        )}
 
-                            <button onClick={handleSave} className="btn-primary">
-                                {loading ? (
-                                    <><Loader2 className="w-5 h-5 animate-spin" /> Enregistrement...</>
-                                ) : saved ? (
-                                    <><Check className="w-5 h-5" /> Enregistré !</>
-                                ) : (
-                                    <><Save className="w-5 h-5" /> Enregistrer</>
-                                )}
-                            </button>
-                        </motion.div>
-                    )}
+                        {/* Notifications Tab */}
+                        {activeTab === 'notifications' && (
+                            <motion.div
+                                key="notifications"
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -20 }}
+                            >
+                                <h2 style={{ fontSize: 20, fontWeight: 600, color: 'white', marginBottom: 24 }}>
+                                    Préférences de notification
+                                </h2>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                                    <ToggleOption
+                                        label="Nouvelle conversation"
+                                        description="Recevoir un email quand un client démarre une conversation"
+                                        checked={notifications.email_new_conversation}
+                                        onChange={(v) => setNotifications({ ...notifications, email_new_conversation: v })}
+                                    />
+                                    <ToggleOption
+                                        label="Résumé quotidien"
+                                        description="Recevoir un récapitulatif de vos conversations chaque jour"
+                                        checked={notifications.email_daily_summary}
+                                        onChange={(v) => setNotifications({ ...notifications, email_daily_summary: v })}
+                                    />
+                                    <ToggleOption
+                                        label="Alerte crédits faibles"
+                                        description="Être notifié quand vos crédits sont presque épuisés"
+                                        checked={notifications.email_low_credits}
+                                        onChange={(v) => setNotifications({ ...notifications, email_low_credits: v })}
+                                    />
+                                </div>
+                                <SaveButton saving={saving} saved={saved} onClick={handleSaveNotifications} />
+                            </motion.div>
+                        )}
 
-                    {activeTab === 'notifications' && (
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            className="space-y-6"
-                        >
-                            <h2 className="text-lg font-semibold">Préférences de notification</h2>
-
-                            <div className="space-y-4">
-                                <h3 className="text-sm font-medium text-gray-500">Notifications par email</h3>
-                                {[
-                                    { key: 'email_new_lead', label: 'Nouveaux leads', description: 'Recevoir un email pour chaque nouveau lead' },
-                                    { key: 'email_daily_summary', label: 'Résumé quotidien', description: 'Rapport quotidien de vos conversations' },
-                                    { key: 'email_weekly_report', label: 'Rapport hebdomadaire', description: 'Analytics et statistiques de la semaine' },
-                                ].map((item) => (
-                                    <div key={item.key} className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-xl">
-                                        <div>
-                                            <h4 className="font-medium">{item.label}</h4>
-                                            <p className="text-sm text-gray-500">{item.description}</p>
-                                        </div>
-                                        <button
-                                            onClick={() => setNotifications({ ...notifications, [item.key]: !notifications[item.key as keyof typeof notifications] })}
-                                            className={`w-12 h-6 rounded-full transition-colors ${notifications[item.key as keyof typeof notifications] ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
-                                                }`}
-                                        >
-                                            <div className={`w-5 h-5 bg-white rounded-full transition-transform ${notifications[item.key as keyof typeof notifications] ? 'translate-x-6' : 'translate-x-0.5'
-                                                }`} />
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-
-                            <button onClick={handleSave} className="btn-primary">
-                                <Save className="w-5 h-5" /> Enregistrer
-                            </button>
-                        </motion.div>
-                    )}
-
-                    {activeTab === 'security' && (
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            className="space-y-6"
-                        >
-                            <h2 className="text-lg font-semibold">Sécurité du compte</h2>
-
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium mb-2">Mot de passe actuel</label>
-                                    <input
-                                        type="password"
+                        {/* Security Tab */}
+                        {activeTab === 'security' && (
+                            <motion.div
+                                key="security"
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -20 }}
+                            >
+                                <h2 style={{ fontSize: 20, fontWeight: 600, color: 'white', marginBottom: 24 }}>
+                                    Sécurité du compte
+                                </h2>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                                    <h3 style={{ color: '#94a3b8', fontSize: 14, fontWeight: 500 }}>Changer le mot de passe</h3>
+                                    <InputField
+                                        label="Mot de passe actuel"
+                                        icon={Lock}
+                                        type={showPassword ? 'text' : 'password'}
+                                        value={passwords.current}
+                                        onChange={(v) => setPasswords({ ...passwords, current: v })}
                                         placeholder="••••••••"
-                                        className="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
+                                        suffix={
+                                            <button
+                                                onClick={() => setShowPassword(!showPassword)}
+                                                style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+                                            >
+                                                {showPassword ?
+                                                    <EyeOff style={{ width: 18, height: 18, color: '#64748b' }} /> :
+                                                    <Eye style={{ width: 18, height: 18, color: '#64748b' }} />
+                                                }
+                                            </button>
+                                        }
                                     />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-2">Nouveau mot de passe</label>
-                                    <input
-                                        type="password"
+                                    <InputField
+                                        label="Nouveau mot de passe"
+                                        icon={Lock}
+                                        type={showPassword ? 'text' : 'password'}
+                                        value={passwords.new}
+                                        onChange={(v) => setPasswords({ ...passwords, new: v })}
                                         placeholder="••••••••"
-                                        className="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
                                     />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-2">Confirmer le nouveau mot de passe</label>
-                                    <input
-                                        type="password"
+                                    <InputField
+                                        label="Confirmer le mot de passe"
+                                        icon={Lock}
+                                        type={showPassword ? 'text' : 'password'}
+                                        value={passwords.confirm}
+                                        onChange={(v) => setPasswords({ ...passwords, confirm: v })}
                                         placeholder="••••••••"
-                                        className="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
                                     />
                                 </div>
-                            </div>
+                                <SaveButton
+                                    saving={saving}
+                                    saved={saved}
+                                    onClick={handleChangePassword}
+                                    label="Mettre à jour le mot de passe"
+                                />
+                            </motion.div>
+                        )}
 
-                            <button className="btn-primary">
-                                <Lock className="w-5 h-5" /> Changer le mot de passe
-                            </button>
-                        </motion.div>
-                    )}
-
-                    {activeTab === 'danger' && (
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            className="space-y-6"
-                        >
-                            <h2 className="text-lg font-semibold text-red-600">Zone de danger</h2>
-
-                            <div className="p-4 border-2 border-red-200 dark:border-red-900 rounded-xl bg-red-50 dark:bg-red-900/20">
-                                <h3 className="font-semibold text-red-600 mb-2">Supprimer le compte</h3>
-                                <p className="text-sm text-red-600/80 mb-4">
-                                    Cette action est irréversible. Toutes vos données seront définitivement supprimées.
-                                </p>
-                                <button className="px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors">
-                                    Supprimer mon compte
-                                </button>
-                            </div>
-                        </motion.div>
-                    )}
+                        {/* Danger Zone Tab */}
+                        {activeTab === 'danger' && (
+                            <motion.div
+                                key="danger"
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -20 }}
+                            >
+                                <h2 style={{ fontSize: 20, fontWeight: 600, color: '#f87171', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 10 }}>
+                                    <AlertTriangle style={{ width: 24, height: 24 }} />
+                                    Zone de danger
+                                </h2>
+                                <div style={{
+                                    background: 'rgba(239, 68, 68, 0.1)',
+                                    border: '1px solid rgba(239, 68, 68, 0.2)',
+                                    borderRadius: 12,
+                                    padding: 24
+                                }}>
+                                    <h3 style={{ color: 'white', fontWeight: 600, marginBottom: 8 }}>Supprimer mon compte</h3>
+                                    <p style={{ color: '#94a3b8', fontSize: 14, marginBottom: 16 }}>
+                                        Cette action est irréversible. Toutes vos données, agents et conversations seront définitivement supprimés.
+                                    </p>
+                                    <button
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 8,
+                                            padding: '12px 20px',
+                                            background: 'rgba(239, 68, 68, 0.2)',
+                                            border: '1px solid rgba(239, 68, 68, 0.4)',
+                                            borderRadius: 10,
+                                            color: '#f87171',
+                                            fontWeight: 600,
+                                            cursor: 'pointer',
+                                            transition: 'all 0.2s'
+                                        }}
+                                        onClick={() => {
+                                            if (confirm('Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible.')) {
+                                                // Implement delete account
+                                                alert('Contactez le support pour supprimer votre compte.')
+                                            }
+                                        }}
+                                    >
+                                        <Trash2 style={{ width: 18, height: 18 }} />
+                                        Supprimer mon compte
+                                    </button>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
             </div>
+
+            <style jsx global>{`
+                @keyframes spin {
+                    from { transform: rotate(0deg); }
+                    to { transform: rotate(360deg); }
+                }
+            `}</style>
         </div>
+    )
+}
+
+// Input Field Component
+function InputField({
+    label,
+    icon: Icon,
+    value,
+    onChange,
+    placeholder,
+    disabled,
+    type = 'text',
+    suffix
+}: {
+    label: string
+    icon: any
+    value: string
+    onChange?: (value: string) => void
+    placeholder?: string
+    disabled?: boolean
+    type?: string
+    suffix?: React.ReactNode
+}) {
+    return (
+        <div>
+            <label style={{ display: 'block', color: '#94a3b8', fontSize: 13, marginBottom: 8 }}>{label}</label>
+            <div style={{ position: 'relative' }}>
+                <Icon style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', width: 18, height: 18, color: '#64748b' }} />
+                <input
+                    type={type}
+                    value={value || ''}
+                    onChange={(e) => onChange?.(e.target.value)}
+                    placeholder={placeholder}
+                    disabled={disabled}
+                    style={{
+                        width: '100%',
+                        padding: '12px 12px 12px 44px',
+                        paddingRight: suffix ? 44 : 12,
+                        background: disabled ? 'rgba(51, 65, 85, 0.3)' : 'rgba(30, 41, 59, 0.8)',
+                        border: '1px solid rgba(148, 163, 184, 0.15)',
+                        borderRadius: 10,
+                        color: disabled ? '#64748b' : 'white',
+                        fontSize: 14,
+                        cursor: disabled ? 'not-allowed' : 'text'
+                    }}
+                />
+                {suffix && (
+                    <div style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)' }}>
+                        {suffix}
+                    </div>
+                )}
+            </div>
+        </div>
+    )
+}
+
+// Toggle Option Component
+function ToggleOption({
+    label,
+    description,
+    checked,
+    onChange
+}: {
+    label: string
+    description: string
+    checked: boolean
+    onChange: (value: boolean) => void
+}) {
+    return (
+        <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: 16,
+            background: 'rgba(30, 41, 59, 0.5)',
+            border: '1px solid rgba(148, 163, 184, 0.1)',
+            borderRadius: 12
+        }}>
+            <div>
+                <h4 style={{ color: 'white', fontWeight: 500, marginBottom: 4 }}>{label}</h4>
+                <p style={{ color: '#64748b', fontSize: 13 }}>{description}</p>
+            </div>
+            <button
+                onClick={() => onChange(!checked)}
+                style={{
+                    width: 52,
+                    height: 28,
+                    borderRadius: 14,
+                    border: 'none',
+                    background: checked ? '#10b981' : 'rgba(100, 116, 139, 0.3)',
+                    cursor: 'pointer',
+                    position: 'relative',
+                    transition: 'background 0.2s'
+                }}
+            >
+                <motion.div
+                    animate={{ x: checked ? 24 : 2 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                    style={{
+                        width: 24,
+                        height: 24,
+                        borderRadius: '50%',
+                        background: 'white',
+                        position: 'absolute',
+                        top: 2
+                    }}
+                />
+            </button>
+        </div>
+    )
+}
+
+// Save Button Component
+function SaveButton({
+    saving,
+    saved,
+    onClick,
+    label = 'Enregistrer'
+}: {
+    saving: boolean
+    saved: boolean
+    onClick: () => void
+    label?: string
+}) {
+    return (
+        <button
+            onClick={onClick}
+            disabled={saving}
+            style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                marginTop: 28,
+                padding: '14px 28px',
+                background: saved
+                    ? 'linear-gradient(135deg, #10b981, #059669)'
+                    : 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                border: 'none',
+                borderRadius: 12,
+                color: 'white',
+                fontWeight: 600,
+                cursor: saving ? 'wait' : 'pointer',
+                transition: 'all 0.2s'
+            }}
+        >
+            {saving ? (
+                <Loader2 style={{ width: 18, height: 18, animation: 'spin 1s linear infinite' }} />
+            ) : saved ? (
+                <Check style={{ width: 18, height: 18 }} />
+            ) : (
+                <Save style={{ width: 18, height: 18 }} />
+            )}
+            {saved ? 'Enregistré !' : label}
+        </button>
     )
 }

@@ -30,10 +30,10 @@ const sidebarLinks = [
     { href: '/dashboard/conversations', label: 'Conversations', icon: MessagesSquare },
     { href: '/dashboard/products', label: 'Produits', icon: Package },
     { href: '/dashboard/orders', label: 'Commandes', icon: ShoppingBag },
-    { href: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },
     { href: '/dashboard/playground', label: 'Playground', icon: Zap },
     { href: '/dashboard/billing', label: 'Facturation', icon: CreditCard },
     { href: '/dashboard/settings', label: 'Paramètres', icon: Settings },
+    { href: '/dashboard/help', label: 'Aide', icon: HelpCircle },
 ]
 
 export default function DashboardLayout({
