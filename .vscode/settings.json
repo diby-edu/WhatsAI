@@ -1,0 +1,17 @@
+{
+    "eslint.enable": true,
+    "eslint.validate": [
+        "javascript",
+        "javascriptreact",
+        "typescript",
+        "typescriptreact"
+    ],
+    "eslint.useFlatConfig": true,
+    "sonarlint.analyzerProperties": {
+        "sonar.javascript.node.maxspace": "4096"
+    },
+    "editor.codeActionsOnSave": {
+        "source.fixAll.eslint": "explicit"
+    },
+    "typescript.tsdk": "node_modules/typescript/lib"
+}
