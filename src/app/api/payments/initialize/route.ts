@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
                 customer_phone: profile.phone,
                 customer_email: profile.email,
                 credits_purchased: metadata.credits, // Store credits from plan
-                metadata: JSON.stringify(metadata), // Store full metadata
+                provider_response: metadata, // Store full metadata in existing jsonb column
             })
             .select('id')
             .single()
