@@ -25,16 +25,30 @@ export async function GET(request: NextRequest) {
 
         if (agentsError) throw agentsError
 
-        // Get real conversation count from conversations table
+        // Get conversation count PER AGENT
+        const agentIds = agents?.map(a => a.id) || []
+        const agentsWithConversations = await Promise.all(
+            (agents || []).map(async (agent) => {
+                const { count } = await supabase
+                    .from('conversations')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('agent_id', agent.id)
+
+                return {
+                    ...agent,
+                    total_conversations: count || 0
+                }
+            })
+        )
+
+        // Get real total conversation count
         const { count: conversationCount } = await supabase
             .from('conversations')
             .select('*', { count: 'exact', head: true })
             .eq('user_id', user.id)
 
         // Get total messages from messages table for accurate count
-        const agentIds = agents?.map(a => a.id) || []
         let totalMessages = 0
-
         if (agentIds.length > 0) {
             const { count: messageCount } = await supabase
                 .from('messages')
@@ -43,7 +57,7 @@ export async function GET(request: NextRequest) {
             totalMessages = messageCount || 0
         }
 
-        // Get recent conversations
+        // Get recent conversations with last message
         const { data: recentConvs } = await supabase
             .from('conversations')
             .select(`
@@ -57,23 +71,37 @@ export async function GET(request: NextRequest) {
             .order('updated_at', { ascending: false })
             .limit(5)
 
-        const recentConversations = (recentConvs || []).map((c: any) => ({
-            id: c.id,
-            contact: c.contact_push_name || formatPhoneNumber(c.contact_phone),
-            time: formatRelativeTime(c.updated_at),
-            lastMessage: '',
-            status: 'active'
-        }))
+        // Get last message for each conversation
+        const recentConversations = await Promise.all(
+            (recentConvs || []).map(async (c: any) => {
+                const { data: lastMsg } = await supabase
+                    .from('messages')
+                    .select('content')
+                    .eq('conversation_id', c.id)
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .single()
+
+                return {
+                    id: c.id,
+                    contact: c.contact_push_name || formatPhoneNumber(c.contact_phone),
+                    time: formatRelativeTime(c.updated_at),
+                    lastMessage: lastMsg?.content?.substring(0, 50) || '',
+                    status: 'active',
+                    agentName: c.agent?.name || 'Agent'
+                }
+            })
+        )
 
         return successResponse({
             stats: {
                 totalMessages,
-                activeAgents: agents?.filter(a => a.is_active).length || 0,
+                activeAgents: agentsWithConversations?.filter(a => a.is_active).length || 0,
                 totalConversations: conversationCount || 0,
                 plan: profile?.plan || 'Free',
                 credits: profile?.credits_balance || 0
             },
-            agents: agents || [],
+            agents: agentsWithConversations,
             recentConversations
         })
 
@@ -88,11 +116,16 @@ function formatPhoneNumber(phone: string): string {
     if (!phone) return 'Inconnu'
     // Clean WhatsApp suffixes
     const clean = phone.replace(/@s\.whatsapp\.net|@lid|@g\.us/g, '')
-    // Format with spaces for readability
-    if (clean.length > 10) {
-        return '+' + clean.substring(0, 3) + ' ' + clean.substring(3)
+
+    // Format with proper spacing for readability
+    if (clean.length >= 11) {
+        // Format: +XXX XXX XXX XXX
+        const countryCode = clean.substring(0, 3)
+        const rest = clean.substring(3)
+        const formatted = rest.replace(/(\d{3})(?=\d)/g, '$1 ')
+        return '+' + countryCode + ' ' + formatted.trim()
     }
-    return clean
+    return '+' + clean
 }
 
 // Helper to format relative time
@@ -103,8 +136,7 @@ function formatRelativeTime(dateStr: string): string {
     const diffMins = Math.floor(diffMs / 60000)
 
     if (diffMins < 1) return 'À l\'instant'
-    if (diffMins < 60) return `${diffMins} min`
-    if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h`
+    if (diffMins < 60) return `Il y a ${diffMins} min`
+    if (diffMins < 1440) return `Il y a ${Math.floor(diffMins / 60)}h`
     return date.toLocaleDateString('fr-FR')
 }
-

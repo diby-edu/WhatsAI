@@ -76,24 +76,50 @@ export default function PlaygroundPage() {
         setInput('')
         setIsTyping(true)
 
-        // Simulate AI response for playground purposes (avoiding credit usage for now)
-        // Ideally this would call a /api/playground/chat endpoint
-        await new Promise(resolve => setTimeout(resolve, 1500))
+        try {
+            // Call real API for AI response
+            const res = await fetch('/api/playground/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    agentId: selectedAgent.id,
+                    message: userMessage.content,
+                    conversationHistory: messages
+                })
+            })
 
-        const responses = [
-            `[Simulation ${selectedAgent.name}] J'ai bien reçu votre message : "${userMessage.content}"`,
-            `[Simulation ${selectedAgent.name}] Je suis configuré pour répondre de manière ${selectedAgent.personality || 'neutre'}.`,
-        ]
+            const data = await res.json()
 
-        const aiMessage: Message = {
-            id: (Date.now() + 1).toString(),
-            role: 'assistant',
-            content: responses[Math.floor(Math.random() * responses.length)],
-            timestamp: new Date(),
+            if (res.ok && data.data?.response) {
+                const aiMessage: Message = {
+                    id: (Date.now() + 1).toString(),
+                    role: 'assistant',
+                    content: data.data.response,
+                    timestamp: new Date(),
+                }
+                setMessages(prev => [...prev, aiMessage])
+            } else {
+                // Fallback to simulation if API fails
+                const aiMessage: Message = {
+                    id: (Date.now() + 1).toString(),
+                    role: 'assistant',
+                    content: data.error || `[${selectedAgent.name}] Désolé, je n'ai pas pu répondre. Vérifiez vos crédits.`,
+                    timestamp: new Date(),
+                }
+                setMessages(prev => [...prev, aiMessage])
+            }
+        } catch (err) {
+            console.error('Error:', err)
+            const aiMessage: Message = {
+                id: (Date.now() + 1).toString(),
+                role: 'assistant',
+                content: `[Erreur] Impossible de contacter le serveur.`,
+                timestamp: new Date(),
+            }
+            setMessages(prev => [...prev, aiMessage])
+        } finally {
+            setIsTyping(false)
         }
-
-        setIsTyping(false)
-        setMessages(prev => [...prev, aiMessage])
     }
 
     const handleReset = () => {
