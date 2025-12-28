@@ -352,6 +352,65 @@ export default function Footer() {
                     </div>
                 </div>
             </div>
+
+            {/* Mobile responsive styles */}
+            <style jsx global>{`
+                @media (max-width: 768px) {
+                    footer > div {
+                        padding: 0 16px !important;
+                    }
+                    footer > div > div:first-of-type {
+                        padding: 24px 20px !important;
+                    }
+                    footer > div > div:first-of-type h2 {
+                        font-size: 22px !important;
+                    }
+                    footer > div > div:first-of-type > div {
+                        gap: 24px !important;
+                    }
+                    /* Stack newsletter form on mobile */
+                    footer form {
+                        flex-direction: column !important;
+                    }
+                    footer form input {
+                        width: 100% !important;
+                    }
+                    footer form button {
+                        width: 100% !important;
+                    }
+                    /* Footer links grid */
+                    footer > div > div:nth-child(2) {
+                        grid-template-columns: repeat(2, 1fr) !important;
+                        gap: 24px !important;
+                    }
+                    /* Bottom bar stack */
+                    footer > div > div:last-child {
+                        flex-direction: column !important;
+                        text-align: center !important;
+                        gap: 12px !important;
+                    }
+                    footer > div > div:last-child > div {
+                        flex-direction: column !important;
+                        gap: 8px !important;
+                    }
+                }
+                @media (max-width: 400px) {
+                    footer > div > div:nth-child(2) {
+                        grid-template-columns: 1fr !important;
+                    }
+                    footer > div > div:first-of-type > div > div:first-child > div:last-child {
+                        flex-direction: column !important;
+                        width: 100% !important;
+                    }
+                    footer > div > div:first-of-type > div > div:first-child > div:last-child a {
+                        width: 100% !important;
+                    }
+                    footer > div > div:first-of-type > div > div:first-child > div:last-child button {
+                        width: 100% !important;
+                        justify-content: center !important;
+                    }
+                }
+            `}</style>
         </footer>
     )
 }

@@ -585,6 +585,75 @@ export default function Hero() {
                         justify-content: center !important;
                     }
                 }
+                
+                /* Mobile responsive - Fix text overflow and buttons */
+                @media (max-width: 768px) {
+                    section {
+                        padding-top: 80px !important;
+                        padding-bottom: 40px !important;
+                    }
+                    section > div {
+                        padding: 0 16px !important;
+                    }
+                    section > div > div {
+                        gap: 30px !important;
+                    }
+                    /* Fix title overflow */
+                    section h1 {
+                        font-size: 28px !important;
+                        word-wrap: break-word !important;
+                        overflow-wrap: break-word !important;
+                        hyphens: auto !important;
+                    }
+                    /* Fix subtitle overflow */
+                    section p {
+                        font-size: 15px !important;
+                        max-width: 100% !important;
+                        padding: 0 8px !important;
+                    }
+                    /* Stack buttons vertically on mobile */
+                    section > div > div > div:first-child > div[style*="gap: 16px"][style*="marginBottom: 40"] {
+                        flex-direction: column !important;
+                        align-items: stretch !important;
+                        gap: 12px !important;
+                        width: 100% !important;
+                    }
+                    section > div > div > div:first-child > div[style*="gap: 16px"][style*="marginBottom: 40"] a {
+                        width: 100% !important;
+                    }
+                    section > div > div > div:first-child > div[style*="gap: 16px"][style*="marginBottom: 40"] button {
+                        width: 100% !important;
+                        justify-content: center !important;
+                    }
+                    /* Stack feature pills */
+                    section > div > div > div:first-child > div[style*="flexWrap: wrap"] {
+                        justify-content: center !important;
+                    }
+                    /* Stack trust stats */
+                    section > div > div > div:first-child > div[style*="gap: 40"] {
+                        flex-direction: column !important;
+                        gap: 20px !important;
+                        align-items: center !important;
+                    }
+                    /* Hide phone mockup on very small screens */
+                    section > div > div > div:last-child {
+                        display: none !important;
+                    }
+                }
+                
+                /* Small mobile (iPhone SE, etc) */
+                @media (max-width: 375px) {
+                    section h1 {
+                        font-size: 24px !important;
+                    }
+                    section p {
+                        font-size: 14px !important;
+                    }
+                    section > div > div > div:first-child > div[style*="flexWrap: wrap"] > div {
+                        padding: 8px 12px !important;
+                        font-size: 12px !important;
+                    }
+                }
             `}</style>
         </section>
     )
