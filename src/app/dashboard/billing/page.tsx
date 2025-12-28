@@ -116,14 +116,25 @@ function BillingContent() {
 
     const checkPaymentStatus = async (paymentId: string) => {
         try {
-            const res = await fetch(`/api/payments/initialize?paymentId=${paymentId}`)
+            // Call verify API which checks with CinetPay directly and credits user
+            const res = await fetch('/api/payments/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ paymentId }),
+            })
             const data = await res.json()
 
-            if (data.data?.payment?.status === 'completed') {
+            if (data.success && data.credits_added) {
                 setPaymentStatus('success')
-                fetchData() // Refresh data
-            } else if (data.data?.payment?.status === 'failed') {
+                fetchData() // Refresh user data to show new balance
+            } else if (data.cinetpay_status === 'REFUSED' || data.cinetpay_status === 'CANCELLED') {
                 setPaymentStatus('failed')
+            } else if (data.current_status === 'completed') {
+                setPaymentStatus('success')
+                fetchData()
+            } else {
+                // Payment still pending, check again in 3 seconds
+                setTimeout(() => checkPaymentStatus(paymentId), 3000)
             }
         } catch (err) {
             console.error('Error checking payment:', err)
