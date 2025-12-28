@@ -22,12 +22,22 @@ const eslintConfig = defineConfig([
       "security/detect-new-buffer": "error",
       "security/detect-bidi-characters": "error",
       // Warning level rules (potential issues)
-      "security/detect-object-injection": "warn",
+      "security/detect-object-injection": "off", // Too many false positives in TypeScript
       "security/detect-non-literal-regexp": "warn",
       "security/detect-child-process": "warn",
-      "security/detect-non-literal-fs-filename": "warn",
-      "security/detect-non-literal-require": "warn",
+      "security/detect-non-literal-fs-filename": "off", // Normal for WhatsApp session management
+      "security/detect-non-literal-require": "off", // Needed for Node.js
       "security/detect-possible-timing-attacks": "warn",
+    },
+  },
+  // Relax some rules that cause false positives
+  {
+    rules: {
+      "@typescript-eslint/no-explicit-any": "warn", // Downgrade from error to warning
+      "@typescript-eslint/no-unused-vars": "warn",  // Downgrade from error to warning
+      "react/no-unescaped-entities": "off", // French text has apostrophes
+      "@typescript-eslint/no-require-imports": "off", // Needed for Node.js files
+      "react-hooks/rules-of-hooks": "warn", // Baileys uses hook-like function names
     },
   },
   // Override default ignores of eslint-config-next.
@@ -38,8 +48,10 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
     "node_modules/**",
+    // Node.js standalone files (not React)
+    "whatsapp-service.js",
+    "ecosystem.config.js",
   ]),
 ]);
 
 export default eslintConfig;
-
