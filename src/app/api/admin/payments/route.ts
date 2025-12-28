@@ -23,19 +23,23 @@ export async function GET(request: NextRequest) {
     try {
         const adminSupabase = createAdminClient()
 
-        // Check if payments table exists
+        // Fetch payments with correct column names
         const { data: payments, error } = await adminSupabase
             .from('payments')
             .select(`
                 id,
                 user_id,
-                amount,
-                currency,
+                amount_fcfa,
                 status,
-                payment_method,
-                transaction_id,
+                payment_type,
+                description,
+                credits_purchased,
+                payment_provider,
+                provider_transaction_id,
+                customer_email,
+                customer_phone,
                 created_at,
-                updated_at,
+                completed_at,
                 profiles (
                     email,
                     full_name
@@ -46,11 +50,29 @@ export async function GET(request: NextRequest) {
 
         if (error) {
             console.error('Error fetching payments:', error)
-            // Table might not exist, return empty array
             return successResponse({ payments: [] })
         }
 
-        return successResponse({ payments: payments || [] })
+        // Transform data for frontend compatibility
+        const formattedPayments = (payments || []).map((p: any) => ({
+            id: p.id,
+            user_id: p.user_id,
+            amount: p.amount_fcfa,
+            currency: 'FCFA',
+            status: p.status,
+            payment_method: p.payment_provider || 'cinetpay',
+            transaction_id: p.provider_transaction_id,
+            payment_type: p.payment_type,
+            description: p.description,
+            credits_purchased: p.credits_purchased,
+            created_at: p.created_at,
+            updated_at: p.completed_at,
+            email: p.profiles?.email || p.customer_email || 'N/A',
+            full_name: p.profiles?.full_name || 'N/A',
+            profiles: p.profiles
+        }))
+
+        return successResponse({ payments: formattedPayments })
     } catch (err) {
         console.error('Error:', err)
         return successResponse({ payments: [] })
