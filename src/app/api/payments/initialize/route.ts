@@ -5,7 +5,6 @@ import {
     generateTransactionId,
     PaymentInitData
 } from '@/lib/payments/cinetpay'
-import { CREDIT_PACKS } from '@/lib/plans'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
@@ -66,18 +65,44 @@ export async function POST(request: NextRequest) {
                 credits: plan.credits_included,
             }
         } else if (type === 'credits') {
-            // Credit pack purchase (still uses constants)
-            const pack = CREDIT_PACKS.find(p => p.id === packId)
-            if (!pack) {
-                return errorResponse('Pack de crédits invalide', 400)
-            }
-            amount = pack.price
-            description = `Pack de ${pack.credits} crédits WhatsAI`
-            metadata = {
-                type: 'credits',
-                pack_id: packId,
-                user_id: user!.id,
-                credits: pack.credits,
+            // Credit pack purchase - fetch from database
+            const adminSupabaseForPacks = createAdminClient()
+            const { data: pack, error: packError } = await adminSupabaseForPacks
+                .from('credit_packs')
+                .select('*')
+                .eq('id', packId)
+                .eq('is_active', true)
+                .single()
+
+            if (packError || !pack) {
+                // Fallback: try to find in defaults if database table doesn't exist
+                const defaultPacks = [
+                    { id: 'pack_500', credits: 500, price: 5000 },
+                    { id: 'pack_1000', credits: 1000, price: 9000 },
+                    { id: 'pack_2500', credits: 2500, price: 20000 },
+                    { id: 'pack_5000', credits: 5000, price: 35000 },
+                ]
+                const fallbackPack = defaultPacks.find(p => p.id === packId)
+                if (!fallbackPack) {
+                    return errorResponse('Pack de crédits invalide', 400)
+                }
+                amount = fallbackPack.price
+                description = `Pack de ${fallbackPack.credits} crédits WhatsAI`
+                metadata = {
+                    type: 'credits',
+                    pack_id: packId,
+                    user_id: user!.id,
+                    credits: fallbackPack.credits,
+                }
+            } else {
+                amount = pack.price
+                description = `Pack de ${pack.credits} crédits WhatsAI`
+                metadata = {
+                    type: 'credits',
+                    pack_id: packId,
+                    user_id: user!.id,
+                    credits: pack.credits,
+                }
             }
         } else {
             return errorResponse('Type de paiement invalide', 400)
