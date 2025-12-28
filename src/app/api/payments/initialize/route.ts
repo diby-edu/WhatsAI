@@ -99,6 +99,8 @@ export async function POST(request: NextRequest) {
                 provider_transaction_id: transactionId,
                 customer_phone: profile.phone,
                 customer_email: profile.email,
+                credits_purchased: metadata.credits, // Store credits from plan
+                metadata: JSON.stringify(metadata), // Store full metadata
             })
             .select('id')
             .single()
