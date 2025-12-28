@@ -31,37 +31,40 @@ echo ""
 echo "🔄 Redémarrage de l'app web UNIQUEMENT..."
 pm2 reload whatsai-web --update-env 2>/dev/null || pm2 restart whatsai-web 2>/dev/null
 
-# Get status info
-WEB_STATUS=$(pm2 jq '.[] | select(.name=="whatsai-web") | .pm2_env.status' 2>/dev/null || echo "unknown")
-BOT_STATUS=$(pm2 jq '.[] | select(.name=="whatsai-bot") | .pm2_env.status' 2>/dev/null || echo "unknown")
-DISK_USAGE=$(df -h / | tail -1 | awk '{print $5}')
-MEM_USAGE=$(free | grep Mem | awk '{printf("%.0f%%", $3/$2 * 100)}')
-
 # Wait for app to be ready
 sleep 3
 
+# Get PM2 info
+WEB_UPTIME=$(pm2 show whatsai-web 2>/dev/null | grep "uptime" | head -1 | awk '{print $4, $5}' || echo "N/A")
+WEB_RESTARTS=$(pm2 show whatsai-web 2>/dev/null | grep "restarts" | head -1 | awk '{print $4}' || echo "0")
+WEB_STATUS=$(pm2 show whatsai-web 2>/dev/null | grep "status" | head -1 | awk '{print $4}' || echo "online")
+
+BOT_UPTIME=$(pm2 show whatsai-bot 2>/dev/null | grep "uptime" | head -1 | awk '{print $4, $5}' || echo "N/A")
+BOT_RESTARTS=$(pm2 show whatsai-bot 2>/dev/null | grep "restarts" | head -1 | awk '{print $4}' || echo "0")
+BOT_STATUS=$(pm2 show whatsai-bot 2>/dev/null | grep "status" | head -1 | awk '{print $4}' || echo "online")
+
+# Get resource usage
+DISK_USAGE=$(df -h / | tail -1 | awk '{print $5}')
+MEM_USAGE=$(free | grep Mem | awk '{printf("%.0f%%", $3/$2 * 100)}')
+
 echo ""
-echo "╔═══════════════════════════════════════════════════════════════╗"
-echo "║                    ✅ DÉPLOIEMENT TERMINÉ                     ║"
-echo "╠═══════════════════════════════════════════════════════════════╣"
-echo "║                                                               ║"
-printf "║  📌 Commit précédent : %-38s ║\n" "$OLD_COMMIT"
-printf "║  📌 Commit actuel    : %-38s ║\n" "$NEW_COMMIT"
-echo "║                                                               ║"
-echo "╠═══════════════════════════════════════════════════════════════╣"
-echo "║  SERVICE                 │ STATUT                             ║"
-echo "╠═══════════════════════════════════════════════════════════════╣"
-printf "║  🌐 WhatsAI Web          │ %-35s ║\n" "$(pm2 show whatsai-web 2>/dev/null | grep status | head -1 | awk '{print $4}' || echo 'online')"
-printf "║  🤖 WhatsApp Bot         │ %-35s ║\n" "$(pm2 show whatsai-bot 2>/dev/null | grep status | head -1 | awk '{print $4}' || echo 'online')"
-echo "║                                                               ║"
-echo "╠═══════════════════════════════════════════════════════════════╣"
-echo "║  RESSOURCES              │ UTILISATION                        ║"
-echo "╠═══════════════════════════════════════════════════════════════╣"
-printf "║  💾 Espace Disque        │ %-35s ║\n" "$DISK_USAGE utilisé"
-printf "║  🧠 Mémoire RAM          │ %-35s ║\n" "$MEM_USAGE utilisée"
-echo "║                                                               ║"
-echo "╚═══════════════════════════════════════════════════════════════╝"
+echo "╔═══════════════════════════════════════════════════════════════════════╗"
+echo "║                       ✅ DÉPLOIEMENT TERMINÉ                          ║"
+echo "╠═══════════════════════════════════════════════════════════════════════╣"
+printf "║  📌 Commit précédent : %-46s ║\n" "$OLD_COMMIT"
+printf "║  📌 Commit actuel    : %-46s ║\n" "$NEW_COMMIT"
+echo "╠═══════════════════════════════════════════════════════════════════════╣"
+echo "║  SERVICE           │ STATUT   │ UPTIME          │ RESTARTS           ║"
+echo "╠═══════════════════════════════════════════════════════════════════════╣"
+printf "║  🌐 WhatsAI Web    │ %-8s │ %-15s │ %-18s ║\n" "$WEB_STATUS" "$WEB_UPTIME" "$WEB_RESTARTS fois"
+printf "║  🤖 WhatsApp Bot   │ %-8s │ %-15s │ %-18s ║\n" "$BOT_STATUS" "$BOT_UPTIME" "$BOT_RESTARTS fois"
+echo "╠═══════════════════════════════════════════════════════════════════════╣"
+echo "║  RESSOURCES                  │ UTILISATION                            ║"
+echo "╠═══════════════════════════════════════════════════════════════════════╣"
+printf "║  💾 Espace Disque            │ %-40s ║\n" "$DISK_USAGE utilisé"
+printf "║  🧠 Mémoire RAM              │ %-40s ║\n" "$MEM_USAGE utilisée"
+echo "╚═══════════════════════════════════════════════════════════════════════╝"
 echo ""
-echo "⚠️  Le service WhatsApp n'a PAS été redémarré (sessions préservées)"
+echo "⚠️  Le service WhatsApp Bot n'a PAS été redémarré (sessions préservées)"
 echo "🔗 Site: https://whatsai.ci"
 echo ""
