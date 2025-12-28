@@ -28,12 +28,13 @@ interface Plan {
     is_popular: boolean
 }
 
-const creditPacks = [
-    { id: 'pack_500', credits: 500, price: 5000, savings: 0 },
-    { id: 'pack_1000', credits: 1000, price: 9000, savings: 10 },
-    { id: 'pack_2500', credits: 2500, price: 20000, savings: 20 },
-    { id: 'pack_5000', credits: 5000, price: 35000, savings: 30 },
-]
+interface CreditPack {
+    id: string
+    name?: string
+    credits: number
+    price: number
+    savings: number
+}
 
 interface UserData {
     plan: string
@@ -68,6 +69,7 @@ function BillingContent() {
     const [userData, setUserData] = useState<UserData | null>(null)
     const [payments, setPayments] = useState<Payment[]>([])
     const [plans, setPlans] = useState<Plan[]>([])
+    const [creditPacks, setCreditPacks] = useState<CreditPack[]>([])
     const [loading, setLoading] = useState(true)
     const [paymentStatus, setPaymentStatus] = useState<'success' | 'failed' | null>(null)
 
@@ -79,10 +81,11 @@ function BillingContent() {
         }
     }, [searchParams])
 
-    // Fetch user data, plans and payments
+    // Fetch user data, plans, payments and credit packs
     useEffect(() => {
         fetchData()
         fetchPlans()
+        fetchCreditPacks()
     }, [])
 
     const fetchPlans = async () => {
@@ -96,6 +99,33 @@ function BillingContent() {
             }
         } catch (err) {
             console.error('Error fetching plans:', err)
+        }
+    }
+
+    const fetchCreditPacks = async () => {
+        try {
+            const res = await fetch('/api/credit-packs')
+            const data = await res.json()
+            if (data.packs && data.packs.length > 0) {
+                setCreditPacks(data.packs)
+            } else {
+                // Fallback to defaults
+                setCreditPacks([
+                    { id: 'pack_500', credits: 500, price: 5000, savings: 0 },
+                    { id: 'pack_1000', credits: 1000, price: 9000, savings: 10 },
+                    { id: 'pack_2500', credits: 2500, price: 20000, savings: 20 },
+                    { id: 'pack_5000', credits: 5000, price: 35000, savings: 30 },
+                ])
+            }
+        } catch (err) {
+            console.error('Error fetching credit packs:', err)
+            // Fallback to defaults
+            setCreditPacks([
+                { id: 'pack_500', credits: 500, price: 5000, savings: 0 },
+                { id: 'pack_1000', credits: 1000, price: 9000, savings: 10 },
+                { id: 'pack_2500', credits: 2500, price: 20000, savings: 20 },
+                { id: 'pack_5000', credits: 5000, price: 35000, savings: 30 },
+            ])
         }
     }
 
