@@ -108,14 +108,14 @@ export default function Hero() {
                 position: 'relative',
                 zIndex: 10
             }}>
-                <div style={{
+                <div className="hero-grid" style={{
                     display: 'grid',
                     gridTemplateColumns: 'repeat(2, 1fr)',
                     gap: 80,
                     alignItems: 'center'
                 }}>
                     {/* Left Content */}
-                    <div>
+                    <div className="hero-content">
                         {/* Badge */}
                         <motion.div
                             initial={{ opacity: 0, y: 20 }}
@@ -145,11 +145,12 @@ export default function Hero() {
 
                         {/* Main Title */}
                         <motion.h1
+                            className="hero-title"
                             initial={{ opacity: 0, y: 30 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.6, delay: 0.1 }}
                             style={{
-                                fontSize: 'clamp(36px, 5vw, 58px)',
+                                fontSize: 'clamp(26px, 5vw, 58px)',
                                 fontWeight: 800,
                                 marginBottom: 24,
                                 lineHeight: 1.15,
@@ -177,15 +178,16 @@ export default function Hero() {
 
                         {/* Subtitle */}
                         <motion.p
+                            className="hero-subtitle"
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.5, delay: 0.2 }}
                             style={{
-                                fontSize: 18,
+                                fontSize: 'clamp(14px, 3vw, 18px)',
                                 color: '#94a3b8',
                                 marginBottom: 32,
                                 lineHeight: 1.7,
-                                maxWidth: 500
+                                maxWidth: '100%'
                             }}
                         >
                             Notre IA répond à vos clients <span style={{ color: 'white', fontWeight: 500 }}>24h/24</span>,
@@ -221,10 +223,11 @@ export default function Hero() {
 
                         {/* CTA Buttons */}
                         <motion.div
+                            className="hero-buttons"
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.5, delay: 0.3 }}
-                            style={{ display: 'flex', gap: 16, marginBottom: 40 }}
+                            style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 40 }}
                         >
                             <Link href="/register" style={{ textDecoration: 'none' }}>
                                 <motion.button
@@ -272,10 +275,11 @@ export default function Hero() {
 
                         {/* Trust Stats */}
                         <motion.div
+                            className="hero-stats"
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.5, delay: 0.4 }}
-                            style={{ display: 'flex', gap: 40 }}
+                            style={{ display: 'flex', flexWrap: 'wrap', gap: 24, justifyContent: 'center' }}
                         >
                             {[
                                 { value: '+5,000', label: 'Entreprises', icon: Users },
@@ -305,6 +309,7 @@ export default function Hero() {
 
                     {/* Right - Phone Mockup with WhatsApp Chat */}
                     <motion.div
+                        className="hero-phone"
                         initial={{ opacity: 0, x: 50 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ duration: 0.8, delay: 0.3 }}

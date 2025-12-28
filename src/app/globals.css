@@ -680,3 +680,129 @@ h6 {
   border-radius: 50%;
   border: 2px solid #0f172a;
 }
+
+/* =============================================
+   HERO MOBILE RESPONSIVE
+   ============================================= */
+
+@media (max-width: 1024px) {
+  .hero-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 40px !important;
+  }
+
+  .hero-content {
+    text-align: center !important;
+  }
+
+  .hero-phone {
+    display: none !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .hero-grid {
+    gap: 30px !important;
+  }
+
+  .hero-title {
+    font-size: 28px !important;
+    line-height: 1.25 !important;
+  }
+
+  .hero-subtitle {
+    font-size: 15px !important;
+  }
+
+  .hero-buttons {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  .hero-buttons a {
+    width: 100% !important;
+  }
+
+  .hero-buttons button {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  .hero-stats {
+    flex-direction: column !important;
+    gap: 16px !important;
+    align-items: center !important;
+  }
+}
+
+@media (max-width: 400px) {
+  .hero-title {
+    font-size: 24px !important;
+  }
+
+  .hero-subtitle {
+    font-size: 14px !important;
+  }
+}
+
+/* =============================================
+   PRICING MOBILE RESPONSIVE
+   ============================================= */
+
+@media (max-width: 768px) {
+  section#pricing>div {
+    padding: 0 16px !important;
+  }
+
+  section#pricing h2 {
+    font-size: 26px !important;
+  }
+
+  section#pricing div[style*="gridTemplateColumns: repeat(4"] {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+}
+
+/* =============================================
+   FOOTER MOBILE RESPONSIVE
+   ============================================= */
+
+@media (max-width: 768px) {
+  footer>div {
+    padding: 0 16px !important;
+  }
+
+  footer form {
+    flex-direction: column !important;
+  }
+
+  footer form input,
+  footer form button {
+    width: 100% !important;
+  }
+
+  footer div[style*="gridTemplateColumns: repeat(auto-fit"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 20px !important;
+  }
+
+  footer>div>div:last-child {
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center !important;
+    gap: 10px !important;
+  }
+
+  footer>div>div:last-child>div {
+    flex-direction: column !important;
+    gap: 6px !important;
+  }
+}
+
+@media (max-width: 400px) {
+  footer div[style*="gridTemplateColumns: repeat(auto-fit"] {
+    grid-template-columns: 1fr !important;
+  }
+}
