@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
+import { checkRateLimit, getClientIdentifier, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 import {
     initializePayment,
     generateTransactionId,
@@ -15,6 +16,14 @@ export async function POST(request: NextRequest) {
 
     if (authError) {
         return errorResponse(authError, 401)
+    }
+
+    // Rate limiting for payment endpoints (strict: 5 req/min)
+    const identifier = getClientIdentifier(request, user!.id)
+    const rateLimit = checkRateLimit(identifier, RATE_LIMITS.payment)
+
+    if (!rateLimit.success) {
+        return rateLimitResponse(rateLimit.resetTime)
     }
 
     try {

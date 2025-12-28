@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import { createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
+import { checkRateLimit, getClientIdentifier, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 import OpenAI from 'openai'
 
 const openai = new OpenAI({
@@ -12,6 +13,14 @@ export async function POST(request: NextRequest) {
 
     if (authError || !user) {
         return errorResponse('Non autorisé', 401)
+    }
+
+    // Rate limiting for AI endpoints
+    const identifier = getClientIdentifier(request, user.id)
+    const rateLimit = checkRateLimit(identifier, RATE_LIMITS.ai)
+
+    if (!rateLimit.success) {
+        return rateLimitResponse(rateLimit.resetTime)
     }
 
     try {
@@ -33,15 +42,32 @@ export async function POST(request: NextRequest) {
             return errorResponse('Agent non trouvé', 404)
         }
 
-        // Check user credits
-        const { data: profile } = await supabase
-            .from('profiles')
-            .select('credits_balance')
-            .eq('id', user.id)
-            .single()
+        // Atomic credit deduction using RPC function
+        const { data: newBalance, error: creditError } = await supabase
+            .rpc('deduct_credits', { p_user_id: user.id, p_amount: 1 })
 
-        if (!profile || profile.credits_balance < 1) {
+        if (creditError) {
+            console.error('Credit deduction error:', creditError)
+            // Fallback to regular check if RPC doesn't exist
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('credits_balance')
+                .eq('id', user.id)
+                .single()
+
+            if (!profile || profile.credits_balance < 1) {
+                return errorResponse('Crédits insuffisants', 402)
+            }
+
+            // Regular deduction (non-atomic fallback)
+            await supabase
+                .from('profiles')
+                .update({ credits_balance: profile.credits_balance - 1 })
+                .eq('id', user.id)
+        } else if (newBalance === -1) {
             return errorResponse('Crédits insuffisants', 402)
+        } else if (newBalance === -2) {
+            return errorResponse('Profil non trouvé', 404)
         }
 
         // Build messages for OpenAI
@@ -80,15 +106,9 @@ export async function POST(request: NextRequest) {
 
         const response = completion.choices[0]?.message?.content || 'Je n\'ai pas pu générer de réponse.'
 
-        // Deduct 1 credit
-        await supabase
-            .from('profiles')
-            .update({ credits_balance: profile.credits_balance - 1 })
-            .eq('id', user.id)
-
         return successResponse({
             response,
-            credits_remaining: profile.credits_balance - 1
+            credits_remaining: typeof newBalance === 'number' && newBalance >= 0 ? newBalance : undefined
         })
 
     } catch (err) {
@@ -96,3 +116,4 @@ export async function POST(request: NextRequest) {
         return errorResponse('Erreur lors de la génération de la réponse', 500)
     }
 }
+
