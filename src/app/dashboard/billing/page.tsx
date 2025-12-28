@@ -86,6 +86,7 @@ function BillingContent() {
         fetchData()
         fetchPlans()
         fetchCreditPacks()
+        fetchPayments()
     }, [])
 
     const fetchPlans = async () => {
@@ -141,6 +142,18 @@ function BillingContent() {
             console.error('Error fetching data:', err)
         } finally {
             setLoading(false)
+        }
+    }
+
+    const fetchPayments = async () => {
+        try {
+            const res = await fetch('/api/payments')
+            if (res.ok) {
+                const data = await res.json()
+                setPayments(data.data?.payments || [])
+            }
+        } catch (err) {
+            console.error('Error fetching payments:', err)
         }
     }
 

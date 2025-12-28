@@ -1,27 +1,112 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { CreditCard, Users, TrendingUp, Calendar, FileText } from 'lucide-react'
+import { CreditCard, Users, TrendingUp, Calendar, FileText, Loader2, RefreshCw } from 'lucide-react'
 
-// Empty state until real subscription data API is created
-const subscriptions: any[] = []
+interface Subscription {
+    id: string
+    user: string
+    email: string
+    plan: string
+    credits: number
+    status: string
+    startDate: string
+}
 
-const stats = [
-    { label: 'Abonnements actifs', value: '0', icon: Users, color: '#10b981' },
-    { label: 'Revenus mensuels', value: '0 FCFA', icon: TrendingUp, color: '#a855f7' },
-    { label: 'Nouveaux ce mois', value: '0', icon: CreditCard, color: '#f59e0b' },
-]
+interface Stats {
+    activeSubscriptions: number
+    monthlyRevenue: number
+    newThisMonth: number
+}
 
 export default function AdminSubscriptionsPage() {
+    const [subscriptions, setSubscriptions] = useState<Subscription[]>([])
+    const [stats, setStats] = useState<Stats>({
+        activeSubscriptions: 0,
+        monthlyRevenue: 0,
+        newThisMonth: 0
+    })
+    const [loading, setLoading] = useState(true)
+    const [refreshing, setRefreshing] = useState(false)
+
+    useEffect(() => {
+        fetchData()
+    }, [])
+
+    const fetchData = async () => {
+        try {
+            const res = await fetch('/api/admin/subscriptions')
+            if (res.ok) {
+                const data = await res.json()
+                setSubscriptions(data.data?.subscriptions || [])
+                setStats(data.data?.stats || stats)
+            }
+        } catch (err) {
+            console.error('Error:', err)
+        } finally {
+            setLoading(false)
+            setRefreshing(false)
+        }
+    }
+
+    const handleRefresh = () => {
+        setRefreshing(true)
+        fetchData()
+    }
+
+    const statCards = [
+        { label: 'Abonnements actifs', value: stats.activeSubscriptions.toString(), icon: Users, color: '#10b981' },
+        { label: 'Revenus mensuels', value: `${stats.monthlyRevenue.toLocaleString()} FCFA`, icon: TrendingUp, color: '#a855f7' },
+        { label: 'Nouveaux ce mois', value: stats.newThisMonth.toString(), icon: CreditCard, color: '#f59e0b' },
+    ]
+
+    const getPlanBadgeColor = (plan: string) => {
+        switch (plan) {
+            case 'business': return { bg: 'rgba(168, 85, 247, 0.15)', color: '#c084fc' }
+            case 'pro': return { bg: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa' }
+            case 'starter': return { bg: 'rgba(16, 185, 129, 0.15)', color: '#34d399' }
+            default: return { bg: 'rgba(100, 116, 139, 0.15)', color: '#94a3b8' }
+        }
+    }
+
+    if (loading) {
+        return (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 300 }}>
+                <Loader2 style={{ width: 32, height: 32, color: '#34d399', animation: 'spin 1s linear infinite' }} />
+            </div>
+        )
+    }
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-            <div>
-                <h1 style={{ fontSize: 30, fontWeight: 700, color: 'white', marginBottom: 8 }}>Abonnements</h1>
-                <p style={{ color: '#94a3b8' }}>Gestion des abonnements utilisateurs</p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                    <h1 style={{ fontSize: 30, fontWeight: 700, color: 'white', marginBottom: 8 }}>Abonnements</h1>
+                    <p style={{ color: '#94a3b8' }}>Gestion des abonnements utilisateurs</p>
+                </div>
+                <button
+                    onClick={handleRefresh}
+                    disabled={refreshing}
+                    style={{
+                        padding: '10px 20px',
+                        borderRadius: 12,
+                        border: '1px solid rgba(148, 163, 184, 0.2)',
+                        background: 'rgba(30, 41, 59, 0.5)',
+                        color: 'white',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8
+                    }}
+                >
+                    <RefreshCw style={{ width: 16, height: 16, animation: refreshing ? 'spin 1s linear infinite' : 'none' }} />
+                    Actualiser
+                </button>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 20 }}>
-                {stats.map((stat, i) => (
+                {statCards.map((stat, i) => (
                     <motion.div
                         key={stat.label}
                         initial={{ opacity: 0, y: 20 }}
@@ -68,7 +153,7 @@ export default function AdminSubscriptionsPage() {
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                         <tr>
-                            {['Utilisateur', 'Plan', 'Montant', 'Statut', 'Début', 'Fin'].map(h => (
+                            {['Utilisateur', 'Email', 'Plan', 'Crédits', 'Statut', 'Inscrit le'].map(h => (
                                 <th key={h} style={{
                                     padding: '16px 24px',
                                     textAlign: 'left',
@@ -95,51 +180,55 @@ export default function AdminSubscriptionsPage() {
                                             <FileText style={{ width: 32, height: 32, color: '#64748b' }} />
                                         </div>
                                         <div>
-                                            <h3 style={{ color: 'white', fontWeight: 600, marginBottom: 4 }}>Aucun abonnement</h3>
-                                            <p style={{ color: '#64748b', fontSize: 14 }}>Les abonnements apparaîtront ici une fois créés.</p>
+                                            <h3 style={{ color: 'white', fontWeight: 600, marginBottom: 4 }}>Aucun abonnement payant</h3>
+                                            <p style={{ color: '#64748b', fontSize: 14 }}>Les abonnements apparaîtront ici après les paiements.</p>
                                         </div>
                                     </div>
                                 </td>
                             </tr>
                         ) : (
-                            subscriptions.map((sub) => (
-                                <tr key={sub.id}>
-                                    <td style={{ padding: '16px 24px', borderBottom: '1px solid rgba(148, 163, 184, 0.05)', color: 'white', fontWeight: 500 }}>
-                                        {sub.user}
-                                    </td>
-                                    <td style={{ padding: '16px 24px', borderBottom: '1px solid rgba(148, 163, 184, 0.05)' }}>
-                                        <span style={{
-                                            padding: '6px 14px',
-                                            borderRadius: 100,
-                                            fontSize: 12,
-                                            fontWeight: 600,
-                                            background: 'rgba(51, 65, 85, 0.5)',
-                                            color: '#94a3b8'
-                                        }}>
-                                            {sub.plan}
-                                        </span>
-                                    </td>
-                                    <td style={{ padding: '16px 24px', borderBottom: '1px solid rgba(148, 163, 184, 0.05)', color: '#34d399', fontWeight: 600 }}>
-                                        {sub.amount}
-                                    </td>
-                                    <td style={{ padding: '16px 24px', borderBottom: '1px solid rgba(148, 163, 184, 0.05)' }}>
-                                        <span style={{
-                                            padding: '6px 14px',
-                                            borderRadius: 100,
-                                            fontSize: 12,
-                                            fontWeight: 600,
-                                            background: 'rgba(34, 197, 94, 0.15)',
-                                            color: '#4ade80'
-                                        }}>Actif</span>
-                                    </td>
-                                    <td style={{ padding: '16px 24px', borderBottom: '1px solid rgba(148, 163, 184, 0.05)', color: '#94a3b8' }}>
-                                        {sub.startDate}
-                                    </td>
-                                    <td style={{ padding: '16px 24px', borderBottom: '1px solid rgba(148, 163, 184, 0.05)', color: '#94a3b8' }}>
-                                        {sub.endDate}
-                                    </td>
-                                </tr>
-                            ))
+                            subscriptions.map((sub) => {
+                                const planColors = getPlanBadgeColor(sub.plan)
+                                return (
+                                    <tr key={sub.id}>
+                                        <td style={{ padding: '16px 24px', borderBottom: '1px solid rgba(148, 163, 184, 0.05)', color: 'white', fontWeight: 500 }}>
+                                            {sub.user}
+                                        </td>
+                                        <td style={{ padding: '16px 24px', borderBottom: '1px solid rgba(148, 163, 184, 0.05)', color: '#94a3b8' }}>
+                                            {sub.email}
+                                        </td>
+                                        <td style={{ padding: '16px 24px', borderBottom: '1px solid rgba(148, 163, 184, 0.05)' }}>
+                                            <span style={{
+                                                padding: '6px 14px',
+                                                borderRadius: 100,
+                                                fontSize: 12,
+                                                fontWeight: 600,
+                                                background: planColors.bg,
+                                                color: planColors.color,
+                                                textTransform: 'capitalize'
+                                            }}>
+                                                {sub.plan}
+                                            </span>
+                                        </td>
+                                        <td style={{ padding: '16px 24px', borderBottom: '1px solid rgba(148, 163, 184, 0.05)', color: '#34d399', fontWeight: 600 }}>
+                                            {sub.credits.toLocaleString()}
+                                        </td>
+                                        <td style={{ padding: '16px 24px', borderBottom: '1px solid rgba(148, 163, 184, 0.05)' }}>
+                                            <span style={{
+                                                padding: '6px 14px',
+                                                borderRadius: 100,
+                                                fontSize: 12,
+                                                fontWeight: 600,
+                                                background: 'rgba(34, 197, 94, 0.15)',
+                                                color: '#4ade80'
+                                            }}>Actif</span>
+                                        </td>
+                                        <td style={{ padding: '16px 24px', borderBottom: '1px solid rgba(148, 163, 184, 0.05)', color: '#94a3b8' }}>
+                                            {sub.startDate}
+                                        </td>
+                                    </tr>
+                                )
+                            })
                         )}
                     </tbody>
                 </table>
