@@ -490,9 +490,30 @@ export default function Pricing() {
                         grid-template-columns: repeat(2, 1fr) !important;
                     }
                 }
+                @media (max-width: 768px) {
+                    section#pricing > div > div:nth-child(2) {
+                        grid-template-columns: 1fr !important;
+                        gap: 20px !important;
+                    }
+                    section#pricing h2 {
+                        font-size: 28px !important;
+                    }
+                    section#pricing > div > div:nth-child(2) > div {
+                        padding: 24px !important;
+                    }
+                    section#pricing > div > div:nth-child(2) > div h3 {
+                        font-size: 20px !important;
+                    }
+                    section#pricing > div > div:nth-child(2) > div > div:first-child {
+                        font-size: 32px !important;
+                    }
+                }
                 @media (max-width: 600px) {
                     section#pricing > div > div:nth-child(2) {
                         grid-template-columns: 1fr !important;
+                    }
+                    section#pricing > div {
+                        padding: 0 16px !important;
                     }
                 }
             `}</style>
