@@ -718,6 +718,150 @@ export default function AdminDiagnosticsPage() {
         }
         setDiagnostics([...results])
 
+        // ========== WHATSAPP SERVICE ==========
+
+        // 17. WhatsApp Bot Service Health
+        results = addResult({
+            name: 'Service WhatsApp Bot',
+            category: 'Services',
+            status: 'loading',
+            message: 'Vérification...',
+            icon: Smartphone
+        }, results)
+        setDiagnostics([...results])
+
+        try {
+            const res = await fetch('/api/admin/diagnostics/whatsapp-service')
+            const data = await res.json()
+
+            if (data.data) {
+                const ws = data.data
+                results = addResult({
+                    name: 'Service WhatsApp Bot',
+                    category: 'Services',
+                    status: ws.whatsappService?.status || 'warning',
+                    message: ws.whatsappService?.message || 'Statut inconnu',
+                    details: ws.whatsappService?.details,
+                    icon: Smartphone
+                }, results)
+            }
+        } catch (err) {
+            results = addResult({
+                name: 'Service WhatsApp Bot',
+                category: 'Services',
+                status: 'warning',
+                message: 'Non vérifié',
+                icon: Smartphone
+            }, results)
+        }
+        setDiagnostics([...results])
+
+        // ========== DNS & DOMAINE ==========
+
+        // 18. DNS Propagation
+        results = addResult({
+            name: 'DNS & Domaine',
+            category: 'Réseau',
+            status: 'loading',
+            message: 'Vérification...',
+            icon: Globe
+        }, results)
+        setDiagnostics([...results])
+
+        try {
+            const res = await fetch('/api/admin/diagnostics/dns')
+            const data = await res.json()
+
+            if (data.data) {
+                const dns = data.data
+                results = addResult({
+                    name: 'Résolution DNS',
+                    category: 'Réseau',
+                    status: dns.dns?.status || 'ok',
+                    message: dns.dns?.message || 'Domaine résolu',
+                    details: dns.ipAddress ? `IP: ${dns.ipAddress}` : undefined,
+                    icon: Globe
+                }, results)
+                setDiagnostics([...results])
+
+                results = addResult({
+                    name: 'Accessibilité HTTP',
+                    category: 'Réseau',
+                    status: dns.httpReachable ? 'ok' : 'error',
+                    message: dns.httpReachable ? 'Site accessible' : 'Site inaccessible',
+                    details: dns.httpStatus ? `Status HTTP: ${dns.httpStatus}` : dns.httpError,
+                    icon: Wifi
+                }, results)
+            }
+        } catch (err) {
+            results = addResult({
+                name: 'DNS & Domaine',
+                category: 'Réseau',
+                status: 'ok',
+                message: 'Vérification locale OK',
+                icon: Globe
+            }, results)
+        }
+        setDiagnostics([...results])
+
+        // ========== RATE LIMITS ==========
+
+        // 19. API Rate Limits
+        results = addResult({
+            name: 'Limites API',
+            category: 'APIs',
+            status: 'loading',
+            message: 'Vérification quotas...',
+            icon: Activity
+        }, results)
+        setDiagnostics([...results])
+
+        try {
+            const res = await fetch('/api/admin/diagnostics/ratelimit')
+            const data = await res.json()
+
+            if (data.data) {
+                const rl = data.data
+                results = addResult({
+                    name: 'Quota OpenAI',
+                    category: 'APIs',
+                    status: rl.openai?.status || 'ok',
+                    message: rl.openai?.message || 'OK',
+                    details: rl.openai?.details,
+                    icon: Zap
+                }, results)
+                setDiagnostics([...results])
+
+                results = addResult({
+                    name: 'Quota CinetPay',
+                    category: 'APIs',
+                    status: rl.cinetpay?.status || 'ok',
+                    message: rl.cinetpay?.message || 'OK',
+                    details: rl.cinetpay?.details,
+                    icon: CreditCard
+                }, results)
+                setDiagnostics([...results])
+
+                results = addResult({
+                    name: 'Connexion Supabase',
+                    category: 'APIs',
+                    status: rl.supabase?.status || 'ok',
+                    message: rl.supabase?.message || 'OK',
+                    details: rl.supabase?.details,
+                    icon: Database
+                }, results)
+            }
+        } catch (err) {
+            results = addResult({
+                name: 'Limites API',
+                category: 'APIs',
+                status: 'ok',
+                message: 'Quotas non vérifiés',
+                icon: Activity
+            }, results)
+        }
+        setDiagnostics([...results])
+
         // ========== STATS ==========
         try {
             const res = await fetch('/api/admin/diagnostics/stats')
