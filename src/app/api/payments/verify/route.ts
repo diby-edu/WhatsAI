@@ -96,9 +96,38 @@ export async function POST(request: NextRequest) {
                 .update({
                     status: 'completed',
                     credits_purchased: creditsToAdd,
-                    updated_at: new Date().toISOString()
+                    completed_at: new Date().toISOString()
                 })
                 .eq('id', payment.id)
+
+            // Update user plan if this is a subscription payment
+            let planUpdated = false
+            if (payment.payment_type === 'subscription') {
+                // Get plan info from provider_response (metadata)
+                const planData = payment.provider_response
+                const planId = planData?.plan_id
+
+                if (planId) {
+                    // Map plan ID to plan name
+                    let planName = 'free'
+                    if (planId.includes('starter') || planData?.type === 'subscription' && creditsToAdd <= 1000) {
+                        planName = 'starter'
+                    } else if (planId.includes('pro') || creditsToAdd <= 3000) {
+                        planName = 'pro'
+                    } else if (planId.includes('business') || creditsToAdd >= 5000) {
+                        planName = 'business'
+                    }
+
+                    // Update user's plan
+                    await supabase
+                        .from('profiles')
+                        .update({ plan: planName })
+                        .eq('id', payment.user_id)
+
+                    console.log(`📋 Updated plan to: ${planName}`)
+                    planUpdated = true
+                }
+            }
 
             console.log(`✅ SUCCESS! Added ${creditsToAdd} credits. Balance: ${currentBalance} → ${newBalance}`)
 
@@ -108,6 +137,7 @@ export async function POST(request: NextRequest) {
                 credits_added: creditsToAdd,
                 old_balance: currentBalance,
                 new_balance: newBalance,
+                plan_updated: planUpdated,
                 cinetpay_status: cinetpayStatus.status
             })
         }
