@@ -29,7 +29,8 @@ import {
     AlertCircle,
     User as UserIcon,
     MessageSquare,
-    DollarSign
+    DollarSign,
+    Package
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -39,6 +40,7 @@ const adminLinks = [
     { href: '/admin/agents', label: 'Agents IA', icon: Bot },
     { href: '/admin/conversations', label: 'Conversations', icon: MessagesSquare },
     { href: '/admin/plans', label: 'Plans', icon: Zap },
+    { href: '/admin/credit-packs', label: 'Packs de Crédits', icon: Package },
     { href: '/admin/subscriptions', label: 'Abonnements', icon: CreditCard },
     { href: '/admin/payments', label: 'Test Paiement', icon: TestTube2 },
     { href: '/admin/diagnostics', label: 'Diagnostic', icon: Activity },
