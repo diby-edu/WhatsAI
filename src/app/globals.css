@@ -98,6 +98,28 @@ body {
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Touch scrolling optimizations */
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  overscroll-behavior-y: contain;
+}
+
+/* Improve touch scrolling performance */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* GPU acceleration for smoother scrolling */
+html {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+section,
+div,
+main {
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
 }
 
 /* Scrollbar Styling */
@@ -734,6 +756,13 @@ h6 {
     gap: 16px !important;
     align-items: center !important;
   }
+
+  /* Reduce animations on mobile for smoother scroll */
+  * {
+    animation-duration: 0.3s !important;
+    animation-delay: 0s !important;
+    transition-duration: 0.2s !important;
+  }
 }
 
 @media (max-width: 400px) {
@@ -743,6 +772,19 @@ h6 {
 
   .hero-subtitle {
     font-size: 14px !important;
+  }
+}
+
+/* Respect user's reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
