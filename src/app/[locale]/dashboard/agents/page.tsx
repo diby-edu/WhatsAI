@@ -254,12 +254,14 @@ export default function AgentsPage() {
                                             right: 0,
                                             top: '100%',
                                             marginTop: 4,
-                                            width: 160,
-                                            background: '#1e293b', // Solid dark background
-                                            border: '1px solid rgba(148, 163, 184, 0.2)',
+                                            width: 180,
+                                            backgroundColor: '#0f172a',
+                                            border: '1px solid #334155',
                                             borderRadius: 12,
-                                            zIndex: 9999, // Very high z-index
-                                            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.5)'
+                                            zIndex: 9999,
+                                            boxShadow: '0 10px 40px rgba(0, 0, 0, 0.9)',
+                                            overflow: 'hidden',
+                                            isolation: 'isolate'
                                         }}>
                                             <Link
                                                 href={`/dashboard/agents/${agent.id}`}
@@ -267,14 +269,14 @@ export default function AgentsPage() {
                                                     display: 'flex',
                                                     alignItems: 'center',
                                                     gap: 8,
-                                                    padding: '12px 16px', // Increased padding
+                                                    padding: '12px 16px',
                                                     fontSize: 14,
                                                     color: 'white',
                                                     textDecoration: 'none',
-                                                    transition: 'background 0.2s'
+                                                    backgroundColor: '#0f172a'
                                                 }}
-                                                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(30, 41, 59, 0.5)'}
-                                                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1e293b'}
+                                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#0f172a'}
                                             >
                                                 <Edit style={{ width: 16, height: 16 }} />
                                                 {t('card.menu.edit')}
@@ -287,17 +289,16 @@ export default function AgentsPage() {
                                                     alignItems: 'center',
                                                     gap: 8,
                                                     width: '100%',
-                                                    padding: '12px 16px', // Increased padding
+                                                    padding: '12px 16px',
                                                     fontSize: 14,
                                                     color: 'white',
-                                                    background: 'transparent',
+                                                    backgroundColor: '#0f172a',
                                                     border: 'none',
                                                     cursor: 'pointer',
-                                                    transition: 'background 0.2s',
                                                     textAlign: 'left'
                                                 }}
-                                                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(30, 41, 59, 0.5)'}
-                                                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1e293b'}
+                                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#0f172a'}
                                             >
                                                 <Power style={{ width: 16, height: 16 }} />
                                                 {agent.is_active ? t('card.menu.deactivate') : t('card.menu.activate')}
@@ -310,17 +311,16 @@ export default function AgentsPage() {
                                                     alignItems: 'center',
                                                     gap: 8,
                                                     width: '100%',
-                                                    padding: '12px 16px', // Increased padding
+                                                    padding: '12px 16px',
                                                     fontSize: 14,
                                                     color: '#f87171',
-                                                    background: 'transparent',
+                                                    backgroundColor: '#0f172a',
                                                     border: 'none',
                                                     cursor: 'pointer',
-                                                    transition: 'background 0.2s',
                                                     textAlign: 'left'
                                                 }}
-                                                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
-                                                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1e293b'}
+                                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#0f172a'}
                                             >
                                                 <Trash2 style={{ width: 16, height: 16 }} />
                                                 {t('card.menu.delete')}
