@@ -347,6 +347,8 @@
                 "whatsappNotConnected": "WhatsApp not connected",
                 "test": "Test",
                 "configure": "Configure",
+                "showQRCode": "QR Code",
+                "connected": "Connected",
                 "menu": {
                     "edit": "Edit",
                     "activate": "Activate",
