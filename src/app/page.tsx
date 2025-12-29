@@ -1,4 +1,4 @@
-import { Navbar, Hero, Features, HowItWorks, Pricing, FAQ, Footer, WhatsAppButton } from '@/components/landing'
+import { Navbar, Hero, Features, HowItWorks, Pricing, FAQ, Footer } from '@/components/landing'
 
 export default function Home() {
   return (
@@ -10,7 +10,6 @@ export default function Home() {
       <Pricing />
       <FAQ />
       <Footer />
-      <WhatsAppButton />
     </main>
   )
 }
