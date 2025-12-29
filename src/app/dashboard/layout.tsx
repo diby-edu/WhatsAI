@@ -169,7 +169,7 @@ export default function DashboardLayout({
                                     <span style={{ fontWeight: 700, color: 'white', fontSize: 20 }}>WhatsAI</span>
                                 </Link>
                             </div>
-                            <nav style={{ flex: 1, padding: 16, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            <nav style={{ flex: 1, padding: 16, display: 'flex', flexDirection: 'column', gap: 4, overflowY: 'auto' }}>
                                 {sidebarLinks.map((link) => {
                                     const isActive = pathname === link.href || (link.href !== '/dashboard' && pathname.startsWith(link.href))
                                     return (
@@ -194,12 +194,10 @@ export default function DashboardLayout({
                                         </Link>
                                     )
                                 })}
-                            </nav>
-                            <div style={{ padding: 16, borderTop: '1px solid rgba(148, 163, 184, 0.1)' }}>
+                                {/* Logout button right after menu items */}
                                 <button
                                     onClick={handleLogout}
                                     style={{
-                                        width: '100%',
                                         display: 'flex',
                                         alignItems: 'center',
                                         gap: 12,
@@ -209,13 +207,14 @@ export default function DashboardLayout({
                                         fontWeight: 500,
                                         backgroundColor: 'transparent',
                                         border: 'none',
-                                        cursor: 'pointer'
+                                        cursor: 'pointer',
+                                        marginTop: 8
                                     }}
                                 >
                                     <LogOut style={{ width: 20, height: 20 }} />
                                     <span>Déconnexion</span>
                                 </button>
-                            </div>
+                            </nav>
                         </motion.div>
                     </>
                 )}
