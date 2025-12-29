@@ -193,8 +193,8 @@ export default function AgentsPage() {
                         transition={{ delay: index * 0.1 }}
                         style={{ ...cardStyle, position: 'relative' }}
                     >
-                        {/* Status indicator & Menu */}
-                        <div style={{ position: 'absolute', top: 16, right: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        {/* Status indicator */}
+                        <div style={{ position: 'absolute', top: 16, right: 16 }}>
                             <span style={{
                                 display: 'flex',
                                 alignItems: 'center',
@@ -218,90 +218,6 @@ export default function AgentsPage() {
                                     </>
                                 )}
                             </span>
-
-                            {/* Action Buttons - Always visible */}
-                            <div style={{ display: 'flex', gap: 8 }}>
-                                <Link
-                                    href={`/dashboard/agents/${agent.id}`}
-                                    title={t('card.menu.edit')}
-                                    style={{
-                                        width: 36,
-                                        height: 36,
-                                        borderRadius: 10,
-                                        backgroundColor: 'rgba(59, 130, 246, 0.15)',
-                                        border: 'none',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        transition: 'all 0.2s'
-                                    }}
-                                    onMouseEnter={(e) => {
-                                        e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.3)'
-                                        e.currentTarget.style.transform = 'scale(1.1)'
-                                    }}
-                                    onMouseLeave={(e) => {
-                                        e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.15)'
-                                        e.currentTarget.style.transform = 'scale(1)'
-                                    }}
-                                >
-                                    <Edit style={{ width: 16, height: 16, color: '#3b82f6' }} />
-                                </Link>
-                                <button
-                                    onClick={() => toggleAgentStatus(agent.id)}
-                                    disabled={actionLoading === agent.id}
-                                    title={agent.is_active ? t('card.menu.deactivate') : t('card.menu.activate')}
-                                    style={{
-                                        width: 36,
-                                        height: 36,
-                                        borderRadius: 10,
-                                        backgroundColor: agent.is_active ? 'rgba(251, 191, 36, 0.15)' : 'rgba(16, 185, 129, 0.15)',
-                                        border: 'none',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        transition: 'all 0.2s'
-                                    }}
-                                    onMouseEnter={(e) => {
-                                        e.currentTarget.style.backgroundColor = agent.is_active ? 'rgba(251, 191, 36, 0.3)' : 'rgba(16, 185, 129, 0.3)'
-                                        e.currentTarget.style.transform = 'scale(1.1)'
-                                    }}
-                                    onMouseLeave={(e) => {
-                                        e.currentTarget.style.backgroundColor = agent.is_active ? 'rgba(251, 191, 36, 0.15)' : 'rgba(16, 185, 129, 0.15)'
-                                        e.currentTarget.style.transform = 'scale(1)'
-                                    }}
-                                >
-                                    <Power style={{ width: 16, height: 16, color: agent.is_active ? '#fbbf24' : '#10b981' }} />
-                                </button>
-                                <button
-                                    onClick={() => deleteAgent(agent.id)}
-                                    disabled={actionLoading === agent.id}
-                                    title={t('card.menu.delete')}
-                                    style={{
-                                        width: 36,
-                                        height: 36,
-                                        borderRadius: 10,
-                                        backgroundColor: 'rgba(239, 68, 68, 0.15)',
-                                        border: 'none',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        transition: 'all 0.2s'
-                                    }}
-                                    onMouseEnter={(e) => {
-                                        e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.3)'
-                                        e.currentTarget.style.transform = 'scale(1.1)'
-                                    }}
-                                    onMouseLeave={(e) => {
-                                        e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.15)'
-                                        e.currentTarget.style.transform = 'scale(1)'
-                                    }}
-                                >
-                                    <Trash2 style={{ width: 16, height: 16, color: '#ef4444' }} />
-                                </button>
-                            </div>
                         </div>
 
                         {/* Agent info */}
@@ -390,6 +306,91 @@ export default function AgentsPage() {
                         </div>
 
                         {/* Action buttons */}
+                        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                            {/* Quick action icons */}
+                            <Link
+                                href={`/dashboard/agents/${agent.id}`}
+                                title={t('card.menu.edit')}
+                                style={{
+                                    width: 40,
+                                    height: 40,
+                                    borderRadius: 10,
+                                    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    transition: 'all 0.2s'
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.3)'
+                                    e.currentTarget.style.transform = 'scale(1.05)'
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.15)'
+                                    e.currentTarget.style.transform = 'scale(1)'
+                                }}
+                            >
+                                <Edit style={{ width: 18, height: 18, color: '#3b82f6' }} />
+                            </Link>
+                            <button
+                                onClick={() => toggleAgentStatus(agent.id)}
+                                disabled={actionLoading === agent.id}
+                                title={agent.is_active ? t('card.menu.deactivate') : t('card.menu.activate')}
+                                style={{
+                                    width: 40,
+                                    height: 40,
+                                    borderRadius: 10,
+                                    backgroundColor: agent.is_active ? 'rgba(251, 191, 36, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    transition: 'all 0.2s'
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor = agent.is_active ? 'rgba(251, 191, 36, 0.3)' : 'rgba(16, 185, 129, 0.3)'
+                                    e.currentTarget.style.transform = 'scale(1.05)'
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = agent.is_active ? 'rgba(251, 191, 36, 0.15)' : 'rgba(16, 185, 129, 0.15)'
+                                    e.currentTarget.style.transform = 'scale(1)'
+                                }}
+                            >
+                                <Power style={{ width: 18, height: 18, color: agent.is_active ? '#fbbf24' : '#10b981' }} />
+                            </button>
+                            <button
+                                onClick={() => deleteAgent(agent.id)}
+                                disabled={actionLoading === agent.id}
+                                title={t('card.menu.delete')}
+                                style={{
+                                    width: 40,
+                                    height: 40,
+                                    borderRadius: 10,
+                                    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    transition: 'all 0.2s'
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.3)'
+                                    e.currentTarget.style.transform = 'scale(1.05)'
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.15)'
+                                    e.currentTarget.style.transform = 'scale(1)'
+                                }}
+                            >
+                                <Trash2 style={{ width: 18, height: 18, color: '#ef4444' }} />
+                            </button>
+                        </div>
+
+                        {/* Main action buttons */}
                         <div style={{ display: 'flex', gap: 12 }}>
                             <Link
                                 href={`/dashboard/playground?agent=${agent.id}`}
@@ -404,13 +405,14 @@ export default function AgentsPage() {
                                     color: 'white',
                                     fontSize: 14,
                                     fontWeight: 500,
-                                    textDecoration: 'none'
+                                    textDecoration: 'none',
+                                    cursor: 'pointer'
                                 }}
                             >
                                 {t('card.test')}
                             </Link>
                             <Link
-                                href={`/dashboard/agents/${agent.id}`}
+                                href={agent.whatsapp_connected ? `/dashboard/agents/${agent.id}` : `/dashboard/agents/${agent.id}?tab=whatsapp`}
                                 style={{
                                     flex: 1,
                                     display: 'flex',
@@ -418,14 +420,17 @@ export default function AgentsPage() {
                                     justifyContent: 'center',
                                     padding: '10px 16px',
                                     borderRadius: 10,
-                                    background: 'linear-gradient(135deg, #10b981, #059669)',
+                                    background: agent.whatsapp_connected
+                                        ? 'linear-gradient(135deg, #10b981, #059669)'
+                                        : 'linear-gradient(135deg, #8b5cf6, #6d28d9)',
                                     color: 'white',
                                     fontSize: 14,
                                     fontWeight: 500,
-                                    textDecoration: 'none'
+                                    textDecoration: 'none',
+                                    cursor: 'pointer'
                                 }}
                             >
-                                {t('card.configure')}
+                                {agent.whatsapp_connected ? t('card.configure') : t('card.showQRCode')}
                             </Link>
                         </div>
                     </motion.div>
