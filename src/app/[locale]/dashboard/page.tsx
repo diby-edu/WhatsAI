@@ -75,8 +75,8 @@ export default function DashboardPage() {
                 const s = data.data.stats
                 const mappedStats = statsConfig.map(config => {
                     let value = '0'
-                    const change = '' // Placeholder
-                    const positive = true
+                    let change = '' // Placeholder
+                    let positive = true
 
                     if (config.id === 'messages') value = s.totalMessages.toLocaleString()
                     if (config.id === 'agents') value = s.activeAgents.toLocaleString()
