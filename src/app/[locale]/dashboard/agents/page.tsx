@@ -219,115 +219,88 @@ export default function AgentsPage() {
                                 )}
                             </span>
 
-                            {/* Menu */}
-                            <div style={{ position: 'relative' }}>
-                                <button
-                                    onClick={() => setMenuOpen(menuOpen === agent.id ? null : agent.id)}
+                            {/* Action Buttons - Always visible */}
+                            <div style={{ display: 'flex', gap: 8 }}>
+                                <Link
+                                    href={`/dashboard/agents/${agent.id}`}
+                                    title={t('card.menu.edit')}
                                     style={{
-                                        padding: 12, // Increased touch target
-                                        margin: -8,  // Compensate for padding to keep alignment
-                                        borderRadius: 8,
-                                        background: 'transparent',
+                                        width: 36,
+                                        height: 36,
+                                        borderRadius: 10,
+                                        backgroundColor: 'rgba(59, 130, 246, 0.15)',
                                         border: 'none',
                                         cursor: 'pointer',
                                         display: 'flex',
                                         alignItems: 'center',
-                                        justifyContent: 'center'
+                                        justifyContent: 'center',
+                                        transition: 'all 0.2s'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.3)'
+                                        e.currentTarget.style.transform = 'scale(1.1)'
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.15)'
+                                        e.currentTarget.style.transform = 'scale(1)'
                                     }}
                                 >
-                                    <MoreVertical style={{ width: 16, height: 16, color: '#64748b' }} />
+                                    <Edit style={{ width: 16, height: 16, color: '#3b82f6' }} />
+                                </Link>
+                                <button
+                                    onClick={() => toggleAgentStatus(agent.id)}
+                                    disabled={actionLoading === agent.id}
+                                    title={agent.is_active ? t('card.menu.deactivate') : t('card.menu.activate')}
+                                    style={{
+                                        width: 36,
+                                        height: 36,
+                                        borderRadius: 10,
+                                        backgroundColor: agent.is_active ? 'rgba(251, 191, 36, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        transition: 'all 0.2s'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.backgroundColor = agent.is_active ? 'rgba(251, 191, 36, 0.3)' : 'rgba(16, 185, 129, 0.3)'
+                                        e.currentTarget.style.transform = 'scale(1.1)'
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.backgroundColor = agent.is_active ? 'rgba(251, 191, 36, 0.15)' : 'rgba(16, 185, 129, 0.15)'
+                                        e.currentTarget.style.transform = 'scale(1)'
+                                    }}
+                                >
+                                    <Power style={{ width: 16, height: 16, color: agent.is_active ? '#fbbf24' : '#10b981' }} />
                                 </button>
-
-                                {menuOpen === agent.id && (
-                                    <>
-                                        {/* Backdrop to close menu on click outside */}
-                                        <div
-                                            onClick={() => setMenuOpen(null)}
-                                            style={{
-                                                position: 'fixed',
-                                                inset: 0,
-                                                zIndex: 998
-                                            }}
-                                        />
-                                        <div style={{
-                                            position: 'absolute',
-                                            right: 0,
-                                            top: '100%',
-                                            marginTop: 4,
-                                            width: 180,
-                                            backgroundColor: '#0f172a',
-                                            border: '1px solid #334155',
-                                            borderRadius: 12,
-                                            zIndex: 9999,
-                                            boxShadow: '0 10px 40px rgba(0, 0, 0, 0.9)',
-                                            overflow: 'hidden',
-                                            isolation: 'isolate'
-                                        }}>
-                                            <Link
-                                                href={`/dashboard/agents/${agent.id}`}
-                                                style={{
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: 8,
-                                                    padding: '12px 16px',
-                                                    fontSize: 14,
-                                                    color: 'white',
-                                                    textDecoration: 'none',
-                                                    backgroundColor: '#0f172a'
-                                                }}
-                                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1e293b'}
-                                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#0f172a'}
-                                            >
-                                                <Edit style={{ width: 16, height: 16 }} />
-                                                {t('card.menu.edit')}
-                                            </Link>
-                                            <button
-                                                onClick={() => toggleAgentStatus(agent.id)}
-                                                disabled={actionLoading === agent.id}
-                                                style={{
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: 8,
-                                                    width: '100%',
-                                                    padding: '12px 16px',
-                                                    fontSize: 14,
-                                                    color: 'white',
-                                                    backgroundColor: '#0f172a',
-                                                    border: 'none',
-                                                    cursor: 'pointer',
-                                                    textAlign: 'left'
-                                                }}
-                                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1e293b'}
-                                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#0f172a'}
-                                            >
-                                                <Power style={{ width: 16, height: 16 }} />
-                                                {agent.is_active ? t('card.menu.deactivate') : t('card.menu.activate')}
-                                            </button>
-                                            <button
-                                                onClick={() => deleteAgent(agent.id)}
-                                                disabled={actionLoading === agent.id}
-                                                style={{
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: 8,
-                                                    width: '100%',
-                                                    padding: '12px 16px',
-                                                    fontSize: 14,
-                                                    color: '#f87171',
-                                                    backgroundColor: '#0f172a',
-                                                    border: 'none',
-                                                    cursor: 'pointer',
-                                                    textAlign: 'left'
-                                                }}
-                                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1e293b'}
-                                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#0f172a'}
-                                            >
-                                                <Trash2 style={{ width: 16, height: 16 }} />
-                                                {t('card.menu.delete')}
-                                            </button>
-                                        </div>
-                                    </>
-                                )}
+                                <button
+                                    onClick={() => deleteAgent(agent.id)}
+                                    disabled={actionLoading === agent.id}
+                                    title={t('card.menu.delete')}
+                                    style={{
+                                        width: 36,
+                                        height: 36,
+                                        borderRadius: 10,
+                                        backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        transition: 'all 0.2s'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.3)'
+                                        e.currentTarget.style.transform = 'scale(1.1)'
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.15)'
+                                        e.currentTarget.style.transform = 'scale(1)'
+                                    }}
+                                >
+                                    <Trash2 style={{ width: 16, height: 16, color: '#ef4444' }} />
+                                </button>
                             </div>
                         </div>
 
