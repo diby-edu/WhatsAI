@@ -3,12 +3,27 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
-import { MessageCircle, Menu, X, ChevronDown, Sparkles, LayoutDashboard } from 'lucide-react'
+import { MessageCircle, Menu, X, ChevronDown, Sparkles, LayoutDashboard, Globe } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
+import { usePathname, useRouter } from 'next/navigation'
 
 export default function Navbar() {
     const t = useTranslations('Navigation')
+    const locale = useLocale()
+    const router = useRouter()
+    const pathname = usePathname()
+
+    const switchLocale = () => {
+        const newLocale = locale === 'fr' ? 'en' : 'fr'
+        const segments = pathname.split('/')
+        if (segments.length > 1 && (segments[1] === 'fr' || segments[1] === 'en')) {
+            segments[1] = newLocale
+            router.push(segments.join('/'))
+        } else {
+            router.push(`/${newLocale}${pathname}`)
+        }
+    }
 
     const navLinks = [
         {
@@ -206,6 +221,28 @@ export default function Navbar() {
                         {/* CTA Buttons - Desktop */}
                         {!isMobile && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                <motion.button
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    onClick={switchLocale}
+                                    style={{
+                                        background: 'rgba(255, 255, 255, 0.05)',
+                                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                                        borderRadius: 8,
+                                        cursor: 'pointer',
+                                        padding: '8px 12px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 6,
+                                        color: '#cbd5e1',
+                                        fontSize: 13,
+                                        fontWeight: 600,
+                                        marginRight: 8
+                                    }}
+                                >
+                                    <Globe style={{ width: 14, height: 14 }} />
+                                    <span>{locale === 'fr' ? 'EN' : 'FR'}</span>
+                                </motion.button>
                                 {isAuthenticated ? (
                                     // User is logged in - show Dashboard button
                                     <Link href="/dashboard" style={{ textDecoration: 'none' }}>
@@ -348,18 +385,39 @@ export default function Navbar() {
                                         </div>
                                         <span style={{ fontSize: 20, fontWeight: 700, color: 'white' }}>WhatsAI</span>
                                     </Link>
-                                    <button
-                                        onClick={() => setMobileMenuOpen(false)}
-                                        style={{
-                                            padding: 8,
-                                            borderRadius: 12,
-                                            background: 'rgba(255, 255, 255, 0.05)',
-                                            border: 'none',
-                                            cursor: 'pointer'
-                                        }}
-                                    >
-                                        <X style={{ width: 20, height: 20, color: 'white' }} />
-                                    </button>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <button
+                                            onClick={switchLocale}
+                                            style={{
+                                                padding: 8,
+                                                borderRadius: 12,
+                                                background: 'rgba(255, 255, 255, 0.05)',
+                                                border: 'none',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 6,
+                                                color: 'white',
+                                                fontWeight: 600,
+                                                fontSize: 14
+                                            }}
+                                        >
+                                            <Globe style={{ width: 18, height: 18 }} />
+                                            {locale === 'fr' ? 'EN' : 'FR'}
+                                        </button>
+                                        <button
+                                            onClick={() => setMobileMenuOpen(false)}
+                                            style={{
+                                                padding: 8,
+                                                borderRadius: 12,
+                                                background: 'rgba(255, 255, 255, 0.05)',
+                                                border: 'none',
+                                                cursor: 'pointer'
+                                            }}
+                                        >
+                                            <X style={{ width: 20, height: 20, color: 'white' }} />
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <nav style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
