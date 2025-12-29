@@ -90,35 +90,6 @@ function PaymentSuccessContent() {
                 opacity: 0.5
             }} />
 
-            {/* Fixed Header with Logo */}
-            <header style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                right: 0,
-                padding: '16px 24px',
-                zIndex: 50
-            }}>
-                <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 12, textDecoration: 'none' }}>
-                    <div style={{
-                        width: 44,
-                        height: 44,
-                        borderRadius: 12,
-                        background: 'linear-gradient(135deg, #10b981, #059669)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        boxShadow: '0 4px 20px rgba(16, 185, 129, 0.3)'
-                    }}>
-                        <MessageCircle style={{ width: 22, height: 22, color: 'white' }} />
-                    </div>
-                    <div>
-                        <span style={{ fontWeight: 700, color: 'white', fontSize: 20 }}>WhatsAI</span>
-                        <div style={{ fontSize: 10, color: '#34d399', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Automation</div>
-                    </div>
-                </Link>
-            </header>
-
             <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}

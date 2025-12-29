@@ -34,6 +34,7 @@ export const metadata: Metadata = {
 };
 
 import WhatsAppButton from '@/components/landing/WhatsAppButton';
+import HomeButton from '@/components/HomeButton';
 
 export default function RootLayout({
   children,
@@ -45,6 +46,7 @@ export default function RootLayout({
       <body className={`${inter.variable} antialiased`}>
         {children}
         <WhatsAppButton />
+        <HomeButton />
       </body>
     </html>
   );
