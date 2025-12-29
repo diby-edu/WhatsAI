@@ -135,22 +135,48 @@ function RegisterForm() {
                     <p style={{ fontSize: 16, color: '#94a3b8', marginBottom: 8 }}>
                         Nous avons envoyé un lien de confirmation à
                     </p>
-                    <p style={{ fontSize: 16, color: '#34d399', fontWeight: 600, marginBottom: 32 }}>
+                    <p style={{ fontSize: 16, color: '#34d399', fontWeight: 600, marginBottom: 24 }}>
                         {email}
                     </p>
+
+                    {/* Accès direct au tableau de bord */}
+                    <Link
+                        href="/dashboard"
+                        style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 10,
+                            padding: '16px 32px',
+                            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                            borderRadius: 14,
+                            color: 'white',
+                            fontWeight: 600,
+                            textDecoration: 'none',
+                            marginBottom: 16,
+                            boxShadow: '0 8px 32px rgba(16, 185, 129, 0.3)'
+                        }}
+                    >
+                        Accéder à mon compte
+                        <ArrowRight style={{ width: 18, height: 18 }} />
+                    </Link>
+
+                    <p style={{ fontSize: 13, color: '#64748b', marginBottom: 16 }}>
+                        Vous pouvez commencer à utiliser WhatsAI immédiatement !
+                    </p>
+
                     <Link
                         href="/login"
                         style={{
                             display: 'inline-flex',
                             alignItems: 'center',
                             gap: 8,
-                            color: '#34d399',
-                            fontWeight: 600,
+                            color: '#94a3b8',
+                            fontSize: 14,
                             textDecoration: 'none'
                         }}
                     >
                         Retour à la connexion
-                        <ArrowRight style={{ width: 18, height: 18 }} />
                     </Link>
                 </motion.div>
             </div>
