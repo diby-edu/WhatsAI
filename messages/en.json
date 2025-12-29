@@ -19,7 +19,7 @@
     },
     "Hero": {
         "poweredBy": "Powered by AI",
-        "title": "Transform your <green>WhatsApp</green> into a<br><gold>sales machine</gold>",
+        "title": "Transform your <green>WhatsApp</green> into a<br/><gold>sales machine</gold>",
         "subtitle": "Our AI replies to your customers <white>24/7</white>, qualifies leads and <green>increases conversions by 300%</green>.",
         "pills": {
             "response": "Response < 3 sec",
