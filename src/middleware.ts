@@ -1,37 +1,28 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import createMiddleware from 'next-intl/middleware';
+
+const handleI18n = createMiddleware({
+    locales: ['fr', 'en'],
+    defaultLocale: 'fr'
+});
 
 export async function middleware(request: NextRequest) {
-    let supabaseResponse = NextResponse.next({
-        request,
-    })
-
     const pathname = request.nextUrl.pathname
 
-    // Public routes that don't require authentication
-    const publicRoutes = [
-        '/',
-        '/login',
-        '/register',
-        '/forgot-password',
-        '/reset-password',
-        '/pricing',
-        '/features',
-        '/about',
-        '/contact',
-        '/auth/callback',
-        '/api/payments/webhook',
-    ]
+    // 1. Run next-intl middleware
+    let response = handleI18n(request);
 
-    // Check if current path is public
-    const isPublicRoute = publicRoutes.some(route =>
-        pathname === route || pathname.startsWith('/api/public')
-    )
+    // If API route, bypass intl logic (though matcher handles this mostly)
+    // We create a passthrough response for API to allow headers manipulation if needed
+    if (pathname.startsWith('/api')) {
+        response = NextResponse.next({ request });
+    }
 
-    // If Supabase credentials are missing, allow access but show warning in dev
+    // 2. Supabase Logic
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-        console.warn('⚠️ Supabase credentials missing. Auth protection disabled.')
-        return supabaseResponse
+        // Dev fallback if keys missing
+        return response
     }
 
     const supabase = createServerClient(
@@ -46,11 +37,8 @@ export async function middleware(request: NextRequest) {
                     cookiesToSet.forEach(({ name, value }) =>
                         request.cookies.set(name, value)
                     )
-                    supabaseResponse = NextResponse.next({
-                        request,
-                    })
                     cookiesToSet.forEach(({ name, value, options }) =>
-                        supabaseResponse.cookies.set(name, value, options)
+                        response.cookies.set(name, value, options)
                     )
                 },
             },
@@ -61,26 +49,42 @@ export async function middleware(request: NextRequest) {
         data: { user },
     } = await supabase.auth.getUser()
 
-    // Allow public routes
-    if (isPublicRoute) {
-        return supabaseResponse
-    }
+    // 3. Auth Guard Logic
+    // Normalize path to ignore locale (remove /fr or /en prefix)
+    const pathnameWithoutLocale = pathname.replace(/^\/(fr|en)/, '') || '/';
 
-    // Redirect to login if not authenticated and trying to access protected route
-    if (!user && (pathname.startsWith('/dashboard') || pathname.startsWith('/admin'))) {
-        const redirectUrl = new URL('/login', request.url)
+    const publicRoutes = [
+        '/',
+        '/login',
+        '/register',
+        '/forgot-password',
+        '/reset-password',
+        '/pricing',
+        '/features',
+        '/about',
+        '/contact',
+        '/auth/callback',
+        '/api/payments/webhook',
+    ]
+
+    const isPublicRoute = publicRoutes.some(route =>
+        pathnameWithoutLocale === route || pathnameWithoutLocale.startsWith('/api/public')
+    )
+
+    // Auth checks
+    if (!user && !isPublicRoute && (pathnameWithoutLocale.startsWith('/dashboard') || pathnameWithoutLocale.startsWith('/admin'))) {
+        const locale = pathname.match(/^\/(fr|en)/)?.[1] || 'fr';
+        const redirectUrl = new URL(`/${locale}/login`, request.url);
         redirectUrl.searchParams.set('redirect', pathname)
-        return NextResponse.redirect(redirectUrl)
+        return NextResponse.redirect(redirectUrl);
     }
 
-    // For admin routes, check if user is admin
-    if (pathname.startsWith('/admin') && user) {
-        // 1. Check user metadata (Fastest & avoids RLS issues)
+    // Admin checks
+    if (pathnameWithoutLocale.startsWith('/admin') && user) {
         if (user.user_metadata?.role === 'admin') {
-            return supabaseResponse
+            return response
         }
 
-        // 2. Fallback: Get user profile to check role (DB query, subject to RLS)
         const { data: profile } = await supabase
             .from('profiles')
             .select('role')
@@ -88,28 +92,23 @@ export async function middleware(request: NextRequest) {
             .single()
 
         if (!profile || profile.role !== 'admin') {
-            // Redirect non-admin users to dashboard
-            return NextResponse.redirect(new URL('/dashboard', request.url))
+            const locale = pathname.match(/^\/(fr|en)/)?.[1] || 'fr';
+            return NextResponse.redirect(new URL(`/${locale}/dashboard`, request.url))
         }
     }
 
-    // For authenticated users trying to access auth pages, redirect to dashboard
-    if (user && (pathname === '/login' || pathname === '/register')) {
-        return NextResponse.redirect(new URL('/dashboard', request.url))
+    // Authenticated user trying to access auth pages
+    if (user && (pathnameWithoutLocale === '/login' || pathnameWithoutLocale === '/register')) {
+        const locale = pathname.match(/^\/(fr|en)/)?.[1] || 'fr';
+        return NextResponse.redirect(new URL(`/${locale}/dashboard`, request.url))
     }
 
-    return supabaseResponse
+    return response
 }
 
 export const config = {
     matcher: [
-        /*
-         * Match all request paths except for the ones starting with:
-         * - _next/static (static files)
-         * - _next/image (image optimization files)
-         * - favicon.ico (favicon file)
-         * - public files (images, etc.)
-         */
-        '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+        // Match all except static files and API
+        '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
     ],
 }

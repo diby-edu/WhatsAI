@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import "./globals.css";
+import "../globals.css";
+import { NextIntlClientProvider } from 'next-intl';
+import { getMessages } from 'next-intl/server';
 
 const inter = Inter({
   variable: "--font-inter",
@@ -36,17 +38,23 @@ export const metadata: Metadata = {
 import WhatsAppButton from '@/components/landing/WhatsAppButton';
 import HomeButton from '@/components/HomeButton';
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
-}: Readonly<{
+  params: { locale }
+}: {
   children: React.ReactNode;
-}>) {
+  params: { locale: string };
+}) {
+  const messages = await getMessages();
+
   return (
-    <html lang="fr" className="scroll-smooth">
+    <html lang={locale} className="scroll-smooth">
       <body className={`${inter.variable} antialiased`}>
-        {children}
-        <WhatsAppButton />
-        <HomeButton />
+        <NextIntlClientProvider messages={messages}>
+          {children}
+          <WhatsAppButton />
+          <HomeButton />
+        </NextIntlClientProvider>
       </body>
     </html>
   );

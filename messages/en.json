@@ -1,0 +1,12 @@
+{
+    "HomePage": {
+        "title": "Automate your WhatsApp",
+        "subtitle": "Turn your conversations into business opportunities with AI"
+    },
+    "Navigation": {
+        "home": "Home",
+        "pricing": "Pricing",
+        "login": "Login",
+        "register": "Register"
+    }
+}
