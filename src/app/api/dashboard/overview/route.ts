@@ -10,10 +10,10 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-        // Fetch User Profile (Plan info)
+        // Fetch User Profile (Plan info and name)
         const { data: profile } = await supabase
             .from('profiles')
-            .select('plan, credits_balance')
+            .select('plan, credits_balance, full_name')
             .eq('id', user.id)
             .single()
 
@@ -110,7 +110,8 @@ export async function GET(request: NextRequest) {
                 totalConversations: conversationCount || 0,
                 plan: profile?.plan || 'Free',
                 credits: profile?.credits_balance || 0,
-                subscriptionExpiry: subscription?.current_period_end || null
+                subscriptionExpiry: subscription?.current_period_end || null,
+                userName: profile?.full_name || ''
             },
             agents: agentsWithConversations,
             recentConversations

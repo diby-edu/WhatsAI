@@ -205,7 +205,7 @@ export default function PlaygroundPage() {
                             </select>
                             <div className="text-xs text-primary-400 flex items-center gap-1 mt-1">
                                 <span className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-pulse" />
-                                Mode Test
+                                Test IA Réel
                             </div>
                         </div>
                     </div>
@@ -302,13 +302,13 @@ export default function PlaygroundPage() {
                             </div>
                         </div>
 
-                        <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-xl">
-                            <h4 className="font-medium text-yellow-500 mb-1 flex items-center gap-2">
+                        <div className="p-4 bg-primary-500/10 border border-primary-500/20 rounded-xl">
+                            <h4 className="font-medium text-primary-400 mb-1 flex items-center gap-2">
                                 <Bot className="w-4 h-4" />
-                                Mode Simulation
+                                Mode Test Réel
                             </h4>
-                            <p className="text-xs text-yellow-200/70 leading-relaxed">
-                                Les réponses sont simulées pour économiser vos crédits. Pour tester la vraie IA, utilisez WhatsApp.
+                            <p className="text-xs text-primary-200/70 leading-relaxed">
+                                Ce test utilise l'IA réelle et consomme 1 crédit par message. Parfait pour vérifier le comportement de votre agent.
                             </p>
                         </div>
 

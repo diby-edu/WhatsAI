@@ -270,32 +270,57 @@ Règles:
             return
         }
 
-
         setWhatsappStatus('connecting')
         setError(null)
 
         try {
+            // Step 1: Initiate connection
             const response = await fetch('/api/whatsapp/connect', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ agentId: createdAgent.id }),
             })
 
-
             const data = await response.json()
-
 
             if (!response.ok) {
                 throw new Error(data.error || t('connect.error'))
             }
 
-            if (data.qrCode) {
-                setQrCode(data.qrCode)
-                setWhatsappStatus('qr_ready')
-            } else if (data.status === 'connected') {
+            // If already connected
+            if (data.data?.status === 'connected') {
                 setWhatsappStatus('connected')
-                setConnectedPhone(data.phoneNumber)
+                setConnectedPhone(data.data.phoneNumber || '')
+                return
             }
+
+            // Step 2: Poll for QR code (it takes a moment for the service to generate)
+            const pollForQR = async (attempts = 0): Promise<void> => {
+                if (attempts >= 15) { // Max 15 attempts (30 seconds)
+                    throw new Error('Délai d\'attente dépassé pour le QR code')
+                }
+
+                await new Promise(resolve => setTimeout(resolve, 2000)) // Wait 2 sec
+
+                const statusRes = await fetch(`/api/whatsapp/connect?agentId=${createdAgent.id}`)
+                const statusData = await statusRes.json()
+
+                if (statusData.data?.qrCode) {
+                    setQrCode(statusData.data.qrCode)
+                    setWhatsappStatus('qr_ready')
+                    return
+                } else if (statusData.data?.status === 'connected') {
+                    setWhatsappStatus('connected')
+                    setConnectedPhone(statusData.data.phoneNumber || '')
+                    return
+                } else {
+                    // Keep polling
+                    return pollForQR(attempts + 1)
+                }
+            }
+
+            await pollForQR()
+
         } catch (err) {
             console.error('CONNECT ERROR:', err)
             setError((err as Error).message)
