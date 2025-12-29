@@ -75,9 +75,18 @@ function BillingContent() {
 
     // Check for payment return
     useEffect(() => {
-        const paymentId = searchParams.get('payment')
-        if (paymentId) {
-            checkPaymentStatus(paymentId)
+        const paymentParam = searchParams.get('payment')
+        const transactionId = searchParams.get('transaction_id')
+
+        if (paymentParam === 'success') {
+            // User returned from successful payment
+            setPaymentStatus('success')
+            fetchData() // Refresh to get updated credits
+        } else if (paymentParam === 'cancelled') {
+            setPaymentStatus('failed')
+        } else if (transactionId) {
+            // Check specific transaction
+            checkPaymentStatus(transactionId)
         }
     }, [searchParams])
 
