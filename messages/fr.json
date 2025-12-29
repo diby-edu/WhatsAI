@@ -498,7 +498,10 @@
       "scanPrompt": "Scannez le QR code pour relier cet agent à votre compte WhatsApp.",
       "openWhatsapp": "Ouvrez WhatsApp sur votre téléphone > Appareils connectés > Connecter un appareil",
       "connectedSuccess": "Connecté !",
-      "error": "Erreur"
+      "error": "Erreur",
+      "errors": {
+        "noAgent": "Agent introuvable. Veuillez réessayer la création."
+      }
     }
   },
   "Conversations": {
@@ -568,6 +571,14 @@
       "lowCredits": {
         "label": "Alerte crédits faibles",
         "description": "Être notifié quand vos crédits sont presque épuisés"
+      },
+      "newOrder": {
+        "label": "Nouvelle commande",
+        "description": "Recevoir un email à chaque nouvelle commande"
+      },
+      "agentStatus": {
+        "label": "Statut de l'agent",
+        "description": "Notification lors de l'activation/désactivation"
       }
     },
     "Security": {

@@ -49,7 +49,7 @@ export default async function RootLayout({
   const messages = await getMessages();
 
   return (
-    <html lang={locale} className="scroll-smooth">
+    <html lang={locale} className="scroll-smooth" style={{ overflowY: 'scroll' }}>
       <body className={`${inter.variable} antialiased`}>
         <NextIntlClientProvider messages={messages} locale={locale} timeZone="Africa/Abidjan">
           {children}

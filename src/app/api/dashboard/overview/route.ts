@@ -17,6 +17,16 @@ export async function GET(request: NextRequest) {
             .eq('id', user.id)
             .single()
 
+        // Fetch Active Subscription for expiry date
+        const { data: subscription } = await supabase
+            .from('subscriptions')
+            .select('current_period_end, status')
+            .eq('user_id', user.id)
+            .in('status', ['active', 'past_due'])
+            .order('current_period_end', { ascending: false })
+            .limit(1)
+            .single()
+
         // Fetch Agents with real data
         const { data: agents, error: agentsError } = await supabase
             .from('agents')
@@ -99,7 +109,8 @@ export async function GET(request: NextRequest) {
                 activeAgents: agentsWithConversations?.filter(a => a.is_active).length || 0,
                 totalConversations: conversationCount || 0,
                 plan: profile?.plan || 'Free',
-                credits: profile?.credits_balance || 0
+                credits: profile?.credits_balance || 0,
+                subscriptionExpiry: subscription?.current_period_end || null
             },
             agents: agentsWithConversations,
             recentConversations

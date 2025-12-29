@@ -265,7 +265,10 @@ Règles:
 
     // Connect WhatsApp
     const connectWhatsApp = async () => {
-        if (!createdAgent) return
+        if (!createdAgent) {
+            setError(t('connect.errors.noAgent'))
+            return
+        }
 
 
         setWhatsappStatus('connecting')
