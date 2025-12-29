@@ -4,9 +4,17 @@
     "subtitle": "Transformez vos conversations en opportunités commerciales avec l'IA"
   },
   "Navigation": {
-    "home": "Accueil",
-    "pricing": "Tarifs",
     "login": "Connexion",
-    "register": "S'inscrire"
+    "register": "Essai gratuit",
+    "dashboard": "Tableau de bord",
+    "product": "Produit",
+    "features": "Fonctionnalités",
+    "howItWorks": "Comment ça marche",
+    "pricing": "Tarifs",
+    "questions": "Questions",
+    "faq": "FAQ"
+  },
+  "WhatsApp": {
+    "message": "Bonjour ! Je souhaite en savoir plus sur WhatsAI."
   }
 }
