@@ -1,0 +1,12 @@
+{
+  "HomePage": {
+    "title": "Automatisez votre WhatsApp",
+    "subtitle": "Transformez vos conversations en opportunités commerciales avec l'IA"
+  },
+  "Navigation": {
+    "home": "Accueil",
+    "pricing": "Tarifs",
+    "login": "Connexion",
+    "register": "S'inscrire"
+  }
+}
