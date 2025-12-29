@@ -45,6 +45,31 @@ npm install
 
 ---
 
+```
+
+### ⚠️ IMPORTANT : Configurer le SWAP (Anti-Crash)
+Le build Next.js demande beaucoup de mémoire. Pour éviter l'erreur `Aborted (core dumped)`, ajoutez 4GB de swap :
+
+```bash
+# 1. Créer un fichier de 4GB
+fallocate -l 4G /swapfile
+
+# 2. Sécuriser les permissions
+chmod 600 /swapfile
+
+# 3. Initialiser le swap
+mkswap /swapfile
+swapon /swapfile
+
+# 4. Rendre permanent (au redémarrage)
+echo '/swapfile none swap sw 0 0' | tee -a /etc/fstab
+
+# 5. Vérifier
+free -h
+```
+
+---
+
 ## ÉTAPE 3 : Configuration
 
 ```bash

@@ -51,7 +51,7 @@ export default async function RootLayout({
   return (
     <html lang={locale} className="scroll-smooth">
       <body className={`${inter.variable} antialiased`}>
-        <NextIntlClientProvider messages={messages}>
+        <NextIntlClientProvider messages={messages} locale={locale} timeZone="Africa/Abidjan">
           {children}
           <WhatsAppButton />
           <HomeButton />
