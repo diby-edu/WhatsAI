@@ -29,7 +29,14 @@ export default function LoginPage() {
             })
 
             if (error) {
-                setError(error.message)
+                // Améliorer les messages d'erreur
+                if (error.message.includes('Invalid login credentials')) {
+                    setError('Email ou mot de passe incorrect. Si vous venez de vous inscrire, vérifiez que vous avez confirmé votre email.')
+                } else if (error.message.includes('Email not confirmed')) {
+                    setError('Veuillez confirmer votre email avant de vous connecter. Vérifiez votre boîte de réception.')
+                } else {
+                    setError(error.message)
+                }
             } else {
                 // Check if user is admin (via Metadata OR Profile)
                 const { data: { user } } = await supabase.auth.getUser()
