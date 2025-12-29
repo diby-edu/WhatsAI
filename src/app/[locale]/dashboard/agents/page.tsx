@@ -224,11 +224,15 @@ export default function AgentsPage() {
                                 <button
                                     onClick={() => setMenuOpen(menuOpen === agent.id ? null : agent.id)}
                                     style={{
-                                        padding: 4,
+                                        padding: 12, // Increased touch target
+                                        margin: -8,  // Compensate for padding to keep alignment
                                         borderRadius: 8,
                                         background: 'transparent',
                                         border: 'none',
-                                        cursor: 'pointer'
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center'
                                     }}
                                 >
                                     <MoreVertical style={{ width: 16, height: 16, color: '#64748b' }} />
@@ -241,11 +245,12 @@ export default function AgentsPage() {
                                         top: '100%',
                                         marginTop: 4,
                                         width: 160,
-                                        background: 'rgba(15, 23, 42, 0.95)',
+                                        background: '#0f172a', // Solid background color
                                         border: '1px solid rgba(148, 163, 184, 0.1)',
                                         borderRadius: 12,
                                         overflow: 'hidden',
-                                        zIndex: 20
+                                        zIndex: 50, // Ensure it's on top
+                                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
                                     }}>
                                         <Link
                                             href={`/dashboard/agents/${agent.id}`}
@@ -253,11 +258,14 @@ export default function AgentsPage() {
                                                 display: 'flex',
                                                 alignItems: 'center',
                                                 gap: 8,
-                                                padding: '10px 16px',
+                                                padding: '12px 16px', // Increased padding
                                                 fontSize: 14,
                                                 color: 'white',
-                                                textDecoration: 'none'
+                                                textDecoration: 'none',
+                                                transition: 'background 0.2s'
                                             }}
+                                            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(30, 41, 59, 0.5)'}
+                                            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                                         >
                                             <Edit style={{ width: 16, height: 16 }} />
                                             {t('card.menu.edit')}
@@ -270,13 +278,17 @@ export default function AgentsPage() {
                                                 alignItems: 'center',
                                                 gap: 8,
                                                 width: '100%',
-                                                padding: '10px 16px',
+                                                padding: '12px 16px', // Increased padding
                                                 fontSize: 14,
                                                 color: 'white',
                                                 background: 'transparent',
                                                 border: 'none',
-                                                cursor: 'pointer'
+                                                cursor: 'pointer',
+                                                transition: 'background 0.2s',
+                                                textAlign: 'left'
                                             }}
+                                            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(30, 41, 59, 0.5)'}
+                                            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                                         >
                                             <Power style={{ width: 16, height: 16 }} />
                                             {agent.is_active ? t('card.menu.deactivate') : t('card.menu.activate')}
@@ -289,13 +301,17 @@ export default function AgentsPage() {
                                                 alignItems: 'center',
                                                 gap: 8,
                                                 width: '100%',
-                                                padding: '10px 16px',
+                                                padding: '12px 16px', // Increased padding
                                                 fontSize: 14,
                                                 color: '#f87171',
                                                 background: 'transparent',
                                                 border: 'none',
-                                                cursor: 'pointer'
+                                                cursor: 'pointer',
+                                                transition: 'background 0.2s',
+                                                textAlign: 'left'
                                             }}
+                                            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
+                                            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                                         >
                                             <Trash2 style={{ width: 16, height: 16 }} />
                                             {t('card.menu.delete')}

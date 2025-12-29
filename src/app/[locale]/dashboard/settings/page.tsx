@@ -32,6 +32,8 @@ interface NotificationSettings {
     email_new_conversation: boolean
     email_daily_summary: boolean
     email_low_credits: boolean
+    email_new_order: boolean
+    email_agent_status_change: boolean
     push_enabled: boolean
 }
 
@@ -66,6 +68,8 @@ export default function SettingsPage() {
         email_new_conversation: true,
         email_daily_summary: true,
         email_low_credits: true,
+        email_new_order: true,
+        email_agent_status_change: true,
         push_enabled: false
     })
 
@@ -291,6 +295,18 @@ export default function SettingsPage() {
                                         description={t('Notifications.lowCredits.description')}
                                         checked={notifications.email_low_credits}
                                         onChange={(v) => setNotifications({ ...notifications, email_low_credits: v })}
+                                    />
+                                    <ToggleOption
+                                        label={t('Notifications.newOrder.label')}
+                                        description={t('Notifications.newOrder.description')}
+                                        checked={notifications.email_new_order}
+                                        onChange={(v) => setNotifications({ ...notifications, email_new_order: v })}
+                                    />
+                                    <ToggleOption
+                                        label={t('Notifications.agentStatus.label')}
+                                        description={t('Notifications.agentStatus.description')}
+                                        checked={notifications.email_agent_status_change}
+                                        onChange={(v) => setNotifications({ ...notifications, email_agent_status_change: v })}
                                     />
                                 </div>
                                 <SaveButton

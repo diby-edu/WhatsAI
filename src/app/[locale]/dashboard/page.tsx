@@ -10,7 +10,8 @@ import {
     ArrowUpRight,
     ArrowDownRight,
     Bot,
-    Clock
+    Clock,
+    CreditCard
 } from 'lucide-react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
@@ -52,6 +53,13 @@ export default function DashboardPage() {
             color: '#f97316',
             bgColor: 'rgba(249, 115, 22, 0.1)',
         },
+        {
+            id: 'plan',
+            label: t('stats.currentPlan'),
+            icon: CreditCard,
+            color: '#ec4899',
+            bgColor: 'rgba(236, 72, 153, 0.1)',
+        },
     ]
 
     useEffect(() => {
@@ -74,6 +82,14 @@ export default function DashboardPage() {
                     if (config.id === 'agents') value = s.activeAgents.toLocaleString()
                     if (config.id === 'conversations') value = s.totalConversations.toLocaleString()
                     if (config.id === 'credits') value = s.credits.toLocaleString()
+                    if (config.id === 'plan') {
+                        value = (s.plan || 'Free').toUpperCase()
+                        if (s.subscriptionExpiry) {
+                            const date = new Date(s.subscriptionExpiry)
+                            change = `Exp: ${date.toLocaleDateString()}`
+                            positive = true
+                        }
+                    }
 
                     return { ...config, value, change, positive }
                 })
