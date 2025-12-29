@@ -5,21 +5,24 @@ import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MessageCircle, Menu, X, ChevronDown, Sparkles, LayoutDashboard } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-
-const navLinks = [
-    {
-        label: 'Produit',
-        href: '#features',
-        children: [
-            { label: 'Fonctionnalités', href: '#features' },
-            { label: 'Comment ça marche', href: '#how-it-works' },
-        ]
-    },
-    { label: 'Tarifs', href: '#pricing' },
-    { label: 'FAQ', href: '#faq' },
-]
+import { useTranslations } from 'next-intl'
 
 export default function Navbar() {
+    const t = useTranslations('Navigation')
+
+    const navLinks = [
+        {
+            label: t('product'),
+            href: '#features',
+            children: [
+                { label: t('features'), href: '#features' },
+                { label: t('howItWorks'), href: '#how-it-works' },
+            ]
+        },
+        { label: t('pricing'), href: '#pricing' },
+        { label: t('faq'), href: '#faq' },
+    ]
+
     const [scrolled, setScrolled] = useState(false)
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
     const [activeDropdown, setActiveDropdown] = useState<string | null>(null)
@@ -225,7 +228,7 @@ export default function Navbar() {
                                             }}
                                         >
                                             <LayoutDashboard style={{ width: 16, height: 16 }} />
-                                            Dashboard
+                                            {t('dashboard')}
                                         </motion.button>
                                     </Link>
                                 ) : (
@@ -241,7 +244,7 @@ export default function Navbar() {
                                                 transition: 'color 0.2s ease'
                                             }}
                                         >
-                                            Connexion
+                                            {t('login')}
                                         </Link>
                                         <Link href="/register" style={{ textDecoration: 'none' }}>
                                             <motion.button
@@ -263,7 +266,7 @@ export default function Navbar() {
                                                 }}
                                             >
                                                 <Sparkles style={{ width: 16, height: 16 }} />
-                                                Essai gratuit
+                                                {t('register')}
                                             </motion.button>
                                         </Link>
                                     </>
@@ -427,7 +430,7 @@ export default function Navbar() {
                                                 color: 'white'
                                             }}>
                                                 <LayoutDashboard style={{ width: 16, height: 16 }} />
-                                                Dashboard
+                                                {t('dashboard')}
                                             </button>
                                         </Link>
                                     ) : (
@@ -446,7 +449,7 @@ export default function Navbar() {
                                                     textDecoration: 'none'
                                                 }}
                                             >
-                                                Connexion
+                                                {t('login')}
                                             </Link>
                                             <Link
                                                 href="/register"
@@ -469,7 +472,7 @@ export default function Navbar() {
                                                     color: 'white'
                                                 }}>
                                                     <Sparkles style={{ width: 16, height: 16 }} />
-                                                    Essai gratuit
+                                                    {t('register')}
                                                 </button>
                                             </Link>
                                         </>

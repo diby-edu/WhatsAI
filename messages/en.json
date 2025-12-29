@@ -4,9 +4,16 @@
         "subtitle": "Turn your conversations into business opportunities with AI"
     },
     "Navigation": {
-        "home": "Home",
-        "pricing": "Pricing",
         "login": "Login",
-        "register": "Register"
+        "register": "Start Free Trial",
+        "dashboard": "Dashboard",
+        "product": "Product",
+        "features": "Features",
+        "howItWorks": "How it works",
+        "pricing": "Pricing",
+        "faq": "FAQ"
+    },
+    "WhatsApp": {
+        "message": "Hello! I would like to know more about WhatsAI."
     }
 }

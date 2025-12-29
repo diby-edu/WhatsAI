@@ -2,11 +2,13 @@
 
 import { motion } from 'framer-motion'
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 
 export default function WhatsAppButton() {
+    const t = useTranslations('WhatsApp')
     // Numéro WhatsApp de contact (format international sans +)
     const whatsappNumber = '2250718287025'
-    const defaultMessage = 'Bonjour ! Je souhaite en savoir plus sur WhatsAI.'
+    const defaultMessage = t('message')
 
     const handleWhatsAppClick = () => {
         const url = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(defaultMessage)}`
