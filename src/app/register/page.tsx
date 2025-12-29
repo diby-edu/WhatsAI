@@ -139,9 +139,9 @@ function RegisterForm() {
                         {email}
                     </p>
 
-                    {/* Accès direct au tableau de bord */}
+                    {/* Bouton de connexion */}
                     <Link
-                        href="/dashboard"
+                        href="/login"
                         style={{
                             display: 'inline-flex',
                             alignItems: 'center',
@@ -157,16 +157,16 @@ function RegisterForm() {
                             boxShadow: '0 8px 32px rgba(16, 185, 129, 0.3)'
                         }}
                     >
-                        Accéder à mon compte
+                        Se connecter
                         <ArrowRight style={{ width: 18, height: 18 }} />
                     </Link>
 
                     <p style={{ fontSize: 13, color: '#64748b', marginBottom: 16 }}>
-                        Vous pouvez commencer à utiliser WhatsAI immédiatement !
+                        Cliquez sur le lien dans l'email pour activer votre compte
                     </p>
 
                     <Link
-                        href="/login"
+                        href="/"
                         style={{
                             display: 'inline-flex',
                             alignItems: 'center',
@@ -176,7 +176,7 @@ function RegisterForm() {
                             textDecoration: 'none'
                         }}
                     >
-                        Retour à la connexion
+                        Retour à l'accueil
                     </Link>
                 </motion.div>
             </div>
