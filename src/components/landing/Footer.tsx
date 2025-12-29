@@ -86,10 +86,11 @@ export default function Footer() {
                     }} />
 
                     <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-                        gap: 32,
+                        display: 'flex',
+                        flexDirection: 'column',
                         alignItems: 'center',
+                        textAlign: 'center',
+                        gap: 24,
                         position: 'relative'
                     }}>
                         <div>
@@ -102,10 +103,10 @@ export default function Footer() {
                             }}>
                                 Prêt à automatiser votre WhatsApp ?
                             </h2>
-                            <p style={{ color: '#94a3b8', marginBottom: 20, fontSize: 15 }}>
+                            <p style={{ color: '#94a3b8', marginBottom: 24, fontSize: 16 }}>
                                 Rejoignez des milliers d'entreprises qui utilisent WhatsAI 24h/24.
                             </p>
-                            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
                                 <Link href="/register" style={{ textDecoration: 'none' }}>
                                     <motion.button
                                         whileHover={{ scale: 1.03 }}
@@ -147,49 +148,6 @@ export default function Footer() {
                                     </motion.button>
                                 </Link>
                             </div>
-                        </div>
-
-                        {/* Newsletter */}
-                        <div>
-                            <h3 style={{ color: 'white', fontWeight: 600, marginBottom: 8, fontSize: 16 }}>
-                                Newsletter
-                            </h3>
-                            <p style={{ color: '#64748b', marginBottom: 12, fontSize: 14 }}>
-                                Recevez nos derniers conseils et actualités.
-                            </p>
-                            <form style={{ display: 'flex', gap: 8 }}>
-                                <input
-                                    type="email"
-                                    placeholder="votre@email.com"
-                                    style={{
-                                        flex: 1,
-                                        padding: '12px 16px',
-                                        borderRadius: 10,
-                                        background: 'rgba(30, 41, 59, 0.8)',
-                                        border: '1px solid rgba(148, 163, 184, 0.2)',
-                                        color: 'white',
-                                        fontSize: 14,
-                                        outline: 'none'
-                                    }}
-                                />
-                                <motion.button
-                                    whileHover={{ scale: 1.05 }}
-                                    whileTap={{ scale: 0.95 }}
-                                    type="submit"
-                                    style={{
-                                        padding: '12px 16px',
-                                        borderRadius: 10,
-                                        background: 'linear-gradient(135deg, #10b981, #059669)',
-                                        border: 'none',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center'
-                                    }}
-                                >
-                                    <Send style={{ width: 18, height: 18, color: 'white' }} />
-                                </motion.button>
-                            </form>
                         </div>
                     </div>
                 </motion.div>

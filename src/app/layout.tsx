@@ -33,6 +33,8 @@ export const metadata: Metadata = {
   },
 };
 
+import WhatsAppButton from '@/components/landing/WhatsAppButton';
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -42,6 +44,7 @@ export default function RootLayout({
     <html lang="fr" className="scroll-smooth">
       <body className={`${inter.variable} antialiased`}>
         {children}
+        <WhatsAppButton />
       </body>
     </html>
   );
