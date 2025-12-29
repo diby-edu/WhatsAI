@@ -12,13 +12,6 @@ const features = [
         glow: 'rgba(245, 158, 11, 0.3)'
     },
     {
-        icon: Brain,
-        title: 'IA ultra-intelligente',
-        description: 'Propulsée par GPT-4o, elle comprend le contexte comme un humain.',
-        gradient: 'linear-gradient(135deg, #8b5cf6, #a855f7)',
-        glow: 'rgba(139, 92, 246, 0.3)'
-    },
-    {
         icon: Target,
         title: 'Qualification de leads',
         description: 'Identifiez automatiquement les prospects chauds à prioriser.',
@@ -38,27 +31,6 @@ const features = [
         description: 'Tableaux de bord en temps réel avec métriques clés.',
         gradient: 'linear-gradient(135deg, #ec4899, #f472b6)',
         glow: 'rgba(236, 72, 153, 0.3)'
-    },
-    {
-        icon: Database,
-        title: 'Base de connaissances',
-        description: 'Entraînez votre IA sur vos produits et FAQ.',
-        gradient: 'linear-gradient(135deg, #14b8a6, #2dd4bf)',
-        glow: 'rgba(20, 184, 166, 0.3)'
-    },
-    {
-        icon: Globe,
-        title: '113+ langues',
-        description: 'Communiquez avec vos clients dans leur langue maternelle.',
-        gradient: 'linear-gradient(135deg, #6366f1, #818cf8)',
-        glow: 'rgba(99, 102, 241, 0.3)'
-    },
-    {
-        icon: Shield,
-        title: 'Sécurité maximale',
-        description: 'Chiffrement bout en bout, conformité RGPD.',
-        gradient: 'linear-gradient(135deg, #22c55e, #4ade80)',
-        glow: 'rgba(34, 197, 94, 0.3)'
     }
 ]
 
