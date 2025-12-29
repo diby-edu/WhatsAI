@@ -304,7 +304,8 @@
         "messages": "Messages ce mois",
         "agents": "Agents actifs",
         "conversations": "Conversations",
-        "credits": "Crédits restants"
+        "credits": "Crédits restants",
+        "currentPlan": "Plan actuel"
       },
       "recentConversations": "Conversations récentes",
       "viewAll": "Voir tout",

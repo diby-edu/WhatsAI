@@ -11,7 +11,8 @@ import {
     ArrowDownRight,
     Bot,
     Clock,
-    CreditCard
+    CreditCard,
+    Bell
 } from 'lucide-react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
@@ -21,6 +22,7 @@ export default function DashboardPage() {
     const [stats, setStats] = useState<any[]>([])
     const [agents, setAgents] = useState<any[]>([])
     const [recentConversations, setRecentConversations] = useState<any[]>([])
+    const [userName, setUserName] = useState<string>('')
     const [loading, setLoading] = useState(true)
 
     // Base stats config - rebuilt inside component to access safe t function or at least keys
@@ -113,6 +115,11 @@ export default function DashboardPage() {
             // Recent conversations are returned as empty array for now from API
             setRecentConversations(data.data?.recentConversations || [])
 
+            // Set user name from profile
+            if (data.data?.stats?.userName) {
+                setUserName(data.data.stats.userName)
+            }
+
         } catch (err) {
             console.error('Error fetching dashboard:', err)
         } finally {
@@ -121,19 +128,44 @@ export default function DashboardPage() {
     }
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-            {/* Header */}
-            <div>
-                <h1 style={{ fontSize: 28, fontWeight: 700, color: 'white', marginBottom: 8 }}>{t('title')}</h1>
-                <p style={{ fontSize: 16, color: '#94a3b8' }}>
-                    {t('subtitle')}
-                </p>
+            {/* Header with user name and notification bell */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                    <h1 style={{ fontSize: 28, fontWeight: 700, color: 'white', marginBottom: 8 }}>{t('title')}</h1>
+                    <p style={{ fontSize: 16, color: '#94a3b8' }}>
+                        {userName ? `Bonjour ${userName} ! Voici un aperçu de votre activité.` : t('subtitle')}
+                    </p>
+                </div>
+                <button style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 12,
+                    background: 'rgba(15, 23, 42, 0.6)',
+                    border: '1px solid rgba(148, 163, 184, 0.1)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    position: 'relative'
+                }}>
+                    <Bell style={{ width: 20, height: 20, color: '#94a3b8' }} />
+                    <span style={{
+                        position: 'absolute',
+                        top: 8,
+                        right: 8,
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        background: '#10b981'
+                    }} />
+                </button>
             </div>
 
-            {/* Stats Grid */}
+            {/* Stats Grid - 5 columns on desktop */}
             <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-                gap: 24
+                gridTemplateColumns: 'repeat(5, 1fr)',
+                gap: 16
             }}>
                 {stats.map((stat, index) => (
                     <motion.div
