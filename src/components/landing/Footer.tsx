@@ -2,32 +2,8 @@
 
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { MessageCircle, ArrowRight, Send, Twitter, Linkedin, Facebook, Instagram, Youtube, MapPin, Mail, Phone } from 'lucide-react'
-
-const footerLinks = {
-    product: [
-        { label: 'Fonctionnalités', href: '#features' },
-        { label: 'Tarifs', href: '#pricing' },
-        { label: 'FAQ', href: '#faq' },
-        { label: 'API Docs', href: '/docs' },
-    ],
-    company: [
-        { label: 'À propos', href: '/about' },
-        { label: 'Blog', href: '/blog' },
-        { label: 'Partenaires', href: '/partners' },
-        { label: 'Contact', href: '/contact' },
-    ],
-    resources: [
-        { label: 'Centre d\'aide', href: '/help' },
-        { label: 'Tutoriels', href: '/tutorials' },
-        { label: 'Templates', href: '/templates' },
-    ],
-    legal: [
-        { label: 'Confidentialité', href: '/privacy' },
-        { label: 'Conditions', href: '/terms' },
-        { label: 'RGPD', href: '/gdpr' },
-    ],
-}
+import { MessageCircle, ArrowRight, Twitter, Linkedin, Facebook, Instagram, Youtube, MapPin, Mail } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 
 const socialLinks = [
     { icon: Twitter, href: 'https://twitter.com', label: 'Twitter' },
@@ -38,6 +14,33 @@ const socialLinks = [
 ]
 
 export default function Footer() {
+    const t = useTranslations('Footer')
+
+    const footerLinks = {
+        product: [
+            { label: t('links.features'), href: '#features' },
+            { label: t('links.pricing'), href: '#pricing' },
+            { label: t('links.faq'), href: '#faq' },
+            { label: t('links.api'), href: '/docs' },
+        ],
+        company: [
+            { label: t('links.about'), href: '/about' },
+            { label: t('links.blog'), href: '/blog' },
+            { label: t('links.partners'), href: '/partners' },
+            { label: t('links.contact'), href: '/contact' },
+        ],
+        resources: [
+            { label: t('links.help'), href: '/help' },
+            { label: t('links.tutorials'), href: '/tutorials' },
+            { label: t('links.templates'), href: '/templates' },
+        ],
+        legal: [
+            { label: t('links.privacy'), href: '/privacy' },
+            { label: t('links.terms'), href: '/terms' },
+            { label: t('links.gdpr'), href: '/gdpr' },
+        ],
+    }
+
     return (
         <footer style={{
             position: 'relative',
@@ -101,10 +104,10 @@ export default function Footer() {
                                 marginBottom: 12,
                                 lineHeight: 1.3
                             }}>
-                                Prêt à automatiser votre WhatsApp ?
+                                {t('cta.title')}
                             </h2>
                             <p style={{ color: '#94a3b8', marginBottom: 24, fontSize: 16 }}>
-                                Rejoignez des milliers d'entreprises qui utilisent WhatsAI 24h/24.
+                                {t('cta.subtitle')}
                             </p>
                             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
                                 <Link href="/register" style={{ textDecoration: 'none' }}>
@@ -125,7 +128,7 @@ export default function Footer() {
                                             fontSize: 15
                                         }}
                                     >
-                                        Commencer gratuitement
+                                        {t('cta.start')}
                                         <ArrowRight style={{ width: 18, height: 18 }} />
                                     </motion.button>
                                 </Link>
@@ -144,7 +147,7 @@ export default function Footer() {
                                             fontSize: 15
                                         }}
                                     >
-                                        Voir la démo
+                                        {t('cta.demo')}
                                     </motion.button>
                                 </Link>
                             </div>
@@ -182,7 +185,7 @@ export default function Footer() {
                             }}>WhatsAI</span>
                         </Link>
                         <p style={{ color: '#64748b', fontSize: 13, lineHeight: 1.6, marginBottom: 16 }}>
-                            L'IA qui répond à vos clients sur WhatsApp 24h/24.
+                            {t('brandDescription')}
                         </p>
                         {/* Social icons */}
                         <div style={{ display: 'flex', gap: 8 }}>
@@ -213,10 +216,10 @@ export default function Footer() {
 
                     {/* Produit */}
                     <div>
-                        <h4 style={{ color: '#e2e8f0', fontWeight: 600, fontSize: 14, marginBottom: 16 }}>Produit</h4>
+                        <h4 style={{ color: '#e2e8f0', fontWeight: 600, fontSize: 14, marginBottom: 16 }}>{t('columns.product')}</h4>
                         <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                             {footerLinks.product.map((link) => (
-                                <li key={link.label} style={{ marginBottom: 10 }}>
+                                <li key={link.href} style={{ marginBottom: 10 }}>
                                     <Link href={link.href} style={{
                                         color: '#64748b',
                                         textDecoration: 'none',
@@ -232,10 +235,10 @@ export default function Footer() {
 
                     {/* Entreprise */}
                     <div>
-                        <h4 style={{ color: '#e2e8f0', fontWeight: 600, fontSize: 14, marginBottom: 16 }}>Entreprise</h4>
+                        <h4 style={{ color: '#e2e8f0', fontWeight: 600, fontSize: 14, marginBottom: 16 }}>{t('columns.company')}</h4>
                         <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                             {footerLinks.company.map((link) => (
-                                <li key={link.label} style={{ marginBottom: 10 }}>
+                                <li key={link.href} style={{ marginBottom: 10 }}>
                                     <Link href={link.href} style={{
                                         color: '#64748b',
                                         textDecoration: 'none',
@@ -250,10 +253,10 @@ export default function Footer() {
 
                     {/* Ressources */}
                     <div>
-                        <h4 style={{ color: '#e2e8f0', fontWeight: 600, fontSize: 14, marginBottom: 16 }}>Ressources</h4>
+                        <h4 style={{ color: '#e2e8f0', fontWeight: 600, fontSize: 14, marginBottom: 16 }}>{t('columns.resources')}</h4>
                         <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                             {footerLinks.resources.map((link) => (
-                                <li key={link.label} style={{ marginBottom: 10 }}>
+                                <li key={link.href} style={{ marginBottom: 10 }}>
                                     <Link href={link.href} style={{
                                         color: '#64748b',
                                         textDecoration: 'none',
@@ -268,10 +271,10 @@ export default function Footer() {
 
                     {/* Légal */}
                     <div>
-                        <h4 style={{ color: '#e2e8f0', fontWeight: 600, fontSize: 14, marginBottom: 16 }}>Légal</h4>
+                        <h4 style={{ color: '#e2e8f0', fontWeight: 600, fontSize: 14, marginBottom: 16 }}>{t('columns.legal')}</h4>
                         <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                             {footerLinks.legal.map((link) => (
-                                <li key={link.label} style={{ marginBottom: 10 }}>
+                                <li key={link.href} style={{ marginBottom: 10 }}>
                                     <Link href={link.href} style={{
                                         color: '#64748b',
                                         textDecoration: 'none',
@@ -296,7 +299,7 @@ export default function Footer() {
                     gap: 16
                 }}>
                     <p style={{ color: '#475569', fontSize: 13 }}>
-                        © 2025 WhatsAI. Tous droits réservés.
+                        {t('rights')}
                     </p>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#475569', fontSize: 13 }}>

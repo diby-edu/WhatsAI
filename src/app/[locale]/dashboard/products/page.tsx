@@ -8,6 +8,7 @@ import {
     ImageIcon, Check, X, DollarSign
 } from 'lucide-react'
 import Link from 'next/link'
+import { useTranslations, useFormatter } from 'next-intl'
 
 interface Product {
     id: string
@@ -22,6 +23,8 @@ interface Product {
 }
 
 export default function ProductsPage() {
+    const t = useTranslations('Products.List')
+    const format = useFormatter()
     const router = useRouter()
     const [products, setProducts] = useState<Product[]>([])
     const [loading, setLoading] = useState(true)
@@ -46,7 +49,7 @@ export default function ProductsPage() {
     }
 
     const deleteProduct = async (id: string) => {
-        if (!confirm('Supprimer ce produit ?')) return
+        if (!confirm(t('delete_confirm'))) return
 
         try {
             await fetch(`/api/products/${id}`, { method: 'DELETE' })
@@ -78,14 +81,14 @@ export default function ProductsPage() {
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
                 <div>
-                    <h1 style={{ fontSize: 28, fontWeight: 700, color: 'white', marginBottom: 8 }}>Produits & Services</h1>
-                    <p style={{ color: '#94a3b8' }}>{products.length} produits</p>
+                    <h1 style={{ fontSize: 28, fontWeight: 700, color: 'white', marginBottom: 8 }}>{t('title')}</h1>
+                    <p style={{ color: '#94a3b8' }}>{t('count', { count: products.length })}</p>
                 </div>
                 <div style={{ display: 'flex', gap: 12 }}>
                     <div style={{ position: 'relative' }}>
                         <Search style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', width: 18, height: 18, color: '#64748b' }} />
                         <input
-                            placeholder="Rechercher..."
+                            placeholder={t('search')}
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             style={{
@@ -113,7 +116,7 @@ export default function ProductsPage() {
                         }}
                     >
                         <Plus size={20} />
-                        Ajouter
+                        {t('add')}
                     </Link>
                 </div>
             </div>
@@ -128,9 +131,9 @@ export default function ProductsPage() {
                     textAlign: 'center'
                 }}>
                     <Package style={{ width: 48, height: 48, color: '#64748b', margin: '0 auto 16px' }} />
-                    <h3 style={{ color: 'white', fontWeight: 600, marginBottom: 8 }}>Aucun produit</h3>
+                    <h3 style={{ color: 'white', fontWeight: 600, marginBottom: 8 }}>{t('empty.title')}</h3>
                     <p style={{ color: '#64748b', fontSize: 14, marginBottom: 24 }}>
-                        Ajoutez vos produits pour que le bot puisse les proposer aux clients.
+                        {t('empty.message')}
                     </p>
                     <Link
                         href="/dashboard/products/new"
@@ -143,7 +146,7 @@ export default function ProductsPage() {
                             fontWeight: 600
                         }}
                     >
-                        Créer mon premier produit
+                        {t('empty.button')}
                     </Link>
                 </div>
             ) : (
@@ -192,7 +195,7 @@ export default function ProductsPage() {
                                         background: product.is_available ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
                                         color: product.is_available ? '#34d399' : '#f87171'
                                     }}>
-                                        {product.is_available ? 'Disponible' : 'Indisponible'}
+                                        {product.is_available ? t('status.available') : t('status.unavailable')}
                                     </span>
                                 </div>
 
@@ -211,7 +214,7 @@ export default function ProductsPage() {
                                 )}
 
                                 <p style={{ color: '#94a3b8', fontSize: 14, marginBottom: 16, lineHeight: 1.5 }}>
-                                    {product.description?.substring(0, 80) || 'Aucune description'}
+                                    {product.description?.substring(0, 80) || t('no_description')}
                                     {product.description && product.description.length > 80 && '...'}
                                 </p>
 

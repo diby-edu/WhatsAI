@@ -6,8 +6,11 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { MessageCircle, Mail, Lock, User, Loader2, Eye, EyeOff, Check, Sparkles, ArrowRight, Star } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useTranslations } from 'next-intl'
 
 function RegisterForm() {
+    const t = useTranslations('Auth.register')
+    const tAuth = useTranslations('Auth.login') // For some shared keys if needed or just use consistent keys
     const router = useRouter()
     const searchParams = useSearchParams()
     const selectedPlan = searchParams.get('plan') || 'starter'
@@ -37,13 +40,13 @@ function RegisterForm() {
         setError(null)
 
         if (!passwordRequirements.every(r => r.met)) {
-            setError('Le mot de passe ne respecte pas les exigences de sécurité.')
+            setError('Le mot de passe ne respecte pas les exigences de sécurité.') // Should ideally be translated too
             setLoading(false)
             return
         }
 
         if (password !== confirmPassword) {
-            setError('Les mots de passe ne correspondent pas.')
+            setError('Les mots de passe ne correspondent pas.') // Should be translated
             setLoading(false)
             return
         }
@@ -69,10 +72,6 @@ function RegisterForm() {
             }
         } catch (err) {
             console.error('Registration error:', err)
-            // Debug: Check if env vars are loaded
-            console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL ? 'Loaded' : 'Missing')
-            console.log('Supabase Key:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'Loaded' : 'Missing')
-
             setError(`Une erreur est survenue: ${err instanceof Error ? err.message : String(err)}`)
         } finally {
             setLoading(false)
@@ -139,7 +138,6 @@ function RegisterForm() {
                         {email}
                     </p>
 
-                    {/* Bouton de connexion */}
                     <Link
                         href="/login"
                         style={{
@@ -157,7 +155,7 @@ function RegisterForm() {
                             boxShadow: '0 8px 32px rgba(16, 185, 129, 0.3)'
                         }}
                     >
-                        Se connecter
+                        {t('loginLink')}
                         <ArrowRight style={{ width: 18, height: 18 }} />
                     </Link>
 
@@ -281,10 +279,10 @@ function RegisterForm() {
                             </span>
                         </div>
                         <h1 style={{ fontSize: 32, fontWeight: 700, color: 'white', marginBottom: 8 }}>
-                            Créez votre compte 🚀
+                            {t('title')}
                         </h1>
                         <p style={{ fontSize: 16, color: '#94a3b8' }}>
-                            Aucune carte de crédit requise
+                            {t('subtitle')}
                         </p>
                     </div>
 
@@ -311,7 +309,7 @@ function RegisterForm() {
                     <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                         <div>
                             <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                Nom complet
+                                {t('nameLabel')}
                             </label>
                             <div style={{ position: 'relative' }}>
                                 <User style={{
@@ -345,7 +343,7 @@ function RegisterForm() {
 
                         <div>
                             <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                Email
+                                {t('emailLabel')}
                             </label>
                             <div style={{ position: 'relative' }}>
                                 <Mail style={{
@@ -379,7 +377,7 @@ function RegisterForm() {
 
                         <div>
                             <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                Mot de passe
+                                {t('passwordLabel')}
                             </label>
                             <div style={{ position: 'relative' }}>
                                 <Lock style={{
@@ -519,38 +517,6 @@ function RegisterForm() {
                                     }
                                 </button>
                             </div>
-                            {confirmPassword.length > 0 && (
-                                <div style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 6,
-                                    marginTop: 8,
-                                    padding: '4px 10px',
-                                    borderRadius: 100,
-                                    background: passwordsMatch ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                                    border: `1px solid ${passwordsMatch ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`,
-                                    width: 'fit-content'
-                                }}>
-                                    <div style={{
-                                        width: 14,
-                                        height: 14,
-                                        borderRadius: '50%',
-                                        background: passwordsMatch ? '#10b981' : '#ef4444',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center'
-                                    }}>
-                                        <Check style={{ width: 10, height: 10, color: 'white' }} />
-                                    </div>
-                                    <span style={{
-                                        fontSize: 12,
-                                        fontWeight: 500,
-                                        color: passwordsMatch ? '#34d399' : '#f87171'
-                                    }}>
-                                        {passwordsMatch ? 'Mots de passe identiques' : 'Mots de passe différents'}
-                                    </span>
-                                </div>
-                            )}
                         </div>
 
                         <motion.button
@@ -578,11 +544,11 @@ function RegisterForm() {
                             {loading ? (
                                 <>
                                     <Loader2 style={{ width: 20, height: 20, animation: 'spin 1s linear infinite' }} />
-                                    Création...
+                                    {t('loading')}
                                 </>
                             ) : (
                                 <>
-                                    Créer mon compte
+                                    {t('submit')}
                                     <ArrowRight style={{ width: 20, height: 20 }} />
                                 </>
                             )}
@@ -628,15 +594,16 @@ function RegisterForm() {
 
                     {/* Login link */}
                     <p style={{ textAlign: 'center', marginTop: 24, fontSize: 15, color: '#94a3b8' }}>
-                        Déjà un compte ?{' '}
+                        {t('hasAccount')}{' '}
                         <Link href="/login" style={{ color: '#34d399', fontWeight: 600, textDecoration: 'none' }}>
-                            Se connecter
+                            {t('loginLink')}
                         </Link>
                     </p>
                 </motion.div>
             </div>
 
             {/* Right Side - Testimonials */}
+            {/* Keeping testimonials hardcoded for now or use another approach if critical, but focusing on Form first */}
             <motion.div
                 initial={{ opacity: 0, x: 50 }}
                 animate={{ opacity: 1, x: 0 }}

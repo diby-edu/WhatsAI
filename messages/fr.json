@@ -16,5 +16,738 @@
   },
   "WhatsApp": {
     "message": "Bonjour ! Je souhaite en savoir plus sur WhatsAI."
+  },
+  "Hero": {
+    "poweredBy": "Propulsé par l'IA",
+    "title": "Transformez votre <green>WhatsApp</green> en<br>machine à <gold>ventes</gold>",
+    "subtitle": "Notre IA répond à vos clients <white>24h/24</white>, qualifie vos prospects et <green>augmente vos conversions de 300%</green>.",
+    "pills": {
+      "response": "Réponse en < 3 sec",
+      "available": "Disponible 24h/24",
+      "noCard": "Sans carte bancaire"
+    },
+    "cta": {
+      "trial": "Essai gratuit",
+      "pricing": "Voir les tarifs"
+    },
+    "stats": {
+      "companies": {
+        "value": "+5,000",
+        "label": "Entreprises"
+      },
+      "messages": {
+        "value": "2M+",
+        "label": "Messages/mois"
+      },
+      "satisfaction": {
+        "value": "98%",
+        "label": "Satisfaction"
+      }
+    },
+    "chat": {
+      "botName": "Assistant WhatsAI",
+      "status": "En ligne",
+      "message1": "Bonjour ! Je cherche un appartement 3 pièces à Abidjan 🏠",
+      "response1": "Bonjour ! 👋 Je suis votre assistant WhatsAI. J'ai trouvé 5 appartements correspondant à vos critères.",
+      "response2": "📍 Cocody - 3 pièces - 350,000 FCFA/mois\n📍 Marcory - 3 pièces - 280,000 FCFA/mois\n📍 Plateau - 3 pièces - 450,000 FCFA/mois",
+      "message2": "Super ! Je peux visiter celui de Cocody demain ?",
+      "response3": "Parfait ! ✅ J'ai planifié une visite pour demain à 14h. Vous recevrez un SMS de confirmation.",
+      "inputPlaceholder": "Écrire un message...",
+      "aiResponse": "Réponse IA",
+      "floatConversion": {
+        "value": "+300%",
+        "label": "Conversions"
+      }
+    }
+  },
+  "Features": {
+    "badge": "Fonctionnalités",
+    "title": "Une suite complète d'outils <green>IA</green>",
+    "subtitle": "Transformez vos conversations en opportunités commerciales",
+    "items": {
+      "instant_response": {
+        "title": "Réponses instantanées",
+        "description": "Votre IA répond en moins de 3 secondes, 24h/24, 7j/7."
+      },
+      "lead_qualification": {
+        "title": "Qualification de leads",
+        "description": "Identifiez automatiquement les prospects chauds à prioriser."
+      },
+      "multi_conversations": {
+        "title": "Multi-conversations",
+        "description": "Gérez des milliers de conversations simultanées sans effort."
+      },
+      "analytics": {
+        "title": "Analytics avancés",
+        "description": "Tableaux de bord en temps réel avec métriques clés."
+      }
+    },
+    "stats": {
+      "companies": {
+        "value": "5,000+",
+        "label": "Entreprises actives"
+      },
+      "messages": {
+        "value": "10M+",
+        "label": "Messages traités"
+      },
+      "satisfaction": {
+        "value": "98%",
+        "label": "Satisfaction client"
+      },
+      "roi": {
+        "value": "+300%",
+        "label": "ROI moyen"
+      }
+    }
+  },
+  "Pricing": {
+    "title": "Des tarifs <green>transparents</green>",
+    "subtitle": "Choisissez le plan adapté à votre activité",
+    "toggle": {
+      "monthly": "Mensuel",
+      "yearly": "Annuel"
+    },
+    "discount": "-17%",
+    "popular": "Populaire",
+    "perMonth": "mois",
+    "perYear": "an",
+    "creditsIncluded": "{price} crédits inclus",
+    "cta": {
+      "try": "Essayer",
+      "choose": "Choisir"
+    },
+    "enterprise": {
+      "title": "Besoin d'une solution sur-mesure ?",
+      "subtitle": "Contactez-nous pour un plan personnalisé.",
+      "cta": "Contacter l'équipe"
+    },
+    "loading": "Chargement...",
+    "plans": {
+      "free": {
+        "name": "Gratuit",
+        "description": "Pour découvrir",
+        "features": [
+          "100 crédits offerts",
+          "1 agent IA",
+          "1 numéro WhatsApp",
+          "Support communauté"
+        ]
+      },
+      "starter": {
+        "name": "Starter",
+        "description": "Pour démarrer",
+        "features": [
+          "500 crédits/mois",
+          "2 agents IA",
+          "1 numéro WhatsApp",
+          "Support email",
+          "Statistiques de base"
+        ]
+      },
+      "pro": {
+        "name": "Pro",
+        "description": "Le plus populaire",
+        "features": [
+          "2000 crédits/mois",
+          "5 agents IA",
+          "3 numéros WhatsApp",
+          "Support prioritaire",
+          "Analytics avancés",
+          "Produits illimités"
+        ]
+      },
+      "business": {
+        "name": "Business",
+        "description": "Solution complète",
+        "features": [
+          "10000 crédits/mois",
+          "Agents illimités",
+          "10 numéros WhatsApp",
+          "Support dédié 24/7",
+          "Formation incluse",
+          "API Premium"
+        ]
+      }
+    }
+  },
+  "FAQ": {
+    "badge": "FAQ",
+    "title": "Questions <green>fréquentes</green>",
+    "subtitle": "Tout ce que vous devez savoir sur WhatsAI",
+    "items": {
+      "howItWorks": {
+        "question": "Comment fonctionne WhatsAI ?",
+        "answer": "WhatsAI se connecte à votre WhatsApp via un QR code (comme WhatsApp Web). Une fois connecté, notre IA analyse les messages entrants et génère des réponses personnalisées basées sur vos instructions. Tout est automatique et en temps réel.",
+        "category": "Général"
+      },
+      "banRisk": {
+        "question": "Est-ce que WhatsApp peut me bannir ?",
+        "answer": "Notre système utilise Baileys, une solution éprouvée qui simule le comportement humain. En respectant les bonnes pratiques (délais de réponse, personnalisation), le risque est minimal. Des milliers d'utilisateurs actifs sans problème.",
+        "category": "Sécurité"
+      },
+      "freeTest": {
+        "question": "Puis-je tester gratuitement ?",
+        "answer": "Absolument ! Créez un compte et recevez 100 crédits gratuits pour tester toutes les fonctionnalités. Aucune carte de crédit requise. Passez à un plan payant quand vous êtes prêt.",
+        "category": "Général"
+      },
+      "credits": {
+        "question": "Comment fonctionne le système de crédits ?",
+        "answer": "1 crédit = 1 message envoyé par l'IA. Les messages reçus ne consomment pas de crédits. Vos crédits se renouvellent chaque mois selon votre forfait.",
+        "category": "Facturation"
+      },
+      "multiNumber": {
+        "question": "Puis-je utiliser plusieurs numéros WhatsApp ?",
+        "answer": "Oui ! Le nombre de numéros dépend de votre forfait. Starter : 1, Pro : 2, Business : 4. Chaque numéro peut avoir son propre agent IA avec des instructions différentes.",
+        "category": "Fonctionnalités"
+      },
+      "appointments": {
+        "question": "L'IA peut-elle prendre des rendez-vous ?",
+        "answer": "Oui ! Configurez votre agent pour collecter des informations et proposer des créneaux. L'intégration avec Google Calendar est disponible sur les plans Pro et Business.",
+        "category": "Fonctionnalités"
+      },
+      "security": {
+        "question": "Mes données sont-elles sécurisées ?",
+        "answer": "Absolument. Chiffrement de bout en bout, sessions stockées de manière sécurisée, et conformité RGPD. Nous ne lisons jamais vos conversations.",
+        "category": "Sécurité"
+      },
+      "cancel": {
+        "question": "Puis-je annuler à tout moment ?",
+        "answer": "Oui, sans engagement ! Annulez votre abonnement à tout moment depuis votre tableau de bord. Vos crédits restants sont utilisables jusqu'à la fin de la période.",
+        "category": "Facturation"
+      }
+    }
+  },
+  "Footer": {
+    "cta": {
+      "title": "Prêt à automatiser votre WhatsApp ?",
+      "subtitle": "Rejoignez des milliers d'entreprises qui utilisent WhatsAI 24h/24.",
+      "start": "Commencer gratuitement",
+      "demo": "Voir la démo"
+    },
+    "brandDescription": "L'IA qui répond à vos clients sur WhatsApp 24h/24.",
+    "columns": {
+      "product": "Produit",
+      "company": "Entreprise",
+      "resources": "Ressources",
+      "legal": "Légal"
+    },
+    "links": {
+      "features": "Fonctionnalités",
+      "pricing": "Tarifs",
+      "faq": "FAQ",
+      "api": "API Docs",
+      "about": "À propos",
+      "blog": "Blog",
+      "partners": "Partenaires",
+      "contact": "Contact",
+      "help": "Centre d'aide",
+      "tutorials": "Tutoriels",
+      "templates": "Templates",
+      "privacy": "Confidentialité",
+      "terms": "Conditions",
+      "gdpr": "RGPD"
+    },
+    "rights": "© 2025 WhatsAI. Tous droits réservés."
+  },
+  "Auth": {
+    "login": {
+      "title": "Bon retour ! 👋",
+      "subtitle": "Connectez-vous pour accéder à votre dashboard",
+      "emailLabel": "Email",
+      "passwordLabel": "Mot de passe",
+      "forgotPassword": "Mot de passe oublié ?",
+      "submit": "Se connecter",
+      "loading": "Connexion...",
+      "orContinueWith": "ou continuer avec",
+      "google": "Continuer avec Google",
+      "noAccount": "Pas encore de compte ?",
+      "createAccount": "Créer un compte",
+      "error": {
+        "invalidCredentials": "Email ou mot de passe incorrect.",
+        "notConfirmed": "Veuillez confirmer votre email avant de vous connecter.",
+        "generic": "Une erreur est survenue. Veuillez réessayer."
+      }
+    },
+    "register": {
+      "title": "Créez votre compte 🚀",
+      "subtitle": "Commencez votre essai gratuit de 14 jours",
+      "nameLabel": "Nom complet",
+      "emailLabel": "Email",
+      "passwordLabel": "Mot de passe",
+      "companyLabel": "Nom de l'entreprise (optionnel)",
+      "submit": "Créer mon compte",
+      "loading": "Création...",
+      "terms": "En créant un compte, vous acceptez nos",
+      "termsLink": "Conditions d'utilisation",
+      "hasAccount": "Déjà un compte ?",
+      "loginLink": "Se connecter"
+    }
+  },
+  "Dashboard": {
+    "sidebar": {
+      "dashboard": "Tableau de bord",
+      "agents": "Agents",
+      "conversations": "Conversations",
+      "products": "Produits",
+      "orders": "Commandes",
+      "playground": "Playground",
+      "billing": "Facturation",
+      "settings": "Paramètres",
+      "help": "Aide",
+      "logout": "Déconnexion"
+    },
+    "overview": {
+      "title": "Tableau de bord",
+      "subtitle": "Bienvenue ! Voici un aperçu de votre activité.",
+      "stats": {
+        "messages": "Messages ce mois",
+        "agents": "Agents actifs",
+        "conversations": "Conversations",
+        "credits": "Crédits restants"
+      },
+      "recentConversations": "Conversations récentes",
+      "viewAll": "Voir tout",
+      "yourAgents": "Vos Agents",
+      "manage": "Gérer",
+      "createAgent": "+ Créer un nouvel agent",
+      "quickActions": "Actions rapides",
+      "actions": {
+        "createAgent": "Créer un agent",
+        "testChatbot": "Tester le chatbot",
+        "viewConversations": "Voir conversations",
+        "buyCredits": "Acheter des crédits"
+      },
+      "agentStatus": {
+        "online": "En ligne",
+        "offline": "Hors ligne"
+      }
+    }
+  },
+  "Agents": {
+    "Page": {
+      "title": "Agents",
+      "subtitle": "Gérez vos assistants IA WhatsApp",
+      "createButton": "Créer un agent",
+      "searchPlaceholder": "Rechercher un agent...",
+      "emptySearch": {
+        "title": "Aucun agent trouvé",
+        "description": "Aucun agent ne correspond à votre recherche \"{query}\""
+      },
+      "emptyState": {
+        "title": "Créez votre premier agent",
+        "description": "Les agents sont des assistants IA qui répondent automatiquement à vos messages WhatsApp.",
+        "button": "Créer un agent"
+      },
+      "card": {
+        "active": "Actif",
+        "inactive": "Inactif",
+        "conversations": "Conversations",
+        "messages": "Messages",
+        "whatsappNotConnected": "WhatsApp non connecté",
+        "test": "Tester",
+        "configure": "Configurer",
+        "menu": {
+          "edit": "Modifier",
+          "activate": "Activer",
+          "deactivate": "Désactiver",
+          "delete": "Supprimer"
+        },
+        "deleteConfirm": "Êtes-vous sûr de vouloir supprimer cet agent ?"
+      }
+    },
+    "Wizard": {
+      "title": "Créer un nouvel agent",
+      "subtitle": "Configurez votre assistant IA en quelques étapes",
+      "back": "Retour aux agents",
+      "steps": {
+        "info": "Informations",
+        "mission": "Mission",
+        "personality": "Personnalité",
+        "settings": "Paramètres",
+        "whatsapp": "WhatsApp"
+      },
+      "buttons": {
+        "next": "Suivant",
+        "prev": "Précédent",
+        "create": "Créer l'agent",
+        "finish": "Terminer",
+        "loading": "Chargement...",
+        "skip": "Passer cette étape",
+        "generateQr": "Afficher le QR Code",
+        "retry": "Réessayer"
+      },
+      "success": "Agent créé avec succès !"
+    },
+    "Form": {
+      "name": {
+        "label": "Nom de l'agent",
+        "placeholder": "Ex: Assistant Commercial"
+      },
+      "description": {
+        "label": "Description",
+        "placeholder": "Décrivez brièvement le rôle de cet agent..."
+      },
+      "mission": {
+        "label": "Choisissez une mission",
+        "systemPromptLabel": "Instructions système (prompt)",
+        "promptPlaceholder": "Décrivez en détail comment l'agent doit se comporter...",
+        "hint": "Plus les instructions sont détaillées, meilleur sera le comportement de l'agent."
+      },
+      "personality": {
+        "label": "Personnalité de l'agent",
+        "emojis": "Utiliser des emojis",
+        "emojisHint": "L'agent utilisera des emojis dans ses réponses",
+        "types": {
+          "professional": "Professionnel",
+          "friendly": "Amical",
+          "casual": "Décontracté",
+          "formal": "Formel"
+        }
+      },
+      "settings": {
+        "responseDelay": "Délai de réponse",
+        "fast": "rapide",
+        "natural": "naturel",
+        "language": "Langue principale",
+        "model": "Modèle IA",
+        "temperature": "Température",
+        "maxTokens": "Max Tokens",
+        "active": "Agent actif",
+        "save": "Enregistrer",
+        "saving": "Enregistrement..."
+      },
+      "summary": {
+        "title": "Récapitulatif",
+        "name": "Nom",
+        "personality": "Personnalité",
+        "emojis": "Emojis",
+        "delay": "Délai"
+      }
+    },
+    "Templates": {
+      "ecommerce": {
+        "title": "🛒 E-commerce / Boutique",
+        "description": "Vente de produits en ligne, catalogue, commandes"
+      },
+      "restaurant": {
+        "title": "🍽️ Restaurant / Fast-food",
+        "description": "Commandes de plats, menu du jour, livraison"
+      },
+      "hotel": {
+        "title": "🏨 Hôtel / Hébergement",
+        "description": "Réservation de chambres, services hôteliers"
+      },
+      "salon": {
+        "title": "💇 Salon / Beauté",
+        "description": "Prise de rendez-vous, services beauté"
+      },
+      "services": {
+        "title": "🔧 Services / Artisan",
+        "description": "Devis, interventions, prestations diverses"
+      },
+      "custom": {
+        "title": "✏️ Personnalisé",
+        "description": "Créez votre propre mission sur mesure"
+      }
+    },
+    "connect": {
+      "title": "Connexion WhatsApp",
+      "status": {
+        "connected": "Connecté",
+        "connecting": "Connexion...",
+        "qrReady": "En attente du scan",
+        "disconnected": "Déconnecté",
+        "idle": "Inactif"
+      },
+      "methods": {
+        "qr": "QR Code",
+        "code": "Code de liaison"
+      },
+      "qrInstructions": {
+        "step1": "Ouvrez WhatsApp sur votre téléphone",
+        "step2": "Menu → Appareils liés",
+        "step3": "Scanner ce QR code"
+      },
+      "codeInstructions": {
+        "enterPhone": "Numéro WhatsApp (avec indicatif)",
+        "placeholder": "225 07 12 34 56 78",
+        "note": "Entrez votre numéro sans le + ni d'espaces",
+        "generatedCode": "Ou entrez ce code dans WhatsApp :",
+        "step": "WhatsApp → Paramètres → Appareils liés → Lier un appareil → Lier par numéro de téléphone"
+      },
+      "actions": {
+        "connect": "Connecter WhatsApp",
+        "disconnect": "Déconnecter",
+        "deleteSession": "Supprimer la session",
+        "cancel": "Annuler",
+        "refresh": "Rafraîchir",
+        "generateQr": "Générer le QR Code",
+        "regenerate": "Régénérer"
+      },
+      "success": {
+        "title": "WhatsApp Connecté",
+        "subtitle": "Votre agent est prêt à répondre"
+      },
+      "feedback": {
+        "codeGenerated": "Un code à 8 chiffres sera généré pour lier votre WhatsApp.",
+        "qrGenerated": "Un QR code sera généré pour scanner avec votre téléphone."
+      },
+      "initialization": "Initialisation...",
+      "preparing": "Préparation de la session WhatsApp",
+      "scanPrompt": "Scannez le QR code pour relier cet agent à votre compte WhatsApp.",
+      "openWhatsapp": "Ouvrez WhatsApp sur votre téléphone > Appareils connectés > Connecter un appareil",
+      "connectedSuccess": "Connecté !",
+      "error": "Erreur"
+    }
+  },
+  "Conversations": {
+    "List": {
+      "title": "Mes conversations",
+      "subtitle": "{count} conversations actives",
+      "searchPlaceholder": "Rechercher...",
+      "empty": {
+        "title": "Aucune conversation",
+        "description": "Les conversations WhatsApp apparaîtront ici",
+        "noResults": "Aucun résultat pour cette recherche"
+      },
+      "card": {
+        "unknown": "Inconnu",
+        "justNow": "À l'instant",
+        "ago": "Il y a {time}",
+        "minutes": "min",
+        "hours": "h"
+      }
+    },
+    "Detail": {
+      "back": "Retour",
+      "notFound": "Conversation introuvable",
+      "loading": "Chargement...",
+      "bot": {
+        "pause": "Prendre la main",
+        "resume": "Réactiver Bot",
+        "paused": "Bot en pause",
+        "active": "Bot actif"
+      },
+      "emptyMessages": "Aucun message dans cette conversation",
+      "footer": "{count} messages • Démarrée le {date}",
+      "inputPlaceholder": "Écrire un message..."
+    }
+  },
+  "Settings": {
+    "title": "Paramètres",
+    "subtitle": "Gérez votre compte et vos préférences",
+    "tabs": {
+      "profile": "Profil",
+      "notifications": "Notifications",
+      "security": "Sécurité",
+      "danger": "Zone de danger"
+    },
+    "Profile": {
+      "title": "Informations du profil",
+      "form": {
+        "fullName": "Nom complet",
+        "email": "Email",
+        "phone": "Téléphone",
+        "company": "Entreprise"
+      },
+      "save": "Enregistrer",
+      "saving": "Enregistrement...",
+      "saved": "Enregistré !"
+    },
+    "Notifications": {
+      "title": "Préférences de notification",
+      "newConversation": {
+        "label": "Nouvelle conversation",
+        "description": "Recevoir un email quand un client démarre une conversation"
+      },
+      "dailySummary": {
+        "label": "Résumé quotidien",
+        "description": "Recevoir un récapitulatif de vos conversations chaque jour"
+      },
+      "lowCredits": {
+        "label": "Alerte crédits faibles",
+        "description": "Être notifié quand vos crédits sont presque épuisés"
+      }
+    },
+    "Security": {
+      "title": "Sécurité du compte",
+      "changePassword": "Changer le mot de passe",
+      "form": {
+        "current": "Mot de passe actuel",
+        "new": "Nouveau mot de passe",
+        "confirm": "Confirmer le mot de passe"
+      },
+      "update": "Mettre à jour le mot de passe",
+      "errorMatch": "Les mots de passe ne correspondent pas"
+    },
+    "Danger": {
+      "title": "Zone de danger",
+      "deleteAccount": {
+        "title": "Supprimer mon compte",
+        "description": "Cette action est irréversible. Toutes vos données, agents et conversations seront définitivement supprimés.",
+        "button": "Supprimer mon compte",
+        "confirm": "Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible.",
+        "support": "Contactez le support pour supprimer votre compte."
+      }
+    }
+  },
+  "Billing": {
+    "title": "Facturation",
+    "subtitle": "Gérez votre abonnement et vos crédits",
+    "status": {
+      "success": {
+        "title": "Paiement réussi !",
+        "message": "Vos crédits ont été ajoutés."
+      },
+      "failed": {
+        "title": "Paiement échoué",
+        "message": "Le paiement n'a pas pu être effectué."
+      }
+    },
+    "Overview": {
+      "currentPlan": "Plan actuel",
+      "remainingCredits": "Crédits restants",
+      "usedThisMonth": "Utilisés ce mois",
+      "lowCredits": {
+        "title": "Crédits bientôt épuisés",
+        "message": "Il vous reste moins de 50 crédits."
+      }
+    },
+    "Plans": {
+      "title": "Changer de plan",
+      "loading": "Chargement des plans...",
+      "creditsPerMonth": "{count} crédits/mois",
+      "popular": "Populaire",
+      "current": "Plan actuel",
+      "choose": "Choisir",
+      "price_unit": "FCFA/mois"
+    },
+    "Credits": {
+      "title": "Acheter des crédits",
+      "unit": "crédits",
+      "buy": "Acheter"
+    },
+    "History": {
+      "title": "Historique des paiements",
+      "empty": "Aucun paiement pour le moment",
+      "status": {
+        "completed": "Réussi",
+        "failed": "Échoué"
+      }
+    }
+  },
+  "Products": {
+    "List": {
+      "title": "Produits & Services",
+      "count": "{count} produits",
+      "search": "Rechercher...",
+      "add": "Ajouter",
+      "empty": {
+        "title": "Aucun produit",
+        "message": "Ajoutez vos produits pour que le bot puisse les proposer aux clients.",
+        "button": "Créer mon premier produit"
+      },
+      "delete_confirm": "Supprimer ce produit ?",
+      "status": {
+        "available": "Disponible",
+        "unavailable": "Indisponible"
+      },
+      "no_category": "Sans catégorie",
+      "no_description": "Aucune description"
+    },
+    "Form": {
+      "title_new": "Nouveau produit",
+      "title_edit": "Modifier le produit",
+      "return": "Retour aux produits",
+      "image": {
+        "label": "Image du produit",
+        "placeholder": "Cliquez pour uploader une image",
+        "help": "PNG, JPG jusqu'à 5MB",
+        "uploading": "Envoi en cours..."
+      },
+      "fields": {
+        "name": "Nom du produit *",
+        "description": "Description",
+        "price": "Prix (FCFA) *",
+        "category": "Catégorie",
+        "sku": "SKU / Référence",
+        "stock": "Stock (-1 = illimité)"
+      },
+      "availability": {
+        "label": "Disponible à la vente",
+        "description": "Le bot peut proposer ce produit"
+      },
+      "actions": {
+        "cancel": "Annuler",
+        "save": "Enregistrer",
+        "create": "Créer le produit",
+        "delete": "Supprimer",
+        "delete_confirm": "Supprimer ce produit définitivement ?"
+      },
+      "errors": {
+        "upload": "Erreur lors de l'upload de l'image.",
+        "create": "Erreur lors de la création du produit.",
+        "update": "Erreur lors de la mise à jour.",
+        "delete": "Erreur lors de la suppression."
+      }
+    }
+  },
+  "Orders": {
+    "List": {
+      "title": "Commandes",
+      "count": "{count} commandes",
+      "search": "Rechercher...",
+      "filter": {
+        "all": "Tous les statuts",
+        "pending": "En attente",
+        "confirmed": "Confirmées",
+        "processing": "En cours",
+        "shipped": "Expédiées",
+        "delivered": "Livrées",
+        "cancelled": "Annulées"
+      },
+      "empty": {
+        "title": "Aucune commande",
+        "message": "Les commandes créées par le bot apparaîtront ici."
+      },
+      "card": {
+        "details": "Détails",
+        "items_more": "+{count} autres articles"
+      }
+    },
+    "Detail": {
+      "title": "Commande {number}",
+      "created_on": "Créée le {date}",
+      "return": "Retour aux commandes",
+      "not_found": "Commande introuvable",
+      "items": {
+        "title": "Articles ({count})",
+        "empty": "Aucun article",
+        "total": "Total"
+      },
+      "notes": "Notes",
+      "customer": {
+        "title": "Client",
+        "unknown": "Non renseigné"
+      },
+      "actions": {
+        "title": "Actions",
+        "confirm": "Confirmer",
+        "cancel": "Annuler",
+        "process": "Mettre en préparation",
+        "ship": "Marquer comme expédiée",
+        "deliver": "Marquer comme livrée",
+        "completed": "Commande terminée"
+      }
+    },
+    "Status": {
+      "pending": "En attente",
+      "confirmed": "Confirmée",
+      "processing": "En cours",
+      "shipped": "Expédiée",
+      "delivered": "Livrée",
+      "cancelled": "Annulée"
+    }
   }
 }

@@ -18,6 +18,7 @@ import {
     EyeOff,
     Trash2
 } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 
 interface Profile {
     id: string
@@ -34,14 +35,17 @@ interface NotificationSettings {
     push_enabled: boolean
 }
 
-const tabs = [
-    { id: 'profile', label: 'Profil', icon: User },
-    { id: 'notifications', label: 'Notifications', icon: Bell },
-    { id: 'security', label: 'Sécurité', icon: Shield },
-    { id: 'danger', label: 'Zone de danger', icon: AlertTriangle }
-]
-
 export default function SettingsPage() {
+    const t = useTranslations('Settings')
+
+    // Note: The tabs configuration depends on translations, so it's defined inside the component or using a memo
+    const tabs = [
+        { id: 'profile', label: t('tabs.profile'), icon: User },
+        { id: 'notifications', label: t('tabs.notifications'), icon: Bell },
+        { id: 'security', label: t('tabs.security'), icon: Shield },
+        { id: 'danger', label: t('tabs.danger'), icon: AlertTriangle }
+    ]
+
     const [activeTab, setActiveTab] = useState('profile')
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
@@ -125,7 +129,7 @@ export default function SettingsPage() {
 
     const handleChangePassword = async () => {
         if (passwords.new !== passwords.confirm) {
-            alert('Les mots de passe ne correspondent pas')
+            alert(t('Security.errorMatch'))
             return
         }
         setSaving(true)
@@ -150,8 +154,8 @@ export default function SettingsPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
             {/* Header */}
             <div>
-                <h1 style={{ fontSize: 28, fontWeight: 700, color: 'white', marginBottom: 8 }}>Paramètres</h1>
-                <p style={{ color: '#94a3b8' }}>Gérez votre compte et vos préférences</p>
+                <h1 style={{ fontSize: 28, fontWeight: 700, color: 'white', marginBottom: 8 }}>{t('title')}</h1>
+                <p style={{ color: '#94a3b8' }}>{t('subtitle')}</p>
             </div>
 
             <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
@@ -217,39 +221,44 @@ export default function SettingsPage() {
                                 exit={{ opacity: 0, x: -20 }}
                             >
                                 <h2 style={{ fontSize: 20, fontWeight: 600, color: 'white', marginBottom: 24 }}>
-                                    Informations du profil
+                                    {t('Profile.title')}
                                 </h2>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
                                     <InputField
-                                        label="Nom complet"
+                                        label={t('Profile.form.fullName')}
                                         icon={User}
                                         value={profile.full_name}
                                         onChange={(v) => setProfile({ ...profile, full_name: v })}
                                         placeholder="Votre nom"
                                     />
                                     <InputField
-                                        label="Email"
+                                        label={t('Profile.form.email')}
                                         icon={Mail}
                                         value={profile.email}
                                         disabled
                                         placeholder="email@exemple.com"
                                     />
                                     <InputField
-                                        label="Téléphone"
+                                        label={t('Profile.form.phone')}
                                         icon={Phone}
                                         value={profile.phone}
                                         onChange={(v) => setProfile({ ...profile, phone: v })}
                                         placeholder="+225 XX XX XX XX"
                                     />
                                     <InputField
-                                        label="Entreprise"
+                                        label={t('Profile.form.company')}
                                         icon={Building}
                                         value={profile.company}
                                         onChange={(v) => setProfile({ ...profile, company: v })}
                                         placeholder="Nom de l'entreprise"
                                     />
                                 </div>
-                                <SaveButton saving={saving} saved={saved} onClick={handleSaveProfile} />
+                                <SaveButton
+                                    saving={saving}
+                                    saved={saved}
+                                    onClick={handleSaveProfile}
+                                    messages={{ save: t('Profile.save'), saving: t('Profile.saving'), saved: t('Profile.saved') }}
+                                />
                             </motion.div>
                         )}
 
@@ -262,29 +271,34 @@ export default function SettingsPage() {
                                 exit={{ opacity: 0, x: -20 }}
                             >
                                 <h2 style={{ fontSize: 20, fontWeight: 600, color: 'white', marginBottom: 24 }}>
-                                    Préférences de notification
+                                    {t('Notifications.title')}
                                 </h2>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                                     <ToggleOption
-                                        label="Nouvelle conversation"
-                                        description="Recevoir un email quand un client démarre une conversation"
+                                        label={t('Notifications.newConversation.label')}
+                                        description={t('Notifications.newConversation.description')}
                                         checked={notifications.email_new_conversation}
                                         onChange={(v) => setNotifications({ ...notifications, email_new_conversation: v })}
                                     />
                                     <ToggleOption
-                                        label="Résumé quotidien"
-                                        description="Recevoir un récapitulatif de vos conversations chaque jour"
+                                        label={t('Notifications.dailySummary.label')}
+                                        description={t('Notifications.dailySummary.description')}
                                         checked={notifications.email_daily_summary}
                                         onChange={(v) => setNotifications({ ...notifications, email_daily_summary: v })}
                                     />
                                     <ToggleOption
-                                        label="Alerte crédits faibles"
-                                        description="Être notifié quand vos crédits sont presque épuisés"
+                                        label={t('Notifications.lowCredits.label')}
+                                        description={t('Notifications.lowCredits.description')}
                                         checked={notifications.email_low_credits}
                                         onChange={(v) => setNotifications({ ...notifications, email_low_credits: v })}
                                     />
                                 </div>
-                                <SaveButton saving={saving} saved={saved} onClick={handleSaveNotifications} />
+                                <SaveButton
+                                    saving={saving}
+                                    saved={saved}
+                                    onClick={handleSaveNotifications}
+                                    messages={{ save: t('Profile.save'), saving: t('Profile.saving'), saved: t('Profile.saved') }}
+                                />
                             </motion.div>
                         )}
 
@@ -297,12 +311,12 @@ export default function SettingsPage() {
                                 exit={{ opacity: 0, x: -20 }}
                             >
                                 <h2 style={{ fontSize: 20, fontWeight: 600, color: 'white', marginBottom: 24 }}>
-                                    Sécurité du compte
+                                    {t('Security.title')}
                                 </h2>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                                    <h3 style={{ color: '#94a3b8', fontSize: 14, fontWeight: 500 }}>Changer le mot de passe</h3>
+                                    <h3 style={{ color: '#94a3b8', fontSize: 14, fontWeight: 500 }}>{t('Security.changePassword')}</h3>
                                     <InputField
-                                        label="Mot de passe actuel"
+                                        label={t('Security.form.current')}
                                         icon={Lock}
                                         type={showPassword ? 'text' : 'password'}
                                         value={passwords.current}
@@ -321,7 +335,7 @@ export default function SettingsPage() {
                                         }
                                     />
                                     <InputField
-                                        label="Nouveau mot de passe"
+                                        label={t('Security.form.new')}
                                         icon={Lock}
                                         type={showPassword ? 'text' : 'password'}
                                         value={passwords.new}
@@ -329,7 +343,7 @@ export default function SettingsPage() {
                                         placeholder="••••••••"
                                     />
                                     <InputField
-                                        label="Confirmer le mot de passe"
+                                        label={t('Security.form.confirm')}
                                         icon={Lock}
                                         type={showPassword ? 'text' : 'password'}
                                         value={passwords.confirm}
@@ -341,7 +355,8 @@ export default function SettingsPage() {
                                     saving={saving}
                                     saved={saved}
                                     onClick={handleChangePassword}
-                                    label="Mettre à jour le mot de passe"
+                                    label={t('Security.update')}
+                                    messages={{ save: t('Profile.save'), saving: t('Profile.saving'), saved: t('Profile.saved') }}
                                 />
                             </motion.div>
                         )}
@@ -356,7 +371,7 @@ export default function SettingsPage() {
                             >
                                 <h2 style={{ fontSize: 20, fontWeight: 600, color: '#f87171', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 10 }}>
                                     <AlertTriangle style={{ width: 24, height: 24 }} />
-                                    Zone de danger
+                                    {t('Danger.title')}
                                 </h2>
                                 <div style={{
                                     background: 'rgba(239, 68, 68, 0.1)',
@@ -364,9 +379,9 @@ export default function SettingsPage() {
                                     borderRadius: 12,
                                     padding: 24
                                 }}>
-                                    <h3 style={{ color: 'white', fontWeight: 600, marginBottom: 8 }}>Supprimer mon compte</h3>
+                                    <h3 style={{ color: 'white', fontWeight: 600, marginBottom: 8 }}>{t('Danger.deleteAccount.title')}</h3>
                                     <p style={{ color: '#94a3b8', fontSize: 14, marginBottom: 16 }}>
-                                        Cette action est irréversible. Toutes vos données, agents et conversations seront définitivement supprimés.
+                                        {t('Danger.deleteAccount.description')}
                                     </p>
                                     <button
                                         style={{
@@ -383,14 +398,14 @@ export default function SettingsPage() {
                                             transition: 'all 0.2s'
                                         }}
                                         onClick={() => {
-                                            if (confirm('Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible.')) {
+                                            if (confirm(t('Danger.deleteAccount.confirm'))) {
                                                 // Implement delete account
-                                                alert('Contactez le support pour supprimer votre compte.')
+                                                alert(t('Danger.deleteAccount.support'))
                                             }
                                         }}
                                     >
                                         <Trash2 style={{ width: 18, height: 18 }} />
-                                        Supprimer mon compte
+                                        {t('Danger.deleteAccount.button')}
                                     </button>
                                 </div>
                             </motion.div>
@@ -523,12 +538,18 @@ function SaveButton({
     saving,
     saved,
     onClick,
-    label = 'Enregistrer'
+    label,
+    messages
 }: {
     saving: boolean
     saved: boolean
     onClick: () => void
     label?: string
+    messages: {
+        save: string,
+        saving: string,
+        saved: string
+    }
 }) {
     return (
         <button
@@ -558,7 +579,7 @@ function SaveButton({
             ) : (
                 <Save style={{ width: 18, height: 18 }} />
             )}
-            {saved ? 'Enregistré !' : label}
+            {saving ? messages.saving : saved ? messages.saved : label || messages.save}
         </button>
     )
 }

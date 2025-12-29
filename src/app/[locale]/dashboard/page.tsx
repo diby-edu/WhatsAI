@@ -13,44 +13,46 @@ import {
     Clock
 } from 'lucide-react'
 import Link from 'next/link'
-
-// Base stats config
-const statsConfig = [
-    {
-        id: 'messages',
-        label: 'Messages ce mois',
-        icon: MessageSquare,
-        color: '#3b82f6',
-        bgColor: 'rgba(59, 130, 246, 0.1)',
-    },
-    {
-        id: 'agents',
-        label: 'Agents actifs',
-        icon: Users, // Or Bot
-        color: '#10b981',
-        bgColor: 'rgba(16, 185, 129, 0.1)',
-    },
-    {
-        id: 'conversations',
-        label: 'Conversations',
-        icon: TrendingUp,
-        color: '#a855f7',
-        bgColor: 'rgba(168, 85, 247, 0.1)',
-    },
-    {
-        id: 'credits',
-        label: 'Crédits restants',
-        icon: Zap,
-        color: '#f97316',
-        bgColor: 'rgba(249, 115, 22, 0.1)',
-    },
-]
+import { useTranslations } from 'next-intl'
 
 export default function DashboardPage() {
+    const t = useTranslations('Dashboard.overview')
     const [stats, setStats] = useState<any[]>([])
     const [agents, setAgents] = useState<any[]>([])
     const [recentConversations, setRecentConversations] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
+
+    // Base stats config - rebuilt inside component to access safe t function or at least keys
+    const statsConfig = [
+        {
+            id: 'messages',
+            label: t('stats.messages'),
+            icon: MessageSquare,
+            color: '#3b82f6',
+            bgColor: 'rgba(59, 130, 246, 0.1)',
+        },
+        {
+            id: 'agents',
+            label: t('stats.agents'),
+            icon: Users, // Or Bot
+            color: '#10b981',
+            bgColor: 'rgba(16, 185, 129, 0.1)',
+        },
+        {
+            id: 'conversations',
+            label: t('stats.conversations'),
+            icon: TrendingUp,
+            color: '#a855f7',
+            bgColor: 'rgba(168, 85, 247, 0.1)',
+        },
+        {
+            id: 'credits',
+            label: t('stats.credits'),
+            icon: Zap,
+            color: '#f97316',
+            bgColor: 'rgba(249, 115, 22, 0.1)',
+        },
+    ]
 
     useEffect(() => {
         fetchDashboardData()
@@ -76,6 +78,9 @@ export default function DashboardPage() {
                     return { ...config, value, change, positive }
                 })
                 setStats(mappedStats)
+            } else {
+                // Fallback / Initial state
+                setStats(statsConfig.map(config => ({ ...config, value: '0', change: '', positive: true })))
             }
 
             if (data.data?.agents) {
@@ -84,7 +89,7 @@ export default function DashboardPage() {
                     name: a.name,
                     status: a.is_active ? 'active' : 'inactive',
                     conversations: a.total_conversations || 0,
-                    lastActive: a.is_active ? 'En ligne' : 'Hors ligne'
+                    lastActive: a.is_active ? t('agentStatus.online') : t('agentStatus.offline')
                 }))
                 setAgents(mappedAgents)
             }
@@ -102,9 +107,9 @@ export default function DashboardPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
             {/* Header */}
             <div>
-                <h1 style={{ fontSize: 28, fontWeight: 700, color: 'white', marginBottom: 8 }}>Tableau de bord</h1>
+                <h1 style={{ fontSize: 28, fontWeight: 700, color: 'white', marginBottom: 8 }}>{t('title')}</h1>
                 <p style={{ fontSize: 16, color: '#94a3b8' }}>
-                    Bienvenue ! Voici un aperçu de votre activité.
+                    {t('subtitle')}
                 </p>
             </div>
 
@@ -116,7 +121,7 @@ export default function DashboardPage() {
             }}>
                 {stats.map((stat, index) => (
                     <motion.div
-                        key={stat.label}
+                        key={stat.id}
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: index * 0.1 }}
@@ -177,9 +182,9 @@ export default function DashboardPage() {
                     padding: 24
                 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-                        <h2 style={{ fontSize: 18, fontWeight: 600, color: 'white' }}>Conversations récentes</h2>
+                        <h2 style={{ fontSize: 18, fontWeight: 600, color: 'white' }}>{t('recentConversations')}</h2>
                         <Link href="/dashboard/conversations" style={{ fontSize: 14, color: '#34d399', textDecoration: 'none' }}>
-                            Voir tout
+                            {t('viewAll')}
                         </Link>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -236,9 +241,9 @@ export default function DashboardPage() {
                     padding: 24
                 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-                        <h2 style={{ fontSize: 18, fontWeight: 600, color: 'white' }}>Vos Agents</h2>
+                        <h2 style={{ fontSize: 18, fontWeight: 600, color: 'white' }}>{t('yourAgents')}</h2>
                         <Link href="/dashboard/agents" style={{ fontSize: 14, color: '#34d399', textDecoration: 'none' }}>
-                            Gérer
+                            {t('manage')}
                         </Link>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -272,7 +277,7 @@ export default function DashboardPage() {
                                     </div>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 14, color: '#94a3b8' }}>
-                                    <span>{agent.conversations} conversations</span>
+                                    <span>{agent.conversations} {t('stats.conversations').toLowerCase()}</span>
                                     <Link href={`/dashboard/agents/${agent.id}`} style={{ color: '#34d399', textDecoration: 'none' }}>
                                         Détails
                                     </Link>
@@ -293,7 +298,7 @@ export default function DashboardPage() {
                                 transition: 'all 0.2s'
                             }}
                         >
-                            + Créer un nouvel agent
+                            {t('createAgent')}
                         </Link>
                     </div>
                 </div>
@@ -307,17 +312,17 @@ export default function DashboardPage() {
                 borderRadius: 16,
                 padding: 24
             }}>
-                <h2 style={{ fontSize: 18, fontWeight: 600, color: 'white', marginBottom: 16 }}>Actions rapides</h2>
+                <h2 style={{ fontSize: 18, fontWeight: 600, color: 'white', marginBottom: 16 }}>{t('quickActions')}</h2>
                 <div style={{
                     display: 'grid',
                     gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
                     gap: 16
                 }}>
                     {[
-                        { href: '/dashboard/agents/new', icon: Bot, label: 'Créer un agent', color: '#10b981' },
-                        { href: '/dashboard/playground', icon: MessageSquare, label: 'Tester le chatbot', color: '#3b82f6' },
-                        { href: '/dashboard/conversations', icon: Clock, label: 'Voir conversations', color: '#a855f7' },
-                        { href: '/dashboard/billing', icon: Zap, label: 'Acheter des crédits', color: '#f97316' },
+                        { href: '/dashboard/agents/new', icon: Bot, label: t('actions.createAgent'), color: '#10b981' },
+                        { href: '/dashboard/playground', icon: MessageSquare, label: t('actions.testChatbot'), color: '#3b82f6' },
+                        { href: '/dashboard/conversations', icon: Clock, label: t('actions.viewConversations'), color: '#a855f7' },
+                        { href: '/dashboard/billing', icon: Zap, label: t('actions.buyCredits'), color: '#f97316' },
                     ].map((action) => (
                         <Link
                             key={action.href}

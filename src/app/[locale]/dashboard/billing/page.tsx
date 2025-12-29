@@ -10,7 +10,6 @@ import {
     Zap,
     Package,
     TrendingUp,
-    Clock,
     AlertCircle,
     Loader2,
     CheckCircle2,
@@ -18,6 +17,7 @@ import {
     ExternalLink,
     Star
 } from 'lucide-react'
+import { useTranslations, useFormatter } from 'next-intl'
 
 interface Plan {
     id: string
@@ -64,7 +64,10 @@ export default function BillingPage() {
 }
 
 function BillingContent() {
+    const t = useTranslations('Billing')
+    const format = useFormatter()
     const searchParams = useSearchParams()
+
     const [isLoading, setIsLoading] = useState<string | null>(null)
     const [userData, setUserData] = useState<UserData | null>(null)
     const [payments, setPayments] = useState<Payment[]>([])
@@ -277,8 +280,8 @@ function BillingContent() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
             {/* Header */}
             <div>
-                <h1 style={{ fontSize: 22, fontWeight: 700, color: 'white', marginBottom: 4 }}>Facturation</h1>
-                <p style={{ color: '#64748b', fontSize: 13 }}>Gérez votre abonnement et vos crédits</p>
+                <h1 style={{ fontSize: 22, fontWeight: 700, color: 'white', marginBottom: 4 }}>{t('title')}</h1>
+                <p style={{ color: '#64748b', fontSize: 13 }}>{t('subtitle')}</p>
             </div>
 
             {/* Payment Status Notification */}
@@ -300,16 +303,16 @@ function BillingContent() {
                         <>
                             <CheckCircle2 style={{ width: 20, height: 20, color: '#34d399' }} />
                             <div>
-                                <div style={{ fontWeight: 500, color: '#34d399', fontSize: 14 }}>Paiement réussi !</div>
-                                <div style={{ fontSize: 12, color: '#94a3b8' }}>Vos crédits ont été ajoutés.</div>
+                                <div style={{ fontWeight: 500, color: '#34d399', fontSize: 14 }}>{t('status.success.title')}</div>
+                                <div style={{ fontSize: 12, color: '#94a3b8' }}>{t('status.success.message')}</div>
                             </div>
                         </>
                     ) : (
                         <>
                             <XCircle style={{ width: 20, height: 20, color: '#f87171' }} />
                             <div>
-                                <div style={{ fontWeight: 500, color: '#f87171', fontSize: 14 }}>Paiement échoué</div>
-                                <div style={{ fontSize: 12, color: '#94a3b8' }}>Le paiement n'a pas pu être effectué.</div>
+                                <div style={{ fontWeight: 500, color: '#f87171', fontSize: 14 }}>{t('status.failed.title')}</div>
+                                <div style={{ fontSize: 12, color: '#94a3b8' }}>{t('status.failed.message')}</div>
                             </div>
                         </>
                     )}
@@ -328,7 +331,7 @@ function BillingContent() {
                             <Crown style={{ width: 20, height: 20, color: '#34d399' }} />
                         </div>
                         <div>
-                            <div style={{ fontSize: 12, color: '#64748b' }}>Plan actuel</div>
+                            <div style={{ fontSize: 12, color: '#64748b' }}>{t('Overview.currentPlan')}</div>
                             <div style={{ fontSize: 18, fontWeight: 700, color: 'white', textTransform: 'capitalize' }}>
                                 {currentPlan}
                             </div>
@@ -346,7 +349,7 @@ function BillingContent() {
                             <Sparkles style={{ width: 20, height: 20, color: '#60a5fa' }} />
                         </div>
                         <div>
-                            <div style={{ fontSize: 12, color: '#64748b' }}>Crédits restants</div>
+                            <div style={{ fontSize: 12, color: '#64748b' }}>{t('Overview.remainingCredits')}</div>
                             <div style={{ fontSize: 18, fontWeight: 700, color: 'white' }}>
                                 {creditsBalance.toLocaleString()}
                             </div>
@@ -364,7 +367,7 @@ function BillingContent() {
                             <TrendingUp style={{ width: 20, height: 20, color: '#c084fc' }} />
                         </div>
                         <div>
-                            <div style={{ fontSize: 12, color: '#64748b' }}>Utilisés ce mois</div>
+                            <div style={{ fontSize: 12, color: '#64748b' }}>{t('Overview.usedThisMonth')}</div>
                             <div style={{ fontSize: 18, fontWeight: 700, color: 'white' }}>
                                 {creditsUsed.toLocaleString()}
                             </div>
@@ -390,9 +393,9 @@ function BillingContent() {
                 >
                     <AlertCircle style={{ width: 20, height: 20, color: '#facc15', flexShrink: 0 }} />
                     <div>
-                        <div style={{ fontWeight: 500, color: '#facc15', fontSize: 14 }}>Crédits bientôt épuisés</div>
+                        <div style={{ fontWeight: 500, color: '#facc15', fontSize: 14 }}>{t('Overview.lowCredits.title')}</div>
                         <div style={{ fontSize: 12, color: 'rgba(250, 204, 21, 0.7)' }}>
-                            Il vous reste moins de 50 crédits.
+                            {t('Overview.lowCredits.message')}
                         </div>
                     </div>
                 </motion.div>
@@ -400,11 +403,11 @@ function BillingContent() {
 
             {/* Subscription Plans */}
             <div>
-                <h2 style={{ fontSize: 16, fontWeight: 600, color: 'white', marginBottom: 16 }}>Changer de plan</h2>
+                <h2 style={{ fontSize: 16, fontWeight: 600, color: 'white', marginBottom: 16 }}>{t('Plans.title')}</h2>
                 {plans.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: 32, color: '#64748b' }}>
                         <Loader2 style={{ width: 24, height: 24, margin: '0 auto 12px', animation: 'spin 1s linear infinite' }} />
-                        <p>Chargement des plans...</p>
+                        <p>{t('Plans.loading')}</p>
                     </div>
                 ) : (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
@@ -440,7 +443,7 @@ function BillingContent() {
                                             gap: 4
                                         }}>
                                             <Star size={10} />
-                                            Populaire
+                                            {t('Plans.popular')}
                                         </div>
                                     )}
 
@@ -455,14 +458,14 @@ function BillingContent() {
 
                                     <h3 style={{ fontSize: 16, fontWeight: 600, color: 'white', marginBottom: 2 }}>{plan.name}</h3>
                                     <p style={{ color: '#64748b', fontSize: 12, marginBottom: 12 }}>
-                                        {plan.credits.toLocaleString()} crédits/mois
+                                        {t('Plans.creditsPerMonth', { count: plan.credits })}
                                     </p>
 
                                     <div style={{ marginBottom: 16 }}>
                                         <span style={{ fontSize: 26, fontWeight: 700, color: 'white' }}>
                                             {plan.price.toLocaleString()}
                                         </span>
-                                        <span style={{ color: '#64748b', fontSize: 13 }}> FCFA/mois</span>
+                                        <span style={{ color: '#64748b', fontSize: 13 }}> {t('Plans.price_unit')}</span>
                                     </div>
 
                                     <motion.button
@@ -493,13 +496,13 @@ function BillingContent() {
                                         {isLoading === plan.id ? (
                                             <>
                                                 <Loader2 style={{ width: 16, height: 16, animation: 'spin 1s linear infinite' }} />
-                                                Chargement...
+                                                {t('Plans.loading')}
                                             </>
                                         ) : currentPlan.toLowerCase() === plan.name.toLowerCase() ? (
-                                            'Plan actuel'
+                                            t('Plans.current')
                                         ) : (
                                             <>
-                                                Choisir
+                                                {t('Plans.choose')}
                                                 <ExternalLink style={{ width: 14, height: 14 }} />
                                             </>
                                         )}
@@ -515,7 +518,7 @@ function BillingContent() {
             <div>
                 <h2 style={{ fontSize: 16, fontWeight: 600, color: 'white', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
                     <Package style={{ width: 18, height: 18, color: '#34d399' }} />
-                    Acheter des crédits
+                    {t('Credits.title')}
                 </h2>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
                     {creditPacks.map((pack, index) => (
@@ -543,7 +546,7 @@ function BillingContent() {
                             <div style={{ fontSize: 22, fontWeight: 700, color: 'white', marginBottom: 2 }}>
                                 {pack.credits.toLocaleString()}
                             </div>
-                            <div style={{ fontSize: 12, color: '#64748b', marginBottom: 12 }}>crédits</div>
+                            <div style={{ fontSize: 12, color: '#64748b', marginBottom: 12 }}>{t('Credits.unit')}</div>
                             <div style={{ fontSize: 15, fontWeight: 600, color: '#34d399', marginBottom: 12 }}>
                                 {pack.price.toLocaleString()} FCFA
                             </div>
@@ -571,7 +574,7 @@ function BillingContent() {
                                 {isLoading === pack.id ? (
                                     <Loader2 style={{ width: 14, height: 14, animation: 'spin 1s linear infinite' }} />
                                 ) : (
-                                    'Acheter'
+                                    t('Credits.buy')
                                 )}
                             </motion.button>
                         </motion.div>
@@ -583,13 +586,13 @@ function BillingContent() {
             <div>
                 <h2 style={{ fontSize: 16, fontWeight: 600, color: 'white', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
                     <CreditCard style={{ width: 18, height: 18, color: '#34d399' }} />
-                    Historique des paiements
+                    {t('History.title')}
                 </h2>
                 <div style={cardStyle}>
                     {payments.length === 0 ? (
                         <div style={{ textAlign: 'center', padding: 32, color: '#64748b' }}>
                             <CreditCard style={{ width: 40, height: 40, margin: '0 auto 12px', opacity: 0.5 }} />
-                            <p style={{ fontSize: 13 }}>Aucun paiement pour le moment</p>
+                            <p style={{ fontSize: 13 }}>{t('History.empty')}</p>
                         </div>
                     ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -608,7 +611,7 @@ function BillingContent() {
                                     <div>
                                         <div style={{ fontWeight: 500, color: 'white', fontSize: 14 }}>{payment.description}</div>
                                         <div style={{ fontSize: 12, color: '#64748b' }}>
-                                            {new Date(payment.created_at).toLocaleDateString('fr-FR')}
+                                            {format.dateTime(new Date(payment.created_at), { year: 'numeric', month: 'long', day: 'numeric' })}
                                         </div>
                                     </div>
                                     <div style={{ textAlign: 'right' }}>
@@ -619,7 +622,7 @@ function BillingContent() {
                                             fontSize: 11,
                                             color: payment.status === 'completed' ? '#34d399' : '#f87171'
                                         }}>
-                                            {payment.status === 'completed' ? 'Réussi' : 'Échoué'}
+                                            {payment.status === 'completed' ? t('History.status.completed') : t('History.status.failed')}
                                         </div>
                                     </div>
                                 </div>

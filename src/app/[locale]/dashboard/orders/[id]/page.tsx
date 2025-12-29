@@ -4,32 +4,40 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import {
-    ArrowLeft, Package, User, Phone, MapPin, Clock,
-    Loader2, CheckCircle, XCircle, Truck, AlertCircle
+    ArrowLeft, Loader2, Package, CheckCircle, XCircle, Truck, Clock,
+    MapPin, Phone, User
 } from 'lucide-react'
 import Link from 'next/link'
+import { useTranslations, useFormatter } from 'next-intl'
 
 interface OrderItem {
     id: string
-    product_name: string
     quantity: number
-    unit_price_fcfa: number
+    unit_price: number
+    total_price: number
+    product: {
+        name: string
+        image_url: string | null
+    }
 }
 
 interface Order {
     id: string
     order_number: string
-    customer_phone: string
-    customer_name: string | null
     status: string
-    total_fcfa: number
-    notes: string | null
+    total_amount: number
     created_at: string
-    updated_at: string
+    notes: string | null
+    customer_name: string | null
+    customer_phone: string
+    delivery_address: string | null
     items: OrderItem[]
 }
 
-export default function OrderDetailPage() {
+export default function OrderDetailsPage() {
+    const t = useTranslations('Orders.Detail')
+    const tStatus = useTranslations('Orders.Status')
+    const format = useFormatter()
     const params = useParams()
     const router = useRouter()
     const [order, setOrder] = useState<Order | null>(null)
@@ -55,16 +63,15 @@ export default function OrderDetailPage() {
     }
 
     const updateStatus = async (newStatus: string) => {
-        if (!order) return
         setUpdating(true)
         try {
-            const res = await fetch(`/api/orders/${order.id}`, {
-                method: 'PATCH',
+            const res = await fetch(`/api/orders/${params.id}/status`, {
+                method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status: newStatus })
             })
             if (res.ok) {
-                fetchOrder()
+                setOrder(prev => prev ? { ...prev, status: newStatus } : null)
             }
         } catch (err) {
             console.error('Error updating status:', err)
@@ -73,30 +80,24 @@ export default function OrderDetailPage() {
         }
     }
 
-    const getStatusInfo = (status: string) => {
-        const statuses: Record<string, { label: string; color: string; bg: string; icon: any }> = {
-            pending: { label: 'En attente', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.15)', icon: Clock },
-            confirmed: { label: 'Confirmée', color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.15)', icon: CheckCircle },
-            processing: { label: 'En cours', color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.15)', icon: Package },
-            shipped: { label: 'Expédiée', color: '#06b6d4', bg: 'rgba(6, 182, 212, 0.15)', icon: Truck },
-            delivered: { label: 'Livrée', color: '#10b981', bg: 'rgba(16, 185, 129, 0.15)', icon: CheckCircle },
-            cancelled: { label: 'Annulée', color: '#ef4444', bg: 'rgba(239, 68, 68, 0.15)', icon: XCircle }
+    const getStatusColor = (status: string) => {
+        switch (status) {
+            case 'pending': return '#fbbf24'
+            case 'confirmed': return '#34d399'
+            case 'processing': return '#60a5fa'
+            case 'shipped': return '#a78bfa'
+            case 'delivered': return '#10b981'
+            case 'cancelled': return '#f87171'
+            default: return '#94a3b8'
         }
-        return statuses[status] || statuses.pending
     }
 
-    const formatDate = (dateStr: string) => {
-        return new Date(dateStr).toLocaleDateString('fr-FR', {
-            day: '2-digit',
-            month: 'long',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        })
-    }
-
-    const formatPrice = (price: number) => {
-        return new Intl.NumberFormat('fr-FR').format(price) + ' FCFA'
+    const getStatusLabel = (status: string) => {
+        try {
+            return tStatus(status as any)
+        } catch {
+            return status
+        }
     }
 
     if (loading) {
@@ -109,21 +110,18 @@ export default function OrderDetailPage() {
 
     if (!order) {
         return (
-            <div style={{ textAlign: 'center', padding: 48 }}>
-                <AlertCircle size={48} style={{ color: '#f87171', marginBottom: 16 }} />
-                <p style={{ color: '#f87171' }}>Commande introuvable</p>
-                <Link href="/dashboard/orders" style={{ color: '#3b82f6', marginTop: 16, display: 'inline-block' }}>
-                    Retour aux commandes
-                </Link>
+            <div style={{ textAlign: 'center', padding: 48, color: '#94a3b8' }}>
+                {t('not_found')}
             </div>
         )
     }
 
-    const statusInfo = getStatusInfo(order.status)
+    const formatPrice = (price: number) => {
+        return new Intl.NumberFormat('fr-FR').format(price) + ' FCFA'
+    }
 
     return (
-        <div style={{ maxWidth: 900, margin: '0 auto' }}>
-            {/* Header */}
+        <div style={{ maxWidth: 1000, margin: '0 auto' }}>
             <div style={{ marginBottom: 32 }}>
                 <Link
                     href="/dashboard/orders"
@@ -137,35 +135,41 @@ export default function OrderDetailPage() {
                     }}
                 >
                     <ArrowLeft size={16} />
-                    Retour aux commandes
+                    {t('return')}
                 </Link>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', flexWrap: 'wrap', gap: 16 }}>
                     <div>
                         <h1 style={{ fontSize: 28, fontWeight: 700, color: 'white', marginBottom: 8 }}>
-                            Commande {order.order_number}
+                            {t('title', { number: order.order_number })}
                         </h1>
-                        <p style={{ color: '#64748b' }}>Créée le {formatDate(order.created_at)}</p>
+                        <p style={{ color: '#64748b' }}>
+                            {t('created_on', { date: format.dateTime(new Date(order.created_at), { dateStyle: 'full', timeStyle: 'short' }) })}
+                        </p>
                     </div>
                     <div style={{
-                        padding: '10px 16px',
-                        borderRadius: 10,
-                        background: statusInfo.bg,
-                        color: statusInfo.color,
+                        padding: '8px 16px',
+                        borderRadius: 100,
+                        background: `${getStatusColor(order.status)}20`,
+                        color: getStatusColor(order.status),
+                        fontWeight: 600,
                         display: 'flex',
                         alignItems: 'center',
-                        gap: 8,
-                        fontWeight: 600
+                        gap: 8
                     }}>
-                        <statusInfo.icon size={18} />
-                        {statusInfo.label}
+                        {order.status === 'pending' && <Clock size={16} />}
+                        {order.status === 'confirmed' && <CheckCircle size={16} />}
+                        {order.status === 'processing' && <Loader2 size={16} />}
+                        {order.status === 'shipped' && <Truck size={16} />}
+                        {order.status === 'delivered' && <Package size={16} />}
+                        {order.status === 'cancelled' && <XCircle size={16} />}
+                        {getStatusLabel(order.status)}
                     </div>
                 </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: 24 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 24 }}>
                 {/* Main Content */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                     {/* Items */}
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
@@ -178,113 +182,66 @@ export default function OrderDetailPage() {
                         }}
                     >
                         <h2 style={{ fontSize: 18, fontWeight: 600, color: 'white', marginBottom: 20 }}>
-                            Articles ({order.items?.length || 0})
+                            {t('items.title', { count: order.items.length })}
                         </h2>
-
-                        {order.items && order.items.length > 0 ? (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                                {order.items.map((item) => (
-                                    <div key={item.id} style={{
-                                        display: 'flex',
-                                        justifyContent: 'space-between',
-                                        alignItems: 'center',
-                                        padding: 16,
-                                        background: 'rgba(15, 23, 42, 0.5)',
-                                        borderRadius: 12
-                                    }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                            <div style={{
-                                                width: 48,
-                                                height: 48,
-                                                borderRadius: 10,
-                                                background: 'linear-gradient(135deg, #8b5cf6, #6366f1)',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center'
-                                            }}>
-                                                <Package size={24} style={{ color: 'white' }} />
-                                            </div>
-                                            <div>
-                                                <div style={{ fontWeight: 600, color: 'white' }}>{item.product_name}</div>
-                                                <div style={{ fontSize: 14, color: '#64748b' }}>
-                                                    {formatPrice(item.unit_price_fcfa)} × {item.quantity}
-                                                </div>
-                                            </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                            {order.items.map((item) => (
+                                <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                                        <div style={{
+                                            width: 48,
+                                            height: 48,
+                                            borderRadius: 8,
+                                            background: item.product.image_url
+                                                ? `url(${item.product.image_url}) center/cover`
+                                                : 'rgba(59, 130, 246, 0.1)',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center'
+                                        }}>
+                                            {!item.product.image_url && <Package size={20} color="#60a5fa" />}
                                         </div>
-                                        <div style={{ fontWeight: 700, color: '#34d399', fontSize: 18 }}>
-                                            {formatPrice(item.unit_price_fcfa * item.quantity)}
+                                        <div>
+                                            <div style={{ color: 'white', fontWeight: 500 }}>{item.product.name}</div>
+                                            <div style={{ color: '#94a3b8', fontSize: 14 }}>
+                                                {formatPrice(item.unit_price)} × {item.quantity}
+                                            </div>
                                         </div>
                                     </div>
-                                ))}
+                                    <div style={{ color: 'white', fontWeight: 600 }}>
+                                        {formatPrice(item.total_price)}
+                                    </div>
+                                </div>
+                            ))}
+                            <div style={{ height: 1, background: 'rgba(148, 163, 184, 0.1)', margin: '8px 0' }} />
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ color: '#94a3b8' }}>{t('items.total')}</span>
+                                <span style={{ fontSize: 20, fontWeight: 700, color: '#34d399' }}>
+                                    {formatPrice(order.total_amount)}
+                                </span>
                             </div>
-                        ) : (
-                            <div style={{ textAlign: 'center', padding: 32, color: '#64748b' }}>
-                                Aucun article
-                            </div>
-                        )}
-
-                        {/* Total */}
-                        <div style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            marginTop: 20,
-                            paddingTop: 20,
-                            borderTop: '1px solid rgba(148, 163, 184, 0.1)'
-                        }}>
-                            <span style={{ fontSize: 18, fontWeight: 600, color: 'white' }}>Total</span>
-                            <span style={{ fontSize: 24, fontWeight: 700, color: '#34d399' }}>
-                                {formatPrice(order.total_fcfa)}
-                            </span>
                         </div>
                     </motion.div>
 
                     {/* Notes */}
                     {order.notes && (
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.1 }}
-                            style={{
-                                background: 'rgba(30, 41, 59, 0.5)',
-                                border: '1px solid rgba(148, 163, 184, 0.1)',
-                                borderRadius: 16,
-                                padding: 24
-                            }}
-                        >
-                            <h2 style={{ fontSize: 18, fontWeight: 600, color: 'white', marginBottom: 12 }}>Notes</h2>
-                            <p style={{ color: '#94a3b8', lineHeight: 1.6 }}>{order.notes}</p>
-                        </motion.div>
-                    )}
-                </div>
-
-                {/* Sidebar */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                    {/* Customer Info */}
-                    <motion.div
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        style={{
+                        <div style={{
                             background: 'rgba(30, 41, 59, 0.5)',
                             border: '1px solid rgba(148, 163, 184, 0.1)',
                             borderRadius: 16,
                             padding: 24
-                        }}
-                    >
-                        <h2 style={{ fontSize: 16, fontWeight: 600, color: 'white', marginBottom: 16 }}>Client</h2>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                <User size={18} style={{ color: '#64748b' }} />
-                                <span style={{ color: '#e2e8f0' }}>{order.customer_name || 'Non renseigné'}</span>
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                <Phone size={18} style={{ color: '#64748b' }} />
-                                <span style={{ color: '#e2e8f0' }}>{order.customer_phone}</span>
-                            </div>
+                        }}>
+                            <h2 style={{ fontSize: 18, fontWeight: 600, color: 'white', marginBottom: 12 }}>
+                                {t('notes')}
+                            </h2>
+                            <p style={{ color: '#94a3b8', lineHeight: 1.6 }}>{order.notes}</p>
                         </div>
-                    </motion.div>
+                    )}
+                </div>
 
-                    {/* Status Actions */}
+                {/* Sidebar */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                    {/* Customer */}
                     <motion.div
                         initial={{ opacity: 0, x: 20 }}
                         animate={{ opacity: 1, x: 0 }}
@@ -296,8 +253,43 @@ export default function OrderDetailPage() {
                             padding: 24
                         }}
                     >
-                        <h2 style={{ fontSize: 16, fontWeight: 600, color: 'white', marginBottom: 16 }}>Actions</h2>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <h2 style={{ fontSize: 18, fontWeight: 600, color: 'white', marginBottom: 20 }}>
+                            {t('customer.title')}
+                        </h2>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                <User size={18} color="#64748b" />
+                                <span style={{ color: 'white' }}>{order.customer_name || t('customer.unknown')}</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                <Phone size={18} color="#64748b" />
+                                <span style={{ color: 'white' }}>{order.customer_phone}</span>
+                            </div>
+                            {order.delivery_address && (
+                                <div style={{ display: 'flex', alignItems: 'start', gap: 12 }}>
+                                    <MapPin size={18} color="#64748b" style={{ marginTop: 2 }} />
+                                    <span style={{ color: 'white', lineHeight: 1.4 }}>{order.delivery_address}</span>
+                                </div>
+                            )}
+                        </div>
+                    </motion.div>
+
+                    {/* Actions */}
+                    <motion.div
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.2 }}
+                        style={{
+                            background: 'rgba(30, 41, 59, 0.5)',
+                            border: '1px solid rgba(148, 163, 184, 0.1)',
+                            borderRadius: 16,
+                            padding: 24
+                        }}
+                    >
+                        <h2 style={{ fontSize: 18, fontWeight: 600, color: 'white', marginBottom: 20 }}>
+                            {t('actions.title')}
+                        </h2>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                             {order.status === 'pending' && (
                                 <>
                                     <button
@@ -305,87 +297,111 @@ export default function OrderDetailPage() {
                                         disabled={updating}
                                         style={{
                                             padding: 12,
-                                            background: 'rgba(59, 130, 246, 0.15)',
-                                            color: '#3b82f6',
-                                            border: 'none',
                                             borderRadius: 10,
+                                            border: 'none',
+                                            background: '#34d399',
+                                            color: '#064e3b',
                                             fontWeight: 600,
-                                            cursor: 'pointer'
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            gap: 8
                                         }}
                                     >
-                                        Confirmer
+                                        {updating ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle size={18} />}
+                                        {t('actions.confirm')}
                                     </button>
                                     <button
                                         onClick={() => updateStatus('cancelled')}
                                         disabled={updating}
                                         style={{
                                             padding: 12,
+                                            borderRadius: 10,
+                                            border: 'none',
                                             background: 'rgba(239, 68, 68, 0.15)',
                                             color: '#f87171',
-                                            border: 'none',
-                                            borderRadius: 10,
                                             fontWeight: 600,
                                             cursor: 'pointer'
                                         }}
                                     >
-                                        Annuler
+                                        {t('actions.cancel')}
                                     </button>
                                 </>
                             )}
+
                             {order.status === 'confirmed' && (
                                 <button
                                     onClick={() => updateStatus('processing')}
                                     disabled={updating}
                                     style={{
                                         padding: 12,
-                                        background: 'rgba(139, 92, 246, 0.15)',
-                                        color: '#a78bfa',
-                                        border: 'none',
                                         borderRadius: 10,
+                                        border: 'none',
+                                        background: '#60a5fa',
+                                        color: '#1e3a8a',
                                         fontWeight: 600,
-                                        cursor: 'pointer'
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: 8
                                     }}
                                 >
-                                    Mettre en préparation
+                                    {updating ? <Loader2 className="animate-spin" size={18} /> : <Loader2 size={18} />}
+                                    {t('actions.process')}
                                 </button>
                             )}
+
                             {order.status === 'processing' && (
                                 <button
                                     onClick={() => updateStatus('shipped')}
                                     disabled={updating}
                                     style={{
                                         padding: 12,
-                                        background: 'rgba(6, 182, 212, 0.15)',
-                                        color: '#22d3ee',
-                                        border: 'none',
                                         borderRadius: 10,
+                                        border: 'none',
+                                        background: '#a78bfa',
+                                        color: '#4c1d95',
                                         fontWeight: 600,
-                                        cursor: 'pointer'
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: 8
                                     }}
                                 >
-                                    Marquer comme expédiée
+                                    {updating ? <Loader2 className="animate-spin" size={18} /> : <Truck size={18} />}
+                                    {t('actions.ship')}
                                 </button>
                             )}
+
                             {order.status === 'shipped' && (
                                 <button
                                     onClick={() => updateStatus('delivered')}
                                     disabled={updating}
                                     style={{
                                         padding: 12,
-                                        background: 'rgba(16, 185, 129, 0.15)',
-                                        color: '#34d399',
-                                        border: 'none',
                                         borderRadius: 10,
+                                        border: 'none',
+                                        background: '#10b981',
+                                        color: 'white',
                                         fontWeight: 600,
-                                        cursor: 'pointer'
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: 8
                                     }}
                                 >
-                                    Marquer comme livrée
+                                    {updating ? <Loader2 className="animate-spin" size={18} /> : <Package size={18} />}
+                                    {t('actions.deliver')}
                                 </button>
                             )}
-                            {(order.status === 'delivered' || order.status === 'cancelled') && (
-                                <div style={{ textAlign: 'center', padding: 12, color: '#64748b' }}>
-                                    Commande terminée
+
+                            {['delivered', 'cancelled'].includes(order.status) && (
+                                <div style={{ textAlign: 'center', color: '#64748b', fontSize: 14 }}>
+                                    {t('actions.completed')}
                                 </div>
                             )}
                         </div>

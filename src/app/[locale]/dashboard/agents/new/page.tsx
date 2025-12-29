@@ -19,21 +19,48 @@ import {
     RefreshCw
 } from 'lucide-react'
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 
-const steps = [
-    { id: 'info', title: 'Informations', icon: Bot },
-    { id: 'mission', title: 'Mission', icon: Target },
-    { id: 'personality', title: 'Personnalité', icon: Sparkles },
-    { id: 'settings', title: 'Paramètres', icon: Settings },
-    { id: 'whatsapp', title: 'WhatsApp', icon: Smartphone },
-]
+export default function NewAgentPage() {
+    const t = useTranslations('Agents')
+    const tCommon = useTranslations('Agents.connect') // specialized namespace if needed or just access via t('connect...')
+    const router = useRouter()
+    const [currentStep, setCurrentStep] = useState(0)
+    const [loading, setLoading] = useState(false)
+    const [error, setError] = useState<string | null>(null)
+    const [createdAgent, setCreatedAgent] = useState<any>(null)
 
-const missionTemplates = [
-    {
-        id: 'ecommerce',
-        title: '🛒 E-commerce / Boutique',
-        description: 'Vente de produits en ligne, catalogue, commandes',
-        prompt: `Tu es l'assistant commercial de notre boutique en ligne.
+    // WhatsApp connection state
+    const [qrCode, setQrCode] = useState<string | null>(null)
+    const [whatsappStatus, setWhatsappStatus] = useState<'idle' | 'connecting' | 'qr_ready' | 'connected' | 'error'>('idle')
+    const [connectedPhone, setConnectedPhone] = useState<string | null>(null)
+
+    // Form state
+    const [formData, setFormData] = useState({
+        name: '',
+        description: '',
+        mission: '',
+        systemPrompt: '',
+        personality: 'friendly',
+        useEmojis: true,
+        responseDelay: 2,
+        language: 'fr',
+    })
+
+    const steps = [
+        { id: 'info', title: t('Wizard.steps.info'), icon: Bot },
+        { id: 'mission', title: t('Wizard.steps.mission'), icon: Target },
+        { id: 'personality', title: t('Wizard.steps.personality'), icon: Sparkles },
+        { id: 'settings', title: t('Wizard.steps.settings'), icon: Settings },
+        { id: 'whatsapp', title: t('Wizard.steps.whatsapp'), icon: Smartphone },
+    ]
+
+    const missionTemplates = [
+        {
+            id: 'ecommerce',
+            title: t('Templates.ecommerce.title'),
+            description: t('Templates.ecommerce.description'),
+            prompt: `Tu es l'assistant commercial de notre boutique en ligne.
 
 Ton rôle:
 - Accueillir les clients et répondre à leurs questions
@@ -53,12 +80,12 @@ Règles:
 - Propose toujours des produits complémentaires
 - Confirme le total avant de valider la commande
 - Donne le délai de livraison estimé`,
-    },
-    {
-        id: 'restaurant',
-        title: '🍽️ Restaurant / Fast-food',
-        description: 'Commandes de plats, menu du jour, livraison',
-        prompt: `Tu es l'assistant de notre restaurant.
+        },
+        {
+            id: 'restaurant',
+            title: t('Templates.restaurant.title'),
+            description: t('Templates.restaurant.description'),
+            prompt: `Tu es l'assistant de notre restaurant.
 
 Ton rôle:
 - Présenter le menu et les plats du jour
@@ -82,12 +109,12 @@ Règles:
 - Propose toujours des accompagnements et boissons
 - Précise les temps de préparation
 - Confirme le total de la commande`,
-    },
-    {
-        id: 'hotel',
-        title: '🏨 Hôtel / Hébergement',
-        description: 'Réservation de chambres, services hôteliers',
-        prompt: `Tu es le concierge virtuel de notre hôtel.
+        },
+        {
+            id: 'hotel',
+            title: t('Templates.hotel.title'),
+            description: t('Templates.hotel.description'),
+            prompt: `Tu es le concierge virtuel de notre hôtel.
 
 Ton rôle:
 - Renseigner sur les types de chambres et tarifs
@@ -96,24 +123,24 @@ Ton rôle:
 - Répondre aux questions des clients
 
 Pour une réservation, collecte:
-1. Dates d'arrivée et de départ
-2. Type de chambre souhaité
-3. Nombre d'adultes et d'enfants
-4. Préférences (vue, étage, lit king, etc.)
-5. Nom complet et téléphone
-6. Heure d'arrivée approximative
+99. Dates d'arrivée et de départ
+100. Type de chambre souhaité
+101. Nombre d'adultes et d'enfants
+102. Préférences (vue, étage, lit king, etc.)
+103. Nom complet et téléphone
+104. Heure d'arrivée approximative
 
 Règles:
 - Propose des surclassements si disponibles
 - Mentionne les services inclus (petit-déjeuner, wifi, parking)
 - Confirme le tarif total et les conditions d'annulation
 - Sois accueillant et professionnel`,
-    },
-    {
-        id: 'salon',
-        title: '💇 Salon / Institut de beauté',
-        description: 'Prise de rendez-vous, services beauté',
-        prompt: `Tu es l'assistant de notre salon de beauté/coiffure.
+        },
+        {
+            id: 'salon',
+            title: t('Templates.salon.title'),
+            description: t('Templates.salon.description'),
+            prompt: `Tu es l'assistant de notre salon de beauté/coiffure.
 
 Ton rôle:
 - Présenter nos services et tarifs
@@ -132,12 +159,12 @@ Règles:
 - Propose des services complémentaires
 - Rappelle les consignes (arriver 10 min avant, etc.)
 - Confirme le rendez-vous et le tarif estimé`,
-    },
-    {
-        id: 'services',
-        title: '🔧 Services / Artisan',
-        description: 'Devis, interventions, prestations diverses',
-        prompt: `Tu es l'assistant de notre entreprise de services.
+        },
+        {
+            id: 'services',
+            title: t('Templates.services.title'),
+            description: t('Templates.services.description'),
+            prompt: `Tu es l'assistant de notre entreprise de services.
 
 Ton rôle:
 - Comprendre les besoins du client
@@ -157,46 +184,21 @@ Règles:
 - Donne une fourchette de prix si possible
 - Propose un créneau de passage
 - Confirme tous les détails avant de valider`,
-    },
-    {
-        id: 'custom',
-        title: '✏️ Personnalisé',
-        description: 'Créez votre propre mission sur mesure',
-        prompt: '',
-    },
-]
+        },
+        {
+            id: 'custom',
+            title: t('Templates.custom.title'),
+            description: t('Templates.custom.description'),
+            prompt: '',
+        },
+    ]
 
-
-const personalities = [
-    { id: 'professional', name: 'Professionnel', emoji: '👔', description: 'Formel et courtois' },
-    { id: 'friendly', name: 'Amical', emoji: '😊', description: 'Chaleureux et accessible' },
-    { id: 'casual', name: 'Décontracté', emoji: '🤙', description: 'Cool et moderne' },
-    { id: 'formal', name: 'Formel', emoji: '🎩', description: 'Très formel et respectueux' },
-]
-
-export default function NewAgentPage() {
-    const router = useRouter()
-    const [currentStep, setCurrentStep] = useState(0)
-    const [loading, setLoading] = useState(false)
-    const [error, setError] = useState<string | null>(null)
-    const [createdAgent, setCreatedAgent] = useState<any>(null)
-
-    // WhatsApp connection state
-    const [qrCode, setQrCode] = useState<string | null>(null)
-    const [whatsappStatus, setWhatsappStatus] = useState<'idle' | 'connecting' | 'qr_ready' | 'connected' | 'error'>('idle')
-    const [connectedPhone, setConnectedPhone] = useState<string | null>(null)
-
-    // Form state
-    const [formData, setFormData] = useState({
-        name: '',
-        description: '',
-        mission: '',
-        systemPrompt: '',
-        personality: 'friendly',
-        useEmojis: true,
-        responseDelay: 2,
-        language: 'fr',
-    })
+    const personalities = [
+        { id: 'professional', name: t('Form.personality.types.professional'), emoji: '👔', description: t('Form.personality.types.professional') },
+        { id: 'friendly', name: t('Form.personality.types.friendly'), emoji: '😊', description: t('Form.personality.types.friendly') },
+        { id: 'casual', name: t('Form.personality.types.casual'), emoji: '🤙', description: t('Form.personality.types.casual') },
+        { id: 'formal', name: t('Form.personality.types.formal'), emoji: '🎩', description: t('Form.personality.types.formal') },
+    ]
 
     const updateFormData = (field: string, value: any) => {
         setFormData(prev => ({ ...prev, [field]: value }))
@@ -265,7 +267,7 @@ export default function NewAgentPage() {
     const connectWhatsApp = async () => {
         if (!createdAgent) return
 
-        console.log('INITIATING WHATSAPP CONNECTION for agent:', createdAgent.id)
+
         setWhatsappStatus('connecting')
         setError(null)
 
@@ -276,12 +278,12 @@ export default function NewAgentPage() {
                 body: JSON.stringify({ agentId: createdAgent.id }),
             })
 
-            console.log('Connect response status:', response.status)
+
             const data = await response.json()
-            console.log('Connect response data:', data)
+
 
             if (!response.ok) {
-                throw new Error(data.error || 'Erreur de connexion')
+                throw new Error(data.error || t('connect.error'))
             }
 
             if (data.qrCode) {
@@ -380,25 +382,25 @@ export default function NewAgentPage() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                         <div>
                             <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                Nom de l'agent *
+                                {t('Form.name.label')} *
                             </label>
                             <input
                                 type="text"
                                 value={formData.name}
                                 onChange={(e) => updateFormData('name', e.target.value)}
-                                placeholder="Ex: Assistant Commercial"
+                                placeholder={t('Form.name.placeholder')}
                                 style={inputStyle}
                             />
                         </div>
 
                         <div>
                             <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                Description
+                                {t('Form.description.label')}
                             </label>
                             <textarea
                                 value={formData.description}
                                 onChange={(e) => updateFormData('description', e.target.value)}
-                                placeholder="Décrivez brièvement le rôle de cet agent..."
+                                placeholder={t('Form.description.placeholder')}
                                 rows={3}
                                 style={{ ...inputStyle, resize: 'none' }}
                             />
@@ -411,7 +413,7 @@ export default function NewAgentPage() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                         <div>
                             <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 16 }}>
-                                Choisissez une mission
+                                {t('Form.mission.label')}
                             </label>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
                                 {missionTemplates.map((template) => (
@@ -436,17 +438,17 @@ export default function NewAgentPage() {
 
                         <div>
                             <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                Instructions système (prompt) *
+                                {t('Form.mission.systemPromptLabel')} *
                             </label>
                             <textarea
                                 value={formData.systemPrompt}
                                 onChange={(e) => updateFormData('systemPrompt', e.target.value)}
-                                placeholder="Décrivez en détail comment l'agent doit se comporter..."
+                                placeholder={t('Form.mission.promptPlaceholder')}
                                 rows={8}
                                 style={{ ...inputStyle, resize: 'none', fontFamily: 'monospace', fontSize: 13 }}
                             />
                             <p style={{ fontSize: 12, color: '#64748b', marginTop: 8 }}>
-                                Plus les instructions sont détaillées, meilleur sera le comportement de l'agent.
+                                {t('Form.mission.hint')}
                             </p>
                         </div>
                     </div>
@@ -457,7 +459,7 @@ export default function NewAgentPage() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                         <div>
                             <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 16 }}>
-                                Personnalité de l'agent
+                                {t('Form.personality.label')}
                             </label>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
                                 {personalities.map((p) => (
@@ -490,8 +492,8 @@ export default function NewAgentPage() {
                             borderRadius: 12
                         }}>
                             <div>
-                                <h3 style={{ fontWeight: 500, color: 'white' }}>Utiliser des emojis</h3>
-                                <p style={{ fontSize: 13, color: '#64748b' }}>L'agent utilisera des emojis dans ses réponses</p>
+                                <h3 style={{ fontWeight: 500, color: 'white' }}>{t('Form.personality.emojis')}</h3>
+                                <p style={{ fontSize: 13, color: '#64748b' }}>{t('Form.personality.emojisHint')}</p>
                             </div>
                             <button
                                 onClick={() => updateFormData('useEmojis', !formData.useEmojis)}
@@ -525,7 +527,7 @@ export default function NewAgentPage() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                         <div>
                             <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                Délai de réponse: {formData.responseDelay}s
+                                {t('Form.settings.responseDelay')}: {formData.responseDelay}s
                             </label>
                             <input
                                 type="range"
@@ -536,14 +538,14 @@ export default function NewAgentPage() {
                                 style={{ width: '100%', accentColor: '#10b981' }}
                             />
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#64748b', marginTop: 4 }}>
-                                <span>1s (rapide)</span>
-                                <span>10s (naturel)</span>
+                                <span>1s ({t('Form.settings.fast')})</span>
+                                <span>10s ({t('Form.settings.natural')})</span>
                             </div>
                         </div>
 
                         <div>
                             <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                Langue principale
+                                {t('Form.settings.language')}
                             </label>
                             <select
                                 value={formData.language}
@@ -563,24 +565,24 @@ export default function NewAgentPage() {
                             background: 'rgba(30, 41, 59, 0.5)',
                             borderRadius: 12
                         }}>
-                            <h3 style={{ fontWeight: 600, color: 'white', marginBottom: 16 }}>Récapitulatif</h3>
+                            <h3 style={{ fontWeight: 600, color: 'white', marginBottom: 16 }}>{t('Form.summary.title')}</h3>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontSize: 14 }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <span style={{ color: '#64748b' }}>Nom</span>
+                                    <span style={{ color: '#64748b' }}>{t('Form.summary.name')}</span>
                                     <span style={{ color: 'white', fontWeight: 500 }}>{formData.name}</span>
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <span style={{ color: '#64748b' }}>Personnalité</span>
+                                    <span style={{ color: '#64748b' }}>{t('Form.summary.personality')}</span>
                                     <span style={{ color: 'white', fontWeight: 500 }}>
                                         {personalities.find(p => p.id === formData.personality)?.name}
                                     </span>
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <span style={{ color: '#64748b' }}>Emojis</span>
+                                    <span style={{ color: '#64748b' }}>{t('Form.summary.emojis')}</span>
                                     <span style={{ color: 'white', fontWeight: 500 }}>{formData.useEmojis ? 'Oui' : 'Non'}</span>
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <span style={{ color: '#64748b' }}>Délai</span>
+                                    <span style={{ color: '#64748b' }}>{t('Form.summary.delay')}</span>
                                     <span style={{ color: 'white', fontWeight: 500 }}>{formData.responseDelay}s</span>
                                 </div>
                             </div>
@@ -605,23 +607,23 @@ export default function NewAgentPage() {
                                     <QrCode style={{ width: 40, height: 40, color: '#34d399' }} />
                                 </div>
                                 <h3 style={{ fontSize: 20, fontWeight: 600, color: 'white', textAlign: 'center' }}>
-                                    Connecter WhatsApp
+                                    {t('connect.title')}
                                 </h3>
                                 <p style={{ color: '#94a3b8', textAlign: 'center', maxWidth: 400 }}>
-                                    Scannez le QR code avec votre téléphone pour connecter WhatsApp à cet agent.
+                                    {t('connect.scanPrompt')}
                                 </p>
                                 <button
                                     onClick={connectWhatsApp}
                                     style={buttonPrimaryStyle}
                                 >
                                     <QrCode style={{ width: 20, height: 20 }} />
-                                    Afficher le QR Code
+                                    {t('Wizard.buttons.generateQr')}
                                 </button>
                                 <button
                                     onClick={handleFinish}
                                     style={{ ...buttonSecondaryStyle, marginTop: 8 }}
                                 >
-                                    Passer cette étape
+                                    {t('Wizard.buttons.skip')}
                                 </button>
                             </>
                         )}
@@ -629,7 +631,7 @@ export default function NewAgentPage() {
                         {whatsappStatus === 'connecting' && (
                             <>
                                 <Loader2 style={{ width: 48, height: 48, color: '#34d399', animation: 'spin 1s linear infinite' }} />
-                                <p style={{ color: '#94a3b8' }}>Génération du QR code...</p>
+                                <p style={{ color: '#94a3b8' }}>{t('connect.initialization')}</p>
                             </>
                         )}
 
@@ -643,14 +645,14 @@ export default function NewAgentPage() {
                                     <img src={qrCode} alt="QR Code WhatsApp" style={{ width: 250, height: 250 }} />
                                 </div>
                                 <p style={{ color: '#94a3b8', textAlign: 'center' }}>
-                                    Scannez ce code avec WhatsApp sur votre téléphone
+                                    {t('connect.qrInstructions.step3')}
                                 </p>
                                 <button
                                     onClick={connectWhatsApp}
                                     style={buttonSecondaryStyle}
                                 >
                                     <RefreshCw style={{ width: 18, height: 18 }} />
-                                    Régénérer le QR code
+                                    {t('connect.actions.regenerate')}
                                 </button>
                             </>
                         )}
@@ -669,7 +671,7 @@ export default function NewAgentPage() {
                                     <CheckCircle2 style={{ width: 48, height: 48, color: '#34d399' }} />
                                 </div>
                                 <h3 style={{ fontSize: 20, fontWeight: 600, color: 'white' }}>
-                                    WhatsApp connecté ! 🎉
+                                    {t('connect.connectedSuccess')} 🎉
                                 </h3>
                                 <p style={{ color: '#94a3b8' }}>
                                     Numéro: {connectedPhone}
@@ -678,7 +680,7 @@ export default function NewAgentPage() {
                                     onClick={handleFinish}
                                     style={buttonPrimaryStyle}
                                 >
-                                    Terminer
+                                    {t('Wizard.buttons.finish')}
                                     <ArrowRight style={{ width: 20, height: 20 }} />
                                 </button>
                             </>
@@ -698,7 +700,7 @@ export default function NewAgentPage() {
                                     <AlertCircle style={{ width: 48, height: 48, color: '#f87171' }} />
                                 </div>
                                 <h3 style={{ fontSize: 20, fontWeight: 600, color: 'white' }}>
-                                    Erreur de connexion
+                                    {t('connect.error')}
                                 </h3>
                                 <p style={{ color: '#f87171' }}>{error}</p>
                                 <button
@@ -706,7 +708,7 @@ export default function NewAgentPage() {
                                     style={buttonPrimaryStyle}
                                 >
                                     <RefreshCw style={{ width: 18, height: 18 }} />
-                                    Réessayer
+                                    {t('Wizard.buttons.retry')}
                                 </button>
                             </>
                         )}
@@ -734,13 +736,13 @@ export default function NewAgentPage() {
                     }}
                 >
                     <ArrowLeft style={{ width: 16, height: 16 }} />
-                    Retour aux agents
+                    {t('Wizard.back')}
                 </Link>
                 <h1 style={{ fontSize: 28, fontWeight: 700, color: 'white', marginBottom: 8 }}>
-                    Créer un nouvel agent
+                    {t('Wizard.title')}
                 </h1>
                 <p style={{ color: '#94a3b8' }}>
-                    Configurez votre assistant IA en quelques étapes
+                    {t('Wizard.subtitle')}
                 </p>
             </div>
 
@@ -798,6 +800,10 @@ export default function NewAgentPage() {
                     color: '#f87171',
                     fontSize: 14
                 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                        <AlertCircle size={16} />
+                        <strong>Erreur</strong>
+                    </div>
                     {error}
                 </div>
             )}
@@ -807,72 +813,65 @@ export default function NewAgentPage() {
                 key={currentStep}
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
-                style={{ ...cardStyle, marginBottom: 32 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.2 }}
+                style={cardStyle}
             >
                 {renderStepContent()}
             </motion.div>
 
             {/* Navigation buttons */}
-            {currentStep < 4 && (
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 24 }}>
+                <button
+                    onClick={() => setCurrentStep(prev => Math.max(0, prev - 1))}
+                    disabled={currentStep === 0 || currentStep === 4}
+                    style={{
+                        ...buttonSecondaryStyle,
+                        opacity: currentStep === 0 || currentStep === 4 ? 0 : 1,
+                        pointerEvents: currentStep === 0 || currentStep === 4 ? 'none' : 'auto'
+                    }}
+                >
+                    <ArrowLeft style={{ width: 16, height: 16 }} />
+                    {t('Wizard.buttons.prev')}
+                </button>
+
+                {currentStep < 3 ? (
                     <button
-                        onClick={() => setCurrentStep(prev => prev - 1)}
-                        disabled={currentStep === 0}
+                        onClick={() => setCurrentStep(prev => Math.min(steps.length - 1, prev + 1))}
+                        disabled={!canProceed()}
                         style={{
-                            ...buttonSecondaryStyle,
-                            opacity: currentStep === 0 ? 0.5 : 1,
-                            cursor: currentStep === 0 ? 'not-allowed' : 'pointer'
+                            ...buttonPrimaryStyle,
+                            opacity: canProceed() ? 1 : 0.5,
+                            cursor: canProceed() ? 'pointer' : 'not-allowed'
                         }}
                     >
-                        <ArrowLeft style={{ width: 18, height: 18 }} />
-                        Précédent
+                        {t('Wizard.buttons.next')}
+                        <ArrowRight style={{ width: 16, height: 16 }} />
                     </button>
-
-                    {currentStep < 3 ? (
-                        <button
-                            onClick={() => setCurrentStep(prev => prev + 1)}
-                            disabled={!canProceed()}
-                            style={{
-                                ...buttonPrimaryStyle,
-                                opacity: canProceed() ? 1 : 0.5,
-                                cursor: canProceed() ? 'pointer' : 'not-allowed'
-                            }}
-                        >
-                            Suivant
-                            <ArrowRight style={{ width: 18, height: 18 }} />
-                        </button>
-                    ) : (
-                        <button
-                            onClick={handleCreateAgent}
-                            disabled={loading || !canProceed()}
-                            style={{
-                                ...buttonPrimaryStyle,
-                                opacity: !loading && canProceed() ? 1 : 0.5,
-                                cursor: !loading && canProceed() ? 'pointer' : 'not-allowed'
-                            }}
-                        >
-                            {loading ? (
-                                <>
-                                    <Loader2 style={{ width: 18, height: 18, animation: 'spin 1s linear infinite' }} />
-                                    Création...
-                                </>
-                            ) : (
-                                <>
-                                    Créer l'agent
-                                    <Check style={{ width: 18, height: 18 }} />
-                                </>
-                            )}
-                        </button>
-                    )}
-                </div>
-            )}
-
-            <style jsx global>{`
-                @keyframes spin {
-                    from { transform: rotate(0deg); }
-                    to { transform: rotate(360deg); }
-                }
-            `}</style>
+                ) : currentStep === 3 ? (
+                    <button
+                        onClick={handleCreateAgent}
+                        disabled={loading}
+                        style={{
+                            ...buttonPrimaryStyle,
+                            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                            opacity: loading ? 0.7 : 1
+                        }}
+                    >
+                        {loading ? (
+                            <>
+                                <Loader2 style={{ width: 18, height: 18, animation: 'spin 1s linear infinite' }} />
+                                {t('Wizard.buttons.loading')}
+                            </>
+                        ) : (
+                            <>
+                                <Check style={{ width: 18, height: 18 }} />
+                                {t('Wizard.buttons.create')}
+                            </>
+                        )}
+                    </button>
+                ) : null}
+            </div>
         </div>
     )
 }

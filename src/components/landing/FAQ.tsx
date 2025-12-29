@@ -3,191 +3,160 @@
 import { motion, useInView, AnimatePresence } from 'framer-motion'
 import { useRef, useState } from 'react'
 import { ChevronDown, HelpCircle, MessageCircle, CreditCard, Shield, Smartphone, Calendar, Lock, XCircle } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 
-const faqs = [
-    {
-        question: "Comment fonctionne WhatsAI ?",
-        answer: "WhatsAI se connecte à votre WhatsApp via un QR code (comme WhatsApp Web). Une fois connecté, notre IA analyse les messages entrants et génère des réponses personnalisées basées sur vos instructions. Tout est automatique et en temps réel.",
-        icon: MessageCircle,
-        category: "Général"
-    },
-    {
-        question: "Est-ce que WhatsApp peut me bannir ?",
-        answer: "Notre système utilise Baileys, une solution éprouvée qui simule le comportement humain. En respectant les bonnes pratiques (délais de réponse, personnalisation), le risque est minimal. Des milliers d'utilisateurs actifs sans problème.",
-        icon: Shield,
-        category: "Sécurité"
-    },
-    {
-        question: "Puis-je tester gratuitement ?",
-        answer: "Absolument ! Créez un compte et recevez 100 crédits gratuits pour tester toutes les fonctionnalités. Aucune carte de crédit requise. Passez à un plan payant quand vous êtes prêt.",
-        icon: HelpCircle,
-        category: "Général"
-    },
-    {
-        question: "Comment fonctionne le système de crédits ?",
-        answer: "1 crédit = 1 message envoyé par l'IA. Les messages reçus ne consomment pas de crédits. Vos crédits se renouvellent chaque mois selon votre forfait.",
-        icon: CreditCard,
-        category: "Facturation"
-    },
-    {
-        question: "Puis-je utiliser plusieurs numéros WhatsApp ?",
-        answer: "Oui ! Le nombre de numéros dépend de votre forfait. Starter : 1, Pro : 2, Business : 4. Chaque numéro peut avoir son propre agent IA avec des instructions différentes.",
-        icon: Smartphone,
-        category: "Fonctionnalités"
-    },
-    {
-        question: "L'IA peut-elle prendre des rendez-vous ?",
-        answer: "Oui ! Configurez votre agent pour collecter des informations et proposer des créneaux. L'intégration avec Google Calendar est disponible sur les plans Pro et Business.",
-        icon: Calendar,
-        category: "Fonctionnalités"
-    },
-    {
-        question: "Mes données sont-elles sécurisées ?",
-        answer: "Absolument. Chiffrement de bout en bout, sessions stockées de manière sécurisée, et conformité RGPD. Nous ne lisons jamais vos conversations.",
-        icon: Lock,
-        category: "Sécurité"
-    },
-    {
-        question: "Puis-je annuler à tout moment ?",
-        answer: "Oui, sans engagement ! Annulez votre abonnement à tout moment depuis votre tableau de bord. Vos crédits restants sont utilisables jusqu'à la fin de la période.",
-        icon: XCircle,
-        category: "Facturation"
-    },
-]
+export default function FAQ() {
+    const t = useTranslations('FAQ')
+    const headerRef = useRef(null)
+    const isHeaderInView = useInView(headerRef, { once: true })
 
-const FAQItem = ({ faq, index }: { faq: typeof faqs[0], index: number }) => {
-    const [isOpen, setIsOpen] = useState(false)
-    const ref = useRef(null)
-    const isInView = useInView(ref, { once: true, margin: "-50px" })
-    const Icon = faq.icon
+    const faqKeys = [
+        { key: 'howItWorks', icon: MessageCircle },
+        { key: 'banRisk', icon: Shield },
+        { key: 'freeTest', icon: HelpCircle },
+        { key: 'credits', icon: CreditCard },
+        { key: 'multiNumber', icon: Smartphone },
+        { key: 'appointments', icon: Calendar },
+        { key: 'security', icon: Lock },
+        { key: 'cancel', icon: XCircle }
+    ]
 
-    return (
-        <motion.div
-            ref={ref}
-            initial={{ opacity: 0, y: 20 }}
-            animate={isInView ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.4, delay: index * 0.05 }}
-        >
-            <motion.button
-                onClick={() => setIsOpen(!isOpen)}
-                whileHover={{ scale: 1.01 }}
-                whileTap={{ scale: 0.99 }}
-                style={{
-                    width: '100%',
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: 16,
-                    padding: '20px 24px',
-                    borderRadius: 16,
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    border: isOpen ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(148, 163, 184, 0.1)',
-                    background: isOpen
-                        ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0.02) 100%)'
-                        : 'rgba(30, 41, 59, 0.5)',
-                    backdropFilter: 'blur(10px)',
-                    transition: 'all 0.3s ease',
-                    boxShadow: isOpen ? '0 8px 32px rgba(16, 185, 129, 0.15)' : 'none'
-                }}
+    const faqs = faqKeys.map(item => ({
+        question: t(`items.${item.key}.question`),
+        answer: t(`items.${item.key}.answer`),
+        category: t(`items.${item.key}.category`),
+        icon: item.icon
+    }))
+
+    const FAQItem = ({ faq, index }: { faq: typeof faqs[0], index: number }) => {
+        const [isOpen, setIsOpen] = useState(false)
+        const ref = useRef(null)
+        const isInView = useInView(ref, { once: true, margin: "-50px" })
+        const Icon = faq.icon
+
+        return (
+            <motion.div
+                ref={ref}
+                initial={{ opacity: 0, y: 20 }}
+                animate={isInView ? { opacity: 1, y: 0 } : {}}
+                transition={{ duration: 0.4, delay: index * 0.05 }}
             >
-                {/* Icon */}
-                <div style={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: 12,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                    background: isOpen
-                        ? 'linear-gradient(135deg, #10b981, #059669)'
-                        : 'rgba(51, 65, 85, 0.5)',
-                    transition: 'all 0.3s ease'
-                }}>
-                    <Icon style={{
-                        width: 22,
-                        height: 22,
-                        color: isOpen ? 'white' : '#94a3b8',
-                        transition: 'all 0.3s ease'
-                    }} />
-                </div>
-
-                {/* Content */}
-                <div style={{ flex: 1 }}>
-                    {/* Category badge */}
-                    <span style={{
-                        display: 'inline-block',
-                        fontSize: 11,
-                        fontWeight: 600,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.5px',
-                        color: isOpen ? '#34d399' : '#64748b',
-                        marginBottom: 6
-                    }}>
-                        {faq.category}
-                    </span>
-
-                    <h3 style={{
-                        fontSize: 17,
-                        fontWeight: 600,
-                        color: isOpen ? 'white' : '#e2e8f0',
-                        marginBottom: 0,
-                        lineHeight: 1.4
-                    }}>
-                        {faq.question}
-                    </h3>
-
-                    <AnimatePresence>
-                        {isOpen && (
-                            <motion.div
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: 'auto', opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
-                                transition={{ duration: 0.3 }}
-                                style={{ overflow: 'hidden' }}
-                            >
-                                <p style={{
-                                    marginTop: 12,
-                                    color: '#94a3b8',
-                                    lineHeight: 1.7,
-                                    fontSize: 15
-                                }}>
-                                    {faq.answer}
-                                </p>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                </div>
-
-                {/* Chevron */}
-                <motion.div
-                    animate={{ rotate: isOpen ? 180 : 0 }}
-                    transition={{ duration: 0.3 }}
+                <motion.button
+                    onClick={() => setIsOpen(!isOpen)}
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
                     style={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: 8,
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: 16,
+                        padding: '20px 24px',
+                        borderRadius: 16,
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        border: isOpen ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(148, 163, 184, 0.1)',
+                        background: isOpen
+                            ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0.02) 100%)'
+                            : 'rgba(30, 41, 59, 0.5)',
+                        backdropFilter: 'blur(10px)',
+                        transition: 'all 0.3s ease',
+                        boxShadow: isOpen ? '0 8px 32px rgba(16, 185, 129, 0.15)' : 'none'
+                    }}
+                >
+                    {/* Icon */}
+                    <div style={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: 12,
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        background: isOpen ? 'rgba(16, 185, 129, 0.2)' : 'rgba(51, 65, 85, 0.3)',
-                        flexShrink: 0
-                    }}
-                >
-                    <ChevronDown style={{
-                        width: 18,
-                        height: 18,
-                        color: isOpen ? '#34d399' : '#64748b'
-                    }} />
-                </motion.div>
-            </motion.button>
-        </motion.div>
-    )
-}
+                        flexShrink: 0,
+                        background: isOpen
+                            ? 'linear-gradient(135deg, #10b981, #059669)'
+                            : 'rgba(51, 65, 85, 0.5)',
+                        transition: 'all 0.3s ease'
+                    }}>
+                        <Icon style={{
+                            width: 22,
+                            height: 22,
+                            color: isOpen ? 'white' : '#94a3b8',
+                            transition: 'all 0.3s ease'
+                        }} />
+                    </div>
 
-export default function FAQ() {
-    const headerRef = useRef(null)
-    const isHeaderInView = useInView(headerRef, { once: true })
+                    {/* Content */}
+                    <div style={{ flex: 1 }}>
+                        {/* Category badge */}
+                        <span style={{
+                            display: 'inline-block',
+                            fontSize: 11,
+                            fontWeight: 600,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.5px',
+                            color: isOpen ? '#34d399' : '#64748b',
+                            marginBottom: 6
+                        }}>
+                            {faq.category}
+                        </span>
+
+                        <h3 style={{
+                            fontSize: 17,
+                            fontWeight: 600,
+                            color: isOpen ? 'white' : '#e2e8f0',
+                            marginBottom: 0,
+                            lineHeight: 1.4
+                        }}>
+                            {faq.question}
+                        </h3>
+
+                        <AnimatePresence>
+                            {isOpen && (
+                                <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: 'auto', opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    transition={{ duration: 0.3 }}
+                                    style={{ overflow: 'hidden' }}
+                                >
+                                    <p style={{
+                                        marginTop: 12,
+                                        color: '#94a3b8',
+                                        lineHeight: 1.7,
+                                        fontSize: 15
+                                    }}>
+                                        {faq.answer}
+                                    </p>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+
+                    {/* Chevron */}
+                    <motion.div
+                        animate={{ rotate: isOpen ? 180 : 0 }}
+                        transition={{ duration: 0.3 }}
+                        style={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: 8,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: isOpen ? 'rgba(16, 185, 129, 0.2)' : 'rgba(51, 65, 85, 0.3)',
+                            flexShrink: 0
+                        }}
+                    >
+                        <ChevronDown style={{
+                            width: 18,
+                            height: 18,
+                            color: isOpen ? '#34d399' : '#64748b'
+                        }} />
+                    </motion.div>
+                </motion.button>
+            </motion.div>
+        )
+    }
 
     return (
         <section id="faq" style={{
@@ -244,21 +213,26 @@ export default function FAQ() {
                         }}
                     >
                         <HelpCircle style={{ width: 16, height: 16, color: '#34d399' }} />
-                        <span style={{ fontSize: 13, fontWeight: 600, color: '#34d399' }}>FAQ</span>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: '#34d399' }}>{t('badge')}</span>
                     </motion.div>
 
                     <h2 style={{
                         fontSize: 'clamp(32px, 5vw, 48px)',
                         fontWeight: 800,
                         marginBottom: 16,
-                        lineHeight: 1.2
+                        lineHeight: 1.2,
+                        color: 'white'
                     }}>
-                        <span style={{ color: 'white' }}>Questions </span>
-                        <span style={{
-                            background: 'linear-gradient(135deg, #34d399, #06b6d4)',
-                            WebkitBackgroundClip: 'text',
-                            WebkitTextFillColor: 'transparent'
-                        }}>fréquentes</span>
+                        {t.rich('title', {
+                            green: (chunks) => (
+                                <span style={{
+                                    background: 'linear-gradient(135deg, #34d399, #06b6d4)',
+                                    WebkitBackgroundClip: 'text',
+                                    WebkitTextFillColor: 'transparent',
+                                    backgroundClip: 'text'
+                                }}>{chunks}</span>
+                            )
+                        })}
                     </h2>
                     <p style={{
                         fontSize: 18,
@@ -266,7 +240,7 @@ export default function FAQ() {
                         maxWidth: 500,
                         margin: '0 auto'
                     }}>
-                        Tout ce que vous devez savoir sur WhatsAI
+                        {t('subtitle')}
                     </p>
                 </motion.div>
 
@@ -284,4 +258,3 @@ export default function FAQ() {
         </section>
     )
 }
-
