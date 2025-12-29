@@ -7,9 +7,9 @@ import { usePathname } from 'next/navigation'
 export default function HomeButton() {
     const pathname = usePathname()
 
-    // Ne pas afficher sur la page d'accueil ou le dashboard
+    // Ne pas afficher sur la page d'accueil (/, /fr, /en) ou le dashboard
     // Note: On vérifie aussi si pathname existe pour éviter les erreurs de build
-    if (!pathname || pathname === '/' || pathname.startsWith('/dashboard')) {
+    if (!pathname || pathname === '/' || pathname === '/fr' || pathname === '/en' || pathname.includes('/dashboard')) {
         return null
     }
 
