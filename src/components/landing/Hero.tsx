@@ -4,19 +4,21 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { MessageCircle, Sparkles, Zap, ArrowRight, Star, Bot, CheckCircle, Clock, Users, Send, Shield, TrendingUp, Phone } from 'lucide-react'
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
-
-// WhatsApp-style chat messages for the demo
-const chatMessages = [
-    { id: 1, type: 'received', text: "Bonjour ! Je cherche un appartement 3 pièces à Abidjan 🏠", time: "10:30" },
-    { id: 2, type: 'sent', text: "Bonjour ! 👋 Je suis votre assistant WhatsAI. J'ai trouvé 5 appartements correspondant à vos critères.", time: "10:30", isBot: true },
-    { id: 3, type: 'sent', text: "📍 Cocody - 3 pièces - 350,000 FCFA/mois\n📍 Marcory - 3 pièces - 280,000 FCFA/mois\n📍 Plateau - 3 pièces - 450,000 FCFA/mois", time: "10:30", isBot: true },
-    { id: 4, type: 'received', text: "Super ! Je peux visiter celui de Cocody demain ?", time: "10:31" },
-    { id: 5, type: 'sent', text: "Parfait ! ✅ J'ai planifié une visite pour demain à 14h. Vous recevrez un SMS de confirmation.", time: "10:31", isBot: true },
-]
+import { useTranslations } from 'next-intl'
 
 export default function Hero() {
+    const t = useTranslations('Hero')
     const [visibleMessages, setVisibleMessages] = useState(0)
     const [isTyping, setIsTyping] = useState(false)
+
+    // WhatsApp-style chat messages for the demo
+    const chatMessages = [
+        { id: 1, type: 'received', text: t('chat.message1'), time: "10:30" },
+        { id: 2, type: 'sent', text: t('chat.response1'), time: "10:30", isBot: true },
+        { id: 3, type: 'sent', text: t('chat.response2'), time: "10:30", isBot: true },
+        { id: 4, type: 'received', text: t('chat.message2'), time: "10:31" },
+        { id: 5, type: 'sent', text: t('chat.response3'), time: "10:31", isBot: true },
+    ]
 
     useEffect(() => {
         if (visibleMessages < chatMessages.length) {
@@ -139,7 +141,7 @@ export default function Hero() {
                                 <Sparkles style={{ width: 16, height: 16, color: '#25D366' }} />
                             </motion.div>
                             <span style={{ fontSize: 14, color: '#25D366', fontWeight: 600 }}>
-                                Propulsé par l'IA
+                                {t('poweredBy')}
                             </span>
                         </motion.div>
 
@@ -154,26 +156,29 @@ export default function Hero() {
                                 fontWeight: 800,
                                 marginBottom: 24,
                                 lineHeight: 1.15,
-                                letterSpacing: '-0.03em'
+                                letterSpacing: '-0.03em',
+                                color: 'white'
                             }}
                         >
-                            <span style={{ color: 'white' }}>Transformez votre</span>
-                            <br />
-                            <span style={{
-                                background: 'linear-gradient(135deg, #25D366 0%, #128C7E 50%, #075E54 100%)',
-                                WebkitBackgroundClip: 'text',
-                                WebkitTextFillColor: 'transparent',
-                                backgroundClip: 'text'
-                            }}>WhatsApp</span>
-                            <span style={{ color: 'white' }}> en</span>
-                            <br />
-                            <span style={{ color: 'white' }}>machine à </span>
-                            <span style={{
-                                background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
-                                WebkitBackgroundClip: 'text',
-                                WebkitTextFillColor: 'transparent',
-                                backgroundClip: 'text'
-                            }}>ventes</span>
+                            {t.rich('title', {
+                                green: (chunks) => (
+                                    <span style={{
+                                        background: 'linear-gradient(135deg, #25D366 0%, #128C7E 50%, #075E54 100%)',
+                                        WebkitBackgroundClip: 'text',
+                                        WebkitTextFillColor: 'transparent',
+                                        backgroundClip: 'text'
+                                    }}>{chunks}</span>
+                                ),
+                                gold: (chunks) => (
+                                    <span style={{
+                                        background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+                                        WebkitBackgroundClip: 'text',
+                                        WebkitTextFillColor: 'transparent',
+                                        backgroundClip: 'text'
+                                    }}>{chunks}</span>
+                                ),
+                                br: () => <br />
+                            })}
                         </motion.h1>
 
                         {/* Subtitle */}
@@ -190,8 +195,10 @@ export default function Hero() {
                                 maxWidth: '100%'
                             }}
                         >
-                            Notre IA répond à vos clients <span style={{ color: 'white', fontWeight: 500 }}>24h/24</span>,
-                            qualifie vos prospects et <span style={{ color: '#25D366', fontWeight: 500 }}>augmente vos conversions de 300%</span>.
+                            {t.rich('subtitle', {
+                                white: (chunks) => <span style={{ color: 'white', fontWeight: 500 }}>{chunks}</span>,
+                                green: (chunks) => <span style={{ color: '#25D366', fontWeight: 500 }}>{chunks}</span>
+                            })}
                         </motion.p>
 
                         {/* Feature Pills */}
@@ -202,9 +209,9 @@ export default function Hero() {
                             style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 36 }}
                         >
                             {[
-                                { icon: Zap, text: 'Réponse en < 3 sec' },
-                                { icon: Clock, text: 'Disponible 24h/24' },
-                                { icon: Shield, text: 'Sans carte bancaire' }
+                                { icon: Zap, text: t('pills.response') },
+                                { icon: Clock, text: t('pills.available') },
+                                { icon: Shield, text: t('pills.noCard') }
                             ].map((item, i) => (
                                 <div key={i} style={{
                                     display: 'flex',
@@ -249,7 +256,7 @@ export default function Hero() {
                                     }}
                                 >
                                     <MessageCircle style={{ width: 20, height: 20 }} />
-                                    Essai gratuit
+                                    {t('cta.trial')}
                                     <ArrowRight style={{ width: 18, height: 18 }} />
                                 </motion.button>
                             </Link>
@@ -268,7 +275,7 @@ export default function Hero() {
                                         cursor: 'pointer'
                                     }}
                                 >
-                                    Voir les tarifs
+                                    {t('cta.pricing')}
                                 </motion.button>
                             </Link>
                         </motion.div>
@@ -282,9 +289,9 @@ export default function Hero() {
                             style={{ display: 'flex', flexWrap: 'wrap', gap: 24, justifyContent: 'center' }}
                         >
                             {[
-                                { value: '+5,000', label: 'Entreprises', icon: Users },
-                                { value: '2M+', label: 'Messages/mois', icon: MessageCircle },
-                                { value: '98%', label: 'Satisfaction', icon: Star }
+                                { value: t('stats.companies.value'), label: t('stats.companies.label'), icon: Users },
+                                { value: t('stats.messages.value'), label: t('stats.messages.label'), icon: MessageCircle },
+                                { value: t('stats.satisfaction.value'), label: t('stats.satisfaction.label'), icon: Star }
                             ].map((stat, i) => (
                                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                                     <div style={{
@@ -385,10 +392,10 @@ export default function Hero() {
                                         <Bot style={{ width: 22, height: 22, color: 'white' }} />
                                     </div>
                                     <div>
-                                        <div style={{ color: 'white', fontWeight: 600, fontSize: 16 }}>WhatsAI Assistant</div>
+                                        <div style={{ color: 'white', fontWeight: 600, fontSize: 16 }}>{t('chat.botName')}</div>
                                         <div style={{ color: '#25D366', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
                                             <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#25D366' }} />
-                                            En ligne
+                                            {t('chat.status')}
                                         </div>
                                     </div>
                                 </div>
@@ -430,7 +437,7 @@ export default function Hero() {
                                                         fontWeight: 600
                                                     }}>
                                                         <Sparkles style={{ width: 12, height: 12 }} />
-                                                        Réponse IA
+                                                        {t('chat.aiResponse')}
                                                     </div>
                                                 )}
                                                 <div style={{
@@ -505,7 +512,7 @@ export default function Hero() {
                                     gap: 12
                                 }}>
                                     <div style={{ flex: 1, color: 'rgba(255,255,255,0.4)', fontSize: 14 }}>
-                                        Écrire un message...
+                                        {t('chat.inputPlaceholder')}
                                     </div>
                                     <div style={{
                                         width: 40,
@@ -542,8 +549,8 @@ export default function Hero() {
                         >
                             <TrendingUp style={{ width: 20, height: 20, color: '#25D366' }} />
                             <div>
-                                <div style={{ color: 'white', fontWeight: 600, fontSize: 16 }}>+300%</div>
-                                <div style={{ color: '#94a3b8', fontSize: 12 }}>Conversions</div>
+                                <div style={{ color: 'white', fontWeight: 600, fontSize: 16 }}>{t('chat.floatConversion.value')}</div>
+                                <div style={{ color: '#94a3b8', fontSize: 12 }}>{t('chat.floatConversion.label')}</div>
                             </div>
                         </motion.div>
 

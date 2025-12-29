@@ -6,8 +6,10 @@ import { motion } from 'framer-motion'
 import { ArrowLeft, Save, Loader2, Upload, X, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { createBrowserClient } from '@supabase/ssr'
+import { useTranslations } from 'next-intl'
 
 export default function EditProductPage() {
+    const t = useTranslations('Products.Form')
     const params = useParams()
     const router = useRouter()
     const fileInputRef = useRef<HTMLInputElement>(null)
@@ -89,7 +91,7 @@ export default function EditProductPage() {
             setFormData({ ...formData, image_url: publicUrl })
         } catch (err) {
             console.error('Upload error:', err)
-            alert('Erreur lors de l\'upload')
+            alert(t('errors.upload'))
         } finally {
             setUploading(false)
         }
@@ -117,20 +119,21 @@ export default function EditProductPage() {
             router.push('/dashboard/products')
         } catch (err) {
             console.error('Error updating product:', err)
-            alert('Erreur lors de la mise à jour')
+            alert(t('errors.update'))
         } finally {
             setSaving(false)
         }
     }
 
     const handleDelete = async () => {
-        if (!confirm('Supprimer ce produit définitivement ?')) return
+        if (!confirm(t('actions.delete_confirm'))) return
 
         try {
             await fetch(`/api/products/${params.id}`, { method: 'DELETE' })
             router.push('/dashboard/products')
         } catch (err) {
             console.error('Error deleting product:', err)
+            alert(t('errors.delete'))
         }
     }
 
@@ -157,10 +160,10 @@ export default function EditProductPage() {
                     }}
                 >
                     <ArrowLeft style={{ width: 16, height: 16 }} />
-                    Retour aux produits
+                    {t('return')}
                 </Link>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h1 style={{ fontSize: 28, fontWeight: 700, color: 'white' }}>Modifier le produit</h1>
+                    <h1 style={{ fontSize: 28, fontWeight: 700, color: 'white' }}>{t('title_edit')}</h1>
                     <button
                         onClick={handleDelete}
                         style={{
@@ -176,7 +179,7 @@ export default function EditProductPage() {
                         }}
                     >
                         <Trash2 size={16} />
-                        Supprimer
+                        {t('actions.delete')}
                     </button>
                 </div>
             </div>
@@ -195,7 +198,7 @@ export default function EditProductPage() {
                     {/* Image Upload */}
                     <div style={{ marginBottom: 24 }}>
                         <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
-                            Image du produit
+                            {t('image.label')}
                         </label>
                         <div style={{
                             border: '2px dashed rgba(148, 163, 184, 0.2)',
@@ -216,7 +219,7 @@ export default function EditProductPage() {
                             {!imagePreview && !uploading && (
                                 <div>
                                     <Upload style={{ width: 40, height: 40, color: '#64748b', margin: '0 auto 12px' }} />
-                                    <p style={{ color: '#94a3b8' }}>Cliquer pour uploader</p>
+                                    <p style={{ color: '#94a3b8' }}>{t('image.placeholder')}</p>
                                 </div>
                             )}
                             {uploading && (
@@ -256,7 +259,7 @@ export default function EditProductPage() {
 
                     {/* Name */}
                     <div style={{ marginBottom: 20 }}>
-                        <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>Nom *</label>
+                        <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>{t('fields.name')}</label>
                         <input
                             required
                             value={formData.name}
@@ -275,7 +278,7 @@ export default function EditProductPage() {
 
                     {/* Description */}
                     <div style={{ marginBottom: 20 }}>
-                        <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>Description</label>
+                        <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>{t('fields.description')}</label>
                         <textarea
                             value={formData.description}
                             onChange={e => setFormData({ ...formData, description: e.target.value })}
@@ -296,7 +299,7 @@ export default function EditProductPage() {
                     {/* Price & Category */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
                         <div>
-                            <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>Prix (FCFA) *</label>
+                            <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>{t('fields.price')}</label>
                             <input
                                 type="number"
                                 required
@@ -315,7 +318,7 @@ export default function EditProductPage() {
                             />
                         </div>
                         <div>
-                            <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>Catégorie</label>
+                            <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>{t('fields.category')}</label>
                             <input
                                 value={formData.category}
                                 onChange={e => setFormData({ ...formData, category: e.target.value })}
@@ -343,8 +346,8 @@ export default function EditProductPage() {
                         marginBottom: 24
                     }}>
                         <div>
-                            <div style={{ color: 'white', fontWeight: 500 }}>Disponible à la vente</div>
-                            <div style={{ color: '#64748b', fontSize: 14 }}>Le bot peut proposer ce produit</div>
+                            <div style={{ color: 'white', fontWeight: 500 }}>{t('availability.label')}</div>
+                            <div style={{ color: '#64748b', fontSize: 14 }}>{t('availability.description')}</div>
                         </div>
                         <button
                             type="button"
@@ -386,7 +389,7 @@ export default function EditProductPage() {
                                 fontWeight: 600
                             }}
                         >
-                            Annuler
+                            {t('actions.cancel')}
                         </Link>
                         <button
                             type="submit"
@@ -406,7 +409,7 @@ export default function EditProductPage() {
                             }}
                         >
                             {saving ? <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={18} /> : <Save size={18} />}
-                            Enregistrer
+                            {t('actions.save')}
                         </button>
                     </div>
                 </motion.div>

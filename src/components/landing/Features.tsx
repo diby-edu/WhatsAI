@@ -1,47 +1,50 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Zap, Brain, Target, MessageSquare, BarChart3, Database, Globe, Shield } from 'lucide-react'
-
-const features = [
-    {
-        icon: Zap,
-        title: 'Réponses instantanées',
-        description: 'Votre IA répond en moins de 3 secondes, 24h/24, 7j/7.',
-        gradient: 'linear-gradient(135deg, #f59e0b, #f97316)',
-        glow: 'rgba(245, 158, 11, 0.3)'
-    },
-    {
-        icon: Target,
-        title: 'Qualification de leads',
-        description: 'Identifiez automatiquement les prospects chauds à prioriser.',
-        gradient: 'linear-gradient(135deg, #10b981, #34d399)',
-        glow: 'rgba(16, 185, 129, 0.3)'
-    },
-    {
-        icon: MessageSquare,
-        title: 'Multi-conversations',
-        description: 'Gérez des milliers de conversations simultanées sans effort.',
-        gradient: 'linear-gradient(135deg, #3b82f6, #60a5fa)',
-        glow: 'rgba(59, 130, 246, 0.3)'
-    },
-    {
-        icon: BarChart3,
-        title: 'Analytics avancés',
-        description: 'Tableaux de bord en temps réel avec métriques clés.',
-        gradient: 'linear-gradient(135deg, #ec4899, #f472b6)',
-        glow: 'rgba(236, 72, 153, 0.3)'
-    }
-]
-
-const stats = [
-    { value: '5,000+', label: 'Entreprises actives' },
-    { value: '10M+', label: 'Messages traités' },
-    { value: '98%', label: 'Satisfaction client' },
-    { value: '+300%', label: 'ROI moyen' }
-]
+import { Zap, Target, MessageSquare, BarChart3, Globe, Shield, Database, Brain } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 
 export default function Features() {
+    const t = useTranslations('Features')
+
+    const features = [
+        {
+            icon: Zap,
+            title: t('items.instant_response.title'),
+            description: t('items.instant_response.description'),
+            gradient: 'linear-gradient(135deg, #f59e0b, #f97316)',
+            glow: 'rgba(245, 158, 11, 0.3)'
+        },
+        {
+            icon: Target,
+            title: t('items.lead_qualification.title'),
+            description: t('items.lead_qualification.description'),
+            gradient: 'linear-gradient(135deg, #10b981, #34d399)',
+            glow: 'rgba(16, 185, 129, 0.3)'
+        },
+        {
+            icon: MessageSquare,
+            title: t('items.multi_conversations.title'),
+            description: t('items.multi_conversations.description'),
+            gradient: 'linear-gradient(135deg, #3b82f6, #60a5fa)',
+            glow: 'rgba(59, 130, 246, 0.3)'
+        },
+        {
+            icon: BarChart3,
+            title: t('items.analytics.title'),
+            description: t('items.analytics.description'),
+            gradient: 'linear-gradient(135deg, #ec4899, #f472b6)',
+            glow: 'rgba(236, 72, 153, 0.3)'
+        }
+    ]
+
+    const stats = [
+        { value: t('stats.companies.value'), label: t('stats.companies.label') },
+        { value: t('stats.messages.value'), label: t('stats.messages.label') },
+        { value: t('stats.satisfaction.value'), label: t('stats.satisfaction.label') },
+        { value: t('stats.roi.value'), label: t('stats.roi.label') }
+    ]
+
     return (
         <section id="features" style={{
             padding: '120px 24px',
@@ -81,7 +84,7 @@ export default function Features() {
                         marginBottom: 24
                     }}>
                         <Zap style={{ width: 16, height: 16, color: '#25D366' }} />
-                        <span style={{ fontSize: 14, color: '#25D366', fontWeight: 600 }}>Fonctionnalités</span>
+                        <span style={{ fontSize: 14, color: '#25D366', fontWeight: 600 }}>{t('badge')}</span>
                     </div>
                     <h2 style={{
                         fontSize: 'clamp(32px, 5vw, 48px)',
@@ -90,15 +93,19 @@ export default function Features() {
                         marginBottom: 16,
                         lineHeight: 1.2
                     }}>
-                        Une suite complète d'outils{' '}
-                        <span style={{
-                            background: 'linear-gradient(135deg, #25D366, #128C7E)',
-                            WebkitBackgroundClip: 'text',
-                            WebkitTextFillColor: 'transparent'
-                        }}>IA</span>
+                        {t.rich('title', {
+                            green: (chunks) => (
+                                <span style={{
+                                    background: 'linear-gradient(135deg, #25D366, #128C7E)',
+                                    WebkitBackgroundClip: 'text',
+                                    WebkitTextFillColor: 'transparent',
+                                    backgroundClip: 'text'
+                                }}>{chunks}</span>
+                            )
+                        })}
                     </h2>
                     <p style={{ fontSize: 18, color: '#94a3b8', maxWidth: 600, margin: '0 auto' }}>
-                        Transformez vos conversations en opportunités commerciales
+                        {t('subtitle')}
                     </p>
                 </motion.div>
 
@@ -207,6 +214,7 @@ export default function Features() {
                                     background: 'linear-gradient(135deg, #25D366, #6ee7b7)',
                                     WebkitBackgroundClip: 'text',
                                     WebkitTextFillColor: 'transparent',
+                                    backgroundClip: 'text',
                                     marginBottom: 8
                                 }}
                             >

@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useState, useEffect, useRef, use } from 'react'
+import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { ArrowLeft, User, Bot, Clock, Loader2, RefreshCcw, Hand, Play } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 
 interface Message {
     id: string
@@ -24,8 +25,9 @@ interface ConversationDetail {
     updated_at: string
 }
 
-export default function ConversationDetailPage() {
-    const params = useParams()
+export default function ConversationDetailPage({ params }: { params: Promise<{ id: string }> }) {
+    const { id: conversationId } = use(params)
+    const t = useTranslations('Conversations.Detail')
     const router = useRouter()
     const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -36,10 +38,10 @@ export default function ConversationDetailPage() {
     const [togglingPause, setTogglingPause] = useState(false)
 
     useEffect(() => {
-        if (params.id) {
+        if (conversationId) {
             fetchConversation()
         }
-    }, [params.id])
+    }, [conversationId])
 
     useEffect(() => {
         scrollToBottom()
@@ -52,31 +54,31 @@ export default function ConversationDetailPage() {
     const fetchConversation = async () => {
         try {
             setLoading(true)
-            const res = await fetch(`/api/conversations/${params.id}`)
+            const res = await fetch(`/api/conversations/${conversationId}`)
             const data = await res.json()
 
             if (data.data) {
                 setConversation(data.data.conversation)
                 setMessages(data.data.messages)
             } else {
-                setError(data.error || 'Conversation not found')
+                setError(data.error || t('notFound'))
             }
         } catch (err) {
-            setError('Erreur de chargement')
+            setError(t('error'))
         } finally {
             setLoading(false)
         }
     }
 
     const formatTime = (dateStr: string) => {
-        return new Date(dateStr).toLocaleTimeString('fr-FR', {
+        return new Date(dateStr).toLocaleTimeString(undefined, {
             hour: '2-digit',
             minute: '2-digit'
         })
     }
 
     const formatDate = (dateStr: string) => {
-        return new Date(dateStr).toLocaleDateString('fr-FR', {
+        return new Date(dateStr).toLocaleDateString(undefined, {
             weekday: 'long',
             day: 'numeric',
             month: 'long'
@@ -114,7 +116,7 @@ export default function ConversationDetailPage() {
     if (error || !conversation) {
         return (
             <div style={{ textAlign: 'center', padding: 48 }}>
-                <p style={{ color: '#f87171' }}>{error || 'Conversation introuvable'}</p>
+                <p style={{ color: '#f87171' }}>{error || t('notFound')}</p>
                 <button
                     onClick={() => router.push('/dashboard/conversations')}
                     style={{
@@ -127,7 +129,7 @@ export default function ConversationDetailPage() {
                         cursor: 'pointer'
                     }}
                 >
-                    Retour aux conversations
+                    {t('back')}
                 </button>
             </div>
         )
@@ -214,7 +216,7 @@ export default function ConversationDetailPage() {
                 <button
                     onClick={toggleBotPause}
                     disabled={togglingPause}
-                    title={conversation.bot_paused ? 'Réactiver le bot' : 'Prendre le contrôle (pause bot)'}
+                    title={conversation.bot_paused ? t('bot.resume') : t('bot.pause')}
                     style={{
                         padding: '10px 16px',
                         borderRadius: 12,
@@ -233,9 +235,9 @@ export default function ConversationDetailPage() {
                     }}
                 >
                     {conversation.bot_paused ? (
-                        <><Play size={16} /> Réactiver Bot</>
+                        <><Play size={16} /> {t('bot.resume')}</>
                     ) : (
-                        <><Hand size={16} /> Prendre la main</>
+                        <><Hand size={16} /> {t('bot.pause')}</>
                     )}
                 </button>
             </div>
@@ -252,7 +254,7 @@ export default function ConversationDetailPage() {
             }}>
                 {messages.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: 48, color: '#64748b' }}>
-                        Aucun message dans cette conversation
+                        {t('emptyMessages')}
                     </div>
                 ) : (
                     messages.map((msg, i) => (
@@ -337,7 +339,7 @@ export default function ConversationDetailPage() {
                 color: '#64748b',
                 fontSize: 13
             }}>
-                {messages.length} messages • Conversation démarrée le {formatDate(conversation.created_at)}
+                {t('footer', { count: messages.length, date: formatDate(conversation.created_at) })}
             </div>
 
             <style jsx global>{`

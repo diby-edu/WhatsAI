@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { MessageCircle, User, Bot, Clock, Search, Loader2, ChevronRight } from 'lucide-react'
+import { MessageCircle, User, Clock, Search, Loader2 } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 
 interface Conversation {
     id: string
@@ -16,6 +17,7 @@ interface Conversation {
 }
 
 export default function DashboardConversationsPage() {
+    const t = useTranslations('Conversations.List')
     const router = useRouter()
     const [conversations, setConversations] = useState<Conversation[]>([])
     const [loading, setLoading] = useState(true)
@@ -51,14 +53,14 @@ export default function DashboardConversationsPage() {
         const diffMs = now.getTime() - date.getTime()
         const diffMins = Math.floor(diffMs / 60000)
 
-        if (diffMins < 1) return 'À l\'instant'
-        if (diffMins < 60) return `Il y a ${diffMins} min`
-        if (diffMins < 1440) return `Il y a ${Math.floor(diffMins / 60)}h`
-        return date.toLocaleDateString('fr-FR')
+        if (diffMins < 1) return t('card.justNow')
+        if (diffMins < 60) return t('card.ago', { time: `${diffMins} ${t('card.minutes')}` })
+        if (diffMins < 1440) return t('card.ago', { time: `${Math.floor(diffMins / 60)}${t('card.hours')}` })
+        return date.toLocaleDateString()
     }
 
     const formatPhoneNumber = (phone: string) => {
-        if (!phone) return 'Inconnu'
+        if (!phone) return t('card.unknown')
         // Clean WhatsApp suffixes
         const clean = phone.replace(/@s\.whatsapp\.net|@lid|@g\.us/g, '')
         // Format with proper spacing
@@ -90,13 +92,13 @@ export default function DashboardConversationsPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                    <h1 style={{ fontSize: 28, fontWeight: 700, color: 'white', marginBottom: 8 }}>Mes conversations</h1>
-                    <p style={{ color: '#94a3b8' }}>{conversations.length} conversations actives</p>
+                    <h1 style={{ fontSize: 28, fontWeight: 700, color: 'white', marginBottom: 8 }}>{t('title')}</h1>
+                    <p style={{ color: '#94a3b8' }}>{t('subtitle', { count: conversations.length })}</p>
                 </div>
                 <div style={{ position: 'relative' }}>
                     <Search style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', width: 18, height: 18, color: '#64748b' }} />
                     <input
-                        placeholder="Rechercher..."
+                        placeholder={t('searchPlaceholder')}
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         style={{
@@ -121,9 +123,9 @@ export default function DashboardConversationsPage() {
                         textAlign: 'center'
                     }}>
                         <MessageCircle style={{ width: 48, height: 48, color: '#64748b', margin: '0 auto 16px' }} />
-                        <h3 style={{ color: 'white', fontWeight: 600, marginBottom: 8 }}>Aucune conversation</h3>
+                        <h3 style={{ color: 'white', fontWeight: 600, marginBottom: 8 }}>{t('empty.title')}</h3>
                         <p style={{ color: '#64748b', fontSize: 14 }}>
-                            {searchTerm ? 'Aucun résultat pour cette recherche' : 'Les conversations WhatsApp apparaîtront ici'}
+                            {searchTerm ? t('empty.noResults') : t('empty.description')}
                         </p>
                     </div>
                 ) : (
@@ -170,7 +172,7 @@ export default function DashboardConversationsPage() {
                                         )}
                                     </div>
                                     <p style={{ color: '#94a3b8', fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 400 }}>
-                                        {conv.last_message || 'Aucun message'}
+                                        {conv.last_message || t('empty.description')}
                                     </p>
                                 </div>
                                 <div style={{ textAlign: 'right' }}>

@@ -5,8 +5,10 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { MessageCircle, Mail, Loader2, ArrowLeft, Check, ArrowRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useTranslations } from 'next-intl'
 
 export default function ForgotPasswordPage() {
+    const t = useTranslations('Auth.ForgotPassword')
     const [email, setEmail] = useState('')
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -29,7 +31,7 @@ export default function ForgotPasswordPage() {
                 setSuccess(true)
             }
         } catch (err) {
-            setError('Une erreur est survenue. Veuillez réessayer.')
+            setError(t('error'))
         } finally {
             setLoading(false)
         }
@@ -76,16 +78,16 @@ export default function ForgotPasswordPage() {
                         <Check style={{ width: 40, height: 40, color: '#34d399' }} />
                     </motion.div>
                     <h1 style={{ fontSize: 28, fontWeight: 700, color: 'white', marginBottom: 12 }}>
-                        Email envoyé ! 📧
+                        {t('success.title')}
                     </h1>
                     <p style={{ fontSize: 16, color: '#94a3b8', marginBottom: 8 }}>
-                        Si un compte existe avec l'adresse
+                        {t('success.message_1')}
                     </p>
                     <p style={{ fontSize: 16, color: '#34d399', fontWeight: 600, marginBottom: 32 }}>
                         {email}
                     </p>
                     <p style={{ fontSize: 14, color: '#64748b', marginBottom: 24 }}>
-                        vous recevrez un lien pour réinitialiser votre mot de passe.
+                        {t('success.message_2')}
                     </p>
                     <Link
                         href="/login"
@@ -98,7 +100,7 @@ export default function ForgotPasswordPage() {
                             textDecoration: 'none'
                         }}
                     >
-                        Retour à la connexion
+                        {t('back_to_login')}
                         <ArrowRight style={{ width: 18, height: 18 }} />
                     </Link>
                 </motion.div>
@@ -167,7 +169,7 @@ export default function ForgotPasswordPage() {
                     }}
                 >
                     <ArrowLeft style={{ width: 16, height: 16 }} />
-                    Retour à la connexion
+                    {t('back_to_login')}
                 </Link>
 
                 {/* Logo */}
@@ -191,10 +193,10 @@ export default function ForgotPasswordPage() {
                 </Link>
 
                 <h1 style={{ fontSize: 32, fontWeight: 700, color: 'white', marginBottom: 8 }}>
-                    Mot de passe oublié ? 🔐
+                    {t('title')}
                 </h1>
                 <p style={{ fontSize: 16, color: '#94a3b8', marginBottom: 32 }}>
-                    Entrez votre email pour recevoir un lien de réinitialisation.
+                    {t('subtitle')}
                 </p>
 
                 {/* Error message */}
@@ -220,7 +222,7 @@ export default function ForgotPasswordPage() {
                 <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                     <div>
                         <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                            Email
+                            {t('email_label')}
                         </label>
                         <div style={{ position: 'relative' }}>
                             <Mail style={{
@@ -236,7 +238,7 @@ export default function ForgotPasswordPage() {
                                 type="email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
-                                placeholder="votre@email.com"
+                                placeholder={t('email_placeholder')}
                                 required
                                 style={{
                                     width: '100%',
@@ -277,11 +279,11 @@ export default function ForgotPasswordPage() {
                         {loading ? (
                             <>
                                 <Loader2 style={{ width: 20, height: 20, animation: 'spin 1s linear infinite' }} />
-                                Envoi en cours...
+                                {t('submitting')}
                             </>
                         ) : (
                             <>
-                                Envoyer le lien
+                                {t('submit')}
                                 <ArrowRight style={{ width: 20, height: 20 }} />
                             </>
                         )}

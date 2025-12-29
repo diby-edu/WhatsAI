@@ -17,6 +17,7 @@ import {
     Smartphone
 } from 'lucide-react'
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 
 interface Agent {
     id: string
@@ -32,6 +33,7 @@ interface Agent {
 }
 
 export default function AgentsPage() {
+    const t = useTranslations('Agents.Page')
     const [agents, setAgents] = useState<Agent[]>([])
     const [loading, setLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState('')
@@ -87,7 +89,7 @@ export default function AgentsPage() {
     }
 
     const deleteAgent = async (id: string) => {
-        if (!confirm('Êtes-vous sûr de vouloir supprimer cet agent ?')) {
+        if (!confirm(t('card.deleteConfirm'))) {
             setMenuOpen(null)
             return
         }
@@ -130,8 +132,8 @@ export default function AgentsPage() {
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
                 <div>
-                    <h1 style={{ fontSize: 28, fontWeight: 700, color: 'white', marginBottom: 8 }}>Agents</h1>
-                    <p style={{ color: '#94a3b8' }}>Gérez vos assistants IA WhatsApp</p>
+                    <h1 style={{ fontSize: 28, fontWeight: 700, color: 'white', marginBottom: 8 }}>{t('title')}</h1>
+                    <p style={{ color: '#94a3b8' }}>{t('subtitle')}</p>
                 </div>
                 <Link
                     href="/dashboard/agents/new"
@@ -148,7 +150,7 @@ export default function AgentsPage() {
                     }}
                 >
                     <Plus style={{ width: 20, height: 20 }} />
-                    Créer un agent
+                    {t('createButton')}
                 </Link>
             </div>
 
@@ -165,7 +167,7 @@ export default function AgentsPage() {
                 }} />
                 <input
                     type="text"
-                    placeholder="Rechercher un agent..."
+                    placeholder={t('searchPlaceholder')}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     style={{
@@ -207,12 +209,12 @@ export default function AgentsPage() {
                                 {agent.is_active ? (
                                     <>
                                         <CheckCircle style={{ width: 12, height: 12 }} />
-                                        Actif
+                                        {t('card.active')}
                                     </>
                                 ) : (
                                     <>
                                         <XCircle style={{ width: 12, height: 12 }} />
-                                        Inactif
+                                        {t('card.inactive')}
                                     </>
                                 )}
                             </span>
@@ -258,7 +260,7 @@ export default function AgentsPage() {
                                             }}
                                         >
                                             <Edit style={{ width: 16, height: 16 }} />
-                                            Modifier
+                                            {t('card.menu.edit')}
                                         </Link>
                                         <button
                                             onClick={() => toggleAgentStatus(agent.id)}
@@ -277,7 +279,7 @@ export default function AgentsPage() {
                                             }}
                                         >
                                             <Power style={{ width: 16, height: 16 }} />
-                                            {agent.is_active ? 'Désactiver' : 'Activer'}
+                                            {agent.is_active ? t('card.menu.deactivate') : t('card.menu.activate')}
                                         </button>
                                         <button
                                             onClick={() => deleteAgent(agent.id)}
@@ -296,7 +298,7 @@ export default function AgentsPage() {
                                             }}
                                         >
                                             <Trash2 style={{ width: 16, height: 16 }} />
-                                            Supprimer
+                                            {t('card.menu.delete')}
                                         </button>
                                     </div>
                                 )}
@@ -330,7 +332,7 @@ export default function AgentsPage() {
                                     WebkitLineClamp: 2,
                                     WebkitBoxOrient: 'vertical'
                                 }}>
-                                    {agent.description || 'Aucune description'}
+                                    {agent.description || ''}
                                 </p>
                             </div>
                         </div>
@@ -349,14 +351,14 @@ export default function AgentsPage() {
                                 <>
                                     <Smartphone style={{ width: 16, height: 16, color: '#34d399' }} />
                                     <span style={{ fontSize: 14, color: '#34d399' }}>
-                                        {agent.whatsapp_phone || 'Connecté'}
+                                        {agent.whatsapp_phone || t('card.connected')}
                                     </span>
                                 </>
                             ) : (
                                 <>
                                     <MessageSquare style={{ width: 16, height: 16, color: '#64748b' }} />
                                     <span style={{ fontSize: 14, color: '#64748b' }}>
-                                        WhatsApp non connecté
+                                        {t('card.whatsappNotConnected')}
                                     </span>
                                 </>
                             )}
@@ -373,7 +375,7 @@ export default function AgentsPage() {
                                 <div style={{ fontSize: 20, fontWeight: 700, color: 'white' }}>
                                     {agent.total_conversations || 0}
                                 </div>
-                                <div style={{ fontSize: 12, color: '#64748b' }}>Conversations</div>
+                                <div style={{ fontSize: 12, color: '#64748b' }}>{t('card.conversations')}</div>
                             </div>
                             <div style={{
                                 textAlign: 'center',
@@ -384,7 +386,7 @@ export default function AgentsPage() {
                                 <div style={{ fontSize: 20, fontWeight: 700, color: 'white' }}>
                                     {agent.total_messages || 0}
                                 </div>
-                                <div style={{ fontSize: 12, color: '#64748b' }}>Messages</div>
+                                <div style={{ fontSize: 12, color: '#64748b' }}>{t('card.messages')}</div>
                             </div>
                         </div>
 
@@ -406,7 +408,7 @@ export default function AgentsPage() {
                                     textDecoration: 'none'
                                 }}
                             >
-                                Tester
+                                {t('card.test')}
                             </Link>
                             <Link
                                 href={`/dashboard/agents/${agent.id}`}
@@ -424,7 +426,7 @@ export default function AgentsPage() {
                                     textDecoration: 'none'
                                 }}
                             >
-                                Configurer
+                                {t('card.configure')}
                             </Link>
                         </div>
                     </motion.div>
@@ -462,10 +464,10 @@ export default function AgentsPage() {
                             <Plus style={{ width: 32, height: 32, color: '#64748b' }} />
                         </div>
                         <span style={{ fontSize: 18, fontWeight: 500, color: '#94a3b8' }}>
-                            Créer un nouvel agent
+                            {t('emptyState.button')}
                         </span>
                         <span style={{ fontSize: 14, color: '#64748b', marginTop: 4 }}>
-                            Configurez un assistant IA
+                            {t('emptyState.description')}
                         </span>
                     </Link>
                 </motion.div>
@@ -476,10 +478,10 @@ export default function AgentsPage() {
                 <div style={{ textAlign: 'center', padding: 48 }}>
                     <Bot style={{ width: 48, height: 48, margin: '0 auto 16px', color: '#64748b' }} />
                     <h3 style={{ fontSize: 18, fontWeight: 500, color: 'white', marginBottom: 8 }}>
-                        Aucun agent trouvé
+                        {t('emptySearch.title')}
                     </h3>
                     <p style={{ color: '#64748b' }}>
-                        Aucun agent ne correspond à votre recherche "{searchQuery}"
+                        {t('emptySearch.description', { query: searchQuery })}
                     </p>
                 </div>
             )}
@@ -489,10 +491,10 @@ export default function AgentsPage() {
                 <div style={{ textAlign: 'center', padding: 48 }}>
                     <Bot style={{ width: 64, height: 64, margin: '0 auto 24px', color: '#34d399' }} />
                     <h3 style={{ fontSize: 24, fontWeight: 600, color: 'white', marginBottom: 8 }}>
-                        Créez votre premier agent
+                        {t('emptyState.title')}
                     </h3>
                     <p style={{ color: '#94a3b8', marginBottom: 24, maxWidth: 400, margin: '0 auto 24px' }}>
-                        Les agents sont des assistants IA qui répondent automatiquement à vos messages WhatsApp.
+                        {t('emptyState.description')}
                     </p>
                     <Link
                         href="/dashboard/agents/new"
@@ -509,7 +511,7 @@ export default function AgentsPage() {
                         }}
                     >
                         <Plus style={{ width: 20, height: 20 }} />
-                        Créer un agent
+                        {t('createButton')}
                     </Link>
                 </div>
             )}

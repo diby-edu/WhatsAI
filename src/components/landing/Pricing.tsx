@@ -1,11 +1,11 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Check, Zap, Crown, Sparkles, ArrowRight, Gift, Loader2 } from 'lucide-react'
-import Link from 'next/link'
+import { Check, Zap, Crown, Sparkles, ArrowRight, Loader2 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
+import { useTranslations } from 'next-intl'
 
 interface Plan {
     id: string
@@ -18,52 +18,9 @@ interface Plan {
     features: string[]
 }
 
-// Fallback plans with correct pricing
-const fallbackPlans: Plan[] = [
-    {
-        id: 'gratuit',
-        name: 'Gratuit',
-        price: 0,
-        credits: 100,
-        max_agents: 1,
-        is_popular: false,
-        description: 'Pour découvrir',
-        features: ['100 crédits offerts', '1 agent IA', '1 numéro WhatsApp', 'Support communauté']
-    },
-    {
-        id: 'starter',
-        name: 'Starter',
-        price: 5000,
-        credits: 500,
-        max_agents: 2,
-        is_popular: false,
-        description: 'Pour démarrer',
-        features: ['500 crédits/mois', '2 agents IA', '1 numéro WhatsApp', 'Support email', 'Statistiques de base']
-    },
-    {
-        id: 'pro',
-        name: 'Pro',
-        price: 15000,
-        credits: 2000,
-        max_agents: 5,
-        is_popular: true,
-        description: 'Le plus populaire',
-        features: ['2000 crédits/mois', '5 agents IA', '3 numéros WhatsApp', 'Support prioritaire', 'Analytics avancés', 'Produits illimités']
-    },
-    {
-        id: 'business',
-        name: 'Business',
-        price: 35000,
-        credits: 10000,
-        max_agents: -1,
-        is_popular: false,
-        description: 'Solution complète',
-        features: ['10000 crédits/mois', 'Agents illimités', '10 numéros WhatsApp', 'Support dédié 24/7', 'Formation incluse', 'API Premium']
-    }
-]
-
 const planIcons: Record<string, any> = {
     'Gratuit': Zap,
+    'Free': Zap,
     'Starter': Zap,
     'Pro': Crown,
     'Business': Sparkles
@@ -71,17 +28,44 @@ const planIcons: Record<string, any> = {
 
 const planGradients: Record<string, { bg: string; glow: string }> = {
     'Gratuit': { bg: 'linear-gradient(135deg, #64748b, #94a3b8)', glow: 'rgba(100, 116, 139, 0.3)' },
+    'Free': { bg: 'linear-gradient(135deg, #64748b, #94a3b8)', glow: 'rgba(100, 116, 139, 0.3)' },
     'Starter': { bg: 'linear-gradient(135deg, #3b82f6, #60a5fa)', glow: 'rgba(59, 130, 246, 0.3)' },
     'Pro': { bg: 'linear-gradient(135deg, #25D366, #10b981)', glow: 'rgba(37, 211, 102, 0.4)' },
     'Business': { bg: 'linear-gradient(135deg, #f59e0b, #f97316)', glow: 'rgba(245, 158, 11, 0.3)' }
 }
 
 export default function Pricing() {
+    const t = useTranslations('Pricing')
     const router = useRouter()
     const [isYearly, setIsYearly] = useState(false)
-    const [plans, setPlans] = useState<Plan[]>(fallbackPlans)
     const [isAuthenticated, setIsAuthenticated] = useState(false)
     const [loadingPlan, setLoadingPlan] = useState<string | null>(null)
+    const [plans, setPlans] = useState<Plan[]>([])
+
+    // Define base plan structure with numeric values
+    const planDefs = [
+        { id: 'gratuit', key: 'free', price: 0, credits: 100, max_agents: 1, is_popular: false },
+        { id: 'starter', key: 'starter', price: 5000, credits: 500, max_agents: 2, is_popular: false },
+        { id: 'pro', key: 'pro', price: 15000, credits: 2000, max_agents: 5, is_popular: true },
+        { id: 'business', key: 'business', price: 35000, credits: 10000, max_agents: -1, is_popular: false }
+    ]
+
+    // Construct localized plans
+    const localizedPlans: Plan[] = planDefs.map(def => ({
+        id: def.id,
+        name: t(`plans.${def.key}.name`),
+        price: def.price,
+        credits: def.credits,
+        max_agents: def.max_agents,
+        is_popular: def.is_popular,
+        description: t(`plans.${def.key}.description`),
+        features: (t.raw(`plans.${def.key}.features`) as string[]) || []
+    }))
+
+    // Initialize plans state with localized plans
+    useEffect(() => {
+        setPlans(localizedPlans)
+    }, []) // Run once on mount to set initial localized state
 
     // Check authentication status
     useEffect(() => {
@@ -101,11 +85,12 @@ export default function Pricing() {
     }, [])
 
     useEffect(() => {
+        // Try to fetch dynamic plans from API, but if it fails or looks empty, fallback to localized plans
         fetch('/api/plans')
             .then(res => res.json())
             .then(data => {
                 if (data.plans && data.plans.length > 0) {
-                    // Map API data and ensure valid numbers
+                    // Map API data
                     const formattedPlans = data.plans.map((p: any) => ({
                         id: p.id || 'unknown',
                         name: p.name || 'Plan',
@@ -121,9 +106,15 @@ export default function Pricing() {
                         ]
                     }))
                     setPlans(formattedPlans)
+                } else {
+                    // Start with localized plans if no API data
+                    setPlans(localizedPlans)
                 }
             })
-            .catch(() => setPlans(fallbackPlans))
+            .catch(() => {
+                // Keep localized plans on error
+                setPlans(localizedPlans)
+            })
     }, [])
 
     const formatPrice = (price: number) => {
@@ -154,15 +145,19 @@ export default function Pricing() {
                         marginBottom: 12,
                         lineHeight: 1.2
                     }}>
-                        Des tarifs{' '}
-                        <span style={{
-                            background: 'linear-gradient(135deg, #25D366, #6ee7b7)',
-                            WebkitBackgroundClip: 'text',
-                            WebkitTextFillColor: 'transparent'
-                        }}>transparents</span>
+                        {t.rich('title', {
+                            green: (chunks) => (
+                                <span style={{
+                                    background: 'linear-gradient(135deg, #25D366, #6ee7b7)',
+                                    WebkitBackgroundClip: 'text',
+                                    WebkitTextFillColor: 'transparent',
+                                    backgroundClip: 'text'
+                                }}>{chunks}</span>
+                            )
+                        })}
                     </h2>
                     <p style={{ fontSize: 16, color: '#94a3b8', maxWidth: 400, margin: '0 auto 24px' }}>
-                        Choisissez le plan adapté à votre activité
+                        {t('subtitle')}
                     </p>
 
                     {/* Toggle */}
@@ -189,7 +184,7 @@ export default function Pricing() {
                                 transition: 'all 0.3s'
                             }}
                         >
-                            Mensuel
+                            {t('toggle.monthly')}
                         </button>
                         <button
                             onClick={() => setIsYearly(true)}
@@ -208,7 +203,7 @@ export default function Pricing() {
                                 gap: 6
                             }}
                         >
-                            Annuel
+                            {t('toggle.yearly')}
                             <span style={{
                                 padding: '3px 8px',
                                 borderRadius: 100,
@@ -217,7 +212,7 @@ export default function Pricing() {
                                 fontSize: 11,
                                 fontWeight: 700
                             }}>
-                                -17%
+                                {t('discount')}
                             </span>
                         </button>
                     </div>
@@ -231,8 +226,13 @@ export default function Pricing() {
                     alignItems: 'stretch'
                 }}>
                     {plans.map((plan, index) => {
-                        const Icon = planIcons[plan.name] || Zap
-                        const colors = planGradients[plan.name] || planGradients.Starter
+                        // Determine icon and gradient based on plan name (handling both FR and EN)
+                        // This is a bit heuristic since API might return EN names or whatever
+                        // But for localizedPlans it works.
+                        const nameKey = Object.keys(planIcons).find(k => plan.name.includes(k)) || plan.name
+                        const Icon = planIcons[plan.name] || planIcons[nameKey] || Zap
+                        const colors = planGradients[plan.name] || planGradients[nameKey] || planGradients['Starter']
+
                         const price = isYearly ? Math.round((plan.price || 0) * 10) : (plan.price || 0)
 
                         return (
@@ -274,7 +274,7 @@ export default function Pricing() {
                                         textTransform: 'uppercase',
                                         letterSpacing: 0.5
                                     }}>
-                                        Populaire
+                                        {t('popular')}
                                     </div>
                                 )}
 
@@ -315,19 +315,20 @@ export default function Pricing() {
                                                 ? 'linear-gradient(135deg, #25D366, #6ee7b7)'
                                                 : 'linear-gradient(135deg, #fff, #94a3b8)',
                                             WebkitBackgroundClip: 'text',
-                                            WebkitTextFillColor: 'transparent'
+                                            WebkitTextFillColor: 'transparent',
+                                            backgroundClip: 'text'
                                         }}>
-                                            {price === 0 ? 'Gratuit' : formatPrice(price)}
+                                            {price === 0 ? t('plans.free.name') : formatPrice(price)}
                                         </span>
                                         {price > 0 && (
                                             <span style={{ fontSize: 14, color: '#64748b' }}>
-                                                /{isYearly ? 'an' : 'mois'}
+                                                /{isYearly ? t('perYear') : t('perMonth')}
                                             </span>
                                         )}
                                     </div>
                                     {plan.credits > 0 && (
                                         <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
-                                            {formatPrice(plan.credits)} crédits inclus
+                                            {t('creditsIncluded', { price: formatPrice(plan.credits) })}
                                         </div>
                                     )}
                                 </div>
@@ -373,18 +374,15 @@ export default function Pricing() {
                                     disabled={loadingPlan === plan.id}
                                     onClick={async () => {
                                         if (!isAuthenticated) {
-                                            // Not logged in - redirect to register
                                             router.push('/register')
                                             return
                                         }
 
                                         if (plan.price === 0) {
-                                            // Free plan - just go to dashboard
                                             router.push('/dashboard')
                                             return
                                         }
 
-                                        // Authenticated with paid plan - initiate payment
                                         setLoadingPlan(plan.id)
                                         try {
                                             const res = await fetch('/api/payments/initialize', {
@@ -425,9 +423,9 @@ export default function Pricing() {
                                     }}
                                 >
                                     {loadingPlan === plan.id ? (
-                                        <><Loader2 style={{ width: 16, height: 16, animation: 'spin 1s linear infinite' }} /> Chargement...</>
+                                        <><Loader2 style={{ width: 16, height: 16, animation: 'spin 1s linear infinite' }} /> {t('loading')}</>
                                     ) : (
-                                        <>{plan.price === 0 ? 'Essayer' : 'Choisir'} <ArrowRight style={{ width: 16, height: 16 }} /></>
+                                        <>{plan.price === 0 ? t('cta.try') : t('cta.choose')} <ArrowRight style={{ width: 16, height: 16 }} /></>
                                     )}
                                 </motion.button>
                             </motion.div>
@@ -435,7 +433,7 @@ export default function Pricing() {
                     })}
                 </div>
 
-                {/* Enterprise CTA - more compact */}
+                {/* Enterprise CTA */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
@@ -455,10 +453,10 @@ export default function Pricing() {
                 >
                     <div>
                         <h4 style={{ fontSize: 18, fontWeight: 600, color: 'white', marginBottom: 4 }}>
-                            Besoin d'une solution sur-mesure ?
+                            {t('enterprise.title')}
                         </h4>
                         <p style={{ fontSize: 14, color: '#94a3b8' }}>
-                            Contactez-nous pour un plan personnalisé.
+                            {t('enterprise.subtitle')}
                         </p>
                     </div>
                     <motion.button
@@ -478,7 +476,7 @@ export default function Pricing() {
                             gap: 6
                         }}
                     >
-                        Contacter l'équipe
+                        {t('enterprise.cta')}
                         <ArrowRight style={{ width: 14, height: 14 }} />
                     </motion.button>
                 </motion.div>

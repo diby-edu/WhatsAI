@@ -11,9 +11,743 @@
         "features": "Features",
         "howItWorks": "How it works",
         "pricing": "Pricing",
+        "questions": "Questions",
         "faq": "FAQ"
     },
     "WhatsApp": {
         "message": "Hello! I would like to know more about WhatsAI."
+    },
+    "Hero": {
+        "poweredBy": "Powered by AI",
+        "title": "Transform your <green>WhatsApp</green> into a<br><gold>sales machine</gold>",
+        "subtitle": "Our AI replies to your customers <white>24/7</white>, qualifies leads and <green>increases conversions by 300%</green>.",
+        "pills": {
+            "response": "Response < 3 sec",
+            "available": "Available 24/7",
+            "noCard": "No credit card required"
+        },
+        "cta": {
+            "trial": "Start Free Trial",
+            "pricing": "See Pricing"
+        },
+        "stats": {
+            "companies": {
+                "value": "+5,000",
+                "label": "Companies"
+            },
+            "messages": {
+                "value": "2M+",
+                "label": "Messages/mo"
+            },
+            "satisfaction": {
+                "value": "98%",
+                "label": "Satisfaction"
+            }
+        },
+        "chat": {
+            "botName": "WhatsAI Assistant",
+            "status": "Online",
+            "message1": "Hello! I'm looking for a 3-bedroom apartment in Abidjan 🏠",
+            "response1": "Hello! 👋 I'm your WhatsAI assistant. I found 5 apartments matching your criteria.",
+            "response2": "📍 Cocody - 3 beds - 350,000 FCFA/mo\n📍 Marcory - 3 beds - 280,000 FCFA/mo\n📍 Plateau - 3 beds - 450,000 FCFA/mo",
+            "message2": "Great! Can I visit the one in Cocody tomorrow?",
+            "response3": "Perfect! ✅ I've scheduled a visit for tomorrow at 2 PM. You will receive a confirmation SMS.",
+            "inputPlaceholder": "Type a message...",
+            "aiResponse": "AI Response",
+            "floatConversion": {
+                "value": "+300%",
+                "label": "Conversions"
+            }
+        }
+    },
+    "Features": {
+        "badge": "Features",
+        "title": "A full suite of <green>AI</green> tools",
+        "subtitle": "Turn your conversations into business opportunities",
+        "items": {
+            "instant_response": {
+                "title": "Instant Responses",
+                "description": "Your AI answers in less than 3 seconds, 24/7."
+            },
+            "lead_qualification": {
+                "title": "Lead Qualification",
+                "description": "Automatically identify hot leads to prioritize."
+            },
+            "multi_conversations": {
+                "title": "Multi-conversations",
+                "description": "Manage thousands of concurrent conversations effortlessly."
+            },
+            "analytics": {
+                "title": "Advanced Analytics",
+                "description": "Real-time dashboards with key metrics."
+            }
+        },
+        "stats": {
+            "companies": {
+                "value": "5,000+",
+                "label": "Active Companies"
+            },
+            "messages": {
+                "value": "10M+",
+                "label": "Messages Processed"
+            },
+            "satisfaction": {
+                "value": "98%",
+                "label": "Customer Satisfaction"
+            },
+            "roi": {
+                "value": "+300%",
+                "label": "Avg. ROI"
+            }
+        }
+    },
+    "Pricing": {
+        "title": "<green>Transparent</green> pricing",
+        "subtitle": "Choose the plan that fits your business",
+        "toggle": {
+            "monthly": "Monthly",
+            "yearly": "Yearly"
+        },
+        "discount": "-17%",
+        "popular": "Popular",
+        "perMonth": "month",
+        "perYear": "year",
+        "creditsIncluded": "{price} credits included",
+        "cta": {
+            "try": "Try",
+            "choose": "Choose"
+        },
+        "enterprise": {
+            "title": "Need a custom solution?",
+            "subtitle": "Contact us for a personalized plan.",
+            "cta": "Contact Team"
+        },
+        "loading": "Loading...",
+        "plans": {
+            "free": {
+                "name": "Free",
+                "description": "To discover",
+                "features": [
+                    "100 free credits",
+                    "1 AI agent",
+                    "1 WhatsApp number",
+                    "Community Support"
+                ]
+            },
+            "starter": {
+                "name": "Starter",
+                "description": "To start",
+                "features": [
+                    "500 credits/mo",
+                    "2 AI agents",
+                    "1 WhatsApp number",
+                    "Email Support",
+                    "Basic Stats"
+                ]
+            },
+            "pro": {
+                "name": "Pro",
+                "description": "Most popular",
+                "features": [
+                    "2000 credits/mo",
+                    "5 AI agents",
+                    "3 WhatsApp numbers",
+                    "Priority Support",
+                    "Advanced Analytics",
+                    "Unlimited Products"
+                ]
+            },
+            "business": {
+                "name": "Business",
+                "description": "Complete Solution",
+                "features": [
+                    "10000 credits/mo",
+                    "Unlimited Agents",
+                    "10 WhatsApp numbers",
+                    "Dedicated 24/7 Support",
+                    "Training included",
+                    "Premium API"
+                ]
+            }
+        }
+    },
+    "FAQ": {
+        "badge": "FAQ",
+        "title": "Frequent <green>Questions</green>",
+        "subtitle": "Everything you need to know about WhatsAI",
+        "items": {
+            "howItWorks": {
+                "question": "How does WhatsAI work?",
+                "answer": "WhatsAI connects to your WhatsApp via QR code (like WhatsApp Web). Once connected, our AI analyzes incoming messages and generates personalized responses based on your instructions. Everything is automatic and real-time.",
+                "category": "General"
+            },
+            "banRisk": {
+                "question": "Can WhatsApp ban me?",
+                "answer": "Our system uses Baileys, a proven solution imitating human behavior. By following best practices (response delays, personalization), the risk is minimal. Thousands of active users without issues.",
+                "category": "Security"
+            },
+            "freeTest": {
+                "question": "Can I test for free?",
+                "answer": "Absolutely! Create an account and get 100 free credits to test all features. No credit card required. Upgrade to a paid plan when you're ready.",
+                "category": "General"
+            },
+            "credits": {
+                "question": "How does the credit system work?",
+                "answer": "1 credit = 1 message sent by AI. Incoming messages do not consume credits. Your credits renew every month depending on your plan.",
+                "category": "Billing"
+            },
+            "multiNumber": {
+                "question": "Can I use multiple WhatsApp numbers?",
+                "answer": "Yes! The number of numbers depends on your plan. Starter: 1, Pro: 2, Business: 4. Each number can have its own AI agent with different instructions.",
+                "category": "Features"
+            },
+            "appointments": {
+                "question": "Can AI take appointments?",
+                "answer": "Yes! Configure your agent to collect information and propose slots. Integration with Google Calendar is available on Pro and Business plans.",
+                "category": "Features"
+            },
+            "security": {
+                "question": "Are my data secure?",
+                "answer": "Absolutely. End-to-end encryption, sessions stored securely, and GDPR compliance. We never read your conversations.",
+                "category": "Security"
+            },
+            "cancel": {
+                "question": "Can I cancel anytime?",
+                "answer": "Yes, no commitment! Cancel your subscription anytime from your dashboard. Your remaining credits are usable until the end of the period.",
+                "category": "Billing"
+            }
+        }
+    },
+    "Footer": {
+        "cta": {
+            "title": "Ready to automate your WhatsApp?",
+            "subtitle": "Join thousands of businesses using WhatsAI 24/7.",
+            "start": "Start for free",
+            "demo": "View demo"
+        },
+        "brandDescription": "The AI that answers your customers on WhatsApp 24/7.",
+        "columns": {
+            "product": "Product",
+            "company": "Company",
+            "resources": "Resources",
+            "legal": "Legal"
+        },
+        "links": {
+            "features": "Features",
+            "pricing": "Pricing",
+            "faq": "FAQ",
+            "api": "API Docs",
+            "about": "About",
+            "blog": "Blog",
+            "partners": "Partners",
+            "contact": "Contact",
+            "help": "Help Center",
+            "tutorials": "Tutorials",
+            "templates": "Templates",
+            "privacy": "Privacy",
+            "terms": "Terms",
+            "gdpr": "GDPR"
+        },
+        "rights": "© 2025 WhatsAI. All rights reserved."
+    },
+    "Auth": {
+        "login": {
+            "title": "Welcome back! 👋",
+            "subtitle": "Login to access your dashboard",
+            "emailLabel": "Email",
+            "passwordLabel": "Password",
+            "forgotPassword": "Forgot password?",
+            "submit": "Login",
+            "loading": "Logging in...",
+            "orContinueWith": "or continue with",
+            "google": "Continue with Google",
+            "noAccount": "Don't have an account?",
+            "createAccount": "Create an account",
+            "error": {
+                "invalidCredentials": "Invalid email or password.",
+                "notConfirmed": "Please confirm your email before logging in.",
+                "generic": "An error occurred. Please try again."
+            }
+        },
+        "register": {
+            "title": "Create your account 🚀",
+            "subtitle": "Start your 14-day free trial",
+            "nameLabel": "Full Name",
+            "emailLabel": "Email",
+            "passwordLabel": "Password",
+            "companyLabel": "Company Name (optional)",
+            "submit": "Create my account",
+            "loading": "Creating...",
+            "terms": "By creating an account, you accept our",
+            "termsLink": "Terms of Service",
+            "hasAccount": "Already have an account?",
+            "loginLink": "Login"
+        }
+    },
+    "Dashboard": {
+        "sidebar": {
+            "dashboard": "Dashboard",
+            "agents": "Agents",
+            "conversations": "Conversations",
+            "products": "Products",
+            "orders": "Orders",
+            "playground": "Playground",
+            "billing": "Billing",
+            "settings": "Settings",
+            "help": "Help",
+            "logout": "Logout"
+        },
+        "overview": {
+            "title": "Dashboard",
+            "subtitle": "Welcome! Here is an overview of your activity.",
+            "stats": {
+                "messages": "Messages this month",
+                "agents": "Active Agents",
+                "conversations": "Conversations",
+                "credits": "Remaining Credits"
+            },
+            "recentConversations": "Recent Conversations",
+            "viewAll": "View all",
+            "yourAgents": "Your Agents",
+            "manage": "Manage",
+            "createAgent": "+ Create new agent",
+            "quickActions": "Quick Actions",
+            "actions": {
+                "createAgent": "Create an agent",
+                "testChatbot": "Test chatbot",
+                "viewConversations": "View conversations",
+                "buyCredits": "Buy credits"
+            },
+            "agentStatus": {
+                "online": "Online",
+                "offline": "Offline"
+            }
+        }
+    },
+    "Agents": {
+        "Page": {
+            "title": "Agents",
+            "subtitle": "Manage your WhatsApp AI assistants",
+            "createButton": "Create Agent",
+            "searchPlaceholder": "Search for an agent...",
+            "emptySearch": {
+                "title": "No agents found",
+                "description": "No agents match your search \"{query}\""
+            },
+            "emptyState": {
+                "title": "Create your first agent",
+                "description": "Agents are AI assistants that automatically reply to your WhatsApp messages.",
+                "button": "Create Agent"
+            },
+            "card": {
+                "active": "Active",
+                "inactive": "Inactive",
+                "conversations": "Conversations",
+                "messages": "Messages",
+                "whatsappNotConnected": "WhatsApp not connected",
+                "test": "Test",
+                "configure": "Configure",
+                "menu": {
+                    "edit": "Edit",
+                    "activate": "Activate",
+                    "deactivate": "Deactivate",
+                    "delete": "Delete"
+                },
+                "deleteConfirm": "Are you sure you want to delete this agent?"
+            }
+        },
+        "Wizard": {
+            "title": "Create a new agent",
+            "subtitle": "Configure your AI assistant in a few steps",
+            "back": "Back to agents",
+            "steps": {
+                "info": "Info",
+                "mission": "Mission",
+                "personality": "Personality",
+                "settings": "Settings",
+                "whatsapp": "WhatsApp"
+            },
+            "buttons": {
+                "next": "Next",
+                "prev": "Previous",
+                "create": "Create Agent",
+                "finish": "Finish",
+                "loading": "Loading...",
+                "skip": "Skip this step",
+                "generateQr": "Show QR Code",
+                "retry": "Retry"
+            },
+            "success": "Agent created successfully!"
+        },
+        "Form": {
+            "name": {
+                "label": "Agent Name",
+                "placeholder": "Ex: Sales Assistant"
+            },
+            "description": {
+                "label": "Description",
+                "placeholder": "Briefly describe the role of this agent..."
+            },
+            "mission": {
+                "label": "Choose a mission",
+                "systemPromptLabel": "System Instructions (Prompt)",
+                "promptPlaceholder": "Describe in detail how the agent should behave...",
+                "hint": "The more detailed the instructions, the better the agent will behave."
+            },
+            "personality": {
+                "label": "Agent Personality",
+                "emojis": "Use Emojis",
+                "emojisHint": "The agent will use emojis in its responses",
+                "types": {
+                    "professional": "Professional",
+                    "friendly": "Friendly",
+                    "casual": "Casual",
+                    "formal": "Formal"
+                }
+            },
+            "settings": {
+                "responseDelay": "Response Delay",
+                "fast": "fast",
+                "natural": "natural",
+                "language": "Primary Language",
+                "model": "AI Model",
+                "temperature": "Temperature",
+                "maxTokens": "Max Tokens",
+                "active": "Agent Active",
+                "save": "Save",
+                "saving": "Saving..."
+            },
+            "summary": {
+                "title": "Summary",
+                "name": "Name",
+                "personality": "Personality",
+                "emojis": "Emojis",
+                "delay": "Delay"
+            }
+        },
+        "Templates": {
+            "ecommerce": {
+                "title": "🛒 E-commerce / Store",
+                "description": "Online product sales, catalog, orders"
+            },
+            "restaurant": {
+                "title": "🍽️ Restaurant / Fast-food",
+                "description": "Food ordering, daily menu, delivery"
+            },
+            "hotel": {
+                "title": "🏨 Hotel / Accomodation",
+                "description": "Room booking, hotel services"
+            },
+            "salon": {
+                "title": "💇 Salon / Beauty",
+                "description": "Appointment booking, beauty services"
+            },
+            "services": {
+                "title": "🔧 Services / Handyman",
+                "description": "Quotes, interventions, various services"
+            },
+            "custom": {
+                "title": "✏️ Custom",
+                "description": "Create your own custom mission"
+            }
+        },
+        "connect": {
+            "title": "WhatsApp Connection",
+            "status": {
+                "connected": "Connected",
+                "connecting": "Connecting...",
+                "qrReady": "Waiting for scan",
+                "disconnected": "Disconnected",
+                "idle": "Idle"
+            },
+            "methods": {
+                "qr": "QR Code",
+                "code": "Linking Code"
+            },
+            "qrInstructions": {
+                "step1": "Open WhatsApp on your phone",
+                "step2": "Menu → Linked Devices",
+                "step3": "Scan this QR code"
+            },
+            "codeInstructions": {
+                "enterPhone": "WhatsApp Number (with country code)",
+                "placeholder": "225 07 12 34 56 78",
+                "note": "Enter your number without + or spaces",
+                "generatedCode": "Or enter this code in WhatsApp:",
+                "step": "WhatsApp → Settings → Linked Devices → Link a Device → Link with phone number"
+            },
+            "actions": {
+                "connect": "Connect WhatsApp",
+                "disconnect": "Disconnect",
+                "deleteSession": "Delete Session",
+                "cancel": "Cancel",
+                "refresh": "Refresh",
+                "generateQr": "Generate QR Code",
+                "regenerate": "Regenerate"
+            },
+            "success": {
+                "title": "WhatsApp Connected",
+                "subtitle": "Your agent is ready to reply"
+            },
+            "feedback": {
+                "codeGenerated": "An 8-digit code will be generated to link your WhatsApp.",
+                "qrGenerated": "A QR code will be generated to scan with your phone."
+            },
+            "initialization": "Initialization...",
+            "preparing": "Preparing WhatsApp session",
+            "scanPrompt": "Scan the QR code to link this agent to your WhatsApp account.",
+            "openWhatsapp": "Open WhatsApp on your phone > Linked Devices > Link a Device",
+            "connectedSuccess": "Connected!",
+            "error": "Error"
+        }
+    },
+    "Conversations": {
+        "List": {
+            "title": "My Conversations",
+            "subtitle": "{count} active conversations",
+            "searchPlaceholder": "Search...",
+            "empty": {
+                "title": "No conversations",
+                "description": "WhatsApp conversations will appear here",
+                "noResults": "No results found"
+            },
+            "card": {
+                "unknown": "Unknown",
+                "justNow": "Just now",
+                "ago": "{time} ago",
+                "minutes": "min",
+                "hours": "h"
+            }
+        },
+        "Detail": {
+            "back": "Back",
+            "notFound": "Conversation not found",
+            "loading": "Loading...",
+            "bot": {
+                "pause": "Take over",
+                "resume": "Resume Bot",
+                "paused": "Bot paused",
+                "active": "Bot active"
+            },
+            "emptyMessages": "No messages in this conversation",
+            "footer": "{count} messages • Started on {date}",
+            "inputPlaceholder": "Type a message..."
+        }
+    },
+    "Settings": {
+        "title": "Settings",
+        "subtitle": "Manage your account and preferences",
+        "tabs": {
+            "profile": "Profile",
+            "notifications": "Notifications",
+            "security": "Security",
+            "danger": "Danger Zone"
+        },
+        "Profile": {
+            "title": "Profile Information",
+            "form": {
+                "fullName": "Full Name",
+                "email": "Email",
+                "phone": "Phone",
+                "company": "Company"
+            },
+            "save": "Save",
+            "saving": "Saving...",
+            "saved": "Saved!"
+        },
+        "Notifications": {
+            "title": "Notification Preferences",
+            "newConversation": {
+                "label": "New Conversation",
+                "description": "Receive an email when a customer starts a conversation"
+            },
+            "dailySummary": {
+                "label": "Daily Summary",
+                "description": "Receive a daily summary of your conversations"
+            },
+            "lowCredits": {
+                "label": "Low Credits Alert",
+                "description": "Get notified when your credits are running low"
+            }
+        },
+        "Security": {
+            "title": "Account Security",
+            "changePassword": "Change Password",
+            "form": {
+                "current": "Current Password",
+                "new": "New Password",
+                "confirm": "Confirm Password"
+            },
+            "update": "Update Password",
+            "errorMatch": "Passwords do not match"
+        },
+        "Danger": {
+            "title": "Danger Zone",
+            "deleteAccount": {
+                "title": "Delete My Account",
+                "description": "This action is irreversible. All your data, agents, and conversations will be permanently deleted.",
+                "button": "Delete My Account",
+                "confirm": "Are you sure you want to delete your account? This action is irreversible.",
+                "support": "Contact support to delete your account."
+            }
+        }
+    },
+    "Billing": {
+        "title": "Billing",
+        "subtitle": "Manage your subscription and credits",
+        "status": {
+            "success": {
+                "title": "Payment Successful!",
+                "message": "Your credits have been added."
+            },
+            "failed": {
+                "title": "Payment Failed",
+                "message": "The payment could not be processed."
+            }
+        },
+        "Overview": {
+            "currentPlan": "Current Plan",
+            "remainingCredits": "Remaining Credits",
+            "usedThisMonth": "Used This Month",
+            "lowCredits": {
+                "title": "Low Credits Warning",
+                "message": "You have less than 50 credits remaining."
+            }
+        },
+        "Plans": {
+            "title": "Change Plan",
+            "loading": "Loading plans...",
+            "creditsPerMonth": "{count} credits/mo",
+            "popular": "Popular",
+            "current": "Current Plan",
+            "choose": "Select",
+            "price_unit": "FCFA/mo"
+        },
+        "Credits": {
+            "title": "Buy Credits",
+            "unit": "credits",
+            "buy": "Buy"
+        },
+        "History": {
+            "title": "Payment History",
+            "empty": "No payments yet",
+            "status": {
+                "completed": "Success",
+                "failed": "Failed"
+            }
+        }
+    },
+    "Products": {
+        "List": {
+            "title": "Products & Services",
+            "count": "{count} products",
+            "search": "Search...",
+            "add": "Add",
+            "empty": {
+                "title": "No products",
+                "message": "Add your products so the bot can propose them to customers.",
+                "button": "Create my first product"
+            },
+            "delete_confirm": "Delete this product?",
+            "status": {
+                "available": "Available",
+                "unavailable": "Unavailable"
+            },
+            "no_category": "Uncategorized",
+            "no_description": "No description"
+        },
+        "Form": {
+            "title_new": "New Product",
+            "title_edit": "Edit Product",
+            "return": "Back to products",
+            "image": {
+                "label": "Product Image",
+                "placeholder": "Click to upload an image",
+                "help": "PNG, JPG up to 5MB",
+                "uploading": "Uploading..."
+            },
+            "fields": {
+                "name": "Product Name *",
+                "description": "Description",
+                "price": "Price (FCFA) *",
+                "category": "Category",
+                "sku": "SKU / Reference",
+                "stock": "Stock (-1 = unlimited)"
+            },
+            "availability": {
+                "label": "Available for sale",
+                "description": "The bot can propose this product"
+            },
+            "actions": {
+                "cancel": "Cancel",
+                "save": "Save",
+                "create": "Create Product",
+                "delete": "Delete",
+                "delete_confirm": "Permanently delete this product?"
+            },
+            "errors": {
+                "upload": "Error uploading image.",
+                "create": "Error creating product.",
+                "update": "Error updating product.",
+                "delete": "Error deleting product."
+            }
+        }
+    },
+    "Orders": {
+        "List": {
+            "title": "Orders",
+            "count": "{count} orders",
+            "search": "Search...",
+            "filter": {
+                "all": "All Statuses",
+                "pending": "Pending",
+                "confirmed": "Confirmed",
+                "processing": "Processing",
+                "shipped": "Shipped",
+                "delivered": "Delivered",
+                "cancelled": "Cancelled"
+            },
+            "empty": {
+                "title": "No orders",
+                "message": "Orders created by the bot will appear here."
+            },
+            "card": {
+                "details": "Details",
+                "items_more": "+{count} more items"
+            }
+        },
+        "Detail": {
+            "title": "Order {number}",
+            "created_on": "Created on {date}",
+            "return": "Back to orders",
+            "not_found": "Order not found",
+            "items": {
+                "title": "Items ({count})",
+                "empty": "No items",
+                "total": "Total"
+            },
+            "notes": "Notes",
+            "customer": {
+                "title": "Customer",
+                "unknown": "Unknown"
+            },
+            "actions": {
+                "title": "Actions",
+                "confirm": "Confirm",
+                "cancel": "Cancel",
+                "process": "Set to Processing",
+                "ship": "Mark as Shipped",
+                "deliver": "Mark as Delivered",
+                "completed": "Order Completed"
+            }
+        },
+        "Status": {
+            "pending": "Pending",
+            "confirmed": "Confirmed",
+            "processing": "Processing",
+            "shipped": "Shipped",
+            "delivered": "Delivered",
+            "cancelled": "Cancelled"
+        }
     }
 }

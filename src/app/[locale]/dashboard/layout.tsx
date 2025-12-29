@@ -23,29 +23,31 @@ import {
     ShoppingBag
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-
-const sidebarLinks = [
-    { href: '/dashboard', label: 'Tableau de bord', icon: LayoutDashboard },
-    { href: '/dashboard/agents', label: 'Agents', icon: Bot },
-    { href: '/dashboard/conversations', label: 'Conversations', icon: MessagesSquare },
-    { href: '/dashboard/products', label: 'Produits', icon: Package },
-    { href: '/dashboard/orders', label: 'Commandes', icon: ShoppingBag },
-    { href: '/dashboard/playground', label: 'Playground', icon: Zap },
-    { href: '/dashboard/billing', label: 'Facturation', icon: CreditCard },
-    { href: '/dashboard/settings', label: 'Paramètres', icon: Settings },
-    { href: '/dashboard/help', label: 'Aide', icon: HelpCircle },
-]
+import { useTranslations } from 'next-intl'
 
 export default function DashboardLayout({
     children,
 }: {
     children: React.ReactNode
 }) {
+    const t = useTranslations('Dashboard.sidebar')
     const pathname = usePathname()
     const router = useRouter()
     const [collapsed, setCollapsed] = useState(false)
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
     const [isMobile, setIsMobile] = useState(false)
+
+    // Defined inside component to use hooks
+    const sidebarLinks = [
+        { href: '/dashboard', label: t('dashboard'), icon: LayoutDashboard },
+        { href: '/dashboard/agents', label: t('agents'), icon: Bot },
+        { href: '/dashboard/conversations', label: t('conversations'), icon: MessagesSquare },
+        { href: '/dashboard/products', label: t('products'), icon: Package },
+        { href: '/dashboard/orders', label: t('orders'), icon: ShoppingBag },
+        { href: '/dashboard/playground', label: t('playground'), icon: Zap },
+        { href: '/dashboard/billing', label: t('billing'), icon: CreditCard },
+        { href: '/dashboard/settings', label: t('settings'), icon: Settings },
+    ]
 
     useEffect(() => {
         const checkMobile = () => setIsMobile(window.innerWidth < 1024)
@@ -212,7 +214,7 @@ export default function DashboardLayout({
                                     }}
                                 >
                                     <LogOut style={{ width: 20, height: 20 }} />
-                                    <span>Déconnexion</span>
+                                    <span>{t('logout')}</span>
                                 </button>
                             </nav>
                         </motion.div>
@@ -310,8 +312,8 @@ export default function DashboardLayout({
                     {/* Footer */}
                     <div style={{ padding: 12, borderTop: '1px solid rgba(148, 163, 184, 0.1)', display: 'flex', flexDirection: 'column', gap: 4 }}>
                         <Link
-                            href="/help"
-                            title={collapsed ? 'Aide' : undefined}
+                            href="/dashboard/help"
+                            title={collapsed ? t('help') : undefined}
                             style={{
                                 display: 'flex',
                                 alignItems: 'center',
@@ -325,11 +327,11 @@ export default function DashboardLayout({
                             }}
                         >
                             <HelpCircle style={{ width: 20, height: 20, flexShrink: 0 }} />
-                            {!collapsed && <span>Aide</span>}
+                            {!collapsed && <span>{t('help')}</span>}
                         </Link>
                         <button
                             onClick={handleLogout}
-                            title={collapsed ? 'Déconnexion' : undefined}
+                            title={collapsed ? t('logout') : undefined}
                             style={{
                                 display: 'flex',
                                 alignItems: 'center',
@@ -346,7 +348,7 @@ export default function DashboardLayout({
                             }}
                         >
                             <LogOut style={{ width: 20, height: 20, flexShrink: 0 }} />
-                            {!collapsed && <span>Déconnexion</span>}
+                            {!collapsed && <span>{t('logout')}</span>}
                         </button>
                     </div>
                 </aside>

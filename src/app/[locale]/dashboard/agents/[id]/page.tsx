@@ -12,17 +12,17 @@ import {
     CheckCircle2,
     AlertCircle,
     RefreshCw,
-    Bot,
     Settings,
-    MessageSquare,
     Trash2
 } from 'lucide-react'
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 
 export default function AgentDetailsPage({ params }: { params: Promise<{ id: string }> }) {
     // Unwrap params using React.use()
     const { id: agentId } = use(params)
     const router = useRouter()
+    const t = useTranslations('Agents')
 
     const [agent, setAgent] = useState<any>(null)
     const [loading, setLoading] = useState(true)
@@ -56,14 +56,14 @@ export default function AgentDetailsPage({ params }: { params: Promise<{ id: str
 
     const fetchAgent = async () => {
         try {
-            console.log('Fetching agent details for ID:', agentId)
+
             const res = await fetch(`/api/agents/${agentId}`, {
                 cache: 'no-store'
             })
-            console.log('Fetch response status:', res.status)
+
 
             const data = await res.json()
-            console.log('Fetch response data:', data)
+
 
             if (!res.ok) throw new Error(data.error)
 
@@ -133,7 +133,7 @@ export default function AgentDetailsPage({ params }: { params: Promise<{ id: str
 
     // Connect WhatsApp
     const connectWhatsApp = async () => {
-        console.log('INITIATING WHATSAPP CONNECTION for agent:', agentId)
+
         setWhatsappStatus('connecting')
         // Reset old QR code
         setQrCode(null)
@@ -146,15 +146,15 @@ export default function AgentDetailsPage({ params }: { params: Promise<{ id: str
                 body: JSON.stringify({ agentId }),
             })
 
-            console.log('Connect response status:', response.status)
+
             const data = await response.json()
-            console.log('Connect response data:', data)
+
 
             // Unwrapping the response: successResponse wraps in { data: ... }
             const result = data.data || data
 
             if (!response.ok) {
-                throw new Error(data.error || 'Erreur de connexion')
+                throw new Error(data.error || t('connect.error'))
             }
 
             if (result.qrCode) {
@@ -202,7 +202,7 @@ export default function AgentDetailsPage({ params }: { params: Promise<{ id: str
                 const data = await response.json()
                 const result = data.data || data
 
-                console.log('Polling status:', result)
+
 
                 if (result.status === 'connected' || result.connected) {
                     setWhatsappStatus('connected')
@@ -234,7 +234,14 @@ export default function AgentDetailsPage({ params }: { params: Promise<{ id: str
         )
     }
 
-    if (!agent) return <div style={{ color: 'white', padding: 40 }}>Agent introuvable</div>
+    if (!agent) return <div style={{ color: 'white', padding: 40 }}>{t('Page.emptySearch.title')}</div>
+
+    const personalities = [
+        { id: 'professional', name: t('Form.personality.types.professional') },
+        { id: 'friendly', name: t('Form.personality.types.friendly') },
+        { id: 'casual', name: t('Form.personality.types.casual') },
+        { id: 'formal', name: t('Form.personality.types.formal') }
+    ]
 
     return (
         <div style={{ padding: 24, paddingBottom: 100 }}>
@@ -252,7 +259,7 @@ export default function AgentDetailsPage({ params }: { params: Promise<{ id: str
                     }}
                 >
                     <ArrowLeft style={{ width: 16, height: 16 }} />
-                    Retour aux agents
+                    {t('Wizard.back')}
                 </Link>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <h1 style={{ fontSize: 28, fontWeight: 700, color: 'white' }}>
@@ -275,7 +282,7 @@ export default function AgentDetailsPage({ params }: { params: Promise<{ id: str
                             }}
                         >
                             <Settings size={18} />
-                            Paramètres
+                            {t('Wizard.steps.settings')}
                         </button>
                         <button
                             onClick={() => setActiveTab('whatsapp')}
@@ -293,7 +300,7 @@ export default function AgentDetailsPage({ params }: { params: Promise<{ id: str
                             }}
                         >
                             <Smartphone size={18} />
-                            Connexion WhatsApp
+                            {t('Wizard.steps.whatsapp')} ({t(`connect.status.${whatsappStatus === 'qr_ready' ? 'qrReady' : whatsappStatus}`)})
                         </button>
                     </div>
                 </div>
@@ -313,7 +320,9 @@ export default function AgentDetailsPage({ params }: { params: Promise<{ id: str
                         }}
                     >
                         <div style={{ marginBottom: 20 }}>
-                            <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>Nom</label>
+                            <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
+                                {t('Form.name.label')}
+                            </label>
                             <input
                                 value={formData.name}
                                 onChange={e => setFormData({ ...formData, name: e.target.value })}
@@ -328,7 +337,9 @@ export default function AgentDetailsPage({ params }: { params: Promise<{ id: str
                             />
                         </div>
                         <div style={{ marginBottom: 20 }}>
-                            <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>Description</label>
+                            <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
+                                {t('Form.description.label')}
+                            </label>
                             <input
                                 value={formData.description}
                                 onChange={e => setFormData({ ...formData, description: e.target.value })}
@@ -343,7 +354,9 @@ export default function AgentDetailsPage({ params }: { params: Promise<{ id: str
                             />
                         </div>
                         <div style={{ marginBottom: 20 }}>
-                            <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>Prompt Système</label>
+                            <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
+                                {t('Form.mission.systemPromptLabel')}
+                            </label>
                             <textarea
                                 value={formData.systemPrompt}
                                 onChange={e => setFormData({ ...formData, systemPrompt: e.target.value })}
@@ -363,7 +376,9 @@ export default function AgentDetailsPage({ params }: { params: Promise<{ id: str
                         {/* Advanced Settings Grid */}
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
                             <div>
-                                <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>Personnalité</label>
+                                <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
+                                    {t('Form.personality.label')}
+                                </label>
                                 <select
                                     value={formData.personality}
                                     onChange={e => setFormData({ ...formData, personality: e.target.value })}
@@ -376,14 +391,15 @@ export default function AgentDetailsPage({ params }: { params: Promise<{ id: str
                                         color: 'white'
                                     }}
                                 >
-                                    <option value="professional">Professionnel</option>
-                                    <option value="friendly">Amical</option>
-                                    <option value="casual">Décontracté</option>
-                                    <option value="formal">Formel</option>
+                                    {personalities.map(p => (
+                                        <option key={p.id} value={p.id}>{p.name}</option>
+                                    ))}
                                 </select>
                             </div>
                             <div>
-                                <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>Modèle IA</label>
+                                <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
+                                    {t('Form.settings.model')}
+                                </label>
                                 <select
                                     value={formData.model}
                                     onChange={e => setFormData({ ...formData, model: e.target.value })}
@@ -404,7 +420,9 @@ export default function AgentDetailsPage({ params }: { params: Promise<{ id: str
 
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
                             <div>
-                                <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>Température ({formData.temperature})</label>
+                                <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
+                                    {t('Form.settings.temperature')} ({formData.temperature})
+                                </label>
                                 <input
                                     type="range"
                                     min="0"
@@ -420,7 +438,9 @@ export default function AgentDetailsPage({ params }: { params: Promise<{ id: str
                                 </div>
                             </div>
                             <div>
-                                <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>Max Tokens</label>
+                                <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
+                                    {t('Form.settings.maxTokens')}
+                                </label>
                                 <input
                                     type="number"
                                     min="100"
@@ -441,7 +461,9 @@ export default function AgentDetailsPage({ params }: { params: Promise<{ id: str
 
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
                             <div>
-                                <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>Délai de réponse (sec)</label>
+                                <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
+                                    {t('Form.settings.responseDelay')} (sec)
+                                </label>
                                 <input
                                     type="number"
                                     min="0"
@@ -459,7 +481,9 @@ export default function AgentDetailsPage({ params }: { params: Promise<{ id: str
                                 />
                             </div>
                             <div>
-                                <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>Langue</label>
+                                <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
+                                    {t('Form.settings.language')}
+                                </label>
                                 <select
                                     value={formData.language}
                                     onChange={e => setFormData({ ...formData, language: e.target.value })}
@@ -505,7 +529,7 @@ export default function AgentDetailsPage({ params }: { params: Promise<{ id: str
                                         transition: 'left 0.2s'
                                     }} />
                                 </button>
-                                <span style={{ color: '#e2e8f0' }}>Utiliser des emojis</span>
+                                <span style={{ color: '#e2e8f0' }}>{t('Form.personality.emojis')}</span>
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                                 <button
@@ -532,7 +556,7 @@ export default function AgentDetailsPage({ params }: { params: Promise<{ id: str
                                         transition: 'left 0.2s'
                                     }} />
                                 </button>
-                                <span style={{ color: '#e2e8f0' }}>Agent actif</span>
+                                <span style={{ color: '#e2e8f0' }}>{t('Form.settings.active')}</span>
                             </div>
                         </div>
 
@@ -554,7 +578,7 @@ export default function AgentDetailsPage({ params }: { params: Promise<{ id: str
                                 }}
                             >
                                 {saving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
-                                Enregistrer
+                                {saving ? t('Form.settings.saving') : t('Form.settings.save')}
                             </button>
                         </div>
                     </motion.div>
@@ -586,10 +610,10 @@ export default function AgentDetailsPage({ params }: { params: Promise<{ id: str
                                     <QrCode style={{ width: 40, height: 40, color: '#34d399' }} />
                                 </div>
                                 <h3 style={{ fontSize: 20, fontWeight: 600, color: 'white', marginBottom: 8 }}>
-                                    Connecter WhatsApp
+                                    {t('connect.title')}
                                 </h3>
                                 <p style={{ color: '#94a3b8', marginBottom: 24, maxWidth: 400 }}>
-                                    Scannez le QR code pour relier cet agent à votre compte WhatsApp.
+                                    {t('connect.scanPrompt')}
                                 </p>
                                 <button
                                     onClick={connectWhatsApp}
@@ -608,7 +632,7 @@ export default function AgentDetailsPage({ params }: { params: Promise<{ id: str
                                     }}
                                 >
                                     <QrCode size={20} />
-                                    Générer le QR Code
+                                    {t('connect.actions.generateQr')}
                                 </button>
                             </>
                         )}
@@ -616,8 +640,8 @@ export default function AgentDetailsPage({ params }: { params: Promise<{ id: str
                         {whatsappStatus === 'connecting' && (
                             <>
                                 <Loader2 style={{ width: 48, height: 48, color: '#34d399', animation: 'spin 1s linear infinite', marginBottom: 24 }} />
-                                <h3 style={{ color: 'white', fontSize: 18, marginBottom: 8 }}>Initialisation...</h3>
-                                <p style={{ color: '#94a3b8' }}>Préparation de la session WhatsApp</p>
+                                <h3 style={{ color: 'white', fontSize: 18, marginBottom: 8 }}>{t('connect.initialization')}</h3>
+                                <p style={{ color: '#94a3b8' }}>{t('connect.preparing')}</p>
                             </>
                         )}
 
@@ -632,7 +656,7 @@ export default function AgentDetailsPage({ params }: { params: Promise<{ id: str
                                     <img src={qrCode} alt="QR Code" style={{ width: 280, height: 280 }} />
                                 </div>
                                 <p style={{ color: '#94a3b8', marginBottom: 24 }}>
-                                    Ouvrez WhatsApp sur votre téléphone &gt; Appareils connectés &gt; Connecter un appareil
+                                    {t('connect.openWhatsapp')}
                                 </p>
                                 <button
                                     onClick={connectWhatsApp}
@@ -649,7 +673,7 @@ export default function AgentDetailsPage({ params }: { params: Promise<{ id: str
                                     }}
                                 >
                                     <RefreshCw size={16} />
-                                    Régénérer
+                                    {t('connect.actions.regenerate')}
                                 </button>
                             </>
                         )}
@@ -665,7 +689,7 @@ export default function AgentDetailsPage({ params }: { params: Promise<{ id: str
                                     <CheckCircle2 style={{ width: 48, height: 48, color: '#34d399' }} />
                                 </div>
                                 <h3 style={{ fontSize: 24, fontWeight: 700, color: 'white', marginBottom: 8 }}>
-                                    Connecté !
+                                    {t('connect.connectedSuccess')}
                                 </h3>
                                 <p style={{ color: '#34d399', marginBottom: 32, fontSize: 18 }}>
                                     {connectedPhone}
@@ -686,7 +710,7 @@ export default function AgentDetailsPage({ params }: { params: Promise<{ id: str
                                     }}
                                 >
                                     <Trash2 size={20} />
-                                    Déconnecter
+                                    {t('connect.actions.disconnect')}
                                 </button>
                             </>
                         )}
@@ -702,7 +726,7 @@ export default function AgentDetailsPage({ params }: { params: Promise<{ id: str
                                     <AlertCircle style={{ width: 48, height: 48, color: '#f87171' }} />
                                 </div>
                                 <h3 style={{ fontSize: 20, fontWeight: 600, color: '#f87171', marginBottom: 8 }}>
-                                    Erreur
+                                    {t('connect.error')}
                                 </h3>
                                 <p style={{ color: '#94a3b8', marginBottom: 24 }}>{error}</p>
                                 <button
@@ -717,7 +741,7 @@ export default function AgentDetailsPage({ params }: { params: Promise<{ id: str
                                         cursor: 'pointer'
                                     }}
                                 >
-                                    Réessayer
+                                    {t('Wizard.buttons.retry')}
                                 </button>
                             </>
                         )}

@@ -6,8 +6,10 @@ import { motion } from 'framer-motion'
 import { ArrowLeft, Save, Loader2, Upload, X, ImageIcon } from 'lucide-react'
 import Link from 'next/link'
 import { createBrowserClient } from '@supabase/ssr'
+import { useTranslations } from 'next-intl'
 
 export default function NewProductPage() {
+    const t = useTranslations('Products.Form')
     const router = useRouter()
     const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -61,7 +63,7 @@ export default function NewProductPage() {
             setFormData({ ...formData, image_url: publicUrl })
         } catch (err) {
             console.error('Upload error:', err)
-            alert('Erreur lors de l\'upload de l\'image. Vérifiez que le bucket "images" existe dans Supabase Storage.')
+            alert(t('errors.upload'))
         } finally {
             setUploading(false)
         }
@@ -89,7 +91,7 @@ export default function NewProductPage() {
             router.push('/dashboard/products')
         } catch (err) {
             console.error('Error creating product:', err)
-            alert('Erreur lors de la création du produit')
+            alert(t('errors.create'))
         } finally {
             setLoading(false)
         }
@@ -111,9 +113,9 @@ export default function NewProductPage() {
                     }}
                 >
                     <ArrowLeft style={{ width: 16, height: 16 }} />
-                    Retour aux produits
+                    {t('return')}
                 </Link>
-                <h1 style={{ fontSize: 28, fontWeight: 700, color: 'white' }}>Nouveau produit</h1>
+                <h1 style={{ fontSize: 28, fontWeight: 700, color: 'white' }}>{t('title_new')}</h1>
             </div>
 
             <form onSubmit={handleSubmit}>
@@ -130,7 +132,7 @@ export default function NewProductPage() {
                     {/* Image Upload */}
                     <div style={{ marginBottom: 24 }}>
                         <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
-                            Image du produit
+                            {t('image.label')}
                         </label>
                         <div style={{
                             border: '2px dashed rgba(148, 163, 184, 0.2)',
@@ -151,8 +153,8 @@ export default function NewProductPage() {
                             {!imagePreview && !uploading && (
                                 <div>
                                     <Upload style={{ width: 40, height: 40, color: '#64748b', margin: '0 auto 12px' }} />
-                                    <p style={{ color: '#94a3b8', marginBottom: 8 }}>Cliquez pour uploader une image</p>
-                                    <p style={{ color: '#64748b', fontSize: 12 }}>PNG, JPG jusqu'à 5MB</p>
+                                    <p style={{ color: '#94a3b8', marginBottom: 8 }}>{t('image.placeholder')}</p>
+                                    <p style={{ color: '#64748b', fontSize: 12 }}>{t('image.help')}</p>
                                 </div>
                             )}
                             {uploading && (
@@ -193,7 +195,7 @@ export default function NewProductPage() {
                     {/* Name */}
                     <div style={{ marginBottom: 20 }}>
                         <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
-                            Nom du produit *
+                            {t('fields.name')}
                         </label>
                         <input
                             required
@@ -215,7 +217,7 @@ export default function NewProductPage() {
                     {/* Description */}
                     <div style={{ marginBottom: 20 }}>
                         <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
-                            Description
+                            {t('fields.description')}
                         </label>
                         <textarea
                             value={formData.description}
@@ -239,7 +241,7 @@ export default function NewProductPage() {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
                         <div>
                             <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
-                                Prix (FCFA) *
+                                {t('fields.price')}
                             </label>
                             <input
                                 type="number"
@@ -260,7 +262,7 @@ export default function NewProductPage() {
                         </div>
                         <div>
                             <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
-                                Catégorie
+                                {t('fields.category')}
                             </label>
                             <input
                                 value={formData.category}
@@ -283,7 +285,7 @@ export default function NewProductPage() {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }}>
                         <div>
                             <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
-                                SKU / Référence
+                                {t('fields.sku')}
                             </label>
                             <input
                                 value={formData.sku}
@@ -302,7 +304,7 @@ export default function NewProductPage() {
                         </div>
                         <div>
                             <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
-                                Stock (-1 = illimité)
+                                {t('fields.stock')}
                             </label>
                             <input
                                 type="number"
@@ -332,8 +334,8 @@ export default function NewProductPage() {
                         marginBottom: 24
                     }}>
                         <div>
-                            <div style={{ color: 'white', fontWeight: 500 }}>Disponible à la vente</div>
-                            <div style={{ color: '#64748b', fontSize: 14 }}>Le bot peut proposer ce produit</div>
+                            <div style={{ color: 'white', fontWeight: 500 }}>{t('availability.label')}</div>
+                            <div style={{ color: '#64748b', fontSize: 14 }}>{t('availability.description')}</div>
                         </div>
                         <button
                             type="button"
@@ -375,7 +377,7 @@ export default function NewProductPage() {
                                 fontWeight: 600
                             }}
                         >
-                            Annuler
+                            {t('actions.cancel')}
                         </Link>
                         <button
                             type="submit"
@@ -395,7 +397,7 @@ export default function NewProductPage() {
                             }}
                         >
                             {loading ? <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={18} /> : <Save size={18} />}
-                            Créer le produit
+                            {t('actions.create')}
                         </button>
                     </div>
                 </motion.div>
