@@ -6,6 +6,7 @@ import makeWASocket, {
     WASocket,
     BaileysEventMap,
     ConnectionState,
+    downloadMediaMessage,
 } from '@whiskeysockets/baileys'
 import { Boom } from '@hapi/boom'
 import * as QRCode from 'qrcode'
@@ -29,6 +30,7 @@ export interface WhatsAppMessage {
     messageType: 'text' | 'image' | 'audio' | 'video' | 'document' | 'sticker'
     timestamp: number
     messageId: string
+    rawMessage?: any
 }
 
 // Store active sessions
@@ -53,7 +55,7 @@ function ensureSessionDir(agentId: string): string {
 
 // Message handlers
 type MessageHandler = (agentId: string, message: WhatsAppMessage) => Promise<void>
-type StatusHandler = (agentId: string, status: ConnectionState) => void
+type StatusHandler = (agentId: string, status: Partial<ConnectionState>) => void
 
 let onMessageReceived: MessageHandler | null = null
 let onStatusChange: StatusHandler | null = null
@@ -254,6 +256,7 @@ export async function initWhatsAppSession(
                 messageType,
                 timestamp: msg.messageTimestamp as number,
                 messageId: msg.key.id || '',
+                rawMessage: msg,
             }
 
             // Call message handler - auto-initialize if not registered
@@ -318,7 +321,7 @@ export async function sendWhatsAppMessage(
 
         const result = await session.socket.sendMessage(jid, { text: message })
 
-        return { success: true, messageId: result?.key.id }
+        return { success: true, messageId: result?.key.id || undefined }
     } catch (error) {
         console.error('Error sending message:', error)
         return { success: false, error: (error as Error).message }
@@ -355,9 +358,41 @@ export async function sendMessageWithTyping(
         // Stop typing
         await session.socket.sendPresenceUpdate('paused', jid)
 
-        return { success: true, messageId: result?.key.id }
+        return { success: true, messageId: result?.key.id || undefined }
     } catch (error) {
         console.error('Error sending message:', error)
+        return { success: false, error: (error as Error).message }
+    }
+}
+
+
+/**
+ * Send an audio message
+ */
+export async function sendAudioMessage(
+    agentId: string,
+    to: string,
+    audioBuffer: Buffer
+): Promise<{ success: boolean; messageId?: string; error?: string }> {
+    const session = activeSessions.get(agentId)
+
+    if (!session || session.status !== 'connected') {
+        return { success: false, error: 'WhatsApp not connected' }
+    }
+
+    try {
+        const jid = to.includes('@') ? to : `${to}@s.whatsapp.net`
+
+        // Send audio (ptt = push to talk, makes it appear as a voice note)
+        const result = await session.socket.sendMessage(jid, {
+            audio: audioBuffer,
+            mimetype: 'audio/mp4',
+            ptt: true
+        })
+
+        return { success: true, messageId: result?.key.id || undefined }
+    } catch (error) {
+        console.error('Error sending audio:', error)
         return { success: false, error: (error as Error).message }
     }
 }
@@ -370,7 +405,7 @@ export async function closeWhatsAppSession(agentId: string): Promise<void> {
 
     if (session) {
         try {
-            await session.socket.end()
+            await session.socket.end(undefined)
         } catch (error) {
             console.error('Error closing session:', error)
         }
@@ -413,4 +448,26 @@ export function hasStoredSession(agentId: string): boolean {
  */
 export function getAllActiveSessions(): Map<string, WhatsAppSession> {
     return activeSessions
+}
+
+/**
+ * Download media from a message
+ */
+export async function downloadMedia(message: any): Promise<Buffer> {
+    try {
+        const buffer = await downloadMediaMessage(
+            message,
+            'buffer',
+            {},
+            {
+                logger,
+                // reuploadRequest is needed for some media types
+                reuploadRequest: update => new Promise(resolve => resolve(update))
+            }
+        )
+        return buffer as Buffer
+    } catch (error) {
+        console.error('Error downloading media:', error)
+        throw error
+    }
 }

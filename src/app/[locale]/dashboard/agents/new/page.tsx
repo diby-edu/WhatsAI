@@ -45,6 +45,8 @@ export default function NewAgentPage() {
         useEmojis: true,
         responseDelay: 2,
         language: 'fr',
+        enableVoice: false,
+        voiceId: 'alloy',
     })
 
     const steps = [
@@ -245,6 +247,8 @@ Règles:
                     use_emojis: formData.useEmojis,
                     response_delay_seconds: formData.responseDelay,
                     language: formData.language,
+                    enable_voice_responses: formData.enableVoice,
+                    voice_id: formData.voiceId,
                 }),
             })
 
@@ -585,6 +589,83 @@ Règles:
                                 <option value="es">Español</option>
                                 <option value="ar">العربية</option>
                             </select>
+                        </div>
+
+                        {/* Voice Settings (Premium) */}
+                        <div style={{
+                            padding: 20,
+                            background: 'rgba(16, 185, 129, 0.05)',
+                            border: '1px solid rgba(16, 185, 129, 0.2)',
+                            borderRadius: 12,
+                            marginTop: 12
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: formData.enableVoice ? 16 : 0 }}>
+                                <div>
+                                    <h3 style={{ fontSize: 15, fontWeight: 600, color: 'white', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        🎙️ {t('Form.settings.voiceResponse')} <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, background: '#fbbf24', color: 'black' }}>PREMIUM</span>
+                                    </h3>
+                                    <p style={{ fontSize: 13, color: '#94a3b8', marginTop: 4 }}>
+                                        {t('Form.settings.voiceDescription')}
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => updateFormData('enableVoice', !formData.enableVoice)}
+                                    style={{
+                                        width: 48,
+                                        height: 28,
+                                        borderRadius: 14,
+                                        background: formData.enableVoice ? '#10b981' : '#334155',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        position: 'relative'
+                                    }}
+                                >
+                                    <div style={{
+                                        width: 22,
+                                        height: 22,
+                                        borderRadius: '50%',
+                                        background: 'white',
+                                        position: 'absolute',
+                                        top: 3,
+                                        left: formData.enableVoice ? 23 : 3,
+                                        transition: 'left 0.2s'
+                                    }} />
+                                </button>
+                            </div>
+
+                            {formData.enableVoice && (
+                                <motion.div
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: 'auto' }}
+                                >
+                                    <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
+                                        {t('Form.settings.voiceId')}
+                                    </label>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                                        {['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'].map(voice => (
+                                            <button
+                                                key={voice}
+                                                onClick={() => updateFormData('voiceId', voice)}
+                                                style={{
+                                                    padding: '8px 12px',
+                                                    borderRadius: 8,
+                                                    border: formData.voiceId === voice ? '1px solid #10b981' : '1px solid rgba(148, 163, 184, 0.2)',
+                                                    background: formData.voiceId === voice ? 'rgba(16, 185, 129, 0.2)' : 'rgba(15, 23, 42, 0.3)',
+                                                    color: 'white',
+                                                    cursor: 'pointer',
+                                                    textTransform: 'capitalize',
+                                                    fontSize: 13
+                                                }}
+                                            >
+                                                {voice}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <p style={{ fontSize: 12, color: '#fbbf24', marginTop: 12 }}>
+                                        ⚠️ {t('Form.settings.voiceCostWarning', { cost: 5 })}
+                                    </p>
+                                </motion.div>
+                            )}
                         </div>
 
                         {/* Summary */}

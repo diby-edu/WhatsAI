@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, use } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { ArrowLeft, User, Bot, Clock, Loader2, RefreshCcw, Hand, Play } from 'lucide-react'
+import { ArrowLeft, User, Bot, Clock, Loader2, RefreshCcw, Hand, Play, Send, Trash2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 interface Message {
@@ -36,6 +36,10 @@ export default function ConversationDetailPage({ params }: { params: Promise<{ i
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [togglingPause, setTogglingPause] = useState(false)
+    const [newMessage, setNewMessage] = useState('')
+    const [sending, setSending] = useState(false)
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+    const [deleting, setDeleting] = useState(false)
 
     useEffect(() => {
         if (conversationId) {
@@ -105,6 +109,50 @@ export default function ConversationDetailPage({ params }: { params: Promise<{ i
         }
     }
 
+    const handleSendMessage = async () => {
+        if (!newMessage.trim() || sending) return
+
+        setSending(true)
+        try {
+            const res = await fetch(`/api/conversations/${conversationId}/messages`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: newMessage })
+            })
+            const data = await res.json()
+
+            if (res.ok) {
+                setNewMessage('')
+                // Refresh messages
+                fetchConversation()
+            } else {
+                console.error(data.error)
+            }
+        } catch (err) {
+            console.error('Error sending message:', err)
+        } finally {
+            setSending(false)
+        }
+    }
+
+    const handleDeleteConversation = async () => {
+        setDeleting(true)
+        try {
+            const res = await fetch(`/api/conversations/${conversationId}`, {
+                method: 'DELETE'
+            })
+
+            if (res.ok) {
+                router.push('/dashboard/conversations')
+            }
+        } catch (err) {
+            console.error('Error deleting conversation:', err)
+        } finally {
+            setDeleting(false)
+            setShowDeleteConfirm(false)
+        }
+    }
+
     if (loading) {
         return (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
@@ -162,6 +210,24 @@ export default function ConversationDetailPage({ params }: { params: Promise<{ i
                     }}
                 >
                     <ArrowLeft style={{ width: 20, height: 20, color: '#94a3b8' }} />
+                </button>
+
+                <button
+                    onClick={() => setShowDeleteConfirm(true)}
+                    style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 12,
+                        background: 'rgba(239, 68, 68, 0.1)',
+                        border: 'none',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginRight: 8
+                    }}
+                >
+                    <Trash2 style={{ width: 18, height: 18, color: '#ef4444' }} />
                 </button>
 
                 <div style={{
@@ -329,18 +395,137 @@ export default function ConversationDetailPage({ params }: { params: Promise<{ i
                 <div ref={messagesEndRef} />
             </div>
 
-            {/* Footer */}
+            {/* Message Input Function Area */}
             <div style={{
                 padding: 16,
                 background: 'rgba(30, 41, 59, 0.5)',
                 borderRadius: '0 0 20px 20px',
                 borderTop: '1px solid rgba(148, 163, 184, 0.1)',
-                textAlign: 'center',
-                color: '#64748b',
-                fontSize: 13
+                display: 'flex',
+                gap: 12,
+                alignItems: 'center'
             }}>
-                {t('footer', { count: messages.length, date: formatDate(conversation.created_at) })}
+                <div style={{ flex: 1, position: 'relative' }}>
+                    <input
+                        type="text"
+                        value={newMessage}
+                        onChange={(e) => setNewMessage(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
+                        placeholder={t('inputPlaceholder')}
+                        disabled={sending}
+                        style={{
+                            width: '100%',
+                            padding: '12px 16px',
+                            background: 'rgba(15, 23, 42, 0.5)',
+                            border: '1px solid rgba(148, 163, 184, 0.2)',
+                            borderRadius: 12,
+                            color: 'white',
+                            outline: 'none',
+                            fontSize: 14
+                        }}
+                    />
+                </div>
+                <button
+                    onClick={handleSendMessage}
+                    disabled={!newMessage.trim() || sending}
+                    style={{
+                        padding: '12px 20px',
+                        background: newMessage.trim() && !sending ? 'linear-gradient(135deg, #10b981, #059669)' : 'rgba(51, 65, 85, 0.5)',
+                        color: newMessage.trim() && !sending ? 'white' : '#94a3b8',
+                        border: 'none',
+                        borderRadius: 12,
+                        cursor: newMessage.trim() && !sending ? 'pointer' : 'not-allowed',
+                        fontWeight: 600,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        transition: 'all 0.2s'
+                    }}
+                >
+                    {sending ? (
+                        <Loader2 style={{ width: 18, height: 18, animation: 'spin 1s linear infinite' }} />
+                    ) : (
+                        <>
+                            {t('send')} <Send size={16} />
+                        </>
+                    )}
+                </button>
             </div>
+
+            {/* Delete Confirmation Modal */}
+            {showDeleteConfirm && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0, left: 0, right: 0, bottom: 0,
+                    background: 'rgba(0,0,0,0.7)',
+                    backdropFilter: 'blur(4px)',
+                    zIndex: 100,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                }}>
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        style={{
+                            background: '#1e293b',
+                            padding: 32,
+                            borderRadius: 20,
+                            width: 400,
+                            maxWidth: '90%',
+                            border: '1px solid rgba(148, 163, 184, 0.1)',
+                            textAlign: 'center'
+                        }}
+                    >
+                        <div style={{
+                            width: 64, height: 64, borderRadius: '50%',
+                            background: 'rgba(239, 68, 68, 0.1)',
+                            color: '#ef4444',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            margin: '0 auto 20px'
+                        }}>
+                            <Trash2 size={32} />
+                        </div>
+                        <h3 style={{ fontSize: 20, fontWeight: 700, color: 'white', marginBottom: 12 }}>
+                            {t('delete.title')}
+                        </h3>
+                        <p style={{ color: '#94a3b8', marginBottom: 24, lineHeight: 1.5 }}>
+                            {t('delete.confirm')}
+                        </p>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                            <button
+                                onClick={() => setShowDeleteConfirm(false)}
+                                style={{
+                                    padding: '12px',
+                                    borderRadius: 12,
+                                    background: 'rgba(148, 163, 184, 0.1)',
+                                    color: 'white',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    fontWeight: 600
+                                }}
+                            >
+                                {t('delete.cancel')}
+                            </button>
+                            <button
+                                onClick={handleDeleteConversation}
+                                disabled={deleting}
+                                style={{
+                                    padding: '12px',
+                                    borderRadius: 12,
+                                    background: '#ef4444',
+                                    color: 'white',
+                                    border: 'none',
+                                    cursor: deleting ? 'not-allowed' : 'pointer',
+                                    fontWeight: 600
+                                }}
+                            >
+                                {deleting ? t('delete.deleting') : t('delete.confirmBtn')}
+                            </button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
 
             <style jsx global>{`
                 @keyframes spin {

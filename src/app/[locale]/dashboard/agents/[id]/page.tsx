@@ -47,7 +47,9 @@ export default function AgentDetailsPage({ params }: { params: Promise<{ id: str
         max_tokens: 500,
         use_emojis: true,
         response_delay_seconds: 2,
-        language: 'fr'
+        language: 'fr',
+        enable_voice_responses: false,
+        voice_id: 'alloy'
     })
 
     useEffect(() => {
@@ -83,7 +85,9 @@ export default function AgentDetailsPage({ params }: { params: Promise<{ id: str
                 max_tokens: fetchedAgent.max_tokens || 500,
                 use_emojis: fetchedAgent.use_emojis ?? true,
                 response_delay_seconds: fetchedAgent.response_delay_seconds || 2,
-                language: fetchedAgent.language || 'fr'
+                language: fetchedAgent.language || 'fr',
+                enable_voice_responses: fetchedAgent.enable_voice_responses ?? false,
+                voice_id: fetchedAgent.voice_id || 'alloy'
             })
 
             // Set initial WhatsApp status
@@ -115,7 +119,9 @@ export default function AgentDetailsPage({ params }: { params: Promise<{ id: str
                     max_tokens: formData.max_tokens,
                     use_emojis: formData.use_emojis,
                     response_delay_seconds: formData.response_delay_seconds,
-                    language: formData.language
+                    language: formData.language,
+                    enable_voice_responses: formData.enable_voice_responses,
+                    voice_id: formData.voice_id
                 })
             })
 
@@ -502,6 +508,82 @@ export default function AgentDetailsPage({ params }: { params: Promise<{ id: str
                             </div>
                         </div>
 
+
+
+                        {/* Voice Settings (Premium) */}
+                        <div style={{
+                            padding: 20,
+                            background: 'rgba(16, 185, 129, 0.05)',
+                            border: '1px solid rgba(16, 185, 129, 0.2)',
+                            borderRadius: 12,
+                            marginBottom: 20
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: formData.enable_voice_responses ? 16 : 0 }}>
+                                <div>
+                                    <h3 style={{ fontSize: 15, fontWeight: 600, color: 'white', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        🎙️ Réponses Vocales (IA) <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, background: '#fbbf24', color: 'black' }}>PREMIUM</span>
+                                    </h3>
+                                    <p style={{ fontSize: 13, color: '#94a3b8', marginTop: 4 }}>
+                                        L'IA répondra par des notes vocales. (Coût: 5 crédits/réponse)
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => setFormData({ ...formData, enable_voice_responses: !formData.enable_voice_responses })}
+                                    style={{
+                                        width: 48,
+                                        height: 28,
+                                        borderRadius: 14,
+                                        background: formData.enable_voice_responses ? '#10b981' : '#334155',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        position: 'relative'
+                                    }}
+                                >
+                                    <div style={{
+                                        width: 22,
+                                        height: 22,
+                                        borderRadius: '50%',
+                                        background: 'white',
+                                        position: 'absolute',
+                                        top: 3,
+                                        left: formData.enable_voice_responses ? 23 : 3,
+                                        transition: 'left 0.2s'
+                                    }} />
+                                </button>
+                            </div>
+
+                            {formData.enable_voice_responses && (
+                                <motion.div
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: 'auto' }}
+                                >
+                                    <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
+                                        Voix de l'assistant
+                                    </label>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                                        {['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'].map(voice => (
+                                            <button
+                                                key={voice}
+                                                onClick={() => setFormData({ ...formData, voice_id: voice })}
+                                                style={{
+                                                    padding: '8px 12px',
+                                                    borderRadius: 8,
+                                                    border: formData.voice_id === voice ? '1px solid #10b981' : '1px solid rgba(148, 163, 184, 0.2)',
+                                                    background: formData.voice_id === voice ? 'rgba(16, 185, 129, 0.2)' : 'rgba(15, 23, 42, 0.3)',
+                                                    color: 'white',
+                                                    cursor: 'pointer',
+                                                    textTransform: 'capitalize',
+                                                    fontSize: 13
+                                                }}
+                                            >
+                                                {voice}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </motion.div>
+                            )}
+                        </div>
+
                         {/* Toggles */}
                         <div style={{ display: 'flex', gap: 24, marginBottom: 24 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -748,6 +830,6 @@ export default function AgentDetailsPage({ params }: { params: Promise<{ id: str
                     </motion.div>
                 )}
             </div>
-        </div>
+        </div >
     )
 }

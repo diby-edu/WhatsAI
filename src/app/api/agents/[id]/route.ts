@@ -52,7 +52,8 @@ export async function PATCH(
         const allowedFields = [
             'name', 'description', 'system_prompt', 'personality',
             'model', 'temperature', 'max_tokens', 'use_emojis',
-            'response_delay_seconds', 'language', 'is_active'
+            'response_delay_seconds', 'language', 'is_active',
+            'enable_voice_responses', 'voice_id'
         ]
 
         const updates: Record<string, any> = {}

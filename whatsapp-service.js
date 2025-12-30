@@ -201,9 +201,46 @@ async function handleMessage(agentId, message) {
             await new Promise(r => setTimeout(r, delay))
             await session.socket.sendPresenceUpdate('paused', message.from)
 
-            // Send message
+            // Send TEXT message
             const result = await session.socket.sendMessage(message.from, { text: aiResponse.content })
             console.log('📤 Response sent:', result.key.id)
+
+            // OPTIONAL: Voice Response
+            let voiceSent = false
+            const hasVoiceCredits = profile.credits_balance >= 5
+
+            if (agent.enable_voice_responses) {
+                if (hasVoiceCredits) {
+                    console.log('🗣️ Voice response enabled, generating audio...')
+                    try {
+                        // Import OpenAI specifically for speech if needed or use existing instance
+                        // Note: Assuming openai instance is available and configured
+                        const mp3 = await openai.audio.speech.create({
+                            model: "tts-1",
+                            voice: agent.voice_id || 'alloy',
+                            input: aiResponse.content,
+                        });
+
+                        const buffer = Buffer.from(await mp3.arrayBuffer());
+
+                        // Send audio (ptt = true for voice note)
+                        await session.socket.sendMessage(message.from, {
+                            audio: buffer,
+                            mimetype: 'audio/mp4',
+                            ptt: true
+                        })
+                        voiceSent = true
+                        console.log('✅ Voice message sent')
+                    } catch (voiceErr) {
+                        console.error('❌ Voice gen failed:', voiceErr)
+                    }
+                } else {
+                    console.log('⚠️ Voice skipped: Insufficient credits (< 5)')
+                }
+            }
+
+            // Calculate cost
+            const creditsToDeduct = voiceSent ? 5 : 1
 
             // Save response
             await supabase.from('messages').insert({
@@ -218,8 +255,8 @@ async function handleMessage(agentId, message) {
 
             // Deduct credit
             await supabase.from('profiles').update({
-                credits_balance: profile.credits_balance - 1,
-                credits_used_this_month: (profile.credits_used_this_month || 0) + 1
+                credits_balance: profile.credits_balance - creditsToDeduct,
+                credits_used_this_month: (profile.credits_used_this_month || 0) + creditsToDeduct
             }).eq('id', agent.user_id)
 
             // Update agent stats
@@ -342,6 +379,11 @@ async function initSession(agentId, agentName) {
                     continue
                 }
 
+                // Filter out status updates and newsletters
+                if (msg.key.remoteJid === 'status@broadcast' || msg.key.remoteJid.includes('@newsletter')) {
+                    continue
+                }
+
                 await handleMessage(agentId, {
                     from: msg.key.remoteJid,
                     pushName: msg.pushName,
@@ -353,6 +395,68 @@ async function initSession(agentId, agentName) {
     } catch (error) {
         console.error(`Error initializing session for ${agentName}:`, error)
         pendingConnections.delete(agentId)
+    }
+}
+
+// Check for pending messages to send (Manual Replies)
+async function checkPendingMessages() {
+    try {
+        const { data: pendingMessages } = await supabase
+            .from('messages')
+            .select(`
+                *,
+                conversation:conversations!inner(
+                    contact_phone,
+                    agent_id
+                )
+            `)
+            .eq('status', 'pending')
+            .eq('role', 'assistant') // Ensure we only send assistant messages
+            .limit(10) // Process in batches
+
+        for (const msg of pendingMessages || []) {
+            const agentId = msg.conversation.agent_id
+            const phoneNumber = msg.conversation.contact_phone
+            const session = activeSessions.get(agentId)
+
+            if (session && session.socket && session.status === 'connected') {
+                console.log(`📤 Sending pending message ${msg.id} to ${phoneNumber}`)
+
+                try {
+                    const result = await session.socket.sendMessage(
+                        phoneNumber.includes('@') ? phoneNumber : `${phoneNumber}@s.whatsapp.net`,
+                        { text: msg.content }
+                    )
+
+                    // Update as sent
+                    await supabase
+                        .from('messages')
+                        .update({
+                            status: 'sent',
+                            whatsapp_message_id: result.key.id,
+                            sent_at: new Date().toISOString()
+                        })
+                        .eq('id', msg.id)
+
+                    console.log(`✅ Message ${msg.id} sent successfully`)
+                } catch (sendError) {
+                    console.error(`❌ Failed to send pending message ${msg.id}:`, sendError)
+                    // Update as failed
+                    await supabase
+                        .from('messages')
+                        .update({
+                            status: 'failed',
+                            error_message: sendError.message
+                        })
+                        .eq('id', msg.id)
+                }
+            } else {
+                // Agent not connected, skip for now
+                // console.log(`⚠️ Agent ${agentId} not connected, skipping pending message`)
+            }
+        }
+    } catch (error) {
+        console.error('Error checking pending messages:', error)
     }
 }
 
@@ -409,6 +513,8 @@ async function main() {
 
     // Periodic check for new agents
     setInterval(checkAgents, CHECK_INTERVAL)
+    // Periodic check for pending messages
+    setInterval(checkPendingMessages, 2000) // Check more frequently for responsiveness
 
     console.log('✅ WhatsApp Service running')
     console.log('⚠️  DO NOT restart this service during deployments!')

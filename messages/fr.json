@@ -347,7 +347,7 @@
         "messages": "Messages",
         "whatsappNotConnected": "WhatsApp non connecté",
         "test": "Tester",
-        "configure": "Configurer",
+        "configure": "Gérer",
         "showQRCode": "QR Code",
         "connected": "Connecté",
         "menu": {
@@ -418,7 +418,11 @@
         "maxTokens": "Max Tokens",
         "active": "Agent actif",
         "save": "Enregistrer",
-        "saving": "Enregistrement..."
+        "saving": "Enregistrement...",
+        "voiceResponse": "Réponses Vocales",
+        "voiceDescription": "L'IA répondra par des notes vocales.",
+        "voiceId": "Voix de l'assistant",
+        "voiceCostWarning": "Attention: Chaque réponse vocale coûte {cost} crédits."
       },
       "summary": {
         "title": "Récapitulatif",
@@ -537,7 +541,15 @@
       },
       "emptyMessages": "Aucun message dans cette conversation",
       "footer": "{count} messages • Démarrée le {date}",
-      "inputPlaceholder": "Écrire un message..."
+      "inputPlaceholder": "Écrire un message...",
+      "send": "Envoyer",
+      "delete": {
+        "title": "Supprimer la conversation",
+        "confirm": "Êtes-vous sûr de vouloir supprimer cette conversation ? Cette action est irréversible.",
+        "confirmBtn": "Supprimer",
+        "cancel": "Annuler",
+        "deleting": "Suppression..."
+      }
     }
   },
   "Settings": {
@@ -729,8 +741,9 @@
         "createAgent": "Créer un agent",
         "noDescription": "Aucune description",
         "productOrService": "S'agit-il d'un produit ou d'un service ?",
-        "product": "Produit",
-        "service": "Service"
+        "product": "Produit Physique",
+        "service": "Service",
+        "virtual": "Produit Virtuel"
       },
       "details": {
         "title": "Détails du produit ou service",
