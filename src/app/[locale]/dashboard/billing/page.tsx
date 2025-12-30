@@ -81,10 +81,20 @@ function BillingContent() {
         const paymentParam = searchParams.get('payment')
         const transactionId = searchParams.get('transaction_id')
 
-        if (paymentParam === 'success') {
+        // CinetPay specific params
+        const cpmTransId = searchParams.get('cpm_trans_id')
+        const cpmSiteId = searchParams.get('cpm_site_id')
+
+        if (paymentParam === 'success' || cpmTransId) {
             // User returned from successful payment
             setPaymentStatus('success')
-            fetchData() // Refresh to get updated credits
+
+            // If we have a transaction ID (CinetPay), verify it
+            if (cpmTransId) {
+                checkPaymentStatus(cpmTransId)
+            } else {
+                fetchData() // Refresh to get updated credits
+            }
         } else if (paymentParam === 'cancelled') {
             setPaymentStatus('failed')
         } else if (transactionId) {
@@ -175,7 +185,7 @@ function BillingContent() {
             const res = await fetch('/api/payments/verify', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ paymentId }),
+                body: JSON.stringify({ paymentId: paymentId, transactionId: paymentId }), // Send as both to be safe
             })
             const data = await res.json()
 

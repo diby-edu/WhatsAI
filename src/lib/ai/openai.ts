@@ -20,7 +20,15 @@ export interface GenerateResponseOptions {
     agentName?: string
     useEmojis?: boolean
     language?: string
-    products?: Array<{ name: string; price_fcfa: number; description: string | null }>
+    products?: Array<{
+        name: string
+        price_fcfa: number
+        description: string | null
+        product_type?: 'product' | 'service' | 'virtual'
+        ai_instructions?: string | null
+        lead_fields?: any[]
+        stock_quantity?: number
+    }>
 }
 
 export interface AIResponse {
@@ -54,10 +62,36 @@ export async function generateAIResponse(
     // Build products catalog text
     let productsCatalog = ''
     if (products.length > 0) {
-        productsCatalog = `\n\nCatalogue de produits/services disponibles:
-${products.map(p => `- ${p.name}: ${p.price_fcfa.toLocaleString('fr-FR')} FCFA${p.description ? ` - ${p.description}` : ''}`).join('\n')}
+        productsCatalog = `\n\n🧠 CONTEXTE PRODUITS & SERVICES :
+Tu as accès à la liste des produits/services vendus par l'entreprise.
+Utilise ces informations pour guider le client.
 
-Tu peux mentionner ces produits quand c'est pertinent et aider les clients à passer commande.`
+LISTE DES OFFRES :
+${products.map(p => {
+            let specificRules = ''
+            switch (p.product_type) {
+                case 'virtual':
+                    specificRules = '📧 PRODUIT VIRTUEL -> Demande l\'email du client. Ne demande JAMAIS d\'adresse de livraison.'
+                    break
+                case 'service':
+                    specificRules = '🤝 SERVICE -> Propose de fixer un rendez-vous (Date/Heure). Ne parle pas de livraison.'
+                    break
+                case 'product':
+                default:
+                    specificRules = '📦 PRODUIT PHYSIQUE -> Vérifie le stock. Demande l\'adresse de livraison et la ville.'
+                    break
+            }
+
+            const stockInfo = p.stock_quantity !== -1 ? `(Stock: ${p.stock_quantity})` : ''
+            const customInstructions = p.ai_instructions ? `\n   ⚠️ NOTE VENDEUR : ${p.ai_instructions}` : ''
+
+            return `🔹 ${p.name} - ${p.price_fcfa.toLocaleString('fr-FR')} FCFA ${stockInfo}
+   📝 ${p.description || ''}
+   RÈGLE : ${specificRules}${customInstructions}`
+        }).join('\n\n')}
+
+INSTRUCTION IMPORTANTE : 
+Si le client s'intéresse à un produit, APPLIQUE STRICTEMENT la règle de son type (Virtuel vs Physique vs Service).`
     }
 
     // Build the system message
@@ -249,5 +283,62 @@ Le message doit:
     } catch (error) {
         console.error('Welcome message generation error:', error)
         return 'Bonjour ! Comment puis-je vous aider ? 👋'
+    }
+}
+
+/**
+ * Transcribe audio file using OpenAI Whisper
+ */
+import fs from 'fs'
+import os from 'os'
+import path from 'path'
+
+/**
+ * Transcribe audio file using OpenAI Whisper
+ */
+export async function transcribeAudio(audioBuffer: Buffer): Promise<string> {
+    const tmpPath = path.join(os.tmpdir(), `audio-${Date.now()}.ogg`)
+
+    try {
+        // Write buffer to temp file
+        fs.writeFileSync(tmpPath, audioBuffer)
+
+        const transcription = await openai.audio.transcriptions.create({
+            file: fs.createReadStream(tmpPath),
+            model: 'whisper-1',
+            language: 'fr', // Optimisation for French
+        })
+
+        // Cleanup
+        try { fs.unlinkSync(tmpPath) } catch { }
+
+        return transcription.text
+    } catch (error) {
+        console.error('Whisper Transcription Error:', error)
+        // Cleanup on error
+        try { fs.unlinkSync(tmpPath) } catch { }
+        return '' // Fail gracefully
+    }
+}
+
+/**
+ * Generate speech from text using OpenAI TTS
+ */
+export async function generateSpeech(
+    text: string,
+    voice: 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer' = 'alloy'
+): Promise<Buffer> {
+    try {
+        const mp3 = await openai.audio.speech.create({
+            model: 'tts-1',
+            voice: voice,
+            input: text,
+        })
+
+        const buffer = Buffer.from(await mp3.arrayBuffer())
+        return buffer
+    } catch (error) {
+        console.error('TTS Generation Error:', error)
+        throw error
     }
 }

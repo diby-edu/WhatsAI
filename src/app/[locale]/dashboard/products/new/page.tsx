@@ -55,7 +55,7 @@ export default function NewProductPage() {
 
     const [formData, setFormData] = useState({
         agent_id: '',
-        product_type: 'product' as 'product' | 'service',
+        product_type: 'product' as 'product' | 'service' | 'virtual',
         name: '',
         description: '',
         ai_instructions: '',
@@ -412,8 +412,8 @@ export default function NewProductPage() {
                             <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 12, fontWeight: 500 }}>
                                 {t('type.productOrService')}
                             </label>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                                {['product', 'service'].map(type => (
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                                {['product', 'virtual', 'service'].map(type => (
                                     <button
                                         key={type}
                                         type="button"
@@ -429,13 +429,27 @@ export default function NewProductPage() {
                                                 : '1px solid rgba(148, 163, 184, 0.2)',
                                             color: 'white',
                                             fontWeight: 500,
-                                            cursor: 'pointer'
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            alignItems: 'center',
+                                            gap: 8
                                         }}
                                     >
+                                        <span style={{ fontSize: 20 }}>
+                                            {type === 'product' && '📦'}
+                                            {type === 'virtual' && '📧'}
+                                            {type === 'service' && '🤝'}
+                                        </span>
                                         {t(`type.${type}`)}
                                     </button>
                                 ))}
                             </div>
+                            <p style={{ marginTop: 12, fontSize: 13, color: '#94a3b8', textAlign: 'center' }}>
+                                {formData.product_type === 'product' && "L'IA demandera une adresse de livraison."}
+                                {formData.product_type === 'virtual' && "L'IA demandera un email (pas d'adresse)."}
+                                {formData.product_type === 'service' && "L'IA proposera des rendez-vous (calendrier)."}
+                            </p>
                         </div>
                     </div>
                 )}

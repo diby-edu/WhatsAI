@@ -1,6 +1,6 @@
 import { createAdminClient } from '@/lib/api-utils'
-import { generateAIResponse, analyzeLeadQuality, AIMessage } from '@/lib/ai/openai'
-import { sendMessageWithTyping, WhatsAppMessage, setMessageHandler } from '@/lib/whatsapp/baileys'
+import { generateAIResponse, analyzeLeadQuality, AIMessage, transcribeAudio, generateSpeech } from '@/lib/ai/openai'
+import { sendMessageWithTyping, WhatsAppMessage, setMessageHandler, downloadMedia, sendAudioMessage } from '@/lib/whatsapp/baileys'
 
 /**
  * Main message handler that processes incoming WhatsApp messages
@@ -25,6 +25,25 @@ export function initializeMessageHandler() {
                 return
             }
             console.log('✅ Agent found:', agent.name)
+
+            // OPTIONAL: Transcribe audio if incoming message is audio
+            if (message.messageType === 'audio' && (message as any).rawMessage) {
+                console.log('🎤 Receiving audio message, starting transcription...')
+                try {
+                    const buffer = await downloadMedia((message as any).rawMessage)
+                    const transcription = await transcribeAudio(buffer)
+                    if (transcription) {
+                        console.log('📝 Transcription success:', transcription)
+                        // Update message content so it is saved and used by AI as text
+                        message.message = `[Message Vocal: ${transcription}]`
+                    } else {
+                        message.message = '[Message Vocal: (Transcription impossible)]'
+                    }
+                } catch (err) {
+                    console.error('❌ Transcription failed:', err)
+                    message.message = '[Message Vocal: (Erreur lecture)]'
+                }
+            }
 
             // Get or create conversation
             // Clean phone number from all WhatsApp suffixes
@@ -125,7 +144,7 @@ export function initializeMessageHandler() {
             // Fetch products for the user (to include in AI context)
             const { data: products } = await supabase
                 .from('products')
-                .select('name, price_fcfa, description')
+                .select('name, price_fcfa, description, product_type, ai_instructions, lead_fields, stock_quantity')
                 .eq('user_id', agent.user_id)
                 .eq('is_available', true)
                 .limit(20)
@@ -144,19 +163,46 @@ export function initializeMessageHandler() {
                 agentName: agent.name,
                 useEmojis: agent.use_emojis,
                 language: agent.language || 'fr',
-                products: products || [],
+                products: (products || []) as any,
             })
             console.log('✅ AI Response generated:', aiResponse.content.substring(0, 100), '...')
 
-            // Send the response via WhatsApp
-            console.log('📤 Sending message via WhatsApp to:', message.from)
+            // Send the response via WhatsApp (Text)
+            console.log('📤 Sending text message via WhatsApp to:', message.from)
             const sendResult = await sendMessageWithTyping(
                 agentId,
                 message.from,
                 aiResponse.content,
                 (agent.response_delay_seconds || 2) * 1000
             )
-            console.log('📤 Send result:', sendResult.success ? '✅ SUCCESS' : '❌ FAILED', sendResult)
+            console.log('📤 Text result:', sendResult.success ? '✅ SUCCESS' : '❌ FAILED', sendResult)
+
+            // OPTIONAL: Send Voice Response (Premium)
+            // Check if user has enough credits (needs 5 total: 1 base + 4 voice)
+            let voiceSent = false
+            const hasVoiceCredits = profile.credits_balance >= 5
+
+            if (agent.enable_voice_responses && sendResult.success) {
+                if (hasVoiceCredits) {
+                    console.log('🗣️ Voice response enabled, generating audio...')
+                    try {
+                        // Generate audio
+                        const audioBuffer = await generateSpeech(aiResponse.content, agent.voice_id || 'alloy')
+
+                        // Send audio note
+                        const voiceResult = await sendAudioMessage(agentId, message.from, audioBuffer)
+
+                        if (voiceResult.success) {
+                            voiceSent = true
+                            console.log('✅ Voice message sent successfully')
+                        }
+                    } catch (voiceErr) {
+                        console.error('❌ Failed to generate/send voice:', voiceErr)
+                    }
+                } else {
+                    console.log('⚠️ Voice response skipped: Insufficient credits (< 5)')
+                }
+            }
 
             // Save AI response to database
             await supabase
@@ -174,11 +220,14 @@ export function initializeMessageHandler() {
                 })
 
             // Deduct credits
+            // Base cost = 1. Voice cost = +4 (Total 5).
+            const creditsToDeduct = voiceSent ? 5 : 1
+
             await supabase
                 .from('profiles')
                 .update({
-                    credits_balance: profile.credits_balance - 1,
-                    credits_used_this_month: (profile.credits_used_this_month || 0) + 1,
+                    credits_balance: profile.credits_balance - creditsToDeduct,
+                    credits_used_this_month: (profile.credits_used_this_month || 0) + creditsToDeduct,
                 })
                 .eq('id', agent.user_id)
 
