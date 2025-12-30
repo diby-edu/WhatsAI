@@ -68,7 +68,6 @@ export default function NewProductPage() {
         images: [] as string[]
     })
 
-    const [debugInfo, setDebugInfo] = useState<any>(null)
 
     const supabase = createBrowserClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -86,26 +85,22 @@ export default function NewProductPage() {
             const res = await fetch('/api/agents')
             const data = await res.json()
             console.log('Agents API raw response:', JSON.stringify(data))
-            setDebugInfo({ timestamp: new Date().toISOString(), rawData: data })
 
-            if (data.success) {
-                // Try various paths to support different API response structures
-                // API usually returns { success: true, data: { agents: [...] } }
-                let agentsList = []
+            // API returns { data: { agents: [...] } } (success field might be missing)
+            let agentsList = []
 
-                if (Array.isArray(data.data?.agents)) {
-                    agentsList = data.data.agents
-                } else if (Array.isArray(data.data)) {
-                    agentsList = data.data
-                } else if (Array.isArray(data.agents)) {
-                    agentsList = data.agents
-                }
-
-                console.log('Final extracted agents list:', agentsList)
-                setAgents(agentsList)
-            } else {
-                console.warn('Agents API returned success: false', data)
+            // Robust extraction
+            if (data.data?.agents && Array.isArray(data.data.agents)) {
+                agentsList = data.data.agents
+            } else if (data.agents && Array.isArray(data.agents)) {
+                agentsList = data.agents
+            } else if (Array.isArray(data.data)) {
+                agentsList = data.data
             }
+
+            console.log('Final extracted agents list:', agentsList)
+            setAgents(agentsList)
+
         } catch (err) {
             console.error('Critical error loading agents:', err)
         } finally {
@@ -361,20 +356,6 @@ export default function NewProductPage() {
                                     <Link href="/dashboard/agents/new" style={{ color: '#10b981', marginLeft: 8 }}>
                                         {t('type.createAgent')}
                                     </Link>
-
-                                    {/* DEBUG PANEL */}
-                                    <div style={{ marginTop: 20, padding: 10, background: 'rgba(0,0,0,0.5)', borderRadius: 8, fontSize: 12, color: '#fff', border: '1px solid #444' }}>
-                                        <strong>DEBUG INFO:</strong>
-                                        <button
-                                            onClick={() => loadAgents()}
-                                            style={{ marginLeft: 10, padding: '2px 8px', background: '#3b82f6', border: 'none', borderRadius: 4, cursor: 'pointer', color: 'white' }}
-                                        >
-                                            Reload
-                                        </button>
-                                        <pre style={{ marginTop: 10, overflowX: 'auto', maxHeight: 200 }}>
-                                            {debugInfo ? JSON.stringify(debugInfo, null, 2) : 'No data yet...'}
-                                        </pre>
-                                    </div>
                                 </div>
                             ) : (
                                 <div style={{ display: 'grid', gap: 12 }}>
