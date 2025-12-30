@@ -80,14 +80,31 @@ export default function NewProductPage() {
 
     const loadAgents = async () => {
         try {
+            console.log('Starting loadAgents...')
             const res = await fetch('/api/agents')
             const data = await res.json()
+            console.log('Agents API raw response:', JSON.stringify(data))
+
             if (data.success) {
-                // API returns { success: true, data: { agents: [...] } }
-                setAgents(data.data?.agents || data.data || [])
+                // Try various paths to support different API response structures
+                // API usually returns { success: true, data: { agents: [...] } }
+                let agentsList = []
+
+                if (Array.isArray(data.data?.agents)) {
+                    agentsList = data.data.agents
+                } else if (Array.isArray(data.data)) {
+                    agentsList = data.data
+                } else if (Array.isArray(data.agents)) {
+                    agentsList = data.agents
+                }
+
+                console.log('Final extracted agents list:', agentsList)
+                setAgents(agentsList)
+            } else {
+                console.warn('Agents API returned success: false', data)
             }
         } catch (err) {
-            console.error('Error loading agents:', err)
+            console.error('Critical error loading agents:', err)
         } finally {
             setLoadingAgents(false)
         }
