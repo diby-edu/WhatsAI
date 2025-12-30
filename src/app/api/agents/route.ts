@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
 
 // GET /api/agents - List all agents for current user
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
     const supabase = await createApiClient()
     const { user, error: authError } = await getAuthUser(supabase)
