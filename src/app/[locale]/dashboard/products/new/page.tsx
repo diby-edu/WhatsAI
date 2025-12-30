@@ -519,8 +519,8 @@ export default function NewProductPage() {
                                 <input
                                     type="number"
                                     min={0}
-                                    value={formData.price_fcfa}
-                                    onChange={e => setFormData({ ...formData, price_fcfa: parseInt(e.target.value) || 0 })}
+                                    value={formData.price_fcfa || ''}
+                                    onChange={e => setFormData({ ...formData, price_fcfa: parseFloat(e.target.value) || 0 })}
                                     style={inputStyle}
                                 />
                             </div>
