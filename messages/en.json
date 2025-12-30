@@ -693,6 +693,74 @@
                 "update": "Error updating product.",
                 "delete": "Error deleting product."
             }
+        },
+        "Wizard": {
+            "title": "Create a Product or Service",
+            "back": "Back to products",
+            "steps": {
+                "type": "Type",
+                "details": "Details",
+                "price": "Price",
+                "lead": "Lead",
+                "images": "Images"
+            },
+            "nav": {
+                "prev": "Previous",
+                "next": "Next",
+                "create": "Create"
+            },
+            "type": {
+                "title": "What type of product or service?",
+                "selectAgent": "Select the agent that will sell this product",
+                "loadingAgents": "Loading agents...",
+                "noAgents": "You don't have any agents yet.",
+                "createAgent": "Create an agent",
+                "noDescription": "No description",
+                "productOrService": "Is this a product or a service?",
+                "product": "Product",
+                "service": "Service"
+            },
+            "details": {
+                "title": "Product or service details",
+                "name": "Product or service name",
+                "namePlaceholder": "E.g.: 30-minute consultation, Custom t-shirt...",
+                "description": "Description",
+                "descriptionPlaceholder": "Describe your product or service in detail...",
+                "aiInstructions": "Instructions for AI",
+                "aiInstructionsPlaceholder": "E.g.: Emphasize premium quality, mention delivery times...",
+                "aiInstructionsHelp": "These instructions help the AI better present and sell this product."
+            },
+            "price": {
+                "title": "Price and availability",
+                "amount": "Price (FCFA)",
+                "category": "Category",
+                "categoryPlaceholder": "E.g.: Clothing, Services, Electronics...",
+                "stock": "Stock quantity",
+                "stockHelp": "-1 = unlimited (for services, for example)",
+                "availability": "Available for sale",
+                "availabilityHelp": "Disable if the product is temporarily unavailable"
+            },
+            "lead": {
+                "title": "Customer information collection",
+                "subtitle": "Configure the information the AI should collect from the customer to finalize the sale.",
+                "fieldLabel": "Field name",
+                "required": "Required",
+                "optional": "Optional",
+                "addField": "Add field",
+                "types": {
+                    "text": "Text",
+                    "tel": "Phone",
+                    "email": "Email",
+                    "number": "Number",
+                    "textarea": "Long text"
+                }
+            },
+            "images": {
+                "title": "Product images",
+                "upload": "Click to add images",
+                "formats": "PNG, JPG, WEBP (max 5MB)",
+                "main": "Main"
+            }
         }
     },
     "Orders": {

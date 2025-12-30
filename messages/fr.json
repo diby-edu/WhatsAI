@@ -705,6 +705,74 @@
         "update": "Erreur lors de la mise à jour.",
         "delete": "Erreur lors de la suppression."
       }
+    },
+    "Wizard": {
+      "title": "Créer un produit ou service",
+      "back": "Retour aux produits",
+      "steps": {
+        "type": "Type",
+        "details": "Détails",
+        "price": "Prix",
+        "lead": "Lead",
+        "images": "Images"
+      },
+      "nav": {
+        "prev": "Précédent",
+        "next": "Suivant",
+        "create": "Créer"
+      },
+      "type": {
+        "title": "Quel type de produit ou service ?",
+        "selectAgent": "Sélectionnez l'agent qui vendra ce produit",
+        "loadingAgents": "Chargement des agents...",
+        "noAgents": "Vous n'avez pas encore d'agent.",
+        "createAgent": "Créer un agent",
+        "noDescription": "Aucune description",
+        "productOrService": "S'agit-il d'un produit ou d'un service ?",
+        "product": "Produit",
+        "service": "Service"
+      },
+      "details": {
+        "title": "Détails du produit ou service",
+        "name": "Nom du produit ou service",
+        "namePlaceholder": "Ex: Consultation 30 minutes, T-shirt personnalisé...",
+        "description": "Description",
+        "descriptionPlaceholder": "Décrivez votre produit ou service en détail...",
+        "aiInstructions": "Instructions pour l'IA",
+        "aiInstructionsPlaceholder": "Ex: Mettez l'accent sur la qualité premium, mentionnez les délais de livraison...",
+        "aiInstructionsHelp": "Ces instructions aident l'IA à mieux présenter et vendre ce produit."
+      },
+      "price": {
+        "title": "Prix et disponibilité",
+        "amount": "Prix (FCFA)",
+        "category": "Catégorie",
+        "categoryPlaceholder": "Ex: Vêtements, Services, Électronique...",
+        "stock": "Quantité en stock",
+        "stockHelp": "-1 = illimité (pour les services par exemple)",
+        "availability": "Disponible à la vente",
+        "availabilityHelp": "Désactivez si le produit est temporairement indisponible"
+      },
+      "lead": {
+        "title": "Collecte d'informations client",
+        "subtitle": "Configurez les informations que l'IA doit collecter auprès du client pour finaliser la vente.",
+        "fieldLabel": "Nom du champ",
+        "required": "Obligatoire",
+        "optional": "Optionnel",
+        "addField": "Ajouter un champ",
+        "types": {
+          "text": "Texte",
+          "tel": "Téléphone",
+          "email": "Email",
+          "number": "Nombre",
+          "textarea": "Texte long"
+        }
+      },
+      "images": {
+        "title": "Images du produit",
+        "upload": "Cliquez pour ajouter des images",
+        "formats": "PNG, JPG, WEBP (max 5MB)",
+        "main": "Principale"
+      }
     }
   },
   "Orders": {

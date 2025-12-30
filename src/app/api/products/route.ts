@@ -43,14 +43,18 @@ export async function POST(request: NextRequest) {
             .insert({
                 user_id: user.id,
                 agent_id: body.agent_id || null,
+                product_type: body.product_type || 'product',
                 name: body.name,
                 description: body.description,
+                ai_instructions: body.ai_instructions || null,
                 price_fcfa: body.price_fcfa || 0,
                 category: body.category,
                 sku: body.sku,
-                image_url: body.image_url,
+                image_url: body.image_url || (body.images?.[0] || null),
+                images: body.images || [],
                 is_available: body.is_available ?? true,
-                stock_quantity: body.stock_quantity ?? -1
+                stock_quantity: body.stock_quantity ?? -1,
+                lead_fields: body.lead_fields || []
             })
             .select()
             .single()
