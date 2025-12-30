@@ -83,7 +83,8 @@ export default function NewProductPage() {
             const res = await fetch('/api/agents')
             const data = await res.json()
             if (data.success) {
-                setAgents(data.data || [])
+                // API returns { success: true, data: { agents: [...] } }
+                setAgents(data.data?.agents || data.data || [])
             }
         } catch (err) {
             console.error('Error loading agents:', err)
