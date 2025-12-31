@@ -7,7 +7,7 @@ import { useTranslations } from 'next-intl'
 export default function WhatsAppButton() {
     const t = useTranslations('WhatsApp')
     // Numéro WhatsApp de contact (format international sans +)
-    const whatsappNumber = '2250718287025'
+    const whatsappNumber = '2250554585927'
     const defaultMessage = t('message')
 
     const handleWhatsAppClick = () => {

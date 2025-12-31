@@ -16,10 +16,9 @@ export const metadata: Metadata = {
   authors: [{ name: "WhatsAI" }],
   icons: {
     icon: [
-      { url: '/icon.svg', type: 'image/svg+xml' },
-      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/favicon.png', type: 'image/png' },
     ],
-    apple: '/icon.svg',
+    apple: '/favicon.png',
   },
   openGraph: {
     title: "WhatsAI - Automatisez votre WhatsApp avec l'IA",

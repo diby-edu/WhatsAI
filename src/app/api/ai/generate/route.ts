@@ -54,31 +54,45 @@ export async function POST(request: NextRequest) {
 
         switch (type) {
             case 'product_description':
-                systemPrompt = "Tu es un expert en marketing digital. Ton but est d'écrire des descriptions de produits vendeuses et attractives."
-                userPrompt = `Écris une description courte (3-4 phrases) mais percutante pour un produit nommé : "${name}". 
+                systemPrompt = "Tu es un copywriter d'élite spécialisé en e-commerce. Ta plume est persuasive, directe et émotionnelle."
+                userPrompt = `Écris une description de vente irrésistible (3-4 phrases) pour : "${name}".
                 Contexte : ${context || 'Aucun'}.
-                Utilise des emojis. Sois professionnel et enthousiaste. Langue : Français.`
+                Règles :
+                1. Commence par une accroche forte.
+                2. Mets en avant les bénéfices (pas juste les fonctionnalités).
+                3. Utilise des emojis stratégiques (🚀, ✨, ✅).
+                4. Ton : Enthousiaste et professionnel.
+                Langue : Français.`
                 break
 
             case 'product_instructions':
-                systemPrompt = "Tu es un expert en conception de prompts pour IA. Tu dois créer des instructions système (System Prompt) pour un agent vendeur."
-                userPrompt = `Crée les instructions système pour une IA chargée de vendre le produit : "${name}".
+                systemPrompt = "Tu es un architecte de comportement IA. Tu crées les PERSONA de vendeurs d'élite."
+                userPrompt = `Crée le System Prompt pour une IA qui doit vendre ce produit : "${name}".
                 Contexte : ${context || 'Aucun'}.
-                L'IA doit être : Persuasive, polie, orientée résultat (vente).
-                Structure de la réponse attendue :
-                "Tu es un vendeur expert de [Produit].
-                Tes objectifs :
-                1. ...
-                2. ...
-                ..."
-                Ne mets pas de guillemets autour de la réponse. Langue : Français.`
+                L'IA doit agir comme un vendeur top-niveau :
+                - Connaisseur mais pas ennuyeux.
+                - Proactif (ferme la vente).
+                - Empathique.
+                
+                Structure attendue (sans guillemets) :
+                "Tu es un expert de [Nom].
+                Ta mission : Transformer chaque question en vente.
+                Règles de conversation :
+                1. [Règle d'approche]
+                2. [Gestion des objections]
+                3. [Closing]
+                Si on te demande le prix : [Stratégie de prix]."
+                Langue : Français.`
                 break
 
             case 'agent_description':
-                systemPrompt = "Tu es un expert en communication. Tu aides à décrire des assistants virtuels."
-                userPrompt = `Écris une description courte et claire (1-2 phrases) pour un assistant IA nommé : "${name}".
-                Son rôle principal : ${context || 'Assister les clients'}.
-                Ton modéré et professionnel. Langue : Français.`
+                systemPrompt = "Tu es un consultant en stratégie de marque. Tu rédiges des biographies d'assistants virtuels qui inspirent confiance et modernité."
+                userPrompt = `Rédige une description courte et impactante (2 phrases max) pour l'agent : "${name}".
+                Son rôle : ${context || 'Assister les clients sur WhatsApp'}.
+                Il doit paraître : Intelligent, Disponible 24/7, et Spécialisé.
+                Utilise un ton expert.
+                Exemple de style : "Expert en [Domaine], je guide vos clients 24h/24..."
+                Langue : Français.`
                 break
 
             default:
