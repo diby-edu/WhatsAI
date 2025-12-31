@@ -323,7 +323,7 @@ Instructions:
     }
 
     // Handle incoming message
-    async function handleMessage(agentId, message) {
+    async function handleMessage(agentId, message, isVoiceMessage = false) {
         console.log(`📩 Message received for agent ${agentId}:`, message.text?.substring(0, 50))
 
         try {
@@ -480,7 +480,10 @@ Instructions:
                 await session.socket.sendPresenceUpdate('paused', message.from)
 
                 // Determine if we should send Voice or Text
-                const shouldSendVoice = agent.enable_voice_responses && (profile.credits_balance >= 5)
+                let result;
+                // COST OPTIMIZATION: Only send voice if ENABLED + CREDITS + INCOMING WAS VOICE
+                // COST OPTIMIZATION: Only send voice if ENABLED + CREDITS + INCOMING WAS VOICE
+                const shouldSendVoice = agent.enable_voice_responses && (profile.credits_balance >= 5) && isVoiceMessage
                 let sentVoice = false
 
                 if (shouldSendVoice) {
@@ -495,7 +498,7 @@ Instructions:
                         const buffer = Buffer.from(await mp3.arrayBuffer());
 
                         // Send audio (ptt = true for voice note)
-                        await session.socket.sendMessage(message.from, {
+                        result = await session.socket.sendMessage(message.from, {
                             audio: buffer,
                             mimetype: 'audio/mp4',
                             ptt: true
@@ -512,12 +515,12 @@ Instructions:
                 // If Voice was NOT sent (either disabled, failed, or no credits), send Text
                 if (!sentVoice) {
                     // Send TEXT message
-                    const result = await session.socket.sendMessage(message.from, { text: aiResponse.content })
+                    result = await session.socket.sendMessage(message.from, { text: aiResponse.content })
                     console.log('📤 Text Response sent:', result.key.id)
                 }
 
                 // Calculate cost
-                const creditsToDeduct = voiceSent ? 5 : 1
+                const creditsToDeduct = sentVoice ? 5 : 1
 
                 // Save response
                 await supabase.from('messages').insert({
@@ -680,7 +683,7 @@ Instructions:
                         pushName: msg.pushName,
                         text,
                         messageId: msg.key.id
-                    })
+                    }, !!msg.message?.audioMessage) // Pass true if it was an audio message
                 }
             })
         } catch (error) {
