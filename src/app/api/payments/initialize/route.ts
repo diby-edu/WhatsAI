@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
             .from('payments')
             .insert({
                 user_id: user!.id,
-                amount_fcfa: amount,
+                amount_fcfa: Math.ceil(amount * 655), // Store XOF amount
                 payment_type: type,
                 description,
                 status: 'pending',
@@ -133,8 +133,8 @@ export async function POST(request: NextRequest) {
                 provider_transaction_id: transactionId,
                 customer_phone: profile.phone,
                 customer_email: profile.email,
-                credits_purchased: metadata.credits, // Store credits from plan
-                provider_response: metadata, // Store full metadata in existing jsonb column
+                credits_purchased: metadata.credits,
+                provider_response: { ...metadata, original_usd: amount },
             })
             .select('id')
             .single()
@@ -144,9 +144,21 @@ export async function POST(request: NextRequest) {
             return errorResponse('Erreur de création du paiement', 500)
         }
 
+        // CURRENCY CONVERSION (USD/EUR -> XOF)
+        // CinetPay only processes XOF. We assume 'amount' is in USD (base currency).
+        // 1 USD = 655 XOF
+        // 1 EUR = 655.957 XOF (approx 0.92 USD but here we convert from plan price)
+
+        // Check user currency preference just for metadata, but calculations are based on Plan currency
+        // Assumption: Plan prices in DB are USD.
+
+        const rateUSD = 655
+        const amountFCFA = Math.ceil(amount * rateUSD)
+
         // Initialize payment with CinetPay
         const paymentData: PaymentInitData = {
-            amount,
+            amount: amountFCFA, // Send converted XOF amount
+            currency: 'XOF',
             transactionId,
             description,
             customerName: profile.full_name || profile.email,
@@ -157,6 +169,8 @@ export async function POST(request: NextRequest) {
             metadata: {
                 ...metadata,
                 payment_id: payment.id,
+                original_amount_usd: amount,
+                conversion_rate: rateUSD
             },
         }
 

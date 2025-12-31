@@ -47,10 +47,10 @@
     "chat": {
       "botName": "Assistant WhatsAI",
       "status": "En ligne",
-      "message1": "Bonjour ! Je cherche un appartement 3 pièces à Abidjan 🏠",
+      "message1": "Bonjour ! Je cherche un appartement 3 pièces en centre-ville 🏠",
       "response1": "Bonjour ! 👋 Je suis votre assistant WhatsAI. J'ai trouvé 5 appartements correspondant à vos critères.",
-      "response2": "📍 Cocody - 3 pièces - 350,000 FCFA/mois\n📍 Marcory - 3 pièces - 280,000 FCFA/mois\n📍 Plateau - 3 pièces - 450,000 FCFA/mois",
-      "message2": "Super ! Je peux visiter celui de Cocody demain ?",
+      "response2": "📍 Quartier Nord - 3 pièces - 1 200 $/mois\n📍 Quartier Sud - 3 pièces - 950 $/mois\n📍 Centre - 3 pièces - 1 500 $/mois",
+      "message2": "Super ! Je peux visiter celui du Quartier Nord demain ?",
       "response3": "Parfait ! ✅ J'ai planifié une visite pour demain à 14h. Vous recevrez un SMS de confirmation.",
       "inputPlaceholder": "Écrire un message...",
       "aiResponse": "Réponse IA",
@@ -478,7 +478,7 @@
       },
       "codeInstructions": {
         "enterPhone": "Numéro WhatsApp (avec indicatif)",
-        "placeholder": "225 07 12 34 56 78",
+        "placeholder": "225 05 54 58 59 27",
         "note": "Entrez votre numéro sans le + ni d'espaces",
         "generatedCode": "Ou entrez ce code dans WhatsApp :",
         "step": "WhatsApp → Paramètres → Appareils liés → Lier un appareil → Lier par numéro de téléphone"
@@ -647,7 +647,7 @@
       "popular": "Populaire",
       "current": "Plan actuel",
       "choose": "Choisir",
-      "price_unit": "FCFA/mois"
+      "price_unit": "$/mois"
     },
     "Credits": {
       "title": "Acheter des crédits",
@@ -695,7 +695,7 @@
       "fields": {
         "name": "Nom du produit *",
         "description": "Description",
-        "price": "Prix (FCFA) *",
+        "price": "Prix *",
         "category": "Catégorie",
         "sku": "SKU / Référence",
         "stock": "Stock (-1 = illimité)"
@@ -757,7 +757,7 @@
       },
       "price": {
         "title": "Prix et disponibilité",
-        "amount": "Prix (FCFA)",
+        "amount": "Prix",
         "category": "Catégorie",
         "categoryPlaceholder": "Ex: Vêtements, Services, Électronique...",
         "stock": "Quantité en stock",

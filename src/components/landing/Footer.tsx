@@ -21,18 +21,10 @@ export default function Footer() {
             { label: t('links.features'), href: '#features' },
             { label: t('links.pricing'), href: '#pricing' },
             { label: t('links.faq'), href: '#faq' },
-            { label: t('links.api'), href: '/docs' },
         ],
         company: [
             { label: t('links.about'), href: '/about' },
-            { label: t('links.blog'), href: '/blog' },
-            { label: t('links.partners'), href: '/partners' },
             { label: t('links.contact'), href: '/contact' },
-        ],
-        resources: [
-            { label: t('links.help'), href: '/help' },
-            { label: t('links.tutorials'), href: '/tutorials' },
-            { label: t('links.templates'), href: '/templates' },
         ],
         legal: [
             { label: t('links.privacy'), href: '/privacy' },
@@ -59,101 +51,6 @@ export default function Footer() {
             }} />
 
             <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px', position: 'relative', zIndex: 10 }}>
-
-                {/* CTA Section - Compact */}
-                <motion.div
-                    initial={{ opacity: 0, y: 30 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    style={{
-                        borderRadius: 24,
-                        padding: '40px 32px',
-                        marginBottom: 48,
-                        background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.6) 0%, rgba(30, 41, 59, 0.3) 100%)',
-                        border: '1px solid rgba(148, 163, 184, 0.1)',
-                        backdropFilter: 'blur(10px)',
-                        position: 'relative',
-                        overflow: 'hidden'
-                    }}
-                >
-                    {/* Background glow */}
-                    <div style={{
-                        position: 'absolute',
-                        top: -50,
-                        right: -50,
-                        width: 200,
-                        height: 200,
-                        borderRadius: '50%',
-                        background: 'radial-gradient(circle, rgba(16, 185, 129, 0.15) 0%, transparent 70%)',
-                        filter: 'blur(40px)'
-                    }} />
-
-                    <div style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        textAlign: 'center',
-                        gap: 24,
-                        position: 'relative'
-                    }}>
-                        <div>
-                            <h2 style={{
-                                fontSize: 28,
-                                fontWeight: 700,
-                                color: 'white',
-                                marginBottom: 12,
-                                lineHeight: 1.3
-                            }}>
-                                {t('cta.title')}
-                            </h2>
-                            <p style={{ color: '#94a3b8', marginBottom: 24, fontSize: 16 }}>
-                                {t('cta.subtitle')}
-                            </p>
-                            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
-                                <Link href="/register" style={{ textDecoration: 'none' }}>
-                                    <motion.button
-                                        whileHover={{ scale: 1.03 }}
-                                        whileTap={{ scale: 0.98 }}
-                                        style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: 8,
-                                            padding: '12px 24px',
-                                            borderRadius: 12,
-                                            background: 'linear-gradient(135deg, #10b981, #059669)',
-                                            color: 'white',
-                                            fontWeight: 600,
-                                            border: 'none',
-                                            cursor: 'pointer',
-                                            fontSize: 15
-                                        }}
-                                    >
-                                        {t('cta.start')}
-                                        <ArrowRight style={{ width: 18, height: 18 }} />
-                                    </motion.button>
-                                </Link>
-                                <Link href="/demo" style={{ textDecoration: 'none' }}>
-                                    <motion.button
-                                        whileHover={{ scale: 1.03 }}
-                                        whileTap={{ scale: 0.98 }}
-                                        style={{
-                                            padding: '12px 24px',
-                                            borderRadius: 12,
-                                            background: 'rgba(51, 65, 85, 0.5)',
-                                            color: 'white',
-                                            fontWeight: 600,
-                                            border: '1px solid rgba(148, 163, 184, 0.2)',
-                                            cursor: 'pointer',
-                                            fontSize: 15
-                                        }}
-                                    >
-                                        {t('cta.demo')}
-                                    </motion.button>
-                                </Link>
-                            </div>
-                        </div>
-                    </div>
-                </motion.div>
 
                 {/* Footer Links - Compact grid */}
                 <div style={{
@@ -251,24 +148,6 @@ export default function Footer() {
                         </ul>
                     </div>
 
-                    {/* Ressources */}
-                    <div>
-                        <h4 style={{ color: '#e2e8f0', fontWeight: 600, fontSize: 14, marginBottom: 16 }}>{t('columns.resources')}</h4>
-                        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                            {footerLinks.resources.map((link) => (
-                                <li key={link.href} style={{ marginBottom: 10 }}>
-                                    <Link href={link.href} style={{
-                                        color: '#64748b',
-                                        textDecoration: 'none',
-                                        fontSize: 14
-                                    }}>
-                                        {link.label}
-                                    </Link>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-
                     {/* Légal */}
                     <div>
                         <h4 style={{ color: '#e2e8f0', fontWeight: 600, fontSize: 14, marginBottom: 16 }}>{t('columns.legal')}</h4>
@@ -308,7 +187,7 @@ export default function Footer() {
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#475569', fontSize: 13 }}>
                             <MapPin style={{ width: 14, height: 14 }} />
-                            Abidjan, Côte d'Ivoire
+                            City, Country
                         </div>
                     </div>
                 </div>

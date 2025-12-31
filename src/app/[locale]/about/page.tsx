@@ -74,7 +74,7 @@ export default function AboutPage() {
                     <p style={{ fontSize: 16, color: '#94a3b8' }}>
                         📍 Abidjan, Côte d'Ivoire<br />
                         📧 contact@whatsai.com<br />
-                        📱 +225 07 18 28 70 25
+                        📱 +225 05 54 58 59 27
                     </p>
                 </section>
             </div>

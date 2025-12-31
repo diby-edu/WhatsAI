@@ -34,6 +34,25 @@ export default function ProductsPage() {
         fetchProducts()
     }, [])
 
+    const [currency, setCurrency] = useState('USD')
+
+    useEffect(() => {
+        fetchProducts()
+        fetchProfile()
+    }, [])
+
+    const fetchProfile = async () => {
+        try {
+            const res = await fetch('/api/profile')
+            const data = await res.json()
+            if (data.data?.profile?.currency) {
+                setCurrency(data.data.profile.currency)
+            }
+        } catch (e) {
+            console.error('Error fetching profile currency', e)
+        }
+    }
+
     const fetchProducts = async () => {
         try {
             const res = await fetch('/api/products')
@@ -65,7 +84,15 @@ export default function ProductsPage() {
     )
 
     const formatPrice = (price: number) => {
-        return new Intl.NumberFormat('fr-FR').format(price) + ' FCFA'
+        let convertedPrice = price
+        if (currency === 'XOF') convertedPrice = price * 655
+        else if (currency === 'EUR') convertedPrice = price * 0.92
+
+        return new Intl.NumberFormat('fr-FR', {
+            style: 'currency',
+            currency: currency,
+            maximumFractionDigits: currency === 'XOF' ? 0 : 2
+        }).format(convertedPrice)
     }
 
     if (loading) {

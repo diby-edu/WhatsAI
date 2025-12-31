@@ -243,7 +243,7 @@ export default function AdminCreditPacksPage() {
                             />
                         </div>
                         <div>
-                            <label style={{ display: 'block', color: '#94a3b8', fontSize: '12px', marginBottom: '6px' }}>Prix (FCFA)</label>
+                            <label style={{ display: 'block', color: '#94a3b8', fontSize: '12px', marginBottom: '6px' }}>Prix (USD)</label>
                             <input
                                 type="number"
                                 value={newPack.price}
@@ -290,7 +290,7 @@ export default function AdminCreditPacksPage() {
                         <tr style={{ borderBottom: '1px solid rgba(148, 163, 184, 0.1)' }}>
                             <th style={{ textAlign: 'left', padding: '12px', color: '#94a3b8', fontWeight: 500 }}>Nom</th>
                             <th style={{ textAlign: 'left', padding: '12px', color: '#94a3b8', fontWeight: 500 }}>Crédits</th>
-                            <th style={{ textAlign: 'left', padding: '12px', color: '#94a3b8', fontWeight: 500 }}>Prix (FCFA)</th>
+                            <th style={{ textAlign: 'left', padding: '12px', color: '#94a3b8', fontWeight: 500 }}>Prix ($)</th>
                             <th style={{ textAlign: 'left', padding: '12px', color: '#94a3b8', fontWeight: 500 }}>Réduction</th>
                             <th style={{ textAlign: 'left', padding: '12px', color: '#94a3b8', fontWeight: 500 }}>Statut</th>
                             <th style={{ textAlign: 'right', padding: '12px', color: '#94a3b8', fontWeight: 500 }}>Actions</th>
@@ -358,7 +358,7 @@ export default function AdminCreditPacksPage() {
                                     <>
                                         <td style={{ padding: '12px', color: 'white', fontWeight: 500 }}>{pack.name}</td>
                                         <td style={{ padding: '12px', color: '#34d399', fontWeight: 600 }}>{pack.credits.toLocaleString()}</td>
-                                        <td style={{ padding: '12px', color: 'white' }}>{pack.price.toLocaleString()} FCFA</td>
+                                        <td style={{ padding: '12px', color: 'white' }}>{pack.price.toLocaleString()} $</td>
                                         <td style={{ padding: '12px' }}>
                                             {pack.savings > 0 ? (
                                                 <span style={{ padding: '4px 8px', borderRadius: '20px', background: 'rgba(16, 185, 129, 0.1)', color: '#34d399', fontSize: '12px' }}>

@@ -153,7 +153,7 @@ export default function AdminPlansPage() {
     }
 
     const formatPrice = (price: number) => {
-        return new Intl.NumberFormat('fr-FR').format(price) + ' FCFA'
+        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(price)
     }
 
     const getPlanIcon = (name: string) => {
@@ -454,7 +454,7 @@ export default function AdminPlansPage() {
                             {/* Price & Credits */}
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
                                 <div>
-                                    <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>Prix (FCFA)</label>
+                                    <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>Prix (USD)</label>
                                     <input
                                         type="number"
                                         required

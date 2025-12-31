@@ -155,7 +155,7 @@ export default function AdminDashboard() {
                 <KPICard icon={Users} label="Utilisateurs" value={s.totalUsers} subValue={`+${s.newUsersToday || 0} aujourd'hui`} color="#3b82f6" />
                 <KPICard icon={Bot} label="Agents IA" value={s.totalAgents} subValue={`${s.connectedAgents || 0} connectés`} color="#8b5cf6" />
                 <KPICard icon={MessageSquare} label="Messages" value={s.totalMessages} subValue={`+${s.messagesToday || 0} aujourd'hui`} color="#10b981" />
-                <KPICard icon={DollarSign} label="Revenus" value={s.revenue || 0} subValue="FCFA ce mois" color="#f59e0b" isCurrency />
+                <KPICard icon={DollarSign} label="Revenus" value={s.revenue || 0} subValue="$ ce mois" color="#f59e0b" isCurrency />
 
                 <KPICard icon={Phone} label="Conversations" value={s.totalConversations || 0} subValue={`+${s.conversationsToday || 0} aujourd'hui`} color="#06b6d4" />
                 <KPICard icon={Zap} label="Crédits" value={s.totalCreditsUsed || 0} subValue="utilisés ce mois" color="#ec4899" />

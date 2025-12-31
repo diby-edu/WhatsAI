@@ -80,7 +80,7 @@ export default function HelpPage() {
                 gap: 20
             }}>
                 <motion.a
-                    href="https://wa.me/2250564795551"
+                    href="https://wa.me/2250554585927"
                     target="_blank"
                     rel="noopener noreferrer"
                     whileHover={{ scale: 1.02, borderColor: '#10b981' }}
@@ -262,7 +262,7 @@ export default function HelpPage() {
                     Notre équipe est disponible du lundi au vendredi, de 8h à 18h GMT
                 </p>
                 <Link
-                    href="https://wa.me/2250564795551"
+                    href="https://wa.me/2250554585927"
                     target="_blank"
                     style={{
                         display: 'inline-flex',

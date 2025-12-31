@@ -459,16 +459,27 @@ Instructions:
 
             // Generate AI response
             console.log('🧠 Generating AI response...')
-            const aiResponse = await generateAIResponse(
-                agent,
-                (messages || []).slice(0, -1).map(m => ({ role: m.role, content: m.content })),
-                message.text,
-                products,
-                orders,
-                phoneNumber
-            )
+            let profileCurrency = 'USD'
+            try {
+                const { data: userProfile } = await supabase.from('profiles').select('currency').eq('id', agent.user_id).single()
+                if (userProfile?.currency) profileCurrency = userProfile.currency
+            } catch (e) { }
 
-            // Send response
+            const aiResponse = await generateAIResponse({
+                systemPrompt: agent.system_prompt,
+                conversationHistory: (messages || []).slice(0, -1).map(m => ({ role: m.role, content: m.content })),
+                userMessage: message.text,
+                model: agent.model,
+                temperature: agent.temperature,
+                maxTokens: agent.max_tokens,
+                agentName: agent.name,
+                useEmojis: agent.use_emojis,
+                language: agent.language,
+                products: products || [],
+                currency: profileCurrency,
+                orders: orders || [], // Assuming orders and phoneNumber are still needed by generateAIResponse
+                customerPhone: phoneNumber
+            })
             const session = activeSessions.get(agentId)
             if (session && session.socket) {
                 const delay = (agent.response_delay_seconds || 2) * 1000

@@ -19,12 +19,12 @@ export const PLANS = {
     starter: {
         id: 'starter',
         name: 'Starter',
-        price: 15000, // FCFA
-        credits: 2000,
+        price: 29, // USD
+        credits: 500,
         agents: 1,
         whatsapp_connections: 1,
         features: [
-            '2 000 messages/mois',
+            '500 messages/mois',
             '1 agent IA',
             '1 numéro WhatsApp',
             'Qualification de leads',
@@ -37,12 +37,12 @@ export const PLANS = {
     pro: {
         id: 'pro',
         name: 'Pro',
-        price: 35000, // FCFA
-        credits: 5000,
+        price: 59, // USD
+        credits: 2000,
         agents: 2,
         whatsapp_connections: 2,
         features: [
-            '5 000 messages/mois',
+            '2 000 messages/mois',
             '2 agents IA',
             '2 numéros WhatsApp',
             'GPT-4 disponible',
@@ -56,12 +56,12 @@ export const PLANS = {
     business: {
         id: 'business',
         name: 'Business',
-        price: 85000, // FCFA
-        credits: 30000,
+        price: 149, // USD
+        credits: 10000,
         agents: 4,
         whatsapp_connections: 4,
         features: [
-            '30 000 messages/mois',
+            '10 000 messages/mois',
             '4 agents IA',
             '4 numéros WhatsApp',
             'GPT-4 Turbo',
@@ -77,10 +77,10 @@ export const PLANS = {
 
 // Credit packs for additional purchases
 export const CREDIT_PACKS = [
-    { id: 'pack_500', credits: 500, price: 5000, savings: 0 },
-    { id: 'pack_1000', credits: 1000, price: 9000, savings: 10 },
-    { id: 'pack_2500', credits: 2500, price: 20000, savings: 20 },
-    { id: 'pack_5000', credits: 5000, price: 35000, savings: 30 },
+    { id: 'pack_500', credits: 500, price: 9, savings: 0 },
+    { id: 'pack_1000', credits: 1000, price: 15, savings: 10 },
+    { id: 'pack_2500', credits: 2500, price: 35, savings: 20 },
+    { id: 'pack_5000', credits: 5000, price: 59, savings: 30 },
 ]
 
 export type PlanId = keyof typeof PLANS

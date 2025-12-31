@@ -76,10 +76,23 @@ export default function NewProductPage() {
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     )
 
-    // Load agents on mount
+    const [currency, setCurrency] = useState('USD')
+
+    // Load agents and profile on mount
     useEffect(() => {
         loadAgents()
+        fetchProfile()
     }, [])
+
+    const fetchProfile = async () => {
+        try {
+            const res = await fetch('/api/profile')
+            const data = await res.json()
+            if (data.data?.profile?.currency) {
+                setCurrency(data.data.profile.currency)
+            }
+        } catch (e) { }
+    }
 
     const loadAgents = async () => {
         try {
@@ -203,10 +216,20 @@ export default function NewProductPage() {
     const handleSubmit = async () => {
         setLoading(true)
         try {
+            // Convert price to USD base if necessary
+            let priceInUSD = formData.price_fcfa
+            if (currency === 'XOF') priceInUSD = formData.price_fcfa / 655
+            else if (currency === 'EUR') priceInUSD = formData.price_fcfa / 0.92
+
+            const payload = {
+                ...formData,
+                price_fcfa: Math.round(priceInUSD * 100) / 100 // Keep 2 decimals
+            }
+
             const res = await fetch('/api/products', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
+                body: JSON.stringify(payload)
             })
 
             if (!res.ok) throw new Error('Failed to create product')
@@ -596,7 +619,7 @@ export default function NewProductPage() {
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
                             <div>
                                 <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
-                                    {t('price.amount')}
+                                    {t('price.amount')} ({currency === 'EUR' ? '€' : currency === 'XOF' ? 'FCFA' : '$'})
                                 </label>
                                 <input
                                     type="number"
