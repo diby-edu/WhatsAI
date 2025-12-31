@@ -16,7 +16,8 @@ import {
     Smartphone,
     CheckCircle2,
     AlertCircle,
-    RefreshCw
+    RefreshCw,
+    Copy
 } from 'lucide-react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
@@ -27,6 +28,7 @@ export default function NewAgentPage() {
     const router = useRouter()
     const [currentStep, setCurrentStep] = useState(0)
     const [loading, setLoading] = useState(false)
+    const [generating, setGenerating] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [createdAgent, setCreatedAgent] = useState<any>(null)
 
@@ -230,6 +232,37 @@ Règles:
         }
     }
 
+    // AI Generation
+    const handleGenerate = async () => {
+        if (!formData.name) {
+            alert("Nom requis")
+            return
+        }
+        setGenerating(true)
+        try {
+            const res = await fetch('/api/ai/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type: 'agent_description',
+                    name: formData.name,
+                    context: formData.mission !== 'custom' ?
+                        missionTemplates.find(t => t.id === formData.mission)?.title : 'Assistant Polyvalent'
+                })
+            })
+            const data = await res.json()
+            if (res.ok && data.data?.text) {
+                updateFormData('description', data.data.text)
+            } else {
+                alert(data.error)
+            }
+        } catch (e) {
+            console.error(e)
+        } finally {
+            setGenerating(false)
+        }
+    }
+
     // Create agent via API
     const handleCreateAgent = async () => {
         setLoading(true)
@@ -426,8 +459,32 @@ Règles:
                         </div>
 
                         <div>
-                            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
+                            <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
                                 {t('Form.description.label')}
+                                <button
+                                    type="button"
+                                    onClick={handleGenerate}
+                                    disabled={generating}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 6,
+                                        fontSize: 12,
+                                        color: '#10b981',
+                                        background: 'rgba(16, 185, 129, 0.1)',
+                                        padding: '4px 8px',
+                                        borderRadius: 6,
+                                        border: '1px solid rgba(16, 185, 129, 0.2)',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    {generating ? (
+                                        <Loader2 style={{ width: 12, height: 12, animation: 'spin 1s linear infinite' }} />
+                                    ) : (
+                                        <Sparkles style={{ width: 12, height: 12 }} />
+                                    )}
+                                    Générer (1 crédit)
+                                </button>
                             </label>
                             <textarea
                                 value={formData.description}
