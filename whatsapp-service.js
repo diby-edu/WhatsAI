@@ -234,17 +234,52 @@ async function findRelevantDocuments(agentId, userQuery) {
     }
 
     // Generate AI response
-    async function generateAIResponse(agent, conversationHistory, userMessage, products, orders, customerPhone) {
+    async function generateAIResponse(options) {
         try {
+            const {
+                agent,
+                conversationHistory,
+                userMessage,
+                products,
+                orders,
+                customerPhone,
+                currency = 'USD' // Default currency
+            } = options
+
             // Retrieve relevant knowledge (RAG)
             const relevantDocs = await findRelevantDocuments(agent.id, userMessage)
 
+            // Build products catalog with CURRENCY CONVERSION
+            let productsCatalog = ''
+            if (products && products.length > 0) {
+                productsCatalog = `\n\n🧠 CONTEXTE PRODUITS & SERVICES :
+Tu as accès à la liste des produits/services vendus par l'entreprise.
+Utilise ces informations pour guider le client.
+
+LISTE DES OFFRES :
+${products.map(p => {
+                    let displayPrice = p.price_fcfa
+                    let currencySymbol = '$'
+
+                    if (currency === 'XOF') {
+                        displayPrice = Math.round(p.price_fcfa * 655)
+                        currencySymbol = 'FCFA'
+                    } else if (currency === 'EUR') {
+                        displayPrice = Math.round(p.price_fcfa * 0.92 * 100) / 100
+                        currencySymbol = '€'
+                    }
+
+                    return `🔹 ${p.name} - ${displayPrice.toLocaleString('fr-FR')} ${currencySymbol}
+   📝 ${p.description || ''}`
+                }).join('\n')}
+
+INSTRUCTION IMPORTANTE : 
+Si le client s'intéresse à un produit, APPLIQUE STRICTEMENT la règle de son type (Virtuel vs Physique vs Service).`
+            }
+
             const systemPrompt = `${agent.system_prompt || 'Tu es un assistant IA professionnel.'}
 
-${products && products.length > 0 ? `
-Produits disponibles:
-${products.map(p => `- ${p.name}: ${p.price_fcfa} FCFA - ${p.description || ''}`).join('\n')}
-` : ''}
+${productsCatalog}
 
 ${orders && orders.length > 0 ? `
 Historique des Commandes du Client:
