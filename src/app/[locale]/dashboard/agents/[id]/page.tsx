@@ -13,7 +13,8 @@ import {
     AlertCircle,
     RefreshCw,
     Settings,
-    Trash2
+    Trash2,
+    Book
 } from 'lucide-react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
@@ -305,9 +306,27 @@ export default function AgentDetailsPage({ params }: { params: Promise<{ id: str
                                 fontWeight: 500
                             }}
                         >
-                            <Smartphone size={18} />
                             {t('Wizard.steps.whatsapp')} ({t(`connect.status.${whatsappStatus === 'qr_ready' ? 'qrReady' : whatsappStatus}`)})
                         </button>
+                        <Link
+                            href={`/dashboard/agents/${agentId}/knowledge`}
+                            style={{
+                                padding: '10px 20px',
+                                borderRadius: 10,
+                                background: 'rgba(148, 163, 184, 0.1)',
+                                color: '#94a3b8',
+                                border: 'none',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 8,
+                                fontWeight: 500,
+                                textDecoration: 'none'
+                            }}
+                        >
+                            <Book size={18} />
+                            Connaissances
+                        </Link>
                     </div>
                 </div>
             </div>

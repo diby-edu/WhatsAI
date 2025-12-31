@@ -342,3 +342,19 @@ export async function generateSpeech(
         throw error
     }
 }
+
+/**
+ * Generate embedding for text using OpenAI text-embedding-3-small
+ */
+export async function generateEmbedding(text: string): Promise<number[]> {
+    try {
+        const response = await openai.embeddings.create({
+            model: 'text-embedding-3-small',
+            input: text.replace(/\n/g, ' '),
+        })
+        return response.data[0].embedding
+    } catch (error) {
+        console.error('Embedding Generation Error:', error)
+        throw error
+    }
+}

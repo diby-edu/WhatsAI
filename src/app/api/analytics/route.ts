@@ -1,15 +1,6 @@
 import { NextRequest } from 'next/server'
 import { createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
 
-interface Message {
-    created_at: string
-    role: string
-}
-
-interface Conversation {
-    created_at: string
-}
-
 export async function GET(request: NextRequest) {
     const supabase = await createApiClient()
     const { user, error: authError } = await getAuthUser(supabase)
@@ -18,122 +9,78 @@ export async function GET(request: NextRequest) {
         return errorResponse('Unauthorized', 401)
     }
 
-    const { searchParams } = new URL(request.url)
-    const period = searchParams.get('period') || '7d' // 7d, 30d, 90d
-
     try {
-        const now = new Date()
-        let startDate: Date
-
-        switch (period) {
-            case '30d':
-                startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
-                break
-            case '90d':
-                startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
-                break
-            default: // 7d
-                startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-        }
-
-        // Get user's first agent for message filtering
-        const { data: agentData } = await supabase
-            .from('agents')
-            .select('id')
+        // 1. Total Sales (Paid/Confirmed orders)
+        const { data: salesData } = await supabase
+            .from('orders')
+            .select('total_fcfa')
             .eq('user_id', user.id)
-            .limit(1)
-            .single()
+            .in('status', ['paid', 'confirmed', 'delivered'])
 
-        const agentId = agentData?.id || ''
+        const totalSales = salesData?.reduce((sum, order) => sum + (order.total_fcfa || 0), 0) || 0
+        const totalOrders = salesData?.length || 0
 
-        // Get messages by day
-        const { data: messagesData } = await supabase
+        // 2. Total Messages (AI Activity)
+        const { count: totalMessages } = await supabase
             .from('messages')
-            .select('created_at, role')
-            .eq('agent_id', agentId)
-            .gte('created_at', startDate.toISOString())
+            .select('*', { count: 'exact', head: true })
+            .eq('agent_id', user.id) // Assuming agent_id relates to user's agents, need join or user check. 
+        // Wait, messages have agent_id. Agents have user_id. 
+        // Better to query agents first.
 
-        const messages: Message[] = messagesData || []
-
-        // Get conversations
-        const { data: conversationsData } = await supabase
-            .from('conversations')
-            .select('created_at')
+        // Get User's Agents
+        const { data: agents } = await supabase
+            .from('agents')
+            .select('id, name')
             .eq('user_id', user.id)
-            .gte('created_at', startDate.toISOString())
 
-        const conversations: Conversation[] = conversationsData || []
+        const agentIds = agents?.map(a => a.id) || []
 
-        // Aggregate by day
-        const dailyStats: Record<string, { messages: number; incoming: number; outgoing: number; conversations: number }> = {}
-
-        // Initialize days
-        const days = period === '7d' ? 7 : period === '30d' ? 30 : 90
-        for (let i = 0; i < days; i++) {
-            const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000)
-            const key = date.toISOString().split('T')[0]
-            dailyStats[key] = { messages: 0, incoming: 0, outgoing: 0, conversations: 0 }
+        let messageCount = 0
+        if (agentIds.length > 0) {
+            const { count } = await supabase
+                .from('messages')
+                .select('*', { count: 'exact', head: true })
+                .in('agent_id', agentIds)
+            messageCount = count || 0
         }
 
-        // Count messages
-        messages.forEach((msg) => {
-            const key = new Date(msg.created_at).toISOString().split('T')[0]
-            if (dailyStats[key]) {
-                dailyStats[key].messages++
-                if (msg.role === 'user') {
-                    dailyStats[key].incoming++
-                } else {
-                    dailyStats[key].outgoing++
-                }
-            }
+        // 3. Sales Over Time (Last 7 days mock or real)
+        // Check if we can do group by day in Supabase easily without RPC.
+        // For simplicity, fetch last 30 days orders and aggregate in JS.
+        const thirtyDaysAgo = new Date()
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+
+        const { data: recentOrders } = await supabase
+            .from('orders')
+            .select('created_at, total_fcfa')
+            .eq('user_id', user.id)
+            .gte('created_at', thirtyDaysAgo.toISOString())
+            .order('created_at', { ascending: true })
+
+        // Aggregate by date
+        const salesByDate: Record<string, number> = {}
+        recentOrders?.forEach(order => {
+            const date = new Date(order.created_at).toLocaleDateString()
+            salesByDate[date] = (salesByDate[date] || 0) + (order.total_fcfa || 0)
         })
 
-        // Count conversations
-        conversations.forEach((conv) => {
-            const key = new Date(conv.created_at).toISOString().split('T')[0]
-            if (dailyStats[key]) {
-                dailyStats[key].conversations++
-            }
-        })
-
-        // Convert to array sorted by date
-        const chartData = Object.entries(dailyStats)
-            .sort(([a], [b]) => a.localeCompare(b))
-            .map(([date, stats]) => ({
-                date,
-                label: new Date(date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }),
-                ...stats
-            }))
-
-        // Summary stats
-        const totalMessages = messages.length
-        const totalIncoming = messages.filter(m => m.role === 'user').length
-        const totalOutgoing = messages.filter(m => m.role === 'assistant').length
-        const totalConversations = conversations.length
-
-        // Get credits used
-        const { data: profile } = await supabase
-            .from('profiles')
-            .select('credits_balance, credits_used_this_month')
-            .eq('id', user.id)
-            .single()
+        const chartData = Object.keys(salesByDate).map(date => ({
+            date,
+            sales: salesByDate[date]
+        }))
 
         return successResponse({
-            period,
-            chartData,
-            summary: {
-                totalMessages,
-                totalIncoming,
-                totalOutgoing,
-                totalConversations,
-                avgMessagesPerDay: Math.round(totalMessages / days),
-                avgResponseRate: totalIncoming > 0 ? Math.round((totalOutgoing / totalIncoming) * 100) : 0,
-                creditsBalance: profile?.credits_balance || 0,
-                creditsUsedThisMonth: profile?.credits_used_this_month || 0
-            }
+            kpi: {
+                totalSales,
+                totalOrders,
+                averageOrderValue: totalOrders > 0 ? Math.round(totalSales / totalOrders) : 0,
+                totalMessages: messageCount
+            },
+            chartData
         })
-    } catch (err) {
-        console.error('Error fetching analytics:', err)
-        return errorResponse('Erreur serveur', 500)
+    } catch (error: any) {
+        console.error('Analytics Error:', error)
+        return errorResponse(error.message, 500)
     }
 }
