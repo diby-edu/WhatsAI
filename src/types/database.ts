@@ -17,6 +17,7 @@ export type Database = {
                     credits_used_this_month: number
                     timezone: string
                     language: string
+                    currency: string
                     created_at: string
                     updated_at: string
                 }

@@ -226,7 +226,7 @@ export default function AdminPaymentPage() {
                     <div style={{ fontSize: 22, fontWeight: 700, color: '#34d399' }}>
                         {totalRevenue.toLocaleString()}
                     </div>
-                    <div style={{ color: '#64748b', fontSize: 12 }}>Revenus (FCFA)</div>
+                    <div style={{ color: '#64748b', fontSize: 12 }}>Revenus (USD)</div>
                 </div>
                 <div style={{
                     padding: 16,
@@ -418,7 +418,7 @@ export default function AdminPaymentPage() {
                                             </td>
                                             <td style={{ padding: '12px 14px' }}>
                                                 <span style={{ fontWeight: 600, color: '#34d399', fontSize: 14 }}>
-                                                    {(payment.amount || 0).toLocaleString()} {payment.currency || 'FCFA'}
+                                                    {(payment.amount || 0).toLocaleString()} {payment.currency || '$'}
                                                 </span>
                                             </td>
                                             <td style={{ padding: '12px 14px' }}>

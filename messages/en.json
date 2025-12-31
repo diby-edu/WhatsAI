@@ -47,10 +47,10 @@
         "chat": {
             "botName": "WhatsAI Assistant",
             "status": "Online",
-            "message1": "Hello! I'm looking for a 3-bedroom apartment in Abidjan 🏠",
+            "message1": "Hello! I'm looking for a 3-bedroom apartment in Downtown 🏠",
             "response1": "Hello! 👋 I'm your WhatsAI assistant. I found 5 apartments matching your criteria.",
-            "response2": "📍 Cocody - 3 beds - 350,000 FCFA/mo\n📍 Marcory - 3 beds - 280,000 FCFA/mo\n📍 Plateau - 3 beds - 450,000 FCFA/mo",
-            "message2": "Great! Can I visit the one in Cocody tomorrow?",
+            "response2": "📍 Uptown - 3 beds - $2,500/mo\n📍 Midtown - 3 beds - $2,200/mo\n📍 Downtown - 3 beds - $2,900/mo",
+            "message2": "Great! Can I visit the one in Uptown tomorrow?",
             "response3": "Perfect! ✅ I've scheduled a visit for tomorrow at 2 PM. You will receive a confirmation SMS.",
             "inputPlaceholder": "Type a message...",
             "aiResponse": "AI Response",
@@ -623,7 +623,7 @@
             "popular": "Popular",
             "current": "Current Plan",
             "choose": "Select",
-            "price_unit": "FCFA/mo"
+            "price_unit": "$/mo"
         },
         "Credits": {
             "title": "Buy Credits",
@@ -671,7 +671,7 @@
             "fields": {
                 "name": "Product Name *",
                 "description": "Description",
-                "price": "Price (FCFA) *",
+                "price": "Price *",
                 "category": "Category",
                 "sku": "SKU / Reference",
                 "stock": "Stock (-1 = unlimited)"
@@ -731,8 +731,8 @@
                 "aiInstructionsHelp": "These instructions help the AI better present and sell this product."
             },
             "price": {
-                "title": "Price and availability",
-                "amount": "Price (FCFA)",
+                "title": "Price & Stock",
+                "amount": "Price",
                 "category": "Category",
                 "categoryPlaceholder": "E.g.: Clothing, Services, Electronics...",
                 "stock": "Stock quantity",

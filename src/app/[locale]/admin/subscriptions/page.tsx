@@ -57,7 +57,7 @@ export default function AdminSubscriptionsPage() {
 
     const statCards = [
         { label: 'Abonnements actifs', value: stats.activeSubscriptions.toString(), icon: Users, color: '#10b981' },
-        { label: 'Revenus mensuels', value: `${stats.monthlyRevenue.toLocaleString()} FCFA`, icon: TrendingUp, color: '#a855f7' },
+        { label: 'Revenus mensuels', value: `$${stats.monthlyRevenue.toLocaleString()}`, icon: TrendingUp, color: '#a855f7' },
         { label: 'Nouveaux ce mois', value: stats.newThisMonth.toString(), icon: CreditCard, color: '#f59e0b' },
     ]
 

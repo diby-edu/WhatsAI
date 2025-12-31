@@ -35,20 +35,40 @@ export default function EditProductPage() {
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     )
 
+    const [currency, setCurrency] = useState('USD')
+
     useEffect(() => {
         fetchProduct()
     }, [params.id])
 
     const fetchProduct = async () => {
         try {
-            const res = await fetch(`/api/products/${params.id}`)
-            const data = await res.json()
-            if (data.data?.product) {
-                const p = data.data.product
+            const [productRes, profileRes] = await Promise.all([
+                fetch(`/api/products/${params.id}`),
+                fetch('/api/profile')
+            ])
+
+            const productData = await productRes.json()
+            const profileData = await profileRes.json()
+
+            let userCurrency = 'USD'
+            if (profileData.data?.profile?.currency) {
+                userCurrency = profileData.data.profile.currency
+                setCurrency(userCurrency)
+            }
+
+            if (productData.data?.product) {
+                const p = productData.data.product
+
+                // Convert price for display
+                let displayPrice = p.price_fcfa || 0
+                if (userCurrency === 'XOF') displayPrice = Math.round(displayPrice * 655)
+                else if (userCurrency === 'EUR') displayPrice = Math.round((displayPrice * 0.92) * 100) / 100
+
                 setFormData({
                     name: p.name || '',
                     description: p.description || '',
-                    price_fcfa: p.price_fcfa || 0,
+                    price_fcfa: displayPrice,
                     category: p.category || '',
                     sku: p.sku || '',
                     image_url: p.image_url || '',
@@ -108,10 +128,20 @@ export default function EditProductPage() {
         setSaving(true)
 
         try {
+            // Convert price back to USD
+            let priceInUSD = formData.price_fcfa
+            if (currency === 'XOF') priceInUSD = formData.price_fcfa / 655
+            else if (currency === 'EUR') priceInUSD = formData.price_fcfa / 0.92
+
+            const payload = {
+                ...formData,
+                price_fcfa: Math.round(priceInUSD * 100) / 100
+            }
+
             const res = await fetch(`/api/products/${params.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
+                body: JSON.stringify(payload)
             })
 
             if (!res.ok) throw new Error('Failed to update')
@@ -299,7 +329,9 @@ export default function EditProductPage() {
                     {/* Price & Category */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
                         <div>
-                            <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>{t('fields.price')}</label>
+                            <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
+                                {t('fields.price')} ({currency === 'EUR' ? '€' : currency === 'XOF' ? 'FCFA' : '$'})
+                            </label>
                             <input
                                 type="number"
                                 required

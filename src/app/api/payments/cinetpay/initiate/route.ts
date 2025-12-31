@@ -33,7 +33,8 @@ export async function POST(request: NextRequest) {
             apikey: CINETPAY_API_KEY,
             site_id: CINETPAY_SITE_ID,
             transaction_id: transactionId,
-            amount: amount,
+            transaction_id: transactionId,
+            amount: amount < 100 ? Math.ceil(amount * 655) : amount, // Auto-convert low amounts (likely USD) to FCFA
             currency: 'XOF',
             description: description || 'Achat de crédits WhatsAI',
             notify_url: `${baseUrl}/api/payments/cinetpay/webhook`,

@@ -8,7 +8,7 @@ const stats = [
     { label: 'Utilisateurs actifs', value: '0', change: '--', icon: Users },
     { label: 'Messages aujourd\'hui', value: '0', change: '--', icon: MessageCircle },
     { label: 'Taux de conversion', value: '--', change: '--', icon: TrendingUp },
-    { label: 'Revenus du jour', value: '0 FCFA', change: '--', icon: DollarSign },
+    { label: 'Revenus du jour', value: '$0', change: '--', icon: DollarSign },
 ]
 
 const chartData = [

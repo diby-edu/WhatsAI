@@ -43,7 +43,7 @@ export default function AnalyticsPage() {
     const cards = [
         {
             title: 'Chiffre d\'Affaires',
-            value: `${data.kpi.totalSales.toLocaleString()} FCFA`,
+            value: `$${data.kpi.totalSales.toLocaleString()}`,
             icon: DollarSign,
             color: '#10b981',
             bg: 'rgba(16, 185, 129, 0.1)'
@@ -57,7 +57,7 @@ export default function AnalyticsPage() {
         },
         {
             title: 'Panier Moyen',
-            value: `${data.kpi.averageOrderValue.toLocaleString()} FCFA`,
+            value: `$${data.kpi.averageOrderValue.toLocaleString()}`,
             icon: TrendingUp,
             color: '#f59e0b',
             bg: 'rgba(245, 158, 11, 0.1)'

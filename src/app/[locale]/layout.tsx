@@ -10,27 +10,21 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "WhatsAI - Automatisez votre WhatsApp avec l'IA",
-  description: "WhatsAI est une solution d'automatisation WhatsApp qui vous permet de gérer vos conversations, qualifier vos leads et prendre des rendez-vous automatiquement grâce à l'intelligence artificielle.",
-  keywords: ["WhatsApp", "IA", "automatisation", "chatbot", "leads", "CRM", "Afrique"],
+  title: "WhatsAI - The Ultimate WhatsApp Automation Platform powered by AI",
+  description: "Transform your WhatsApp into a 24/7 Sales Machine. Automate conversations, qualify leads, and close deals globally with our advanced AI Agents. Works in any country.",
+  keywords: ["WhatsApp Automation", "AI Chatbot", "WhatsApp CRM", "Sales Automation", "Lead Generation", "Customer Service AI", "Business WhatsApp"],
   authors: [{ name: "WhatsAI" }],
-  icons: {
-    icon: [
-      { url: '/favicon.png', type: 'image/png' },
-    ],
-    apple: '/favicon.png',
-  },
   openGraph: {
-    title: "WhatsAI - Automatisez votre WhatsApp avec l'IA",
-    description: "Transformez votre WhatsApp en machine à leads avec l'intelligence artificielle",
-    url: "https://whatsai.com",
+    title: "WhatsAI - The Ultimate WhatsApp Automation Platform",
+    description: "Automate your sales and support on WhatsApp. No coding required. Try it for free.",
+    url: "https://whatsai.app",
     siteName: "WhatsAI",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "WhatsAI - Automatisez votre WhatsApp avec l'IA",
-    description: "Transformez votre WhatsApp en machine à leads avec l'intelligence artificielle",
+    title: "WhatsAI - WhatsApp Automation Platform",
+    description: "Automate your sales and support on WhatsApp. AI-powered agents for your business.",
   },
 };
 

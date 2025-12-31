@@ -26,6 +26,7 @@ interface Profile {
     full_name: string
     phone: string
     company: string
+    currency?: string
 }
 
 interface NotificationSettings {
@@ -107,7 +108,8 @@ export default function SettingsPage() {
                 body: JSON.stringify({
                     full_name: profile.full_name,
                     phone: profile.phone,
-                    company: profile.company
+                    company: profile.company,
+                    currency: profile.currency || 'USD'
                 })
             })
             if (res.ok) {
@@ -256,6 +258,31 @@ export default function SettingsPage() {
                                         onChange={(v) => setProfile({ ...profile, company: v })}
                                         placeholder="Nom de l'entreprise"
                                     />
+                                    <div style={{}}>
+                                        <label style={{ display: 'block', color: '#94a3b8', fontSize: 13, marginBottom: 8 }}>Devise</label>
+                                        <div style={{ position: 'relative' }}>
+                                            <Building style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', width: 18, height: 18, color: '#64748b' }} />
+                                            <select
+                                                value={profile.currency || 'USD'}
+                                                onChange={(e) => setProfile({ ...profile, currency: e.target.value })}
+                                                style={{
+                                                    width: '100%',
+                                                    padding: '12px 12px 12px 44px',
+                                                    background: 'rgba(30, 41, 59, 0.8)',
+                                                    border: '1px solid rgba(148, 163, 184, 0.15)',
+                                                    borderRadius: 10,
+                                                    color: 'white',
+                                                    fontSize: 14,
+                                                    appearance: 'none',
+                                                    cursor: 'pointer'
+                                                }}
+                                            >
+                                                <option value="USD">USD ($)</option>
+                                                <option value="EUR">EUR (€)</option>
+                                                <option value="XOF">FCFA (XOF)</option>
+                                            </select>
+                                        </div>
+                                    </div>
                                 </div>
                                 <SaveButton
                                     saving={saving}

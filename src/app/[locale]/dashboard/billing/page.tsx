@@ -76,6 +76,8 @@ function BillingContent() {
     const [loading, setLoading] = useState(true)
     const [paymentStatus, setPaymentStatus] = useState<'success' | 'failed' | null>(null)
 
+    const [currency, setCurrency] = useState('USD')
+
     // Check for payment return
     useEffect(() => {
         const paymentParam = searchParams.get('payment')
@@ -83,7 +85,7 @@ function BillingContent() {
 
         // CinetPay specific params
         const cpmTransId = searchParams.get('cpm_trans_id')
-        const cpmSiteId = searchParams.get('cpm_site_id')
+        // const cpmSiteId = searchParams.get('cpm_site_id') // Unused
 
         if (paymentParam === 'success' || cpmTransId) {
             // User returned from successful payment
@@ -102,6 +104,28 @@ function BillingContent() {
             checkPaymentStatus(transactionId)
         }
     }, [searchParams])
+
+    const fetchProfileCurrency = async () => {
+        try {
+            const res = await fetch('/api/profile')
+            const data = await res.json()
+            if (data.data?.profile?.currency) {
+                setCurrency(data.data.profile.currency)
+            }
+        } catch (e) { }
+    }
+
+    const formatPrice = (price: number) => {
+        let convertedPrice = price
+        if (currency === 'XOF') convertedPrice = price * 655
+        else if (currency === 'EUR') convertedPrice = price * 0.92
+
+        return new Intl.NumberFormat('fr-FR', {
+            style: 'currency',
+            currency: currency,
+            maximumFractionDigits: currency === 'XOF' ? 0 : 2
+        }).format(convertedPrice)
+    }
 
     // Fetch user data, plans, payments and credit packs
     useEffect(() => {
@@ -473,9 +497,9 @@ function BillingContent() {
 
                                     <div style={{ marginBottom: 16 }}>
                                         <span style={{ fontSize: 26, fontWeight: 700, color: 'white' }}>
-                                            {plan.price.toLocaleString()}
+                                            {formatPrice(plan.price)}
                                         </span>
-                                        <span style={{ color: '#64748b', fontSize: 13 }}> {t('Plans.price_unit')}</span>
+                                        <span style={{ color: '#64748b', fontSize: 13 }}> / {t('Plans.period')}</span>
                                     </div>
 
                                     <motion.button
@@ -558,7 +582,7 @@ function BillingContent() {
                             </div>
                             <div style={{ fontSize: 12, color: '#64748b', marginBottom: 12 }}>{t('Credits.unit')}</div>
                             <div style={{ fontSize: 15, fontWeight: 600, color: '#34d399', marginBottom: 12 }}>
-                                {pack.price.toLocaleString()} FCFA
+                                {formatPrice(pack.price)}
                             </div>
                             <motion.button
                                 whileHover={{ scale: 1.02 }}
@@ -626,7 +650,7 @@ function BillingContent() {
                                     </div>
                                     <div style={{ textAlign: 'right' }}>
                                         <div style={{ fontWeight: 600, color: 'white', fontSize: 14 }}>
-                                            {payment.amount_fcfa.toLocaleString()} FCFA
+                                            {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF', maximumFractionDigits: 0 }).format(payment.amount_fcfa)}
                                         </div>
                                         <div style={{
                                             fontSize: 11,

@@ -29,6 +29,7 @@ export interface GenerateResponseOptions {
         lead_fields?: any[]
         stock_quantity?: number
     }>
+    currency?: string
 }
 
 export interface AIResponse {
@@ -85,7 +86,18 @@ ${products.map(p => {
             const stockInfo = p.stock_quantity !== -1 ? `(Stock: ${p.stock_quantity})` : ''
             const customInstructions = p.ai_instructions ? `\n   ⚠️ NOTE VENDEUR : ${p.ai_instructions}` : ''
 
-            return `🔹 ${p.name} - ${p.price_fcfa.toLocaleString('fr-FR')} FCFA ${stockInfo}
+            let displayPrice = p.price_fcfa
+            let currencySymbol = '$'
+
+            if (options.currency === 'XOF') {
+                displayPrice = Math.round(p.price_fcfa * 655)
+                currencySymbol = 'FCFA'
+            } else if (options.currency === 'EUR') {
+                displayPrice = Math.round(p.price_fcfa * 0.92 * 100) / 100
+                currencySymbol = '€'
+            }
+
+            return `🔹 ${p.name} - ${displayPrice.toLocaleString('fr-FR')} ${currencySymbol} ${stockInfo}
    📝 ${p.description || ''}
    RÈGLE : ${specificRules}${customInstructions}`
         }).join('\n\n')}

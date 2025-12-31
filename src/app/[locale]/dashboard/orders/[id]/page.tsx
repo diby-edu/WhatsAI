@@ -117,7 +117,7 @@ export default function OrderDetailsPage() {
     }
 
     const formatPrice = (price: number) => {
-        return new Intl.NumberFormat('fr-FR').format(price) + ' FCFA'
+        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(price)
     }
 
     return (
