@@ -11,19 +11,33 @@ export async function GET(request: NextRequest) {
 
     try {
         // Get user's conversations with agent info and message counts
-        const { data: conversations, error } = await supabase
+
+
+        // Apply filters
+        const url = new URL(request.url)
+        const status = url.searchParams.get('status')
+        const bot_paused = url.searchParams.get('bot_paused')
+
+        const query = supabase
             .from('conversations')
             .select(`
                 id,
                 contact_phone,
                 contact_push_name,
                 status,
+                bot_paused,
                 created_at,
                 updated_at,
                 agent:agents(id, name)
             `)
             .eq('user_id', user.id)
             .order('updated_at', { ascending: false })
+
+        if (status) query.eq('status', status)
+        if (bot_paused === 'true') query.eq('bot_paused', true)
+        if (bot_paused === 'false') query.eq('bot_paused', false)
+
+        const { data: conversations, error } = await query
 
         if (error) {
             console.error('Error fetching conversations:', error)

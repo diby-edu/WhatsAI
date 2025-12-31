@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, use } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { ArrowLeft, User, Bot, Clock, Loader2, RefreshCcw, Hand, Play, Send, Trash2 } from 'lucide-react'
+import { ArrowLeft, User, Bot, Clock, Loader2, RefreshCcw, Hand, Play, Send, Trash2, AlertTriangle } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 interface Message {
@@ -23,6 +23,7 @@ interface ConversationDetail {
     agent: { id: string; name: string } | null
     created_at: string
     updated_at: string
+    status: string
 }
 
 export default function ConversationDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -183,8 +184,36 @@ export default function ConversationDetailPage({ params }: { params: Promise<{ i
         )
     }
 
+    const isEscalated = conversation.status === 'escalated'
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 100px)', maxHeight: 800 }}>
+            {/* Status Banner */}
+            {isEscalated && (
+                <div style={{
+                    background: '#ef4444', color: 'white', padding: '12px 20px',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    fontWeight: 600
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <AlertTriangle size={20} />
+                        <span>ATTENTION REQUISE: Client mécontent ou demande d'humain.</span>
+                    </div>
+                    <button
+                        onClick={() => {
+                            // Resolve escalation -> set to active and resume bot
+                            // For MVP, just resume bot via existing toggle, or we can add specific "Resolve" API
+                            toggleBotPause()
+                        }}
+                        style={{
+                            background: 'white', color: '#ef4444', border: 'none', padding: '6px 16px', borderRadius: 8,
+                            fontWeight: 700, cursor: 'pointer'
+                        }}
+                    >
+                        ✅ Résoudre & Relancer IA
+                    </button>
+                </div>
+            )}
             {/* Header */}
             <div style={{
                 display: 'flex',
@@ -287,8 +316,8 @@ export default function ConversationDetailPage({ params }: { params: Promise<{ i
                         padding: '10px 16px',
                         borderRadius: 12,
                         background: conversation.bot_paused
-                            ? 'rgba(16, 185, 129, 0.15)'
-                            : 'rgba(245, 158, 11, 0.15)',
+                            ? (isEscalated ? '#ef4444' : '#f59e0b')
+                            : 'rgba(16, 185, 129, 0.15)',
                         border: 'none',
                         cursor: togglingPause ? 'wait' : 'pointer',
                         display: 'flex',
@@ -296,14 +325,15 @@ export default function ConversationDetailPage({ params }: { params: Promise<{ i
                         gap: 8,
                         fontSize: 13,
                         fontWeight: 600,
-                        color: conversation.bot_paused ? '#34d399' : '#f59e0b',
-                        opacity: togglingPause ? 0.6 : 1
+                        color: conversation.bot_paused ? 'white' : '#34d399',
+                        opacity: togglingPause ? 0.6 : 1,
+                        boxShadow: conversation.bot_paused ? '0 4px 12px rgba(239, 68, 68, 0.2)' : 'none'
                     }}
                 >
                     {conversation.bot_paused ? (
-                        <><Play size={16} /> {t('bot.resume')}</>
+                        <><Play size={16} fill="white" /> {isEscalated ? 'RÉSOUDRE' : 'RELANCER IA'}</>
                     ) : (
-                        <><Hand size={16} /> {t('bot.pause')}</>
+                        <><Hand size={16} /> PAUSE (HUMAIN)</>
                     )}
                 </button>
             </div>
