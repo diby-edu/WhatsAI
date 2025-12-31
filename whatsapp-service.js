@@ -479,42 +479,41 @@ Instructions:
                 await new Promise(r => setTimeout(r, delay))
                 await session.socket.sendPresenceUpdate('paused', message.from)
 
-                // Send TEXT message
-                const result = await session.socket.sendMessage(message.from, { text: aiResponse.content })
-                console.log('📤 Response sent:', result.key.id)
+                // Determine if we should send Voice or Text
+                const shouldSendVoice = agent.enable_voice_responses && (profile.credits_balance >= 5)
+                let sentVoice = false
 
-                // OPTIONAL: Voice Response
-                let voiceSent = false
-                const hasVoiceCredits = profile.credits_balance >= 5
+                if (shouldSendVoice) {
+                    console.log('🗣️ Voice response enabled, generating audio...')
+                    try {
+                        const mp3 = await openai.audio.speech.create({
+                            model: "tts-1",
+                            voice: agent.voice_id || 'alloy',
+                            input: aiResponse.content,
+                        });
 
-                if (agent.enable_voice_responses) {
-                    if (hasVoiceCredits) {
-                        console.log('🗣️ Voice response enabled, generating audio...')
-                        try {
-                            // Import OpenAI specifically for speech if needed or use existing instance
-                            // Note: Assuming openai instance is available and configured
-                            const mp3 = await openai.audio.speech.create({
-                                model: "tts-1",
-                                voice: agent.voice_id || 'alloy',
-                                input: aiResponse.content,
-                            });
+                        const buffer = Buffer.from(await mp3.arrayBuffer());
 
-                            const buffer = Buffer.from(await mp3.arrayBuffer());
-
-                            // Send audio (ptt = true for voice note)
-                            await session.socket.sendMessage(message.from, {
-                                audio: buffer,
-                                mimetype: 'audio/mp4',
-                                ptt: true
-                            })
-                            voiceSent = true
-                            console.log('✅ Voice message sent')
-                        } catch (voiceErr) {
-                            console.error('❌ Voice gen failed:', voiceErr)
-                        }
-                    } else {
-                        console.log('⚠️ Voice skipped: Insufficient credits (< 5)')
+                        // Send audio (ptt = true for voice note)
+                        await session.socket.sendMessage(message.from, {
+                            audio: buffer,
+                            mimetype: 'audio/mp4',
+                            ptt: true
+                        })
+                        sentVoice = true
+                        console.log('✅ Voice message sent')
+                    } catch (voiceErr) {
+                        console.error('❌ Voice gen failed, falling back to text:', voiceErr)
                     }
+                } else if (agent.enable_voice_responses && profile.credits_balance < 5) {
+                    console.log('⚠️ Voice skipped: Insufficient credits (< 5)')
+                }
+
+                // If Voice was NOT sent (either disabled, failed, or no credits), send Text
+                if (!sentVoice) {
+                    // Send TEXT message
+                    const result = await session.socket.sendMessage(message.from, { text: aiResponse.content })
+                    console.log('📤 Text Response sent:', result.key.id)
                 }
 
                 // Calculate cost
