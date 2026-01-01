@@ -17,7 +17,7 @@ Un script `deploy.sh` est maintenant disponible à la racine. Il gère tout pour
    chmod +x deploy.sh
    ./deploy.sh
    ```
-   *(Le script redémarrera uniquement le site web)*
+   *(Le script arrête temporairement le bot pendant la construction pour éviter les crashs mémoire, puis relance tout)*
 
 ---
 
