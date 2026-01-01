@@ -1,23 +1,30 @@
 #!/bin/bash
 
-echo "🚀 Démarrage du déploiement..."
+echo "🚀 Démarrage du déploiement (Mode Sécurisé RAM)..."
 
-# 1. Récupérer le code
+# 1. Libérer de la mémoire AVANT le build (Crucial pour ce VPS)
+echo "🛑 Arrêt temporaire du bot pour libérer la RAM..."
+pm2 stop whatsai-bot
+
+# 2. Récupérer le code
 echo "📥 Pulling latest code..."
 git pull
 
-# 2. Installer les dépendances (AVEC devDependencies pour le build)
+# 3. Installer les dépendances
 echo "📦 Installing dependencies..."
 npm install --include=dev
 
-# 3. Construire le site
+# 4. Construire le site (Consomme beaucoup de RAM !)
 echo "🏗️ Building Web App..."
 npm run build
 
-# 4. Redémarrer le site
+# 5. Redémarrer le site
 echo "🔄 Restarting Web App..."
 pm2 restart whatsai-web
 
+# 6. Relancer le bot (Maintenant que le build est fini)
+echo "🤖 Relance du Bot WhatsApp..."
+pm2 restart whatsai-bot
+
 echo ""
-echo "✅ Déploiement Web terminé !"
-echo "ℹ️  Si vous devez mettre à jour le bot, lancez manuellement : pm2 restart whatsai-bot"
+echo "✅ Déploiement terminé ! Tout est Vert ! 🟢"
