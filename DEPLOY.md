@@ -1,110 +1,52 @@
 # Guide de Déploiement WhatsAI
 
-Ce guide détaille les étapes pour déployer l'application WhatsAI sur un VPS (Ubunto/Debian recommandé).
+## 🚀 Procédure de Déploiement (Mise à jour)
 
-## 1. Prérequis sur le VPS
+### Méthode 1 : Automatique (Recommandée)
+Un script `deploy.sh` est maintenant disponible à la racine. Il gère tout pour vous.
 
-Assurez-vous que Node.js 18+ et NPM sont installés.
+1. Connectez-vous au VPS :
+   ```bash
+   ssh root@srv1230238
+   ```
 
-```bash
-# Vérifier les versions
-node -v
-npm -v
-```
+2. Allez dans le dossier et lancez le script :
+   ```bash
+   cd /root/WhatsAI
+   git pull
+   chmod +x deploy.sh
+   ./deploy.sh
+   ```
+   *(Le script vous demandera si vous voulez aussi redémarrer le bot)*
 
-Installez PM2 (Gestionnaire de processus) globalement :
-```bash
-npm install -g pm2
-```
+---
 
-## 2. Installation du Projet
+### Méthode 2 : Manuelle (En cas de problème)
 
-Clonez votre répertoire ou copiez les fichiers sur le VPS (par exemple dans `/var/www/whatsai` ou `/root/whatsai`).
+Si le script échoue, voici les commandes exactes à lancer une par une :
 
-```bash
-cd /chemin/vers/votre/dossier/whatsai
+1. **Mise à jour du code**
+   ```bash
+   cd /root/WhatsAI
+   git pull
+   ```
 
-# Installer les dépendances
-npm install --legacy-peer-deps
-```
+2. **Installation & Build** (Important : `--include=dev` pour Tailwind)
+   ```bash
+   npm install --include=dev
+   npm run build
+   ```
 
-## 3. Configuration de l'Environnement
-
-Créez un fichier `.env.local` ou `.env.production` avec vos clés secrètes.
-**Important**: Assurez-vous d'avoir ces clés critiques :
-
-```ini
-# Supabase
-NEXT_PUBLIC_SUPABASE_URL=votre_url_supabase
-NEXT_PUBLIC_SUPABASE_ANON_KEY=votre_cle_anon
-SUPABASE_SERVICE_ROLE_KEY=votre_cle_service_role_(critique_pour_le_bot)
-
-# OpenAI
-OPENAI_API_KEY=sk-...
-
-# CinetPay
-CINETPAY_API_KEY=...
-CINETPAY_SITE_ID=...
-CINETPAY_SECRET_KEY=...
-
-# WhatsApp Session Path (Optionnel, par défaut ./.whatsapp-sessions)
-WHATSAPP_SESSION_PATH=./.whatsapp-sessions
-```
-
-## 4. Construction (Build)
-
-Compilez l'application Next.js :
-
-```bash
-npm run build
-```
-
-## 5. Configuration PM2
-
-Ouvrez le fichier `ecosystem.config.js` à la racine et vérifiez la ligne `cwd` (Current Working Directory).
-Mettez le chemin réel de votre dossier sur le VPS.
-
-```javascript
-// Exemple si vous êtes dans /var/www/whatsai
-cwd: '/var/www/whatsai',
-```
-
-## 6. Lancement
-
-Lancez l'application avec PM2 :
-
-```bash
-pm2 start ecosystem.config.js
-```
-
-Cela va démarrer deux processus :
-1.  `whatsai-web` : Le site web Next.js (Port 3000)
-2.  `whatsai-bot` : Le service WhatsApp autonome
-
-## 7. Gestion des Mises à Jour
-
-Si vous mettez à jour le code du site web, redémarrez **uniquement** le site pour éviter de déconnecter les WhatsApp :
-
-```bash
-# Après un git pull et npm run build
-pm2 restart whatsai-web
-```
-
-⚠️ **Ne redémarrez `whatsai-bot` que si vous avez modifié le fichier `whatsapp-service.js`**, sinon vous risquez de couper les connexions actives des clients.
-
-## 8. Logs et Debug
-
-Pour voir ce qui se passe (erreurs, connexions...) :
-
-```bash
-# Voir tous les logs
-pm2 logs
-
-# Voir uniquement le bot
-pm2 logs whatsai-bot
-```
+3. **Redémarrage Services**
+   ```bash
+   pm2 restart whatsai-web
+   ```
+   *Seulement si le code du bot a changé :*
+   ```bash
+   pm2 restart whatsai-bot
+   ```
 
 ## Architecture
 
-- **Web (Next.js)** : Gère le Dashboard, l'API de réponse manuelle (met les messages en file d'attente), et la facturation.
-- **Bot (Standalone)** : Lit la file d'attente DB, envoie les messages, écoute WhatsApp, et gère l'IA (Texte + Voix).
+- **Web (Next.js)** : Gère le Dashboard, l'API, et la facturation.
+- **Bot (Standalone)** : Lit la file d'attente DB, envoie les messages, gère l'IA.
