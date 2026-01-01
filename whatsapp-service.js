@@ -501,18 +501,12 @@ Instructions:
             } catch (e) { }
 
             const aiResponse = await generateAIResponse({
-                systemPrompt: agent.system_prompt,
+                agent, // Pass the full agent object
                 conversationHistory: (messages || []).slice(0, -1).map(m => ({ role: m.role, content: m.content })),
                 userMessage: message.text,
-                model: agent.model,
-                temperature: agent.temperature,
-                maxTokens: agent.max_tokens,
-                agentName: agent.name,
-                useEmojis: agent.use_emojis,
-                language: agent.language,
                 products: products || [],
                 currency: profileCurrency,
-                orders: orders || [], // Assuming orders and phoneNumber are still needed by generateAIResponse
+                orders: orders || [],
                 customerPhone: phoneNumber
             })
             const session = activeSessions.get(agentId)
