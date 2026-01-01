@@ -60,6 +60,14 @@ export async function GET(request: NextRequest) {
 
         const monthlyRevenue = monthlyPayments?.reduce((sum, p) => sum + (p.amount_fcfa || 0), 0) || 0
 
+        // Get total revenue (all time)
+        const { data: allPayments } = await adminSupabase
+            .from('payments')
+            .select('amount_fcfa')
+            .eq('status', 'completed')
+
+        const totalRevenue = allPayments?.reduce((sum, p) => sum + (p.amount_fcfa || 0), 0) || 0
+
         // New subscriptions this month
         const { data: newThisMonth } = await adminSupabase
             .from('payments')
@@ -70,10 +78,17 @@ export async function GET(request: NextRequest) {
 
         const newCount = newThisMonth?.length || 0
 
+        // Total users (Total Abonnés)
+        const { count: totalUsers } = await adminSupabase
+            .from('profiles')
+            .select('*', { count: 'exact', head: true })
+
         const stats = {
             activeSubscriptions: activeCount,
             monthlyRevenue: monthlyRevenue,
-            newThisMonth: newCount
+            totalRevenue: totalRevenue,
+            newThisMonth: newCount,
+            totalUsers: totalUsers || 0
         }
 
         // Format subscriptions for frontend
@@ -99,6 +114,8 @@ function getEmptyStats() {
     return {
         activeSubscriptions: 0,
         monthlyRevenue: 0,
-        newThisMonth: 0
+        totalRevenue: 0,
+        newThisMonth: 0,
+        totalUsers: 0
     }
 }

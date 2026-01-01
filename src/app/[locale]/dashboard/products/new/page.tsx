@@ -23,6 +23,7 @@ import {
 import Link from 'next/link'
 import { createBrowserClient } from '@supabase/ssr'
 import { useTranslations } from 'next-intl'
+import ProductVariantsEditor, { VariantGroup } from '@/components/dashboard/ProductVariantsEditor'
 
 interface LeadField {
     id: string
@@ -67,7 +68,8 @@ export default function NewProductPage() {
         is_available: true,
         lead_fields: defaultLeadFields,
         image_url: '',
-        images: [] as string[]
+        images: [] as string[],
+        variants: [] as VariantGroup[]
     })
 
 
@@ -694,6 +696,13 @@ export default function NewProductPage() {
                                 }} />
                             </button>
                         </div>
+
+                        {/* Variants Editor */}
+                        <ProductVariantsEditor
+                            variants={formData.variants}
+                            onChange={(variants) => setFormData({ ...formData, variants })}
+                            currencySymbol={currency === 'EUR' ? '€' : currency === 'XOF' ? 'FCFA' : '$'}
+                        />
                     </div>
                 )}
 

@@ -4,8 +4,15 @@ import { motion } from 'framer-motion'
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 
+import { usePathname } from 'next/navigation'
+
 export default function WhatsAppButton() {
     const t = useTranslations('WhatsApp')
+    const pathname = usePathname()
+
+    // Hide on admin pages
+    if (pathname?.includes('/admin')) return null
+
     // Numéro WhatsApp de contact (format international sans +)
     const whatsappNumber = '2250554585927'
     const defaultMessage = t('message')

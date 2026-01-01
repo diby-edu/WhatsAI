@@ -7,6 +7,7 @@ import { ArrowLeft, Save, Loader2, Upload, X, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { createBrowserClient } from '@supabase/ssr'
 import { useTranslations } from 'next-intl'
+import ProductVariantsEditor, { VariantGroup } from '@/components/dashboard/ProductVariantsEditor'
 
 export default function EditProductPage() {
     const t = useTranslations('Products.Form')
@@ -27,7 +28,8 @@ export default function EditProductPage() {
         sku: '',
         image_url: '',
         is_available: true,
-        stock_quantity: -1
+        stock_quantity: -1,
+        variants: [] as VariantGroup[]
     })
 
     const supabase = createBrowserClient(
@@ -65,6 +67,14 @@ export default function EditProductPage() {
                 if (userCurrency === 'XOF') displayPrice = Math.round(displayPrice * 655)
                 else if (userCurrency === 'EUR') displayPrice = Math.round((displayPrice * 0.92) * 100) / 100
 
+                // Parse variants if they exist (they come as JSON)
+                let parsedVariants: VariantGroup[] = []
+                if (p.variants) {
+                    parsedVariants = typeof p.variants === 'string'
+                        ? JSON.parse(p.variants)
+                        : p.variants
+                }
+
                 setFormData({
                     name: p.name || '',
                     description: p.description || '',
@@ -73,7 +83,8 @@ export default function EditProductPage() {
                     sku: p.sku || '',
                     image_url: p.image_url || '',
                     is_available: p.is_available ?? true,
-                    stock_quantity: p.stock_quantity ?? -1
+                    stock_quantity: p.stock_quantity ?? -1,
+                    variants: parsedVariants
                 })
                 if (p.image_url) setImagePreview(p.image_url)
             }
@@ -366,6 +377,13 @@ export default function EditProductPage() {
                             />
                         </div>
                     </div>
+
+                    {/* Variants Editor */}
+                    <ProductVariantsEditor
+                        variants={formData.variants}
+                        onChange={(variants) => setFormData({ ...formData, variants })}
+                        currencySymbol={currency === 'EUR' ? '€' : currency === 'XOF' ? 'FCFA' : '$'}
+                    />
 
                     {/* Toggle */}
                     <div style={{

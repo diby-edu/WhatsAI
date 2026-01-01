@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { CreditCard, Users, TrendingUp, Calendar, FileText, Loader2, RefreshCw } from 'lucide-react'
+import { CreditCard, Users, TrendingUp, Calendar, FileText, Loader2, RefreshCw, DollarSign } from 'lucide-react'
 
 interface Subscription {
     id: string
@@ -17,7 +17,9 @@ interface Subscription {
 interface Stats {
     activeSubscriptions: number
     monthlyRevenue: number
+    totalRevenue: number
     newThisMonth: number
+    totalUsers: number
 }
 
 export default function AdminSubscriptionsPage() {
@@ -25,7 +27,9 @@ export default function AdminSubscriptionsPage() {
     const [stats, setStats] = useState<Stats>({
         activeSubscriptions: 0,
         monthlyRevenue: 0,
-        newThisMonth: 0
+        totalRevenue: 0,
+        newThisMonth: 0,
+        totalUsers: 0
     })
     const [loading, setLoading] = useState(true)
     const [refreshing, setRefreshing] = useState(false)
@@ -56,8 +60,10 @@ export default function AdminSubscriptionsPage() {
     }
 
     const statCards = [
+        { label: 'Total inscrits', value: stats.totalUsers.toString(), icon: Users, color: '#3b82f6' },
         { label: 'Abonnements actifs', value: stats.activeSubscriptions.toString(), icon: Users, color: '#10b981' },
         { label: 'Revenus mensuels', value: `$${stats.monthlyRevenue.toLocaleString()}`, icon: TrendingUp, color: '#a855f7' },
+        { label: 'Revenus totaux', value: `$${(stats.totalRevenue || 0).toLocaleString()}`, icon: DollarSign, color: '#3b82f6' },
         { label: 'Nouveaux ce mois', value: stats.newThisMonth.toString(), icon: CreditCard, color: '#f59e0b' },
     ]
 
@@ -105,7 +111,7 @@ export default function AdminSubscriptionsPage() {
                 </button>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 16 }}>
                 {statCards.map((stat, i) => (
                     <motion.div
                         key={stat.label}
@@ -147,7 +153,7 @@ export default function AdminSubscriptionsPage() {
                 backdropFilter: 'blur(20px)',
                 border: '1px solid rgba(148, 163, 184, 0.1)',
                 borderRadius: 20,
-                overflow: 'hidden',
+                overflowX: 'auto',
                 minHeight: 300
             }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>

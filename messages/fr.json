@@ -647,7 +647,8 @@
       "popular": "Populaire",
       "current": "Plan actuel",
       "choose": "Choisir",
-      "price_unit": "$/mois"
+      "price_unit": "$/mois",
+      "period": "mois"
     },
     "Credits": {
       "title": "Acheter des crédits",

@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
 
     const { data: agents, error } = await supabase
         .from('agents')
-        .select('*')
+        .select('*, conversations(count)')
         .eq('user_id', user!.id)
         .order('created_at', { ascending: false })
 
@@ -22,7 +22,13 @@ export async function GET(request: NextRequest) {
         return errorResponse(error.message, 500)
     }
 
-    return successResponse({ agents })
+    // Map the result to flatten conversations count
+    const agentsWithCount = agents.map((agent: any) => ({
+        ...agent,
+        total_conversations: agent.conversations?.[0]?.count || 0
+    }))
+
+    return successResponse({ agents: agentsWithCount })
 }
 
 // POST /api/agents - Create a new agent
