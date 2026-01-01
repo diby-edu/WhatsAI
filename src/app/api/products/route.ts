@@ -54,7 +54,8 @@ export async function POST(request: NextRequest) {
                 images: body.images || [],
                 is_available: body.is_available ?? true,
                 stock_quantity: body.stock_quantity ?? -1,
-                lead_fields: body.lead_fields || []
+                lead_fields: body.lead_fields || [],
+                variants: body.variants || []
             })
             .select()
             .single()

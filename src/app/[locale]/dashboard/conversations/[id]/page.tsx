@@ -273,7 +273,7 @@ export default function ConversationDetailPage({ params }: { params: Promise<{ i
 
                 <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 600, color: 'white', fontSize: 16 }}>
-                        {conversation.contact_push_name || conversation.contact_phone}
+                        {conversation.contact_push_name || (conversation.contact_phone.startsWith('+') ? conversation.contact_phone : '+' + conversation.contact_phone)}
                     </div>
                     <div style={{ fontSize: 13, color: '#64748b' }}>
                         {conversation.contact_phone}

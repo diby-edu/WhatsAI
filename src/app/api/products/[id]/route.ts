@@ -60,7 +60,8 @@ export async function PUT(
                 image_url: body.image_url,
                 is_available: body.is_available,
                 stock_quantity: body.stock_quantity,
-                agent_id: body.agent_id
+                agent_id: body.agent_id,
+                variants: body.variants
             })
             .eq('id', id)
             .eq('user_id', user.id)

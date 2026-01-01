@@ -11,11 +11,14 @@ echo "📥 Pulling latest code..."
 git pull
 
 # 3. Installer les dépendances
+# 3. Installer les dépendances
 echo "📦 Installing dependencies..."
-npm install --include=dev
+# Forcer la réinstallation des deps critiques si besoin ou juste s'assurer que tout est là
+npm install
 
 # 4. Construire le site (Consomme beaucoup de RAM !)
 echo "🏗️ Building Web App..."
+rm -rf .next # Clean cache
 npm run build
 
 # 5. Redémarrer le site

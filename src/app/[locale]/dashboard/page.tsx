@@ -237,8 +237,9 @@ export default function DashboardPage() {
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                         {recentConversations.map((conv) => (
-                            <div
+                            <Link
                                 key={conv.id}
+                                href={`/dashboard/conversations/${conv.id}`}
                                 style={{
                                     display: 'flex',
                                     alignItems: 'center',
@@ -246,7 +247,8 @@ export default function DashboardPage() {
                                     padding: 12,
                                     borderRadius: 12,
                                     cursor: 'pointer',
-                                    transition: 'background 0.2s'
+                                    transition: 'background 0.2s',
+                                    textDecoration: 'none'
                                 }}
                             >
                                 <div style={{
@@ -265,7 +267,7 @@ export default function DashboardPage() {
                                         <span style={{ fontWeight: 500, color: 'white' }}>{conv.contact}</span>
                                         <span style={{ fontSize: 12, color: '#64748b' }}>{conv.time}</span>
                                     </div>
-                                    <p style={{ fontSize: 14, color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    <p style={{ fontSize: 14, color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>
                                         {conv.lastMessage}
                                     </p>
                                 </div>
@@ -275,7 +277,7 @@ export default function DashboardPage() {
                                     borderRadius: '50%',
                                     background: conv.status === 'active' ? '#10b981' : '#475569'
                                 }} />
-                            </div>
+                            </Link>
                         ))}
                     </div>
                 </div>
