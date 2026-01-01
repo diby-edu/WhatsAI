@@ -17,7 +17,7 @@ Un script `deploy.sh` est maintenant disponible à la racine. Il gère tout pour
    chmod +x deploy.sh
    ./deploy.sh
    ```
-   *(Le script vous demandera si vous voulez aussi redémarrer le bot)*
+   *(Le script redémarrera uniquement le site web)*
 
 ---
 
@@ -41,7 +41,7 @@ Si le script échoue, voici les commandes exactes à lancer une par une :
    ```bash
    pm2 restart whatsai-web
    ```
-   *Seulement si le code du bot a changé :*
+   *Seulement si le code du bot a changé ou s'il est arrêté :*
    ```bash
    pm2 restart whatsai-bot
    ```
