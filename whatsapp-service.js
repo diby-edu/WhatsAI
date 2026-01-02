@@ -415,8 +415,11 @@ Instructions:
             messages.push({ role: 'user', content: userMessage })
         }
 
+        // Use gpt-4o for Vision (images), fallback to configured model for text
+        const modelToUse = options.imageBase64 ? 'gpt-4o' : (agent.model || 'gpt-4o-mini')
+
         const completion = await openai.chat.completions.create({
-            model: agent.model || 'gpt-4o-mini',
+            model: modelToUse,
             messages,
             max_tokens: agent.max_tokens || 500,
             temperature: agent.temperature || 0.7,
