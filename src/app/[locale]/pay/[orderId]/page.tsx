@@ -105,7 +105,7 @@ export default function OrderPaymentPage() {
                     </div>
 
                     <Link
-                        href="/dashboard/orders"
+                        href={`/${params.locale}/dashboard/orders`}
                         className="inline-flex items-center justify-center w-full py-4 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold transition-colors"
                     >
                         Voir mes commandes
