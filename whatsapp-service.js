@@ -202,11 +202,26 @@ async function handleToolCall(toolCall, agentId, customerPhone, products) {
 
             // Match products and calculate total
             for (const item of items) {
-                // Fuzzy match product base name
-                const product = products.find(p =>
-                    item.product_name.toLowerCase().includes(p.name.toLowerCase()) ||
-                    p.name.toLowerCase().includes(item.product_name.toLowerCase().split(' ')[0])
-                )
+                // ENHANCED: Smart fuzzy match - search in name, description, and AI instructions
+                const searchTerms = item.product_name.toLowerCase().split(' ').filter(w => w.length > 2)
+
+                const product = products.find(p => {
+                    const productText = `${p.name} ${p.description || ''} ${p.ai_instructions || ''}`.toLowerCase()
+
+                    // Method 1: Direct inclusion
+                    if (item.product_name.toLowerCase().includes(p.name.toLowerCase())) return true
+                    if (p.name.toLowerCase().includes(item.product_name.toLowerCase())) return true
+
+                    // Method 2: Word-by-word matching (at least 2 words must match)
+                    const matchCount = searchTerms.filter(term => productText.includes(term)).length
+                    if (matchCount >= 2 || (searchTerms.length === 1 && matchCount === 1)) return true
+
+                    // Method 3: First significant word match
+                    const firstWord = searchTerms[0]
+                    if (firstWord && productText.includes(firstWord)) return true
+
+                    return false
+                })
 
                 if (product) {
                     let price = product.price_fcfa || 0
