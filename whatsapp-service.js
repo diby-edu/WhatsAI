@@ -129,7 +129,7 @@ const TOOLS = [
         type: 'function',
         function: {
             name: 'create_order',
-            description: 'Créer une nouvelle commande pour le client quand il confirme vouloir acheter.',
+            description: 'Créer une nouvelle commande pour le client quand il confirme vouloir acheter. IMPORTANT: Demande toujours le mode de paiement AVANT de créer la commande.',
             parameters: {
                 type: 'object',
                 properties: {
@@ -147,9 +147,24 @@ const TOOLS = [
                     },
                     delivery_address: { type: 'string', description: 'Adresse de livraison fournie par le client' },
                     delivery_city: { type: 'string', description: 'Ville de livraison' },
+                    payment_method: { type: 'string', enum: ['online', 'cod'], description: 'Mode de paiement: "online" = paiement en ligne, "cod" = paiement à la livraison (Cash On Delivery)' },
                     notes: { type: 'string', description: 'Notes supplémentaires (ex: Sans oignon)' }
                 },
-                required: ['items']
+                required: ['items', 'payment_method']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'check_payment_status',
+            description: 'Vérifier le statut de paiement d\'une commande. Utilise cet outil quand le client demande si son paiement a été reçu.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    order_id: { type: 'string', description: 'ID de la commande (UUID) obtenu lors de la création' }
+                },
+                required: ['order_id']
             }
         }
     }
@@ -161,7 +176,7 @@ async function handleToolCall(toolCall, agentId, customerPhone, products) {
         try {
             console.log('🛠️ Executing tool: create_order')
             const args = JSON.parse(toolCall.function.arguments)
-            const { items, delivery_address, delivery_city, notes } = args
+            const { items, delivery_address, delivery_city, payment_method, notes } = args
 
             // Get agent to find user_id (merchant)
             const { data: agent } = await supabase.from('agents').select('user_id').eq('id', agentId).single()
@@ -185,26 +200,25 @@ async function handleToolCall(toolCall, agentId, customerPhone, products) {
                         unit_price_fcfa: price
                     })
                 } else {
-                    // Product not found in catalog, treat as custom item if needed, strictly speaking we should skip or error
-                    // For now, let's assume loose matching for demo
                     orderItems.push({
                         product_name: item.product_name,
                         quantity: item.quantity,
-                        unit_price_fcfa: 0 // Unknown price
+                        unit_price_fcfa: 0
                     })
                 }
             }
 
-            // Create Order in DB
+            // Create Order in DB with payment_method
             const { data: order, error } = await supabase
                 .from('orders')
                 .insert({
                     user_id: agent.user_id,
                     agent_id: agentId,
                     customer_phone: customerPhone,
-                    status: 'pending',
+                    status: payment_method === 'cod' ? 'pending_delivery' : 'pending',
                     total_fcfa: total,
                     delivery_address: `${delivery_address || ''} ${delivery_city || ''}`.trim(),
+                    payment_method: payment_method || 'online',
                     notes: notes
                 })
                 .select()
@@ -219,19 +233,79 @@ async function handleToolCall(toolCall, agentId, customerPhone, products) {
                 )
             }
 
-            const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://whatsai.app' // Fallback to generic if not set
-            return JSON.stringify({
-                success: true,
-                order_id: order.id,
-                message: `Commande #${order.id.substring(0, 8)} créée. Total: ${total} FCFA.`,
-                payment_link: `${appUrl}/pay/${order.id}`
-            })
+            const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://whatsai.duckdns.org'
+
+            // Conditional response based on payment method
+            if (payment_method === 'cod') {
+                return JSON.stringify({
+                    success: true,
+                    order_id: order.id,
+                    payment_method: 'cod',
+                    message: `Commande #${order.id.substring(0, 8)} créée. Total: ${total} FCFA. Paiement à la livraison.`
+                })
+            } else {
+                return JSON.stringify({
+                    success: true,
+                    order_id: order.id,
+                    payment_method: 'online',
+                    message: `Commande #${order.id.substring(0, 8)} créée. Total: ${total} FCFA.`,
+                    payment_link: `${appUrl}/pay/${order.id}`
+                })
+            }
 
         } catch (error) {
             console.error('Tool Execution Error:', error)
             return JSON.stringify({ success: false, error: error.message })
         }
     }
+
+    if (toolCall.function.name === 'check_payment_status') {
+        try {
+            console.log('🛠️ Executing tool: check_payment_status')
+            const args = JSON.parse(toolCall.function.arguments)
+            const { order_id } = args
+
+            const { data: order, error } = await supabase
+                .from('orders')
+                .select('id, status, total_fcfa, payment_method')
+                .eq('id', order_id)
+                .single()
+
+            if (error || !order) {
+                return JSON.stringify({ success: false, error: 'Commande introuvable' })
+            }
+
+            let statusMessage = ''
+            switch (order.status) {
+                case 'paid':
+                    statusMessage = `✅ Le paiement de ${order.total_fcfa} FCFA a bien été reçu ! La commande est confirmée.`
+                    break
+                case 'pending':
+                    statusMessage = `⏳ Le paiement est en attente. Le client doit encore payer ${order.total_fcfa} FCFA.`
+                    break
+                case 'pending_delivery':
+                    statusMessage = `📦 Commande en attente de livraison (paiement à la livraison: ${order.total_fcfa} FCFA).`
+                    break
+                case 'delivered':
+                    statusMessage = `✅ La commande a été livrée et payée.`
+                    break
+                default:
+                    statusMessage = `Statut actuel: ${order.status}`
+            }
+
+            return JSON.stringify({
+                success: true,
+                order_id: order.id,
+                status: order.status,
+                message: statusMessage
+            })
+
+        } catch (error) {
+            console.error('Check Payment Error:', error)
+            return JSON.stringify({ success: false, error: error.message })
+        }
+    }
+
     return JSON.stringify({ success: false, error: 'Unknown tool' })
 }
 
