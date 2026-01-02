@@ -70,18 +70,29 @@ export async function POST(request: NextRequest) {
 
                 if (cinetpayStatus.status === 'ACCEPTED') {
                     // Update order status to paid
-                    await supabase.from('orders').update({
+                    const { error: updateError } = await supabase.from('orders').update({
                         status: 'paid'
                     }).eq('id', order.id)
-                    console.log('✅ Order marked as PAID!')
+
+                    if (updateError) {
+                        console.error('❌ Failed to update order:', updateError)
+                    } else {
+                        console.log('✅ Order marked as PAID!')
+                    }
                 } else if (cinetpayStatus.status === 'REFUSED' || cinetpayStatus.status === 'CANCELLED') {
                     await supabase.from('orders').update({
                         status: 'cancelled'
                     }).eq('id', order.id)
                     console.log('❌ Order payment REFUSED/CANCELLED')
+                } else {
+                    console.log('⏳ Order payment status pending:', cinetpayStatus.status)
                 }
 
                 return new Response('OK', { status: 200 })
+            } else {
+                console.error('❌ ORDER NOT FOUND! transaction_id:', cpm_trans_id)
+                console.error('   This means the order was not saved with this transaction_id.')
+                console.error('   Check if /api/public/orders/[orderId]/pay saved the transaction_id correctly.')
             }
         }
 
