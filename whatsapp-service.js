@@ -316,9 +316,26 @@ Instructions:
 
         const messages = [
             { role: 'system', content: systemPrompt },
-            ...conversationHistory.slice(-15),
-            { role: 'user', content: userMessage }
+            ...conversationHistory.slice(-15)
         ]
+
+        // Add user message (Multimodal if image exists)
+        if (options.imageBase64) {
+            messages.push({
+                role: 'user',
+                content: [
+                    { type: 'text', text: userMessage || "Que penses-tu de cette image ?" },
+                    {
+                        type: 'image_url',
+                        image_url: {
+                            url: `data:image/jpeg;base64,${options.imageBase64}`
+                        }
+                    }
+                ]
+            })
+        } else {
+            messages.push({ role: 'user', content: userMessage })
+        }
 
         const completion = await openai.chat.completions.create({
             model: agent.model || 'gpt-4o-mini',
@@ -375,7 +392,7 @@ Instructions:
 
 // Handle incoming message
 async function handleMessage(agentId, message, isVoiceMessage = false) {
-    console.log(`📩 Message received for agent ${agentId}:`, message.text?.substring(0, 50))
+    console.log(`📩 Message received for agent ${agentId}:`, message.text?.substring(0, 50), message.imageBase64 ? '[HAS IMAGE]' : '')
 
     try {
         // Get agent
@@ -520,6 +537,7 @@ async function handleMessage(agentId, message, isVoiceMessage = false) {
             agent, // Pass the full agent object
             conversationHistory: (messages || []).slice(0, -1).map(m => ({ role: m.role, content: m.content })),
             userMessage: message.text,
+            imageBase64: message.imageBase64, // Pass image to AI
             products: products || [],
             currency: profileCurrency,
             orders: orders || [],
@@ -709,8 +727,30 @@ async function initSession(agentId, agentName) {
                     text = msg.message.conversation
                 } else if (msg.message?.extendedTextMessage?.text) {
                     text = msg.message.extendedTextMessage.text
-                } else if (msg.message?.imageMessage?.caption) {
-                    text = msg.message.imageMessage.caption
+                } else if (msg.message?.imageMessage) {
+                    console.log('📸 Image received, downloading...')
+                    try {
+                        const buffer = await downloadMediaMessage(
+                            msg,
+                            'buffer',
+                            { logger }
+                        )
+                        // Convert to base64
+                        const imageBase64 = buffer.toString('base64')
+                        text = msg.message.imageMessage.caption || '' // Get caption if any
+
+                        await handleMessage(agentId, {
+                            from: msg.key.remoteJid,
+                            pushName: msg.pushName,
+                            text,
+                            messageId: msg.key.id,
+                            imageBase64 // Pass image data
+                        }, false)
+                        continue
+                    } catch (err) {
+                        console.error('Failed to process image:', err)
+                        continue
+                    }
                 } else if (msg.message?.audioMessage) {
                     console.log('🎤 Voice note received, transcribing...')
                     try {
