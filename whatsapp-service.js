@@ -138,19 +138,20 @@ const TOOLS = [
                         items: {
                             type: 'object',
                             properties: {
-                                product_name: { type: 'string', description: 'Nom complet du produit (ex: Pizza Reine Taille L, Supplément Fromage)' },
+                                product_name: { type: 'string', description: 'Nom complet du produit avec la variante choisie (ex: Bougie Parfumée Petit, Pizza Reine Grande)' },
                                 quantity: { type: 'number', description: 'Quantité demandée' }
                             },
                             required: ['product_name', 'quantity']
                         },
                         description: 'Liste des produits à commander'
                     },
+                    customer_phone: { type: 'string', description: 'Numéro de téléphone du destinataire de la commande (peut être différent du numéro WhatsApp)' },
                     delivery_address: { type: 'string', description: 'Adresse de livraison fournie par le client' },
                     delivery_city: { type: 'string', description: 'Ville de livraison' },
                     payment_method: { type: 'string', enum: ['online', 'cod'], description: 'Mode de paiement: "online" = paiement en ligne, "cod" = paiement à la livraison (Cash On Delivery)' },
                     notes: { type: 'string', description: 'Notes supplémentaires (ex: Sans oignon)' }
                 },
-                required: ['items', 'payment_method']
+                required: ['items', 'customer_phone', 'payment_method']
             }
         }
     },
@@ -176,7 +177,7 @@ async function handleToolCall(toolCall, agentId, customerPhone, products) {
         try {
             console.log('🛠️ Executing tool: create_order')
             const args = JSON.parse(toolCall.function.arguments)
-            const { items, delivery_address, delivery_city, payment_method, notes } = args
+            const { items, customer_phone, delivery_address, delivery_city, payment_method, notes } = args
 
             // Get agent to find user_id (merchant)
             const { data: agent } = await supabase.from('agents').select('user_id').eq('id', agentId).single()
@@ -201,14 +202,15 @@ async function handleToolCall(toolCall, agentId, customerPhone, products) {
                     if (product.variants && product.variants.length > 0) {
                         for (const variant of product.variants) {
                             for (const option of variant.options) {
-                                // Check if the ordered item name contains this option
-                                if (item.product_name.toLowerCase().includes(option.name?.toLowerCase() || option.value?.toLowerCase())) {
+                                // Check if the ordered item name contains this option value
+                                const optionValue = option.value || option.name || ''
+                                if (optionValue && item.product_name.toLowerCase().includes(optionValue.toLowerCase())) {
                                     if (variant.type === 'fixed') {
                                         price = option.price // Fixed variant replaces base price
                                     } else {
                                         price += option.price // Additive variant adds to base
                                     }
-                                    matchedVariantOption = option.name || option.value
+                                    matchedVariantOption = optionValue
                                     break
                                 }
                             }
@@ -241,7 +243,7 @@ async function handleToolCall(toolCall, agentId, customerPhone, products) {
                 .insert({
                     user_id: agent.user_id,
                     agent_id: agentId,
-                    customer_phone: customerPhone,
+                    customer_phone: customer_phone || customerPhone, // Use provided phone or fallback to WhatsApp sender
                     status: payment_method === 'cod' ? 'pending_delivery' : 'pending',
                     total_fcfa: total,
                     delivery_address: `${delivery_address || ''} ${delivery_city || ''}`.trim(),
