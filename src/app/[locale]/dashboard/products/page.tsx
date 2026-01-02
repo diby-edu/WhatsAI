@@ -10,6 +10,13 @@ import {
 import Link from 'next/link'
 import { useTranslations, useFormatter } from 'next-intl'
 
+interface Variant {
+    id: string
+    name: string
+    type: 'fixed' | 'additive'
+    options: { name: string; price: number }[]
+}
+
 interface Product {
     id: string
     name: string
@@ -19,6 +26,7 @@ interface Product {
     image_url: string | null
     is_available: boolean
     stock_quantity: number
+    variants: Variant[] | null
     created_at: string
 }
 
@@ -89,6 +97,19 @@ export default function ProductsPage() {
             currency: currency,
             maximumFractionDigits: currency === 'XOF' ? 0 : 2
         }).format(price)
+    }
+
+    // Calculate display price based on variants
+    const getDisplayPrice = (product: Product): { price: number; hasVariants: boolean } => {
+        const variants = product.variants || []
+        const fixedVariant = variants.find(v => v.type === 'fixed')
+
+        if (fixedVariant && fixedVariant.options.length > 0) {
+            const minPrice = Math.min(...fixedVariant.options.map(o => o.price))
+            if (minPrice > 0) return { price: minPrice, hasVariants: true }
+        }
+
+        return { price: product.price_fcfa, hasVariants: variants.length > 0 }
     }
 
     if (loading) {
@@ -242,9 +263,15 @@ export default function ProductsPage() {
                                 </p>
 
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span style={{ fontSize: 20, fontWeight: 700, color: '#34d399' }}>
-                                        {formatPrice(product.price_fcfa)}
-                                    </span>
+                                    {(() => {
+                                        const { price, hasVariants } = getDisplayPrice(product)
+                                        return (
+                                            <span style={{ fontSize: 20, fontWeight: 700, color: '#34d399' }}>
+                                                {hasVariants && <span style={{ fontSize: 12, fontWeight: 400, color: '#94a3b8' }}>À partir de </span>}
+                                                {formatPrice(price)}
+                                            </span>
+                                        )
+                                    })()}
                                     <div style={{ display: 'flex', gap: 8 }}>
                                         <button
                                             onClick={() => router.push(`/dashboard/products/${product.id}`)}
