@@ -262,11 +262,10 @@ ${products.map(p => {
                 let displayPrice = p.price_fcfa
                 let currencySymbol = '$'
 
+                // SIMPLIFICATION: Raw value is display value
                 if (currency === 'XOF') {
-                    displayPrice = Math.round(p.price_fcfa * 655)
                     currencySymbol = 'FCFA'
                 } else if (currency === 'EUR') {
-                    displayPrice = Math.round(p.price_fcfa * 0.92 * 100) / 100
                     currencySymbol = '€'
                 }
 
@@ -278,9 +277,6 @@ ${products.map(p => {
                         variantsInfo += `\n      - ${v.name} (${v.type === 'fixed' ? 'Prix Fixe' : 'Supplément'}) : `
                         variantsInfo += v.options.map(opt => {
                             let optPrice = opt.price
-                            if (currency === 'XOF') optPrice = Math.round(opt.price * 655)
-                            else if (currency === 'EUR') optPrice = Math.round(opt.price * 0.92 * 100) / 100
-
                             const sign = v.type === 'additive' && optPrice > 0 ? '+' : ''
                             return `${opt.value} (${sign}${optPrice} ${currencySymbol})`
                         }).join(', ')

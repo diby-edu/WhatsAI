@@ -24,13 +24,12 @@ interface ProductVariantsEditorProps {
 
 export default function ProductVariantsEditor({ variants, onChange, currencySymbol }: ProductVariantsEditorProps) {
     const [editingGroup, setEditingGroup] = useState<string | null>(null)
-    const [newGroupType, setNewGroupType] = useState<'fixed' | 'additive'>('fixed')
 
-    const addGroup = () => {
+    const addGroup = (type: 'fixed' | 'additive') => {
         const newGroup: VariantGroup = {
             id: Date.now().toString(),
-            name: newGroupType === 'fixed' ? 'Taille' : 'Supplément',
-            type: newGroupType,
+            name: type === 'fixed' ? 'Taille' : 'Supplément',
+            type: type,
             options: [] // Empty options initially
         }
         onChange([...variants, newGroup])
@@ -210,7 +209,8 @@ export default function ProductVariantsEditor({ variants, onChange, currencySymb
             {/* Add Group Buttons */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 16 }}>
                 <button
-                    onClick={() => { setNewGroupType('fixed'); addGroup(); }}
+                    type="button"
+                    onClick={() => addGroup('fixed')}
                     style={{
                         padding: 12,
                         borderRadius: 10,
@@ -230,7 +230,8 @@ export default function ProductVariantsEditor({ variants, onChange, currencySymb
                     Variante (Prix Fixe)
                 </button>
                 <button
-                    onClick={() => { setNewGroupType('additive'); addGroup(); }}
+                    type="button"
+                    onClick={() => addGroup('additive')}
                     style={{
                         padding: 12,
                         borderRadius: 10,

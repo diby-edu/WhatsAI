@@ -56,7 +56,7 @@ export default function EditProductPage() {
             let userCurrency = 'USD'
             if (profileData.data?.profile?.currency) {
                 userCurrency = profileData.data.profile.currency
-                setCurrency(userCurrency)
+                // SIMPLIFICATION: No conversion. RAW Load.
             }
 
             if (productData.data?.product) {
@@ -64,8 +64,6 @@ export default function EditProductPage() {
 
                 // Convert price for display
                 let displayPrice = p.price_fcfa || 0
-                if (userCurrency === 'XOF') displayPrice = Math.round(displayPrice * 655)
-                else if (userCurrency === 'EUR') displayPrice = Math.round((displayPrice * 0.92) * 100) / 100
 
                 // Parse variants if they exist (they come as JSON)
                 let parsedVariants: VariantGroup[] = []
@@ -139,14 +137,11 @@ export default function EditProductPage() {
         setSaving(true)
 
         try {
-            // Convert price back to USD
-            let priceInUSD = formData.price_fcfa
-            if (currency === 'XOF') priceInUSD = formData.price_fcfa / 655
-            else if (currency === 'EUR') priceInUSD = formData.price_fcfa / 0.92
-
+            // SIMPLIFICATION: No conversion.
             const payload = {
                 ...formData,
-                price_fcfa: Math.round(priceInUSD * 100) / 100
+                price_fcfa: formData.price_fcfa,
+                variants: formData.variants
             }
 
             const res = await fetch(`/api/products/${params.id}`, {
@@ -340,8 +335,11 @@ export default function EditProductPage() {
                     {/* Price & Category */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
                         <div>
-                            <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
-                                {t('fields.price')} ({currency === 'EUR' ? '€' : currency === 'XOF' ? 'FCFA' : '$'})
+                            <label style={{ display: 'flex', justifyContent: 'space-between', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
+                                <span>{t('fields.price')} ({currency === 'EUR' ? '€' : currency === 'XOF' ? 'FCFA' : '$'})</span>
+                                <Link href="/dashboard/settings" target="_blank" style={{ fontSize: 11, color: '#64748b', textDecoration: 'underline' }}>
+                                    Changer devise
+                                </Link>
                             </label>
                             <input
                                 type="number"
