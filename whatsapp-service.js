@@ -219,7 +219,7 @@ async function handleToolCall(toolCall, agentId, customerPhone, products) {
                 )
             }
 
-            const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://hebergementci.com'
+            const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://whatsai.app' // Fallback to generic if not set
             return JSON.stringify({
                 success: true,
                 order_id: order.id,
