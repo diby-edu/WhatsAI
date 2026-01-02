@@ -137,10 +137,19 @@ export default function EditProductPage() {
         setSaving(true)
 
         try {
-            // SIMPLIFICATION: No conversion.
+            let calculatedPrice = formData.price_fcfa
+
+            // LOGIC: If we have FIXED variants, the base price implies "Starting from"
+            // So we take the lowest fixed option price to ensure consistency in the list
+            const fixedGroup = formData.variants.find(v => v.type === 'fixed')
+            if (fixedGroup && fixedGroup.options.length > 0) {
+                const minPrice = Math.min(...fixedGroup.options.map(o => o.price))
+                if (minPrice > 0) calculatedPrice = minPrice
+            }
+
             const payload = {
                 ...formData,
-                price_fcfa: formData.price_fcfa,
+                price_fcfa: calculatedPrice,
                 variants: formData.variants
             }
 
