@@ -129,7 +129,7 @@ const TOOLS = [
         type: 'function',
         function: {
             name: 'create_order',
-            description: 'Créer une nouvelle commande pour le client quand il confirme vouloir acheter. IMPORTANT: Demande toujours le mode de paiement AVANT de créer la commande.',
+            description: 'Create a new order for a customer. Use this when the user wants to buy something.',
             parameters: {
                 type: 'object',
                 properties: {
@@ -138,20 +138,20 @@ const TOOLS = [
                         items: {
                             type: 'object',
                             properties: {
-                                product_name: { type: 'string', description: 'Nom complet du produit avec la variante choisie (ex: Bougie Parfumée Petit, Pizza Reine Grande)' },
-                                quantity: { type: 'number', description: 'Quantité demandée' }
+                                product_name: { type: 'string', description: 'Name of the product from the catalog' },
+                                quantity: { type: 'integer', description: 'Quantity ordered' }
                             },
                             required: ['product_name', 'quantity']
                         },
-                        description: 'Liste des produits à commander'
+                        description: 'List of products to order'
                     },
-                    customer_phone: { type: 'string', description: 'Numéro de téléphone du destinataire de la commande (peut être différent du numéro WhatsApp)' },
-                    delivery_address: { type: 'string', description: 'Adresse de livraison fournie par le client' },
-                    delivery_city: { type: 'string', description: 'Ville de livraison' },
-                    payment_method: { type: 'string', enum: ['online', 'cod'], description: 'Mode de paiement: "online" = paiement en ligne, "cod" = paiement à la livraison (Cash On Delivery)' },
-                    notes: { type: 'string', description: 'Notes supplémentaires (ex: Sans oignon)' }
+                    customer_phone: { type: 'string', description: 'Customer phone number (required)' },
+                    delivery_address: { type: 'string', description: 'Delivery address provided by user' },
+                    delivery_city: { type: 'string', description: 'Delivery city' },
+                    payment_method: { type: 'string', enum: ['online', 'cod'], description: 'Payment method choice' },
+                    notes: { type: 'string', description: 'Any special instructions' }
                 },
-                required: ['items', 'customer_phone', 'payment_method']
+                required: ['items', 'customer_phone']
             }
         }
     },
@@ -159,13 +159,27 @@ const TOOLS = [
         type: 'function',
         function: {
             name: 'check_payment_status',
-            description: 'Vérifier le statut de paiement d\'une commande. Utilise cet outil quand le client demande si son paiement a été reçu.',
+            description: 'Check the status of a specific order.',
             parameters: {
                 type: 'object',
                 properties: {
-                    order_id: { type: 'string', description: 'ID de la commande (UUID) obtenu lors de la création' }
+                    order_id: { type: 'string', description: 'The Order ID UUID' }
                 },
                 required: ['order_id']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'send_image',
+            description: 'Send an image of a product to the customer. Use this when the user asks to see a product.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    product_name: { type: 'string', description: 'The exact name of the product to show' }
+                },
+                required: ['product_name']
             }
         }
     }
@@ -311,6 +325,36 @@ async function handleToolCall(toolCall, agentId, customerPhone, products) {
                     break
                 case 'pending':
                     statusMessage = `⏳ Le paiement est en attente. Le client doit encore payer ${order.total_fcfa} FCFA.`
+                    if (order.payment_method === 'online' && order.cinetpay_transaction_id) {
+                        try {
+                            const cinetpay = new CinetPay(
+                                process.env.CINETPAY_SITE_ID,
+                                process.env.CINETPAY_API_KEY,
+                                process.env.CINETPAY_SECRET_KEY,
+                                false // Set to true for production
+                            )
+                            const checkStatus = await cinetpay.checkPayStatus({
+                                transaction_id: order.cinetpay_transaction_id
+                            })
+
+                            if (checkStatus.code === '00') {
+                                // Payment successful, update order status
+                                await supabase.from('orders').update({ status: 'paid' }).eq('id', order.id)
+                                statusMessage = `✅ Le paiement de ${order.total_fcfa} FCFA a bien été reçu ! La commande est confirmée.`
+                            } else {
+                                statusMessage = `⏳ Le paiement est en attente. Le client doit encore payer ${order.total_fcfa} FCFA. Vous pouvez payer ici: ${order.cinetpay_payment_url}`
+                            }
+                        } catch (apiError) {
+                            console.error('CinetPay Verify Error:', apiError)
+
+                            // Fallback sur la DB si API inaccessible
+                            return JSON.stringify({
+                                success: false,
+                                status: 'pending',
+                                message: `⏳ Vérification temporairement indisponible. Si vous avez déjà payé, votre commande sera confirmée dans quelques instants. Sinon, vous pouvez payer ici:\n${order.cinetpay_payment_url}`
+                            })
+                        }
+                    }
                     break
                 case 'pending_delivery':
                     statusMessage = `📦 Commande en attente de livraison (paiement à la livraison: ${order.total_fcfa} FCFA).`
@@ -319,7 +363,12 @@ async function handleToolCall(toolCall, agentId, customerPhone, products) {
                     statusMessage = `✅ La commande a été livrée et payée.`
                     break
                 default:
-                    statusMessage = `Statut actuel: ${order.status}`
+                    // Cas par défaut
+                    return JSON.stringify({
+                        success: true,
+                        status: order.status,
+                        message: `Statut actuel: ${order.status}`
+                    })
             }
 
             return JSON.stringify({
@@ -331,7 +380,47 @@ async function handleToolCall(toolCall, agentId, customerPhone, products) {
 
         } catch (error) {
             console.error('Check Payment Error:', error)
-            return JSON.stringify({ success: false, error: error.message })
+            return JSON.stringify({
+                success: false,
+                error: 'Une erreur est survenue lors de la vérification. Veuillez réessayer.'
+            })
+        }
+    }
+
+    if (toolCall.function.name === 'send_image') {
+        try {
+            console.log('🛠️ Executing tool: send_image')
+            const args = JSON.parse(toolCall.function.arguments)
+            const { product_name } = args
+
+            // Products is passed to handleToolCall scope
+            const product = products.find(p => p.name.toLowerCase().includes(product_name.toLowerCase()) || product_name.toLowerCase().includes(p.name.toLowerCase()))
+
+            if (!product || !product.image_url) {
+                return JSON.stringify({
+                    success: false,
+                    error: "Désolé, je n'ai pas d'image pour ce produit."
+                })
+            }
+
+            console.log('📸 Sending image for:', product.name, product.image_url)
+
+            const session = activeSessions.get(agentId)
+            if (session && session.socket) {
+                await session.socket.sendMessage(customerPhone, {
+                    image: { url: product.image_url },
+                    caption: `Voici ${product.name} ! 📸`
+                })
+            }
+
+            return JSON.stringify({
+                success: true,
+                message: `J'ai envoyé une photo de ${product.name} !`
+            })
+
+        } catch (error) {
+            console.error('Send Image Error:', error)
+            return JSON.stringify({ success: false, error: "Impossible d'envoyer l'image." })
         }
     }
 
@@ -612,7 +701,8 @@ async function handleMessage(agentId, message, isVoiceMessage = false) {
         // Get products
         const { data: products } = await supabase
             .from('products')
-            .select('name, price_fcfa, description, variants')
+            // BONUS: Fetch image_url so the bot knows about images!
+            .select('name, price_fcfa, description, variants, image_url')
             .eq('user_id', agent.user_id)
             .eq('is_available', true)
             .limit(20)
@@ -1107,11 +1197,125 @@ async function main() {
 
     // Periodic check for new agents
     setInterval(checkAgents, CHECK_INTERVAL)
+
     // Periodic check for pending messages
-    setInterval(checkPendingMessages, 2000) // Check more frequently for responsiveness
+    setInterval(checkPendingMessages, 2000)
+
+    // BONUS EXPERT:
+    // 1. Relance paiement (10min)
+    setInterval(checkPendingPayments, 10 * 60 * 1000)
+
+    // 2. Annulation automatique (30min)
+    setInterval(cancelExpiredOrders, 30 * 60 * 1000)
+
+    // 3. Demande Feedback (24h)
+    setInterval(requestFeedback, 24 * 60 * 60 * 1000)
 
     console.log('✅ WhatsApp Service running')
     console.log('⚠️  DO NOT restart this service during deployments!')
+}
+
+// ---------------------------------------------------------
+// FONCTIONNALITÉS EXPERT (BONUS)
+// ---------------------------------------------------------
+
+// 1. RELANCE AUTOMATIQUE DES PAIEMENTS
+async function checkPendingPayments() {
+    try {
+        const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString()
+
+        const { data: pendingOrders } = await supabase
+            .from('orders')
+            .select('id, agent_id, customer_phone, total_fcfa, cinetpay_payment_url, created_at')
+            .eq('status', 'pending')
+            .eq('payment_method', 'online')
+            .lt('created_at', fifteenMinutesAgo)
+            .is('payment_reminder_sent', null)
+
+        for (const order of pendingOrders || []) {
+            if (!order.cinetpay_payment_url) continue
+
+            console.log('⏰ Sending payment reminder for order:', order.id)
+
+            await supabase.from('outbound_messages').insert({
+                agent_id: order.agent_id,
+                recipient_phone: order.customer_phone,
+                message_content: `⏰ *Rappel de paiement*\n\nVotre commande #${order.id.substring(0, 8)} attend votre paiement.\n\n💰 Montant: ${order.total_fcfa.toLocaleString()} FCFA\n\n💳 Cliquez ici pour payer:\n${order.cinetpay_payment_url}\n\n❓ Besoin d'aide ? Répondez à ce message.`,
+                status: 'pending'
+            })
+
+            await supabase.from('orders').update({
+                payment_reminder_sent: true,
+                payment_reminder_sent_at: new Date().toISOString()
+            }).eq('id', order.id)
+        }
+    } catch (error) {
+        console.error('Error checking pending payments:', error)
+    }
+}
+
+// 2. ANNULATION AUTOMATIQUE
+async function cancelExpiredOrders() {
+    try {
+        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+
+        const { data: expiredOrders } = await supabase
+            .from('orders')
+            .select('id, agent_id, customer_phone')
+            .eq('status', 'pending')
+            .eq('payment_method', 'online')
+            .lt('created_at', oneHourAgo)
+
+        for (const order of expiredOrders || []) {
+            console.log('❌ Cancelling expired order:', order.id)
+
+            await supabase.from('orders').update({
+                status: 'cancelled',
+                cancelled_reason: 'Payment timeout (1 hour)'
+            }).eq('id', order.id)
+
+            await supabase.from('outbound_messages').insert({
+                agent_id: order.agent_id,
+                recipient_phone: order.customer_phone,
+                message_content: `⏱️ *Commande expirée*\n\nVotre commande #${order.id.substring(0, 8)} a été annulée car le paiement n'a pas été reçu dans les temps.\n\nVous pouvez repasser commande quand vous le souhaitez ! 😊`,
+                status: 'pending'
+            })
+        }
+    } catch (error) {
+        console.error('Error cancelling expired orders:', error)
+    }
+}
+
+// 3. DEMANDE FEEDBACK
+async function requestFeedback() {
+    try {
+        const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
+        const fourDaysAgo = new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString()
+
+        const { data: deliveredOrders } = await supabase
+            .from('orders')
+            .select('id, agent_id, customer_phone, delivered_at')
+            .eq('status', 'delivered')
+            .is('feedback_requested', null)
+            .lt('delivered_at', threeDaysAgo)
+            .gt('delivered_at', fourDaysAgo)
+
+        for (const order of deliveredOrders || []) {
+            await supabase.from('outbound_messages').insert({
+                agent_id: order.agent_id,
+                recipient_phone: order.customer_phone,
+                message_content: `😊 *Livraison effectuée ?*\n\nPouvez-vous nous donner votre avis sur votre commande #${order.id.substring(0, 8)} ?\n\nRépondez simplement:\n1. Très satisfait 🌟\n2. Satisfait 🙂\n3. Déçu 😞\n\nMerci !`,
+                status: 'pending'
+            })
+
+            await supabase.from('orders').update({
+                feedback_requested: true,
+                feedback_requested_at: new Date().toISOString()
+            }).eq('id', order.id)
+        }
+    } catch (error) {
+        console.error('Error requesting feedback:', error)
+    }
 }
 
 // Handle graceful shutdown

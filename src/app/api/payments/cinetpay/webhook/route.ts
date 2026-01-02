@@ -94,8 +94,44 @@ export async function POST(request: NextRequest) {
                                 })
                             })
                             console.log('📱 WhatsApp confirmation queued for:', order.customer_phone)
-                        } catch (notifyErr) {
-                            console.error('⚠️ Failed to send WhatsApp notification:', notifyErr)
+
+                            // 4. (Bonus) Notifier le merchant
+                            try {
+                                // Récupérer le numéro du merchant depuis la table profiles
+                                const { data: agentData } = await supabase
+                                    .from('agents')
+                                    .select('user_id')
+                                    .eq('id', order.agent_id)
+                                    .single()
+
+                                if (agentData) {
+                                    const { data: profile } = await supabase
+                                        .from('profiles')
+                                        .select('phone')
+                                        .eq('id', agentData.user_id)
+                                        .single()
+
+                                    // Numéro par défaut ou celui du profil
+                                    const merchantPhone = profile?.phone || '+2250504315545'
+
+                                    const itemsList = await supabase
+                                        .from('order_items')
+                                        .select('product_name, quantity, unit_price_fcfa')
+                                        .eq('order_id', order.id)
+
+                                    const itemsSummary = itemsList.data?.map((i: any) => `• ${i.quantity}x ${i.product_name}`).join('\n') || 'Articles divers'
+
+                                    await supabase.from('outbound_messages').insert({
+                                        agent_id: order.agent_id,
+                                        recipient_phone: merchantPhone,
+                                        message_content: `🔔 *NOUVEAU PAIEMENT !*\n\n💰 Montant: ${Number(order.total_fcfa).toLocaleString()} FCFA\n📦 Commande: #${order.id.substring(0, 8)}\n👤 Client: ${order.customer_phone}\n\n🛒 Articles:\n${itemsSummary}\n\n💳 Mode: ${cinetpayStatus.data?.payment_method || 'En ligne'}`,
+                                        status: 'pending'
+                                    })
+                                    console.log('📤 Merchant notification queued for:', merchantPhone)
+                                }
+                            } catch (notifyError) {
+                                console.error('Failed to notify merchant:', notifyError)
+                            }
                         }
                     }
                 } else if (cinetpayStatus.status === 'REFUSED' || cinetpayStatus.status === 'CANCELLED') {
