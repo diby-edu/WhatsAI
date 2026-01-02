@@ -433,6 +433,11 @@ ${orders.map(o => `- Commande #${o.id.substring(0, 8)} (${new Date(o.created_at)
   Articles: ${o.items?.map(i => `${i.quantity}x ${i.product_name}`).join(', ')}`).join('\n')}
 ` : ''}
 
+⚠️ GESTION DES IMAGES ET HORS-SUJET :
+Si le client envoie une image ou demande un produit QUE TU NE VENDS PAS (ex: électronique, vêtements, nourriture...), dis CLAIREMENT que tu ne vends pas cet article.
+Ne fais PAS semblant que tes produits correspondent à sa demande.
+Exemple : "C'est un très beau disque dur, mais je ne vends que des bougies parfumées ! 😊"
+
 ${relevantDocs && relevantDocs.length > 0 ? `
 BASE DE CONNAISSANCES (RAG):
 ${relevantDocs.map(doc => `- ${doc.content}`).join('\n\n')}
