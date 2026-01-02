@@ -84,15 +84,11 @@ export default function ProductsPage() {
     )
 
     const formatPrice = (price: number) => {
-        let convertedPrice = price
-        if (currency === 'XOF') convertedPrice = price * 655
-        else if (currency === 'EUR') convertedPrice = price * 0.92
-
         return new Intl.NumberFormat('fr-FR', {
             style: 'currency',
             currency: currency,
             maximumFractionDigits: currency === 'XOF' ? 0 : 2
-        }).format(convertedPrice)
+        }).format(price)
     }
 
     if (loading) {

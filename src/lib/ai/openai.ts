@@ -90,7 +90,7 @@ ${products.map(p => {
             let currencySymbol = '$'
 
             if (options.currency === 'XOF') {
-                displayPrice = Math.round(p.price_fcfa * 655)
+                displayPrice = p.price_fcfa
                 currencySymbol = 'FCFA'
             } else if (options.currency === 'EUR') {
                 displayPrice = Math.round(p.price_fcfa * 0.92 * 100) / 100
