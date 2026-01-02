@@ -219,11 +219,12 @@ async function handleToolCall(toolCall, agentId, customerPhone, products) {
                 )
             }
 
+            const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://hebergementci.com'
             return JSON.stringify({
                 success: true,
                 order_id: order.id,
                 message: `Commande #${order.id.substring(0, 8)} créée. Total: ${total} FCFA.`,
-                payment_link: `https://whatsai.app/pay/${order.id}` // Mock link for now
+                payment_link: `${appUrl}/pay/${order.id}`
             })
 
         } catch (error) {
