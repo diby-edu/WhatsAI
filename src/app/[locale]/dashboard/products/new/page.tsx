@@ -221,9 +221,19 @@ export default function NewProductPage() {
             // SIMPLIFICATION: No more conversion. Stored value = Input value.
             // valid for whatever currency is set in profile.
 
+            let calculatedPrice = formData.price_fcfa
+
+            // LOGIC: If we have FIXED variants, the base price implies "Starting from"
+            // So we take the lowest fixed option price to ensure consistency in the list
+            const fixedGroup = formData.variants.find(v => v.type === 'fixed')
+            if (fixedGroup && fixedGroup.options.length > 0) {
+                const minPrice = Math.min(...fixedGroup.options.map(o => o.price))
+                if (minPrice > 0) calculatedPrice = minPrice
+            }
+
             const payload = {
                 ...formData,
-                price_fcfa: formData.price_fcfa, // Store raw value
+                price_fcfa: calculatedPrice, // Store min price as base
                 variants: formData.variants // Store raw variants
             }
 
