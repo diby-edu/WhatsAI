@@ -256,12 +256,13 @@ async function handleToolCall(toolCall, agentId, customerPhone, products) {
                         unit_price_fcfa: price
                     })
                 } else {
-                    // Product not found - log for debugging
-                    console.log('⚠️ Product not found:', item.product_name)
-                    orderItems.push({
-                        product_name: item.product_name,
-                        quantity: item.quantity,
-                        unit_price_fcfa: 0
+                    // CRITICAL: Product not found - REFUSE the order instead of creating it with price 0
+                    console.log('❌ Product not found in catalog:', item.product_name)
+                    const availableProducts = products.map(p => p.name).join(', ')
+                    return JSON.stringify({
+                        success: false,
+                        error: `Je ne trouve pas "${item.product_name}" dans notre catalogue. Voici nos produits disponibles : ${availableProducts}`,
+                        available_products: products.map(p => p.name)
                     })
                 }
             }
@@ -530,6 +531,14 @@ ${productsCatalog}
 - Quand tu communiques un prix au client, utilise TOUJOURS les prix actuels du catalogue.
 - Si le client remarque une différence de prix, tu peux expliquer poliment : "Nos tarifs ont été mis à jour récemment. Le prix actuel est de X FCFA."
 - Pour créer une commande, utilise UNIQUEMENT les prix actuels du catalogue.
+
+🚨 RÈGLE ABSOLUE - CATALOGUE COMME SOURCE DE VÉRITÉ :
+1. Tu ne peux vendre QUE les produits listés dans "LISTE DES OFFRES" ci-dessus.
+2. Quand on te demande "qu'est-ce que vous vendez?", liste UNIQUEMENT les produits du catalogue.
+3. Si un client demande un produit qui N'EST PAS dans le catalogue, réponds POLIMENT :
+   "Désolé, nous ne proposons pas ce produit actuellement. Voici ce que nous avons en stock : [liste les produits du catalogue]"
+4. Ne JAMAIS inventer de prix. Si un produit n'est pas dans le catalogue, tu ne connais pas son prix.
+5. La description de l'entreprise peut mentionner des spécialités générales, mais seul le CATALOGUE définit ce qui est commandable.
 
 ${orders && orders.length > 0 ? `
 Historique des Commandes du Client:
