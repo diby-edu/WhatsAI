@@ -218,14 +218,13 @@ export default function NewProductPage() {
     const handleSubmit = async () => {
         setLoading(true)
         try {
-            // Convert price to USD base if necessary
-            let priceInUSD = formData.price_fcfa
-            if (currency === 'XOF') priceInUSD = formData.price_fcfa / 655
-            else if (currency === 'EUR') priceInUSD = formData.price_fcfa / 0.92
+            // SIMPLIFICATION: No more conversion. Stored value = Input value.
+            // valid for whatever currency is set in profile.
 
             const payload = {
                 ...formData,
-                price_fcfa: Math.round(priceInUSD * 100) / 100 // Keep 2 decimals
+                price_fcfa: formData.price_fcfa, // Store raw value
+                variants: formData.variants // Store raw variants
             }
 
             const res = await fetch('/api/products', {
@@ -620,8 +619,11 @@ export default function NewProductPage() {
 
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
                             <div>
-                                <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
-                                    {t('price.amount')} ({currency === 'EUR' ? '€' : currency === 'XOF' ? 'FCFA' : '$'})
+                                <label style={{ display: 'flex', justifyContent: 'space-between', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
+                                    <span>{t('price.amount')} ({currency === 'EUR' ? '€' : currency === 'XOF' ? 'FCFA' : '$'})</span>
+                                    <Link href="/dashboard/settings" target="_blank" style={{ fontSize: 11, color: '#64748b', textDecoration: 'underline' }}>
+                                        Changer devise
+                                    </Link>
                                 </label>
                                 <input
                                     type="number"
