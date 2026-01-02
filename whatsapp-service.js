@@ -605,6 +605,16 @@ async function handleMessage(agentId, message, isVoiceMessage = false) {
             .eq('is_available', true)
             .limit(20)
 
+        // DEBUG: Log product variants
+        if (products && products.length > 0) {
+            console.log('📦 Products loaded:', products.length)
+            products.forEach(p => {
+                if (p.variants && p.variants.length > 0) {
+                    console.log(`   ${p.name}:`, JSON.stringify(p.variants))
+                }
+            })
+        }
+
         // Get recent orders for this customer (Context Injection)
         const { data: orders } = await supabase
             .from('orders')
