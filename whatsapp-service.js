@@ -420,9 +420,12 @@ INSTRUCTION IMPORTANTE :
 
 ${productsCatalog}
 
-⚠️ ATTENTION PRIX : Les prix indiqués dans "LISTE DES OFFRES" ci-dessus sont les prix ACTUELS et CORRECTS.
-IGNORE COMPLÈTEMENT les prix mentionnés dans l'historique de conversation précédent - ils peuvent être obsolètes.
-Utilise UNIQUEMENT les prix du catalogue ci-dessus.
+📌 GESTION DES PRIX :
+- Les prix indiqués dans "LISTE DES OFFRES" ci-dessus sont les prix ACTUELS en vigueur.
+- Si l'historique de conversation mentionne des prix différents, c'étaient les anciens prix.
+- Quand tu communiques un prix au client, utilise TOUJOURS les prix actuels du catalogue.
+- Si le client remarque une différence de prix, tu peux expliquer poliment : "Nos tarifs ont été mis à jour récemment. Le prix actuel est de X FCFA."
+- Pour créer une commande, utilise UNIQUEMENT les prix actuels du catalogue.
 
 ${orders && orders.length > 0 ? `
 Historique des Commandes du Client:
@@ -439,8 +442,7 @@ Instructions:
 - Réponds en ${agent.language || 'français'}
 - ${agent.use_emojis ? 'Utilise des emojis' : 'Pas d\'emojis'}
 - Sois concis et professionnel
-- Ton nom est ${agent.name}
-- RAPPEL: Utilise UNIQUEMENT les prix du catalogue ci-dessus, JAMAIS les prix de l'historique!`
+- Ton nom est ${agent.name}`
 
         const messages = [
             { role: 'system', content: systemPrompt },
