@@ -102,8 +102,16 @@ export default function OrderPaymentPage() {
                             <span className="text-emerald-400">{order.total_fcfa?.toLocaleString('fr-FR')} FCFA</span>
                         </div>
                     </div>
-                </motion.div>
-            </div>
+                    </div>
+                    
+                    <a 
+                        href="/dashboard/orders"
+                        className="inline-flex items-center justify-center w-full py-4 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold transition-colors"
+                    >
+                        Voir mes commandes
+                    </a>
+                </motion.div >
+            </div >
         )
     }
 
