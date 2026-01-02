@@ -99,17 +99,23 @@ export default function ProductsPage() {
         }).format(price)
     }
 
-    // Calculate display price based on variants
-    const getDisplayPrice = (product: Product): { price: number; hasVariants: boolean } => {
+    // Calculate display price range based on variants
+    const getDisplayPrice = (product: Product): { minPrice: number; maxPrice: number; hasVariants: boolean } => {
         const variants = product.variants || []
         const fixedVariant = variants.find(v => v.type === 'fixed')
 
         if (fixedVariant && fixedVariant.options.length > 0) {
-            const minPrice = Math.min(...fixedVariant.options.map(o => o.price))
-            if (minPrice > 0) return { price: minPrice, hasVariants: true }
+            const prices = fixedVariant.options.map(o => o.price).filter(p => p > 0)
+            if (prices.length > 0) {
+                return {
+                    minPrice: Math.min(...prices),
+                    maxPrice: Math.max(...prices),
+                    hasVariants: true
+                }
+            }
         }
 
-        return { price: product.price_fcfa, hasVariants: variants.length > 0 }
+        return { minPrice: product.price_fcfa, maxPrice: product.price_fcfa, hasVariants: variants.length > 0 }
     }
 
     if (loading) {
@@ -264,11 +270,19 @@ export default function ProductsPage() {
 
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                     {(() => {
-                                        const { price, hasVariants } = getDisplayPrice(product)
+                                        const { minPrice, maxPrice, hasVariants } = getDisplayPrice(product)
                                         return (
-                                            <span style={{ fontSize: 20, fontWeight: 700, color: '#34d399' }}>
-                                                {hasVariants && <span style={{ fontSize: 12, fontWeight: 400, color: '#94a3b8' }}>À partir de </span>}
-                                                {formatPrice(price)}
+                                            <span style={{ fontSize: 18, fontWeight: 700, color: '#34d399' }}>
+                                                {hasVariants && minPrice !== maxPrice ? (
+                                                    <>
+                                                        <span style={{ fontSize: 11, fontWeight: 400, color: '#94a3b8' }}>De </span>
+                                                        {formatPrice(minPrice)}
+                                                        <span style={{ fontSize: 11, fontWeight: 400, color: '#94a3b8' }}> à </span>
+                                                        {formatPrice(maxPrice)}
+                                                    </>
+                                                ) : (
+                                                    formatPrice(minPrice)
+                                                )}
                                             </span>
                                         )
                                     })()}

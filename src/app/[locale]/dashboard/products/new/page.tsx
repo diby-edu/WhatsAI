@@ -628,21 +628,38 @@ export default function NewProductPage() {
                         </h2>
 
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
-                            <div>
-                                <label style={{ display: 'flex', justifyContent: 'space-between', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
-                                    <span>{t('price.amount')} ({currency === 'EUR' ? '€' : currency === 'XOF' ? 'FCFA' : '$'})</span>
-                                    <Link href="/dashboard/settings" target="_blank" style={{ fontSize: 11, color: '#64748b', textDecoration: 'underline' }}>
-                                        Changer devise
-                                    </Link>
-                                </label>
-                                <input
-                                    type="number"
-                                    min={0}
-                                    value={formData.price_fcfa || ''}
-                                    onChange={e => setFormData({ ...formData, price_fcfa: parseFloat(e.target.value) || 0 })}
-                                    style={inputStyle}
-                                />
-                            </div>
+                            {/* Hide base price when FIXE variant exists */}
+                            {formData.variants.some(v => v.type === 'fixed' && v.options.length > 0) ? (
+                                <div style={{
+                                    background: 'rgba(59, 130, 246, 0.1)',
+                                    border: '1px solid rgba(59, 130, 246, 0.3)',
+                                    borderRadius: 12,
+                                    padding: 16
+                                }}>
+                                    <div style={{ color: '#60a5fa', fontWeight: 600, marginBottom: 8 }}>
+                                        💡 Prix défini par les variantes
+                                    </div>
+                                    <p style={{ color: '#94a3b8', fontSize: 13, margin: 0 }}>
+                                        Le prix sera automatiquement calculé selon les options PRIX FIXE ci-dessous.
+                                    </p>
+                                </div>
+                            ) : (
+                                <div>
+                                    <label style={{ display: 'flex', justifyContent: 'space-between', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
+                                        <span>{t('price.amount')} ({currency === 'EUR' ? '€' : currency === 'XOF' ? 'FCFA' : '$'})</span>
+                                        <Link href="/dashboard/settings" target="_blank" style={{ fontSize: 11, color: '#64748b', textDecoration: 'underline' }}>
+                                            Changer devise
+                                        </Link>
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min={0}
+                                        value={formData.price_fcfa || ''}
+                                        onChange={e => setFormData({ ...formData, price_fcfa: parseFloat(e.target.value) || 0 })}
+                                        style={inputStyle}
+                                    />
+                                </div>
+                            )}
                             <div>
                                 <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
                                     {t('price.category')}
