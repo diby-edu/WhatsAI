@@ -420,6 +420,10 @@ INSTRUCTION IMPORTANTE :
 
 ${productsCatalog}
 
+⚠️ ATTENTION PRIX : Les prix indiqués dans "LISTE DES OFFRES" ci-dessus sont les prix ACTUELS et CORRECTS.
+IGNORE COMPLÈTEMENT les prix mentionnés dans l'historique de conversation précédent - ils peuvent être obsolètes.
+Utilise UNIQUEMENT les prix du catalogue ci-dessus.
+
 ${orders && orders.length > 0 ? `
 Historique des Commandes du Client:
 ${orders.map(o => `- Commande #${o.id.substring(0, 8)} (${new Date(o.created_at).toLocaleDateString()}): ${o.status === 'pending' ? 'En attente' : o.status === 'paid' ? 'Payée' : o.status} - ${o.total_fcfa} FCFA
@@ -435,7 +439,8 @@ Instructions:
 - Réponds en ${agent.language || 'français'}
 - ${agent.use_emojis ? 'Utilise des emojis' : 'Pas d\'emojis'}
 - Sois concis et professionnel
-- Ton nom est ${agent.name}`
+- Ton nom est ${agent.name}
+- RAPPEL: Utilise UNIQUEMENT les prix du catalogue ci-dessus, JAMAIS les prix de l'historique!`
 
         const messages = [
             { role: 'system', content: systemPrompt },
