@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
-import { createBrowserClient } from '@supabase/ssr'
 import { Loader2, CheckCircle, CreditCard, ShoppingBag } from 'lucide-react'
 import { motion } from 'framer-motion'
 
@@ -14,37 +13,26 @@ export default function OrderPaymentPage() {
     const [status, setStatus] = useState<'pending' | 'processing' | 'success' | 'error'>('pending')
     const [error, setError] = useState('')
 
-    const supabase = createBrowserClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
-
     useEffect(() => {
         fetchOrder()
     }, [params.orderId])
 
     const fetchOrder = async () => {
         try {
-            const { data: order, error } = await supabase
-                .from('orders')
-                .select('*')
-                .eq('id', params.orderId)
-                .single()
+            const res = await fetch(`/api/public/orders/${params.orderId}`)
+            const data = await res.json()
 
-            if (error) throw error
+            if (!res.ok || data.error) {
+                throw new Error(data.error || 'Order not found')
+            }
 
-            const { data: items } = await supabase
-                .from('order_items')
-                .select('*')
-                .eq('order_id', order.id)
+            setOrder(data.order)
+            setItems(data.items || [])
+            if (data.order.status === 'paid') setStatus('success')
 
-            setOrder(order)
-            setItems(items || [])
-            if (order.status === 'paid') setStatus('success')
-
-        } catch (err) {
+        } catch (err: any) {
             console.error('Error fetching order:', err)
-            setError('Commande introuvable')
+            setError(err.message || 'Commande introuvable')
         } finally {
             setLoading(false)
         }
@@ -53,17 +41,14 @@ export default function OrderPaymentPage() {
     const handlePayment = async () => {
         setStatus('processing')
 
-        // MOCK PAYMENT PROCESS
-        // In real world, we would redirect to CinetPay/Stripe here
         try {
-            await new Promise(r => setTimeout(r, 2000)) // Simulate network delay
+            await new Promise(r => setTimeout(r, 1500)) // Simulate processing
 
-            const { error } = await supabase
-                .from('orders')
-                .update({ status: 'paid' })
-                .eq('id', order.id)
+            const res = await fetch(`/api/public/orders/${params.orderId}`, {
+                method: 'POST'
+            })
 
-            if (error) throw error
+            if (!res.ok) throw new Error('Payment failed')
             setStatus('success')
         } catch (err) {
             console.error('Payment failed:', err)
