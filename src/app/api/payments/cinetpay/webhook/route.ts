@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
                                     await supabase.from('outbound_messages').insert({
                                         agent_id: order.agent_id,
                                         recipient_phone: merchantPhone,
-                                        message_content: `🔔 *NOUVEAU PAIEMENT !*\n\n💰 Montant: ${Number(order.total_fcfa).toLocaleString()} FCFA\n📦 Commande: #${order.id.substring(0, 8)}\n👤 Client: ${order.customer_phone}\n\n🛒 Articles:\n${itemsSummary}\n\n💳 Mode: ${cinetpayStatus.data?.payment_method || 'En ligne'}`,
+                                        message_content: `🔔 *NOUVEAU PAIEMENT !*\n\n💰 Montant: ${Number(order.total_fcfa).toLocaleString()} FCFA\n📦 Commande: #${order.id.substring(0, 8)}\n👤 Client: ${order.customer_phone}\n\n🛒 Articles:\n${itemsSummary}\n\n💳 Mode: CinetPay`,
                                         status: 'pending'
                                     })
                                     console.log('📤 Merchant notification queued for:', merchantPhone)
@@ -132,6 +132,8 @@ export async function POST(request: NextRequest) {
                             } catch (notifyError) {
                                 console.error('Failed to notify merchant:', notifyError)
                             }
+                        } catch (notifyErr) {
+                            console.error('⚠️ Failed to send WhatsApp notification:', notifyErr)
                         }
                     }
                 } else if (cinetpayStatus.status === 'REFUSED' || cinetpayStatus.status === 'CANCELLED') {
