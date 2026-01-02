@@ -51,7 +51,41 @@ export async function POST(request: NextRequest) {
             return new Response('Invalid site_id', { status: 400 })
         }
 
-        // Find payment by transaction ID
+        // First, check if this is an ORDER payment (transaction_id starts with ORD_)
+        if (cpm_trans_id.startsWith('ORD_')) {
+            console.log('📦 This is an ORDER payment, checking orders table...')
+
+            const { data: order, error: orderError } = await supabase
+                .from('orders')
+                .select('*')
+                .eq('transaction_id', cpm_trans_id)
+                .single()
+
+            if (order) {
+                console.log('✅ Found order:', order.id, 'status:', order.status)
+
+                // Verify with CinetPay API
+                const cinetpayStatus = await checkPaymentStatus(cpm_trans_id)
+                console.log('📡 CinetPay API response:', JSON.stringify(cinetpayStatus))
+
+                if (cinetpayStatus.status === 'ACCEPTED') {
+                    // Update order status to paid
+                    await supabase.from('orders').update({
+                        status: 'paid'
+                    }).eq('id', order.id)
+                    console.log('✅ Order marked as PAID!')
+                } else if (cinetpayStatus.status === 'REFUSED' || cinetpayStatus.status === 'CANCELLED') {
+                    await supabase.from('orders').update({
+                        status: 'cancelled'
+                    }).eq('id', order.id)
+                    console.log('❌ Order payment REFUSED/CANCELLED')
+                }
+
+                return new Response('OK', { status: 200 })
+            }
+        }
+
+        // Find payment by transaction ID (for credits/subscriptions)
         const { data: payment, error: paymentError } = await supabase
             .from('payments')
             .select('*')
