@@ -244,6 +244,23 @@ async function handleToolCall(toolCall, agentId, customerPhone, products) {
                                 }
                             }
                         }
+
+                        // STRICT VALIDATION: If product has variants but none matched, refuse order
+                        if (!matchedVariantOption) {
+                            console.log('❌ Variant not matched for product:', product.name, '- Requested:', item.product_name)
+                            const allOptions = product.variants
+                                .flatMap(v => v.options.map(o => `${v.name}: ${o.value || o.name}`))
+                                .join(', ')
+                            return JSON.stringify({
+                                success: false,
+                                error: `Pour commander "${product.name}", veuillez préciser une option. Choix disponibles: ${allOptions}`,
+                                product_name: product.name,
+                                available_options: product.variants.map(v => ({
+                                    name: v.name,
+                                    options: v.options.map(o => o.value || o.name)
+                                }))
+                            })
+                        }
                     }
 
                     total += price * item.quantity
