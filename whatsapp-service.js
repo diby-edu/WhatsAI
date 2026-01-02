@@ -359,9 +359,25 @@ ${products.map(p => {
                 }
 
                 const hasVariants = p.variants && p.variants.length > 0
-                const pricePrefix = hasVariants ? 'À partir de ' : ''
+                const fixedVariant = p.variants?.find(v => v.type === 'fixed')
 
-                return `🔹 ${p.name} - ${pricePrefix}${displayPrice ? displayPrice.toLocaleString('fr-FR') : ''} ${currencySymbol}
+                let priceDisplay = ''
+                if (fixedVariant && fixedVariant.options.length > 0) {
+                    const prices = fixedVariant.options.map(o => o.price).filter(pr => pr > 0)
+                    if (prices.length > 0) {
+                        const minPrice = Math.min(...prices)
+                        const maxPrice = Math.max(...prices)
+                        if (minPrice !== maxPrice) {
+                            priceDisplay = `Prix compris entre ${minPrice.toLocaleString('fr-FR')} et ${maxPrice.toLocaleString('fr-FR')} ${currencySymbol}`
+                        } else {
+                            priceDisplay = `${minPrice.toLocaleString('fr-FR')} ${currencySymbol}`
+                        }
+                    }
+                } else {
+                    priceDisplay = displayPrice ? `${displayPrice.toLocaleString('fr-FR')} ${currencySymbol}` : ''
+                }
+
+                return `🔹 ${p.name} - ${priceDisplay}
     📝 ${p.description || ''}${variantsInfo}`
             }).join('\n')}
 
