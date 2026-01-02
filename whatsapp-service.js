@@ -283,7 +283,10 @@ ${products.map(p => {
                     })
                 }
 
-                return `🔹 ${p.name} - ${displayPrice ? displayPrice.toLocaleString('fr-FR') : 'A partir de'} ${currencySymbol}
+                const hasVariants = p.variants && p.variants.length > 0
+                const pricePrefix = hasVariants ? 'À partir de ' : ''
+
+                return `🔹 ${p.name} - ${pricePrefix}${displayPrice ? displayPrice.toLocaleString('fr-FR') : ''} ${currencySymbol}
     📝 ${p.description || ''}${variantsInfo}`
             }).join('\n')}
 
