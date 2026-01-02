@@ -17,6 +17,8 @@ interface Order {
     customer_phone: string
     status: string
     total_amount: number
+    total_fcfa: number
+    payment_method: 'online' | 'cod' | null
     created_at: string
     items_count: number
 }
@@ -52,6 +54,8 @@ export default function OrdersPage() {
     const getStatusColor = (status: string) => {
         switch (status) {
             case 'pending': return '#fbbf24'
+            case 'pending_delivery': return '#f59e0b'
+            case 'paid': return '#10b981'
             case 'confirmed': return '#34d399'
             case 'processing': return '#60a5fa'
             case 'shipped': return '#a78bfa'
@@ -64,6 +68,8 @@ export default function OrdersPage() {
     const getStatusIcon = (status: string) => {
         switch (status) {
             case 'pending': return <Clock size={16} />
+            case 'pending_delivery': return <Truck size={16} />
+            case 'paid': return <CheckCircle size={16} />
             case 'confirmed': return <CheckCircle size={16} />
             case 'processing': return <Loader2 size={16} />
             case 'shipped': return <Truck size={16} />
@@ -90,7 +96,7 @@ export default function OrdersPage() {
     )
 
     const formatPrice = (price: number) => {
-        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(price)
+        return new Intl.NumberFormat('fr-FR').format(price) + ' FCFA'
     }
 
     if (loading) {
@@ -231,10 +237,21 @@ export default function OrdersPage() {
                             <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
                                 <div style={{ textAlign: 'right' }}>
                                     <div style={{ color: 'white', fontWeight: 700, fontSize: 18 }}>
-                                        {formatPrice(order.total_amount)}
+                                        {formatPrice(order.total_fcfa || order.total_amount)}
                                     </div>
-                                    <div style={{ color: '#64748b', fontSize: 13 }}>
+                                    <div style={{ color: '#64748b', fontSize: 13, display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end' }}>
                                         {order.items_count} articles
+                                        {order.payment_method && (
+                                            <span style={{
+                                                padding: '2px 8px',
+                                                borderRadius: 6,
+                                                fontSize: 11,
+                                                background: order.payment_method === 'cod' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+                                                color: order.payment_method === 'cod' ? '#f59e0b' : '#60a5fa'
+                                            }}>
+                                                {order.payment_method === 'cod' ? '💵 Livraison' : '🌐 En ligne'}
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
                                 <button
