@@ -187,19 +187,46 @@ async function handleToolCall(toolCall, agentId, customerPhone, products) {
 
             // Match products and calculate total
             for (const item of items) {
-                // Fuzzy match or exact match product
-                const product = products.find(p => p.name.toLowerCase().includes(item.product_name.toLowerCase()))
+                // Fuzzy match product base name
+                const product = products.find(p =>
+                    item.product_name.toLowerCase().includes(p.name.toLowerCase()) ||
+                    p.name.toLowerCase().includes(item.product_name.toLowerCase().split(' ')[0])
+                )
 
                 if (product) {
-                    const price = product.price_fcfa || 0
+                    let price = product.price_fcfa || 0
+                    let matchedVariantOption = null
+
+                    // Try to match variant option from product name
+                    if (product.variants && product.variants.length > 0) {
+                        for (const variant of product.variants) {
+                            for (const option of variant.options) {
+                                // Check if the ordered item name contains this option
+                                if (item.product_name.toLowerCase().includes(option.name?.toLowerCase() || option.value?.toLowerCase())) {
+                                    if (variant.type === 'fixed') {
+                                        price = option.price // Fixed variant replaces base price
+                                    } else {
+                                        price += option.price // Additive variant adds to base
+                                    }
+                                    matchedVariantOption = option.name || option.value
+                                    break
+                                }
+                            }
+                        }
+                    }
+
                     total += price * item.quantity
                     orderItems.push({
-                        product_name: product.name,
+                        product_name: matchedVariantOption
+                            ? `${product.name} (${matchedVariantOption})`
+                            : product.name,
                         product_description: product.description,
                         quantity: item.quantity,
                         unit_price_fcfa: price
                     })
                 } else {
+                    // Product not found - log for debugging
+                    console.log('⚠️ Product not found:', item.product_name)
                     orderItems.push({
                         product_name: item.product_name,
                         quantity: item.quantity,
