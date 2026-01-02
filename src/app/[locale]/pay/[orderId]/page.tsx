@@ -42,16 +42,22 @@ export default function OrderPaymentPage() {
         setStatus('processing')
 
         try {
-            await new Promise(r => setTimeout(r, 1500)) // Simulate processing
-
-            const res = await fetch(`/api/public/orders/${params.orderId}`, {
+            // Call CinetPay initiation API
+            const res = await fetch(`/api/public/orders/${params.orderId}/pay`, {
                 method: 'POST'
             })
 
-            if (!res.ok) throw new Error('Payment failed')
-            setStatus('success')
-        } catch (err) {
+            const data = await res.json()
+
+            if (!res.ok || !data.payment_url) {
+                throw new Error(data.error || 'Échec de l\'initialisation du paiement')
+            }
+
+            // Redirect to CinetPay payment page
+            window.location.href = data.payment_url
+        } catch (err: any) {
             console.error('Payment failed:', err)
+            setError(err.message || 'Erreur de paiement')
             setStatus('error')
         }
     }
