@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import { Loader2, CheckCircle, CreditCard, ShoppingBag } from 'lucide-react'
 import { motion } from 'framer-motion'
+import Link from 'next/link'
 
 export default function OrderPaymentPage() {
     const params = useParams()
@@ -102,15 +103,14 @@ export default function OrderPaymentPage() {
                             <span className="text-emerald-400">{order.total_fcfa?.toLocaleString('fr-FR')} FCFA</span>
                         </div>
                     </div>
-                    </div>
-                    
-                    <a 
+
+                    <Link
                         href="/dashboard/orders"
                         className="inline-flex items-center justify-center w-full py-4 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold transition-colors"
                     >
                         Voir mes commandes
-                    </a>
-                </motion.div >
+                    </Link>
+                </motion.div>
             </div >
         )
     }
