@@ -160,13 +160,13 @@ export default function ProductVariantsEditor({ variants, onChange, currencySymb
                                                 background: 'rgba(15, 23, 42, 0.6)',
                                                 border: '1px solid rgba(148, 163, 184, 0.2)',
                                                 borderRadius: 8,
-                                                padding: '8px 12px 8px 32px',
+                                                padding: '8px 12px 8px 40px', // Increased padding left
                                                 color: group.type === 'fixed' ? '#34d399' : '#c084fc',
                                                 fontSize: 14,
                                                 fontWeight: 600
                                             }}
                                         />
-                                        <div style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#64748b', fontSize: 12 }}>
+                                        <div style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#64748b', fontSize: 10, pointerEvents: 'none' }}>
                                             {group.type === 'additive' ? '+' : ''}{currencySymbol}
                                         </div>
                                     </div>
