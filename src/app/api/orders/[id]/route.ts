@@ -19,7 +19,12 @@ export async function GET(
             .from('orders')
             .select(`
                 *,
-                items:order_items(*),
+                items:order_items(
+                    id,
+                    product_name,
+                    quantity,
+                    unit_price_fcfa
+                ),
                 conversation:conversations(id, contact_phone, contact_push_name)
             `)
             .eq('id', id)
@@ -30,7 +35,24 @@ export async function GET(
             return errorResponse('Commande non trouvée', 404)
         }
 
-        return successResponse({ order })
+        // Transform items to match frontend expectations
+        const transformedOrder = {
+            ...order,
+            order_number: `#CMD-${order.created_at?.slice(0, 10).replace(/-/g, '')}-${order.id.substring(0, 4).toUpperCase()}`,
+            total_amount: order.total_fcfa,
+            items: (order.items || []).map((item: any) => ({
+                id: item.id,
+                quantity: item.quantity,
+                unit_price: item.unit_price_fcfa,
+                total_price: item.unit_price_fcfa * item.quantity,
+                product: {
+                    name: item.product_name,
+                    image_url: null
+                }
+            }))
+        }
+
+        return successResponse({ order: transformedOrder })
     } catch (err) {
         console.error('Error fetching order:', err)
         return errorResponse('Erreur serveur', 500)
