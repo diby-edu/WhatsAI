@@ -1014,6 +1014,62 @@ async function checkAgents() {
     }
 }
 
+// Process pending outbound messages (from webhook notifications)
+async function checkPendingMessages() {
+    try {
+        // Get pending messages
+        const { data: messages, error } = await supabase
+            .from('outbound_messages')
+            .select('*')
+            .eq('status', 'pending')
+            .limit(10)
+
+        if (error) {
+            // Table might not exist, skip silently
+            if (error.code === '42P01') return
+            console.error('Error checking outbound messages:', error)
+            return
+        }
+
+        if (!messages || messages.length === 0) return
+
+        for (const msg of messages) {
+            const session = activeSessions.get(msg.agent_id)
+            if (!session || !session.socket) {
+                console.log('⚠️ No session for agent:', msg.agent_id)
+                continue
+            }
+
+            try {
+                // Format phone number
+                let jid = msg.recipient_phone
+                if (!jid.includes('@')) {
+                    jid = jid.replace(/\D/g, '') + '@s.whatsapp.net'
+                }
+
+                // Send message
+                await session.socket.sendMessage(jid, { text: msg.message_content })
+                console.log('📱 Sent outbound message to:', msg.recipient_phone)
+
+                // Mark as sent
+                await supabase.from('outbound_messages').update({
+                    status: 'sent',
+                    sent_at: new Date().toISOString()
+                }).eq('id', msg.id)
+
+            } catch (sendErr) {
+                console.error('Failed to send outbound message:', sendErr)
+                await supabase.from('outbound_messages').update({
+                    status: 'failed',
+                    error: sendErr.message
+                }).eq('id', msg.id)
+            }
+        }
+    } catch (err) {
+        // Silently fail - table might not exist
+    }
+}
+
 // Main loop
 async function main() {
     console.log('🚀 WhatsApp Service starting...')
