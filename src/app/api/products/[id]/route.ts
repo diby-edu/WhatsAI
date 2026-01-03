@@ -77,7 +77,7 @@ export async function PUT(
     }
 }
 
-// DELETE - Delete product
+// DELETE - Delete product (with image cleanup)
 export async function DELETE(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
@@ -91,6 +91,43 @@ export async function DELETE(
     }
 
     try {
+        // 1. First, fetch the product to get its image_url
+        const { data: product } = await supabase
+            .from('products')
+            .select('image_url')
+            .eq('id', id)
+            .eq('user_id', user.id)
+            .single()
+
+        // 2. If product has an image, delete it from Storage
+        if (product?.image_url) {
+            try {
+                // Extract filename from URL
+                // URL format: https://xxx.supabase.co/storage/v1/object/public/images/products/filename.ext
+                const url = new URL(product.image_url)
+                const pathParts = url.pathname.split('/images/')
+                if (pathParts.length > 1) {
+                    const filePath = pathParts[1] // e.g., "products/1234567.webp"
+                    console.log('🗑️ Deleting image from storage:', filePath)
+
+                    const { error: storageError } = await supabase.storage
+                        .from('images')
+                        .remove([filePath])
+
+                    if (storageError) {
+                        console.error('⚠️ Failed to delete image:', storageError)
+                        // Continue with product deletion even if image cleanup fails
+                    } else {
+                        console.log('✅ Image deleted from storage')
+                    }
+                }
+            } catch (urlError) {
+                console.error('⚠️ Error parsing image URL:', urlError)
+                // Continue with product deletion
+            }
+        }
+
+        // 3. Delete the product from database
         const { error } = await supabase
             .from('products')
             .delete()
@@ -99,7 +136,7 @@ export async function DELETE(
 
         if (error) throw error
 
-        return successResponse({ message: 'Produit supprimé' })
+        return successResponse({ message: 'Produit et image supprimés' })
     } catch (err) {
         console.error('Error deleting product:', err)
         return errorResponse('Erreur lors de la suppression', 500)
