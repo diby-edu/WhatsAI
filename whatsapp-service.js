@@ -475,9 +475,21 @@ async function handleToolCall(toolCall, agentId, customerPhone, products) {
 
             const session = activeSessions.get(agentId)
             if (session && session.socket) {
-                await session.socket.sendMessage(customerPhone, {
+                // FIX: Ensure customerPhone is in JID format
+                let jid = customerPhone
+                if (!jid.includes('@')) {
+                    jid = jid.replace(/\D/g, '') + '@s.whatsapp.net'
+                }
+
+                await session.socket.sendMessage(jid, {
                     image: { url: product.image_url },
                     caption: `Voici ${product.name} ! 📸`
+                })
+            } else {
+                console.error('❌ No active session for agent:', agentId)
+                return JSON.stringify({
+                    success: false,
+                    error: "Session WhatsApp non disponible"
                 })
             }
 
@@ -570,7 +582,9 @@ ${products.map(p => {
 INSTRUCTION IMPORTANTE : 
 1. Si un produit a des VARIANTES (Options requises), tu NE PEUX PAS créer la commande tant que le client n'a pas fait son choix.
 2. Si le type est 'fixed', le PRIX FINAL est celui de la variante choisie (Ignore le prix de base).
-3. Si le type est 'additive', le PRIX FINAL est Prix Base + Supplément.`
+3. Si le type est 'additive', le PRIX FINAL est Prix Base + Supplément.
+4. ⚠️ CRUCIAL: Quand tu appelles create_order, INCLUS la variante dans product_name !
+   Exemple: Si client veut "Bougie" en taille "Petit", utilise product_name="Bougies Parfumées Artisanales Petit" (pas juste "Bougies").`
         }
 
         const systemPrompt = `${agent.system_prompt || 'Tu es un assistant IA professionnel.'}
@@ -902,8 +916,12 @@ async function handleMessage(agentId, message, isVoiceMessage = false) {
 
             // If Voice was NOT sent (either disabled, failed, or no credits), send Text
             if (!sentVoice) {
-                // Send TEXT message
-                result = await session.socket.sendMessage(message.from, { text: aiResponse.content })
+                // Send TEXT message (link preview disabled to prevent crashes with payment URLs)
+                result = await session.socket.sendMessage(message.from, {
+                    text: aiResponse.content
+                }, {
+                    linkPreview: false  // FIX: Disable to prevent crash with payment URLs
+                })
                 console.log('📤 Text Response sent:', result.key.id)
             }
 
