@@ -495,14 +495,26 @@ async function handleToolCall(toolCall, agentId, customerPhone, products) {
             }
 
             console.log('📸 Sending image for:', product.name, product.image_url)
+            console.log('📱 CustomerPhone received:', customerPhone) // DEBUG
 
             const session = activeSessions.get(agentId)
             if (session && session.socket) {
                 // FIX: Ensure customerPhone is in JID format
+                // Handle undefined, null, or invalid phone
                 let jid = customerPhone
-                if (!jid.includes('@')) {
-                    jid = jid.replace(/\D/g, '') + '@s.whatsapp.net'
+                if (!jid || jid === 'undefined' || jid === 'null') {
+                    console.error('❌ customerPhone is undefined in send_image!')
+                    return JSON.stringify({
+                        success: false,
+                        error: "Erreur interne: numéro de téléphone non disponible"
+                    })
                 }
+
+                // Convert to JID if not already
+                if (!jid.includes('@')) {
+                    jid = jid.toString().replace(/\D/g, '') + '@s.whatsapp.net'
+                }
+                console.log('📱 Using JID:', jid) // DEBUG
 
                 await session.socket.sendMessage(jid, {
                     image: { url: product.image_url },
