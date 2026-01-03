@@ -55,7 +55,12 @@ export async function POST(request: NextRequest) {
                 is_available: body.is_available ?? true,
                 stock_quantity: body.stock_quantity ?? -1,
                 lead_fields: body.lead_fields || [],
-                variants: body.variants || []
+                variants: body.variants || [],
+                // New structured fields
+                short_pitch: body.short_pitch || null,
+                features: body.features || [],
+                marketing_tags: body.marketing_tags || [],
+                related_product_ids: body.related_product_ids || []
             })
             .select()
             .single()

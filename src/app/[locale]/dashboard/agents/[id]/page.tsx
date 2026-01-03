@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
     ArrowLeft,
     Save,
@@ -14,43 +14,113 @@ import {
     RefreshCw,
     Settings,
     Trash2,
-    Book
+    Book,
+    MapPin,
+    Clock,
+    Phone,
+    Globe,
+    Facebook,
+    Mail,
+    MessagesSquare,
+    Zap,
+    Shield,
+    ChevronRight,
+    ChevronLeft
 } from 'lucide-react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 
-export default function AgentDetailsPage({ params }: { params: Promise<{ id: string }> }) {
-    // Unwrap params using React.use()
+// Wizard Steps
+const STEPS = [
+    { id: 'identity', title: 'Identité', icon: MapPin },
+    { id: 'availability', title: 'Horaires', icon: Clock },
+    { id: 'personality', title: 'Personnalité', icon: Zap },
+    { id: 'rules', title: 'Règles', icon: Shield },
+    { id: 'connect', title: 'Connexion', icon: QrCode }
+]
+
+export default function AgentWizardPage({ params }: { params: Promise<{ id: string }> }) {
     const { id: agentId } = use(params)
     const router = useRouter()
-    const t = useTranslations('Agents')
+    const t = useTranslations('Agents') // We'll reuse existing keys where possible, hardcode new ones
 
-    const [agent, setAgent] = useState<any>(null)
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
-    const [error, setError] = useState<string | null>(null)
-    const [activeTab, setActiveTab] = useState<'settings' | 'whatsapp'>('whatsapp')
+    const [currentStep, setCurrentStep] = useState(0)
 
-    // WhatsApp connection state
-    const [qrCode, setQrCode] = useState<string | null>(null)
+    // WhatsApp State
     const [whatsappStatus, setWhatsappStatus] = useState<'idle' | 'connecting' | 'qr_ready' | 'connected' | 'error'>('idle')
+    const [qrCode, setQrCode] = useState<string | null>(null)
     const [connectedPhone, setConnectedPhone] = useState<string | null>(null)
 
-    // Form state
+    // Conflict Detection
+    const [conflictStatus, setConflictStatus] = useState<'idle' | 'checking' | 'safe' | 'conflict' | 'error'>('idle')
+    const [conflictReason, setConflictReason] = useState('')
+
+    const checkConflict = async () => {
+        if (!formData.custom_rules || formData.custom_rules.length < 10) return
+        setConflictStatus('checking')
+        try {
+            const res = await fetch('/api/internal/analyze-conflict', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    structuredData: {
+                        hours: formData.business_hours,
+                        address: formData.business_address,
+                        phone: formData.contact_phone,
+                    },
+                    customRules: formData.custom_rules
+                })
+            })
+            const data = await res.json()
+            if (data.conflict) {
+                setConflictStatus('conflict')
+                setConflictReason(data.reason)
+            } else {
+                setConflictStatus('safe')
+            }
+        } catch (e) {
+            setConflictStatus('error')
+        }
+    }
+
+
+    // Form Data
     const [formData, setFormData] = useState({
+        // Basic
         name: '',
-        description: '',
-        systemPrompt: '',
+        description: '', // Old field, kept for compatibility/SEO
         is_active: true,
-        personality: 'friendly',
+
+        // Step 1: Identity
+        business_address: '',
+        contact_phone: '',
+        social_links: {
+            website: '',
+            facebook: '',
+            email: ''
+        },
+        latitude: null as number | null,
+        longitude: null as number | null,
+
+        // Step 2: Hours
+        business_hours: '',
+
+        // Step 3: Personality
+        agent_tone: 'friendly',
+        agent_goal: 'sales',
         model: 'gpt-4o-mini',
         temperature: 0.7,
         max_tokens: 500,
         use_emojis: true,
-        response_delay_seconds: 2,
         language: 'fr',
         enable_voice_responses: false,
-        voice_id: 'alloy'
+        voice_id: 'alloy',
+
+        // Step 4: Rules
+        custom_rules: '',
+        system_prompt: '', // Legacy/Internal use
     })
 
     useEffect(() => {
@@ -59,110 +129,83 @@ export default function AgentDetailsPage({ params }: { params: Promise<{ id: str
 
     const fetchAgent = async () => {
         try {
-
-            const res = await fetch(`/api/agents/${agentId}`, {
-                cache: 'no-store'
-            })
-
-
+            const res = await fetch(`/api/agents/${agentId}`, { cache: 'no-store' })
             const data = await res.json()
-
-
             if (!res.ok) throw new Error(data.error)
 
-            // API returns { data: { agent: ... } }
-            // So we need data.data.agent
-            const fetchedAgent = data.data?.agent || data.agent // Fallback for safety
+            const agent = data.data?.agent || data.agent
 
-            setAgent(fetchedAgent)
+            // Initial WhatsApp State
+            if (agent.whatsapp_connected) {
+                setWhatsappStatus('connected')
+                setConnectedPhone(agent.whatsapp_phone)
+            }
+
+            // Populate Form
             setFormData({
-                name: fetchedAgent.name,
-                description: fetchedAgent.description || '',
-                systemPrompt: fetchedAgent.system_prompt,
-                is_active: fetchedAgent.is_active,
-                personality: fetchedAgent.personality || 'friendly',
-                model: fetchedAgent.model || 'gpt-4o-mini',
-                temperature: fetchedAgent.temperature || 0.7,
-                max_tokens: fetchedAgent.max_tokens || 500,
-                use_emojis: fetchedAgent.use_emojis ?? true,
-                response_delay_seconds: fetchedAgent.response_delay_seconds || 2,
-                language: fetchedAgent.language || 'fr',
-                enable_voice_responses: fetchedAgent.enable_voice_responses ?? false,
-                voice_id: fetchedAgent.voice_id || 'alloy'
+                name: agent.name || '',
+                description: agent.description || '',
+                is_active: agent.is_active,
+
+                business_address: agent.business_address || '',
+                contact_phone: agent.contact_phone || '',
+                social_links: agent.social_links || { website: '', facebook: '', email: '' },
+                latitude: agent.latitude || null,
+                longitude: agent.longitude || null,
+
+                business_hours: agent.business_hours || "Lundi-Vendredi: 08:00 - 18:00\nSamedi: 09:00 - 13:00",
+
+                agent_tone: agent.agent_tone || 'friendly',
+                agent_goal: agent.agent_goal || 'sales',
+                model: agent.model || 'gpt-4o-mini',
+                temperature: agent.temperature || 0.7,
+                max_tokens: agent.max_tokens || 500,
+                use_emojis: agent.use_emojis ?? true,
+                language: agent.language || 'fr',
+                enable_voice_responses: agent.enable_voice_responses ?? false,
+                voice_id: agent.voice_id || 'alloy',
+
+                custom_rules: agent.custom_rules || '',
+                system_prompt: agent.system_prompt || '',
             })
 
-            // Set initial WhatsApp status
-            if (data.agent.whatsapp_connected) {
-                setWhatsappStatus('connected')
-                setConnectedPhone(data.agent.whatsapp_phone)
-            }
+            setLoading(false)
         } catch (err) {
-            setError((err as Error).message)
-        } finally {
+            console.error(err)
             setLoading(false)
         }
     }
 
-    const handleSave = async () => {
-        setSaving(true)
+    const handleSave = async (silent = false) => {
+        if (!silent) setSaving(true)
         try {
             const res = await fetch(`/api/agents/${agentId}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    name: formData.name,
-                    description: formData.description,
-                    system_prompt: formData.systemPrompt,
-                    is_active: formData.is_active,
-                    personality: formData.personality,
-                    model: formData.model,
-                    temperature: formData.temperature,
-                    max_tokens: formData.max_tokens,
-                    use_emojis: formData.use_emojis,
-                    response_delay_seconds: formData.response_delay_seconds,
-                    language: formData.language,
-                    enable_voice_responses: formData.enable_voice_responses,
-                    voice_id: formData.voice_id
-                })
+                body: JSON.stringify(formData)
             })
-
-            if (!res.ok) throw new Error('Failed to update')
-
-            // Refresh agent data
-            fetchAgent()
-            alert('Sauvegardé avec succès !')
+            if (!res.ok) throw new Error('Failed to save')
+            if (!silent) alert('Sauvegardé avec succès !')
         } catch (err) {
-            alert('Erreur lors de la sauvegarde')
+            if (!silent) alert('Erreur lors de la sauvegarde')
         } finally {
-            setSaving(false)
+            if (!silent) setSaving(false)
         }
     }
 
-    // Connect WhatsApp
+    // --- WhatsApp Logic (Copied from previous) ---
     const connectWhatsApp = async () => {
-
         setWhatsappStatus('connecting')
-        // Reset old QR code
         setQrCode(null)
-        setError(null)
-
         try {
             const response = await fetch('/api/whatsapp/connect', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ agentId }),
             })
-
-
             const data = await response.json()
-
-
-            // Unwrapping the response: successResponse wraps in { data: ... }
             const result = data.data || data
-
-            if (!response.ok) {
-                throw new Error(data.error || t('connect.error'))
-            }
+            if (!response.ok) throw new Error(data.error)
 
             if (result.qrCode) {
                 setQrCode(result.qrCode)
@@ -172,683 +215,468 @@ export default function AgentDetailsPage({ params }: { params: Promise<{ id: str
                 setConnectedPhone(result.phoneNumber)
             }
         } catch (err) {
-            console.error('CONNECT ERROR:', err)
-            setError((err as Error).message)
+            console.error(err)
             setWhatsappStatus('error')
         }
     }
 
-    // Disconnect WhatsApp
     const disconnectWhatsApp = async () => {
-        if (!confirm('Voulez-vous vraiment déconnecter WhatsApp ?')) return
-
+        if (!confirm('Déconnecter WhatsApp ?')) return
         try {
-            const response = await fetch(`/api/whatsapp/connect?agentId=${agentId}&logout=true`, {
-                method: 'DELETE'
-            })
-
-            if (response.ok) {
-                setWhatsappStatus('idle')
-                setQrCode(null)
-                setConnectedPhone(null)
-                fetchAgent() // Refresh DB state
-            }
-        } catch (err) {
-            console.error('Disconnect error:', err)
-        }
+            await fetch(`/api/whatsapp/connect?agentId=${agentId}&logout=true`, { method: 'DELETE' })
+            setWhatsappStatus('idle')
+            setQrCode(null)
+            setConnectedPhone(null)
+        } catch (err) { console.error(err) }
     }
 
-    // Poll for connection status
+    // Polling
     useEffect(() => {
-        // Poll when connecting or waiting for QR
         if (whatsappStatus !== 'qr_ready' && whatsappStatus !== 'connecting') return
-
         const interval = setInterval(async () => {
             try {
                 const response = await fetch(`/api/whatsapp/connect?agentId=${agentId}`)
                 const data = await response.json()
                 const result = data.data || data
-
-
-
                 if (result.status === 'connected' || result.connected) {
                     setWhatsappStatus('connected')
                     setConnectedPhone(result.phoneNumber)
                     setQrCode(null)
                     clearInterval(interval)
-                } else if (result.status === 'qr_ready' && result.qrCode) {
-                    setQrCode(result.qrCode)
-                    setWhatsappStatus('qr_ready')
                 } else if (result.qrCode && result.qrCode !== qrCode) {
-                    // QR code available from database
                     setQrCode(result.qrCode)
                     setWhatsappStatus('qr_ready')
                 }
-            } catch (err) {
-                console.error('Polling error:', err)
-            }
-        }, 2000) // Poll every 2 seconds for faster QR display
-
+            } catch (err) { }
+        }, 2000)
         return () => clearInterval(interval)
     }, [whatsappStatus, agentId, qrCode])
 
 
-    if (loading) {
-        return (
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#0f172a' }}>
-                <Loader2 style={{ width: 32, height: 32, color: '#34d399', animation: 'spin 1s linear infinite' }} />
-            </div>
-        )
+    if (loading) return <div className="flex justify-center items-center min-h-screen bg-slate-900"><Loader2 className="w-8 h-8 text-emerald-400 animate-spin" /></div>
+
+    // Render Steps
+    const renderStep = () => {
+        const step = STEPS[currentStep].id
+
+        switch (step) {
+            case 'identity':
+                return (
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+                        <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
+                            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                                <MapPin className="text-emerald-400" size={24} /> Identité de l'Entreprise
+                            </h2>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-slate-300 font-medium mb-1">Nom du Bot / Agent</label>
+                                    <input
+                                        value={formData.name}
+                                        onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                        className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                                        placeholder="Ex: Marius le Vendeur"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-slate-300 font-medium mb-1">Adresse Physique (Complète)</label>
+                                    <input
+                                        value={formData.business_address}
+                                        onChange={e => setFormData({ ...formData, business_address: e.target.value })}
+                                        className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                                        placeholder="Ex: Cocody Rivera 2, Abidjan, Côte d'Ivoire"
+                                    />
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-slate-300 font-medium mb-1">Latitude (Optionnel)</label>
+                                        <input
+                                            type="number"
+                                            step="any"
+                                            value={formData.latitude || ''}
+                                            onChange={e => setFormData({ ...formData, latitude: parseFloat(e.target.value) })}
+                                            className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none font-mono"
+                                            placeholder="Ex: 5.3599517"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-slate-300 font-medium mb-1">Longitude (Optionnel)</label>
+                                        <input
+                                            type="number"
+                                            step="any"
+                                            value={formData.longitude || ''}
+                                            onChange={e => setFormData({ ...formData, longitude: parseFloat(e.target.value) })}
+                                            className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none font-mono"
+                                            placeholder="Ex: -4.0082563"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="flex justify-end">
+                                    <button
+                                        onClick={() => {
+                                            if (!navigator.geolocation) return alert('Géolocalisation non supportée')
+                                            navigator.geolocation.getCurrentPosition(
+                                                (pos) => {
+                                                    setFormData(prev => ({
+                                                        ...prev,
+                                                        latitude: pos.coords.latitude,
+                                                        longitude: pos.coords.longitude
+                                                    }))
+                                                },
+                                                (err) => alert('Erreur de localisation : ' + err.message)
+                                            )
+                                        }}
+                                        className="text-sm text-emerald-400 hover:text-emerald-300 flex items-center gap-2"
+                                    >
+                                        📍 Utiliser ma position actuelle
+                                    </button>
+                                </div>
+                                <div>
+                                    <label className="block text-slate-300 font-medium mb-1">Téléphone Support / Escalade (Humain)</label>
+                                    <input
+                                        value={formData.contact_phone}
+                                        onChange={e => setFormData({ ...formData, contact_phone: e.target.value })}
+                                        className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                                        placeholder="Ex: +225 07 07 ..."
+                                    />
+                                    <p className="text-xs text-slate-500 mt-1">Le bot donnera ce numéro si le client veut parler à un humain.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
+                            <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                                <Globe className="text-blue-400" size={20} /> Liens & Réseaux
+                            </h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-slate-300 text-sm mb-1">Site Web</label>
+                                    <input
+                                        value={formData.social_links.website}
+                                        onChange={e => setFormData({ ...formData, social_links: { ...formData.social_links, website: e.target.value } })}
+                                        className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white outline-none"
+                                        placeholder="https://..."
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-slate-300 text-sm mb-1">Facebook</label>
+                                    <input
+                                        value={formData.social_links.facebook}
+                                        onChange={e => setFormData({ ...formData, social_links: { ...formData.social_links, facebook: e.target.value } })}
+                                        className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white outline-none"
+                                        placeholder="Page Facebook"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </motion.div>
+                )
+
+            case 'availability':
+                return (
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+                        <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
+                            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                                <Clock className="text-emerald-400" size={24} /> Horaires d'Ouverture
+                            </h2>
+                            <p className="text-slate-400 mb-4 text-sm">Indiquez clairement vos horaires. Le bot les utilisera pour informer les clients.</p>
+
+                            <textarea
+                                value={formData.business_hours}
+                                onChange={e => setFormData({ ...formData, business_hours: e.target.value })}
+                                className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-4 text-white font-mono h-48 focus:ring-2 focus:ring-emerald-500 outline-none"
+                                placeholder={"Lundi - Vendredi : 08:00 - 18:00\nSamedi : 09:00 - 14:00\nDimanche : Fermé"}
+                            />
+                        </div>
+                    </motion.div>
+                )
+
+            case 'personality':
+                return (
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* Tone Selection */}
+                            <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
+                                <h2 className="text-lg font-bold text-white mb-4">Ton de Voix</h2>
+                                <div className="space-y-3">
+                                    {[
+                                        { id: 'professional', label: '👔 Professionnel', desc: 'Vouvoiement, sérieux, précis' },
+                                        { id: 'friendly', label: '😊 Amical', desc: 'Tutoiement respectueux, emojis, chaleureux' },
+                                        { id: 'energetic', label: '⚡ Énergique', desc: 'Dynamique, exclamation, très vendeur' },
+                                        { id: 'luxury', label: '💎 Luxe', desc: 'Raffiné, très poli, vocabulaire soutenu' }
+                                    ].map(tone => (
+                                        <div
+                                            key={tone.id}
+                                            onClick={() => setFormData({ ...formData, agent_tone: tone.id })}
+                                            className={`p-4 rounded-lg border cursor-pointer transition-all ${formData.agent_tone === tone.id ? 'bg-emerald-500/20 border-emerald-500' : 'bg-slate-900/30 border-slate-700 hover:border-slate-500'}`}
+                                        >
+                                            <div className="font-bold text-white">{tone.label}</div>
+                                            <div className="text-xs text-slate-400">{tone.desc}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Goal Selection */}
+                            <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
+                                <h2 className="text-lg font-bold text-white mb-4">Objectif Principal</h2>
+                                <div className="space-y-3">
+                                    {[
+                                        { id: 'sales', label: '💰 Vendeur', desc: 'Priorité absolue : conclure la vente' },
+                                        { id: 'support', label: '🛡️ Support', desc: 'Priorité : rassurer et aider le client' },
+                                        { id: 'info', label: 'ℹ️ Informatif', desc: 'Donner les infos sans pousser à l\'achat' }
+                                    ].map(goal => (
+                                        <div
+                                            key={goal.id}
+                                            onClick={() => setFormData({ ...formData, agent_goal: goal.id })}
+                                            className={`p-4 rounded-lg border cursor-pointer transition-all ${formData.agent_goal === goal.id ? 'bg-emerald-500/20 border-emerald-500' : 'bg-slate-900/30 border-slate-700 hover:border-slate-500'}`}
+                                        >
+                                            <div className="font-bold text-white">{goal.label}</div>
+                                            <div className="text-xs text-slate-400">{goal.desc}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Model Settings Toggles */}
+                        <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
+                            <h2 className="text-lg font-bold text-white mb-4">Paramètres Avancés</h2>
+                            <div className="flex gap-8">
+                                <label className="flex items-center gap-3 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={formData.use_emojis}
+                                        onChange={e => setFormData({ ...formData, use_emojis: e.target.checked })}
+                                        className="w-5 h-5 accent-emerald-500"
+                                    />
+                                    <span className="text-white">Utiliser des Emojis</span>
+                                </label>
+                                <label className="flex items-center gap-3 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={formData.enable_voice_responses}
+                                        onChange={e => setFormData({ ...formData, enable_voice_responses: e.target.checked })}
+                                        className="w-5 h-5 accent-emerald-500 opacity-50 cursor-not-allowed" // Disabled for now or premium
+                                        disabled
+                                    />
+                                    <span className="text-slate-400">Réponses Vocales (Bientôt)</span>
+                                </label>
+                            </div>
+                        </div>
+                    </motion.div>
+                )
+
+            case 'rules':
+                return (
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+                        <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
+                            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                                <Shield className="text-emerald-400" size={24} /> Règles Spécifiques & Politique
+                            </h2>
+                            <p className="text-slate-400 mb-4 text-sm">
+                                Ajoutez ici TOUTES vos règles spécifiques que le bot doit respecter absolument.
+                                <br />Politique de retour, Livraison, Paiement, Promos...
+                            </p>
+
+                            <textarea
+                                value={formData.custom_rules}
+                                onChange={e => {
+                                    setFormData({ ...formData, custom_rules: e.target.value })
+                                    setConflictStatus('idle') // Reset on change
+                                }}
+                                className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-4 text-white font-mono h-48 focus:ring-2 focus:ring-emerald-500 outline-none"
+                                placeholder={`Exples:
+- Livraison gratuite à partir de 50.000 FCFA
+- Pas de remboursement sur les articles soldés
+- (Ne pas remettre l'adresse ni les horaires ici !)`}
+                            />
+
+                            {/* AI Conflict Detector */}
+                            <div className="flex items-start justify-between gap-4 pt-2">
+                                <div className="flex-1">
+                                    {conflictStatus === 'checking' && <div className="text-emerald-400 text-sm animate-pulse">Analye IA en cours...</div>}
+                                    {conflictStatus === 'safe' && <div className="text-emerald-400 text-sm flex items-center gap-2">✅ Aucune contradiction détectée.</div>}
+                                    {conflictStatus === 'conflict' && (
+                                        <div className="bg-red-500/10 border border-red-500/50 p-3 rounded-lg text-red-300 text-sm">
+                                            <div className="font-bold flex items-center gap-2">⚠️ Conflit Détecté</div>
+                                            {conflictReason}
+                                        </div>
+                                    )}
+                                </div>
+                                <button
+                                    onClick={checkConflict}
+                                    className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg text-sm transition-colors flex items-center gap-2"
+                                >
+                                    🛡️ Vérifier la cohérence
+                                </button>
+                            </div>
+                        </div>
+                    </motion.div>
+                )
+
+            case 'connect':
+                return (
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6 text-center">
+                        <div className="bg-slate-800/50 p-8 rounded-xl border border-slate-700/50 flex flex-col items-center">
+                            <h2 className="text-2xl font-bold text-white mb-6">Connexion WhatsApp</h2>
+
+                            {whatsappStatus === 'idle' && (
+                                <button onClick={connectWhatsApp} className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold flex items-center gap-2 transition-all">
+                                    <QrCode size={20} /> Générer le QR Code
+                                </button>
+                            )}
+
+                            {whatsappStatus === 'connecting' && (
+                                <div className="text-emerald-400 flex flex-col items-center gap-2">
+                                    <Loader2 className="w-10 h-10 animate-spin" />
+                                    <span>Préparation...</span>
+                                </div>
+                            )}
+
+                            {whatsappStatus === 'qr_ready' && qrCode && (
+                                <div className="bg-white p-4 rounded-xl animate-in zoom-in duration-300">
+                                    <img src={qrCode} alt="QR" className="w-64 h-64" />
+                                    <p className="text-slate-500 mt-2 text-sm">Scannez avec WhatsApp (Appareils connectés)</p>
+                                </div>
+                            )}
+
+                            {whatsappStatus === 'connected' && (
+                                <div className="text-emerald-400 flex flex-col items-center gap-4">
+                                    <div className="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center">
+                                        <CheckCircle2 size={40} />
+                                    </div>
+                                    <div className="text-xl font-bold">Connecté !</div>
+                                    <div className="text-slate-300">{connectedPhone}</div>
+                                    <button onClick={disconnectWhatsApp} className="mt-4 text-red-400 hover:text-red-300 text-sm underline">
+                                        Déconnecter
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </motion.div>
+                )
+        }
     }
 
-    if (!agent) return <div style={{ color: 'white', padding: 40 }}>{t('Page.emptySearch.title')}</div>
-
-    const personalities = [
-        { id: 'professional', name: t('Form.personality.types.professional') },
-        { id: 'friendly', name: t('Form.personality.types.friendly') },
-        { id: 'casual', name: t('Form.personality.types.casual') },
-        { id: 'formal', name: t('Form.personality.types.formal') }
-    ]
-
+    // --- Main Layout ---
     return (
-        <div style={{ padding: 24, paddingBottom: 100 }}>
-            {/* Header */}
-            <div style={{ marginBottom: 32 }}>
-                <Link
-                    href="/dashboard/agents"
-                    style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        color: '#94a3b8',
-                        textDecoration: 'none',
-                        marginBottom: 16
-                    }}
-                >
-                    <ArrowLeft style={{ width: 16, height: 16 }} />
-                    {t('Wizard.back')}
-                </Link>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h1 style={{ fontSize: 28, fontWeight: 700, color: 'white' }}>
-                        {agent.name}
-                    </h1>
-                    <div style={{ display: 'flex', gap: 12 }}>
-                        <button
-                            onClick={() => setActiveTab('settings')}
-                            style={{
-                                padding: '10px 20px',
-                                borderRadius: 10,
-                                background: activeTab === 'settings' ? 'rgba(51, 65, 85, 0.5)' : 'transparent',
-                                color: activeTab === 'settings' ? 'white' : '#94a3b8',
-                                border: 'none',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 8,
-                                fontWeight: 500
-                            }}
-                        >
-                            <Settings size={18} />
-                            {t('Wizard.steps.settings')}
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('whatsapp')}
-                            style={{
-                                padding: '10px 20px',
-                                borderRadius: 10,
-                                background: activeTab === 'whatsapp' ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
-                                color: activeTab === 'whatsapp' ? '#34d399' : '#94a3b8',
-                                border: activeTab === 'whatsapp' ? '1px solid rgba(16, 185, 129, 0.2)' : 'none',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 8,
-                                fontWeight: 500
-                            }}
-                        >
-                            {t('Wizard.steps.whatsapp')} ({t(`connect.status.${whatsappStatus === 'qr_ready' ? 'qrReady' : whatsappStatus}`)})
-                        </button>
-                        <Link
-                            href={`/dashboard/agents/${agentId}/knowledge`}
-                            style={{
-                                padding: '10px 20px',
-                                borderRadius: 10,
-                                background: 'rgba(148, 163, 184, 0.1)',
-                                color: '#94a3b8',
-                                border: 'none',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 8,
-                                fontWeight: 500,
-                                textDecoration: 'none'
-                            }}
-                        >
-                            <Book size={18} />
-                            Connaissances
+        <div className="min-h-screen bg-slate-900 pb-20">
+            {/* Top Bar */}
+            <div className="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-10">
+                <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <Link href="/dashboard/agents" className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors">
+                            <ArrowLeft size={20} />
                         </Link>
+                        <div>
+                            <h1 className="text-xl font-bold text-white">{formData.name || 'Configuration Agent'}</h1>
+                            <p className="text-xs text-slate-400">{STEPS[currentStep].title}</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => handleSave(false)}
+                            disabled={saving}
+                            className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 transition-all"
+                        >
+                            {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                            Sauvegarder
+                        </button>
+                    </div>
+                </div>
+
+                {/* Progress Bar */}
+                <div className="max-w-4xl mx-auto px-4 mt-2 mb-0">
+                    <div className="flex justify-between items-center relative">
+                        {/* Line */}
+                        <div className="absolute top-1/2 left-0 w-full h-1 bg-slate-800 -z-0 rounded-full"></div>
+                        <div
+                            className="absolute top-1/2 left-0 h-1 bg-emerald-500/50 -z-0 rounded-full transition-all duration-300"
+                            style={{ width: `${(currentStep / (STEPS.length - 1)) * 100}%` }}
+                        ></div>
+
+                        {STEPS.map((step, index) => {
+                            const isActive = index === currentStep
+                            const isCompleted = index < currentStep
+                            return (
+                                <button
+                                    key={step.id}
+                                    onClick={() => {
+                                        // Block navigation if rules conflict
+                                        if (STEPS[currentStep].id === 'rules' && formData.custom_rules.length > 5 && conflictStatus !== 'safe') {
+                                            alert("🛡️ SÉCURITÉ : Veuillez vérifier la cohérence de vos règles (Cliquez sur 'Vérifier') avant de quitter cette étape.")
+                                            return
+                                        }
+                                        setCurrentStep(index)
+                                    }}
+                                    className={`relative z-10 flex flex-col items-center gap-2 group focus:outline-none`}
+                                >
+                                    <div className={`
+                                        w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300
+                                        ${isActive ? 'bg-slate-900 border-emerald-400 text-emerald-400 scale-110 shadow-[0_0_15px_rgba(52,211,153,0.3)]' :
+                                            isCompleted ? 'bg-emerald-500 border-emerald-500 text-slate-900' :
+                                                'bg-slate-800 border-slate-700 text-slate-500 group-hover:border-slate-500'}
+                                    `}>
+                                        <step.icon size={18} />
+                                    </div>
+                                    <span className={`text-xs font-medium transition-colors ${isActive ? 'text-emerald-400' : isCompleted ? 'text-emerald-500/70' : 'text-slate-600'}`}>
+                                        {step.title}
+                                    </span>
+                                </button>
+                            )
+                        })}
                     </div>
                 </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 24 }}>
-
-                {activeTab === 'settings' && (
-                    <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        style={{
-                            background: 'rgba(30, 41, 59, 0.5)',
-                            padding: 24,
-                            borderRadius: 16,
-                            border: '1px solid rgba(148, 163, 184, 0.1)'
-                        }}
-                    >
-                        <div style={{ marginBottom: 20 }}>
-                            <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
-                                {t('Form.name.label')}
-                            </label>
-                            <input
-                                value={formData.name}
-                                onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                style={{
-                                    width: '100%',
-                                    padding: 12,
-                                    borderRadius: 8,
-                                    background: 'rgba(15, 23, 42, 0.5)',
-                                    border: '1px solid rgba(148, 163, 184, 0.1)',
-                                    color: 'white'
-                                }}
-                            />
-                        </div>
-                        <div style={{ marginBottom: 20 }}>
-                            <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
-                                {t('Form.description.label')}
-                            </label>
-                            <input
-                                value={formData.description}
-                                onChange={e => setFormData({ ...formData, description: e.target.value })}
-                                style={{
-                                    width: '100%',
-                                    padding: 12,
-                                    borderRadius: 8,
-                                    background: 'rgba(15, 23, 42, 0.5)',
-                                    border: '1px solid rgba(148, 163, 184, 0.1)',
-                                    color: 'white'
-                                }}
-                            />
-                        </div>
-                        <div style={{ marginBottom: 20 }}>
-                            <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
-                                {t('Form.mission.systemPromptLabel')}
-                            </label>
-                            <textarea
-                                value={formData.systemPrompt}
-                                onChange={e => setFormData({ ...formData, systemPrompt: e.target.value })}
-                                rows={8}
-                                style={{
-                                    width: '100%',
-                                    padding: 12,
-                                    borderRadius: 8,
-                                    background: 'rgba(15, 23, 42, 0.5)',
-                                    border: '1px solid rgba(148, 163, 184, 0.1)',
-                                    color: 'white',
-                                    fontFamily: 'monospace'
-                                }}
-                            />
-                        </div>
-
-                        {/* Advanced Settings Grid */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
-                            <div>
-                                <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
-                                    {t('Form.personality.label')}
-                                </label>
-                                <select
-                                    value={formData.personality}
-                                    onChange={e => setFormData({ ...formData, personality: e.target.value })}
-                                    style={{
-                                        width: '100%',
-                                        padding: 12,
-                                        borderRadius: 8,
-                                        background: 'rgba(15, 23, 42, 0.5)',
-                                        border: '1px solid rgba(148, 163, 184, 0.1)',
-                                        color: 'white'
-                                    }}
-                                >
-                                    {personalities.map(p => (
-                                        <option key={p.id} value={p.id}>{p.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div>
-                                <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
-                                    {t('Form.settings.model')}
-                                </label>
-                                <select
-                                    value={formData.model}
-                                    onChange={e => setFormData({ ...formData, model: e.target.value })}
-                                    style={{
-                                        width: '100%',
-                                        padding: 12,
-                                        borderRadius: 8,
-                                        background: 'rgba(15, 23, 42, 0.5)',
-                                        border: '1px solid rgba(148, 163, 184, 0.1)',
-                                        color: 'white'
-                                    }}
-                                >
-                                    <option value="gpt-4o-mini">GPT-4o Mini (rapide, économique)</option>
-                                    <option value="gpt-4o">GPT-4o (plus intelligent)</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
-                            <div>
-                                <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
-                                    {t('Form.settings.temperature')} ({formData.temperature})
-                                </label>
-                                <input
-                                    type="range"
-                                    min="0"
-                                    max="1"
-                                    step="0.1"
-                                    value={formData.temperature}
-                                    onChange={e => setFormData({ ...formData, temperature: parseFloat(e.target.value) })}
-                                    style={{ width: '100%' }}
-                                />
-                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#64748b' }}>
-                                    <span>Précis</span>
-                                    <span>Créatif</span>
-                                </div>
-                            </div>
-                            <div>
-                                <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
-                                    {t('Form.settings.maxTokens')}
-                                </label>
-                                <input
-                                    type="number"
-                                    min="100"
-                                    max="2000"
-                                    value={formData.max_tokens}
-                                    onChange={e => setFormData({ ...formData, max_tokens: parseInt(e.target.value) })}
-                                    style={{
-                                        width: '100%',
-                                        padding: 12,
-                                        borderRadius: 8,
-                                        background: 'rgba(15, 23, 42, 0.5)',
-                                        border: '1px solid rgba(148, 163, 184, 0.1)',
-                                        color: 'white'
-                                    }}
-                                />
-                            </div>
-                        </div>
-
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
-                            <div>
-                                <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
-                                    {t('Form.settings.responseDelay')} (sec)
-                                </label>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    max="10"
-                                    value={formData.response_delay_seconds}
-                                    onChange={e => setFormData({ ...formData, response_delay_seconds: parseInt(e.target.value) })}
-                                    style={{
-                                        width: '100%',
-                                        padding: 12,
-                                        borderRadius: 8,
-                                        background: 'rgba(15, 23, 42, 0.5)',
-                                        border: '1px solid rgba(148, 163, 184, 0.1)',
-                                        color: 'white'
-                                    }}
-                                />
-                            </div>
-                            <div>
-                                <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
-                                    {t('Form.settings.language')}
-                                </label>
-                                <select
-                                    value={formData.language}
-                                    onChange={e => setFormData({ ...formData, language: e.target.value })}
-                                    style={{
-                                        width: '100%',
-                                        padding: 12,
-                                        borderRadius: 8,
-                                        background: 'rgba(15, 23, 42, 0.5)',
-                                        border: '1px solid rgba(148, 163, 184, 0.1)',
-                                        color: 'white'
-                                    }}
-                                >
-                                    <option value="fr">Français</option>
-                                    <option value="en">English</option>
-                                </select>
-                            </div>
-                        </div>
-
-
-
-                        {/* Voice Settings (Premium) */}
-                        <div style={{
-                            padding: 20,
-                            background: 'rgba(16, 185, 129, 0.05)',
-                            border: '1px solid rgba(16, 185, 129, 0.2)',
-                            borderRadius: 12,
-                            marginBottom: 20
-                        }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: formData.enable_voice_responses ? 16 : 0 }}>
-                                <div>
-                                    <h3 style={{ fontSize: 15, fontWeight: 600, color: 'white', display: 'flex', alignItems: 'center', gap: 8 }}>
-                                        🎙️ Réponses Vocales (IA) <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, background: '#fbbf24', color: 'black' }}>PREMIUM</span>
-                                    </h3>
-                                    <p style={{ fontSize: 13, color: '#94a3b8', marginTop: 4 }}>
-                                        L'IA répondra par des notes vocales. (Coût: 5 crédits/réponse)
-                                    </p>
-                                </div>
-                                <button
-                                    onClick={() => setFormData({ ...formData, enable_voice_responses: !formData.enable_voice_responses })}
-                                    style={{
-                                        width: 48,
-                                        height: 28,
-                                        borderRadius: 14,
-                                        background: formData.enable_voice_responses ? '#10b981' : '#334155',
-                                        border: 'none',
-                                        cursor: 'pointer',
-                                        position: 'relative'
-                                    }}
-                                >
-                                    <div style={{
-                                        width: 22,
-                                        height: 22,
-                                        borderRadius: '50%',
-                                        background: 'white',
-                                        position: 'absolute',
-                                        top: 3,
-                                        left: formData.enable_voice_responses ? 23 : 3,
-                                        transition: 'left 0.2s'
-                                    }} />
-                                </button>
-                            </div>
-
-                            {formData.enable_voice_responses && (
-                                <motion.div
-                                    initial={{ opacity: 0, height: 0 }}
-                                    animate={{ opacity: 1, height: 'auto' }}
-                                >
-                                    <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                        Voix de l'assistant
-                                    </label>
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-                                        {['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'].map(voice => (
-                                            <button
-                                                key={voice}
-                                                onClick={() => setFormData({ ...formData, voice_id: voice })}
-                                                style={{
-                                                    padding: '8px 12px',
-                                                    borderRadius: 8,
-                                                    border: formData.voice_id === voice ? '1px solid #10b981' : '1px solid rgba(148, 163, 184, 0.2)',
-                                                    background: formData.voice_id === voice ? 'rgba(16, 185, 129, 0.2)' : 'rgba(15, 23, 42, 0.3)',
-                                                    color: 'white',
-                                                    cursor: 'pointer',
-                                                    textTransform: 'capitalize',
-                                                    fontSize: 13
-                                                }}
-                                            >
-                                                {voice}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </motion.div>
-                            )}
-                        </div>
-
-                        {/* Toggles */}
-                        <div style={{ display: 'flex', gap: 24, marginBottom: 24 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                <button
-                                    type="button"
-                                    onClick={() => setFormData({ ...formData, use_emojis: !formData.use_emojis })}
-                                    style={{
-                                        width: 48,
-                                        height: 26,
-                                        borderRadius: 13,
-                                        background: formData.use_emojis ? '#10b981' : '#475569',
-                                        border: 'none',
-                                        cursor: 'pointer',
-                                        position: 'relative'
-                                    }}
-                                >
-                                    <div style={{
-                                        width: 20,
-                                        height: 20,
-                                        borderRadius: '50%',
-                                        background: 'white',
-                                        position: 'absolute',
-                                        top: 3,
-                                        left: formData.use_emojis ? 25 : 3,
-                                        transition: 'left 0.2s'
-                                    }} />
-                                </button>
-                                <span style={{ color: '#e2e8f0' }}>{t('Form.personality.emojis')}</span>
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                <button
-                                    type="button"
-                                    onClick={() => setFormData({ ...formData, is_active: !formData.is_active })}
-                                    style={{
-                                        width: 48,
-                                        height: 26,
-                                        borderRadius: 13,
-                                        background: formData.is_active ? '#10b981' : '#475569',
-                                        border: 'none',
-                                        cursor: 'pointer',
-                                        position: 'relative'
-                                    }}
-                                >
-                                    <div style={{
-                                        width: 20,
-                                        height: 20,
-                                        borderRadius: '50%',
-                                        background: 'white',
-                                        position: 'absolute',
-                                        top: 3,
-                                        left: formData.is_active ? 25 : 3,
-                                        transition: 'left 0.2s'
-                                    }} />
-                                </button>
-                                <span style={{ color: '#e2e8f0' }}>{t('Form.settings.active')}</span>
-                            </div>
-                        </div>
-
-                        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                            <button
-                                onClick={handleSave}
-                                disabled={saving}
-                                style={{
-                                    padding: '12px 24px',
-                                    background: '#10b981',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: 8,
-                                    fontWeight: 600,
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    gap: 8,
-                                    alignItems: 'center'
-                                }}
-                            >
-                                {saving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
-                                {saving ? t('Form.settings.saving') : t('Form.settings.save')}
-                            </button>
-                        </div>
-                    </motion.div>
-                )}
-
-                {activeTab === 'whatsapp' && (
-                    <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        style={{
-                            background: 'rgba(30, 41, 59, 0.5)',
-                            padding: 32,
-                            borderRadius: 16,
-                            border: '1px solid rgba(148, 163, 184, 0.1)',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            textAlign: 'center'
-                        }}
-                    >
-                        {whatsappStatus === 'idle' && (
-                            <>
-                                <div style={{
-                                    width: 80, height: 80, borderRadius: 20,
-                                    background: 'rgba(16, 185, 129, 0.1)',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    marginBottom: 24
-                                }}>
-                                    <QrCode style={{ width: 40, height: 40, color: '#34d399' }} />
-                                </div>
-                                <h3 style={{ fontSize: 20, fontWeight: 600, color: 'white', marginBottom: 8 }}>
-                                    {t('connect.title')}
-                                </h3>
-                                <p style={{ color: '#94a3b8', marginBottom: 24, maxWidth: 400 }}>
-                                    {t('connect.scanPrompt')}
-                                </p>
-                                <button
-                                    onClick={connectWhatsApp}
-                                    style={{
-                                        padding: '12px 24px',
-                                        background: '#10b981',
-                                        color: 'white',
-                                        border: 'none',
-                                        borderRadius: 12,
-                                        fontWeight: 600,
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        gap: 8,
-                                        alignItems: 'center',
-                                        fontSize: 16
-                                    }}
-                                >
-                                    <QrCode size={20} />
-                                    {t('connect.actions.generateQr')}
-                                </button>
-                            </>
-                        )}
-
-                        {whatsappStatus === 'connecting' && (
-                            <>
-                                <Loader2 style={{ width: 48, height: 48, color: '#34d399', animation: 'spin 1s linear infinite', marginBottom: 24 }} />
-                                <h3 style={{ color: 'white', fontSize: 18, marginBottom: 8 }}>{t('connect.initialization')}</h3>
-                                <p style={{ color: '#94a3b8' }}>{t('connect.preparing')}</p>
-                            </>
-                        )}
-
-                        {whatsappStatus === 'qr_ready' && qrCode && (
-                            <>
-                                <div style={{
-                                    background: 'white',
-                                    padding: 16,
-                                    borderRadius: 16,
-                                    marginBottom: 24
-                                }}>
-                                    <img src={qrCode} alt="QR Code" style={{ width: 280, height: 280 }} />
-                                </div>
-                                <p style={{ color: '#94a3b8', marginBottom: 24 }}>
-                                    {t('connect.openWhatsapp')}
-                                </p>
-                                <button
-                                    onClick={connectWhatsApp}
-                                    style={{
-                                        padding: '10px 20px',
-                                        background: 'rgba(51, 65, 85, 0.5)',
-                                        color: 'white',
-                                        border: '1px solid rgba(148, 163, 184, 0.1)',
-                                        borderRadius: 8,
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        gap: 8,
-                                        alignItems: 'center'
-                                    }}
-                                >
-                                    <RefreshCw size={16} />
-                                    {t('connect.actions.regenerate')}
-                                </button>
-                            </>
-                        )}
-
-                        {whatsappStatus === 'connected' && (
-                            <>
-                                <div style={{
-                                    width: 80, height: 80, borderRadius: '50%',
-                                    background: 'rgba(16, 185, 129, 0.2)',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    marginBottom: 24
-                                }}>
-                                    <CheckCircle2 style={{ width: 48, height: 48, color: '#34d399' }} />
-                                </div>
-                                <h3 style={{ fontSize: 24, fontWeight: 700, color: 'white', marginBottom: 8 }}>
-                                    {t('connect.connectedSuccess')}
-                                </h3>
-                                <p style={{ color: '#34d399', marginBottom: 32, fontSize: 18 }}>
-                                    {connectedPhone}
-                                </p>
-                                <button
-                                    onClick={disconnectWhatsApp}
-                                    style={{
-                                        padding: '12px 24px',
-                                        background: 'rgba(239, 68, 68, 0.1)',
-                                        color: '#f87171',
-                                        border: '1px solid rgba(239, 68, 68, 0.2)',
-                                        borderRadius: 12,
-                                        fontWeight: 600,
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        gap: 8,
-                                        alignItems: 'center'
-                                    }}
-                                >
-                                    <Trash2 size={20} />
-                                    {t('connect.actions.disconnect')}
-                                </button>
-                            </>
-                        )}
-
-                        {whatsappStatus === 'error' && (
-                            <>
-                                <div style={{
-                                    width: 80, height: 80, borderRadius: '50%',
-                                    background: 'rgba(239, 68, 68, 0.2)',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    marginBottom: 24
-                                }}>
-                                    <AlertCircle style={{ width: 48, height: 48, color: '#f87171' }} />
-                                </div>
-                                <h3 style={{ fontSize: 20, fontWeight: 600, color: '#f87171', marginBottom: 8 }}>
-                                    {t('connect.error')}
-                                </h3>
-                                <p style={{ color: '#94a3b8', marginBottom: 24 }}>{error}</p>
-                                <button
-                                    onClick={connectWhatsApp}
-                                    style={{
-                                        padding: '12px 24px',
-                                        background: '#334155',
-                                        color: 'white',
-                                        border: 'none',
-                                        borderRadius: 12,
-                                        fontWeight: 600,
-                                        cursor: 'pointer'
-                                    }}
-                                >
-                                    {t('Wizard.buttons.retry')}
-                                </button>
-                            </>
-                        )}
-                    </motion.div>
-                )}
+            {/* Content */}
+            <div className="max-w-3xl mx-auto px-4 py-8">
+                {renderStep()}
             </div>
-        </div >
+
+            {/* Bottom Navigation */}
+            <div className="fixed bottom-0 left-0 w-full bg-slate-900/90 backdrop-blur border-t border-slate-800 p-4 z-20">
+                <div className="max-w-3xl mx-auto flex justify-between items-center">
+                    <button
+                        onClick={() => setCurrentStep(prev => Math.max(0, prev - 1))}
+                        disabled={currentStep === 0}
+                        className={`px-6 py-3 rounded-xl font-bold flex items-center gap-2 ${currentStep === 0 ? 'opacity-0 pointer-events-none' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                    >
+                        <ChevronLeft size={20} /> Précédent
+                    </button>
+
+                    {currentStep < STEPS.length - 1 ? (
+                        <button
+                            onClick={() => {
+                                // Block if rules conflict
+                                if (STEPS[currentStep].id === 'rules' && formData.custom_rules.length > 5 && conflictStatus !== 'safe') {
+                                    alert("🛡️ SÉCURITÉ : Veuillez vérifier la cohérence de vos règles (Cliquez sur 'Vérifier') avant de continuer.")
+                                    return
+                                }
+                                handleSave(true) // Auto-save
+                                setCurrentStep(prev => Math.min(STEPS.length - 1, prev + 1))
+                            }}
+                            className="px-6 py-3 bg-white text-slate-900 hover:bg-slate-200 rounded-xl font-bold flex items-center gap-2 shadow-lg transition-all"
+                        >
+                            Suivant <ChevronRight size={20} />
+                        </button>
+                    ) : (
+                        <button
+                            onClick={() => {
+                                if (STEPS[currentStep].id === 'rules' && formData.custom_rules.length > 5 && conflictStatus !== 'safe') {
+                                    alert("🛡️ SÉCURITÉ : Veuillez vérifier la cohérence des règles avant de terminer.")
+                                    return
+                                }
+                                router.push('/dashboard/agents')
+                            }}
+                            className="px-6 py-3 bg-emerald-500 text-white hover:bg-emerald-600 rounded-xl font-bold flex items-center gap-2 shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all"
+                        >
+                            <CheckCircle2 size={20} /> Terminer
+                        </button>
+                    )}
+                </div>
+            </div>
+        </div>
     )
 }

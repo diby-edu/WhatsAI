@@ -91,6 +91,17 @@ export async function POST(request: NextRequest) {
                 whatsapp_connected: false,
                 enable_voice_responses: body.enable_voice_responses ?? false,
                 voice_id: body.voice_id || 'alloy',
+                // New structured fields
+                business_address: body.business_address || null,
+                business_hours: body.business_hours || "Lundi-Vendredi: 08:00 - 18:00\nSamedi: 09:00 - 13:00",
+                contact_phone: body.contact_phone || null,
+                social_links: body.social_links || {},
+                custom_rules: body.custom_rules || null,
+                agent_tone: body.agent_tone || 'friendly',
+                agent_goal: body.agent_goal || 'sales',
+                // GPS (Optional)
+                latitude: body.latitude || null,
+                longitude: body.longitude || null
             })
             .select()
             .single()

@@ -61,7 +61,12 @@ export async function PUT(
                 is_available: body.is_available,
                 stock_quantity: body.stock_quantity,
                 agent_id: body.agent_id,
-                variants: body.variants
+                variants: body.variants,
+                // New structured fields
+                short_pitch: body.short_pitch,
+                features: body.features,
+                marketing_tags: body.marketing_tags,
+                related_product_ids: body.related_product_ids
             })
             .eq('id', id)
             .eq('user_id', user.id)

@@ -495,7 +495,7 @@ async function handleToolCall(toolCall, agentId, customerPhone, products) {
             }
 
             console.log('📸 Sending image for:', product.name, product.image_url)
-            console.log('📱 CustomerPhone received:', customerPhone) // DEBUG
+
 
             const session = activeSessions.get(agentId)
             if (session && session.socket) {
@@ -514,7 +514,7 @@ async function handleToolCall(toolCall, agentId, customerPhone, products) {
                 if (!jid.includes('@')) {
                     jid = jid.toString().replace(/\D/g, '') + '@s.whatsapp.net'
                 }
-                console.log('📱 Using JID:', jid) // DEBUG
+
 
                 await session.socket.sendMessage(jid, {
                     image: { url: product.image_url },
@@ -610,8 +610,18 @@ ${products.map(p => {
                     priceDisplay = displayPrice ? `${displayPrice.toLocaleString('fr-FR')} ${currencySymbol}` : ''
                 }
 
+                // AI Strategy Fields
+                const pitch = p.short_pitch ? `\n    📢 ${p.short_pitch}` : ''
+                const features = p.features && p.features.length > 0 ? `\n    ✨ Info: ${p.features.join(', ')}` : ''
+                const marketing = p.marketing_tags && p.marketing_tags.length > 0 ? `\n    💎 Arguments: ${p.marketing_tags.join(', ')}` : ''
+
+                // Cross-Sell (Just listing for AI context)
+                const related = p.related_product_ids && p.related_product_ids.length > 0
+                    ? `\n    🔗 Associés: ${p.related_product_ids.length} produits (Suggère-les si pertinent)`
+                    : ''
+
                 return `🔹 ${p.name} - ${priceDisplay}
-    📝 ${p.description || ''}${variantsInfo}`
+    📝 ${p.description || 'Pas de description'}${pitch}${features}${marketing}${related}${variantsInfo}`
             }).join('\n')}
 
 INSTRUCTION IMPORTANTE : 
@@ -622,9 +632,30 @@ INSTRUCTION IMPORTANTE :
    Exemple: Si client veut "Bougie" en taille "Petit", utilise product_name="Bougies Parfumées Artisanales Petit" (pas juste "Bougies").`
         }
 
-        const systemPrompt = `${agent.system_prompt || 'Tu es un assistant IA professionnel.'}
+        // SANDWICH PROMPT CONSTRUCTION
+        const gpsLink = (agent.latitude && agent.longitude)
+            ? `\n- 📍 GPS : https://www.google.com/maps?q=${agent.latitude},${agent.longitude}`
+            : ''
+
+        const businessIdentity = `
+📌 INFORMATIONS ENTREPRISE :
+- Adresse : ${agent.business_address || 'Non spécifiée'}${gpsLink}
+- Horaires : ${agent.business_hours || 'Non spécifiés'}
+- Contact Support (Humain) : ${agent.contact_phone || 'Non spécifié'}
+`
+
+        // Custom rules or fallback to old system_prompt
+        const customRules = agent.custom_rules || agent.system_prompt || ''
+
+        const systemPrompt = `Tu es l'assistant IA officiel de ${agent.name}.
+${businessIdentity}
+
+🎭 IDENTITÉ : Ton ${agent.agent_tone || 'amical'}, Objectif ${agent.agent_goal || 'vendre'}.
 
 ${productsCatalog}
+
+📜 RÈGLES SPÉCIFIQUES :
+${customRules}
 
 📌 GESTION DES PRIX :
 - Les prix indiqués dans "LISTE DES OFFRES" ci-dessus sont les prix ACTUELS en vigueur.
@@ -632,6 +663,11 @@ ${productsCatalog}
 - Quand tu communiques un prix au client, utilise TOUJOURS les prix actuels du catalogue.
 - Si le client remarque une différence de prix, tu peux expliquer poliment : "Nos tarifs ont été mis à jour récemment. Le prix actuel est de X FCFA."
 - Pour créer une commande, utilise UNIQUEMENT les prix actuels du catalogue.
+
+🚨 RÈGLE ABSOLUE - PRIORITÉ DES SOURCES :
+1. "INFORMATIONS ENTREPRISE" (Adresse, Horaires) et "LISTE DES OFFRES" sont la VÉRITÉ ABSOLUE.
+2. Si "RÈGLES SPÉCIFIQUES" contredit ces informations, tu dois IGNORER "Règles Spécifiques".
+3. Exemple : Si Horaires dit "Ouvert" mais Règles dit "Fermé", alors c'est OUVERT.
 
 🚨 RÈGLE ABSOLUE - CATALOGUE COMME SOURCE DE VÉRITÉ :
 1. Tu ne peux vendre QUE les produits listés dans "LISTE DES OFFRES" ci-dessus.
@@ -841,8 +877,8 @@ async function handleMessage(agentId, message, isVoiceMessage = false) {
         // Get products
         const { data: products } = await supabase
             .from('products')
-            // BONUS: Fetch image_url so the bot knows about images!
-            .select('name, price_fcfa, description, variants, image_url')
+            // FETCH ALL FIELDS (including pitch, tags, GPS...)
+            .select('*')
             .eq('user_id', agent.user_id)
             .eq('is_available', true)
             .limit(20)
