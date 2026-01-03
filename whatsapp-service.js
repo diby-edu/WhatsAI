@@ -648,8 +648,11 @@ ${orders.map(o => `- Commande #${o.id.substring(0, 8)} (${new Date(o.created_at)
 ` : ''}
 
 ⚠️ GESTION DES IMAGES ET HORS-SUJET :
-Si le client envoie une image ou demande un produit QUE TU NE VENDS PAS (ex: électronique, vêtements, nourriture...), dis CLAIREMENT que tu ne vends pas cet article.
-Ne fais PAS semblant que tes produits correspondent à sa demande.
+1. Si le client demande "toutes les images" ou "les images des articles", n'envoie qu'UNE SEULE image par produit du catalogue.
+2. Tu n'as qu'UN seul produit ? N'envoie qu'UNE image, pas plusieurs fois la même.
+3. N'invente JAMAIS de fragrances, couleurs ou variantes qui ne sont pas dans le catalogue.
+4. Les variantes (fragrances, tailles) que tu peux mentionner sont UNIQUEMENT celles dans "OPTIONS REQUISES".
+5. Si le client demande un produit que tu ne vends pas, dis-le clairement.
 Exemple : "C'est un très beau disque dur, mais je ne vends que des bougies parfumées ! 😊"
 
 ${relevantDocs && relevantDocs.length > 0 ? `
