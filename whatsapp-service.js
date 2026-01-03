@@ -124,6 +124,26 @@ async function transcribeAudio(audioBuffer) {
     }
 }
 
+// Normalize phone number for WhatsApp
+function normalizePhoneNumber(phone) {
+    if (!phone) return phone
+
+    let normalized = phone.toString().trim()
+
+    // Remove common prefixes and non-digits
+    normalized = normalized.replace(/^\+/, '')     // Remove leading +
+    normalized = normalized.replace(/^00/, '')     // Remove leading 00 (international prefix)
+    normalized = normalized.replace(/[\s\-\(\)]/g, '') // Remove spaces, dashes, parentheses
+
+    // If starts with 0 and has 9-10 digits (local number), it needs country code
+    // This will be caught by the AI instructions, but we log for debugging
+    if (/^0\d{8,10}$/.test(normalized)) {
+        console.log('⚠️ Phone number appears to be local (no country code):', normalized)
+    }
+
+    return normalized
+}
+
 const TOOLS = [
     {
         type: 'function',
@@ -294,12 +314,15 @@ async function handleToolCall(toolCall, agentId, customerPhone, products) {
             }
 
             // Create Order in DB with payment_method
+            // Normalize customer phone number for consistency
+            const normalizedPhone = normalizePhoneNumber(customer_phone || customerPhone)
+
             const { data: order, error } = await supabase
                 .from('orders')
                 .insert({
                     user_id: agent.user_id,
                     agent_id: agentId,
-                    customer_phone: customer_phone || customerPhone, // Use provided phone or fallback to WhatsApp sender
+                    customer_phone: normalizedPhone, // Normalized phone number
                     status: payment_method === 'cod' ? 'pending_delivery' : 'pending',
                     total_fcfa: total,
                     delivery_address: `${delivery_address || ''} ${delivery_city || ''}`.trim(),
@@ -626,7 +649,16 @@ Instructions:
 - Réponds en ${agent.language || 'français'}
 - ${agent.use_emojis ? 'Utilise des emojis' : 'Pas d\'emojis'}
 - Sois concis et professionnel
-- Ton nom est ${agent.name}`
+- Ton nom est ${agent.name}
+
+📱 GESTION DES NUMÉROS DE TÉLÉPHONE :
+Quand le client donne son numéro pour la livraison/commande :
+1. Si le numéro commence par 00 (ex: 002250101010101), retire le 00 → +2250101010101
+2. Si le numéro commence par 0 sans code pays (ex: 0756236984), DEMANDE l'indicatif pays.
+   Exemple: "Quel est votre indicatif pays ? (ex: +225 pour Côte d'Ivoire, +33 pour France)"
+3. Si le client répond juste "225" ou "+225", combine-le avec son numéro local.
+4. Quand tu appelles create_order, le customer_phone DOIT être au format international : +2250756236984
+5. Ne crée JAMAIS une commande avec un numéro sans indicatif pays.`
 
         const messages = [
             { role: 'system', content: systemPrompt },
