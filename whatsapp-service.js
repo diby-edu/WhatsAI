@@ -916,7 +916,7 @@ async function handleMessage(agentId, message, isVoiceMessage = false) {
             products: products || [],
             currency: profileCurrency,
             orders: orders || [],
-            customerPhone: phoneNumber
+            customerPhone: message.from // FIX: Pass full JID instead of stripped phone
         })
         const session = activeSessions.get(agentId)
         if (session && session.socket) {
