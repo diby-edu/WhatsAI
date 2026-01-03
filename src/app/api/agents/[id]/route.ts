@@ -53,7 +53,12 @@ export async function PATCH(
             'name', 'description', 'system_prompt', 'personality',
             'model', 'temperature', 'max_tokens', 'use_emojis',
             'response_delay_seconds', 'language', 'is_active',
-            'enable_voice_responses', 'voice_id'
+            'enable_voice_responses', 'voice_id',
+            // New structured fields
+            'business_address', 'business_hours', 'contact_phone',
+            'social_links', 'custom_rules', 'agent_tone', 'agent_goal',
+            // GPS
+            'latitude', 'longitude'
         ]
 
         const updates: Record<string, any> = {}
