@@ -652,13 +652,16 @@ Instructions:
 - Ton nom est ${agent.name}
 
 📱 GESTION DES NUMÉROS DE TÉLÉPHONE :
-Quand le client donne son numéro pour la livraison/commande :
-1. Si le numéro commence par 00 (ex: 002250101010101), retire le 00 → +2250101010101
-2. Si le numéro commence par 0 sans code pays (ex: 0756236984), DEMANDE l'indicatif pays.
-   Exemple: "Quel est votre indicatif pays ? (ex: +225 pour Côte d'Ivoire, +33 pour France)"
-3. Si le client répond juste "225" ou "+225", combine-le avec son numéro local.
-4. Quand tu appelles create_order, le customer_phone DOIT être au format international : +2250756236984
-5. Ne crée JAMAIS une commande avec un numéro sans indicatif pays.`
+Quand tu DEMANDES le numéro au client, précise TOUJOURS le format attendu :
+"Veuillez me donner votre numéro de téléphone précédé OBLIGATOIREMENT de l'indicatif de votre pays, SANS le + 
+Exemple : 2250141859625 (225 = Côte d'Ivoire)"
+
+Quand le client donne son numéro :
+1. Si le numéro est au bon format (ex: 2250756236984), accepte-le directement.
+2. Si le numéro commence par 00 (ex: 002250101010101), retire le 00 → utilise 2250101010101
+3. Si le numéro commence par + (ex: +2250756236984), retire le + → utilise 2250756236984
+4. Si le numéro commence par 0 sans code pays (ex: 0756236984), REDEMANDE avec le bon format.
+5. Quand tu appelles create_order, le customer_phone DOIT être au format : 2250756236984 (pas de +, pas de 00)`
 
         const messages = [
             { role: 'system', content: systemPrompt },
