@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { checkPaymentStatus } from '@/lib/payments/cinetpay'
+import crypto from 'crypto'
 
 // Use service role for webhook (no user auth)
 const supabase = createClient(
@@ -8,10 +9,33 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
+// HMAC Signature Verification for CinetPay
+function verifySignature(payload: string, signature: string): boolean {
+    const secretKey = process.env.CINETPAY_SECRET_KEY
+    if (!secretKey) {
+        console.warn('⚠️ CINETPAY_SECRET_KEY not configured - skipping signature verification')
+        return true // Allow without verification if key not configured
+    }
+
+    const expectedSignature = crypto
+        .createHmac('sha256', secretKey)
+        .update(payload, 'utf8')
+        .digest('hex')
+
+    // Timing-safe comparison to prevent timing attacks
+    try {
+        return crypto.timingSafeEqual(
+            Buffer.from(signature),
+            Buffer.from(expectedSignature)
+        )
+    } catch {
+        return false
+    }
+}
+
 export async function POST(request: NextRequest) {
     try {
         console.log('📩 CinetPay Webhook called!')
-        console.log('Content-Type:', request.headers.get('content-type'))
 
         // CinetPay sends x-www-form-urlencoded, NOT JSON!
         let cpm_trans_id: string = ''
@@ -43,6 +67,20 @@ export async function POST(request: NextRequest) {
         if (!cpm_trans_id) {
             console.error('❌ No transaction ID received')
             return new Response('Missing cpm_trans_id', { status: 400 })
+        }
+
+        // SECURITY: Verify HMAC signature from x-token header
+        const xToken = request.headers.get('x-token')
+        if (xToken && process.env.CINETPAY_SECRET_KEY) {
+            // Reconstruct payload for signature verification
+            const signaturePayload = `${cpm_trans_id}${cpm_site_id}`
+            if (!verifySignature(signaturePayload, xToken)) {
+                console.error('❌ SECURITY: Invalid signature! Possible fraud attempt.')
+                return new Response('Invalid signature', { status: 403 })
+            }
+            console.log('✅ Signature verified successfully')
+        } else if (process.env.CINETPAY_SECRET_KEY) {
+            console.warn('⚠️ No x-token header received, but secret key is configured')
         }
 
         // Verify site_id

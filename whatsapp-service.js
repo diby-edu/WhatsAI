@@ -227,40 +227,49 @@ async function handleToolCall(toolCall, agentId, customerPhone, products) {
                     let price = product.price_fcfa || 0
                     let matchedVariantOption = null
 
-                    // Try to match variant option from product name
+                    // Try to match variant options from product name
+                    // ENHANCED: Track matched variants by TYPE to ensure ALL required types are specified
                     if (product.variants && product.variants.length > 0) {
+                        const matchedVariantsByType = {} // { "Taille": "Petit", "Couleur": "Vert" }
+
                         for (const variant of product.variants) {
                             for (const option of variant.options) {
-                                // Check if the ordered item name contains this option value
                                 const optionValue = option.value || option.name || ''
                                 if (optionValue && item.product_name.toLowerCase().includes(optionValue.toLowerCase())) {
+                                    // Apply price based on variant type
                                     if (variant.type === 'fixed') {
                                         price = option.price // Fixed variant replaces base price
                                     } else {
                                         price += option.price // Additive variant adds to base
                                     }
-                                    matchedVariantOption = optionValue
-                                    break
+                                    matchedVariantsByType[variant.name] = optionValue
+                                    break // Found match for this variant type
                                 }
                             }
                         }
 
-                        // STRICT VALIDATION: If product has variants but none matched, refuse order
-                        if (!matchedVariantOption) {
-                            console.log('❌ Variant not matched for product:', product.name, '- Requested:', item.product_name)
-                            const allOptions = product.variants
-                                .flatMap(v => v.options.map(o => `${v.name}: ${o.value || o.name}`))
-                                .join(', ')
+                        // Check if ALL variant types are matched
+                        const unMatchedVariants = product.variants.filter(v => !matchedVariantsByType[v.name])
+
+                        if (unMatchedVariants.length > 0) {
+                            console.log('❌ Missing variant types:', unMatchedVariants.map(v => v.name).join(', '))
+                            const missingOptions = unMatchedVariants.map(v =>
+                                `${v.name}: ${v.options.map(o => o.value || o.name).join(', ')}`
+                            ).join(' | ')
+
                             return JSON.stringify({
                                 success: false,
-                                error: `Pour commander "${product.name}", veuillez préciser une option. Choix disponibles: ${allOptions}`,
+                                error: `Pour commander "${product.name}", veuillez préciser: ${missingOptions}`,
                                 product_name: product.name,
-                                available_options: product.variants.map(v => ({
+                                missing_variants: unMatchedVariants.map(v => ({
                                     name: v.name,
                                     options: v.options.map(o => o.value || o.name)
                                 }))
                             })
                         }
+
+                        // Build matched variant string for order item name
+                        matchedVariantOption = Object.values(matchedVariantsByType).join(', ')
                     }
 
                     total += price * item.quantity
@@ -426,13 +435,39 @@ async function handleToolCall(toolCall, agentId, customerPhone, products) {
             const args = JSON.parse(toolCall.function.arguments)
             const { product_name } = args
 
-            // Products is passed to handleToolCall scope
-            const product = products.find(p => p.name.toLowerCase().includes(product_name.toLowerCase()) || product_name.toLowerCase().includes(p.name.toLowerCase()))
+            // ENHANCED: Smart fuzzy match - same algorithm as create_order
+            const searchTerms = product_name.toLowerCase().split(' ').filter(w => w.length > 2)
 
-            if (!product || !product.image_url) {
+            const product = products.find(p => {
+                const productText = `${p.name} ${p.description || ''} ${p.ai_instructions || ''}`.toLowerCase()
+
+                // Method 1: Direct inclusion
+                if (product_name.toLowerCase().includes(p.name.toLowerCase())) return true
+                if (p.name.toLowerCase().includes(product_name.toLowerCase())) return true
+
+                // Method 2: Word-by-word matching
+                const matchCount = searchTerms.filter(term => productText.includes(term)).length
+                if (matchCount >= 2 || (searchTerms.length === 1 && matchCount === 1)) return true
+
+                // Method 3: First significant word match
+                const firstWord = searchTerms[0]
+                if (firstWord && productText.includes(firstWord)) return true
+
+                return false
+            })
+
+            if (!product) {
+                const availableProducts = products.map(p => p.name).join(', ')
                 return JSON.stringify({
                     success: false,
-                    error: "Désolé, je n'ai pas d'image pour ce produit."
+                    error: `Je ne trouve pas "${product_name}" dans notre catalogue. Produits disponibles : ${availableProducts}`
+                })
+            }
+
+            if (!product.image_url) {
+                return JSON.stringify({
+                    success: false,
+                    error: `Désolé, je n'ai pas encore d'image pour "${product.name}".`
                 })
             }
 
