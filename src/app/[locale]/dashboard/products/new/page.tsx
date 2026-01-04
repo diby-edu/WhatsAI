@@ -2,45 +2,26 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import {
     ArrowLeft,
     ArrowRight,
     Check,
     Loader2,
-    Upload,
-    X,
-    Package,
-    FileText,
-    DollarSign,
-    Users,
     ImageIcon,
-    Plus,
-    Trash2,
+    Package,
     Bot,
-    Sparkles,
-    Tag,
-    List,
     Layers,
-    ChevronRight,
-    ChevronLeft,
-    Save
+    Plus,
+    X,
+    Sparkles,
+    DollarSign,
+    Tag
 } from 'lucide-react'
 import Link from 'next/link'
 import { createBrowserClient } from '@supabase/ssr'
 import { useTranslations } from 'next-intl'
 import ProductVariantsEditor, { VariantGroup } from '@/components/dashboard/ProductVariantsEditor'
-
-const STEPS = [
-    { id: 'basics', title: 'Identité & Prix', icon: Package },
-    { id: 'details', title: 'Détails & Variantes', icon: Layers },
-    { id: 'strategy', title: 'Stratégie IA', icon: Bot }
-]
-
-interface Agent {
-    id: string
-    name: string
-}
 
 export default function NewProductPage() {
     const t = useTranslations('Products.Wizard')
@@ -50,7 +31,7 @@ export default function NewProductPage() {
     const [currentStep, setCurrentStep] = useState(0)
     const [loading, setLoading] = useState(false)
     const [uploading, setUploading] = useState(false)
-    const [agents, setAgents] = useState<Agent[]>([])
+    const [agents, setAgents] = useState<{ id: string, name: string }[]>([])
     const [currency, setCurrency] = useState('USD')
 
     // Form Data
@@ -73,15 +54,13 @@ export default function NewProductPage() {
         marketing_tags: [] as string[], // Selling points
         related_product_ids: [] as string[], // Cross sell
 
-        // Legacy/Defaults
+        // Defaults
         product_type: 'product',
         stock_quantity: -1,
         lead_fields: []
     })
 
-    // Local state for tag inputs
     const [featureInput, setFeatureInput] = useState('')
-    const [marketingInput, setMarketingInput] = useState('')
 
     const supabase = createBrowserClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -145,6 +124,8 @@ export default function NewProductPage() {
     const addMarketingTag = (tag: string) => {
         if (!formData.marketing_tags.includes(tag)) {
             setFormData(prev => ({ ...prev, marketing_tags: [...prev.marketing_tags, tag] }))
+        } else {
+            setFormData(prev => ({ ...prev, marketing_tags: prev.marketing_tags.filter(t => t !== tag) }))
         }
     }
 
@@ -159,7 +140,6 @@ export default function NewProductPage() {
 
             if (!res.ok) throw new Error('Failed')
 
-            alert('Produit créé avec succès !')
             router.push('/dashboard/products')
         } catch (error) {
             alert('Erreur lors de la création')
@@ -168,282 +148,388 @@ export default function NewProductPage() {
         }
     }
 
-    // --- RENDER STEPS ---
-    const renderStep = () => {
+    const steps = [
+        { id: 'basics', title: 'Identité', icon: Package },
+        { id: 'details', title: 'Détails', icon: Layers },
+        { id: 'strategy', title: 'IA Strategy', icon: Bot }
+    ]
+
+    // --- STYLES (Copied from Agent Wizard) ---
+    const cardStyle = {
+        background: 'rgba(15, 23, 42, 0.6)',
+        backdropFilter: 'blur(20px)',
+        border: '1px solid rgba(148, 163, 184, 0.1)',
+        borderRadius: 16,
+        padding: 24
+    }
+
+    const inputStyle = {
+        width: '100%',
+        padding: '12px 16px',
+        fontSize: 15,
+        color: 'white',
+        backgroundColor: 'rgba(30, 41, 59, 0.5)',
+        border: '1px solid rgba(148, 163, 184, 0.1)',
+        borderRadius: 12,
+        outline: 'none'
+    }
+
+    const buttonPrimaryStyle = {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '12px 24px',
+        fontSize: 15,
+        fontWeight: 600,
+        color: 'white',
+        background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+        border: 'none',
+        borderRadius: 12,
+        cursor: 'pointer'
+    }
+
+    const buttonSecondaryStyle = {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '12px 24px',
+        fontSize: 15,
+        fontWeight: 500,
+        color: '#94a3b8',
+        background: 'rgba(30, 41, 59, 0.5)',
+        border: '1px solid rgba(148, 163, 184, 0.1)',
+        borderRadius: 12,
+        cursor: 'pointer'
+    }
+
+    const labelStyle = {
+        display: 'block',
+        fontSize: 14,
+        fontWeight: 500,
+        color: '#e2e8f0',
+        marginBottom: 8
+    }
+
+    const renderStepContent = () => {
         switch (currentStep) {
             case 0: // BASICS
                 return (
-                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            {/* Image Upload */}
-                            <div className="space-y-4">
-                                <label className="block text-slate-300 font-medium">Image du Produit</label>
-                                <div
-                                    onClick={() => fileInputRef.current?.click()}
-                                    className={`
-                                        aspect-square rounded-2xl border-2 border-dashed border-slate-700 
-                                        bg-slate-800/50 flex flex-col items-center justify-center cursor-pointer 
-                                        hover:border-emerald-500 hover:bg-slate-800 transition-all group overflow-hidden relative
-                                    `}
-                                >
-                                    {formData.image_url ? (
-                                        <img src={formData.image_url} alt="Aperçu" className="w-full h-full object-cover" />
-                                    ) : (
-                                        <>
-                                            <div className="bg-slate-900 p-4 rounded-full mb-4 group-hover:scale-110 transition-transform">
-                                                {uploading ? <Loader2 className="animate-spin text-emerald-400" /> : <ImageIcon className="text-slate-400 group-hover:text-emerald-400" size={32} />}
-                                            </div>
-                                            <p className="text-slate-400 text-sm group-hover:text-white">Cliquez pour ajouter une image</p>
-                                        </>
-                                    )}
-                                    <input ref={fileInputRef} type="file" onChange={handleImageUpload} className="hidden" accept="image/*" />
-                                </div>
-                            </div>
-
-                            {/* Basic Fields */}
-                            <div className="space-y-5">
-                                <div>
-                                    <label className="block text-slate-300 font-medium mb-1">Nom du Produit</label>
-                                    <input
-                                        value={formData.name}
-                                        onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                        className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
-                                        placeholder="Ex: Bougie Vanille Royal"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-slate-300 font-medium mb-1">Prix ({currency})</label>
-                                    <div className="relative">
-                                        <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-                                        <input
-                                            type="number"
-                                            value={formData.price_fcfa}
-                                            onChange={e => setFormData({ ...formData, price_fcfa: parseInt(e.target.value) || 0 })}
-                                            className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 pl-10 text-white focus:ring-2 focus:ring-emerald-500 outline-none font-mono"
-                                        />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                        {/* Image Upload */}
+                        <div style={{ display: 'flex', justifyContent: 'center' }}>
+                            <div
+                                onClick={() => fileInputRef.current?.click()}
+                                style={{
+                                    width: 120,
+                                    height: 120,
+                                    borderRadius: 20,
+                                    border: '2px dashed rgba(148, 163, 184, 0.2)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    cursor: 'pointer',
+                                    overflow: 'hidden',
+                                    background: 'rgba(30, 41, 59, 0.5)',
+                                    position: 'relative'
+                                }}
+                            >
+                                {formData.image_url ? (
+                                    <img src={formData.image_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                ) : (
+                                    <div style={{ textAlign: 'center' }}>
+                                        {uploading ? <Loader2 size={24} className="animate-spin text-emerald-500" /> : <ImageIcon size={24} color="#64748b" />}
+                                        <div style={{ fontSize: 10, color: '#64748b', marginTop: 4 }}>PHOTO</div>
                                     </div>
-                                </div>
-
-                                <div>
-                                    <label className="block text-slate-300 font-medium mb-1">Catégorie</label>
-                                    <input
-                                        value={formData.category}
-                                        onChange={e => setFormData({ ...formData, category: e.target.value })}
-                                        className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
-                                        placeholder="Ex: Maison, Beauté..."
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-slate-300 font-medium mb-1">Agent Responsable</label>
-                                    <select
-                                        value={formData.agent_id}
-                                        onChange={e => setFormData({ ...formData, agent_id: e.target.value })}
-                                        className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
-                                    >
-                                        <option value="">Tous les agents</option>
-                                        {agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                                    </select>
-                                </div>
+                                )}
+                                <input ref={fileInputRef} type="file" onChange={handleImageUpload} className="hidden" accept="image/*" />
                             </div>
                         </div>
-                    </motion.div>
+
+                        <div>
+                            <label style={labelStyle}>Nom du Produit</label>
+                            <input
+                                type="text"
+                                value={formData.name}
+                                onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                placeholder="Ex: Bougie Vanille"
+                                style={inputStyle}
+                            />
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                            <div>
+                                <label style={labelStyle}>Prix ({currency})</label>
+                                <div style={{ position: 'relative' }}>
+                                    <input
+                                        type="number"
+                                        value={formData.price_fcfa}
+                                        onChange={e => setFormData({ ...formData, price_fcfa: parseFloat(e.target.value) || 0 })}
+                                        style={inputStyle}
+                                    />
+                                    <DollarSign size={14} style={{ position: 'absolute', right: 12, top: 14, color: '#64748b' }} />
+                                </div>
+                            </div>
+                            <div>
+                                <label style={labelStyle}>Catégorie</label>
+                                <input
+                                    type="text"
+                                    value={formData.category}
+                                    onChange={e => setFormData({ ...formData, category: e.target.value })}
+                                    placeholder="Ex: Maison"
+                                    style={inputStyle}
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label style={labelStyle}>Agent Vendeur</label>
+                            <select
+                                value={formData.agent_id}
+                                onChange={e => setFormData({ ...formData, agent_id: e.target.value })}
+                                style={inputStyle}
+                            >
+                                <option value="">Tous les agents</option>
+                                {agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                            </select>
+                        </div>
+                    </div>
                 )
 
-            case 1: // DETAILS (Pitch + Features + Variants)
+            case 1: // DETAILS
                 return (
-                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-8">
-                        {/* Pitch & Features */}
-                        <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
-                            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                                <Sparkles className="text-emerald-400" /> Présentation & Caractéristiques
-                            </h2>
-
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-slate-300 font-medium mb-1">Pitch Commercial "Punchy" (Max 150 car.)</label>
-                                    <input
-                                        value={formData.short_pitch}
-                                        onChange={e => setFormData({ ...formData, short_pitch: e.target.value })}
-                                        maxLength={150}
-                                        className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
-                                        placeholder="Ex: La touche d'élégance ultime pour votre salon."
-                                    />
-                                    <p className="text-right text-xs text-slate-500">{formData.short_pitch.length}/150</p>
-                                </div>
-
-                                <div>
-                                    <label className="block text-slate-300 font-medium mb-2">Caractéristiques Techniques (Tags)</label>
-                                    <div className="flex gap-2 mb-3 flex-wrap">
-                                        {formData.features.map((f, i) => (
-                                            <span key={i} className="px-3 py-1 bg-emerald-500/20 text-emerald-300 rounded-full text-sm flex items-center gap-2">
-                                                {f} <X size={14} className="cursor-pointer hover:text-white" onClick={() => setFormData(p => ({ ...p, features: p.features.filter((_, idx) => idx !== i) }))} />
-                                            </span>
-                                        ))}
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <input
-                                            value={featureInput}
-                                            onChange={e => setFeatureInput(e.target.value)}
-                                            onKeyDown={e => e.key === 'Enter' && addFeature()}
-                                            className="flex-1 bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
-                                            placeholder="Ajouter une caractéristique (ex: 100% Coton) + Entrée"
-                                        />
-                                        <button onClick={addFeature} className="bg-slate-700 hover:bg-slate-600 text-white p-3 rounded-lg"><Plus /></button>
-                                    </div>
-                                </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                        <div>
+                            <label style={labelStyle}>Pitch Commercial (Court)</label>
+                            <input
+                                type="text"
+                                value={formData.short_pitch}
+                                onChange={e => setFormData({ ...formData, short_pitch: e.target.value })}
+                                maxLength={150}
+                                placeholder="Ex: L'élégance ultime pour votre salon."
+                                style={inputStyle}
+                            />
+                            <div style={{ textAlign: 'right', fontSize: 11, color: '#64748b', marginTop: 4 }}>
+                                {formData.short_pitch.length}/150
                             </div>
                         </div>
 
-                        {/* Variants Editor (Reused Component) */}
-                        <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
-                            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                                <Layers className="text-blue-400" /> Variantes & Options
-                            </h2>
-                            <p className="text-slate-400 text-sm mb-4">Si vous vendez des variantes (Tailles, Couleurs, Parfums...), ajoutez-les ici. Le bot demandera OBLIGATOIREMENT au client de choisir.</p>
+                        <div>
+                            <label style={labelStyle}>Caractéristiques (Tags)</label>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+                                {formData.features.map((f, i) => (
+                                    <span key={i} style={{
+                                        padding: '4px 12px',
+                                        background: 'rgba(16, 185, 129, 0.1)',
+                                        border: '1px solid rgba(16, 185, 129, 0.2)',
+                                        borderRadius: 20,
+                                        fontSize: 12,
+                                        color: '#34d399',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 6
+                                    }}>
+                                        {f}
+                                        <X size={12} style={{ cursor: 'pointer' }} onClick={() => setFormData(p => ({ ...p, features: p.features.filter((_, idx) => idx !== i) }))} />
+                                    </span>
+                                ))}
+                            </div>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                                <input
+                                    type="text"
+                                    value={featureInput}
+                                    onChange={e => setFeatureInput(e.target.value)}
+                                    onKeyDown={e => e.key === 'Enter' && addFeature()}
+                                    placeholder="Ajouter une caractéristique..."
+                                    style={inputStyle}
+                                />
+                                <button onClick={addFeature} style={{ ...buttonSecondaryStyle, padding: '0 16px' }}>
+                                    <Plus size={20} />
+                                </button>
+                            </div>
+                        </div>
 
+                        <div style={{
+                            padding: 20,
+                            background: 'rgba(30, 41, 59, 0.3)',
+                            borderRadius: 12,
+                            border: '1px solid rgba(148, 163, 184, 0.1)'
+                        }}>
+                            <h3 style={{ fontSize: 14, fontWeight: 600, color: 'white', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <Layers size={16} className="text-blue-400" /> Variantes
+                            </h3>
+                            {/* Integrating existing component but wrapped gently */}
                             <ProductVariantsEditor
                                 variants={formData.variants}
                                 onChange={v => setFormData({ ...formData, variants: v })}
                                 currency={currency}
                             />
                         </div>
-                    </motion.div>
+                    </div>
                 )
 
-            case 2: // STRATEGY (AI Tags + Cross Sell)
+            case 2: // STRATEGY
                 return (
-                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
-                        <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
-                            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                                <Bot className="text-purple-400" /> Stratégie de Vente IA
-                            </h2>
-                            <p className="text-slate-400 text-sm mb-6">Aidez l'IA à mieux vendre ce produit en lui donnant des arguments clés.</p>
-
-                            <div className="space-y-6">
-                                <div>
-                                    <label className="block text-slate-300 font-medium mb-3">Arguments Marketing (Tags)</label>
-                                    <div className="flex flex-wrap gap-2 mb-4">
-                                        {['Meilleure Vente', 'Nouveauté', 'Promo', 'Bio', 'Artisanal', 'Luxe', 'Garantie 2 ans', 'Livraison Rapide'].map(tag => (
-                                            <button
-                                                key={tag}
-                                                onClick={() => addMarketingTag(tag)}
-                                                className={`px-3 py-1 rounded-full text-sm border transition-all ${formData.marketing_tags.includes(tag) ? 'bg-purple-500/20 border-purple-500 text-purple-300' : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-500'}`}
-                                            >
-                                                {tag}
-                                            </button>
-                                        ))}
-                                    </div>
-                                    <div className="flex gap-2 flex-wrap bg-slate-900/30 p-4 rounded-lg min-h-[50px]">
-                                        {formData.marketing_tags.length === 0 && <span className="text-slate-500 text-sm italic">Aucun argument sélectionné</span>}
-                                        {formData.marketing_tags.map((tag, i) => (
-                                            <span key={i} className="px-3 py-1 bg-purple-500/20 text-purple-300 rounded-full text-sm flex items-center gap-2">
-                                                {tag} <X size={14} className="cursor-pointer hover:text-white" onClick={() => setFormData(p => ({ ...p, marketing_tags: p.marketing_tags.filter((_, idx) => idx !== i) }))} />
-                                            </span>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <label className="block text-slate-300 font-medium mb-1">Cross-Sell (Produits Associés)</label>
-                                    <p className="text-xs text-slate-500 mb-2">L'IA proposera ces produits si le client achète celui-ci.</p>
-                                    <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700 mb-2">
-                                        <p className="text-slate-500 italic text-sm text-center">Sélection des produits (Bientôt disponible - Nécessite une recherche dynamique)</p>
-                                    </div>
-                                </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                        <div>
+                            <label style={labelStyle}>Arguments Marketing</label>
+                            <p style={{ fontSize: 13, color: '#94a3b8', marginBottom: 12 }}>
+                                Sélectionnez les tags pour aider l'IA à vendre.
+                            </p>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                                {['Best Seller', 'Nouveauté', 'Promo', 'Bio', 'Luxe', 'Garanti', 'Livraison Rapide', 'Populaire'].map(tag => (
+                                    <button
+                                        key={tag}
+                                        onClick={() => addMarketingTag(tag)}
+                                        style={{
+                                            padding: '6px 16px',
+                                            borderRadius: 20,
+                                            fontSize: 13,
+                                            border: formData.marketing_tags.includes(tag) ? '1px solid #a855f7' : '1px solid rgba(148, 163, 184, 0.2)',
+                                            background: formData.marketing_tags.includes(tag) ? 'rgba(168, 85, 247, 0.2)' : 'transparent',
+                                            color: formData.marketing_tags.includes(tag) ? '#d8b4fe' : '#94a3b8',
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        {tag}
+                                    </button>
+                                ))}
                             </div>
                         </div>
-                    </motion.div>
+
+                        <div style={{
+                            padding: 20,
+                            border: '1px dashed rgba(148, 163, 184, 0.2)',
+                            borderRadius: 12,
+                            textAlign: 'center'
+                        }}>
+                            <Bot size={24} style={{ color: '#94a3b8', margin: '0 auto 8px' }} />
+                            <p style={{ fontSize: 13, color: '#64748b' }}>
+                                L'IA utilisera ces informations pour recommander ce produit au bon moment dans la conversation.
+                            </p>
+                        </div>
+                    </div>
                 )
         }
     }
 
     return (
-        <div className="min-h-screen bg-slate-900 pb-20">
-            {/* Top Bar */}
-            <div className="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-10">
-                <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <Link href="/dashboard/products" className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors">
-                            <ArrowLeft size={20} />
-                        </Link>
-                        <div>
-                            <h1 className="text-xl font-bold text-white">Ajouter un Produit</h1>
-                            <p className="text-xs text-slate-400">{STEPS[currentStep].title}</p>
+        <div style={{ maxWidth: 700, margin: '0 auto', paddingBottom: 40 }}>
+            {/* Header */}
+            <div style={{ marginBottom: 32 }}>
+                <Link
+                    href="/dashboard/products"
+                    style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        color: '#94a3b8',
+                        textDecoration: 'none',
+                        marginBottom: 16
+                    }}
+                >
+                    <ArrowLeft style={{ width: 16, height: 16 }} />
+                    Retour aux produits
+                </Link>
+                <h1 style={{ fontSize: 28, fontWeight: 700, color: 'white', marginBottom: 8 }}>
+                    Ajouter un Produit
+                </h1>
+                <p style={{ color: '#94a3b8' }}>
+                    Créez un produit que vos agents pourront vendre.
+                </p>
+            </div>
+
+            {/* Progress steps */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 32, gap: 8 }}>
+                {steps.map((step, index) => (
+                    <div key={step.id} style={{ display: 'flex', alignItems: 'center' }}>
+                        <div style={{
+                            width: 40,
+                            height: 40,
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: index < currentStep
+                                ? '#10b981'
+                                : index === currentStep
+                                    ? 'rgba(16, 185, 129, 0.2)'
+                                    : 'rgba(51, 65, 85, 0.5)',
+                            color: index <= currentStep ? '#34d399' : '#64748b'
+                        }}>
+                            {index < currentStep ? (
+                                <Check style={{ width: 20, height: 20, color: 'white' }} />
+                            ) : (
+                                <step.icon style={{ width: 20, height: 20 }} />
+                            )}
                         </div>
+                        {index < steps.length - 1 && (
+                            <div style={{
+                                width: 40,
+                                height: 4,
+                                background: index < currentStep ? '#10b981' : 'rgba(51, 65, 85, 0.5)',
+                                borderRadius: 2
+                            }} />
+                        )}
                     </div>
-                </div>
+                ))}
+            </div>
 
-                {/* Progress Bar */}
-                <div className="max-w-4xl mx-auto px-4 mt-2 mb-0">
-                    <div className="flex justify-between items-center relative">
-                        <div className="absolute top-1/2 left-0 w-full h-1 bg-slate-800 -z-0 rounded-full"></div>
-                        <div
-                            className="absolute top-1/2 left-0 h-1 bg-emerald-500/50 -z-0 rounded-full transition-all duration-300"
-                            style={{ width: `${(currentStep / (STEPS.length - 1)) * 100}%` }}
-                        ></div>
-
-                        {STEPS.map((step, index) => {
-                            const isActive = index === currentStep
-                            const isCompleted = index < currentStep
-                            return (
-                                <button
-                                    key={step.id}
-                                    onClick={() => setCurrentStep(index)}
-                                    className={`relative z-10 flex flex-col items-center gap-2 group focus:outline-none`}
-                                >
-                                    <div className={`
-                                        w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300
-                                        ${isActive ? 'bg-slate-900 border-emerald-400 text-emerald-400 scale-110 shadow-[0_0_15px_rgba(52,211,153,0.3)]' :
-                                            isCompleted ? 'bg-emerald-500 border-emerald-500 text-slate-900' :
-                                                'bg-slate-800 border-slate-700 text-slate-500 group-hover:border-slate-500'}
-                                    `}>
-                                        <step.icon size={18} />
-                                    </div>
-                                    <span className={`text-xs font-medium transition-colors ${isActive ? 'text-emerald-400' : isCompleted ? 'text-emerald-500/70' : 'text-slate-600'}`}>
-                                        {step.title}
-                                    </span>
-                                </button>
-                            )
-                        })}
-                    </div>
-                </div>
+            {/* Step title */}
+            <div style={{ textAlign: 'center', marginBottom: 24 }}>
+                <h2 style={{ fontSize: 20, fontWeight: 600, color: 'white' }}>
+                    {steps[currentStep].title}
+                </h2>
             </div>
 
             {/* Content */}
-            <div className="max-w-3xl mx-auto px-4 py-8">
-                {renderStep()}
-            </div>
+            <motion.div
+                key={currentStep}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.2 }}
+                style={cardStyle}
+            >
+                {renderStepContent()}
+            </motion.div>
 
-            {/* Bottom Nav */}
-            <div className="fixed bottom-0 left-0 w-full bg-slate-900/90 backdrop-blur border-t border-slate-800 p-4 z-20">
-                <div className="max-w-3xl mx-auto flex justify-between items-center">
+            {/* Navigation buttons */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 24 }}>
+                <button
+                    onClick={() => setCurrentStep(prev => Math.max(0, prev - 1))}
+                    disabled={currentStep === 0}
+                    style={{
+                        ...buttonSecondaryStyle,
+                        opacity: currentStep === 0 ? 0 : 1,
+                        pointerEvents: currentStep === 0 ? 'none' : 'auto'
+                    }}
+                >
+                    <ArrowLeft style={{ width: 16, height: 16 }} />
+                    Précédent
+                </button>
+
+                {currentStep < steps.length - 1 ? (
                     <button
-                        onClick={() => setCurrentStep(prev => Math.max(0, prev - 1))}
-                        disabled={currentStep === 0}
-                        className={`px-6 py-3 rounded-xl font-bold flex items-center gap-2 ${currentStep === 0 ? 'opacity-0 pointer-events-none' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                        onClick={() => setCurrentStep(prev => Math.min(steps.length - 1, prev + 1))}
+                        style={buttonPrimaryStyle}
                     >
-                        <ChevronLeft size={20} /> Précédent
+                        Suivant
+                        <ArrowRight style={{ width: 16, height: 16 }} />
                     </button>
-
-                    {currentStep < STEPS.length - 1 ? (
-                        <button
-                            onClick={() => setCurrentStep(prev => Math.min(STEPS.length - 1, prev + 1))}
-                            className="px-6 py-3 bg-white text-slate-900 hover:bg-slate-200 rounded-xl font-bold flex items-center gap-2 shadow-lg transition-all"
-                        >
-                            Suivant <ChevronRight size={20} />
-                        </button>
-                    ) : (
-                        <button
-                            onClick={handleSave}
-                            disabled={loading}
-                            className="px-6 py-3 bg-emerald-500 text-white hover:bg-emerald-600 rounded-xl font-bold flex items-center gap-2 shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all"
-                        >
-                            {loading ? <Loader2 className="animate-spin" /> : <Check size={20} />} Créer le Produit
-                        </button>
-                    )}
-                </div>
+                ) : (
+                    <button
+                        onClick={handleSave}
+                        disabled={loading}
+                        style={{
+                            ...buttonPrimaryStyle,
+                            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                            opacity: loading ? 0.7 : 1
+                        }}
+                    >
+                        {loading ? <Loader2 className="animate-spin" size={18} /> : <Check size={18} />}
+                        Créer le Produit
+                    </button>
+                )}
             </div>
         </div>
     )

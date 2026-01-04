@@ -95,7 +95,10 @@ export async function POST(request: NextRequest) {
                 business_address: body.business_address || null,
                 business_hours: body.business_hours || "Lundi-Vendredi: 08:00 - 18:00\nSamedi: 09:00 - 13:00",
                 contact_phone: body.contact_phone || null,
-                social_links: body.social_links || {},
+                social_links: {
+                    website: body.site_url || null,
+                    ...(body.social_links || {})
+                },
                 custom_rules: body.custom_rules || null,
                 agent_tone: body.agent_tone || 'friendly',
                 agent_goal: body.agent_goal || 'sales',

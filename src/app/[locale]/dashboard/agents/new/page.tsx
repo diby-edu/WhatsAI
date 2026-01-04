@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
+import { Clock, Shield, MapPin, Globe } from 'lucide-react'
 
 export default function NewAgentPage() {
     const t = useTranslations('Agents')
@@ -37,6 +38,10 @@ export default function NewAgentPage() {
     const [whatsappStatus, setWhatsappStatus] = useState<'idle' | 'connecting' | 'qr_ready' | 'connected' | 'error'>('idle')
     const [connectedPhone, setConnectedPhone] = useState<string | null>(null)
 
+    // Conflict Detection State
+    const [conflictStatus, setConflictStatus] = useState<'idle' | 'checking' | 'safe' | 'conflict' | 'error'>('idle')
+    const [conflictReason, setConflictReason] = useState('')
+
     // Form state
     const [formData, setFormData] = useState({
         name: '',
@@ -49,12 +54,30 @@ export default function NewAgentPage() {
         language: 'fr',
         enableVoice: false,
         voiceId: 'alloy',
+        // NEW FIELDS
+        business_address: '',
+        contact_phone: '',
+        site_url: '',
+        latitude: '',
+        longitude: '',
+        custom_rules: '',
+        business_hours: {
+            monday: { open: '09:00', close: '18:00', closed: false },
+            tuesday: { open: '09:00', close: '18:00', closed: false },
+            wednesday: { open: '09:00', close: '18:00', closed: false },
+            thursday: { open: '09:00', close: '18:00', closed: false },
+            friday: { open: '09:00', close: '18:00', closed: false },
+            saturday: { open: '10:00', close: '16:00', closed: false },
+            sunday: { open: '00:00', close: '00:00', closed: true }
+        }
     })
 
     const steps = [
         { id: 'info', title: t('Wizard.steps.info'), icon: Bot },
+        { id: 'hours', title: 'Horaires', icon: Clock }, // New Step
         { id: 'mission', title: t('Wizard.steps.mission'), icon: Target },
         { id: 'personality', title: t('Wizard.steps.personality'), icon: Sparkles },
+        { id: 'rules', title: 'Règles', icon: Shield }, // New Step
         { id: 'settings', title: t('Wizard.steps.settings'), icon: Settings },
         { id: 'whatsapp', title: t('Wizard.steps.whatsapp'), icon: Smartphone },
     ]
@@ -217,16 +240,20 @@ Règles:
 
     const canProceed = () => {
         switch (currentStep) {
-            case 0:
+            case 0: // Info
                 return formData.name.trim() !== ''
-            case 1:
-                return formData.mission !== '' && formData.systemPrompt.trim() !== ''
-            case 2:
-                return formData.personality !== ''
-            case 3:
+            case 1: // Hours
                 return true
-            case 4:
-                return true // WhatsApp step is optional
+            case 2: // Mission
+                return formData.mission !== '' && formData.systemPrompt.trim() !== ''
+            case 3: // Personality
+                return formData.personality !== ''
+            case 4: // Rules
+                return conflictStatus !== 'conflict'
+            case 5: // Settings
+                return true
+            case 6: // WhatsApp
+                return true
             default:
                 return false
         }
@@ -263,6 +290,48 @@ Règles:
         }
     }
 
+    // GPS Helper
+    const getLocation = () => {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition((pos) => {
+                setFormData(prev => ({
+                    ...prev,
+                    latitude: pos.coords.latitude.toString(),
+                    longitude: pos.coords.longitude.toString()
+                }))
+            }, () => alert("Impossible de récupérer la position."))
+        }
+    }
+
+    // Conflict Check Helper
+    const checkConflict = async () => {
+        if (!formData.custom_rules || formData.custom_rules.length < 10) return
+        setConflictStatus('checking')
+        try {
+            const res = await fetch('/api/internal/analyze-conflict', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    structured_data: {
+                        address: formData.business_address,
+                        hours: formData.business_hours,
+                        phone: formData.contact_phone
+                    },
+                    custom_rules_text: formData.custom_rules
+                })
+            })
+            const data = await res.json()
+            if (data.conflict) {
+                setConflictStatus('conflict')
+                setConflictReason(data.reason)
+            } else {
+                setConflictStatus('safe')
+            }
+        } catch (e) {
+            setConflictStatus('error')
+        }
+    }
+
     // Create agent via API
     const handleCreateAgent = async () => {
         setLoading(true)
@@ -282,6 +351,14 @@ Règles:
                     language: formData.language,
                     enable_voice_responses: formData.enableVoice,
                     voice_id: formData.voiceId,
+                    // New Fields
+                    business_address: formData.business_address,
+                    contact_phone: formData.contact_phone,
+                    site_url: formData.site_url,
+                    latitude: parseFloat(formData.latitude) || null,
+                    longitude: parseFloat(formData.longitude) || null,
+                    business_hours: formData.business_hours,
+                    custom_rules: formData.custom_rules,
                 }),
             })
 
@@ -292,7 +369,7 @@ Règles:
             }
 
             setCreatedAgent(data.agent)
-            setCurrentStep(4) // Move to WhatsApp step
+            setCurrentStep(6) // Move to WhatsApp step
         } catch (err) {
             setError((err as Error).message)
         } finally {
@@ -494,10 +571,129 @@ Règles:
                                 style={{ ...inputStyle, resize: 'none' }}
                             />
                         </div>
+
+                        {/* NEW FIELDS: Address & Contact */}
+                        <div>
+                            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
+                                Adresse Physique
+                            </label>
+                            <div style={{ position: 'relative' }}>
+                                <input
+                                    type="text"
+                                    value={formData.business_address}
+                                    onChange={(e) => updateFormData('business_address', e.target.value)}
+                                    placeholder="Ex: Abidjan, Cocody..."
+                                    style={inputStyle}
+                                />
+                                <MapPin size={16} style={{ position: 'absolute', right: 12, top: 12, color: '#94a3b8' }} />
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                            <div>
+                                <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
+                                    Latitude
+                                </label>
+                                <input
+                                    type="number"
+                                    value={formData.latitude}
+                                    onChange={(e) => updateFormData('latitude', e.target.value)}
+                                    placeholder="0.0000"
+                                    style={inputStyle}
+                                />
+                            </div>
+                            <div>
+                                <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
+                                    Longitude
+                                    <span onClick={getLocation} style={{ color: '#10b981', cursor: 'pointer', fontSize: 12 }}>Ma position</span>
+                                </label>
+                                <input
+                                    type="number"
+                                    value={formData.longitude}
+                                    onChange={(e) => updateFormData('longitude', e.target.value)}
+                                    placeholder="0.0000"
+                                    style={inputStyle}
+                                />
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                            <div>
+                                <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
+                                    Téléphone Support
+                                </label>
+                                <input
+                                    type="text"
+                                    value={formData.contact_phone}
+                                    onChange={(e) => updateFormData('contact_phone', e.target.value)}
+                                    placeholder="+225..."
+                                    style={inputStyle}
+                                />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
+                                    Site Web
+                                </label>
+                                <input
+                                    type="text"
+                                    value={formData.site_url}
+                                    onChange={(e) => updateFormData('site_url', e.target.value)}
+                                    placeholder="https://"
+                                    style={inputStyle}
+                                />
+                            </div>
+                        </div>
                     </div>
                 )
 
-            case 1:
+            case 1: // HOURS
+                return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        {Object.entries(formData.business_hours).map(([day, hours]) => (
+                            <div key={day} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 12, background: 'rgba(30, 41, 59, 0.3)', borderRadius: 8 }}>
+                                <span style={{ textTransform: 'capitalize', color: 'white', width: 100 }}>{t(`WeekDays.${day}`)}</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={!hours.closed}
+                                        onChange={e => setFormData({
+                                            ...formData,
+                                            business_hours: { ...formData.business_hours, [day]: { ...hours, closed: !e.target.checked } }
+                                        })}
+                                        style={{ accentColor: '#10b981', width: 16, height: 16 }}
+                                    />
+                                    {!hours.closed ? (
+                                        <>
+                                            <input
+                                                type="time"
+                                                value={hours.open}
+                                                onChange={e => setFormData({
+                                                    ...formData,
+                                                    business_hours: { ...formData.business_hours, [day]: { ...hours, open: e.target.value } }
+                                                })}
+                                                style={{ ...inputStyle, padding: '4px 8px', width: 100 }}
+                                            />
+                                            <span style={{ color: '#94a3b8' }}>-</span>
+                                            <input
+                                                type="time"
+                                                value={hours.close}
+                                                onChange={e => setFormData({
+                                                    ...formData,
+                                                    business_hours: { ...formData.business_hours, [day]: { ...hours, close: e.target.value } }
+                                                })}
+                                                style={{ ...inputStyle, padding: '4px 8px', width: 100 }}
+                                            />
+                                        </>
+                                    ) : (
+                                        <span style={{ color: '#64748b', fontStyle: 'italic', width: 216, textAlign: 'center' }}>Fermé</span>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )
+
+            case 2: // MISSION
                 return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                         <div>
@@ -543,7 +739,7 @@ Règles:
                     </div>
                 )
 
-            case 2:
+            case 3: // PERSONALITY
                 return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                         <div>
@@ -611,7 +807,56 @@ Règles:
                     </div>
                 )
 
-            case 3:
+            case 4: // RULES
+                return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                        <div>
+                            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
+                                Règles spécifiques
+                            </label>
+                            <textarea
+                                value={formData.custom_rules}
+                                onChange={(e) => updateFormData('custom_rules', e.target.value)}
+                                placeholder="- Livraison gratuite > 50.000 FCFA..."
+                                rows={8}
+                                style={{ ...inputStyle, resize: 'none', fontFamily: 'monospace' }}
+                            />
+                        </div>
+
+                        <div style={{
+                            padding: 16,
+                            background: conflictStatus === 'conflict' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.05)',
+                            border: `1px solid ${conflictStatus === 'conflict' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)'}`,
+                            borderRadius: 12,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between'
+                        }}>
+                            <div>
+                                <h4 style={{ color: conflictStatus === 'conflict' ? '#fca5a5' : '#6ee7b7', fontWeight: 600, marginBottom: 4 }}>
+                                    {conflictStatus === 'conflict' ? 'Conflit Détecté' : 'Vérification de cohérence'}
+                                </h4>
+                                <p style={{ fontSize: 13, color: '#94a3b8' }}>
+                                    {conflictStatus === 'conflict' ? conflictReason : "L'IA vérifie si vos règles contredisent les horaires."}
+                                </p>
+                            </div>
+                            <button
+                                onClick={checkConflict}
+                                disabled={formData.custom_rules.length < 5 || conflictStatus === 'checking'}
+                                style={{
+                                    ...buttonSecondaryStyle,
+                                    background: 'rgba(30, 41, 59, 0.8)',
+                                    opacity: formData.custom_rules.length < 5 ? 0.5 : 1
+                                }}
+                            >
+                                {conflictStatus === 'checking' ? <Loader2 size={16} className="animate-spin" /> : <Shield size={16} />}
+                                Vérifier
+                            </button>
+                        </div>
+                    </div>
+                )
+
+            case 5: // SETTINGS
                 return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                         <div>
@@ -756,7 +1001,7 @@ Règles:
                     </div>
                 )
 
-            case 4:
+            case 6: // WHATSAPP
                 return (
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24, padding: 20 }}>
                         {whatsappStatus === 'idle' && (
@@ -1001,7 +1246,7 @@ Règles:
                     {t('Wizard.buttons.prev')}
                 </button>
 
-                {currentStep < 3 ? (
+                {currentStep < 6 ? (
                     <button
                         onClick={() => setCurrentStep(prev => Math.min(steps.length - 1, prev + 1))}
                         disabled={!canProceed()}
@@ -1014,7 +1259,7 @@ Règles:
                         {t('Wizard.buttons.next')}
                         <ArrowRight style={{ width: 16, height: 16 }} />
                     </button>
-                ) : currentStep === 3 ? (
+                ) : currentStep === 6 ? (
                     <button
                         onClick={handleCreateAgent}
                         disabled={loading}

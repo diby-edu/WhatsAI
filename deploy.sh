@@ -5,6 +5,7 @@ echo "🚀 Démarrage du déploiement (Mode Sécurisé RAM)..."
 # 1. Libérer de la mémoire AVANT le build (Crucial pour ce VPS)
 echo "🛑 Arrêt temporaire du bot pour libérer la RAM..."
 pm2 stop whatsai-bot
+pm2 stop photopilot-web || true
 
 # 2. Récupérer le code
 echo "📥 Pulling latest code..."
