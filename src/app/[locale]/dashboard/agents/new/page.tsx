@@ -1,33 +1,30 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import {
     ArrowLeft,
-    ArrowRight,
-    Check,
+    Save,
     Loader2,
-    Upload,
-    X,
+    QrCode,
+    Smartphone,
+    CheckCircle2,
+    AlertCircle,
+    RefreshCw,
+    Settings,
     MapPin,
     Clock,
     Zap,
     Shield,
-    QrCode,
-    Smartphone,
-    Globe,
-    Facebook,
-    AlertCircle,
-    ChevronLeft,
     ChevronRight,
-    Circle
+    ChevronLeft,
+    Globe
 } from 'lucide-react'
 import Link from 'next/link'
-import { createBrowserClient } from '@supabase/ssr'
 import { useTranslations } from 'next-intl'
-import QRCode from 'qrcode'
 
+// Wizard Steps
 const STEPS = [
     { id: 'identity', title: 'Identité', icon: MapPin },
     { id: 'availability', title: 'Horaires', icon: Clock },
@@ -37,67 +34,21 @@ const STEPS = [
 ]
 
 export default function NewAgentPage() {
-    const t = useTranslations('Agents.Wizard')
     const router = useRouter()
-    const fileInputRef = useRef<HTMLInputElement>(null)
+    const t = useTranslations('Agents')
 
-    // State
+    const [saving, setSaving] = useState(false)
     const [currentStep, setCurrentStep] = useState(0)
-    const [uploading, setUploading] = useState(false)
     const [createdAgentId, setCreatedAgentId] = useState<string | null>(null)
-    const [qrCode, setQrCode] = useState('')
-    const [whatsappStatus, setWhatsappStatus] = useState('idle')
-    const [connectedPhone, setConnectedPhone] = useState('')
+
+    // WhatsApp State
+    const [whatsappStatus, setWhatsappStatus] = useState<'idle' | 'connecting' | 'qr_ready' | 'connected' | 'error'>('idle')
+    const [qrCode, setQrCode] = useState<string | null>(null)
+    const [connectedPhone, setConnectedPhone] = useState<string | null>(null)
+
+    // Conflict Detection
     const [conflictStatus, setConflictStatus] = useState<'idle' | 'checking' | 'safe' | 'conflict' | 'error'>('idle')
     const [conflictReason, setConflictReason] = useState('')
-    const [saving, setSaving] = useState(false)
-
-    // Form Data
-    const [formData, setFormData] = useState({
-        name: '',
-        description: '',
-        business_name: '',
-        business_address: '',
-        latitude: '',
-        longitude: '',
-        contact_phone: '',
-        site_url: '',
-        facebook_url: '',
-        custom_rules: '',
-        agent_tone: 'friendly',
-        agent_goal: 'sales',
-        avatar_url: '',
-        business_hours: {
-            monday: { open: '09:00', close: '18:00', closed: false },
-            tuesday: { open: '09:00', close: '18:00', closed: false },
-            wednesday: { open: '09:00', close: '18:00', closed: false },
-            thursday: { open: '09:00', close: '18:00', closed: false },
-            friday: { open: '09:00', close: '18:00', closed: false },
-            saturday: { open: '10:00', close: '16:00', closed: false },
-            sunday: { open: '00:00', close: '00:00', closed: true }
-        }
-    })
-
-    const supabase = createBrowserClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
-
-    // Helpers
-    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!e.target.files || e.target.files.length === 0) return
-        setUploading(true)
-        try {
-            const file = e.target.files[0]
-            const fileExt = file.name.split('.').pop()
-            const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`
-            const filePath = `avatars/${fileName}`
-            const { error: uploadError } = await supabase.storage.from('files').upload(filePath, file)
-            if (uploadError) throw uploadError
-            const { data: publicUrl } = supabase.storage.from('files').getPublicUrl(filePath)
-            setFormData({ ...formData, avatar_url: publicUrl.publicUrl })
-        } catch (error) { alert('Erreur upload') } finally { setUploading(false) }
-    }
 
     const checkConflict = async () => {
         if (!formData.custom_rules || formData.custom_rules.length < 10) return
@@ -107,12 +58,12 @@ export default function NewAgentPage() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    structured_data: {
-                        address: formData.business_address,
+                    structuredData: {
                         hours: formData.business_hours,
-                        phone: formData.contact_phone
+                        address: formData.business_address,
+                        phone: formData.contact_phone,
                     },
-                    custom_rules_text: formData.custom_rules
+                    customRules: formData.custom_rules
                 })
             })
             const data = await res.json()
@@ -127,173 +78,249 @@ export default function NewAgentPage() {
         }
     }
 
-    const getLocation = () => {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition((pos) => {
-                setFormData(prev => ({
-                    ...prev,
-                    latitude: pos.coords.latitude.toString(),
-                    longitude: pos.coords.longitude.toString()
-                }))
-            }, () => alert("Impossible de récupérer la position."))
-        }
-    }
+    // Form Data - Initial State Empty
+    const [formData, setFormData] = useState({
+        name: '',
+        description: '',
+        is_active: true,
+
+        // Step 1: Identity
+        business_address: '',
+        contact_phone: '',
+        social_links: {
+            website: '',
+            facebook: '',
+            email: ''
+        },
+        latitude: null as number | null,
+        longitude: null as number | null,
+
+        // Step 2: Hours
+        business_hours: "Lundi-Vendredi: 08:00 - 18:00\nSamedi: 09:00 - 13:00\nDimanche: Fermé",
+
+        // Step 3: Personality
+        agent_tone: 'friendly',
+        agent_goal: 'sales',
+        model: 'gpt-4o-mini',
+        temperature: 0.7,
+        max_tokens: 500,
+        use_emojis: true,
+        language: 'fr',
+        enable_voice_responses: false,
+        voice_id: 'alloy',
+
+        // Step 4: Rules
+        custom_rules: '',
+        system_prompt: '',
+    })
 
     const handleSave = async (silent = false) => {
         if (!silent) setSaving(true)
+
         try {
+            // If already created, update. If not, create.
             const url = createdAgentId ? `/api/agents/${createdAgentId}` : '/api/agents'
             const method = createdAgentId ? 'PATCH' : 'POST'
+
             const res = await fetch(url, {
-                method,
+                method: method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)
             })
+
             const data = await res.json()
-            if (!res.ok) throw new Error(data.error)
-            if (method === 'POST') setCreatedAgentId(data.agent?.id || data.id)
-            if (!silent) alert('Sauvegardé !')
-        } catch (e) {
-            console.error(e)
-            if (!silent) alert('Erreur sauvegarde')
+
+            if (!res.ok) throw new Error(data.error || 'Erreur sauvegarde')
+
+            if (method === 'POST') {
+                setCreatedAgentId(data.agent?.id || data.id)
+                if (!silent) alert('Agent créé avec succès ! Continuez la configuration.')
+            } else {
+                if (!silent) alert('Sauvegardé avec succès !')
+            }
+
+        } catch (err) {
+            console.error(err)
+            if (!silent) alert('Erreur lors de la sauvegarde : ' + (err as Error).message)
         } finally {
             if (!silent) setSaving(false)
         }
     }
 
+    // --- WhatsApp Logic ---
     const connectWhatsApp = async () => {
-        if (!createdAgentId) return
-        setWhatsappStatus('loading')
+        if (!createdAgentId) return alert('Veuillez d\'abord sauvegarder l\'agent (Suivant)')
+
+        setWhatsappStatus('connecting')
+        setQrCode(null)
         try {
-            const res = await fetch('/api/whatsapp/connect', {
+            const response = await fetch('/api/whatsapp/connect', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ agentId: createdAgentId })
+                body: JSON.stringify({ agentId: createdAgentId }),
             })
-            const data = await res.json()
-            if (data.qr) {
-                setQrCode(await QRCode.toDataURL(data.qr))
+            const data = await response.json()
+            const result = data.data || data
+            if (!response.ok) throw new Error(data.error)
+
+            if (result.qrCode) {
+                setQrCode(result.qrCode)
                 setWhatsappStatus('qr_ready')
-                pollStatus()
+            } else if (result.status === 'connected') {
+                setWhatsappStatus('connected')
+                setConnectedPhone(result.phoneNumber)
             }
-        } catch (error) { setWhatsappStatus('error') }
+        } catch (err) {
+            console.error(err)
+            setWhatsappStatus('error')
+        }
     }
 
-    const pollStatus = () => {
+    const disconnectWhatsApp = async () => {
+        if (!confirm('Déconnecter WhatsApp ?')) return
+        try {
+            await fetch(`/api/whatsapp/connect?agentId=${createdAgentId}&logout=true`, { method: 'DELETE' })
+            setWhatsappStatus('idle')
+            setQrCode(null)
+            setConnectedPhone(null)
+        } catch (err) { console.error(err) }
+    }
+
+    // Polling
+    useEffect(() => {
+        if (!createdAgentId) return
+        if (whatsappStatus !== 'qr_ready' && whatsappStatus !== 'connecting') return
+
         const interval = setInterval(async () => {
             try {
-                const res = await fetch(`/api/agents/${createdAgentId}`)
-                const data = await res.json()
-                if (data.whatsapp_status === 'connected') {
+                const response = await fetch(`/api/whatsapp/connect?agentId=${createdAgentId}`)
+                const data = await response.json()
+                const result = data.data || data
+                if (result.status === 'connected' || result.connected) {
                     setWhatsappStatus('connected')
-                    setConnectedPhone(data.whatsapp_jid?.split('@')[0] || '')
+                    setConnectedPhone(result.phoneNumber)
+                    setQrCode(null)
                     clearInterval(interval)
+                } else if (result.qrCode && result.qrCode !== qrCode) {
+                    setQrCode(result.qrCode)
+                    setWhatsappStatus('qr_ready')
                 }
-            } catch (e) { }
-        }, 3000)
-    }
+            } catch (err) { }
+        }, 2000)
+        return () => clearInterval(interval)
+    }, [whatsappStatus, createdAgentId, qrCode])
 
-    // --- RENDER ---
 
+    // Render Steps
     const renderStep = () => {
-        switch (currentStep) {
-            case 0: // IDENTITY
+        const step = STEPS[currentStep].id
+
+        switch (step) {
+            case 'identity':
                 return (
-                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-xl mx-auto space-y-12">
-                        {/* Avatar - Minimalist */}
-                        <div className="flex justify-center">
-                            <div
-                                onClick={() => fileInputRef.current?.click()}
-                                className="w-24 h-24 rounded-full bg-slate-900 border border-slate-800 hover:border-slate-600 flex items-center justify-center cursor-pointer overflow-hidden relative group transition-all"
-                            >
-                                {formData.avatar_url ? (
-                                    <img src={formData.avatar_url} className="w-full h-full object-cover" />
-                                ) : (
-                                    <div className="text-center">
-                                        {uploading ? <Loader2 className="animate-spin text-slate-500 w-5 h-5 mx-auto" /> : <Upload className="text-slate-600 group-hover:text-slate-400 w-5 h-5 mx-auto" />}
-                                    </div>
-                                )}
-                                <input ref={fileInputRef} type="file" className="hidden" onChange={handleImageUpload} accept="image/*" />
-                            </div>
-                        </div>
-
-                        {/* Fields */}
-                        <div className="space-y-8">
-                            <div className="space-y-2">
-                                <label className="text-sm text-slate-400 font-medium">Nom de l'agent</label>
-                                <input
-                                    value={formData.name}
-                                    onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                    className="w-full bg-slate-900/50 border border-slate-800 rounded-lg p-3 text-white focus:border-slate-600 focus:ring-0 outline-none transition-all placeholder:text-slate-700 font-light"
-                                    placeholder="Ex: Marius le Vendeur"
-                                />
-                            </div>
-
-                            <div className="space-y-2">
-                                <label className="text-sm text-slate-400 font-medium">Description</label>
-                                <textarea
-                                    value={formData.description}
-                                    onChange={e => setFormData({ ...formData, description: e.target.value })}
-                                    className="w-full bg-slate-900/50 border border-slate-800 rounded-lg p-3 text-white focus:border-slate-600 focus:ring-0 outline-none transition-all placeholder:text-slate-700 resize-none h-24 font-light"
-                                    placeholder="Une brève description..."
-                                />
-                            </div>
-
-                            <div className="space-y-2">
-                                <label className="text-sm text-slate-400 font-medium">Adresse Physique</label>
-                                <input
-                                    value={formData.business_address}
-                                    onChange={e => setFormData({ ...formData, business_address: e.target.value })}
-                                    className="w-full bg-slate-900/50 border border-slate-800 rounded-lg p-3 text-white focus:border-slate-600 focus:ring-0 outline-none transition-all placeholder:text-slate-700 font-light"
-                                    placeholder="Adresse complète"
-                                />
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-6">
-                                <div className="space-y-2">
-                                    <label className="text-sm text-slate-400 font-medium">Latitude</label>
-                                    <div className="relative">
-                                        <input
-                                            type="number"
-                                            value={formData.latitude}
-                                            onChange={e => setFormData({ ...formData, latitude: e.target.value })}
-                                            className="w-full bg-slate-900/50 border border-slate-800 rounded-lg p-3 text-white focus:border-slate-600 focus:ring-0 outline-none transition-all placeholder:text-slate-700 font-mono text-sm"
-                                            placeholder="0.0000"
-                                        />
-                                        <button onClick={getLocation} className="absolute right-3 top-3 text-slate-600 hover:text-white transition-colors">
-                                            <MapPin size={16} />
-                                        </button>
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-sm text-slate-400 font-medium">Longitude</label>
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+                        <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
+                            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                                <MapPin className="text-emerald-400" size={24} /> Identité de l'Entreprise
+                            </h2>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-slate-300 font-medium mb-1">Nom du Bot / Agent *</label>
                                     <input
-                                        type="number"
-                                        value={formData.longitude}
-                                        onChange={e => setFormData({ ...formData, longitude: e.target.value })}
-                                        className="w-full bg-slate-900/50 border border-slate-800 rounded-lg p-3 text-white focus:border-slate-600 focus:ring-0 outline-none transition-all placeholder:text-slate-700 font-mono text-sm"
-                                        placeholder="0.0000"
+                                        value={formData.name}
+                                        onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                        className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                                        placeholder="Ex: Marius le Vendeur"
                                     />
                                 </div>
-                            </div>
+                                <div>
+                                    <label className="block text-slate-300 font-medium mb-1">Adresse Physique (Complète)</label>
+                                    <input
+                                        value={formData.business_address}
+                                        onChange={e => setFormData({ ...formData, business_address: e.target.value })}
+                                        className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                                        placeholder="Ex: Cocody Rivera 2, Abidjan, Côte d'Ivoire"
+                                    />
+                                </div>
 
-                            <div className="grid grid-cols-2 gap-6 pt-4">
-                                <div className="space-y-2">
-                                    <label className="text-sm text-slate-400 font-medium">Téléphone Support</label>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-slate-300 font-medium mb-1">Latitude (Optionnel)</label>
+                                        <input
+                                            type="number"
+                                            step="any"
+                                            value={formData.latitude || ''}
+                                            onChange={e => setFormData({ ...formData, latitude: parseFloat(e.target.value) })}
+                                            className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none font-mono"
+                                            placeholder="Ex: 5.3599517"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-slate-300 font-medium mb-1">Longitude (Optionnel)</label>
+                                        <input
+                                            type="number"
+                                            step="any"
+                                            value={formData.longitude || ''}
+                                            onChange={e => setFormData({ ...formData, longitude: parseFloat(e.target.value) })}
+                                            className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none font-mono"
+                                            placeholder="Ex: -4.0082563"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="flex justify-end">
+                                    <button
+                                        onClick={() => {
+                                            if (!navigator.geolocation) return alert('Géolocalisation non supportée')
+                                            navigator.geolocation.getCurrentPosition(
+                                                (pos) => {
+                                                    setFormData(prev => ({
+                                                        ...prev,
+                                                        latitude: pos.coords.latitude,
+                                                        longitude: pos.coords.longitude
+                                                    }))
+                                                },
+                                                (err) => alert('Erreur de localisation : ' + err.message)
+                                            )
+                                        }}
+                                        className="text-sm text-emerald-400 hover:text-emerald-300 flex items-center gap-2"
+                                    >
+                                        📍 Utiliser ma position actuelle
+                                    </button>
+                                </div>
+                                <div>
+                                    <label className="block text-slate-300 font-medium mb-1">Téléphone Support / Escalade (Humain)</label>
                                     <input
                                         value={formData.contact_phone}
                                         onChange={e => setFormData({ ...formData, contact_phone: e.target.value })}
-                                        className="w-full bg-slate-900/50 border border-slate-800 rounded-lg p-3 text-white focus:border-slate-600 focus:ring-0 outline-none transition-all placeholder:text-slate-700 font-light"
-                                        placeholder="+225..."
+                                        className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                                        placeholder="Ex: +225 07 07 ..."
                                     />
+                                    <p className="text-xs text-slate-500 mt-1">Le bot donnera ce numéro si le client veut parler à un humain.</p>
                                 </div>
-                                <div className="space-y-2">
-                                    <label className="text-sm text-slate-400 font-medium">Site Web</label>
+                            </div>
+                        </div>
+
+                        <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
+                            <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                                <Globe className="text-blue-400" size={20} /> Liens & Réseaux
+                            </h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-slate-300 text-sm mb-1">Site Web</label>
                                     <input
-                                        value={formData.site_url}
-                                        onChange={e => setFormData({ ...formData, site_url: e.target.value })}
-                                        className="w-full bg-slate-900/50 border border-slate-800 rounded-lg p-3 text-white focus:border-slate-600 focus:ring-0 outline-none transition-all placeholder:text-slate-700 font-light"
-                                        placeholder="https://"
+                                        value={formData.social_links.website}
+                                        onChange={e => setFormData({ ...formData, social_links: { ...formData.social_links, website: e.target.value } })}
+                                        className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white outline-none"
+                                        placeholder="https://..."
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-slate-300 text-sm mb-1">Facebook</label>
+                                    <input
+                                        value={formData.social_links.facebook}
+                                        onChange={e => setFormData({ ...formData, social_links: { ...formData.social_links, facebook: e.target.value } })}
+                                        className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white outline-none"
+                                        placeholder="Page Facebook"
                                     />
                                 </div>
                             </div>
@@ -301,257 +328,300 @@ export default function NewAgentPage() {
                     </motion.div>
                 )
 
-            case 1: // HOURS
+            case 'availability':
                 return (
-                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-xl mx-auto space-y-8">
-                        <div className="text-center pb-8 border-b border-white/5">
-                            <h3 className="text-2xl font-light text-white mb-2">Horaires d'Ouverture</h3>
-                            <p className="text-slate-500 font-light">Définissez quand votre agent doit répondre aux clients.</p>
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+                        <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
+                            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                                <Clock className="text-emerald-400" size={24} /> Horaires d'Ouverture
+                            </h2>
+                            <p className="text-slate-400 mb-4 text-sm">Indiquez clairement vos horaires. Le bot les utilisera pour informer les clients.</p>
+
+                            <textarea
+                                value={formData.business_hours}
+                                onChange={e => setFormData({ ...formData, business_hours: e.target.value })}
+                                className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-4 text-white font-mono h-48 focus:ring-2 focus:ring-emerald-500 outline-none"
+                                placeholder={"Lundi - Vendredi : 08:00 - 18:00\nSamedi : 09:00 - 14:00\nDimanche : Fermé"}
+                            />
                         </div>
+                    </motion.div>
+                )
 
-                        <div className="space-y-1">
-                            {Object.entries(formData.business_hours).map(([day, hours]) => (
-                                <div key={day} className="flex items-center justify-between py-3 px-4 hover:bg-white/5 rounded-lg transition-colors group">
-                                    <span className="capitalize w-32 text-slate-400 font-medium group-hover:text-white transition-colors">{t(`WeekDays.${day}`)}</span>
-                                    <div className="flex items-center gap-4">
-                                        {!hours.closed ? (
-                                            <div className="flex items-center gap-2">
-                                                <input
-                                                    type="time"
-                                                    value={hours.open}
-                                                    onChange={e => setFormData({
-                                                        ...formData,
-                                                        business_hours: { ...formData.business_hours, [day]: { ...hours, open: e.target.value } }
-                                                    })}
-                                                    className="bg-transparent border border-white/10 rounded px-2 py-1 text-sm text-white focus:border-white/30 outline-none w-20 text-center font-mono"
-                                                />
-                                                <span className="text-slate-600 font-light">à</span>
-                                                <input
-                                                    type="time"
-                                                    value={hours.close}
-                                                    onChange={e => setFormData({
-                                                        ...formData,
-                                                        business_hours: { ...formData.business_hours, [day]: { ...hours, close: e.target.value } }
-                                                    })}
-                                                    className="bg-transparent border border-white/10 rounded px-2 py-1 text-sm text-white focus:border-white/30 outline-none w-20 text-center font-mono"
-                                                />
-                                            </div>
-                                        ) : (
-                                            <span className="text-slate-600 text-sm italic w-[184px] text-right pr-4">Fermé</span>
-                                        )}
-
-                                        <button
-                                            onClick={() => setFormData({
-                                                ...formData,
-                                                business_hours: { ...formData.business_hours, [day]: { ...hours, closed: !hours.closed } }
-                                            })}
-                                            className={`w-10 h-6 rounded-full relative transition-colors ${!hours.closed ? 'bg-slate-700' : 'bg-slate-900 border border-slate-800'}`}
+            case 'personality':
+                return (
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* Tone Selection */}
+                            <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
+                                <h2 className="text-lg font-bold text-white mb-4">Ton de Voix</h2>
+                                <div className="space-y-3">
+                                    {[
+                                        { id: 'professional', label: '👔 Professionnel', desc: 'Vouvoiement, sérieux, précis' },
+                                        { id: 'friendly', label: '😊 Amical', desc: 'Tutoiement respectueux, emojis, chaleureux' },
+                                        { id: 'energetic', label: '⚡ Énergique', desc: 'Dynamique, exclamation, très vendeur' },
+                                        { id: 'luxury', label: '💎 Luxe', desc: 'Raffiné, très poli, vocabulaire soutenu' }
+                                    ].map(tone => (
+                                        <div
+                                            key={tone.id}
+                                            onClick={() => setFormData({ ...formData, agent_tone: tone.id })}
+                                            className={`p-4 rounded-lg border cursor-pointer transition-all ${formData.agent_tone === tone.id ? 'bg-emerald-500/20 border-emerald-500' : 'bg-slate-900/30 border-slate-700 hover:border-slate-500'}`}
                                         >
-                                            <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all shadow-sm ${!hours.closed ? 'left-5' : 'left-1 bg-slate-600'}`}></div>
-                                        </button>
+                                            <div className="font-bold text-white">{tone.label}</div>
+                                            <div className="text-xs text-slate-400">{tone.desc}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Goal Selection */}
+                            <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
+                                <h2 className="text-lg font-bold text-white mb-4">Objectif Principal</h2>
+                                <div className="space-y-3">
+                                    {[
+                                        { id: 'sales', label: '💰 Vendeur', desc: 'Priorité absolue : conclure la vente' },
+                                        { id: 'support', label: '🛡️ Support', desc: 'Priorité : rassurer et aider le client' },
+                                        { id: 'info', label: 'ℹ️ Informatif', desc: 'Donner les infos sans pousser à l\'achat' }
+                                    ].map(goal => (
+                                        <div
+                                            key={goal.id}
+                                            onClick={() => setFormData({ ...formData, agent_goal: goal.id })}
+                                            className={`p-4 rounded-lg border cursor-pointer transition-all ${formData.agent_goal === goal.id ? 'bg-emerald-500/20 border-emerald-500' : 'bg-slate-900/30 border-slate-700 hover:border-slate-500'}`}
+                                        >
+                                            <div className="font-bold text-white">{goal.label}</div>
+                                            <div className="text-xs text-slate-400">{goal.desc}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Model Settings Toggles */}
+                        <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
+                            <h2 className="text-lg font-bold text-white mb-4">Paramètres Avancés</h2>
+                            <div className="flex gap-8">
+                                <label className="flex items-center gap-3 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={formData.use_emojis}
+                                        onChange={e => setFormData({ ...formData, use_emojis: e.target.checked })}
+                                        className="w-5 h-5 accent-emerald-500"
+                                    />
+                                    <span className="text-white">Utiliser des Emojis</span>
+                                </label>
+                                <label className="flex items-center gap-3 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={formData.enable_voice_responses}
+                                        onChange={e => setFormData({ ...formData, enable_voice_responses: e.target.checked })}
+                                        className="w-5 h-5 accent-emerald-500 opacity-50 cursor-not-allowed" // Disabled for now or premium
+                                        disabled
+                                    />
+                                    <span className="text-slate-400">Réponses Vocales (Bientôt)</span>
+                                </label>
+                            </div>
+                        </div>
+                    </motion.div>
+                )
+
+            case 'rules':
+                return (
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+                        <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
+                            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                                <Shield className="text-emerald-400" size={24} /> Règles Spécifiques & Politique
+                            </h2>
+                            <p className="text-slate-400 mb-4 text-sm">
+                                Ajoutez ici TOUTES vos règles spécifiques que le bot doit respecter absolument.
+                                <br />Politique de retour, Livraison, Paiement, Promos...
+                            </p>
+
+                            <textarea
+                                value={formData.custom_rules}
+                                onChange={e => {
+                                    setFormData({ ...formData, custom_rules: e.target.value })
+                                    setConflictStatus('idle') // Reset on change
+                                }}
+                                className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-4 text-white font-mono h-48 focus:ring-2 focus:ring-emerald-500 outline-none"
+                                placeholder={`Exples:
+- Livraison gratuite à partir de 50.000 FCFA
+- Pas de remboursement sur les articles soldés
+- (Ne pas remettre l'adresse ni les horaires ici !)`}
+                            />
+
+                            {/* AI Conflict Detector */}
+                            <div className="flex items-start justify-between gap-4 pt-2">
+                                <div className="flex-1">
+                                    {conflictStatus === 'checking' && <div className="text-emerald-400 text-sm animate-pulse">Analye IA en cours...</div>}
+                                    {conflictStatus === 'safe' && <div className="text-emerald-400 text-sm flex items-center gap-2">✅ Aucune contradiction détectée.</div>}
+                                    {conflictStatus === 'conflict' && (
+                                        <div className="bg-red-500/10 border border-red-500/50 p-3 rounded-lg text-red-300 text-sm">
+                                            <div className="font-bold flex items-center gap-2">⚠️ Conflit Détecté</div>
+                                            {conflictReason}
+                                        </div>
+                                    )}
+                                </div>
+                                <button
+                                    onClick={checkConflict}
+                                    className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg text-sm transition-colors flex items-center gap-2"
+                                >
+                                    🛡️ Vérifier la cohérence
+                                </button>
+                            </div>
+                        </div>
+                    </motion.div>
+                )
+
+            case 'connect':
+                return (
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6 text-center">
+                        <div className="bg-slate-800/50 p-8 rounded-xl border border-slate-700/50 flex flex-col items-center">
+                            <h2 className="text-2xl font-bold text-white mb-6">Connexion WhatsApp</h2>
+
+                            {whatsappStatus === 'idle' && (
+                                <button onClick={connectWhatsApp} className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold flex items-center gap-2 transition-all">
+                                    <QrCode size={20} /> Générer le QR Code
+                                </button>
+                            )}
+
+                            {whatsappStatus === 'connecting' && (
+                                <div className="text-emerald-400 flex flex-col items-center gap-2">
+                                    <Loader2 className="w-10 h-10 animate-spin" />
+                                    <span>Préparation...</span>
+                                </div>
+                            )}
+
+                            {whatsappStatus === 'qr_ready' && qrCode && (
+                                <div className="bg-white p-4 rounded-xl animate-in zoom-in duration-300">
+                                    <img src={qrCode} alt="QR" className="w-64 h-64" />
+                                    <p className="text-slate-500 mt-2 text-sm">Scannez avec WhatsApp (Appareils connectés)</p>
+                                </div>
+                            )}
+
+                            {whatsappStatus === 'connected' && (
+                                <div className="text-emerald-400 flex flex-col items-center gap-4">
+                                    <div className="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center">
+                                        <CheckCircle2 size={40} />
                                     </div>
-                                </div>
-                            ))}
-                        </div>
-                    </motion.div>
-                )
-
-            case 2: // PERSONALITY
-                return (
-                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-4xl mx-auto space-y-12">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                            {/* TONE */}
-                            <section className="space-y-6">
-                                <label className="block text-slate-500 text-sm font-medium uppercase tracking-widest mb-4">Ton de voix</label>
-                                <div className="space-y-4">
-                                    <button
-                                        onClick={() => setFormData({ ...formData, agent_tone: 'professional' })}
-                                        className={`w-full p-6 text-left border rounded-xl transition-all duration-300 ${formData.agent_tone === 'professional' ? 'bg-slate-800/50 border-slate-600' : 'bg-transparent border-slate-800 opacity-50 hover:opacity-100 hover:border-slate-700'}`}
-                                    >
-                                        <div className="text-lg text-white font-light mb-2">Professionnel</div>
-                                        <div className="text-sm text-slate-400 font-light leading-relaxed">Un language formel et précis, utilisant le vouvoiement. Idéal pour les services B2B et le support technique.</div>
-                                    </button>
-
-                                    <button
-                                        onClick={() => setFormData({ ...formData, agent_tone: 'friendly' })}
-                                        className={`w-full p-6 text-left border rounded-xl transition-all duration-300 ${formData.agent_tone === 'friendly' ? 'bg-slate-800/50 border-slate-600' : 'bg-transparent border-slate-800 opacity-50 hover:opacity-100 hover:border-slate-700'}`}
-                                    >
-                                        <div className="text-lg text-white font-light mb-2">Amical</div>
-                                        <div className="text-sm text-slate-400 font-light leading-relaxed">Un ton chaleureux et engageant, utilisant le tutoiement et des emojis. Parfait pour le e-commerce et les communautés.</div>
+                                    <div className="text-xl font-bold">Connecté !</div>
+                                    <div className="text-slate-300">{connectedPhone}</div>
+                                    <button onClick={disconnectWhatsApp} className="mt-4 text-red-400 hover:text-red-300 text-sm underline">
+                                        Déconnecter
                                     </button>
                                 </div>
-                            </section>
-
-                            {/* GOAL */}
-                            <section className="space-y-6">
-                                <label className="block text-slate-500 text-sm font-medium uppercase tracking-widest mb-4">Objectif</label>
-                                <div className="space-y-4">
-                                    <button
-                                        onClick={() => setFormData({ ...formData, agent_goal: 'sales' })}
-                                        className={`w-full p-6 text-left border rounded-xl transition-all duration-300 ${formData.agent_goal === 'sales' ? 'bg-slate-800/50 border-slate-600' : 'bg-transparent border-slate-800 opacity-50 hover:opacity-100 hover:border-slate-700'}`}
-                                    >
-                                        <div className="text-lg text-white font-light mb-2">Vente</div>
-                                        <div className="text-sm text-slate-400 font-light leading-relaxed">Maximiser les conversions. L'agent proposera activement des produits et des offres spéciales.</div>
-                                    </button>
-
-                                    <button
-                                        onClick={() => setFormData({ ...formData, agent_goal: 'support' })}
-                                        className={`w-full p-6 text-left border rounded-xl transition-all duration-300 ${formData.agent_goal === 'support' ? 'bg-slate-800/50 border-slate-600' : 'bg-transparent border-slate-800 opacity-50 hover:opacity-100 hover:border-slate-700'}`}
-                                    >
-                                        <div className="text-lg text-white font-light mb-2">Support</div>
-                                        <div className="text-sm text-slate-400 font-light leading-relaxed">Résoudre les problèmes. L'agent privilégiera l'écoute et l'assistance à la vente.</div>
-                                    </button>
-                                </div>
-                            </section>
+                            )}
                         </div>
-                    </motion.div>
-                )
-
-            case 3: // RULES
-                return (
-                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-2xl mx-auto space-y-8">
-                        <div className="text-center pb-4">
-                            <h3 className="text-2xl font-light text-white mb-2">Règles Spécifiques</h3>
-                            <p className="text-slate-500 font-light text-sm">Instructions particulières pour l'IA.</p>
-                        </div>
-
-                        <textarea
-                            value={formData.custom_rules}
-                            onChange={e => setFormData({ ...formData, custom_rules: e.target.value })}
-                            className="w-full h-64 bg-slate-900/50 border border-slate-800 rounded-xl p-6 text-white focus:border-slate-600 focus:ring-0 outline-none resize-none font-light leading-relaxed text-sm"
-                            placeholder="- Livraison gratuite à partir de 50.000 FCFA..."
-                        />
-
-                        {/* Minimalist Conflict Bar */}
-                        <div className="flex items-center justify-between pt-4 border-t border-white/5">
-                            <div className="flex items-center gap-3">
-                                <div className={`w-2 h-2 rounded-full ${conflictStatus === 'safe' ? 'bg-emerald-500' : conflictStatus === 'conflict' ? 'bg-red-500' : 'bg-slate-700'}`}></div>
-                                {conflictStatus === 'idle' && <span className="text-slate-500 text-sm font-light">Cohérence non vérifiée</span>}
-                                {conflictStatus === 'checking' && <span className="text-slate-400 text-sm font-light">Vérification...</span>}
-                                {conflictStatus === 'safe' && <span className="text-slate-400 text-sm font-light">Aucune contradiction.</span>}
-                                {conflictStatus === 'conflict' && <span className="text-red-400 text-sm font-light">Conflit détecté.</span>}
-                            </div>
-                            <button
-                                onClick={checkConflict}
-                                disabled={formData.custom_rules.length < 10 || conflictStatus === 'checking'}
-                                className="text-sm text-white hover:text-slate-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-                            >
-                                Vérifier maintenant
-                            </button>
-                        </div>
-
-                        {conflictStatus === 'conflict' && (
-                            <div className="bg-red-500/5 border-l-2 border-red-500/50 p-4 text-red-300/80 text-sm font-light leading-relaxed">
-                                {conflictReason}
-                            </div>
-                        )}
-                    </motion.div>
-                )
-
-            case 4: // CONNECT
-                return (
-                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="text-center py-12 max-w-lg mx-auto">
-                        <h3 className="text-3xl font-thin text-white mb-8">Connexion WhatsApp</h3>
-
-                        {!qrCode && whatsappStatus !== 'connected' && (
-                            <button
-                                onClick={connectWhatsApp}
-                                className="px-8 py-3 bg-white text-black hover:bg-slate-200 rounded-full font-medium transition-all"
-                            >
-                                Générer le code
-                            </button>
-                        )}
-
-                        {qrCode && whatsappStatus !== 'connected' && (
-                            <div className="inline-block p-4 bg-white rounded-lg shadow-2xl mt-4">
-                                <img src={qrCode} alt="QR Code" className="w-64 h-64 grayscale opacity-90 transition-all hover:filter-none hover:opacity-100" />
-                            </div>
-                        )}
-
-                        {whatsappStatus === 'connected' && (
-                            <div className="space-y-4">
-                                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-500/10 text-emerald-500 mb-4">
-                                    <Check size={32} strokeWidth={1.5} />
-                                </div>
-                                <p className="text-xl text-white font-light">Connecté</p>
-                                <p className="text-slate-500 font-mono text-sm">{connectedPhone}</p>
-                            </div>
-                        )}
                     </motion.div>
                 )
         }
     }
 
-    // --- MAIN RENDER ---
+    // --- Main Layout ---
     return (
-        <div className="min-h-screen bg-slate-950 font-sans selection:bg-slate-800 text-slate-200">
-            {/* Minimalist Top Bar */}
-            <div className="fixed top-0 left-0 w-full bg-slate-950/80 backdrop-blur-md z-50 border-b border-white/5">
-                <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
-                    <Link href="/dashboard/agents" className="text-slate-500 hover:text-white transition-colors">
-                        <ArrowLeft size={18} />
-                    </Link>
+        <div className="min-h-screen bg-slate-900 pb-20">
+            {/* Top Bar */}
+            <div className="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-10">
+                <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <Link href="/dashboard/agents" className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors">
+                            <ArrowLeft size={20} />
+                        </Link>
+                        <div>
+                            <h1 className="text-xl font-bold text-white">{formData.name || 'Nouvel Agent'}</h1>
+                            <p className="text-xs text-slate-400">{STEPS[currentStep].title}</p>
+                        </div>
+                    </div>
+                </div>
 
-                    {/* Minimalist Progress Indicators */}
-                    <div className="flex gap-4">
+                {/* Progress Bar */}
+                <div className="max-w-4xl mx-auto px-4 mt-2 mb-0">
+                    <div className="flex justify-between items-center relative">
+                        {/* Line */}
+                        <div className="absolute top-1/2 left-0 w-full h-1 bg-slate-800 -z-0 rounded-full"></div>
+                        <div
+                            className="absolute top-1/2 left-0 h-1 bg-emerald-500/50 -z-0 rounded-full transition-all duration-300"
+                            style={{ width: `${(currentStep / (STEPS.length - 1)) * 100}%` }}
+                        ></div>
+
                         {STEPS.map((step, index) => {
                             const isActive = index === currentStep
-                            // const isCompleted = index < currentStep
+                            const isCompleted = index < currentStep
                             return (
-                                <div key={step.id} className="transition-all duration-500">
-                                    <div className={`w-2 h-2 rounded-full transition-all duration-300 ${isActive ? 'bg-white scale-125' : 'bg-slate-800'}`}></div>
-                                </div>
+                                <button
+                                    key={step.id}
+                                    onClick={() => {
+                                        // Creating: Block jumping ahead if agent not created yet? 
+                                        // Relaxed for creation wizard UX, but enforcing save on Next.
+                                        if (STEPS[currentStep].id === 'rules' && formData.custom_rules.length > 5 && conflictStatus !== 'safe') {
+                                            alert("🛡️ SÉCURITÉ : Vérifiez la cohérence avant de continuer.")
+                                            return
+                                        }
+                                        setCurrentStep(index)
+                                    }}
+                                    className={`relative z-10 flex flex-col items-center gap-2 group focus:outline-none`}
+                                >
+                                    <div className={`
+                                        w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300
+                                        ${isActive ? 'bg-slate-900 border-emerald-400 text-emerald-400 scale-110 shadow-[0_0_15px_rgba(52,211,153,0.3)]' :
+                                            isCompleted ? 'bg-emerald-500 border-emerald-500 text-slate-900' :
+                                                'bg-slate-800 border-slate-700 text-slate-500 group-hover:border-slate-500'}
+                                    `}>
+                                        <step.icon size={18} />
+                                    </div>
+                                    <span className={`text-xs font-medium transition-colors ${isActive ? 'text-emerald-400' : isCompleted ? 'text-emerald-500/70' : 'text-slate-600'}`}>
+                                        {step.title}
+                                    </span>
+                                </button>
                             )
                         })}
                     </div>
-
-                    <div className="w-4"></div> {/* Spacer for alignment */}
                 </div>
             </div>
 
-            {/* Title Header */}
-            <div className="pt-32 pb-12 text-center">
-                <h1 className="text-3xl font-light text-white tracking-tight mb-2">{STEPS[currentStep].title}</h1>
-                <p className="text-slate-500 text-sm font-light">Étape {currentStep + 1} sur {STEPS.length}</p>
-            </div>
-
-            {/* CONTENT */}
-            <div className="max-w-5xl mx-auto px-6 pb-32">
+            {/* Content */}
+            <div className="max-w-3xl mx-auto px-4 py-8">
                 {renderStep()}
             </div>
 
-            {/* Minimalist Bottom Navigation using Floating Action Button style if wanted, or just simple text buttons */}
-            <div className="fixed bottom-12 right-12 z-50 flex gap-4">
-                <button
-                    onClick={() => setCurrentStep(prev => prev - 1)}
-                    disabled={currentStep === 0}
-                    className={`
-                        w-12 h-12 rounded-full bg-slate-900 border border-slate-800 text-white flex items-center justify-center 
-                        hover:bg-slate-800 transition-all disabled:opacity-0 disabled:translate-y-4
-                    `}
-                >
-                    <ChevronLeft size={20} />
-                </button>
+            {/* Bottom Navigation */}
+            <div className="fixed bottom-0 left-0 w-full bg-slate-900/90 backdrop-blur border-t border-slate-800 p-4 z-20">
+                <div className="max-w-3xl mx-auto flex justify-between items-center">
+                    <button
+                        onClick={() => setCurrentStep(prev => Math.max(0, prev - 1))}
+                        disabled={currentStep === 0}
+                        className={`px-6 py-3 rounded-xl font-bold flex items-center gap-2 ${currentStep === 0 ? 'opacity-0 pointer-events-none' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                    >
+                        <ChevronLeft size={20} /> Précédent
+                    </button>
 
-                {currentStep < STEPS.length - 1 ? (
-                    <button
-                        onClick={() => {
-                            if (STEPS[currentStep].id === 'rules' && formData.custom_rules.length > 5 && conflictStatus !== 'safe') { alert("Vérification requise."); return; }
-                            handleSave(true); setCurrentStep(prev => prev + 1)
-                        }}
-                        className="h-12 px-6 rounded-full bg-white text-black font-medium flex items-center gap-2 hover:bg-slate-200 transition-all shadow-xl shadow-black/50"
-                    >
-                        Suivant <ArrowRight size={18} />
-                    </button>
-                ) : (
-                    <button
-                        onClick={() => handleSave()}
-                        disabled={saving}
-                        className="h-12 px-6 rounded-full bg-white text-black font-medium flex items-center gap-2 hover:bg-slate-200 transition-all shadow-xl shadow-black/50"
-                    >
-                        {saving ? <Loader2 className="animate-spin w-4 h-4" /> : <Check size={18} />} Terminer
-                    </button>
-                )}
+                    {currentStep < STEPS.length - 1 ? (
+                        <button
+                            onClick={() => {
+                                // Block checks
+                                if (currentStep === 0 && formData.name.length < 2) return alert('Nom requis')
+                                if (STEPS[currentStep].id === 'rules' && formData.custom_rules.length > 5 && conflictStatus !== 'safe') {
+                                    alert("🛡️ SÉCURITÉ : Vérifiez la cohérence avant de continuer.")
+                                    return
+                                }
+
+                                handleSave(true) // Auto-save (Create or Update)
+                                setCurrentStep(prev => Math.min(STEPS.length - 1, prev + 1))
+                            }}
+                            className="px-6 py-3 bg-white text-slate-900 hover:bg-slate-200 rounded-xl font-bold flex items-center gap-2 shadow-lg transition-all"
+                        >
+                            Suivant <ChevronRight size={20} />
+                        </button>
+                    ) : (
+                        <button
+                            onClick={() => {
+                                handleSave(true)
+                                router.push('/dashboard/agents')
+                            }}
+                            className="px-6 py-3 bg-emerald-500 text-white hover:bg-emerald-600 rounded-xl font-bold flex items-center gap-2 shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all"
+                        >
+                            <CheckCircle2 size={20} /> Terminer
+                        </button>
+                    )}
+                </div>
             </div>
         </div>
     )
