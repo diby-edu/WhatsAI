@@ -1,32 +1,39 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
     ArrowLeft,
-    Save,
+    ArrowRight,
+    Check,
     Loader2,
-    QrCode,
-    Smartphone,
-    CheckCircle2,
-    AlertCircle,
-    RefreshCw,
-    Settings,
+    Upload,
+    X,
     MapPin,
     Clock,
     Zap,
     Shield,
-    ChevronRight,
-    ChevronLeft,
-    Globe
+    QrCode,
+    Smartphone,
+    Globe,
+    Facebook,
+    AlertCircle,
+    Copy,
+    RefreshCw,
+    Map,
+    Bot,
+    Languages,
+    MessageSquare,
+    Link as LinkIcon
 } from 'lucide-react'
 import Link from 'next/link'
+import { createBrowserClient } from '@supabase/ssr'
 import { useTranslations } from 'next-intl'
+import QRCode from 'qrcode'
 
-// Wizard Steps
 const STEPS = [
-    { id: 'identity', title: 'Identité', icon: MapPin },
+    { id: 'identity', title: 'Informations', icon: MapPin },
     { id: 'availability', title: 'Horaires', icon: Clock },
     { id: 'personality', title: 'Personnalité', icon: Zap },
     { id: 'rules', title: 'Règles', icon: Shield },
@@ -34,21 +41,79 @@ const STEPS = [
 ]
 
 export default function NewAgentPage() {
+    const t = useTranslations('Agents.Wizard')
     const router = useRouter()
-    const t = useTranslations('Agents')
+    const fileInputRef = useRef<HTMLInputElement>(null)
 
-    const [saving, setSaving] = useState(false)
+    // State
     const [currentStep, setCurrentStep] = useState(0)
+    const [uploading, setUploading] = useState(false)
     const [createdAgentId, setCreatedAgentId] = useState<string | null>(null)
-
-    // WhatsApp State
-    const [whatsappStatus, setWhatsappStatus] = useState<'idle' | 'connecting' | 'qr_ready' | 'connected' | 'error'>('idle')
-    const [qrCode, setQrCode] = useState<string | null>(null)
-    const [connectedPhone, setConnectedPhone] = useState<string | null>(null)
-
-    // Conflict Detection
+    const [qrCode, setQrCode] = useState('')
+    const [whatsappStatus, setWhatsappStatus] = useState('idle')
+    const [connectedPhone, setConnectedPhone] = useState('')
     const [conflictStatus, setConflictStatus] = useState<'idle' | 'checking' | 'safe' | 'conflict' | 'error'>('idle')
     const [conflictReason, setConflictReason] = useState('')
+    const [saving, setSaving] = useState(false)
+
+    // Form Data
+    const [formData, setFormData] = useState({
+        name: '',
+        description: '',
+        business_name: '',
+        business_address: '',
+        latitude: '',
+        longitude: '',
+        contact_phone: '',
+        site_url: '',
+        facebook_url: '',
+        custom_rules: '',
+        agent_tone: 'friendly',
+        agent_goal: 'sales',
+        avatar_url: '',
+        business_hours: {
+            monday: { open: '09:00', close: '18:00', closed: false },
+            tuesday: { open: '09:00', close: '18:00', closed: false },
+            wednesday: { open: '09:00', close: '18:00', closed: false },
+            thursday: { open: '09:00', close: '18:00', closed: false },
+            friday: { open: '09:00', close: '18:00', closed: false },
+            saturday: { open: '10:00', close: '16:00', closed: false },
+            sunday: { open: '00:00', close: '00:00', closed: true }
+        }
+    })
+
+    const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+
+    // Helpers
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files || e.target.files.length === 0) return
+        setUploading(true)
+        try {
+            const file = e.target.files[0]
+            const fileExt = file.name.split('.').pop()
+            const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`
+            const filePath = `avatars/${fileName}`
+
+            const { error: uploadError } = await supabase.storage
+                .from('files')
+                .upload(filePath, file)
+
+            if (uploadError) throw uploadError
+
+            const { data: publicUrl } = supabase.storage
+                .from('files')
+                .getPublicUrl(filePath)
+
+            setFormData({ ...formData, avatar_url: publicUrl.publicUrl })
+        } catch (error) {
+            alert('Erreur upload')
+        } finally {
+            setUploading(false)
+        }
+    }
 
     const checkConflict = async () => {
         if (!formData.custom_rules || formData.custom_rules.length < 10) return
@@ -58,12 +123,12 @@ export default function NewAgentPage() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    structuredData: {
-                        hours: formData.business_hours,
+                    structured_data: {
                         address: formData.business_address,
-                        phone: formData.contact_phone,
+                        hours: formData.business_hours,
+                        phone: formData.contact_phone
                     },
-                    customRules: formData.custom_rules
+                    custom_rules_text: formData.custom_rules
                 })
             })
             const data = await res.json()
@@ -78,467 +143,508 @@ export default function NewAgentPage() {
         }
     }
 
-    // Form Data - Initial State Empty
-    const [formData, setFormData] = useState({
-        name: '',
-        description: '',
-        is_active: true,
-
-        // Step 1: Identity
-        business_address: '',
-        contact_phone: '',
-        social_links: {
-            website: '',
-            facebook: '',
-            email: ''
-        },
-        latitude: null as number | null,
-        longitude: null as number | null,
-
-        // Step 2: Hours
-        business_hours: "Lundi-Vendredi: 08:00 - 18:00\nSamedi: 09:00 - 13:00\nDimanche: Fermé",
-
-        // Step 3: Personality
-        agent_tone: 'friendly',
-        agent_goal: 'sales',
-        model: 'gpt-4o-mini',
-        temperature: 0.7,
-        max_tokens: 500,
-        use_emojis: true,
-        language: 'fr',
-        enable_voice_responses: false,
-        voice_id: 'alloy',
-
-        // Step 4: Rules
-        custom_rules: '',
-        system_prompt: '',
-    })
+    const getLocation = () => {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition((pos) => {
+                setFormData(prev => ({
+                    ...prev,
+                    latitude: pos.coords.latitude.toString(),
+                    longitude: pos.coords.longitude.toString()
+                }))
+            }, () => alert("Impossible de récupérer la position."))
+        }
+    }
 
     const handleSave = async (silent = false) => {
         if (!silent) setSaving(true)
-
         try {
-            // If already created, update. If not, create.
             const url = createdAgentId ? `/api/agents/${createdAgentId}` : '/api/agents'
             const method = createdAgentId ? 'PATCH' : 'POST'
 
             const res = await fetch(url, {
-                method: method,
+                method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)
             })
 
             const data = await res.json()
-
-            if (!res.ok) throw new Error(data.error || 'Erreur sauvegarde')
+            if (!res.ok) throw new Error(data.error)
 
             if (method === 'POST') {
                 setCreatedAgentId(data.agent?.id || data.id)
-                if (!silent) alert('Agent créé avec succès ! Continuez la configuration.')
-            } else {
-                if (!silent) alert('Sauvegardé avec succès !')
             }
-
-        } catch (err) {
-            console.error(err)
-            if (!silent) alert('Erreur lors de la sauvegarde : ' + (err as Error).message)
+            if (!silent) alert('Sauvegardé !')
+        } catch (e) {
+            console.error(e)
+            if (!silent) alert('Erreur sauvegarde')
         } finally {
             if (!silent) setSaving(false)
         }
     }
 
-    // --- WhatsApp Logic ---
     const connectWhatsApp = async () => {
-        if (!createdAgentId) return alert('Veuillez d\'abord sauvegarder l\'agent (Suivant)')
-
-        setWhatsappStatus('connecting')
-        setQrCode(null)
+        if (!createdAgentId) return
+        setWhatsappStatus('loading')
         try {
-            const response = await fetch('/api/whatsapp/connect', {
+            const res = await fetch('/api/whatsapp/connect', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ agentId: createdAgentId }),
+                body: JSON.stringify({ agentId: createdAgentId })
             })
-            const data = await response.json()
-            const result = data.data || data
-            if (!response.ok) throw new Error(data.error)
-
-            if (result.qrCode) {
-                setQrCode(result.qrCode)
+            const data = await res.json()
+            if (data.qr) {
+                setQrCode(await QRCode.toDataURL(data.qr))
                 setWhatsappStatus('qr_ready')
-            } else if (result.status === 'connected') {
-                setWhatsappStatus('connected')
-                setConnectedPhone(result.phoneNumber)
+                pollStatus()
             }
-        } catch (err) {
-            console.error(err)
+        } catch (error) {
             setWhatsappStatus('error')
         }
     }
 
-    const disconnectWhatsApp = async () => {
-        if (!confirm('Déconnecter WhatsApp ?')) return
-        try {
-            await fetch(`/api/whatsapp/connect?agentId=${createdAgentId}&logout=true`, { method: 'DELETE' })
-            setWhatsappStatus('idle')
-            setQrCode(null)
-            setConnectedPhone(null)
-        } catch (err) { console.error(err) }
-    }
-
-    // Polling
-    useEffect(() => {
-        if (!createdAgentId) return
-        if (whatsappStatus !== 'qr_ready' && whatsappStatus !== 'connecting') return
-
+    const pollStatus = () => {
         const interval = setInterval(async () => {
             try {
-                const response = await fetch(`/api/whatsapp/connect?agentId=${createdAgentId}`)
-                const data = await response.json()
-                const result = data.data || data
-                if (result.status === 'connected' || result.connected) {
+                const res = await fetch(`/api/agents/${createdAgentId}`)
+                const data = await res.json()
+                if (data.whatsapp_status === 'connected') {
                     setWhatsappStatus('connected')
-                    setConnectedPhone(result.phoneNumber)
-                    setQrCode(null)
+                    setConnectedPhone(data.whatsapp_jid?.split('@')[0] || '')
                     clearInterval(interval)
-                } else if (result.qrCode && result.qrCode !== qrCode) {
-                    setQrCode(result.qrCode)
-                    setWhatsappStatus('qr_ready')
                 }
-            } catch (err) { }
-        }, 2000)
-        return () => clearInterval(interval)
-    }, [whatsappStatus, createdAgentId, qrCode])
+            } catch (e) { }
+        }, 3000)
+    }
 
+    // --- RENDER ---
 
-    // Render Steps
     const renderStep = () => {
-        const step = STEPS[currentStep].id
-
-        switch (step) {
-            case 'identity':
+        switch (currentStep) {
+            case 0: // IDENTITY
                 return (
-                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
-                        <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
-                            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                                <MapPin className="text-emerald-400" size={24} /> Identité de l'Entreprise
-                            </h2>
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-slate-300 font-medium mb-1">Nom du Bot / Agent *</label>
-                                    <input
-                                        value={formData.name}
-                                        onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                        className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
-                                        placeholder="Ex: Marius le Vendeur"
-                                    />
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-8">
+                        {/* Avatar */}
+                        <div className="flex flex-col items-center justify-center -mt-2">
+                            <div
+                                onClick={() => fileInputRef.current?.click()}
+                                className="w-28 h-28 rounded-full border-2 border-dashed border-slate-700 hover:border-emerald-500 flex items-center justify-center cursor-pointer overflow-hidden relative group transition-all bg-slate-950 shadow-2xl"
+                            >
+                                {formData.avatar_url ? (
+                                    <img src={formData.avatar_url} className="w-full h-full object-cover" />
+                                ) : (
+                                    <div className="text-center p-2">
+                                        {uploading ? <Loader2 className="animate-spin mx-auto text-emerald-500" /> : <Upload className="mx-auto text-slate-600 mb-2 group-hover:text-emerald-500 transition-colors" />}
+                                        <span className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Logo</span>
+                                    </div>
+                                )}
+                                <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <span className="text-white text-xs font-bold">Modifier</span>
                                 </div>
+                                <input ref={fileInputRef} type="file" className="hidden" onChange={handleImageUpload} accept="image/*" />
+                            </div>
+                        </div>
+
+                        {/* Main Info Card */}
+                        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm">
+                            <h2 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-6 flex items-center gap-2">
+                                <MapPin size={16} className="text-emerald-500" /> Identité & Coordonnées
+                            </h2>
+
+                            <div className="space-y-6">
+                                {/* Name */}
                                 <div>
-                                    <label className="block text-slate-300 font-medium mb-1">Adresse Physique (Complète)</label>
-                                    <input
-                                        value={formData.business_address}
-                                        onChange={e => setFormData({ ...formData, business_address: e.target.value })}
-                                        className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
-                                        placeholder="Ex: Cocody Rivera 2, Abidjan, Côte d'Ivoire"
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wide ml-1 mb-2 block">Nom de l'agent *</label>
+                                    <div className="relative group">
+                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-emerald-500 transition-colors">
+                                            <Bot size={18} />
+                                        </div>
+                                        <input
+                                            value={formData.name}
+                                            onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                            className="w-full bg-slate-950 border border-slate-800 text-white rounded-xl py-4 pl-12 pr-4 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-all outline-none placeholder:text-slate-700 font-medium"
+                                            placeholder="Ex: Marius le Vendeur"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Description */}
+                                <div>
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wide ml-1 mb-2 block">Rôle / Description</label>
+                                    <textarea
+                                        value={formData.description}
+                                        onChange={e => setFormData({ ...formData, description: e.target.value })}
+                                        className="w-full bg-slate-950 border border-slate-800 text-white rounded-xl p-4 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-all outline-none placeholder:text-slate-700 resize-none h-24 text-sm"
+                                        placeholder="Décrivez brièvement le rôle de cet agent pour donner du contexte à l'IA..."
                                     />
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-slate-300 font-medium mb-1">Latitude (Optionnel)</label>
-                                        <input
-                                            type="number"
-                                            step="any"
-                                            value={formData.latitude || ''}
-                                            onChange={e => setFormData({ ...formData, latitude: parseFloat(e.target.value) })}
-                                            className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none font-mono"
-                                            placeholder="Ex: 5.3599517"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-slate-300 font-medium mb-1">Longitude (Optionnel)</label>
-                                        <input
-                                            type="number"
-                                            step="any"
-                                            value={formData.longitude || ''}
-                                            onChange={e => setFormData({ ...formData, longitude: parseFloat(e.target.value) })}
-                                            className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none font-mono"
-                                            placeholder="Ex: -4.0082563"
-                                        />
-                                    </div>
-                                </div>
-                                <div className="flex justify-end">
-                                    <button
-                                        onClick={() => {
-                                            if (!navigator.geolocation) return alert('Géolocalisation non supportée')
-                                            navigator.geolocation.getCurrentPosition(
-                                                (pos) => {
-                                                    setFormData(prev => ({
-                                                        ...prev,
-                                                        latitude: pos.coords.latitude,
-                                                        longitude: pos.coords.longitude
-                                                    }))
-                                                },
-                                                (err) => alert('Erreur de localisation : ' + err.message)
-                                            )
-                                        }}
-                                        className="text-sm text-emerald-400 hover:text-emerald-300 flex items-center gap-2"
-                                    >
-                                        📍 Utiliser ma position actuelle
-                                    </button>
-                                </div>
+                                {/* Address */}
                                 <div>
-                                    <label className="block text-slate-300 font-medium mb-1">Téléphone Support / Escalade (Humain)</label>
-                                    <input
-                                        value={formData.contact_phone}
-                                        onChange={e => setFormData({ ...formData, contact_phone: e.target.value })}
-                                        className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
-                                        placeholder="Ex: +225 07 07 ..."
-                                    />
-                                    <p className="text-xs text-slate-500 mt-1">Le bot donnera ce numéro si le client veut parler à un humain.</p>
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wide ml-1 mb-2 block">Adresse Physique</label>
+                                    <div className="relative group">
+                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-emerald-500 transition-colors">
+                                            <MapPin size={18} />
+                                        </div>
+                                        <input
+                                            value={formData.business_address}
+                                            onChange={e => setFormData({ ...formData, business_address: e.target.value })}
+                                            className="w-full bg-slate-950 border border-slate-800 text-white rounded-xl py-4 pl-12 pr-4 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-all outline-none placeholder:text-slate-700"
+                                            placeholder="Ex: Abidjan, Cocody Riviera 2"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* GPS Coords */}
+                                <div className="bg-slate-950/50 rounded-xl p-4 border border-slate-800/50">
+                                    <div className="flex justify-between items-center mb-3">
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wide flex items-center gap-2">
+                                            <Globe size={14} /> Coordonnées GPS (Optionnel)
+                                        </label>
+                                        <button
+                                            onClick={getLocation}
+                                            className="text-xs bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 font-medium border border-blue-500/10"
+                                        >
+                                            <Map size={12} /> Ma position
+                                        </button>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <input
+                                            type="number"
+                                            placeholder="Latitude"
+                                            value={formData.latitude}
+                                            onChange={e => setFormData({ ...formData, latitude: e.target.value })}
+                                            className="bg-slate-900 border border-slate-800 text-white rounded-lg px-3 py-3 text-sm focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 outline-none transition-all placeholder:text-slate-700 font-mono"
+                                        />
+                                        <input
+                                            type="number"
+                                            placeholder="Longitude"
+                                            value={formData.longitude}
+                                            onChange={e => setFormData({ ...formData, longitude: e.target.value })}
+                                            className="bg-slate-900 border border-slate-800 text-white rounded-lg px-3 py-3 text-sm focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 outline-none transition-all placeholder:text-slate-700 font-mono"
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
-                            <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                                <Globe className="text-blue-400" size={20} /> Liens & Réseaux
+                        {/* Contact & Socials */}
+                        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm">
+                            <h2 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-6 flex items-center gap-2">
+                                <LinkIcon size={16} className="text-blue-500" /> Contact & Réseaux
+                            </h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div>
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wide ml-1 mb-2 block">Téléphone Support</label>
+                                    <div className="relative group">
+                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-emerald-500 transition-colors">
+                                            <Smartphone size={18} />
+                                        </div>
+                                        <input
+                                            value={formData.contact_phone}
+                                            onChange={e => setFormData({ ...formData, contact_phone: e.target.value })}
+                                            className="w-full bg-slate-950 border border-slate-800 text-white rounded-xl py-4 pl-12 pr-4 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-all outline-none placeholder:text-slate-700"
+                                            placeholder="+225 07..."
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wide ml-1 mb-2 block">Site Web</label>
+                                    <div className="relative group">
+                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-blue-500 transition-colors">
+                                            <Globe size={18} />
+                                        </div>
+                                        <input
+                                            value={formData.site_url}
+                                            onChange={e => setFormData({ ...formData, site_url: e.target.value })}
+                                            className="w-full bg-slate-950 border border-slate-800 text-white rounded-xl py-4 pl-12 pr-4 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-all outline-none placeholder:text-slate-700"
+                                            placeholder="https://..."
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </motion.div>
+                )
+
+            case 1: // HOURS
+                return (
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+                        <div className="text-center mb-4">
+                            <div className="w-16 h-16 bg-slate-900 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-800 shadow-lg">
+                                <Clock className="text-emerald-500" size={32} />
+                            </div>
+                            <h3 className="text-lg font-bold text-white">Horaires d'Ouverture</h3>
+                            <p className="text-slate-400 text-sm">Quand votre agent est-il disponible ?</p>
+                        </div>
+
+                        <div className="bg-slate-900 rounded-2xl p-6 border border-slate-800 shadow-sm space-y-3">
+                            <div className="grid grid-cols-[100px_1fr] gap-4 mb-2 px-2 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                <span>Jour</span>
+                                <span>Plage Horaire</span>
+                            </div>
+                            {Object.entries(formData.business_hours).map(([day, hours]) => (
+                                <div key={day} className="flex items-center justify-between p-3 bg-slate-950/50 border border-slate-800/50 rounded-xl hover:bg-slate-950 hover:border-slate-800 transition-all group">
+                                    <span className="capitalize w-24 text-slate-300 font-medium pl-1">{t(`WeekDays.${day}`)}</span>
+                                    <div className="flex items-center gap-3 flex-1 justify-end">
+                                        <label className="relative inline-flex items-center cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={!hours.closed}
+                                                className="sr-only peer"
+                                                onChange={e => setFormData({
+                                                    ...formData,
+                                                    business_hours: { ...formData.business_hours, [day]: { ...hours, closed: !e.target.checked } }
+                                                })}
+                                            />
+                                            <div className="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                                        </label>
+
+                                        {!hours.closed ? (
+                                            <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-4 duration-300">
+                                                <input
+                                                    type="time"
+                                                    value={hours.open}
+                                                    onChange={e => setFormData({
+                                                        ...formData,
+                                                        business_hours: { ...formData.business_hours, [day]: { ...hours, open: e.target.value } }
+                                                    })}
+                                                    className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-sm text-white focus:border-emerald-500 outline-none w-28 text-center font-mono"
+                                                />
+                                                <span className="text-slate-600">-</span>
+                                                <input
+                                                    type="time"
+                                                    value={hours.close}
+                                                    onChange={e => setFormData({
+                                                        ...formData,
+                                                        business_hours: { ...formData.business_hours, [day]: { ...hours, close: e.target.value } }
+                                                    })}
+                                                    className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-sm text-white focus:border-emerald-500 outline-none w-28 text-center font-mono"
+                                                />
+                                            </div>
+                                        ) : (
+                                            <span className="text-slate-600 text-sm italic w-[240px] text-center border border-dashed border-slate-800 rounded-lg py-1.5">Fermé</span>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </motion.div>
+                )
+
+            case 2: // PERSONALITY
+                return (
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-8">
+                        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm">
+                            <h2 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-6 flex items-center gap-2">
+                                <Languages size={16} className="text-purple-500" /> Style de Conversation
                             </h2>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-slate-300 text-sm mb-1">Site Web</label>
-                                    <input
-                                        value={formData.social_links.website}
-                                        onChange={e => setFormData({ ...formData, social_links: { ...formData.social_links, website: e.target.value } })}
-                                        className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white outline-none"
-                                        placeholder="https://..."
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-slate-300 text-sm mb-1">Facebook</label>
-                                    <input
-                                        value={formData.social_links.facebook}
-                                        onChange={e => setFormData({ ...formData, social_links: { ...formData.social_links, facebook: e.target.value } })}
-                                        className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white outline-none"
-                                        placeholder="Page Facebook"
-                                    />
-                                </div>
+                                <button
+                                    onClick={() => setFormData({ ...formData, agent_tone: 'professional' })}
+                                    className={`relative p-5 rounded-2xl border text-left transition-all group overflow-hidden ${formData.agent_tone === 'professional' ? 'bg-emerald-500/10 border-emerald-500 ring-1 ring-emerald-500/50' : 'bg-slate-950 border-slate-800 hover:bg-slate-900'}`}
+                                >
+                                    <div className="absolute top-4 right-4 text-emerald-500 opacity-0 transform translate-x-4 group-hover:opacity-100 group-hover:translate-x-0 transition-all">
+                                        {formData.agent_tone === 'professional' && <Check size={20} />}
+                                    </div>
+                                    <div className="w-10 h-10 bg-slate-900 rounded-full flex items-center justify-center mb-4 border border-slate-800 group-hover:border-slate-700">
+                                        <Bot size={20} className="text-slate-300" />
+                                    </div>
+                                    <div className="font-bold text-white mb-1.5 text-lg">Professionnel</div>
+                                    <div className="text-sm text-slate-400 leading-relaxed">Courtois, précis, utilise le vouvoiement. Idéal pour le B2B.</div>
+                                </button>
+
+                                <button
+                                    onClick={() => setFormData({ ...formData, agent_tone: 'friendly' })}
+                                    className={`relative p-5 rounded-2xl border text-left transition-all group overflow-hidden ${formData.agent_tone === 'friendly' ? 'bg-emerald-500/10 border-emerald-500 ring-1 ring-emerald-500/50' : 'bg-slate-950 border-slate-800 hover:bg-slate-900'}`}
+                                >
+                                    <div className="absolute top-4 right-4 text-emerald-500 opacity-0 transform translate-x-4 group-hover:opacity-100 group-hover:translate-x-0 transition-all">
+                                        {formData.agent_tone === 'friendly' && <Check size={20} />}
+                                    </div>
+                                    <div className="w-10 h-10 bg-slate-900 rounded-full flex items-center justify-center mb-4 border border-slate-800 group-hover:border-slate-700">
+                                        <MessageSquare size={20} className="text-slate-300" />
+                                    </div>
+                                    <div className="font-bold text-white mb-1.5 text-lg">Amical</div>
+                                    <div className="text-sm text-slate-400 leading-relaxed">Chaleureux, utilise des emojis et le tutoiement. Idéal pour le B2C.</div>
+                                </button>
                             </div>
                         </div>
-                    </motion.div>
-                )
 
-            case 'availability':
-                return (
-                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
-                        <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
-                            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                                <Clock className="text-emerald-400" size={24} /> Horaires d'Ouverture
+                        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm">
+                            <h2 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-6 flex items-center gap-2">
+                                <Zap size={16} className="text-yellow-500" /> Objectif Principal
                             </h2>
-                            <p className="text-slate-400 mb-4 text-sm">Indiquez clairement vos horaires. Le bot les utilisera pour informer les clients.</p>
-
-                            <textarea
-                                value={formData.business_hours}
-                                onChange={e => setFormData({ ...formData, business_hours: e.target.value })}
-                                className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-4 text-white font-mono h-48 focus:ring-2 focus:ring-emerald-500 outline-none"
-                                placeholder={"Lundi - Vendredi : 08:00 - 18:00\nSamedi : 09:00 - 14:00\nDimanche : Fermé"}
-                            />
-                        </div>
-                    </motion.div>
-                )
-
-            case 'personality':
-                return (
-                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {/* Tone Selection */}
-                            <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
-                                <h2 className="text-lg font-bold text-white mb-4">Ton de Voix</h2>
-                                <div className="space-y-3">
-                                    {[
-                                        { id: 'professional', label: '👔 Professionnel', desc: 'Vouvoiement, sérieux, précis' },
-                                        { id: 'friendly', label: '😊 Amical', desc: 'Tutoiement respectueux, emojis, chaleureux' },
-                                        { id: 'energetic', label: '⚡ Énergique', desc: 'Dynamique, exclamation, très vendeur' },
-                                        { id: 'luxury', label: '💎 Luxe', desc: 'Raffiné, très poli, vocabulaire soutenu' }
-                                    ].map(tone => (
-                                        <div
-                                            key={tone.id}
-                                            onClick={() => setFormData({ ...formData, agent_tone: tone.id })}
-                                            className={`p-4 rounded-lg border cursor-pointer transition-all ${formData.agent_tone === tone.id ? 'bg-emerald-500/20 border-emerald-500' : 'bg-slate-900/30 border-slate-700 hover:border-slate-500'}`}
-                                        >
-                                            <div className="font-bold text-white">{tone.label}</div>
-                                            <div className="text-xs text-slate-400">{tone.desc}</div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Goal Selection */}
-                            <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
-                                <h2 className="text-lg font-bold text-white mb-4">Objectif Principal</h2>
-                                <div className="space-y-3">
-                                    {[
-                                        { id: 'sales', label: '💰 Vendeur', desc: 'Priorité absolue : conclure la vente' },
-                                        { id: 'support', label: '🛡️ Support', desc: 'Priorité : rassurer et aider le client' },
-                                        { id: 'info', label: 'ℹ️ Informatif', desc: 'Donner les infos sans pousser à l\'achat' }
-                                    ].map(goal => (
-                                        <div
-                                            key={goal.id}
-                                            onClick={() => setFormData({ ...formData, agent_goal: goal.id })}
-                                            className={`p-4 rounded-lg border cursor-pointer transition-all ${formData.agent_goal === goal.id ? 'bg-emerald-500/20 border-emerald-500' : 'bg-slate-900/30 border-slate-700 hover:border-slate-500'}`}
-                                        >
-                                            <div className="font-bold text-white">{goal.label}</div>
-                                            <div className="text-xs text-slate-400">{goal.desc}</div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Model Settings Toggles */}
-                        <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
-                            <h2 className="text-lg font-bold text-white mb-4">Paramètres Avancés</h2>
-                            <div className="flex gap-8">
-                                <label className="flex items-center gap-3 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={formData.use_emojis}
-                                        onChange={e => setFormData({ ...formData, use_emojis: e.target.checked })}
-                                        className="w-5 h-5 accent-emerald-500"
-                                    />
-                                    <span className="text-white">Utiliser des Emojis</span>
-                                </label>
-                                <label className="flex items-center gap-3 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={formData.enable_voice_responses}
-                                        onChange={e => setFormData({ ...formData, enable_voice_responses: e.target.checked })}
-                                        className="w-5 h-5 accent-emerald-500 opacity-50 cursor-not-allowed" // Disabled for now or premium
-                                        disabled
-                                    />
-                                    <span className="text-slate-400">Réponses Vocales (Bientôt)</span>
-                                </label>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <button
+                                    onClick={() => setFormData({ ...formData, agent_goal: 'sales' })}
+                                    className={`relative p-5 rounded-2xl border text-left transition-all group overflow-hidden ${formData.agent_goal === 'sales' ? 'bg-blue-500/10 border-blue-500 ring-1 ring-blue-500/50' : 'bg-slate-950 border-slate-800 hover:bg-slate-900'}`}
+                                >
+                                    <div className="absolute top-4 right-4 text-blue-500 opacity-0 transform translate-x-4 group-hover:opacity-100 group-hover:translate-x-0 transition-all">
+                                        {formData.agent_goal === 'sales' && <Check size={20} />}
+                                    </div>
+                                    <div className="w-10 h-10 bg-slate-900 rounded-full flex items-center justify-center mb-4 border border-slate-800 group-hover:border-slate-700">
+                                        <Zap size={20} className="text-yellow-400" />
+                                    </div>
+                                    <div className="font-bold text-white mb-1.5 text-lg">Vente Aggressive</div>
+                                    <div className="text-sm text-slate-400 leading-relaxed">Pousse à l'achat, met en avant les promos et le FOMO.</div>
+                                </button>
+                                <button
+                                    onClick={() => setFormData({ ...formData, agent_goal: 'support' })}
+                                    className={`relative p-5 rounded-2xl border text-left transition-all group overflow-hidden ${formData.agent_goal === 'support' ? 'bg-blue-500/10 border-blue-500 ring-1 ring-blue-500/50' : 'bg-slate-950 border-slate-800 hover:bg-slate-900'}`}
+                                >
+                                    <div className="absolute top-4 right-4 text-blue-500 opacity-0 transform translate-x-4 group-hover:opacity-100 group-hover:translate-x-0 transition-all">
+                                        {formData.agent_goal === 'support' && <Check size={20} />}
+                                    </div>
+                                    <div className="w-10 h-10 bg-slate-900 rounded-full flex items-center justify-center mb-4 border border-slate-800 group-hover:border-slate-700">
+                                        <Shield size={20} className="text-emerald-400" />
+                                    </div>
+                                    <div className="font-bold text-white mb-1.5 text-lg">Support Client</div>
+                                    <div className="text-sm text-slate-400 leading-relaxed">Répond aux questions, rassure, aide à la résolution de problèmes.</div>
+                                </button>
                             </div>
                         </div>
                     </motion.div>
                 )
 
-            case 'rules':
+            case 3: // RULES
                 return (
                     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
-                        <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
-                            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                                <Shield className="text-emerald-400" size={24} /> Règles Spécifiques & Politique
-                            </h2>
-                            <p className="text-slate-400 mb-4 text-sm">
-                                Ajoutez ici TOUTES vos règles spécifiques que le bot doit respecter absolument.
-                                <br />Politique de retour, Livraison, Paiement, Promos...
-                            </p>
+                        <div className="bg-amber-500/10 border border-amber-500/20 p-5 rounded-2xl flex gap-4 items-start">
+                            <div className="p-2 bg-amber-500/20 rounded-lg">
+                                <Shield className="text-amber-500" size={24} />
+                            </div>
+                            <div>
+                                <h4 className="text-amber-500 font-bold text-base mb-1">Détecteur de Conflits IA</h4>
+                                <p className="text-slate-400 text-sm leading-relaxed">
+                                    L'IA vérifiera automatiquement si vos règles contredisent vos horaires ou votre adresse. C'est une sécurité supplémentaire pour éviter les hallucinations.
+                                </p>
+                            </div>
+                        </div>
 
+                        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm">
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3 block flex items-center justify-between">
+                                <span>Règles Spécifiques (Prompt Custom)</span>
+                                <span className="text-[10px] bg-slate-800 px-2 py-0.5 rounded text-slate-400">IA Strict Mode</span>
+                            </label>
                             <textarea
                                 value={formData.custom_rules}
-                                onChange={e => {
-                                    setFormData({ ...formData, custom_rules: e.target.value })
-                                    setConflictStatus('idle') // Reset on change
-                                }}
-                                className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-4 text-white font-mono h-48 focus:ring-2 focus:ring-emerald-500 outline-none"
-                                placeholder={`Exples:
+                                onChange={e => setFormData({ ...formData, custom_rules: e.target.value })}
+                                className="w-full h-64 bg-slate-950 border border-slate-800 rounded-xl p-5 text-white focus:ring-1 focus:ring-emerald-500 outline-none resize-none leading-relaxed font-mono text-sm"
+                                placeholder={`- Pas de retour sur les soldes
 - Livraison gratuite à partir de 50.000 FCFA
-- Pas de remboursement sur les articles soldés
-- (Ne pas remettre l'adresse ni les horaires ici !)`}
+- Ne jamais donner le numéro personnel du patron
+- Toujours proposer l'article complémentaire`}
                             />
-
-                            {/* AI Conflict Detector */}
-                            <div className="flex items-start justify-between gap-4 pt-2">
-                                <div className="flex-1">
-                                    {conflictStatus === 'checking' && <div className="text-emerald-400 text-sm animate-pulse">Analye IA en cours...</div>}
-                                    {conflictStatus === 'safe' && <div className="text-emerald-400 text-sm flex items-center gap-2">✅ Aucune contradiction détectée.</div>}
-                                    {conflictStatus === 'conflict' && (
-                                        <div className="bg-red-500/10 border border-red-500/50 p-3 rounded-lg text-red-300 text-sm">
-                                            <div className="font-bold flex items-center gap-2">⚠️ Conflit Détecté</div>
-                                            {conflictReason}
-                                        </div>
-                                    )}
-                                </div>
-                                <button
-                                    onClick={checkConflict}
-                                    className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg text-sm transition-colors flex items-center gap-2"
-                                >
-                                    🛡️ Vérifier la cohérence
-                                </button>
-                            </div>
                         </div>
+
+                        {/* Conflict Status Bar */}
+                        <div className="flex items-center justify-between bg-slate-900 p-4 rounded-xl border border-slate-800">
+                            <div className="flex items-center gap-3">
+                                {conflictStatus === 'idle' && <span className="text-slate-500 text-sm font-medium">En attente de vérification...</span>}
+                                {conflictStatus === 'checking' && <span className="text-blue-400 text-sm flex items-center gap-2 font-medium"><Loader2 className="animate-spin" size={16} /> Analyse en cours...</span>}
+                                {conflictStatus === 'safe' && <span className="text-emerald-400 text-sm flex items-center gap-2 font-medium"><Check size={16} /> Aucune contradiction détectée</span>}
+                                {conflictStatus === 'conflict' && <span className="text-red-400 text-sm flex items-center gap-2 font-medium"><AlertCircle size={16} /> Conflit détecté !</span>}
+                            </div>
+                            <button
+                                onClick={checkConflict}
+                                disabled={formData.custom_rules.length < 10 || conflictStatus === 'checking'}
+                                className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg ${formData.custom_rules.length < 10 ? 'bg-slate-800 text-slate-600 cursor-not-allowed' :
+                                    'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/20'
+                                    }`}
+                            >
+                                Vérifier la cohérence
+                            </button>
+                        </div>
+
+                        {conflictStatus === 'conflict' && (
+                            <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl animate-in fade-in slide-in-from-top-2">
+                                <p className="text-red-400 text-sm font-bold flex items-center gap-2 mb-1"><AlertCircle size={16} /> Problème Identifié :</p>
+                                <p className="text-red-300 text-sm ml-6 leading-relaxed">{conflictReason}</p>
+                            </div>
+                        )}
                     </motion.div>
                 )
 
-            case 'connect':
+            case 4: // CONNECT
                 return (
-                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6 text-center">
-                        <div className="bg-slate-800/50 p-8 rounded-xl border border-slate-700/50 flex flex-col items-center">
-                            <h2 className="text-2xl font-bold text-white mb-6">Connexion WhatsApp</h2>
-
-                            {whatsappStatus === 'idle' && (
-                                <button onClick={connectWhatsApp} className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold flex items-center gap-2 transition-all">
-                                    <QrCode size={20} /> Générer le QR Code
-                                </button>
-                            )}
-
-                            {whatsappStatus === 'connecting' && (
-                                <div className="text-emerald-400 flex flex-col items-center gap-2">
-                                    <Loader2 className="w-10 h-10 animate-spin" />
-                                    <span>Préparation...</span>
-                                </div>
-                            )}
-
-                            {whatsappStatus === 'qr_ready' && qrCode && (
-                                <div className="bg-white p-4 rounded-xl animate-in zoom-in duration-300">
-                                    <img src={qrCode} alt="QR" className="w-64 h-64" />
-                                    <p className="text-slate-500 mt-2 text-sm">Scannez avec WhatsApp (Appareils connectés)</p>
-                                </div>
-                            )}
-
-                            {whatsappStatus === 'connected' && (
-                                <div className="text-emerald-400 flex flex-col items-center gap-4">
-                                    <div className="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center">
-                                        <CheckCircle2 size={40} />
-                                    </div>
-                                    <div className="text-xl font-bold">Connecté !</div>
-                                    <div className="text-slate-300">{connectedPhone}</div>
-                                    <button onClick={disconnectWhatsApp} className="mt-4 text-red-400 hover:text-red-300 text-sm underline">
-                                        Déconnecter
-                                    </button>
-                                </div>
-                            )}
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="text-center py-8">
+                        <div className="w-24 h-24 bg-slate-800/50 rounded-full flex items-center justify-center mx-auto mb-8 border border-slate-700">
+                            <Smartphone className="text-slate-500" size={48} />
                         </div>
+
+                        {!qrCode && whatsappStatus !== 'connected' && (
+                            <div className="space-y-6">
+                                <h3 className="text-2xl font-bold text-white">Connecter WhatsApp</h3>
+                                <p className="text-slate-400 max-w-sm mx-auto leading-relaxed">
+                                    Scannez le QR Code pour lier ce bot à votre numéro WhatsApp Business. La connexion est instantanée.
+                                </p>
+                                <button
+                                    onClick={connectWhatsApp}
+                                    className="px-8 py-4 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-2xl shadow-xl shadow-emerald-500/20 transition-all transform hover:scale-105 active:scale-95 text-lg"
+                                >
+                                    Générer le QR Code
+                                </button>
+                            </div>
+                        )}
+
+                        {qrCode && whatsappStatus !== 'connected' && (
+                            <div className="flex flex-col items-center space-y-6">
+                                <div className="p-6 bg-white rounded-3xl shadow-2xl skew-y-1 transform border-4 border-slate-800">
+                                    <img src={qrCode} alt="QR Code" className="w-64 h-64" />
+                                </div>
+                                <div>
+                                    <p className="text-white font-mono animate-pulse mb-2">En attente du scan...</p>
+                                    <p className="text-slate-500 text-xs">Ouvrez WhatsApp {'>'} Appareils connectés {'>'} Connecter un appareil</p>
+                                </div>
+
+                            </div>
+                        )}
+
+                        {whatsappStatus === 'connected' && (
+                            <div className="bg-emerald-500/10 border border-emerald-500/30 p-10 rounded-3xl max-w-md mx-auto relative overflow-hidden">
+                                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-emerald-500 to-transparent opacity-50"></div>
+                                <div className="w-20 h-20 bg-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-emerald-500/30">
+                                    <Check className="text-white" size={40} strokeWidth={3} />
+                                </div>
+                                <h3 className="text-3xl font-bold text-white mb-2">Connecté !</h3>
+                                <p className="text-emerald-300 mb-8 text-lg font-mono">{connectedPhone}</p>
+                                <button
+                                    onClick={() => router.push('/dashboard/agents')}
+                                    className="w-full px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl transition-colors border border-slate-700 font-bold"
+                                >
+                                    Retour à la liste
+                                </button>
+                            </div>
+                        )}
                     </motion.div>
                 )
         }
     }
 
-    // --- Main Layout ---
+    // --- MAIN RENDER ---
     return (
-        <div className="min-h-screen bg-slate-900 pb-20">
-            {/* Top Bar */}
-            <div className="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-10">
-                <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+        <div className="min-h-screen bg-[#0B1120] pb-24 font-sans selection:bg-emerald-500/30">
+            {/* STICKY TOP BAR */}
+            <div className="border-b border-slate-800 bg-[#0B1120]/80 backdrop-blur-xl sticky top-0 z-50">
+                <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <Link href="/dashboard/agents" className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors">
+                        <Link href="/dashboard/agents" className="w-10 h-10 flex items-center justify-center hover:bg-slate-800 rounded-xl text-slate-400 hover:text-white transition-all border border-transparent hover:border-slate-700">
                             <ArrowLeft size={20} />
                         </Link>
                         <div>
-                            <h1 className="text-xl font-bold text-white">{formData.name || 'Nouvel Agent'}</h1>
-                            <p className="text-xs text-slate-400">{STEPS[currentStep].title}</p>
+                            <h1 className="text-lg font-bold text-white tracking-tight">Nouveau Bot</h1>
+                            <p className="text-[11px] font-bold text-emerald-500 uppercase tracking-widest">{STEPS[currentStep].title}</p>
                         </div>
                     </div>
                 </div>
 
-                {/* Progress Bar */}
-                <div className="max-w-4xl mx-auto px-4 mt-2 mb-0">
-                    <div className="flex justify-between items-center relative">
-                        {/* Line */}
-                        <div className="absolute top-1/2 left-0 w-full h-1 bg-slate-800 -z-0 rounded-full"></div>
+                {/* PROGRESS BAR (Simplified) */}
+                <div className="max-w-4xl mx-auto px-6 mt-1 mb-0">
+                    <div className="flex justify-between items-center relative py-4">
+                        {/* Background Line */}
+                        <div className="absolute top-1/2 left-0 w-full h-[2px] bg-slate-800 -z-0 rounded-full"></div>
+                        {/* Active Line */}
                         <div
-                            className="absolute top-1/2 left-0 h-1 bg-emerald-500/50 -z-0 rounded-full transition-all duration-300"
+                            className="absolute top-1/2 left-0 h-[2px] bg-emerald-500 -z-0 rounded-full transition-all duration-500 ease-out"
                             style={{ width: `${(currentStep / (STEPS.length - 1)) * 100}%` }}
                         ></div>
 
@@ -546,79 +652,60 @@ export default function NewAgentPage() {
                             const isActive = index === currentStep
                             const isCompleted = index < currentStep
                             return (
-                                <button
-                                    key={step.id}
-                                    onClick={() => {
-                                        // Creating: Block jumping ahead if agent not created yet? 
-                                        // Relaxed for creation wizard UX, but enforcing save on Next.
-                                        if (STEPS[currentStep].id === 'rules' && formData.custom_rules.length > 5 && conflictStatus !== 'safe') {
-                                            alert("🛡️ SÉCURITÉ : Vérifiez la cohérence avant de continuer.")
-                                            return
-                                        }
-                                        setCurrentStep(index)
-                                    }}
-                                    className={`relative z-10 flex flex-col items-center gap-2 group focus:outline-none`}
-                                >
+                                <div key={step.id} className="relative z-10 flex flex-col items-center group cursor-default">
                                     <div className={`
-                                        w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300
-                                        ${isActive ? 'bg-slate-900 border-emerald-400 text-emerald-400 scale-110 shadow-[0_0_15px_rgba(52,211,153,0.3)]' :
-                                            isCompleted ? 'bg-emerald-500 border-emerald-500 text-slate-900' :
-                                                'bg-slate-800 border-slate-700 text-slate-500 group-hover:border-slate-500'}
+                                        w-8 h-8 rounded-full flex items-center justify-center border-[2px] transition-all duration-300 bg-[#0B1120]
+                                        ${isActive ? 'border-emerald-500 text-emerald-400 bg-slate-900 shadow-[0_0_20px_rgba(16,185,129,0.4)] scale-110' :
+                                            isCompleted ? 'border-emerald-500 text-emerald-500 bg-emerald-500/10' :
+                                                'border-slate-800 text-slate-700 bg-slate-950'}
                                     `}>
-                                        <step.icon size={18} />
+                                        <step.icon size={14} strokeWidth={3} />
                                     </div>
-                                    <span className={`text-xs font-medium transition-colors ${isActive ? 'text-emerald-400' : isCompleted ? 'text-emerald-500/70' : 'text-slate-600'}`}>
-                                        {step.title}
-                                    </span>
-                                </button>
+                                </div>
                             )
                         })}
                     </div>
                 </div>
             </div>
 
-            {/* Content */}
-            <div className="max-w-3xl mx-auto px-4 py-8">
+            {/* MAIN CONTENT */}
+            <div className="max-w-3xl mx-auto px-6 py-8">
                 {renderStep()}
             </div>
 
-            {/* Bottom Navigation */}
-            <div className="fixed bottom-0 left-0 w-full bg-slate-900/90 backdrop-blur border-t border-slate-800 p-4 z-20">
+            {/* FIXED BOTTOM ACTION BAR */}
+            <div className="fixed bottom-0 left-0 w-full bg-[#0B1120]/90 backdrop-blur-lg border-t border-slate-800 p-4 z-40">
                 <div className="max-w-3xl mx-auto flex justify-between items-center">
                     <button
-                        onClick={() => setCurrentStep(prev => Math.max(0, prev - 1))}
+                        onClick={() => setCurrentStep(prev => prev - 1)}
                         disabled={currentStep === 0}
-                        className={`px-6 py-3 rounded-xl font-bold flex items-center gap-2 ${currentStep === 0 ? 'opacity-0 pointer-events-none' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                        className={`flex items-center gap-2 text-slate-400 px-6 py-3 font-medium hover:text-white transition-colors ${currentStep === 0 ? 'opacity-0 pointer-events-none' : ''}`}
                     >
-                        <ChevronLeft size={20} /> Précédent
+                        <ArrowLeft size={18} /> Précédent
                     </button>
 
                     {currentStep < STEPS.length - 1 ? (
                         <button
                             onClick={() => {
                                 // Block checks
-                                if (currentStep === 0 && formData.name.length < 2) return alert('Nom requis')
                                 if (STEPS[currentStep].id === 'rules' && formData.custom_rules.length > 5 && conflictStatus !== 'safe') {
                                     alert("🛡️ SÉCURITÉ : Vérifiez la cohérence avant de continuer.")
                                     return
                                 }
-
-                                handleSave(true) // Auto-save (Create or Update)
-                                setCurrentStep(prev => Math.min(STEPS.length - 1, prev + 1))
+                                handleSave(true) // Auto-save
+                                setCurrentStep(prev => prev + 1)
                             }}
-                            className="px-6 py-3 bg-white text-slate-900 hover:bg-slate-200 rounded-xl font-bold flex items-center gap-2 shadow-lg transition-all"
+                            className="bg-emerald-500 hover:bg-emerald-600 text-white px-8 py-3.5 rounded-xl font-bold shadow-lg shadow-emerald-500/20 flex items-center gap-2 transition-all hover:scale-105 active:scale-95"
                         >
-                            Suivant <ChevronRight size={20} />
+                            Suivant <ArrowRight size={18} />
                         </button>
                     ) : (
                         <button
-                            onClick={() => {
-                                handleSave(true)
-                                router.push('/dashboard/agents')
-                            }}
-                            className="px-6 py-3 bg-emerald-500 text-white hover:bg-emerald-600 rounded-xl font-bold flex items-center gap-2 shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all"
+                            onClick={() => handleSave()}
+                            disabled={saving}
+                            className={`bg-emerald-500 hover:bg-emerald-600 text-white px-8 py-3.5 rounded-xl font-bold shadow-lg shadow-emerald-500/20 flex items-center gap-2 transition-all ${saving ? 'opacity-70 cursor-wait' : 'hover:scale-105 active:scale-95'}`}
                         >
-                            <CheckCircle2 size={20} /> Terminer
+                            {saving ? <Loader2 className="animate-spin" /> : <Check size={18} />} Terminer
                         </button>
                     )}
                 </div>
