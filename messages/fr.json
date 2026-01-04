@@ -365,8 +365,10 @@
       "back": "Retour aux agents",
       "steps": {
         "info": "Informations",
+        "hours": "Horaires",
         "mission": "Mission",
         "personality": "Personnalité",
+        "rules": "Règles",
         "settings": "Paramètres",
         "whatsapp": "WhatsApp"
       },
@@ -431,6 +433,15 @@
         "emojis": "Emojis",
         "delay": "Délai"
       }
+    },
+    "WeekDays": {
+      "monday": "lundi",
+      "tuesday": "mardi",
+      "wednesday": "mercredi",
+      "thursday": "jeudi",
+      "friday": "vendredi",
+      "saturday": "samedi",
+      "sunday": "dimanche"
     },
     "Templates": {
       "ecommerce": {
