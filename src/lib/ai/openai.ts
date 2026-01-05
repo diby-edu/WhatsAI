@@ -48,6 +48,7 @@ export interface AIResponse {
     tokensUsed: number
     model: string
     responseTimeMs: number
+    toolCalls?: OpenAI.ChatCompletionMessageToolCall[]
 }
 
 /**
@@ -169,7 +170,33 @@ Instructions supplémentaires:
 1. Sois poli mais DIRECT. Évite les phrases de remplissage comme "Je comprends tout à fait", "C'est une excellente question".
 2. Fais des réponses courtes (max 2-3 phrases) sauf si tu expliques un produit complexe.
 3. Utilise des listes à puces pour l'efficacité.
-4. Va droit au but. Le client paie pour l'info, pas pour le blabla.${productsCatalog}`
+4. Va droit au but. Le client paie pour l'info, pas pour le blabla.
+
+🔧 OUTILS DISPONIBLES :
+Tu as accès à l'outil 'create_booking'. UTILISE-LE DÈS QUE LE CLIENT CONFIRME UNE RÉSERVATION (Restaurant, Hôtel, Service).
+Ne dis pas juste "C'est noté", EXÉCUTE L'OUTIL pour enregistrer la réservation.${productsCatalog}`
+
+    // Define Tools
+    const tools: OpenAI.ChatCompletionTool[] = [
+        {
+            type: 'function',
+            function: {
+                name: 'create_booking',
+                description: 'Enregistrer une réservation pour un restaurant, hôtel ou service.',
+                parameters: {
+                    type: 'object',
+                    properties: {
+                        customer_name: { type: 'string', description: 'Nom du client' },
+                        booking_type: { type: 'string', enum: ['restaurant', 'hotel', 'service', 'other'] },
+                        start_time: { type: 'string', description: 'Date et heure format ISO 8601 (ex: 2024-02-20T20:00:00)' },
+                        party_size: { type: 'number', description: 'Nombre de personnes' },
+                        notes: { type: 'string', description: 'Détails, allergies, type de chambre, etc.' }
+                    },
+                    required: ['customer_name', 'booking_type', 'start_time']
+                }
+            }
+        }
+    ]
 
     // Build messages array
     const messages: OpenAI.ChatCompletionMessageParam[] = [
@@ -187,9 +214,13 @@ Instructions supplémentaires:
             messages,
             temperature,
             max_tokens: maxTokens,
+            tools: tools,
+            tool_choice: 'auto'
         })
 
-        const responseContent = completion.choices[0]?.message?.content || ''
+        const responseMessage = completion.choices[0]?.message
+        const responseContent = responseMessage?.content || ''
+        const toolCalls = responseMessage?.tool_calls
         const tokensUsed = completion.usage?.total_tokens || 0
 
         return {
@@ -197,6 +228,7 @@ Instructions supplémentaires:
             tokensUsed,
             model,
             responseTimeMs: Date.now() - startTime,
+            toolCalls: toolCalls
         }
     } catch (error) {
         console.error('OpenAI API error:', error)
