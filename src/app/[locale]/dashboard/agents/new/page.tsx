@@ -572,6 +572,14 @@ Règles:
                                 rows={3}
                                 style={{ ...inputStyle, resize: 'none' }}
                             />
+                            <div style={{ marginTop: 8, fontSize: 12, color: '#94a3b8', background: 'rgba(30, 41, 59, 0.3)', padding: 12, borderRadius: 8 }}>
+                                <p style={{ fontWeight: 600, marginBottom: 4 }}>Dites-moi qui je suis ! Exemples :</p>
+                                <ul style={{ listStyle: 'disc', paddingLeft: 16, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                    <li>"Assistant chaleureux pour une pizzeria, je tutoie les clients et je propose toujours le supplément fromage."</li>
+                                    <li>"Réceptionniste d'hôtel de luxe, poli et distingué, je demande toujours les dates de séjour."</li>
+                                    <li>"Vendeur expert en smartphone, technique mais accessible, je pousse à l'achat."</li>
+                                </ul>
+                            </div>
                         </div>
 
                         {/* NEW FIELDS: Address & Contact */}
