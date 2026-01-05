@@ -832,11 +832,12 @@ Règles:
                             </div>
                             <button
                                 onClick={checkConflict}
-                                disabled={formData.custom_rules.length < 5 || conflictStatus === 'checking'}
+                                disabled={(formData.custom_rules || '').length < 3 || conflictStatus === 'checking'}
                                 style={{
                                     ...buttonSecondaryStyle,
                                     background: 'rgba(30, 41, 59, 0.8)',
-                                    opacity: formData.custom_rules.length < 5 ? 0.5 : 1
+                                    opacity: (formData.custom_rules || '').length < 3 ? 0.5 : 1,
+                                    cursor: (formData.custom_rules || '').length < 3 ? 'not-allowed' : 'pointer'
                                 }}
                             >
                                 {conflictStatus === 'checking' ? <Loader2 size={16} className="animate-spin" /> : <Shield size={16} />}
@@ -1225,11 +1226,11 @@ Règles:
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 24 }}>
                 <button
                     onClick={() => setCurrentStep(prev => Math.max(0, prev - 1))}
-                    disabled={currentStep === 0 || currentStep === 4}
+                    disabled={currentStep === 0}
                     style={{
                         ...buttonSecondaryStyle,
-                        opacity: currentStep === 0 || currentStep === 4 ? 0 : 1,
-                        pointerEvents: currentStep === 0 || currentStep === 4 ? 'none' : 'auto'
+                        opacity: currentStep === 0 ? 0 : 1,
+                        pointerEvents: currentStep === 0 ? 'none' : 'auto'
                     }}
                 >
                     <ArrowLeft style={{ width: 16, height: 16 }} />
