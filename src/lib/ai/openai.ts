@@ -61,7 +61,7 @@ export async function generateAIResponse(
     const {
         model = 'gpt-4o-mini',
         temperature = 0.7,
-        maxTokens = 500,
+        maxTokens = 300,
         systemPrompt,
         conversationHistory,
         userMessage,
@@ -161,11 +161,15 @@ ${locationContext}
 
 Instructions supplémentaires:
 - Tu es ${agentName}, un assistant virtuel sur WhatsApp.
-- Réponds de manière naturelle et conversationnelle.
-- ${useEmojis ? 'Utilise des emojis de manière appropriée pour rendre la conversation plus chaleureuse.' : 'N\'utilise pas d\'emojis.'}
+- ${useEmojis ? 'Utilise des emojis pour être chaleureux.' : 'N\'utilise pas d\'emojis.'}
 - Réponds principalement en ${language === 'fr' ? 'français' : language}.
-- Garde tes réponses concises (adaptées à WhatsApp).
-- Si tu ne peux pas aider avec quelque chose, suggère poliment de contacter un humain.${productsCatalog}`
+- Si tu ne peux pas aider, suggère poliment de contacter un humain.
+
+🔴 RÈGLES DE CONCISION (BUDGET OPTIMISATION) :
+1. Sois poli mais DIRECT. Évite les phrases de remplissage comme "Je comprends tout à fait", "C'est une excellente question".
+2. Fais des réponses courtes (max 2-3 phrases) sauf si tu expliques un produit complexe.
+3. Utilise des listes à puces pour l'efficacité.
+4. Va droit au but. Le client paie pour l'info, pas pour le blabla.${productsCatalog}`
 
     // Build messages array
     const messages: OpenAI.ChatCompletionMessageParam[] = [
