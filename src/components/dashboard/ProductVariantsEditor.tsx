@@ -87,7 +87,7 @@ export default function ProductVariantsEditor({ variants, onChange, currencySymb
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95 }}
                         style={{
-                            background: 'rgba(15, 23, 42, 0.4)',
+                            background: 'rgba(30, 41, 59, 0.3)', // Lighter bg to blend with card
                             border: '1px solid rgba(148, 163, 184, 0.1)',
                             borderRadius: 12,
                             padding: 16,
@@ -141,15 +141,16 @@ export default function ProductVariantsEditor({ variants, onChange, currencySymb
                                         placeholder="Option (ex: L)"
                                         style={{
                                             flex: 1,
-                                            background: 'rgba(15, 23, 42, 0.6)',
-                                            border: '1px solid rgba(148, 163, 184, 0.2)',
-                                            borderRadius: 8,
-                                            padding: '8px 12px',
+                                            background: 'rgba(30, 41, 59, 0.5)', // Match Wizard inputStyle
+                                            border: '1px solid rgba(148, 163, 184, 0.1)', // Match Wizard border
+                                            borderRadius: 12, // Match Wizard radius
+                                            padding: '12px 16px', // Match Wizard padding
                                             color: 'white',
-                                            fontSize: 14
+                                            fontSize: 15,
+                                            outline: 'none'
                                         }}
                                     />
-                                    <div style={{ position: 'relative', width: 120 }}>
+                                    <div style={{ position: 'relative', width: 140 }}>
                                         <input
                                             type="number"
                                             value={option.price || ''}
@@ -157,27 +158,30 @@ export default function ProductVariantsEditor({ variants, onChange, currencySymb
                                             placeholder="Prix"
                                             style={{
                                                 width: '100%',
-                                                background: 'rgba(15, 23, 42, 0.6)',
-                                                border: '1px solid rgba(148, 163, 184, 0.2)',
-                                                borderRadius: 8,
-                                                padding: '8px 12px 8px 40px', // Increased padding left
-                                                color: group.type === 'fixed' ? '#34d399' : '#c084fc',
-                                                fontSize: 14,
-                                                fontWeight: 600
+                                                background: 'rgba(30, 41, 59, 0.5)', // Match Wizard
+                                                border: '1px solid rgba(148, 163, 184, 0.1)',
+                                                borderRadius: 12,
+                                                padding: '12px 16px',
+                                                paddingRight: 12,
+                                                textAlign: 'right', // Align numbers right
+                                                color: group.type === 'fixed' ? '#34d399' : '#d8b4fe',
+                                                fontSize: 15,
+                                                fontWeight: 600,
+                                                outline: 'none'
                                             }}
                                         />
-                                        <div style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#64748b', fontSize: 10, pointerEvents: 'none' }}>
+                                        <div style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#64748b', fontSize: 13, pointerEvents: 'none' }}>
                                             {group.type === 'additive' ? '+' : ''}{currencySymbol}
                                         </div>
                                     </div>
                                     <button
                                         onClick={() => removeOption(group.id, idx)}
                                         style={{
-                                            padding: 8,
-                                            borderRadius: 8,
+                                            padding: 12,
+                                            borderRadius: 12,
                                             color: '#64748b',
-                                            background: 'transparent',
-                                            border: 'none',
+                                            background: 'rgba(30, 41, 59, 0.5)',
+                                            border: '1px solid rgba(148, 163, 184, 0.1)',
                                             cursor: 'pointer'
                                         }}
                                     >
@@ -188,18 +192,22 @@ export default function ProductVariantsEditor({ variants, onChange, currencySymb
                             <button
                                 onClick={() => addOption(group.id)}
                                 style={{
-                                    marginTop: 4,
+                                    marginTop: 8,
                                     fontSize: 13,
                                     color: '#94a3b8',
                                     background: 'transparent',
                                     border: '1px dashed rgba(148, 163, 184, 0.3)',
-                                    borderRadius: 8,
-                                    padding: 8,
+                                    borderRadius: 12,
+                                    padding: 10,
                                     cursor: 'pointer',
-                                    width: '100%'
+                                    width: '100%',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: 8
                                 }}
                             >
-                                + Ajouter un choix
+                                <Plus size={14} /> Ajouter un choix
                             </button>
                         </div>
                     </motion.div>
