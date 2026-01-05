@@ -237,109 +237,221 @@ Règles:
         updateFormData('systemPrompt', template.prompt)
     }
 
-    // ... (keeping existing code)
 
-    // Inside renderStepContent case 2 (MISSION)
-            case 2: // MISSION
-    return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-            <div>
-                <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 16 }}>
-                    {t('Form.mission.label')}
-                </label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-                    {missionTemplates.map((template) => (
-                        <button
-                            key={template.id}
-                            onClick={() => selectMissionTemplate(template)}
-                            style={{
-                                padding: 16,
-                                border: `2px solid ${formData.mission === template.id ? '#10b981' : 'rgba(148, 163, 184, 0.1)'}`,
-                                borderRadius: 12,
-                                textAlign: 'left',
-                                background: formData.mission === template.id ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
-                                cursor: 'pointer'
-                            }}
+    cursor: 'pointer'
+}}
                         >
                             <h3 style={{ fontWeight: 600, color: 'white', marginBottom: 4 }}>{template.title}</h3>
                             <p style={{ fontSize: 13, color: '#94a3b8' }}>{template.description}</p>
-                        </button>
+                        </button >
                     ))}
-                </div>
-            </div>
+                </div >
+            </div >
 
-            {/* REMOVED: Textarea for System Prompt */}
-            {/* REPLACED WITH: Visual Confirmation */}
-            {formData.mission && (
-                <div style={{
-                    padding: 16,
-                    background: 'rgba(16, 185, 129, 0.05)',
-                    border: '1px solid rgba(16, 185, 129, 0.2)',
-                    borderRadius: 12,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 12
-                }}>
-                    <Shield size={20} color="#34d399" />
-                    <div>
-                        <h4 style={{ color: '#34d399', fontWeight: 600, fontSize: 14 }}>Mode Sécurisé Activé</h4>
-                        <p style={{ color: '#94a3b8', fontSize: 13 }}>
-                            L'IA est maintenant configurée pour suivre strictement le scénario <strong>{missionTemplates.find(t => t.id === formData.mission)?.title}</strong>.
-                        </p>
-                    </div>
-                </div>
-            )}
+    {/* REMOVED: Textarea for System Prompt */ }
+{/* REPLACED WITH: Visual Confirmation */ }
+{
+    formData.mission && (
+        <div style={{
+            padding: 16,
+            background: 'rgba(16, 185, 129, 0.05)',
+            border: '1px solid rgba(16, 185, 129, 0.2)',
+            borderRadius: 12,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12
+        }}>
+            <Shield size={20} color="#34d399" />
+            <div>
+                <h4 style={{ color: '#34d399', fontWeight: 600, fontSize: 14 }}>Mode Sécurisé Activé</h4>
+                <p style={{ color: '#94a3b8', fontSize: 13 }}>
+                    L'IA est maintenant configurée pour suivre strictement le scénario <strong>{missionTemplates.find(t => t.id === formData.mission)?.title}</strong>.
+                </p>
+            </div>
         </div>
+    )
+}
+        </div >
     )
 
             case 3: // PERSONALITY
-    return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-            <div>
-                <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 16 }}>
-                    {t('Form.personality.label')}
-                </label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
-                    {personalities.map((p) => (
-                        <button
-                            key={p.id}
-                            onClick={() => updateFormData('personality', p.id)}
-                            style={{
-                                padding: 20,
-                                border: `2px solid ${formData.personality === p.id ? '#10b981' : 'rgba(148, 163, 184, 0.1)'}`,
-                                borderRadius: 12,
-                                textAlign: 'center',
-                                background: formData.personality === p.id ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
-                                cursor: 'pointer'
-                            }}
-                        >
-                            <div style={{ fontSize: 32, marginBottom: 8 }}>{p.emoji}</div>
-                            <h3 style={{ fontWeight: 600, color: 'white' }}>{p.name}</h3>
-                            <p style={{ fontSize: 12, color: '#64748b' }}>{p.description}</p>
-                        </button>
-                    ))}
-                </div>
+return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <div>
+            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 16 }}>
+                {t('Form.personality.label')}
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
+                {personalities.map((p) => (
+                    <button
+                        key={p.id}
+                        onClick={() => updateFormData('personality', p.id)}
+                        style={{
+                            padding: 20,
+                            border: `2px solid ${formData.personality === p.id ? '#10b981' : 'rgba(148, 163, 184, 0.1)'}`,
+                            borderRadius: 12,
+                            textAlign: 'center',
+                            background: formData.personality === p.id ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        <div style={{ fontSize: 32, marginBottom: 8 }}>{p.emoji}</div>
+                        <h3 style={{ fontWeight: 600, color: 'white' }}>{p.name}</h3>
+                        <p style={{ fontSize: 12, color: '#64748b' }}>{p.description}</p>
+                    </button>
+                ))}
             </div>
+        </div>
 
-            <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: 16,
-                border: '1px solid rgba(148, 163, 184, 0.1)',
-                borderRadius: 12
-            }}>
+        <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: 16,
+            border: '1px solid rgba(148, 163, 184, 0.1)',
+            borderRadius: 12
+        }}>
+            <div>
+                <h3 style={{ fontWeight: 500, color: 'white' }}>{t('Form.personality.emojis')}</h3>
+                <p style={{ fontSize: 13, color: '#64748b' }}>{t('Form.personality.emojisHint')}</p>
+            </div>
+            <button
+                onClick={() => updateFormData('useEmojis', !formData.useEmojis)}
+                style={{
+                    width: 48,
+                    height: 28,
+                    borderRadius: 14,
+                    background: formData.useEmojis ? '#10b981' : '#334155',
+                    border: 'none',
+                    cursor: 'pointer',
+                    position: 'relative'
+                }}
+            >
+                <div style={{
+                    width: 22,
+                    height: 22,
+                    borderRadius: '50%',
+                    background: 'white',
+                    position: 'absolute',
+                    top: 3,
+                    left: formData.useEmojis ? 23 : 3,
+                    transition: 'left 0.2s'
+                }} />
+            </button>
+        </div>
+    </div>
+)
+
+            case 4: // RULES
+return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <div>
+            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
+                Règles spécifiques
+            </label>
+            <textarea
+                value={formData.custom_rules}
+                onChange={(e) => updateFormData('custom_rules', e.target.value)}
+                placeholder="- Livraison gratuite > 50.000 FCFA..."
+                rows={8}
+                style={{ ...inputStyle, resize: 'none', fontFamily: 'monospace' }}
+            />
+        </div>
+
+        <div style={{
+            padding: 16,
+            background: conflictStatus === 'conflict' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.05)',
+            border: `1px solid ${conflictStatus === 'conflict' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)'}`,
+            borderRadius: 12,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between'
+        }}>
+            <div>
+                <h4 style={{ color: conflictStatus === 'conflict' ? '#fca5a5' : '#6ee7b7', fontWeight: 600, marginBottom: 4 }}>
+                    {conflictStatus === 'conflict' ? 'Conflit Détecté' : 'Vérification de cohérence'}
+                </h4>
+                <p style={{ fontSize: 13, color: '#94a3b8' }}>
+                    {conflictStatus === 'conflict' ? conflictReason : "L'IA vérifie si vos règles contredisent les horaires."}
+                </p>
+            </div>
+            <button
+                onClick={checkConflict}
+                disabled={formData.custom_rules.length < 5 || conflictStatus === 'checking'}
+                style={{
+                    ...buttonSecondaryStyle,
+                    background: 'rgba(30, 41, 59, 0.8)',
+                    opacity: formData.custom_rules.length < 5 ? 0.5 : 1
+                }}
+            >
+                {conflictStatus === 'checking' ? <Loader2 size={16} className="animate-spin" /> : <Shield size={16} />}
+                Vérifier
+            </button>
+        </div>
+    </div>
+)
+
+            case 5: // SETTINGS
+return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <div>
+            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
+                {t('Form.settings.responseDelay')}: {formData.responseDelay}s
+            </label>
+            <input
+                type="range"
+                min="1"
+                max="10"
+                value={formData.responseDelay}
+                onChange={(e) => updateFormData('responseDelay', parseInt(e.target.value))}
+                style={{ width: '100%', accentColor: '#10b981' }}
+            />
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#64748b', marginTop: 4 }}>
+                <span>1s ({t('Form.settings.fast')})</span>
+                <span>10s ({t('Form.settings.natural')})</span>
+            </div>
+        </div>
+
+        <div>
+            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
+                {t('Form.settings.language')}
+            </label>
+            <select
+                value={formData.language}
+                onChange={(e) => updateFormData('language', e.target.value)}
+                style={{ ...inputStyle, cursor: 'pointer' }}
+            >
+                <option value="fr">Français</option>
+                <option value="en">English</option>
+                <option value="es">Español</option>
+                <option value="ar">العربية</option>
+            </select>
+        </div>
+
+        {/* Voice Settings (Premium) */}
+        <div style={{
+            padding: 20,
+            background: 'rgba(16, 185, 129, 0.05)',
+            border: '1px solid rgba(16, 185, 129, 0.2)',
+            borderRadius: 12,
+            marginTop: 12
+        }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: formData.enableVoice ? 16 : 0 }}>
                 <div>
-                    <h3 style={{ fontWeight: 500, color: 'white' }}>{t('Form.personality.emojis')}</h3>
-                    <p style={{ fontSize: 13, color: '#64748b' }}>{t('Form.personality.emojisHint')}</p>
+                    <h3 style={{ fontSize: 15, fontWeight: 600, color: 'white', display: 'flex', alignItems: 'center', gap: 8 }}>
+                        🎙️ {t('Form.settings.voiceResponse')} <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, background: '#fbbf24', color: 'black' }}>PREMIUM</span>
+                    </h3>
+                    <p style={{ fontSize: 13, color: '#94a3b8', marginTop: 4 }}>
+                        {t('Form.settings.voiceDescription')}
+                    </p>
                 </div>
                 <button
-                    onClick={() => updateFormData('useEmojis', !formData.useEmojis)}
+                    onClick={() => updateFormData('enableVoice', !formData.enableVoice)}
                     style={{
                         width: 48,
                         height: 28,
                         borderRadius: 14,
-                        background: formData.useEmojis ? '#10b981' : '#334155',
+                        background: formData.enableVoice ? '#10b981' : '#334155',
                         border: 'none',
                         cursor: 'pointer',
                         position: 'relative'
@@ -352,335 +464,205 @@ Règles:
                         background: 'white',
                         position: 'absolute',
                         top: 3,
-                        left: formData.useEmojis ? 23 : 3,
+                        left: formData.enableVoice ? 23 : 3,
                         transition: 'left 0.2s'
                     }} />
                 </button>
             </div>
-        </div>
-    )
 
-            case 4: // RULES
-    return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-            <div>
-                <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                    Règles spécifiques
-                </label>
-                <textarea
-                    value={formData.custom_rules}
-                    onChange={(e) => updateFormData('custom_rules', e.target.value)}
-                    placeholder="- Livraison gratuite > 50.000 FCFA..."
-                    rows={8}
-                    style={{ ...inputStyle, resize: 'none', fontFamily: 'monospace' }}
-                />
-            </div>
-
-            <div style={{
-                padding: 16,
-                background: conflictStatus === 'conflict' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.05)',
-                border: `1px solid ${conflictStatus === 'conflict' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)'}`,
-                borderRadius: 12,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between'
-            }}>
-                <div>
-                    <h4 style={{ color: conflictStatus === 'conflict' ? '#fca5a5' : '#6ee7b7', fontWeight: 600, marginBottom: 4 }}>
-                        {conflictStatus === 'conflict' ? 'Conflit Détecté' : 'Vérification de cohérence'}
-                    </h4>
-                    <p style={{ fontSize: 13, color: '#94a3b8' }}>
-                        {conflictStatus === 'conflict' ? conflictReason : "L'IA vérifie si vos règles contredisent les horaires."}
+            {formData.enableVoice && (
+                <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                >
+                    <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
+                        {t('Form.settings.voiceId')}
+                    </label>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                        {['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'].map(voice => (
+                            <button
+                                key={voice}
+                                onClick={() => updateFormData('voiceId', voice)}
+                                style={{
+                                    padding: '8px 12px',
+                                    borderRadius: 8,
+                                    border: formData.voiceId === voice ? '1px solid #10b981' : '1px solid rgba(148, 163, 184, 0.2)',
+                                    background: formData.voiceId === voice ? 'rgba(16, 185, 129, 0.2)' : 'rgba(15, 23, 42, 0.3)',
+                                    color: 'white',
+                                    cursor: 'pointer',
+                                    textTransform: 'capitalize',
+                                    fontSize: 13
+                                }}
+                            >
+                                {voice}
+                            </button>
+                        ))}
+                    </div>
+                    <p style={{ fontSize: 12, color: '#fbbf24', marginTop: 12 }}>
+                        ⚠️ {t('Form.settings.voiceCostWarning', { cost: 5 })}
                     </p>
-                </div>
-                <button
-                    onClick={checkConflict}
-                    disabled={formData.custom_rules.length < 5 || conflictStatus === 'checking'}
-                    style={{
-                        ...buttonSecondaryStyle,
-                        background: 'rgba(30, 41, 59, 0.8)',
-                        opacity: formData.custom_rules.length < 5 ? 0.5 : 1
-                    }}
-                >
-                    {conflictStatus === 'checking' ? <Loader2 size={16} className="animate-spin" /> : <Shield size={16} />}
-                    Vérifier
-                </button>
-            </div>
+                </motion.div>
+            )}
         </div>
-    )
 
-            case 5: // SETTINGS
-    return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-            <div>
-                <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                    {t('Form.settings.responseDelay')}: {formData.responseDelay}s
-                </label>
-                <input
-                    type="range"
-                    min="1"
-                    max="10"
-                    value={formData.responseDelay}
-                    onChange={(e) => updateFormData('responseDelay', parseInt(e.target.value))}
-                    style={{ width: '100%', accentColor: '#10b981' }}
-                />
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#64748b', marginTop: 4 }}>
-                    <span>1s ({t('Form.settings.fast')})</span>
-                    <span>10s ({t('Form.settings.natural')})</span>
+        {/* Summary */}
+        <div style={{
+            padding: 20,
+            background: 'rgba(30, 41, 59, 0.5)',
+            borderRadius: 12
+        }}>
+            <h3 style={{ fontWeight: 600, color: 'white', marginBottom: 16 }}>{t('Form.summary.title')}</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontSize: 14 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#64748b' }}>{t('Form.summary.name')}</span>
+                    <span style={{ color: 'white', fontWeight: 500 }}>{formData.name}</span>
                 </div>
-            </div>
-
-            <div>
-                <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                    {t('Form.settings.language')}
-                </label>
-                <select
-                    value={formData.language}
-                    onChange={(e) => updateFormData('language', e.target.value)}
-                    style={{ ...inputStyle, cursor: 'pointer' }}
-                >
-                    <option value="fr">Français</option>
-                    <option value="en">English</option>
-                    <option value="es">Español</option>
-                    <option value="ar">العربية</option>
-                </select>
-            </div>
-
-            {/* Voice Settings (Premium) */}
-            <div style={{
-                padding: 20,
-                background: 'rgba(16, 185, 129, 0.05)',
-                border: '1px solid rgba(16, 185, 129, 0.2)',
-                borderRadius: 12,
-                marginTop: 12
-            }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: formData.enableVoice ? 16 : 0 }}>
-                    <div>
-                        <h3 style={{ fontSize: 15, fontWeight: 600, color: 'white', display: 'flex', alignItems: 'center', gap: 8 }}>
-                            🎙️ {t('Form.settings.voiceResponse')} <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, background: '#fbbf24', color: 'black' }}>PREMIUM</span>
-                        </h3>
-                        <p style={{ fontSize: 13, color: '#94a3b8', marginTop: 4 }}>
-                            {t('Form.settings.voiceDescription')}
-                        </p>
-                    </div>
-                    <button
-                        onClick={() => updateFormData('enableVoice', !formData.enableVoice)}
-                        style={{
-                            width: 48,
-                            height: 28,
-                            borderRadius: 14,
-                            background: formData.enableVoice ? '#10b981' : '#334155',
-                            border: 'none',
-                            cursor: 'pointer',
-                            position: 'relative'
-                        }}
-                    >
-                        <div style={{
-                            width: 22,
-                            height: 22,
-                            borderRadius: '50%',
-                            background: 'white',
-                            position: 'absolute',
-                            top: 3,
-                            left: formData.enableVoice ? 23 : 3,
-                            transition: 'left 0.2s'
-                        }} />
-                    </button>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#64748b' }}>{t('Form.summary.personality')}</span>
+                    <span style={{ color: 'white', fontWeight: 500 }}>
+                        {personalities.find(p => p.id === formData.personality)?.name}
+                    </span>
                 </div>
-
-                {formData.enableVoice && (
-                    <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                    >
-                        <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                            {t('Form.settings.voiceId')}
-                        </label>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-                            {['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'].map(voice => (
-                                <button
-                                    key={voice}
-                                    onClick={() => updateFormData('voiceId', voice)}
-                                    style={{
-                                        padding: '8px 12px',
-                                        borderRadius: 8,
-                                        border: formData.voiceId === voice ? '1px solid #10b981' : '1px solid rgba(148, 163, 184, 0.2)',
-                                        background: formData.voiceId === voice ? 'rgba(16, 185, 129, 0.2)' : 'rgba(15, 23, 42, 0.3)',
-                                        color: 'white',
-                                        cursor: 'pointer',
-                                        textTransform: 'capitalize',
-                                        fontSize: 13
-                                    }}
-                                >
-                                    {voice}
-                                </button>
-                            ))}
-                        </div>
-                        <p style={{ fontSize: 12, color: '#fbbf24', marginTop: 12 }}>
-                            ⚠️ {t('Form.settings.voiceCostWarning', { cost: 5 })}
-                        </p>
-                    </motion.div>
-                )}
-            </div>
-
-            {/* Summary */}
-            <div style={{
-                padding: 20,
-                background: 'rgba(30, 41, 59, 0.5)',
-                borderRadius: 12
-            }}>
-                <h3 style={{ fontWeight: 600, color: 'white', marginBottom: 16 }}>{t('Form.summary.title')}</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontSize: 14 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ color: '#64748b' }}>{t('Form.summary.name')}</span>
-                        <span style={{ color: 'white', fontWeight: 500 }}>{formData.name}</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ color: '#64748b' }}>{t('Form.summary.personality')}</span>
-                        <span style={{ color: 'white', fontWeight: 500 }}>
-                            {personalities.find(p => p.id === formData.personality)?.name}
-                        </span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ color: '#64748b' }}>{t('Form.summary.emojis')}</span>
-                        <span style={{ color: 'white', fontWeight: 500 }}>{formData.useEmojis ? 'Oui' : 'Non'}</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ color: '#64748b' }}>{t('Form.summary.delay')}</span>
-                        <span style={{ color: 'white', fontWeight: 500 }}>{formData.responseDelay}s</span>
-                    </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#64748b' }}>{t('Form.summary.emojis')}</span>
+                    <span style={{ color: 'white', fontWeight: 500 }}>{formData.useEmojis ? 'Oui' : 'Non'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#64748b' }}>{t('Form.summary.delay')}</span>
+                    <span style={{ color: 'white', fontWeight: 500 }}>{formData.responseDelay}s</span>
                 </div>
             </div>
         </div>
-    )
+    </div>
+)
 
             case 6: // WHATSAPP
-    return (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24, padding: 20 }}>
-            {whatsappStatus === 'idle' && (
-                <>
-                    <div style={{
-                        width: 80,
-                        height: 80,
-                        borderRadius: 20,
-                        background: 'rgba(16, 185, 129, 0.1)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                    }}>
-                        <QrCode style={{ width: 40, height: 40, color: '#34d399' }} />
-                    </div>
-                    <h3 style={{ fontSize: 20, fontWeight: 600, color: 'white', textAlign: 'center' }}>
-                        {t('connect.title')}
-                    </h3>
-                    <p style={{ color: '#94a3b8', textAlign: 'center', maxWidth: 400 }}>
-                        {t('connect.scanPrompt')}
-                    </p>
-                    <button
-                        onClick={connectWhatsApp}
-                        style={buttonPrimaryStyle}
-                    >
-                        <QrCode style={{ width: 20, height: 20 }} />
-                        {t('Wizard.buttons.generateQr')}
-                    </button>
-                    <button
-                        onClick={handleFinish}
-                        style={{ ...buttonSecondaryStyle, marginTop: 8 }}
-                    >
-                        {t('Wizard.buttons.skip')}
-                    </button>
-                </>
-            )}
+return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24, padding: 20 }}>
+        {whatsappStatus === 'idle' && (
+            <>
+                <div style={{
+                    width: 80,
+                    height: 80,
+                    borderRadius: 20,
+                    background: 'rgba(16, 185, 129, 0.1)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                }}>
+                    <QrCode style={{ width: 40, height: 40, color: '#34d399' }} />
+                </div>
+                <h3 style={{ fontSize: 20, fontWeight: 600, color: 'white', textAlign: 'center' }}>
+                    {t('connect.title')}
+                </h3>
+                <p style={{ color: '#94a3b8', textAlign: 'center', maxWidth: 400 }}>
+                    {t('connect.scanPrompt')}
+                </p>
+                <button
+                    onClick={connectWhatsApp}
+                    style={buttonPrimaryStyle}
+                >
+                    <QrCode style={{ width: 20, height: 20 }} />
+                    {t('Wizard.buttons.generateQr')}
+                </button>
+                <button
+                    onClick={handleFinish}
+                    style={{ ...buttonSecondaryStyle, marginTop: 8 }}
+                >
+                    {t('Wizard.buttons.skip')}
+                </button>
+            </>
+        )}
 
-            {whatsappStatus === 'connecting' && (
-                <>
-                    <Loader2 style={{ width: 48, height: 48, color: '#34d399', animation: 'spin 1s linear infinite' }} />
-                    <p style={{ color: '#94a3b8' }}>{t('connect.initialization')}</p>
-                </>
-            )}
+        {whatsappStatus === 'connecting' && (
+            <>
+                <Loader2 style={{ width: 48, height: 48, color: '#34d399', animation: 'spin 1s linear infinite' }} />
+                <p style={{ color: '#94a3b8' }}>{t('connect.initialization')}</p>
+            </>
+        )}
 
-            {whatsappStatus === 'qr_ready' && qrCode && (
-                <>
-                    <div style={{
-                        background: 'white',
-                        padding: 16,
-                        borderRadius: 16
-                    }}>
-                        <img src={qrCode} alt="QR Code WhatsApp" style={{ width: 250, height: 250 }} />
-                    </div>
-                    <p style={{ color: '#94a3b8', textAlign: 'center' }}>
-                        {t('connect.qrInstructions.step3')}
-                    </p>
-                    <button
-                        onClick={connectWhatsApp}
-                        style={buttonSecondaryStyle}
-                    >
-                        <RefreshCw style={{ width: 18, height: 18 }} />
-                        {t('connect.actions.regenerate')}
-                    </button>
-                </>
-            )}
+        {whatsappStatus === 'qr_ready' && qrCode && (
+            <>
+                <div style={{
+                    background: 'white',
+                    padding: 16,
+                    borderRadius: 16
+                }}>
+                    <img src={qrCode} alt="QR Code WhatsApp" style={{ width: 250, height: 250 }} />
+                </div>
+                <p style={{ color: '#94a3b8', textAlign: 'center' }}>
+                    {t('connect.qrInstructions.step3')}
+                </p>
+                <button
+                    onClick={connectWhatsApp}
+                    style={buttonSecondaryStyle}
+                >
+                    <RefreshCw style={{ width: 18, height: 18 }} />
+                    {t('connect.actions.regenerate')}
+                </button>
+            </>
+        )}
 
-            {whatsappStatus === 'connected' && (
-                <>
-                    <div style={{
-                        width: 80,
-                        height: 80,
-                        borderRadius: '50%',
-                        background: 'rgba(16, 185, 129, 0.2)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                    }}>
-                        <CheckCircle2 style={{ width: 48, height: 48, color: '#34d399' }} />
-                    </div>
-                    <h3 style={{ fontSize: 20, fontWeight: 600, color: 'white' }}>
-                        {t('connect.connectedSuccess')} 🎉
-                    </h3>
-                    <p style={{ color: '#94a3b8' }}>
-                        Numéro: {connectedPhone}
-                    </p>
-                    <button
-                        onClick={handleFinish}
-                        style={buttonPrimaryStyle}
-                    >
-                        {t('Wizard.buttons.finish')}
-                        <ArrowRight style={{ width: 20, height: 20 }} />
-                    </button>
-                </>
-            )}
+        {whatsappStatus === 'connected' && (
+            <>
+                <div style={{
+                    width: 80,
+                    height: 80,
+                    borderRadius: '50%',
+                    background: 'rgba(16, 185, 129, 0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                }}>
+                    <CheckCircle2 style={{ width: 48, height: 48, color: '#34d399' }} />
+                </div>
+                <h3 style={{ fontSize: 20, fontWeight: 600, color: 'white' }}>
+                    {t('connect.connectedSuccess')} 🎉
+                </h3>
+                <p style={{ color: '#94a3b8' }}>
+                    Numéro: {connectedPhone}
+                </p>
+                <button
+                    onClick={handleFinish}
+                    style={buttonPrimaryStyle}
+                >
+                    {t('Wizard.buttons.finish')}
+                    <ArrowRight style={{ width: 20, height: 20 }} />
+                </button>
+            </>
+        )}
 
-            {whatsappStatus === 'error' && (
-                <>
-                    <div style={{
-                        width: 80,
-                        height: 80,
-                        borderRadius: '50%',
-                        background: 'rgba(239, 68, 68, 0.2)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                    }}>
-                        <AlertCircle style={{ width: 48, height: 48, color: '#f87171' }} />
-                    </div>
-                    <h3 style={{ fontSize: 20, fontWeight: 600, color: 'white' }}>
-                        {t('connect.error')}
-                    </h3>
-                    <p style={{ color: '#f87171' }}>{error}</p>
-                    <button
-                        onClick={connectWhatsApp}
-                        style={buttonPrimaryStyle}
-                    >
-                        <RefreshCw style={{ width: 18, height: 18 }} />
-                        {t('Wizard.buttons.retry')}
-                    </button>
-                </>
-            )}
-        </div>
-    )
+        {whatsappStatus === 'error' && (
+            <>
+                <div style={{
+                    width: 80,
+                    height: 80,
+                    borderRadius: '50%',
+                    background: 'rgba(239, 68, 68, 0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                }}>
+                    <AlertCircle style={{ width: 48, height: 48, color: '#f87171' }} />
+                </div>
+                <h3 style={{ fontSize: 20, fontWeight: 600, color: 'white' }}>
+                    {t('connect.error')}
+                </h3>
+                <p style={{ color: '#f87171' }}>{error}</p>
+                <button
+                    onClick={connectWhatsApp}
+                    style={buttonPrimaryStyle}
+                >
+                    <RefreshCw style={{ width: 18, height: 18 }} />
+                    {t('Wizard.buttons.retry')}
+                </button>
+            </>
+        )}
+    </div>
+)
 
             default:
-    return null
+return null
 }
     }
 
