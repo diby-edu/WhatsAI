@@ -172,6 +172,68 @@ export function initializeMessageHandler() {
             })
             console.log('✅ AI Response generated:', aiResponse.content.substring(0, 100), '...')
 
+            // Check for Tool Calls (Reservations)
+            if (aiResponse.toolCalls && aiResponse.toolCalls.length > 0) {
+                console.log('🛠️ Handling tool calls:', aiResponse.toolCalls.length)
+
+                for (const toolCall of aiResponse.toolCalls) {
+                    const func = (toolCall as any).function
+                    if (func.name === 'create_booking') {
+                        const args = JSON.parse(func.arguments)
+                        console.log('📅 Creating booking:', args)
+
+                        // Insert into DB (Table 'bookings' created via SQL)
+                        const { data: booking, error: bookingError } = await supabase
+                            .from('bookings')
+                            .insert({
+                                agent_id: agentId,
+                                customer_phone: message.from,
+                                booking_type: args.booking_type,
+                                start_time: args.start_time,
+                                party_size: args.party_size || 1,
+                                notes: args.notes,
+                                status: 'confirmed'
+                            })
+                            .select()
+                            .single()
+
+                        // Feed tool output back to AI
+                        const toolOutput = bookingError
+                            ? `Erreur lors de la réservation: ${bookingError.message}`
+                            : `Réservation confirmée avec succès (ID: ${booking ? booking.id.substring(0, 8) : '?'}).`
+
+                        // Create a new conversation history with the tool output
+                        const newHistory = [
+                            ...conversationHistory.slice(0, -1),
+                            { role: 'user', content: message.message },
+                            { role: 'assistant', content: aiResponse.content, tool_calls: aiResponse.toolCalls },
+                            { role: 'tool', tool_call_id: toolCall.id, content: toolOutput }
+                        ]
+
+                        // Generate Logic Final Response
+                        const finalAiResponse = await generateAIResponse({
+                            model: agent.model || 'gpt-4o-mini',
+                            temperature: agent.temperature || 0.7,
+                            maxTokens: 150, // Short confirmation
+                            systemPrompt: agent.system_prompt,
+                            conversationHistory: newHistory as any[],
+                            userMessage: "Confirme la réservation au client.", // Trigger final confirmation
+                            agentName: agent.name,
+                            useEmojis: agent.use_emojis,
+                            language: agent.language || 'fr',
+                            // GPS (Just in case)
+                            businessAddress: agent.business_address,
+                            businessHours: agent.business_hours,
+                            latitude: agent.latitude,
+                            longitude: agent.longitude
+                        })
+
+                        // Override content with the final confirmation
+                        aiResponse.content = finalAiResponse.content
+                    }
+                }
+            }
+
             // Send the response via WhatsApp (Text)
             console.log('📤 Sending text message via WhatsApp to:', message.from)
             const sendResult = await sendMessageWithTyping(
