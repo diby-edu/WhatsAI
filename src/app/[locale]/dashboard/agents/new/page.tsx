@@ -291,15 +291,32 @@ Règles:
 
     // GPS Helper
     const getLocation = () => {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition((pos) => {
+        if (!navigator.geolocation) {
+            alert("La géolocalisation n'est pas supportée par votre navigateur")
+            return
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
                 setFormData(prev => ({
                     ...prev,
                     latitude: pos.coords.latitude.toString(),
                     longitude: pos.coords.longitude.toString()
                 }))
-            }, () => alert("Impossible de récupérer la position."))
-        }
+            },
+            (err) => {
+                let msg = "Impossible de récupérer la position."
+                if (err.code === 1) msg = "Accès refusé. Veuillez autoriser la localisation dans votre navigateur (🔒)."
+                if (err.code === 2) msg = "Position indisponible."
+                if (err.code === 3) msg = "Délai d'attente dépassé."
+                alert(`Erreur GPS (${err.code}): ${msg}`)
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 5000,
+                maximumAge: 0
+            }
+        )
     }
 
     // Conflict Check Helper
