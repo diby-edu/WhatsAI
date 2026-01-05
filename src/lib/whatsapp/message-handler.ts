@@ -144,7 +144,7 @@ export function initializeMessageHandler() {
             // Fetch products for the user (to include in AI context)
             const { data: products } = await supabase
                 .from('products')
-                .select('name, price_fcfa, description, product_type, ai_instructions, lead_fields, stock_quantity')
+                .select('name, price_fcfa, description, product_type, ai_instructions, lead_fields, stock_quantity, short_pitch, marketing_tags, features, variants, related_product_ids')
                 .eq('user_id', agent.user_id)
                 .eq('is_available', true)
                 .limit(20)
