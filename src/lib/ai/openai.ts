@@ -28,6 +28,12 @@ export interface GenerateResponseOptions {
         ai_instructions?: string | null
         lead_fields?: any[]
         stock_quantity?: number
+        // Structure Fields
+        short_pitch?: string | null
+        features?: any
+        marketing_tags?: string[] | null
+        variants?: any
+        related_products?: any
     }>
     currency?: string
     // GPS & Business Info
@@ -95,6 +101,20 @@ ${products.map(p => {
             const stockInfo = p.stock_quantity !== -1 ? `(Stock: ${p.stock_quantity})` : ''
             const customInstructions = p.ai_instructions ? `\n   ⚠️ NOTE VENDEUR : ${p.ai_instructions}` : ''
 
+            // New Structured Info
+            const pitch = p.short_pitch ? `\n   📢 PITCH : ${p.short_pitch}` : ''
+            const tags = p.marketing_tags && p.marketing_tags.length > 0 ? `\n   🏷️ TAGS : ${p.marketing_tags.join(', ')}` : ''
+
+            let featuresList = ''
+            if (p.features && Array.isArray(p.features)) {
+                featuresList = `\n   ✨ POINTS FORTS : ${p.features.map((f: any) => f.value).join(', ')}`
+            }
+
+            let variantsInfo = ''
+            if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
+                variantsInfo = `\n   🎨 VARIANTES DISPONIBLES : ${p.variants.map((v: any) => `${v.name} (${v.options.map((o: any) => o.name).join(', ')})`).join(' | ')}`
+            }
+
             let displayPrice = p.price_fcfa
             let currencySymbol = '$'
 
@@ -107,6 +127,7 @@ ${products.map(p => {
             }
 
             return `🔹 ${p.name} - ${displayPrice.toLocaleString('fr-FR')} ${currencySymbol} ${stockInfo}
+${pitch}${tags}${featuresList}${variantsInfo}
    📝 ${p.description || ''}
    RÈGLE : ${specificRules}${customInstructions}`
         }).join('\n\n')}
