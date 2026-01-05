@@ -315,7 +315,10 @@ Règles:
                     structured_data: {
                         address: formData.business_address,
                         hours: formData.business_hours,
-                        phone: formData.contact_phone
+                        phone: formData.contact_phone,
+                        location: (formData.latitude && formData.longitude)
+                            ? `${formData.latitude}, ${formData.longitude}`
+                            : 'Non défini'
                     },
                     custom_rules_text: formData.custom_rules
                 })
