@@ -164,6 +164,11 @@ export function initializeMessageHandler() {
                 useEmojis: agent.use_emojis,
                 language: agent.language || 'fr',
                 products: (products || []) as any,
+                // GPS & Location
+                businessAddress: agent.business_address,
+                businessHours: agent.business_hours,
+                latitude: agent.latitude,
+                longitude: agent.longitude
             })
             console.log('✅ AI Response generated:', aiResponse.content.substring(0, 100), '...')
 
