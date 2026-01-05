@@ -9,7 +9,9 @@ const openai = new OpenAI({
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json()
-        const { structuredData, customRules } = body
+        // Support both naming conventions to be safe
+        const structuredData = body.structuredData || body.structured_data
+        const customRules = body.customRules || body.custom_rules_text || body.custom_rules
 
         if (!structuredData || !customRules) {
             return NextResponse.json({ error: 'Missing data' }, { status: 400 })
