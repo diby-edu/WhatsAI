@@ -30,6 +30,11 @@ export interface GenerateResponseOptions {
         stock_quantity?: number
     }>
     currency?: string
+    // GPS & Business Info
+    businessAddress?: string | null
+    businessHours?: any
+    latitude?: number | null
+    longitude?: number | null
 }
 
 export interface AIResponse {
@@ -58,6 +63,10 @@ export async function generateAIResponse(
         useEmojis = true,
         language = 'fr',
         products = [],
+        businessAddress,
+        businessHours,
+        latitude,
+        longitude
     } = options
 
     // Build products catalog text
@@ -106,8 +115,28 @@ INSTRUCTION IMPORTANTE :
 Si le client s'intéresse à un produit, APPLIQUE STRICTEMENT la règle de son type (Virtuel vs Physique vs Service).`
     }
 
+
+    // Build Location & Hours Context
+    let locationContext = ''
+    if (businessAddress || (latitude && longitude)) {
+        locationContext += `\n📍 LOCALISATION & HORAIRES :`
+        if (businessAddress) locationContext += `\n- Adresse : ${businessAddress}`
+        if (latitude && longitude) {
+            const mapsLink = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`
+            locationContext += `\n- Position GPS : ${latitude}, ${longitude}`
+            locationContext += `\n- Lien Google Maps : ${mapsLink}`
+            locationContext += `\n- INSTRUCTION : Si le client demande la localisation ou l'adresse, partage le lien Google Maps.`
+        }
+    }
+    if (businessHours) {
+        // Format hours if it's an object/json, otherwise use as string if simple
+        const hoursText = typeof businessHours === 'string' ? businessHours : JSON.stringify(businessHours)
+        locationContext += `\n- Horaires : ${hoursText}`
+    }
+
     // Build the system message
     const enhancedSystemPrompt = `${systemPrompt}
+${locationContext}
 
 Instructions supplémentaires:
 - Tu es ${agentName}, un assistant virtuel sur WhatsApp.
