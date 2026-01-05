@@ -12,7 +12,7 @@ echo "📥 Pulling latest code..."
 git pull
 
 # 3. Installer les dépendances
-# 3. Installer les dépendances
+
 echo "📦 Installing dependencies..."
 # Forcer la réinstallation des deps critiques si besoin ou juste s'assurer que tout est là
 npm install
