@@ -383,11 +383,26 @@ export default function AgentWizardPage({ params }: { params: Promise<{ id: stri
                             </h2>
                             <p className="text-slate-400 mb-4 text-sm">Indiquez clairement vos horaires. Le bot les utilisera pour informer les clients.</p>
 
+                            {/* 24/7 Quick Toggle */}
+                            <div className="flex items-center justify-between p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-lg mb-4">
+                                <div>
+                                    <span className="font-semibold text-emerald-400">🌐 Ouvert 24h/24, 7j/7</span>
+                                    <p className="text-xs text-slate-400 mt-1">Service disponible en permanence</p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setFormData({ ...formData, business_hours: "Ouvert 24h/24, 7j/7\n(Service disponible à tout moment)" })}
+                                    className="px-4 py-2 bg-emerald-500 text-white rounded-lg font-semibold hover:bg-emerald-600 transition-colors"
+                                >
+                                    Appliquer
+                                </button>
+                            </div>
+
                             <textarea
                                 value={formData.business_hours}
                                 onChange={e => setFormData({ ...formData, business_hours: e.target.value })}
                                 className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-4 text-white font-mono h-48 focus:ring-2 focus:ring-emerald-500 outline-none"
-                                placeholder={"Lundi - Vendredi : 08:00 - 18:00\nSamedi : 09:00 - 14:00\nDimanche : Fermé"}
+                                placeholder={"Lundi - Vendredi : 08:00 - 18:00\nSamedi : 09:00 - 14:00\nDimanche : Fermé\n\nOU\n\nOuvert 24h/24, 7j/7"}
                             />
                         </div>
                     </motion.div>
@@ -507,11 +522,23 @@ export default function AgentWizardPage({ params }: { params: Promise<{ id: stri
                                     setFormData({ ...formData, custom_rules: e.target.value })
                                     setConflictStatus('idle') // Reset on change
                                 }}
-                                className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-4 text-white font-mono h-48 focus:ring-2 focus:ring-emerald-500 outline-none"
-                                placeholder={`Exples:
+                                className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-4 text-white font-mono h-56 focus:ring-2 focus:ring-emerald-500 outline-none"
+                                placeholder={`Exemples de règles que l'IA doit respecter:
+
+📦 LIVRAISON:
 - Livraison gratuite à partir de 50.000 FCFA
-- Pas de remboursement sur les articles soldés
-- (Ne pas remettre l'adresse ni les horaires ici !)`}
+- Zones de livraison: Abidjan uniquement
+
+💳 PAIEMENT:
+- Mobile Money préféré (Orange, MTN, Wave)
+- Paiement à la livraison accepté
+
+🚫 RESTRICTIONS:
+- Pas de remboursement sur articles soldés
+- Échange uniquement dans les 48h
+
+📞 ESCALADE:
+- Renvoyer vers le support si problème complexe`}
                             />
 
                             {/* AI Conflict Detector */}
