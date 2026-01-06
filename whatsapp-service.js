@@ -1333,20 +1333,26 @@ async function checkPendingMessages() {
     }
 }
 
-// Check for agents that need connection
+// Check for new agents that need connection
+// Check for new agents that need connection
 async function checkAgents() {
     try {
+        console.log('🔄 Checking for agents...')
+
         // 1. Check for agents requesting connection (whatsapp_status = 'connecting')
         const { data: connectingAgents } = await supabase
             .from('agents')
             .select('id, name')
-            .eq('is_active', true)
             .eq('whatsapp_status', 'connecting')
+
+        if (connectingAgents && connectingAgents.length > 0) {
+            console.log(`🚀 Found ${connectingAgents.length} agents wanting to connect!`)
+        }
 
         for (const agent of connectingAgents || []) {
             if (!activeSessions.has(agent.id) && !pendingConnections.has(agent.id)) {
-                console.log(`🔄 New connection request for ${agent.name}`)
-                await initSession(agent.id, agent.name)
+                console.log(`⚡ triggering initSession for ${agent.name}`)
+                initSession(agent.id, agent.name)
             }
         }
 
@@ -1361,9 +1367,10 @@ async function checkAgents() {
             const sessionDir = path.join(path.resolve(SESSION_BASE_DIR), agent.id)
             const credsFile = path.join(sessionDir, 'creds.json')
 
+            // Only restore if session exists AND not already active
             if (fs.existsSync(credsFile) && !activeSessions.has(agent.id) && !pendingConnections.has(agent.id)) {
                 console.log(`🔄 Restoring session for ${agent.name}`)
-                await initSession(agent.id, agent.name)
+                initSession(agent.id, agent.name)
             }
         }
     } catch (error) {
