@@ -97,7 +97,7 @@ export default function NewProductPage() {
             const filePath = `products/${fileName}`
 
             const { error: uploadError } = await supabase.storage
-                .from('files')
+                .from('images')
                 .upload(filePath, file)
 
             if (uploadError) {
@@ -106,7 +106,7 @@ export default function NewProductPage() {
             }
 
             const { data: publicUrl } = supabase.storage
-                .from('files')
+                .from('images')
                 .getPublicUrl(filePath)
 
             setFormData({ ...formData, image_url: publicUrl.publicUrl })
