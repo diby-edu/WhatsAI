@@ -6,18 +6,6 @@ const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY
 })
 
-interface ExtractionResult {
-    extracted: {
-        price?: number
-        currency?: string
-        content_included?: string[]
-        variants?: { name: string; options: string[] }[]
-        tags?: string[]
-    }
-    cleaned_description: string
-    warnings: string[]
-}
-
 export async function POST(request: NextRequest) {
     try {
         const supabase = await createClient()
@@ -37,23 +25,29 @@ export async function POST(request: NextRequest) {
 
         const systemPrompt = `Tu es un assistant qui analyse des descriptions de produits pour extraire les données structurées.
 
-TÂCHE: Analyse la description fournie et extrait les éléments suivants dans les champs appropriés:
+TÂCHE: Analyse la description fournie et extrait les éléments dans le format JSON suivant:
 
-1. **Prix**: Tout montant mentionné (ex: "25000F", "15.000 FCFA", "50€")
-2. **Contenu inclus**: Liste des éléments/composants du produit (ex: "Word, Excel, PowerPoint")
-3. **Variantes**: Tailles, couleurs, options (ex: "Taille L", "Rouge/Bleu", "1 PC / 5 PC")
-4. **Tags**: Caractéristiques (ex: "Bio", "Artisanal", "Livraison rapide", "Garantie")
+{
+  "extracted": {
+    "price": null ou nombre (ex: 25000),
+    "content_included": [] liste de strings (ex: ["Word", "Excel", "PowerPoint"]),
+    "tags": [] liste de strings (ex: ["Bio", "Garantie", "Livraison rapide"])
+  },
+  "cleaned_description": "description nettoyée sans prix ni éléments extraits",
+  "warnings": [] liste de warnings si conflits détectés
+}
 
 RÈGLES:
-- Extrais UNIQUEMENT ce qui est clairement mentionné
-- La description nettoyée doit contenir SEULEMENT les infos qualitatives (usage, public cible, avantages généraux)
-- Si un élément est déjà dans les données existantes et correspond, ne pas le dupliquer
-- Signale les conflits potentiels dans "warnings"
+- Price: Extrait le premier prix mentionné en nombre seulement (pas de devise)
+- Content_included: Éléments/composants du produit (applications, accessoires inclus)
+- Tags: Caractéristiques et avantages (Bio, Artisanal, Garantie, Livraison rapide, etc.)
+- Cleaned_description: Ce qui reste de la description (usage, public cible, avantages généraux)
+- Si aucun élément trouvé, retourne un array vide [] pour les listes ou null pour price
 
-DONNÉES EXISTANTES:
+DONNÉES EXISTANTES (ne pas dupliquer):
 ${JSON.stringify(existingData || {}, null, 2)}
 
-Réponds en JSON valide uniquement.`
+IMPORTANT: Réponds UNIQUEMENT avec le JSON valide, pas d'explication.`
 
         const response = await openai.chat.completions.create({
             model: 'gpt-4o-mini',
@@ -71,7 +65,18 @@ Réponds en JSON valide uniquement.`
             throw new Error('Pas de réponse de l\'IA')
         }
 
-        const result: ExtractionResult = JSON.parse(content)
+        const parsed = JSON.parse(content)
+
+        // Ensure proper structure with null safety
+        const result = {
+            extracted: {
+                price: parsed.extracted?.price ?? parsed.price ?? null,
+                content_included: parsed.extracted?.content_included ?? parsed.content_included ?? [],
+                tags: parsed.extracted?.tags ?? parsed.tags ?? []
+            },
+            cleaned_description: parsed.cleaned_description ?? parsed.description ?? description,
+            warnings: parsed.warnings ?? []
+        }
 
         return NextResponse.json({
             success: true,
