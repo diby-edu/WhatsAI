@@ -34,6 +34,7 @@ export interface GenerateResponseOptions {
         marketing_tags?: string[] | null
         variants?: any
         related_products?: any
+        image_url?: string | null
     }>
     currency?: string
     // GPS & Business Info
@@ -41,6 +42,8 @@ export interface GenerateResponseOptions {
     businessHours?: any
     latitude?: number | null
     longitude?: number | null
+    // Vision
+    inputImageUrls?: string[]
 }
 
 export interface AIResponse {
@@ -73,7 +76,8 @@ export async function generateAIResponse(
         businessAddress,
         businessHours,
         latitude,
-        longitude
+        longitude,
+        inputImageUrls = []
     } = options
 
     // Build products catalog text
@@ -127,8 +131,10 @@ ${products.map(p => {
                 currencySymbol = '€'
             }
 
+            const imageUrl = p.image_url ? `\n   🖼️ IMAGE : ${p.image_url}` : ''
+
             return `🔹 ${p.name} - ${displayPrice.toLocaleString('fr-FR')} ${currencySymbol} ${stockInfo}
-${pitch}${tags}${featuresList}${variantsInfo}
+${pitch}${tags}${featuresList}${variantsInfo}${imageUrl}
    📝 ${p.description || ''}
    RÈGLE : ${specificRules}${customInstructions}`
         }).join('\n\n')}
@@ -167,12 +173,17 @@ Instructions supplémentaires:
 - Si tu ne peux pas aider, suggère poliment de contacter un humain.
 
 🔴 RÈGLES DE CONCISION (BUDGET OPTIMISATION) :
-1. Sois poli mais DIRECT. Évite les phrases de remplissage comme "Je comprends tout à fait", "C'est une excellente question".
+1. Sois poli mais DIRECT. Évite les phrases de remplissage.
+2. 📸 VISION : Si le client envoie une image, analyse-la. Si c'est un produit que tu vends, confirme le stock.
+3. 🖼️ IMAGES PRODUITS : Si tu parles d'un produit qui a une "IMAGE" dans ton catalogue, envoie le lien de l'image au client.
+4. 🧾 RÉCAPITULATIF OBLIGATOIRE : Avant de demander le paiement ou la livraison, fais un RÉCAPITULATIF COMPLET (Articles + Prix Total + Frais). Demande confirmation ("C'est bon pour vous ?").
+5. ✔️ CONFIRMATION PAIEMENT : Après paiement confirmé, le système enverra une notif. Toi, rassure juste sur la livraison.
+
 🔧 OUTILS DISPONIBLES :
 1. 'create_booking' : Pour les RÉSERVATIONS (Hôtel, Restaurant, Service).
 2. 'create_order' : Pour les COMMANDES de produits physiques (Livraison, E-commerce).
 
-RÈGLE D'OR : Dès que le client confirme ("Je prends ça", "Je réserve"), EXÉCUTE L'OUTIL CORRESPONDANT. Ne te contente pas de dire "C'est noté".${productsCatalog}`
+RÈGLE D'OR : Dès que le client confirme ("Je prends ça", "Je réserve") APRÈS LE RÉCAPITULATIF, EXÉCUTE L'OUTIL CORRESPONDANT.${productsCatalog}`
 
     // Define Tools
     const tools: OpenAI.ChatCompletionTool[] = [
@@ -225,13 +236,26 @@ RÈGLE D'OR : Dès que le client confirme ("Je prends ça", "Je réserve"), EXÉ
     ]
 
     // Build messages array
+    // Build messages array
+    const userMessageContent: any[] = [{ type: 'text', text: userMessage }]
+
+    // Add images if present
+    if (options.inputImageUrls && options.inputImageUrls.length > 0) {
+        options.inputImageUrls.forEach(url => {
+            userMessageContent.push({
+                type: 'image_url',
+                image_url: { url: url }
+            })
+        })
+    }
+
     const messages: OpenAI.ChatCompletionMessageParam[] = [
         { role: 'system', content: enhancedSystemPrompt },
         ...conversationHistory.map((msg) => ({
             role: msg.role as 'user' | 'assistant',
             content: msg.content,
         })),
-        { role: 'user', content: userMessage },
+        { role: 'user', content: userMessageContent as any },
     ]
 
     try {
