@@ -1564,14 +1564,26 @@ async function requestFeedback() {
 }
 
 // Handle graceful shutdown
-process.on('SIGINT', () => {
-    console.log('📴 Shutting down WhatsApp Service...')
+const gracefulShutdown = async (signal) => {
+    console.log(`📴 Received ${signal}. Shutting down WhatsApp Service gracefully...`)
+
+    // Close all sockets
     for (const [agentId, session] of activeSessions) {
         if (session.socket) {
-            session.socket.end()
+            console.log(`PLEASE WAIT: Closing session for agent ${agentId}...`)
+            session.socket.end(undefined) // Close connection
+            // We don't call logout() because we want to keep the session
         }
     }
-    process.exit(0)
-})
+
+    // Give 2 seconds for file I/O to finish (saving creds)
+    setTimeout(() => {
+        console.log('✅ Shutdown complete.')
+        process.exit(0)
+    }, 2000)
+}
+
+process.on('SIGINT', () => gracefulShutdown('SIGINT'))
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'))
 
 main()
