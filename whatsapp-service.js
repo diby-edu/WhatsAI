@@ -522,11 +522,17 @@ async function handleToolCall(toolCall, agentId, customerPhone, products) {
                     jid = jid.toString().replace(/\D/g, '') + '@s.whatsapp.net'
                 }
 
+                console.log(`🚀 DEBUG: Sending image to JID: [${jid}]`)
 
-                await session.socket.sendMessage(jid, {
-                    image: { url: product.image_url },
-                    caption: `Voici ${product.name} ! 📸`
-                })
+                try {
+                    await session.socket.sendMessage(jid, {
+                        image: { url: product.image_url },
+                        caption: `Voici ${product.name} ! 📸`
+                    })
+                } catch (sendError) {
+                    console.error('❌ Failed to send image message:', sendError)
+                    throw new Error(`Erreur envoi image WhatsApp: ${sendError.message}`)
+                }
             } else {
                 console.error('❌ No active session for agent:', agentId)
                 return JSON.stringify({
