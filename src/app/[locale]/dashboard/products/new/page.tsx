@@ -94,37 +94,49 @@ export default function NewProductPage() {
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files || e.target.files.length === 0) return
 
-        // Check max images limit
-        if (formData.images.length >= 10) {
+        const files = Array.from(e.target.files)
+        const remaining = 10 - formData.images.length
+
+        if (remaining <= 0) {
             alert('Maximum 10 images autorisées')
             return
         }
 
+        const filesToUpload = files.slice(0, remaining)
+        if (files.length > remaining) {
+            alert(`Seulement ${remaining} image(s) peuvent être ajoutées (max 10)`)
+        }
+
         setUploading(true)
         try {
-            const file = e.target.files[0]
-            const fileExt = file.name.split('.').pop()
-            const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`
-            const filePath = `products/${fileName}`
+            const uploadedUrls: string[] = []
 
-            const { error: uploadError } = await supabase.storage
-                .from('images')
-                .upload(filePath, file)
+            for (const file of filesToUpload) {
+                const fileExt = file.name.split('.').pop()
+                const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`
+                const filePath = `products/${fileName}`
 
-            if (uploadError) {
-                console.error('Upload error:', uploadError)
-                throw new Error(uploadError.message || 'Erreur de téléchargement')
+                const { error: uploadError } = await supabase.storage
+                    .from('images')
+                    .upload(filePath, file)
+
+                if (uploadError) {
+                    console.error('Upload error:', uploadError)
+                    continue // Skip failed uploads
+                }
+
+                const { data: publicUrl } = supabase.storage
+                    .from('images')
+                    .getPublicUrl(filePath)
+
+                uploadedUrls.push(publicUrl.publicUrl)
             }
 
-            const { data: publicUrl } = supabase.storage
-                .from('images')
-                .getPublicUrl(filePath)
-
-            // Add to images array
+            // Add all uploaded images to array
             setFormData(prev => ({
                 ...prev,
-                images: [...prev.images, publicUrl.publicUrl],
-                image_url: prev.image_url || publicUrl.publicUrl // Keep legacy support (first image)
+                images: [...prev.images, ...uploadedUrls],
+                image_url: prev.image_url || uploadedUrls[0] || ''
             }))
         } catch (error: any) {
             alert(`Erreur upload: ${error.message || 'Erreur de téléchargement'}`)
@@ -359,7 +371,7 @@ export default function NewProductPage() {
                                         )}
                                     </div>
                                 )}
-                                <input ref={fileInputRef} type="file" onChange={handleImageUpload} className="hidden" accept="image/*" />
+                                <input ref={fileInputRef} type="file" onChange={handleImageUpload} className="hidden" accept="image/*" multiple />
                             </div>
                             <p style={{ fontSize: 11, color: '#64748b', marginTop: 8 }}>
                                 La première image sera l'image principale affichée
@@ -438,7 +450,7 @@ export default function NewProductPage() {
                                 onChange={e => setFormData({ ...formData, description: e.target.value })}
                                 placeholder="Ex: Office 2021 Pro à 25000F, inclut Word, Excel, PowerPoint. Licence à vie, activation en ligne. Idéal pour les professionnels et étudiants."
                                 style={{ ...inputStyle, minHeight: 120, fontFamily: 'inherit' }}
-                                maxLength={500}
+                                maxLength={2000}
                             />
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
                                 <button
@@ -473,7 +485,8 @@ export default function NewProductPage() {
                                                     description: data.data.cleaned_description || prev.description,
                                                     price_fcfa: extracted.price || prev.price_fcfa,
                                                     content_included: [...new Set([...prev.content_included, ...(extracted.content_included || [])])],
-                                                    features: [...new Set([...prev.features, ...(extracted.tags || [])])]
+                                                    features: [...new Set([...prev.features, ...(extracted.tags || [])])],
+                                                    variants: extracted.variants?.length ? extracted.variants : prev.variants
                                                 }))
                                             } else {
                                                 alert(data.error || 'Erreur d\'analyse')
@@ -501,7 +514,7 @@ export default function NewProductPage() {
                                     {analyzing ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
                                     {analyzing ? 'Analyse...' : '🔍 Analyser & Corriger'}
                                 </button>
-                                <span style={{ fontSize: 11, color: '#64748b' }}>{formData.description.length}/500</span>
+                                <span style={{ fontSize: 11, color: '#64748b' }}>{formData.description.length}/2000</span>
                             </div>
 
                             {/* Show analysis result */}
