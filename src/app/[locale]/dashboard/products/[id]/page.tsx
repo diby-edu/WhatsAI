@@ -141,7 +141,10 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                 .from('files')
                 .upload(filePath, file)
 
-            if (uploadError) throw uploadError
+            if (uploadError) {
+                console.error('Upload error:', uploadError)
+                throw new Error(uploadError.message || 'Erreur de téléchargement')
+            }
 
             const { data: publicUrl } = supabase.storage
                 .from('files')
