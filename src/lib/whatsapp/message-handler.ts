@@ -148,10 +148,10 @@ export function initializeMessageHandler() {
                 content: m.content,
             }))
 
-            // Check user credits
+            // Check user credits and currency
             const { data: profile } = await supabase
                 .from('profiles')
-                .select('credits_balance, credits_used_this_month')
+                .select('credits_balance, credits_used_this_month, currency')
                 .eq('id', agent.user_id)
                 .single()
 
@@ -160,7 +160,7 @@ export function initializeMessageHandler() {
                 // Optionally send a message about low credits
                 return
             }
-            console.log('✅ Credits OK:', profile.credits_balance)
+            console.log('✅ Credits OK:', profile.credits_balance, '| Currency:', profile.currency || 'XOF')
 
             // Fetch products for the user (to include in AI context)
             const { data: products } = await supabase
@@ -190,7 +190,9 @@ export function initializeMessageHandler() {
                 businessHours: agent.business_hours,
                 latitude: agent.latitude,
                 longitude: agent.longitude,
-                inputImageUrls: inputImageUrls
+                inputImageUrls: inputImageUrls,
+                // Currency for product pricing
+                currency: profile.currency || 'XOF'
             })
             console.log('✅ AI Response generated:', aiResponse.content.substring(0, 100), '...')
 
