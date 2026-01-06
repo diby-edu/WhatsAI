@@ -45,6 +45,27 @@ export function initializeMessageHandler() {
                 }
             }
 
+            // OPTIONAL: Vision handling (Image)
+            const inputImageUrls: string[] = []
+            if (message.messageType === 'image' && (message as any).rawMessage) {
+                console.log('📸 Receiving image message, downloading...')
+                try {
+                    const buffer = await downloadMedia((message as any).rawMessage)
+                    if (buffer) {
+                        const base64Image = buffer.toString('base64')
+                        const dataUrl = `data:image/jpeg;base64,${base64Image}`
+                        inputImageUrls.push(dataUrl)
+                        console.log('✅ Image processed for Vision AI')
+                        // Update message content for history context
+                        if (!message.message || message.message === '') {
+                            message.message = '[Image envoyée]'
+                        }
+                    }
+                } catch (err) {
+                    console.error('❌ Failed to process image:', err)
+                }
+            }
+
             // Get or create conversation
             // Clean phone number from all WhatsApp suffixes
             const phoneNumber = message.from
@@ -168,7 +189,8 @@ export function initializeMessageHandler() {
                 businessAddress: agent.business_address,
                 businessHours: agent.business_hours,
                 latitude: agent.latitude,
-                longitude: agent.longitude
+                longitude: agent.longitude,
+                inputImageUrls: inputImageUrls
             })
             console.log('✅ AI Response generated:', aiResponse.content.substring(0, 100), '...')
 
