@@ -30,7 +30,11 @@ import {
     User as UserIcon,
     MessageSquare,
     DollarSign,
-    Package
+    Package,
+    ShoppingCart,
+    Calendar,
+    ToggleRight,
+    Send
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -39,10 +43,14 @@ const adminLinks = [
     { href: '/admin/users', label: 'Utilisateurs', icon: Users },
     { href: '/admin/agents', label: 'Agents IA', icon: Bot },
     { href: '/admin/conversations', label: 'Conversations', icon: MessagesSquare },
+    { href: '/admin/orders', label: 'Commandes', icon: ShoppingCart },
+    { href: '/admin/bookings', label: 'Réservations', icon: Calendar },
     { href: '/admin/plans', label: 'Plans', icon: Zap },
     { href: '/admin/credit-packs', label: 'Packs de Crédits', icon: Package },
     { href: '/admin/subscriptions', label: 'Abonnements', icon: CreditCard },
     { href: '/admin/payments', label: 'Test Paiement', icon: TestTube2 },
+    { href: '/admin/features', label: 'Feature Flags', icon: ToggleRight },
+    { href: '/admin/broadcasts', label: 'Broadcasts', icon: Send },
     { href: '/admin/diagnostics', label: 'Diagnostic', icon: Activity },
     { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
     { href: '/admin/logs', label: 'Logs', icon: FileText },
