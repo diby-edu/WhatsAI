@@ -38,7 +38,7 @@ export default function NewProductPage() {
     const [formData, setFormData] = useState({
         // Basics
         name: '',
-        price_fcfa: 0,
+        price_fcfa: '' as string | number, // Allow empty string for input
         image_url: '',
         category: '',
         is_available: true,
@@ -100,15 +100,18 @@ export default function NewProductPage() {
                 .from('files')
                 .upload(filePath, file)
 
-            if (uploadError) throw uploadError
+            if (uploadError) {
+                console.error('Upload error:', uploadError)
+                throw new Error(uploadError.message || 'Erreur de téléchargement')
+            }
 
             const { data: publicUrl } = supabase.storage
                 .from('files')
                 .getPublicUrl(filePath)
 
             setFormData({ ...formData, image_url: publicUrl.publicUrl })
-        } catch (error) {
-            alert('Erreur upload')
+        } catch (error: any) {
+            alert(`Erreur upload: ${error.message || 'Vérifiez que le bucket "files" existe dans Supabase Storage'}`)
         } finally {
             setUploading(false)
         }
@@ -132,10 +135,16 @@ export default function NewProductPage() {
     const handleSave = async () => {
         setLoading(true)
         try {
+            // Prepare data with proper types
+            const dataToSend = {
+                ...formData,
+                price_fcfa: parseFloat(String(formData.price_fcfa)) || 0 // Convert to number
+            }
+
             const res = await fetch('/api/products', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
+                body: JSON.stringify(dataToSend)
             })
 
             if (!res.ok) throw new Error('Failed')
@@ -215,6 +224,35 @@ export default function NewProductPage() {
             case 0: // BASICS
                 return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                        {/* Product Type Selection */}
+                        <div>
+                            <label style={labelStyle}>Type de produit</label>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+                                {[
+                                    { id: 'product', label: '📦 Physique', desc: 'Produit livrable' },
+                                    { id: 'digital', label: '💻 Numérique', desc: 'Téléchargement' },
+                                    { id: 'service', label: '🛠️ Service', desc: 'Prestation' }
+                                ].map(type => (
+                                    <button
+                                        key={type.id}
+                                        type="button"
+                                        onClick={() => setFormData({ ...formData, product_type: type.id })}
+                                        style={{
+                                            padding: 16,
+                                            borderRadius: 12,
+                                            border: formData.product_type === type.id ? '2px solid #10b981' : '1px solid rgba(148, 163, 184, 0.2)',
+                                            background: formData.product_type === type.id ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
+                                            textAlign: 'center',
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        <div style={{ fontSize: 18 }}>{type.label}</div>
+                                        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>{type.desc}</div>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
                         {/* Image Upload */}
                         <div style={{ display: 'flex', justifyContent: 'center' }}>
                             <div
@@ -261,9 +299,17 @@ export default function NewProductPage() {
                                 <label style={labelStyle}>Prix ({currency})</label>
                                 <div style={{ position: 'relative' }}>
                                     <input
-                                        type="number"
+                                        type="text"
+                                        inputMode="numeric"
                                         value={formData.price_fcfa}
-                                        onChange={e => setFormData({ ...formData, price_fcfa: parseFloat(e.target.value) || 0 })}
+                                        onChange={e => {
+                                            const val = e.target.value
+                                            // Allow empty or numeric values
+                                            if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                                                setFormData({ ...formData, price_fcfa: val === '' ? '' : val })
+                                            }
+                                        }}
+                                        placeholder="0"
                                         style={inputStyle}
                                     />
                                     <DollarSign size={14} style={{ position: 'absolute', right: 12, top: 14, color: '#64748b' }} />
@@ -339,7 +385,7 @@ export default function NewProductPage() {
                                     value={featureInput}
                                     onChange={e => setFeatureInput(e.target.value)}
                                     onKeyDown={e => e.key === 'Enter' && addFeature()}
-                                    placeholder="Ajouter une caractéristique..."
+                                    placeholder="Ex: Bio, Fait main, Taille L, Couleur Rouge..."
                                     style={inputStyle}
                                 />
                                 <button onClick={addFeature} style={{ ...buttonSecondaryStyle, padding: '0 16px' }}>
