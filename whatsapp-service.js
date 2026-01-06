@@ -166,8 +166,9 @@ const TOOLS = [
                         description: 'List of products to order'
                     },
                     customer_phone: { type: 'string', description: 'Customer phone number (required)' },
-                    delivery_address: { type: 'string', description: 'Delivery address provided by user' },
+                    delivery_address: { type: 'string', description: 'Delivery address provided by user (required for physical products)' },
                     delivery_city: { type: 'string', description: 'Delivery city' },
+                    email: { type: 'string', description: 'Customer email (required for digital products)' },
                     payment_method: { type: 'string', enum: ['online', 'cod'], description: 'Payment method choice' },
                     notes: { type: 'string', description: 'Any special instructions' }
                 },
@@ -211,7 +212,13 @@ async function handleToolCall(toolCall, agentId, customerPhone, products) {
         try {
             console.log('🛠️ Executing tool: create_order')
             const args = JSON.parse(toolCall.function.arguments)
-            const { items, customer_phone, delivery_address, delivery_city, payment_method, notes } = args
+            const { items, customer_phone, delivery_address, delivery_city, email, payment_method, notes } = args
+
+            // Append email to notes if present
+            let finalNotes = notes || ''
+            if (email) {
+                finalNotes += `\n📧 Email client: ${email}`
+            }
 
             // Get agent to find user_id (merchant)
             const { data: agent } = await supabase.from('agents').select('user_id').eq('id', agentId).single()
@@ -327,7 +334,7 @@ async function handleToolCall(toolCall, agentId, customerPhone, products) {
                     total_fcfa: total,
                     delivery_address: `${delivery_address || ''} ${delivery_city || ''}`.trim(),
                     payment_method: payment_method || 'online',
-                    notes: notes
+                    notes: finalNotes
                 })
                 .select()
                 .single()
@@ -637,7 +644,9 @@ ${products.map(p => {
                 // AI Strategy Fields
                 const pitch = p.short_pitch ? `\n    📢 ${p.short_pitch}` : ''
                 const features = p.features && p.features.length > 0 ? `\n    ✨ Info: ${p.features.join(', ')}` : ''
+                const contentIncluded = p.content_included && p.content_included.length > 0 ? `\n    📦 Contenu inclus: ${p.content_included.join(', ')}` : ''
                 const marketing = p.marketing_tags && p.marketing_tags.length > 0 ? `\n    💎 Arguments: ${p.marketing_tags.join(', ')}` : ''
+                const hasImage = p.image_url || (p.images && p.images.length > 0) ? '\n    🖼️ Image disponible' : ''
 
                 // Cross-Sell Logic: Resolve IDs to Names
                 let relatedInfo = ''
@@ -656,7 +665,7 @@ ${products.map(p => {
                     p.product_type === 'service' ? '🛠️ [SERVICE]' : '📦 [PHYSIQUE]'
 
                 return `🔹 ${p.name} ${typeIcon} - ${priceDisplay}
-    📝 ${p.description || 'Pas de description'}${pitch}${features}${marketing}${relatedInfo}${variantsInfo}`
+    📝 ${p.description || 'Pas de description'}${contentIncluded}${pitch}${features}${marketing}${hasImage}${relatedInfo}${variantsInfo}`
             }).join('\n')}
 
 INSTRUCTION IMPORTANTE : 
