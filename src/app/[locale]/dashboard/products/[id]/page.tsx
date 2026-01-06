@@ -53,7 +53,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     // Form Data
     const [formData, setFormData] = useState({
         name: '',
-        price_fcfa: 0,
+        price_fcfa: '' as string | number, // Allow empty string for input
         image_url: '',
         category: '',
         is_available: true,
@@ -148,8 +148,8 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                 .getPublicUrl(filePath)
 
             setFormData({ ...formData, image_url: publicUrl.publicUrl })
-        } catch (error) {
-            alert('Erreur upload')
+        } catch (error: any) {
+            alert(`Erreur upload: ${error.message || 'Vérifiez que le bucket "files" existe dans Supabase Storage'}`)
         } finally {
             setUploading(false)
         }
@@ -171,10 +171,14 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     const handleSave = async (silent = false) => {
         if (!silent) setSaving(true)
         try {
+            const dataToSend = {
+                ...formData,
+                price_fcfa: parseFloat(String(formData.price_fcfa)) || 0
+            }
             const res = await fetch(`/api/products/${productId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
+                body: JSON.stringify(dataToSend)
             })
             if (!res.ok) throw new Error('Failed')
             if (!silent) alert('Produit sauvegardé !')
@@ -201,6 +205,28 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
             case 0:
                 return (
                     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+                        {/* Product Type Selection */}
+                        <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
+                            <label className="block text-slate-300 font-medium mb-3">Type de produit</label>
+                            <div className="grid grid-cols-3 gap-3">
+                                {[
+                                    { id: 'product', label: '📦 Physique', desc: 'Produit livrable' },
+                                    { id: 'digital', label: '💻 Numérique', desc: 'Téléchargement' },
+                                    { id: 'service', label: '🛠️ Service', desc: 'Prestation' }
+                                ].map(type => (
+                                    <button
+                                        key={type.id}
+                                        type="button"
+                                        onClick={() => setFormData({ ...formData, product_type: type.id })}
+                                        className={`p-4 rounded-lg border text-center transition-all ${formData.product_type === type.id ? 'bg-emerald-500/20 border-emerald-500' : 'bg-slate-900/30 border-slate-700 hover:border-slate-500'}`}
+                                    >
+                                        <div className="text-lg">{type.label}</div>
+                                        <div className="text-xs text-slate-400 mt-1">{type.desc}</div>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                             {/* Image */}
                             <div className="space-y-4">
@@ -239,9 +265,16 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                                     <div className="relative">
                                         <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
                                         <input
-                                            type="number"
+                                            type="text"
+                                            inputMode="numeric"
                                             value={formData.price_fcfa}
-                                            onChange={e => setFormData({ ...formData, price_fcfa: parseInt(e.target.value) || 0 })}
+                                            onChange={e => {
+                                                const val = e.target.value
+                                                if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                                                    setFormData({ ...formData, price_fcfa: val === '' ? '' : val })
+                                                }
+                                            }}
+                                            placeholder="0"
                                             className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 pl-10 text-white focus:ring-2 focus:ring-emerald-500 outline-none font-mono"
                                         />
                                     </div>
@@ -308,7 +341,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                                             onChange={e => setFeatureInput(e.target.value)}
                                             onKeyDown={e => e.key === 'Enter' && addFeature()}
                                             className="flex-1 bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white outline-none"
-                                            placeholder="Ajouter + Entrée"
+                                            placeholder="Ex: Bio, Fait main, Taille L, Couleur Rouge..."
                                         />
                                         <button onClick={addFeature} className="bg-slate-700 p-3 rounded-lg text-white"><Plus /></button>
                                     </div>
