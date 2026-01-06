@@ -33,26 +33,29 @@ export default function NewProductPage() {
     const [uploading, setUploading] = useState(false)
     const [agents, setAgents] = useState<{ id: string, name: string }[]>([])
     const [currency, setCurrency] = useState('USD')
+    const [analyzing, setAnalyzing] = useState(false)
+    const [analysisResult, setAnalysisResult] = useState<any>(null)
 
     // Form Data
     const [formData, setFormData] = useState({
         // Basics
         name: '',
-        price_fcfa: '' as string | number, // Allow empty string for input
-        image_url: '',
+        price_fcfa: '' as string | number,
+        images: [] as string[], // Multi-images support (up to 10)
+        image_url: '', // Legacy support
         category: '',
         is_available: true,
         agent_id: '',
 
         // Details
-        short_pitch: '', // Hook (max 150 chars)
-        description: '', // Full description
+        description: '', // Main description (cleaned by AI)
+        content_included: [] as string[], // What's included in the product
         features: [] as string[], // Tags list
         variants: [] as VariantGroup[],
 
         // Strategy
-        marketing_tags: [] as string[], // Selling points
-        related_product_ids: [] as string[], // Cross sell
+        marketing_tags: [] as string[],
+        related_product_ids: [] as string[],
 
         // Defaults
         product_type: 'product',
@@ -61,6 +64,7 @@ export default function NewProductPage() {
     })
 
     const [featureInput, setFeatureInput] = useState('')
+    const [contentInput, setContentInput] = useState('')
 
     const supabase = createBrowserClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -89,6 +93,13 @@ export default function NewProductPage() {
 
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files || e.target.files.length === 0) return
+
+        // Check max images limit
+        if (formData.images.length >= 10) {
+            alert('Maximum 10 images autorisées')
+            return
+        }
+
         setUploading(true)
         try {
             const file = e.target.files[0]
@@ -109,12 +120,28 @@ export default function NewProductPage() {
                 .from('images')
                 .getPublicUrl(filePath)
 
-            setFormData({ ...formData, image_url: publicUrl.publicUrl })
+            // Add to images array
+            setFormData(prev => ({
+                ...prev,
+                images: [...prev.images, publicUrl.publicUrl],
+                image_url: prev.image_url || publicUrl.publicUrl // Keep legacy support (first image)
+            }))
         } catch (error: any) {
-            alert(`Erreur upload: ${error.message || 'Vérifiez que le bucket "files" existe dans Supabase Storage'}`)
+            alert(`Erreur upload: ${error.message || 'Erreur de téléchargement'}`)
         } finally {
             setUploading(false)
         }
+    }
+
+    const removeImage = (index: number) => {
+        setFormData(prev => {
+            const newImages = prev.images.filter((_, i) => i !== index)
+            return {
+                ...prev,
+                images: newImages,
+                image_url: newImages[0] || '' // First image or empty
+            }
+        })
     }
 
     const addFeature = () => {
@@ -253,34 +280,90 @@ export default function NewProductPage() {
                             </div>
                         </div>
 
-                        {/* Image Upload */}
-                        <div style={{ display: 'flex', justifyContent: 'center' }}>
-                            <div
-                                onClick={() => fileInputRef.current?.click()}
-                                style={{
-                                    width: 120,
-                                    height: 120,
-                                    borderRadius: 20,
-                                    border: '2px dashed rgba(148, 163, 184, 0.2)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    cursor: 'pointer',
-                                    overflow: 'hidden',
-                                    background: 'rgba(30, 41, 59, 0.5)',
-                                    position: 'relative'
-                                }}
-                            >
-                                {formData.image_url ? (
-                                    <img src={formData.image_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                ) : (
-                                    <div style={{ textAlign: 'center' }}>
-                                        {uploading ? <Loader2 size={24} className="animate-spin text-emerald-500" /> : <ImageIcon size={24} color="#64748b" />}
-                                        <div style={{ fontSize: 10, color: '#64748b', marginTop: 4 }}>PHOTO</div>
+                        {/* Multi-Image Upload Gallery */}
+                        <div>
+                            <label style={labelStyle}>Images du produit ({formData.images.length}/10)</label>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 8 }}>
+                                {/* Existing images */}
+                                {formData.images.map((img, index) => (
+                                    <div key={index} style={{
+                                        width: 100,
+                                        height: 100,
+                                        borderRadius: 12,
+                                        overflow: 'hidden',
+                                        position: 'relative',
+                                        border: index === 0 ? '2px solid #10b981' : '1px solid rgba(148, 163, 184, 0.2)'
+                                    }}>
+                                        <img src={img} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                        {index === 0 && (
+                                            <div style={{
+                                                position: 'absolute',
+                                                bottom: 0,
+                                                left: 0,
+                                                right: 0,
+                                                background: 'rgba(16, 185, 129, 0.9)',
+                                                fontSize: 9,
+                                                textAlign: 'center',
+                                                padding: 2,
+                                                color: 'white'
+                                            }}>Principal</div>
+                                        )}
+                                        <button
+                                            type="button"
+                                            onClick={() => removeImage(index)}
+                                            style={{
+                                                position: 'absolute',
+                                                top: 4,
+                                                right: 4,
+                                                width: 22,
+                                                height: 22,
+                                                borderRadius: '50%',
+                                                background: 'rgba(239, 68, 68, 0.9)',
+                                                border: 'none',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center'
+                                            }}
+                                        >
+                                            <X size={12} color="white" />
+                                        </button>
+                                    </div>
+                                ))}
+
+                                {/* Add image button */}
+                                {formData.images.length < 10 && (
+                                    <div
+                                        onClick={() => fileInputRef.current?.click()}
+                                        style={{
+                                            width: 100,
+                                            height: 100,
+                                            borderRadius: 12,
+                                            border: '2px dashed rgba(148, 163, 184, 0.3)',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            cursor: 'pointer',
+                                            background: 'rgba(30, 41, 59, 0.5)',
+                                            transition: 'all 0.2s'
+                                        }}
+                                    >
+                                        {uploading ? (
+                                            <Loader2 size={24} className="animate-spin text-emerald-500" />
+                                        ) : (
+                                            <>
+                                                <Plus size={24} color="#64748b" />
+                                                <div style={{ fontSize: 10, color: '#64748b', marginTop: 4 }}>Ajouter</div>
+                                            </>
+                                        )}
                                     </div>
                                 )}
                                 <input ref={fileInputRef} type="file" onChange={handleImageUpload} className="hidden" accept="image/*" />
                             </div>
+                            <p style={{ fontSize: 11, color: '#64748b', marginTop: 8 }}>
+                                La première image sera l'image principale affichée
+                            </p>
                         </div>
 
                         <div>
@@ -344,21 +427,147 @@ export default function NewProductPage() {
             case 1: // DETAILS
                 return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                        {/* Description with AI Analysis */}
                         <div>
-                            <label style={labelStyle}>Pitch Commercial (Court)</label>
-                            <input
-                                type="text"
-                                value={formData.short_pitch}
-                                onChange={e => setFormData({ ...formData, short_pitch: e.target.value })}
-                                maxLength={150}
-                                placeholder="Ex: L'élégance ultime pour votre salon."
-                                style={inputStyle}
+                            <label style={labelStyle}>Description du produit</label>
+                            <p style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8 }}>
+                                Décrivez librement votre produit. L'IA extraira automatiquement les informations structurées.
+                            </p>
+                            <textarea
+                                value={formData.description}
+                                onChange={e => setFormData({ ...formData, description: e.target.value })}
+                                placeholder="Ex: Office 2021 Pro à 25000F, inclut Word, Excel, PowerPoint. Licence à vie, activation en ligne. Idéal pour les professionnels et étudiants."
+                                style={{ ...inputStyle, minHeight: 120, fontFamily: 'inherit' }}
+                                maxLength={500}
                             />
-                            <div style={{ textAlign: 'right', fontSize: 11, color: '#64748b', marginTop: 4 }}>
-                                {formData.short_pitch.length}/150
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
+                                <button
+                                    type="button"
+                                    onClick={async () => {
+                                        if (!formData.description || formData.description.length < 10) {
+                                            alert('Description trop courte (min 10 caractères)')
+                                            return
+                                        }
+                                        setAnalyzing(true)
+                                        try {
+                                            const res = await fetch('/api/ai/extract-product-data', {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({
+                                                    description: formData.description,
+                                                    existingData: {
+                                                        price: formData.price_fcfa,
+                                                        features: formData.features,
+                                                        content_included: formData.content_included,
+                                                        variants: formData.variants
+                                                    }
+                                                })
+                                            })
+                                            const data = await res.json()
+                                            if (data.success) {
+                                                setAnalysisResult(data.data)
+                                                // Auto-apply extracted data
+                                                const extracted = data.data.extracted
+                                                setFormData(prev => ({
+                                                    ...prev,
+                                                    description: data.data.cleaned_description || prev.description,
+                                                    price_fcfa: extracted.price || prev.price_fcfa,
+                                                    content_included: [...new Set([...prev.content_included, ...(extracted.content_included || [])])],
+                                                    features: [...new Set([...prev.features, ...(extracted.tags || [])])]
+                                                }))
+                                            } else {
+                                                alert(data.error || 'Erreur d\'analyse')
+                                            }
+                                        } catch (e) {
+                                            alert('Erreur de connexion')
+                                        } finally {
+                                            setAnalyzing(false)
+                                        }
+                                    }}
+                                    disabled={analyzing}
+                                    style={{
+                                        padding: '8px 16px',
+                                        borderRadius: 8,
+                                        border: '1px solid rgba(168, 85, 247, 0.3)',
+                                        background: analyzing ? 'rgba(168, 85, 247, 0.1)' : 'rgba(168, 85, 247, 0.2)',
+                                        color: '#d8b4fe',
+                                        cursor: analyzing ? 'wait' : 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 8,
+                                        fontSize: 13
+                                    }}
+                                >
+                                    {analyzing ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                                    {analyzing ? 'Analyse...' : '🔍 Analyser & Corriger'}
+                                </button>
+                                <span style={{ fontSize: 11, color: '#64748b' }}>{formData.description.length}/500</span>
+                            </div>
+
+                            {/* Show analysis result */}
+                            {analysisResult && (
+                                <div style={{ marginTop: 12, padding: 12, background: 'rgba(16, 185, 129, 0.1)', borderRadius: 8, border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                                    <div style={{ fontSize: 12, color: '#34d399', marginBottom: 8 }}>✅ Données extraites et appliquées</div>
+                                    {analysisResult.warnings?.length > 0 && (
+                                        <div style={{ fontSize: 11, color: '#fbbf24' }}>⚠️ {analysisResult.warnings.join(', ')}</div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Content Included */}
+                        <div>
+                            <label style={labelStyle}>Contenu inclus</label>
+                            <p style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8 }}>
+                                Listez ce qui est inclus dans le produit (pour logiciels, packs, etc.)
+                            </p>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+                                {formData.content_included.map((c, i) => (
+                                    <span key={i} style={{
+                                        padding: '4px 12px',
+                                        background: 'rgba(59, 130, 246, 0.1)',
+                                        border: '1px solid rgba(59, 130, 246, 0.2)',
+                                        borderRadius: 20,
+                                        fontSize: 12,
+                                        color: '#60a5fa',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 6
+                                    }}>
+                                        {c}
+                                        <X size={12} style={{ cursor: 'pointer' }} onClick={() => setFormData(p => ({ ...p, content_included: p.content_included.filter((_, idx) => idx !== i) }))} />
+                                    </span>
+                                ))}
+                            </div>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                                <input
+                                    type="text"
+                                    value={contentInput}
+                                    onChange={e => setContentInput(e.target.value)}
+                                    onKeyDown={e => {
+                                        if (e.key === 'Enter' && contentInput.trim()) {
+                                            setFormData(p => ({ ...p, content_included: [...p.content_included, contentInput.trim()] }))
+                                            setContentInput('')
+                                        }
+                                    }}
+                                    placeholder="Ex: Word, Excel, PowerPoint..."
+                                    style={inputStyle}
+                                />
+                                <button
+                                    onClick={() => {
+                                        if (contentInput.trim()) {
+                                            setFormData(p => ({ ...p, content_included: [...p.content_included, contentInput.trim()] }))
+                                            setContentInput('')
+                                        }
+                                    }}
+                                    style={{ ...buttonSecondaryStyle, padding: '0 16px' }}
+                                >
+                                    <Plus size={20} />
+                                </button>
                             </div>
                         </div>
 
+                        {/* Tags/Features */}
                         <div>
                             <label style={labelStyle}>Caractéristiques (Tags)</label>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
@@ -385,7 +594,7 @@ export default function NewProductPage() {
                                     value={featureInput}
                                     onChange={e => setFeatureInput(e.target.value)}
                                     onKeyDown={e => e.key === 'Enter' && addFeature()}
-                                    placeholder="Ex: Bio, Fait main, Taille L, Couleur Rouge..."
+                                    placeholder="Ex: Bio, Artisanal, Garantie 2 ans..."
                                     style={inputStyle}
                                 />
                                 <button onClick={addFeature} style={{ ...buttonSecondaryStyle, padding: '0 16px' }}>
@@ -394,6 +603,7 @@ export default function NewProductPage() {
                             </div>
                         </div>
 
+                        {/* Variants */}
                         <div style={{
                             padding: 20,
                             background: 'rgba(30, 41, 59, 0.3)',
@@ -401,13 +611,12 @@ export default function NewProductPage() {
                             border: '1px solid rgba(148, 163, 184, 0.1)'
                         }}>
                             <h3 style={{ fontSize: 14, fontWeight: 600, color: 'white', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <Layers size={16} className="text-blue-400" /> Variantes
+                                <Layers size={16} className="text-blue-400" /> Variantes (Optionnel)
                             </h3>
-                            {/* Integrating existing component but wrapped gently */}
                             <ProductVariantsEditor
                                 variants={formData.variants}
                                 onChange={v => setFormData({ ...formData, variants: v })}
-                                currency={currency}
+                                currencySymbol={currency}
                             />
                         </div>
                     </div>
