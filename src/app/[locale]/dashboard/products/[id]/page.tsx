@@ -358,7 +358,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                             <ProductVariantsEditor
                                 variants={formData.variants}
                                 onChange={v => setFormData({ ...formData, variants: v })}
-                                currency={currency}
+                                currencySymbol={currency}
                             />
                         </div>
                     </motion.div>
