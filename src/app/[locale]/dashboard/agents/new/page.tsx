@@ -1122,6 +1122,31 @@ Règles:
                 )
 
             case 6: // WHATSAPP
+                // If agent not created yet, show prompt to create it
+                if (!createdAgent) {
+                    return (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24, padding: 40, textAlign: 'center' }}>
+                            <div style={{
+                                width: 80,
+                                height: 80,
+                                borderRadius: 20,
+                                background: 'rgba(251, 191, 36, 0.1)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                            }}>
+                                <AlertCircle style={{ width: 40, height: 40, color: '#fbbf24' }} />
+                            </div>
+                            <h3 style={{ fontSize: 20, fontWeight: 600, color: 'white' }}>
+                                Créez d'abord votre agent
+                            </h3>
+                            <p style={{ color: '#94a3b8', maxWidth: 400 }}>
+                                Cliquez sur le bouton <strong style={{ color: '#10b981' }}>"Créer l'agent"</strong> en bas de page pour finaliser la configuration, puis vous pourrez connecter WhatsApp.
+                            </p>
+                        </div>
+                    )
+                }
+
                 return (
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24, padding: 20 }}>
                         {whatsappStatus === 'idle' && (
