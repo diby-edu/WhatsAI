@@ -503,22 +503,38 @@ Règles:
         }
     }
 
-    // Poll for connection status
+    // Poll for connection status after QR is shown
     useEffect(() => {
         if (whatsappStatus !== 'qr_ready' || !createdAgent) return
+
+        console.log('[DEBUG] Starting connection polling...')
+
         const interval = setInterval(async () => {
             try {
                 const response = await fetch(`/api/whatsapp/connect?agentId=${createdAgent.id}`)
                 const data = await response.json()
-                if (data.status === 'connected') {
+
+                // FIX: API returns { data: { status, qrCode, phoneNumber } }
+                const status = data.data?.status || data.status
+                const newQrCode = data.data?.qrCode || data.qrCode
+                const phoneNumber = data.data?.phoneNumber || data.phoneNumber
+
+                console.log('[DEBUG] Poll result - status:', status, 'hasQR:', !!newQrCode)
+
+                if (status === 'connected') {
+                    console.log('[DEBUG] Connected! Phone:', phoneNumber)
                     setWhatsappStatus('connected')
-                    setConnectedPhone(data.phoneNumber)
+                    setConnectedPhone(phoneNumber || '')
                     clearInterval(interval)
-                } else if (data.qrCode && data.qrCode !== qrCode) {
-                    setQrCode(data.qrCode)
+                } else if (newQrCode && newQrCode !== qrCode) {
+                    console.log('[DEBUG] New QR code received')
+                    setQrCode(newQrCode)
                 }
-            } catch (err) { console.error(err) }
+            } catch (err) {
+                console.error('[ERROR] Polling error:', err)
+            }
         }, 3000)
+
         return () => clearInterval(interval)
     }, [whatsappStatus, createdAgent, qrCode])
 
