@@ -289,13 +289,16 @@ Règles:
         }
     }
 
-    // GPS Helper
+    // GPS Helper with better error handling
+    const [gpsLoading, setGpsLoading] = useState(false)
+
     const getLocation = () => {
         if (!navigator.geolocation) {
             alert("La géolocalisation n'est pas supportée par votre navigateur")
             return
         }
 
+        setGpsLoading(true)
         navigator.geolocation.getCurrentPosition(
             (pos) => {
                 setFormData(prev => ({
@@ -303,18 +306,30 @@ Règles:
                     latitude: pos.coords.latitude.toString(),
                     longitude: pos.coords.longitude.toString()
                 }))
+                setGpsLoading(false)
             },
             (err) => {
+                setGpsLoading(false)
                 let msg = "Impossible de récupérer la position."
-                if (err.code === 1) msg = "Accès refusé. Veuillez autoriser la localisation dans votre navigateur (🔒)."
-                if (err.code === 2) msg = "Position indisponible."
-                if (err.code === 3) msg = "Délai d'attente dépassé."
-                alert(`Erreur GPS (${err.code}): ${msg}`)
+                let action = ""
+                switch (err.code) {
+                    case 1:
+                        msg = "Accès refusé."
+                        action = "\n\n💡 Conseil: Cliquez sur l'icône de cadenas dans la barre d'adresse, puis autorisez 'Localisation'."
+                        break
+                    case 2:
+                        msg = "Position indisponible (vérifiez votre connexion ou GPS)."
+                        break
+                    case 3:
+                        msg = "Délai d'attente dépassé. Réessayez."
+                        break
+                }
+                alert(`❌ Erreur GPS: ${msg}${action}`)
             },
             {
-                enableHighAccuracy: true,
-                timeout: 5000,
-                maximumAge: 0
+                enableHighAccuracy: false, // Lower accuracy for faster response
+                timeout: 10000, // 10 seconds
+                maximumAge: 60000 // Accept cached position up to 1 minute old
             }
         )
     }
@@ -351,8 +366,16 @@ Règles:
         }
     }
 
-    // Create agent via API
+    // Create agent via API - with duplicate prevention
     const handleCreateAgent = async () => {
+        // Prevent duplicate clicks
+        if (loading || createdAgent) {
+            if (createdAgent) {
+                setCurrentStep(6) // Just move to WhatsApp step
+            }
+            return
+        }
+
         setLoading(true)
         setError(null)
 
@@ -387,7 +410,13 @@ Règles:
                 throw new Error(data.error || 'Erreur lors de la création')
             }
 
-            setCreatedAgent(data.agent)
+            // FIX: API returns { data: { agent } } via successResponse
+            const agent = data.data?.agent || data.agent
+            if (!agent) {
+                throw new Error('Agent non retourné par le serveur')
+            }
+
+            setCreatedAgent(agent)
             setCurrentStep(6) // Move to WhatsApp step
         } catch (err) {
             setError((err as Error).message)
@@ -657,8 +686,44 @@ Règles:
                 )
 
             case 1: // HOURS
+                const set24_7 = () => {
+                    const allOpen: typeof formData.business_hours = {
+                        monday: { open: '00:00', close: '23:59', closed: false },
+                        tuesday: { open: '00:00', close: '23:59', closed: false },
+                        wednesday: { open: '00:00', close: '23:59', closed: false },
+                        thursday: { open: '00:00', close: '23:59', closed: false },
+                        friday: { open: '00:00', close: '23:59', closed: false },
+                        saturday: { open: '00:00', close: '23:59', closed: false },
+                        sunday: { open: '00:00', close: '23:59', closed: false }
+                    }
+                    setFormData({ ...formData, business_hours: allOpen })
+                }
+
                 return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        {/* 24/7 Quick Toggle */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 16, background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: 12, marginBottom: 8 }}>
+                            <div>
+                                <span style={{ fontWeight: 600, color: '#10b981' }}>🌐 Ouvert 24h/24, 7j/7</span>
+                                <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>Service disponible en permanence</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={set24_7}
+                                style={{
+                                    padding: '8px 16px',
+                                    background: '#10b981',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: 8,
+                                    fontWeight: 600,
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Appliquer
+                            </button>
+                        </div>
+
                         {Object.entries(formData.business_hours).map(([day, hours]) => (
                             <div key={day} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 12, background: 'rgba(30, 41, 59, 0.3)', borderRadius: 8 }}>
                                 <span style={{ textTransform: 'capitalize', color: 'white', width: 100 }}>{t(`WeekDays.${day}`)}</span>
@@ -832,8 +897,26 @@ Règles:
                             <textarea
                                 value={formData.custom_rules}
                                 onChange={(e) => updateFormData('custom_rules', e.target.value)}
-                                placeholder="- Livraison gratuite > 50.000 FCFA..."
-                                rows={8}
+                                placeholder={`Exemples de règles que l'IA doit respecter:
+
+📦 LIVRAISON:
+- Livraison gratuite à partir de 50.000 FCFA
+- Zones de livraison: Abidjan uniquement
+- Délai de livraison: 24-48h
+
+💳 PAIEMENT:
+- Paiement à la livraison accepté
+- Mobile Money préféré (Orange, MTN, Wave)
+- Pas de carte bancaire
+
+🚫 RESTRICTIONS:
+- Pas de remboursement sur articles soldés
+- Échange uniquement dans les 48h
+- Quantité max par commande: 5 articles
+
+📞 ESCALADE:
+- Renvoyer vers le support au +225 07 XX XX XX XX si problème complexe`}
+                                rows={10}
                                 style={{ ...inputStyle, resize: 'none', fontFamily: 'monospace' }}
                             />
                         </div>
@@ -849,10 +932,10 @@ Règles:
                         }}>
                             <div>
                                 <h4 style={{ color: conflictStatus === 'conflict' ? '#fca5a5' : '#6ee7b7', fontWeight: 600, marginBottom: 4 }}>
-                                    {conflictStatus === 'conflict' ? 'Conflit Détecté' : 'Vérification de cohérence'}
+                                    {conflictStatus === 'conflict' ? '⚠️ Conflit Détecté' : '🛡️ Vérification de cohérence'}
                                 </h4>
                                 <p style={{ fontSize: 13, color: '#94a3b8' }}>
-                                    {conflictStatus === 'conflict' ? conflictReason : "L'IA vérifie si vos règles contredisent les horaires."}
+                                    {conflictStatus === 'conflict' ? conflictReason : "L'IA analyse si vos règles sont cohérentes avec les horaires, l'adresse et les autres paramètres du wizard."}
                                 </p>
                             </div>
                             <button
