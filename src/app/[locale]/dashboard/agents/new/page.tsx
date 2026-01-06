@@ -406,19 +406,40 @@ Règles:
 
             const data = await response.json()
 
+            // DEBUG: Log the full response to understand structure
+            console.log('[DEBUG] Agent creation response:', JSON.stringify(data, null, 2))
+
             if (!response.ok) {
                 throw new Error(data.error || 'Erreur lors de la création')
             }
 
-            // FIX: API returns { data: { agent } } via successResponse
-            const agent = data.data?.agent || data.agent
-            if (!agent) {
-                throw new Error('Agent non retourné par le serveur')
+            // FIX: Handle multiple possible response structures
+            // API returns { data: { agent: {...} } } via successResponse
+            // But sometimes might return { agent: {...} } or just {...}
+            let agent = null
+            if (data.data?.agent) {
+                agent = data.data.agent
+            } else if (data.agent) {
+                agent = data.agent
+            } else if (data.data && typeof data.data === 'object' && data.data.id) {
+                // In case the agent is returned directly as data.data
+                agent = data.data
+            } else if (data.id) {
+                // In case the agent is returned at root level
+                agent = data
+            }
+
+            console.log('[DEBUG] Extracted agent:', agent)
+
+            if (!agent || !agent.id) {
+                console.error('[ERROR] Agent extraction failed. Full response:', data)
+                throw new Error('Agent non retourné correctement par le serveur')
             }
 
             setCreatedAgent(agent)
             setCurrentStep(6) // Move to WhatsApp step
         } catch (err) {
+            console.error('[ERROR] Agent creation error:', err)
             setError((err as Error).message)
         } finally {
             setLoading(false)
