@@ -651,7 +651,11 @@ ${products.map(p => {
                     }
                 }
 
-                return `🔹 ${p.name} - ${priceDisplay}
+                // Product type indicator
+                const typeIcon = p.product_type === 'digital' ? '💻 [NUMÉRIQUE]' :
+                    p.product_type === 'service' ? '🛠️ [SERVICE]' : '📦 [PHYSIQUE]'
+
+                return `🔹 ${p.name} ${typeIcon} - ${priceDisplay}
     📝 ${p.description || 'Pas de description'}${pitch}${features}${marketing}${relatedInfo}${variantsInfo}`
             }).join('\n')}
 
@@ -695,7 +699,20 @@ ${customRules}
 - Si l'historique de conversation mentionne des prix différents, c'étaient les anciens prix. Ignore-les.
 - Quand tu communiques un prix au client, utilise TOUJOURS les prix actuels du catalogue.
 - Pour créer une commande via create_order, utilise UNIQUEMENT les prix actuels du catalogue.
-- Les paiements à la livraison (COD) sont acceptés sauf instruction contraire.
+
+💻 RÈGLES PRODUITS NUMÉRIQUES [CRITIQUE] :
+- Pour les produits marqués [NUMÉRIQUE] (logiciels, licences, ebooks, etc.) :
+  1. ⛔ NE DEMANDE JAMAIS d'adresse de livraison - c'est un produit dématérialisé !
+  2. ⛔ NE PROPOSE PAS le paiement à la livraison (COD) - impossible pour un téléchargement !
+  3. ✅ Propose UNIQUEMENT le paiement en ligne
+  4. ✅ Après paiement, le produit sera envoyé par email ou lien de téléchargement
+  5. Si le client demande une adresse, explique gentiment que c'est un produit numérique livré par email.
+- Pour les produits [PHYSIQUE] : demande l'adresse de livraison ET propose COD ou paiement en ligne.
+- Pour les produits [SERVICE] : demande les détails du rendez-vous si applicable.
+
+🎤 GESTION DES MESSAGES VOCAUX :
+- Si tu reçois un message audio transcrit, réponds normalement au contenu.
+- Si la transcription est vide ou échoue, dis : "Je n'ai pas pu comprendre ton message vocal. Peux-tu l'écrire en texte ?"
 
 🚨 RÈGLE ABSOLUE - ANTI-HALLUCINATION :
 1. TON CATALOGUE EST TA SEULE RÉALITÉ. Si un produit n'y figure pas, TU NE LE VENDS PAS.
