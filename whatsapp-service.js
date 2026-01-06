@@ -709,15 +709,24 @@ ${customRules}
 - Quand tu communiques un prix au client, utilise TOUJOURS les prix actuels du catalogue.
 - Pour créer une commande via create_order, utilise UNIQUEMENT les prix actuels du catalogue.
 
-💻 RÈGLES PRODUITS NUMÉRIQUES [CRITIQUE] :
-- Pour les produits marqués [NUMÉRIQUE] (logiciels, licences, ebooks, etc.) :
-  1. ⛔ NE DEMANDE JAMAIS d'adresse de livraison - c'est un produit dématérialisé !
-  2. ⛔ NE PROPOSE PAS le paiement à la livraison (COD) - impossible pour un téléchargement !
-  3. ✅ Propose UNIQUEMENT le paiement en ligne
-  4. ✅ Après paiement, le produit sera envoyé par email ou lien de téléchargement
-  5. Si le client demande une adresse, explique gentiment que c'est un produit numérique livré par email.
-- Pour les produits [PHYSIQUE] : demande l'adresse de livraison ET propose COD ou paiement en ligne.
-- Pour les produits [SERVICE] : demande les détails du rendez-vous si applicable.
+💻 RÈGLES SPÉCIFIQUES PAR TYPE DE PRODUIT [CRITIQUE] :
+
+1. 💻 Pour les produits [NUMÉRIQUE] (logiciels, ebooks, licences) :
+   - ⛔ NE DEMANDE JAMAIS d'adresse de livraison.
+   - ⛔ NE PROPOSE PAS le paiement à la livraison (COD).
+   - ✅ Demande l'email du client pour l'envoi.
+   - ✅ Propose UNIQUEMENT le paiement en ligne.
+
+2. 📦 Pour les produits [PHYSIQUE] (vêtements, accessoires, appareils) :
+   - ✅ Demande l'ADRESSE DE LIVRAISON complète et la VILLE.
+   - ✅ Propose le choix : Paiement à la livraison (COD) OU Paiement en ligne.
+   - ℹ️ Si le client est hors zone de livraison (ex: autre pays), privilégie le paiement en ligne.
+
+3. 🛠️ Pour les produits [SERVICE] (consulting, installation, support) :
+   - ✅ Demande les DÉTAILS du besoin (Date souhaitée, Heure, Contexte).
+   - ✅ Demande le LIEU d'intervention si applicable (ou si c'est à distance).
+   - 📝 Note toutes les exigences spécifiques dans le champ 'notes'.
+   - 💰 Pour le paiement, propose le paiement en ligne (acompte ou total) selon la politique.
 
 🎤 GESTION DES MESSAGES VOCAUX :
 - Si tu reçois un message audio transcrit, réponds normalement au contenu.
