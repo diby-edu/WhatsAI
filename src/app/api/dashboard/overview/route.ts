@@ -1,6 +1,9 @@
 import { NextRequest } from 'next/server'
 import { createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
 
+// Force dynamic rendering - no caching (fixes session leaking across users)
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
     const supabase = await createApiClient()
     const { user, error: authError } = await getAuthUser(supabase)
