@@ -30,13 +30,15 @@ import {
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 
-// Wizard Steps
+// Wizard Steps - Matching the new wizard design
 const STEPS = [
-    { id: 'identity', title: 'Identité', icon: MapPin },
-    { id: 'availability', title: 'Horaires', icon: Clock },
-    { id: 'personality', title: 'Personnalité', icon: Zap },
+    { id: 'info', title: 'Identité', icon: MapPin },
+    { id: 'hours', title: 'Horaires', icon: Clock },
+    { id: 'mission', title: 'Mission', icon: Zap },
+    { id: 'personality', title: 'Personnalité', icon: MessagesSquare },
     { id: 'rules', title: 'Règles', icon: Shield },
-    { id: 'connect', title: 'Connexion', icon: QrCode }
+    { id: 'settings', title: 'Paramètres', icon: Settings },
+    { id: 'connect', title: 'WhatsApp', icon: QrCode }
 ]
 
 export default function AgentWizardPage({ params }: { params: Promise<{ id: string }> }) {
@@ -260,7 +262,7 @@ export default function AgentWizardPage({ params }: { params: Promise<{ id: stri
         const step = STEPS[currentStep].id
 
         switch (step) {
-            case 'identity':
+            case 'info':
                 return (
                     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
                         <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
@@ -372,7 +374,7 @@ export default function AgentWizardPage({ params }: { params: Promise<{ id: stri
                     </motion.div>
                 )
 
-            case 'availability':
+            case 'hours':
                 return (
                     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
                         <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
@@ -386,6 +388,26 @@ export default function AgentWizardPage({ params }: { params: Promise<{ id: stri
                                 onChange={e => setFormData({ ...formData, business_hours: e.target.value })}
                                 className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-4 text-white font-mono h-48 focus:ring-2 focus:ring-emerald-500 outline-none"
                                 placeholder={"Lundi - Vendredi : 08:00 - 18:00\nSamedi : 09:00 - 14:00\nDimanche : Fermé"}
+                            />
+                        </div>
+                    </motion.div>
+                )
+
+            case 'mission':
+                return (
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+                        <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
+                            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                                <Zap className="text-emerald-400" size={24} /> Mission & Instructions IA
+                            </h2>
+                            <p className="text-slate-400 mb-4 text-sm">
+                                Décrivez la mission de votre agent et ses instructions générales. C'est le "cerveau" de votre bot.
+                            </p>
+                            <textarea
+                                value={formData.system_prompt}
+                                onChange={e => setFormData({ ...formData, system_prompt: e.target.value })}
+                                className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-4 text-white font-mono h-64 focus:ring-2 focus:ring-emerald-500 outline-none"
+                                placeholder="Tu es l'assistant commercial de [Nom de l'entreprise]..."
                             />
                         </div>
                     </motion.div>
@@ -510,6 +532,62 @@ export default function AgentWizardPage({ params }: { params: Promise<{ id: stri
                                 >
                                     🛡️ Vérifier la cohérence
                                 </button>
+                            </div>
+                        </div>
+                    </motion.div>
+                )
+
+            case 'settings':
+                return (
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+                        <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
+                            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                                <Settings className="text-emerald-400" size={24} /> Paramètres Avancés
+                            </h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-slate-300 font-medium mb-1">Modèle IA</label>
+                                    <select
+                                        value={formData.model}
+                                        onChange={e => setFormData({ ...formData, model: e.target.value })}
+                                        className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white outline-none"
+                                    >
+                                        <option value="gpt-4o-mini">GPT-4o-mini (Rapide)</option>
+                                        <option value="gpt-4o">GPT-4o (Puissant)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-slate-300 font-medium mb-1">Température: {formData.temperature}</label>
+                                    <input
+                                        type="range"
+                                        min="0"
+                                        max="1"
+                                        step="0.1"
+                                        value={formData.temperature}
+                                        onChange={e => setFormData({ ...formData, temperature: parseFloat(e.target.value) })}
+                                        className="w-full accent-emerald-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-slate-300 font-medium mb-1">Langue</label>
+                                    <select
+                                        value={formData.language}
+                                        onChange={e => setFormData({ ...formData, language: e.target.value })}
+                                        className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white outline-none"
+                                    >
+                                        <option value="fr">Français</option>
+                                        <option value="en">Anglais</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-slate-300 font-medium mb-1">Max Tokens</label>
+                                    <input
+                                        type="number"
+                                        value={formData.max_tokens}
+                                        onChange={e => setFormData({ ...formData, max_tokens: parseInt(e.target.value) })}
+                                        className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white outline-none"
+                                    />
+                                </div>
                             </div>
                         </div>
                     </motion.div>
