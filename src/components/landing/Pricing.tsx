@@ -42,12 +42,12 @@ export default function Pricing() {
     const [loadingPlan, setLoadingPlan] = useState<string | null>(null)
     const [plans, setPlans] = useState<Plan[]>([])
 
-    // Define base plan structure with numeric values
+    // Define base plan structure with USD prices (for homepage/public pages)
     const planDefs = [
         { id: 'gratuit', key: 'free', price: 0, credits: 100, max_agents: 1, is_popular: false },
-        { id: 'starter', key: 'starter', price: 5000, credits: 500, max_agents: 2, is_popular: false },
-        { id: 'pro', key: 'pro', price: 15000, credits: 2000, max_agents: 5, is_popular: true },
-        { id: 'business', key: 'business', price: 35000, credits: 10000, max_agents: -1, is_popular: false }
+        { id: 'starter', key: 'starter', price: 10, credits: 500, max_agents: 2, is_popular: false },
+        { id: 'pro', key: 'pro', price: 25, credits: 2000, max_agents: 5, is_popular: true },
+        { id: 'business', key: 'business', price: 100, credits: 10000, max_agents: -1, is_popular: false }
     ]
 
     // Construct localized plans
@@ -318,7 +318,7 @@ export default function Pricing() {
                                             WebkitTextFillColor: 'transparent',
                                             backgroundClip: 'text'
                                         }}>
-                                            {price === 0 ? t('plans.free.name') : formatPrice(price)}
+                                            {price === 0 ? t('plans.free.name') : `$${price}`}
                                         </span>
                                         {price > 0 && (
                                             <span style={{ fontSize: 14, color: '#64748b' }}>
