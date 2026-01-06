@@ -140,37 +140,48 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files || e.target.files.length === 0) return
 
-        // Check max images limit
-        if (formData.images.length >= 10) {
+        const files = Array.from(e.target.files)
+        const remaining = 10 - formData.images.length
+
+        if (remaining <= 0) {
             alert('Maximum 10 images autorisées')
             return
         }
 
+        const filesToUpload = files.slice(0, remaining)
+        if (files.length > remaining) {
+            alert(`Seulement ${remaining} image(s) peuvent être ajoutées (max 10)`)
+        }
+
         setUploading(true)
         try {
-            const file = e.target.files[0]
-            const fileExt = file.name.split('.').pop()
-            const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`
-            const filePath = `products/${fileName}`
+            const uploadedUrls: string[] = []
 
-            const { error: uploadError } = await supabase.storage
-                .from('images')
-                .upload(filePath, file)
+            for (const file of filesToUpload) {
+                const fileExt = file.name.split('.').pop()
+                const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`
+                const filePath = `products/${fileName}`
 
-            if (uploadError) {
-                console.error('Upload error:', uploadError)
-                throw new Error(uploadError.message || 'Erreur de téléchargement')
+                const { error: uploadError } = await supabase.storage
+                    .from('images')
+                    .upload(filePath, file)
+
+                if (uploadError) {
+                    console.error('Upload error:', uploadError)
+                    continue
+                }
+
+                const { data: publicUrl } = supabase.storage
+                    .from('images')
+                    .getPublicUrl(filePath)
+
+                uploadedUrls.push(publicUrl.publicUrl)
             }
 
-            const { data: publicUrl } = supabase.storage
-                .from('images')
-                .getPublicUrl(filePath)
-
-            // Add to images array
             setFormData(prev => ({
                 ...prev,
-                images: [...prev.images, publicUrl.publicUrl],
-                image_url: prev.image_url || publicUrl.publicUrl
+                images: [...prev.images, ...uploadedUrls],
+                image_url: prev.image_url || uploadedUrls[0] || ''
             }))
         } catch (error: any) {
             alert(`Erreur upload: ${error.message || 'Erreur de téléchargement'}`)
@@ -300,7 +311,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                                             )}
                                         </div>
                                     )}
-                                    <input ref={fileInputRef} type="file" onChange={handleImageUpload} className="hidden" accept="image/*" />
+                                    <input ref={fileInputRef} type="file" onChange={handleImageUpload} className="hidden" accept="image/*" multiple />
                                 </div>
                                 <p className="text-xs text-slate-500">La première image sera l'image principale</p>
                             </div>
@@ -378,7 +389,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                                 onChange={e => setFormData({ ...formData, description: e.target.value })}
                                 placeholder="Ex: Office 2021 Pro à 25000F, inclut Word, Excel, PowerPoint. Licence à vie, activation en ligne."
                                 className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white outline-none min-h-[120px]"
-                                maxLength={500}
+                                maxLength={2000}
                             />
                             <div className="flex justify-between mt-2">
                                 <button
