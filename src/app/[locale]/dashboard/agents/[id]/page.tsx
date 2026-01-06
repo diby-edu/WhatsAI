@@ -41,14 +41,29 @@ const STEPS = [
     { id: 'whatsapp', title: 'WhatsApp', icon: Smartphone }
 ]
 
-export default function AgentWizardPage({ params }: { params: Promise<{ id: string }> }) {
+export default function AgentWizardPage({
+    params,
+    searchParams
+}: {
+    params: Promise<{ id: string }>,
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}) {
     const { id: agentId } = use(params)
+    const sp = use(searchParams)
     const router = useRouter()
-    const t = useTranslations('Agents') // We'll reuse existing keys where possible, hardcode new ones
+    const t = useTranslations('Agents')
 
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [currentStep, setCurrentStep] = useState(0)
+
+    // Handle deep linking to tabs
+    useEffect(() => {
+        if (sp?.tab === 'whatsapp') {
+            const whatsappIndex = STEPS.findIndex(s => s.id === 'whatsapp')
+            if (whatsappIndex !== -1) setCurrentStep(whatsappIndex)
+        }
+    }, [sp])
 
     // WhatsApp State
     const [whatsappStatus, setWhatsappStatus] = useState<'idle' | 'connecting' | 'qr_ready' | 'connected' | 'error'>('idle')
