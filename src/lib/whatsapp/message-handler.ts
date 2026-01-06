@@ -178,11 +178,11 @@ export function initializeMessageHandler() {
 
                 for (const toolCall of aiResponse.toolCalls) {
                     const func = (toolCall as any).function
+
                     if (func.name === 'create_booking') {
                         const args = JSON.parse(func.arguments)
                         console.log('📅 Creating booking:', args)
 
-                        // Insert into DB (Table 'bookings' created via SQL)
                         const { data: booking, error: bookingError } = await supabase
                             .from('bookings')
                             .insert({
@@ -197,12 +197,10 @@ export function initializeMessageHandler() {
                             .select()
                             .single()
 
-                        // Feed tool output back to AI
                         const toolOutput = bookingError
                             ? `Erreur lors de la réservation: ${bookingError.message}`
                             : `Réservation confirmée avec succès (ID: ${booking ? booking.id.substring(0, 8) : '?'}).`
 
-                        // Create a new conversation history with the tool output
                         const newHistory = [
                             ...conversationHistory.slice(0, -1),
                             { role: 'user', content: message.message },
@@ -210,25 +208,88 @@ export function initializeMessageHandler() {
                             { role: 'tool', tool_call_id: toolCall.id, content: toolOutput }
                         ]
 
-                        // Generate Logic Final Response
                         const finalAiResponse = await generateAIResponse({
                             model: agent.model || 'gpt-4o-mini',
                             temperature: agent.temperature || 0.7,
-                            maxTokens: 150, // Short confirmation
+                            maxTokens: 150,
                             systemPrompt: agent.system_prompt,
                             conversationHistory: newHistory as any[],
-                            userMessage: "Confirme la réservation au client.", // Trigger final confirmation
+                            userMessage: "Confirme la réservation au client.",
                             agentName: agent.name,
                             useEmojis: agent.use_emojis,
                             language: agent.language || 'fr',
-                            // GPS (Just in case)
                             businessAddress: agent.business_address,
                             businessHours: agent.business_hours,
                             latitude: agent.latitude,
                             longitude: agent.longitude
                         })
 
-                        // Override content with the final confirmation
+                        aiResponse.content = finalAiResponse.content
+
+                    } else if (func.name === 'create_order') {
+                        const args = JSON.parse(func.arguments)
+                        console.log('🛒 Creating order:', args)
+
+                        let total = 0
+                        if (args.items && Array.isArray(args.items)) {
+                            total = args.items.reduce((sum: number, item: any) => {
+                                return sum + ((item.unit_price || 0) * item.quantity)
+                            }, 0)
+                        }
+
+                        const { data: order, error: orderError } = await supabase
+                            .from('orders')
+                            .insert({
+                                user_id: agent.user_id,
+                                agent_id: agentId,
+                                customer_phone: message.from,
+                                customer_name: args.customer_name,
+                                delivery_address: args.delivery_address,
+                                notes: args.notes,
+                                total_fcfa: total,
+                                status: 'pending',
+                                conversation_id: conversation.id
+                            })
+                            .select()
+                            .single()
+
+                        if (order && args.items) {
+                            const orderItems = args.items.map((item: any) => ({
+                                order_id: order.id,
+                                product_name: item.product_name,
+                                quantity: item.quantity,
+                                unit_price_fcfa: item.unit_price || 0
+                            }))
+                            await supabase.from('order_items').insert(orderItems)
+                        }
+
+                        const toolOutput = orderError
+                            ? `Erreur commande: ${orderError.message}`
+                            : `Commande enregistrée (ID: ${order ? order.id.substring(0, 8) : '?'}, Total: ${total}).`
+
+                        const newHistory = [
+                            ...conversationHistory.slice(0, -1),
+                            { role: 'user', content: message.message },
+                            { role: 'assistant', content: aiResponse.content, tool_calls: aiResponse.toolCalls },
+                            { role: 'tool', tool_call_id: toolCall.id, content: toolOutput }
+                        ]
+
+                        const finalAiResponse = await generateAIResponse({
+                            model: agent.model || 'gpt-4o-mini',
+                            temperature: agent.temperature || 0.7,
+                            maxTokens: 150,
+                            systemPrompt: agent.system_prompt,
+                            conversationHistory: newHistory as any[],
+                            userMessage: "Confirme la commande au client.",
+                            agentName: agent.name,
+                            useEmojis: agent.use_emojis,
+                            language: agent.language || 'fr',
+                            businessAddress: agent.business_address,
+                            businessHours: agent.business_hours,
+                            latitude: agent.latitude,
+                            longitude: agent.longitude
+                        })
+
                         aiResponse.content = finalAiResponse.content
                     }
                 }

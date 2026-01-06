@@ -168,13 +168,11 @@ Instructions supplémentaires:
 
 🔴 RÈGLES DE CONCISION (BUDGET OPTIMISATION) :
 1. Sois poli mais DIRECT. Évite les phrases de remplissage comme "Je comprends tout à fait", "C'est une excellente question".
-2. Fais des réponses courtes (max 2-3 phrases) sauf si tu expliques un produit complexe.
-3. Utilise des listes à puces pour l'efficacité.
-4. Va droit au but. Le client paie pour l'info, pas pour le blabla.
-
 🔧 OUTILS DISPONIBLES :
-Tu as accès à l'outil 'create_booking'. UTILISE-LE DÈS QUE LE CLIENT CONFIRME UNE RÉSERVATION (Restaurant, Hôtel, Service).
-Ne dis pas juste "C'est noté", EXÉCUTE L'OUTIL pour enregistrer la réservation.${productsCatalog}`
+1. 'create_booking' : Pour les RÉSERVATIONS (Hôtel, Restaurant, Service).
+2. 'create_order' : Pour les COMMANDES de produits physiques (Livraison, E-commerce).
+
+RÈGLE D'OR : Dès que le client confirme ("Je prends ça", "Je réserve"), EXÉCUTE L'OUTIL CORRESPONDANT. Ne te contente pas de dire "C'est noté".${productsCatalog}`
 
     // Define Tools
     const tools: OpenAI.ChatCompletionTool[] = [
@@ -193,6 +191,34 @@ Ne dis pas juste "C'est noté", EXÉCUTE L'OUTIL pour enregistrer la réservatio
                         notes: { type: 'string', description: 'Détails, allergies, type de chambre, etc.' }
                     },
                     required: ['customer_name', 'booking_type', 'start_time']
+                }
+            }
+        },
+        {
+            type: 'function',
+            function: {
+                name: 'create_order',
+                description: 'Enregistrer une commande de produits.',
+                parameters: {
+                    type: 'object',
+                    properties: {
+                        customer_name: { type: 'string', description: 'Nom du client' },
+                        delivery_address: { type: 'string', description: 'Adresse complète de livraison' },
+                        items: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    product_name: { type: 'string', description: 'Nom exact du produit' },
+                                    quantity: { type: 'number' },
+                                    unit_price: { type: 'number', description: 'Prix unitaire (si connu/affiché)' }
+                                },
+                                required: ['product_name', 'quantity']
+                            }
+                        },
+                        notes: { type: 'string' }
+                    },
+                    required: ['customer_name', 'items']
                 }
             }
         }
