@@ -4,41 +4,41 @@ import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
+    Bot,
     ArrowLeft,
-    Save,
+    ArrowRight,
+    Check,
+    Target,
+    Sparkles,
+    Settings,
     Loader2,
     QrCode,
     Smartphone,
     CheckCircle2,
     AlertCircle,
     RefreshCw,
-    Settings,
+    Save,
     Trash2,
-    Book,
-    MapPin,
     Clock,
-    Phone,
-    Globe,
-    Facebook,
-    Mail,
-    MessagesSquare,
-    Zap,
     Shield,
+    MapPin,
+    Globe,
+    Phone,
     ChevronRight,
     ChevronLeft
 } from 'lucide-react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 
-// Wizard Steps - Matching the new wizard design
+// Wizard Steps - Matching the new wizard design exactly
 const STEPS = [
-    { id: 'info', title: 'Identité', icon: MapPin },
+    { id: 'info', title: 'Identité', icon: Bot },
     { id: 'hours', title: 'Horaires', icon: Clock },
-    { id: 'mission', title: 'Mission', icon: Zap },
-    { id: 'personality', title: 'Personnalité', icon: MessagesSquare },
+    { id: 'mission', title: 'Mission', icon: Target },
+    { id: 'personality', title: 'Personnalité', icon: Sparkles },
     { id: 'rules', title: 'Règles', icon: Shield },
     { id: 'settings', title: 'Paramètres', icon: Settings },
-    { id: 'connect', title: 'WhatsApp', icon: QrCode }
+    { id: 'whatsapp', title: 'WhatsApp', icon: Smartphone }
 ]
 
 export default function AgentWizardPage({ params }: { params: Promise<{ id: string }> }) {
@@ -398,7 +398,7 @@ export default function AgentWizardPage({ params }: { params: Promise<{ id: stri
                     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
                         <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
                             <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                                <Zap className="text-emerald-400" size={24} /> Mission & Instructions IA
+                                <Target className="text-emerald-400" size={24} /> Mission & Instructions IA
                             </h2>
                             <p className="text-slate-400 mb-4 text-sm">
                                 Décrivez la mission de votre agent et ses instructions générales. C'est le "cerveau" de votre bot.
@@ -593,7 +593,7 @@ export default function AgentWizardPage({ params }: { params: Promise<{ id: stri
                     </motion.div>
                 )
 
-            case 'connect':
+            case 'whatsapp':
                 return (
                     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6 text-center">
                         <div className="bg-slate-800/50 p-8 rounded-xl border border-slate-700/50 flex flex-col items-center">
