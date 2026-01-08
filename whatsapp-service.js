@@ -180,7 +180,7 @@ const TOOLS = [
         type: 'function',
         function: {
             name: 'check_payment_status',
-            description: 'Check the status of a specific order.',
+            description: 'Check the status of a specific order. If the user asks about "my order" or "the payment" without giving an ID, USE the most recent UUID found in the "Historique des Commandes" context.',
             parameters: {
                 type: 'object',
                 properties: {
@@ -758,7 +758,7 @@ ${customRules}
 
 ${orders && orders.length > 0 ? `
 Historique des Commandes du Client:
-${orders.map(o => `- Commande #${o.id.substring(0, 8)} (${new Date(o.created_at).toLocaleDateString()}): ${o.status === 'pending' ? 'En attente' : o.status === 'paid' ? 'Payée' : o.status} - ${o.total_fcfa} FCFA
+${orders.map(o => `- Commande ${o.id} (Ref: #${o.id.substring(0, 8)}) (${new Date(o.created_at).toLocaleDateString()}): ${o.status === 'pending' ? 'En attente' : o.status === 'paid' ? 'Payée' : o.status} - ${o.total_fcfa} FCFA
   Articles: ${o.items?.map(i => `${i.quantity}x ${i.product_name}`).join(', ')}`).join('\n')}
 ` : ''}
 
