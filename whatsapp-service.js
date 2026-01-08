@@ -1653,6 +1653,13 @@ async function checkPendingHistoryMessages() {
                             })
                             .eq('id', msg.id)
 
+                        // Update conversation last message (CRITICAL FOR UI)
+                        await supabase.from('conversations').update({
+                            last_message_text: msg.content.substring(0, 200),
+                            last_message_at: new Date().toISOString(),
+                            last_message_role: 'assistant'
+                        }).eq('id', msg.conversation_id)
+
                     } catch (sendError) {
                         console.error(`❌ Failed to send pending message to ${phoneNumber}:`, sendError)
                         await supabase
@@ -1668,61 +1675,6 @@ async function checkPendingHistoryMessages() {
     }
 }
 
-agent_id,
-    bot_paused
-                )
-`)
-            .eq('status', 'pending')
-            .eq('role', 'assistant') // Only send assistant messages (like payment confirmations)
-            .limit(10)
-
-        if (pendingMessages && pendingMessages.length > 0) {
-            console.log(`💬 Found ${ pendingMessages.length } pending assistant messages`)
-
-            for (const msg of pendingMessages) {
-                const agentId = msg.conversation.agent_id
-                const phoneNumber = msg.conversation.contact_phone
-                const session = activeSessions.get(agentId)
-
-                if (session && session.socket) {
-                    try {
-                        let jid = phoneNumber
-                        if (!jid.includes('@')) jid = jid.replace(/\D/g, '') + '@s.whatsapp.net'
-
-                        // Send message
-                        const result = await session.socket.sendMessage(jid, {
-                            text: msg.content
-                        })
-
-                        console.log(`✅ Message sent to ${ phoneNumber } (History Updated)`)
-
-                        // Update status to sent
-                        await supabase
-                            .from('messages')
-                            .update({
-                                status: 'sent',
-                                whatsapp_message_id: result.key.id
-                            })
-                            .eq('id', msg.id)
-
-                    } catch (sendError) {
-                        console.error(`❌ Failed to send pending message to ${ phoneNumber }: `, sendError)
-                        await supabase
-                            .from('messages')
-                            .update({ status: 'failed', error_message: sendError.message })
-                            .eq('id', msg.id)
-                    }
-                }
-            }
-        }
-    } catch (error) {
-        console.error('Error checking pending messages:', error)
-    }
-}
-
-// Check pending messages every 2 seconds
-setInterval(checkPendingMessages, 2000)
-
 // 📨 OUTBOUND MESSAGE QUEUE PROCESSING (Standalone)
 async function checkOutboundMessages() {
     try {
@@ -1732,8 +1684,15 @@ async function checkOutboundMessages() {
             .eq('status', 'pending')
             .limit(10)
 
+        if (error) {
+            // Table might not exist, skip silently
+            if (error.code === '42P01') return
+            console.error('Error checking outbound messages:', error)
+            return
+        }
+
         if (messages && messages.length > 0) {
-            console.log(`📨 Found ${ messages.length } pending outbound messages`)
+            console.log(`📨 Found ${messages.length} pending outbound messages`)
             for (const msg of messages) {
                 const session = activeSessions.get(msg.agent_id)
                 if (session && session.socket) {
@@ -1745,29 +1704,26 @@ async function checkOutboundMessages() {
                         await session.socket.sendMessage(jid, {
                             text: msg.message_content
                         })
-                        console.log(`✅ Outbound message sent to ${ msg.recipient_phone } `)
+                        console.log(`✅ Outbound message sent to ${msg.recipient_phone}`)
 
                         // Mark as sent
                         await supabase.from('outbound_messages')
                             .update({ status: 'sent', sent_at: new Date().toISOString() })
                             .eq('id', msg.id)
                     } catch (sendError) {
-                        console.error(`❌ Failed to send outbound to ${ msg.recipient_phone }: `, sendError)
+                        console.error(`❌ Failed to send outbound to ${msg.recipient_phone}:`, sendError)
                         await supabase.from('outbound_messages')
                             .update({ status: 'failed', error_log: sendError.message })
                             .eq('id', msg.id)
                     }
                 } else {
-                    console.log(`⚠️ Agent ${ msg.agent_id } offline, keeping in queue`)
+                    console.log(`⚠️ Agent ${msg.agent_id} offline, keeping in queue`)
                 }
             }
         }
     } catch (e) {
-        console.error('Error checking outbound queue:', e)
+        console.error('Error checking outbound messages:', e)
     }
 }
-
-// Check outbound messages every 5 seconds
-setInterval(checkOutboundMessages, 5000)
 
 main()
