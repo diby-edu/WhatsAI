@@ -32,7 +32,7 @@ TÂCHE: Analyse la description fournie et extrait les éléments dans le format 
     "price": null ou nombre (ex: 25000),
     "content_included": [] liste de strings (ex: ["Word", "Excel", "PowerPoint"]),
     "tags": [] liste de strings (ex: ["Bio", "Garantie", "Livraison rapide"]),
-    "variants": [] liste d'objets avec name et options (ex: [{"name": "Version", "options": ["Standard 1 PC", "Famille 5 PC"]}])
+    "variants": [] liste d'objets avec name et options (ex: [{"name": "Version", "options": [{"value": "Standard", "price_adjustment": 0}]}])
   },
   "cleaned_description": "description nettoyée sans prix ni éléments extraits",
   "warnings": [] liste de warnings si conflits détectés
@@ -42,7 +42,7 @@ RÈGLES:
 - Price: Extrait le premier prix mentionné en nombre seulement (pas de devise)
 - Content_included: Éléments/composants du produit (applications, accessoires inclus)
 - Tags: Caractéristiques et avantages (Bio, Artisanal, Garantie, Livraison rapide, etc.)
-- Variants: Options de produit (tailles, couleurs, versions comme "Standard 1 PC" / "Famille 5 PC")
+- Variants: Options de produit (structure stricte: {name: "Nom", options: [{value: "Option A", price_adjustment: 0}]}). Exemple options: [{value: "Standard", price_adjustment: 0}, {value: "Pro", price_adjustment: 5000}]
 - Cleaned_description: Ce qui reste de la description (usage, public cible, avantages généraux)
 - Si aucun élément trouvé, retourne un array vide [] pour les listes ou null pour price
 

@@ -25,11 +25,8 @@ async function main() {
     products.forEach((p, index) => {
         console.log(`\n--- PRODUCT #${index + 1} ---`)
         console.log('Name:', p.name)
-        console.log('ID:', p.id)
-        console.log('Image URL (single):', p.image_url)
-        console.log('Images Array (multi):', JSON.stringify(p.images))
-        console.log('Created At:', p.created_at)
-        console.log('User ID:', p.user_id)
+        console.log('VARIANTS (JSON COLUMN):')
+        console.log(JSON.stringify(p.variants, null, 2))
     })
 }
 
