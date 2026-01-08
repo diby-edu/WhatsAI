@@ -122,14 +122,12 @@ export async function POST(request: NextRequest) {
                             const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://whatsai.duckdns.org'
                             const confirmationMessage = `✅ *Paiement reçu !*\n\nMerci ! Votre paiement de ${order.total_fcfa?.toLocaleString('fr-FR')} FCFA pour la commande #${order.id.substring(0, 8)} a été confirmé.\n\n📦 Votre commande est maintenant en cours de traitement.\n\nMerci pour votre confiance ! 🙏`
 
-                            await fetch(`${baseUrl}/api/internal/send`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    agentId: order.agent_id,
-                                    to: order.customer_phone,
-                                    message: confirmationMessage
-                                })
+                            // Use outbound_messages for more reliability (picked up by whatsapp-service.js)
+                            await supabase.from('outbound_messages').insert({
+                                agent_id: order.agent_id,
+                                recipient_phone: order.customer_phone,
+                                message_content: confirmationMessage,
+                                status: 'pending'
                             })
                             console.log('📱 WhatsApp confirmation queued for:', order.customer_phone)
 

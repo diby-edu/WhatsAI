@@ -23,6 +23,7 @@ async function main() {
     const p = products[0]
     console.log('Product Found:', p.name)
     console.log('ID:', p.id)
+    console.log('Image URL:', p.image_url) // ADDED THIS
     console.log('Variants (Raw):', JSON.stringify(p.variants, null, 2))
     console.log('Type:', typeof p.variants)
     console.log('Length:', p.variants ? p.variants.length : 'N/A')
