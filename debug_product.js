@@ -20,13 +20,17 @@ async function main() {
         return
     }
 
-    const p = products[0]
-    console.log('Product Found:', p.name)
-    console.log('ID:', p.id)
-    console.log('Image URL:', p.image_url) // ADDED THIS
-    console.log('Variants (Raw):', JSON.stringify(p.variants, null, 2))
-    console.log('Type:', typeof p.variants)
-    console.log('Length:', p.variants ? p.variants.length : 'N/A')
+    console.log(`Found ${products.length} products matching search.`)
+
+    products.forEach((p, index) => {
+        console.log(`\n--- PRODUCT #${index + 1} ---`)
+        console.log('Name:', p.name)
+        console.log('ID:', p.id)
+        console.log('Image URL (single):', p.image_url)
+        console.log('Images Array (multi):', JSON.stringify(p.images))
+        console.log('Created At:', p.created_at)
+        console.log('User ID:', p.user_id)
+    })
 }
 
 main()
