@@ -1603,4 +1603,48 @@ const gracefulShutdown = async (signal) => {
 process.on('SIGINT', () => gracefulShutdown('SIGINT'))
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'))
 
+// 📨 OUTBOUND MESSAGE QUEUE PROCESSING
+async function checkOutboundQueue() {
+    try {
+        const { data: messages, error } = await supabase
+            .from('outbound_messages')
+            .select('*')
+            .eq('status', 'pending')
+            .limit(10)
+
+        if (messages && messages.length > 0) {
+            console.log(`📨 Found ${messages.length} pending outbound messages`)
+            for (const msg of messages) {
+                const session = activeSessions.get(msg.agent_id)
+                if (session && session.socket) {
+                    try {
+                        // Send text message
+                        await session.socket.sendMessage(msg.recipient_phone + '@s.whatsapp.net', {
+                            text: msg.message_content
+                        })
+                        console.log(`✅ Outbound message sent to ${msg.recipient_phone}`)
+
+                        // Mark as sent
+                        await supabase.from('outbound_messages')
+                            .update({ status: 'sent', sent_at: new Date().toISOString() })
+                            .eq('id', msg.id)
+                    } catch (sendError) {
+                        console.error(`❌ Failed to send outbound to ${msg.recipient_phone}:`, sendError)
+                        await supabase.from('outbound_messages')
+                            .update({ status: 'failed', error_log: sendError.message })
+                            .eq('id', msg.id)
+                    }
+                } else {
+                    console.log(`⚠️ Agent ${msg.agent_id} offline, keeping in queue`)
+                }
+            }
+        }
+    } catch (e) {
+        console.error('Error checking outbound queue:', e)
+    }
+}
+
+// Check queue every 5 seconds
+setInterval(checkOutboundQueue, 5000)
+
 main()
