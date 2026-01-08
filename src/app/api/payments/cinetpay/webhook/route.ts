@@ -122,14 +122,43 @@ export async function POST(request: NextRequest) {
                             const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://whatsai.duckdns.org'
                             const confirmationMessage = `✅ *Paiement reçu !*\n\nMerci ! Votre paiement de ${order.total_fcfa?.toLocaleString('fr-FR')} FCFA pour la commande #${order.id.substring(0, 8)} a été confirmé.\n\n📦 Votre commande est maintenant en cours de traitement.\n\nMerci pour votre confiance ! 🙏`
 
-                            // Use outbound_messages for more reliability (picked up by whatsapp-service.js)
-                            await supabase.from('outbound_messages').insert({
-                                agent_id: order.agent_id,
-                                recipient_phone: order.customer_phone,
-                                message_content: confirmationMessage,
-                                status: 'pending'
-                            })
-                            console.log('📱 WhatsApp confirmation queued for:', order.customer_phone)
+                            // 🎯 HYBRID ROUTING: Check for active conversation
+                            const { data: conversation } = await supabase
+                                .from('conversations')
+                                .select('id')
+                                .eq('agent_id', order.agent_id)
+                                .eq('contact_phone', order.customer_phone)
+                                .single()
+
+                            if (conversation) {
+                                // CASE 1: Conversation exists -> Insert into history (Smart)
+                                await supabase.from('messages').insert({
+                                    conversation_id: conversation.id,
+                                    agent_id: order.agent_id,
+                                    role: 'assistant',
+                                    content: confirmationMessage,
+                                    status: 'pending', // Will be picked up by checkPendingMessages
+                                    message_type: 'text' // Ensure this column exists or default
+                                })
+
+                                // Update conversation header
+                                await supabase.from('conversations').update({
+                                    last_message_text: confirmationMessage.substring(0, 200),
+                                    last_message_at: new Date().toISOString(),
+                                    last_message_role: 'assistant'
+                                }).eq('id', conversation.id)
+
+                                console.log('💬 Payment confirmation added to conversation history for:', order.customer_phone)
+                            } else {
+                                // CASE 2: No conversation -> Fallback to outbound (Reliability)
+                                await supabase.from('outbound_messages').insert({
+                                    agent_id: order.agent_id,
+                                    recipient_phone: order.customer_phone,
+                                    message_content: confirmationMessage,
+                                    status: 'pending'
+                                })
+                                console.log('📱 Payment confirmation queued via outbound_messages for:', order.customer_phone)
+                            }
 
                             // 4. (Bonus) Notifier le merchant
                             try {

@@ -1603,6 +1603,70 @@ const gracefulShutdown = async (signal) => {
 process.on('SIGINT', () => gracefulShutdown('SIGINT'))
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'))
 
+// 📨 CHECK PENDING MESSAGES (Hybrid Solution)
+async function checkPendingMessages() {
+    try {
+        const { data: pendingMessages } = await supabase
+            .from('messages')
+            .select(`
+                *,
+                conversation:conversations!inner(
+                    contact_phone,
+                    agent_id,
+                    bot_paused
+                )
+            `)
+            .eq('status', 'pending')
+            .eq('role', 'assistant') // Only send assistant messages (like payment confirmations)
+            .limit(10)
+
+        if (pendingMessages && pendingMessages.length > 0) {
+            console.log(`💬 Found ${pendingMessages.length} pending assistant messages`)
+
+            for (const msg of pendingMessages) {
+                const agentId = msg.conversation.agent_id
+                const phoneNumber = msg.conversation.contact_phone
+                const session = activeSessions.get(agentId)
+
+                if (session && session.socket) {
+                    try {
+                        let jid = phoneNumber
+                        if (!jid.includes('@')) jid = jid.replace(/\D/g, '') + '@s.whatsapp.net'
+
+                        // Send message
+                        const result = await session.socket.sendMessage(jid, {
+                            text: msg.content
+                        })
+
+                        console.log(`✅ Message sent to ${phoneNumber} (History Updated)`)
+
+                        // Update status to sent
+                        await supabase
+                            .from('messages')
+                            .update({
+                                status: 'sent',
+                                whatsapp_message_id: result.key.id
+                            })
+                            .eq('id', msg.id)
+
+                    } catch (sendError) {
+                        console.error(`❌ Failed to send pending message to ${phoneNumber}:`, sendError)
+                        await supabase
+                            .from('messages')
+                            .update({ status: 'failed', error_message: sendError.message })
+                            .eq('id', msg.id)
+                    }
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error checking pending messages:', error)
+    }
+}
+
+// Check pending messages every 2 seconds
+setInterval(checkPendingMessages, 2000)
+
 // 📨 OUTBOUND MESSAGE QUEUE PROCESSING
 async function checkOutboundQueue() {
     try {
