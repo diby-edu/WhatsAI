@@ -261,13 +261,17 @@ async function handleToolCall(toolCall, agentId, customerPhone, products) {
 
                         for (const variant of product.variants) {
                             for (const option of variant.options) {
-                                const optionValue = option.value || option.name || ''
+                                const optionValue = (typeof option === 'string') ? option : (option.value || option.name || '')
+
                                 if (optionValue && item.product_name.toLowerCase().includes(optionValue.toLowerCase())) {
+                                    // Handle price for both object and string options
+                                    const optionPrice = (typeof option === 'string') ? 0 : (option.price || 0)
+
                                     // Apply price based on variant type
                                     if (variant.type === 'fixed') {
-                                        price = option.price // Fixed variant replaces base price
+                                        price = optionPrice // Fixed variant replaces base price
                                     } else {
-                                        price += option.price // Additive variant adds to base
+                                        price += optionPrice // Additive variant adds to base
                                     }
                                     matchedVariantsByType[variant.name] = optionValue
                                     break // Found match for this variant type
@@ -621,9 +625,15 @@ ${products.map(p => {
                     p.variants.forEach(v => {
                         variantsInfo += `\n      - ${v.name} (${v.type === 'fixed' ? 'Prix Fixe' : 'Supplément'}) : `
                         variantsInfo += v.options.map(opt => {
-                            let optPrice = opt.price
+                            // Handle string options (legacy data)
+                            if (typeof opt === 'string') {
+                                return opt
+                            }
+                            // Handle object options
+                            let optPrice = opt.price || 0
                             const sign = v.type === 'additive' && optPrice > 0 ? '+' : ''
-                            return `${opt.value} (${sign}${optPrice} ${currencySymbol})`
+                            const priceDisplay = optPrice > 0 ? ` (${sign}${optPrice} ${currencySymbol})` : ''
+                            return `${opt.value || opt.name}${priceDisplay}`
                         }).join(', ')
                     })
                 }
