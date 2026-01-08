@@ -62,6 +62,7 @@ export async function PUT(
                 stock_quantity: body.stock_quantity,
                 agent_id: body.agent_id,
                 variants: body.variants,
+                images: body.images, // FIX: Save the images array
                 // New structured fields
                 short_pitch: body.short_pitch,
                 features: body.features,
