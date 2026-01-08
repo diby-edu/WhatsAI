@@ -137,8 +137,7 @@ export async function POST(request: NextRequest) {
                                     agent_id: order.agent_id,
                                     role: 'assistant',
                                     content: confirmationMessage,
-                                    status: 'pending', // Will be picked up by checkPendingMessages
-                                    message_type: 'text' // Ensure this column exists or default
+                                    status: 'pending' // Will be picked up by checkPendingMessages
                                 })
 
                                 // Update conversation header
