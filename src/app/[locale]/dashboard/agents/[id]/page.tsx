@@ -320,11 +320,27 @@ export default function AgentWizardPage({
                     color: 'white',
                     outline: 'none'
                 }
+
+                const getLocation = () => {
+                    if (!navigator.geolocation) return alert('Géolocalisation non supportée')
+                    navigator.geolocation.getCurrentPosition(
+                        (pos) => {
+                            setFormData(prev => ({
+                                ...prev,
+                                latitude: pos.coords.latitude,
+                                longitude: pos.coords.longitude
+                            }))
+                        },
+                        (err) => alert('Erreur de localisation : ' + err.message)
+                    )
+                }
+
                 return (
-                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                        {/* Name */}
                         <div>
                             <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                Nom du Bot / Agent
+                                Nom du Bot / Agent *
                             </label>
                             <input
                                 value={formData.name}
@@ -334,83 +350,88 @@ export default function AgentWizardPage({
                             />
                         </div>
 
+                        {/* Description with examples */}
                         <div>
                             <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                Adresse Physique (Complète)
+                                Description / Personnalité
                             </label>
-                            <input
-                                value={formData.business_address}
-                                onChange={e => setFormData({ ...formData, business_address: e.target.value })}
-                                placeholder="Ex: Cocody Rivera 2, Abidjan, Côte d'Ivoire"
-                                style={inputStyle}
+                            <textarea
+                                value={formData.description}
+                                onChange={e => setFormData({ ...formData, description: e.target.value })}
+                                placeholder="Décrivez brièvement la personnalité de votre agent..."
+                                rows={3}
+                                style={{ ...inputStyle, resize: 'none' }}
                             />
+                            <div style={{ marginTop: 8, fontSize: 12, color: '#94a3b8', background: 'rgba(30, 41, 59, 0.3)', padding: 12, borderRadius: 8 }}>
+                                <p style={{ fontWeight: 600, marginBottom: 4 }}>Dites-moi qui je suis ! Exemples :</p>
+                                <ul style={{ listStyle: 'disc', paddingLeft: 16, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                    <li>"Assistant chaleureux pour une pizzeria, je tutoie les clients et je propose toujours le supplément fromage."</li>
+                                    <li>"Réceptionniste d'hôtel de luxe, poli et distingué, je demande toujours les dates de séjour."</li>
+                                    <li>"Vendeur expert en smartphone, technique mais accessible, je pousse à l'achat."</li>
+                                </ul>
+                            </div>
                         </div>
 
+                        {/* Address with MapPin icon */}
+                        <div>
+                            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
+                                Adresse Physique
+                            </label>
+                            <div style={{ position: 'relative' }}>
+                                <input
+                                    value={formData.business_address}
+                                    onChange={e => setFormData({ ...formData, business_address: e.target.value })}
+                                    placeholder="Ex: Abidjan, Cocody..."
+                                    style={inputStyle}
+                                />
+                                <MapPin size={16} style={{ position: 'absolute', right: 12, top: 12, color: '#94a3b8' }} />
+                            </div>
+                        </div>
+
+                        {/* Lat/Lon with Ma position link */}
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                             <div>
                                 <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                    Latitude (Optionnel)
+                                    Latitude
                                 </label>
                                 <input
                                     type="number"
                                     step="any"
                                     value={formData.latitude || ''}
                                     onChange={e => setFormData({ ...formData, latitude: parseFloat(e.target.value) })}
-                                    placeholder="Ex: 5.3599517"
+                                    placeholder="0.0000"
                                     style={inputStyle}
                                 />
                             </div>
                             <div>
-                                <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                    Longitude (Optionnel)
+                                <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
+                                    Longitude
+                                    <span onClick={getLocation} style={{ color: '#10b981', cursor: 'pointer', fontSize: 12 }}>Ma position</span>
                                 </label>
                                 <input
                                     type="number"
                                     step="any"
                                     value={formData.longitude || ''}
                                     onChange={e => setFormData({ ...formData, longitude: parseFloat(e.target.value) })}
-                                    placeholder="Ex: -4.0082563"
+                                    placeholder="0.0000"
                                     style={inputStyle}
                                 />
                             </div>
                         </div>
 
-                        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    if (!navigator.geolocation) return alert('Géolocalisation non supportée')
-                                    navigator.geolocation.getCurrentPosition(
-                                        (pos) => {
-                                            setFormData(prev => ({
-                                                ...prev,
-                                                latitude: pos.coords.latitude,
-                                                longitude: pos.coords.longitude
-                                            }))
-                                        },
-                                        (err) => alert('Erreur de localisation : ' + err.message)
-                                    )
-                                }}
-                                style={{ fontSize: 14, color: '#f87171', background: 'none', border: 'none', cursor: 'pointer' }}
-                            >
-                                📍 Utiliser ma position actuelle
-                            </button>
-                        </div>
-
-                        <div>
-                            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                Téléphone Support / Escalade (Humain)
-                            </label>
-                            <input
-                                value={formData.contact_phone}
-                                onChange={e => setFormData({ ...formData, contact_phone: e.target.value })}
-                                placeholder="Ex: +225 07 07 ..."
-                                style={inputStyle}
-                            />
-                            <p style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>Le bot donnera ce numéro si le client veut parler à un humain.</p>
-                        </div>
-
+                        {/* Phone + Site Web */}
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                            <div>
+                                <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
+                                    Téléphone Support
+                                </label>
+                                <input
+                                    value={formData.contact_phone}
+                                    onChange={e => setFormData({ ...formData, contact_phone: e.target.value })}
+                                    placeholder="+225..."
+                                    style={inputStyle}
+                                />
+                            </div>
                             <div>
                                 <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
                                     Site Web
@@ -419,17 +440,6 @@ export default function AgentWizardPage({
                                     value={formData.social_links.website}
                                     onChange={e => setFormData({ ...formData, social_links: { ...formData.social_links, website: e.target.value } })}
                                     placeholder="https://..."
-                                    style={inputStyle}
-                                />
-                            </div>
-                            <div>
-                                <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                    Facebook
-                                </label>
-                                <input
-                                    value={formData.social_links.facebook}
-                                    onChange={e => setFormData({ ...formData, social_links: { ...formData.social_links, facebook: e.target.value } })}
-                                    placeholder="Page Facebook"
                                     style={inputStyle}
                                 />
                             </div>
@@ -567,89 +577,76 @@ export default function AgentWizardPage({
                 )
 
             case 'personality':
+                const personalities = [
+                    { id: 'friendly', name: 'Amical', emoji: '😊', description: 'Chaleureux et accessible' },
+                    { id: 'professional', name: 'Professionnel', emoji: '👔', description: 'Formel et efficace' },
+                    { id: 'casual', name: 'Décontracté', emoji: '🎉', description: 'Fun et relaxé' },
+                    { id: 'expert', name: 'Expert', emoji: '🎓', description: 'Technique et précis' }
+                ]
                 return (
                     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-                            {/* Tone Selection */}
-                            <div>
-                                <label style={{ display: 'block', fontSize: 16, fontWeight: 600, color: 'white', marginBottom: 12 }}>Ton de Voix</label>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                    {[
-                                        { id: 'professional', label: '👔 Professionnel', desc: 'Vouvoiement, sérieux, précis' },
-                                        { id: 'friendly', label: '😊 Amical', desc: 'Tutoiement respectueux, emojis, chaleureux' },
-                                        { id: 'energetic', label: '⚡ Énergique', desc: 'Dynamique, exclamation, très vendeur' },
-                                        { id: 'luxury', label: '💎 Luxe', desc: 'Raffiné, très poli, vocabulaire soutenu' }
-                                    ].map(tone => (
-                                        <div
-                                            key={tone.id}
-                                            onClick={() => setFormData({ ...formData, agent_tone: tone.id })}
-                                            style={{
-                                                padding: 16,
-                                                borderRadius: 12,
-                                                border: formData.agent_tone === tone.id ? '2px solid #10b981' : '1px solid rgba(148,163,184,0.1)',
-                                                background: formData.agent_tone === tone.id ? 'rgba(16,185,129,0.1)' : 'rgba(30, 41, 59, 0.5)',
-                                                cursor: 'pointer'
-                                            }}
-                                        >
-                                            <div style={{ fontWeight: 600, color: 'white' }}>{tone.label}</div>
-                                            <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>{tone.desc}</div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Goal Selection */}
-                            <div>
-                                <label style={{ display: 'block', fontSize: 16, fontWeight: 600, color: 'white', marginBottom: 12 }}>Objectif Principal</label>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                    {[
-                                        { id: 'sales', label: '💰 Vendeur', desc: 'Priorité absolue : conclure la vente' },
-                                        { id: 'support', label: '🛡️ Support', desc: 'Priorité : rassurer et aider le client' },
-                                        { id: 'info', label: 'ℹ️ Informatif', desc: 'Donner les infos sans pousser à l\'achat' }
-                                    ].map(goal => (
-                                        <div
-                                            key={goal.id}
-                                            onClick={() => setFormData({ ...formData, agent_goal: goal.id })}
-                                            style={{
-                                                padding: 16,
-                                                borderRadius: 12,
-                                                border: formData.agent_goal === goal.id ? '2px solid #10b981' : '1px solid rgba(148,163,184,0.1)',
-                                                background: formData.agent_goal === goal.id ? 'rgba(16,185,129,0.1)' : 'rgba(30, 41, 59, 0.5)',
-                                                cursor: 'pointer'
-                                            }}
-                                        >
-                                            <div style={{ fontWeight: 600, color: 'white' }}>{goal.label}</div>
-                                            <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>{goal.desc}</div>
-                                        </div>
-                                    ))}
-                                </div>
+                        <div>
+                            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 16 }}>
+                                Personnalité de l'agent
+                            </label>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
+                                {personalities.map((p) => (
+                                    <button
+                                        key={p.id}
+                                        onClick={() => setFormData({ ...formData, agent_tone: p.id })}
+                                        style={{
+                                            padding: 20,
+                                            border: `2px solid ${formData.agent_tone === p.id ? '#10b981' : 'rgba(148, 163, 184, 0.1)'}`,
+                                            borderRadius: 12,
+                                            textAlign: 'center',
+                                            background: formData.agent_tone === p.id ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        <div style={{ fontSize: 32, marginBottom: 8 }}>{p.emoji}</div>
+                                        <h3 style={{ fontWeight: 600, color: 'white' }}>{p.name}</h3>
+                                        <p style={{ fontSize: 12, color: '#64748b' }}>{p.description}</p>
+                                    </button>
+                                ))}
                             </div>
                         </div>
 
-                        {/* Model Settings Toggles */}
-                        <div>
-                            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 12 }}>Paramètres Avancés</label>
-                            <div style={{ display: 'flex', gap: 32 }}>
-                                <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
-                                    <input
-                                        type="checkbox"
-                                        checked={formData.use_emojis}
-                                        onChange={e => setFormData({ ...formData, use_emojis: e.target.checked })}
-                                        style={{ width: 20, height: 20, accentColor: '#10b981' }}
-                                    />
-                                    <span style={{ color: 'white' }}>Utiliser des Emojis</span>
-                                </label>
-                                <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'not-allowed' }}>
-                                    <input
-                                        type="checkbox"
-                                        checked={formData.enable_voice_responses}
-                                        onChange={e => setFormData({ ...formData, enable_voice_responses: e.target.checked })}
-                                        disabled
-                                        style={{ width: 20, height: 20, accentColor: '#10b981', opacity: 0.5 }}
-                                    />
-                                    <span style={{ color: '#64748b' }}>Réponses Vocales (Bientôt)</span>
-                                </label>
+                        {/* Emoji Toggle with animated switch */}
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: 16,
+                            border: '1px solid rgba(148, 163, 184, 0.1)',
+                            borderRadius: 12
+                        }}>
+                            <div>
+                                <h3 style={{ fontWeight: 500, color: 'white' }}>Utiliser des emojis</h3>
+                                <p style={{ fontSize: 13, color: '#64748b' }}>L'agent utilisera des emojis dans ses réponses</p>
                             </div>
+                            <button
+                                onClick={() => setFormData({ ...formData, use_emojis: !formData.use_emojis })}
+                                style={{
+                                    width: 48,
+                                    height: 28,
+                                    borderRadius: 14,
+                                    background: formData.use_emojis ? '#10b981' : '#334155',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    position: 'relative'
+                                }}
+                            >
+                                <div style={{
+                                    width: 22,
+                                    height: 22,
+                                    borderRadius: '50%',
+                                    background: 'white',
+                                    position: 'absolute',
+                                    top: 3,
+                                    left: formData.use_emojis ? 23 : 3,
+                                    transition: 'left 0.2s'
+                                }} />
+                            </button>
                         </div>
                     </motion.div>
                 )
