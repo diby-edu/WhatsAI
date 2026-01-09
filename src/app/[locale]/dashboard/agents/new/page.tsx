@@ -69,7 +69,13 @@ export default function NewAgentPage() {
             friday: { open: '09:00', close: '18:00', closed: false },
             saturday: { open: '10:00', close: '16:00', closed: false },
             sunday: { open: '00:00', close: '00:00', closed: true }
-        }
+        },
+        // PAYMENT SETTINGS
+        payment_mode: 'cinetpay' as 'cinetpay' | 'mobile_money_direct',
+        mobile_money_orange: '',
+        mobile_money_mtn: '',
+        mobile_money_wave: '',
+        custom_payment_methods: [] as { name: string; details: string }[]
     })
 
     const steps = [
@@ -401,6 +407,12 @@ Règles:
                     longitude: parseFloat(formData.longitude) || null,
                     business_hours: formData.business_hours,
                     custom_rules: formData.custom_rules,
+                    // Payment Settings
+                    payment_mode: formData.payment_mode,
+                    mobile_money_orange: formData.mobile_money_orange || null,
+                    mobile_money_mtn: formData.mobile_money_mtn || null,
+                    mobile_money_wave: formData.mobile_money_wave || null,
+                    custom_payment_methods: formData.custom_payment_methods || []
                 }),
             })
 
@@ -1133,6 +1145,86 @@ Règles:
                                     <span style={{ color: 'white', fontWeight: 500 }}>{formData.responseDelay}s</span>
                                 </div>
                             </div>
+                        </div>
+
+                        {/* Payment Settings Section */}
+                        <div style={{
+                            padding: 20,
+                            background: 'rgba(30, 41, 59, 0.5)',
+                            borderRadius: 12
+                        }}>
+                            <h3 style={{ fontWeight: 600, color: 'white', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                💳 Mode de Paiement
+                            </h3>
+
+                            {/* Payment Mode Toggle */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+                                <div
+                                    onClick={() => updateFormData('payment_mode', 'cinetpay')}
+                                    style={{
+                                        padding: 16,
+                                        borderRadius: 12,
+                                        border: formData.payment_mode === 'cinetpay' ? '2px solid #10b981' : '1px solid rgba(148,163,184,0.2)',
+                                        background: formData.payment_mode === 'cinetpay' ? 'rgba(16,185,129,0.1)' : 'transparent',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    <div style={{ fontWeight: 600, color: 'white' }}>🔄 CinetPay</div>
+                                    <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>Paiement automatique</div>
+                                </div>
+                                <div
+                                    onClick={() => updateFormData('payment_mode', 'mobile_money_direct')}
+                                    style={{
+                                        padding: 16,
+                                        borderRadius: 12,
+                                        border: formData.payment_mode === 'mobile_money_direct' ? '2px solid #f59e0b' : '1px solid rgba(148,163,184,0.2)',
+                                        background: formData.payment_mode === 'mobile_money_direct' ? 'rgba(245,158,11,0.1)' : 'transparent',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    <div style={{ fontWeight: 600, color: 'white' }}>📱 Mobile Money Direct</div>
+                                    <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>Vérification manuelle</div>
+                                </div>
+                            </div>
+
+                            {/* Mobile Money Numbers (shown only when mobile_money_direct is selected) */}
+                            {formData.payment_mode === 'mobile_money_direct' && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: 13, color: '#94a3b8', marginBottom: 4 }}>🟠 Orange Money</label>
+                                        <input
+                                            type="text"
+                                            value={formData.mobile_money_orange}
+                                            onChange={(e) => updateFormData('mobile_money_orange', e.target.value)}
+                                            placeholder="+225 07 XX XX XX XX"
+                                            style={inputStyle}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: 13, color: '#94a3b8', marginBottom: 4 }}>🟡 MTN Money</label>
+                                        <input
+                                            type="text"
+                                            value={formData.mobile_money_mtn}
+                                            onChange={(e) => updateFormData('mobile_money_mtn', e.target.value)}
+                                            placeholder="+225 05 XX XX XX XX"
+                                            style={inputStyle}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: 13, color: '#94a3b8', marginBottom: 4 }}>🔵 Wave</label>
+                                        <input
+                                            type="text"
+                                            value={formData.mobile_money_wave}
+                                            onChange={(e) => updateFormData('mobile_money_wave', e.target.value)}
+                                            placeholder="+225 01 XX XX XX XX"
+                                            style={inputStyle}
+                                        />
+                                    </div>
+                                    <div style={{ padding: 12, background: 'rgba(245,158,11,0.1)', borderRadius: 8, marginTop: 8 }}>
+                                        <p style={{ fontSize: 12, color: '#f59e0b' }}>⚠️ Les clients enverront une capture d'écran après paiement. Vous devrez vérifier manuellement dans Commandes.</p>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )
