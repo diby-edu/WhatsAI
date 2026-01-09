@@ -1086,7 +1086,7 @@ export default function AgentWizardPage({
             </div>
 
             {/* Content */}
-            <div className="max-w-3xl mx-auto px-4 py-8">
+            <div className="max-w-3xl mx-auto px-4 py-8 pb-32">
                 {renderStep()}
             </div>
 
