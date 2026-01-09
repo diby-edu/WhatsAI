@@ -1148,80 +1148,149 @@ Règles:
                         </div>
 
                         {/* Payment Settings Section */}
-                        <div style={{
-                            padding: 20,
-                            background: 'rgba(30, 41, 59, 0.5)',
-                            borderRadius: 12
-                        }}>
-                            <h3 style={{ fontWeight: 600, color: 'white', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
+                            <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
                                 💳 Mode de Paiement
                             </h3>
 
                             {/* Payment Mode Toggle */}
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-                                <div
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                                <label
+                                    className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${formData.payment_mode === 'cinetpay'
+                                        ? 'border-emerald-500 bg-emerald-500/10'
+                                        : 'border-slate-700 hover:border-slate-600'
+                                        }`}
                                     onClick={() => updateFormData('payment_mode', 'cinetpay')}
-                                    style={{
-                                        padding: 16,
-                                        borderRadius: 12,
-                                        border: formData.payment_mode === 'cinetpay' ? '2px solid #10b981' : '1px solid rgba(148,163,184,0.2)',
-                                        background: formData.payment_mode === 'cinetpay' ? 'rgba(16,185,129,0.1)' : 'transparent',
-                                        cursor: 'pointer'
-                                    }}
                                 >
-                                    <div style={{ fontWeight: 600, color: 'white' }}>🔄 CinetPay</div>
-                                    <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>Paiement automatique</div>
-                                </div>
-                                <div
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            type="radio"
+                                            name="payment_mode"
+                                            checked={formData.payment_mode === 'cinetpay'}
+                                            onChange={() => updateFormData('payment_mode', 'cinetpay')}
+                                            className="accent-emerald-500"
+                                        />
+                                        <div>
+                                            <div className="font-bold text-white">🔄 CinetPay (Automatique)</div>
+                                            <div className="text-slate-400 text-sm">Lien de paiement sécurisé. L'argent arrive sur votre compte.</div>
+                                        </div>
+                                    </div>
+                                </label>
+                                <label
+                                    className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${formData.payment_mode === 'mobile_money_direct'
+                                        ? 'border-emerald-500 bg-emerald-500/10'
+                                        : 'border-slate-700 hover:border-slate-600'
+                                        }`}
                                     onClick={() => updateFormData('payment_mode', 'mobile_money_direct')}
-                                    style={{
-                                        padding: 16,
-                                        borderRadius: 12,
-                                        border: formData.payment_mode === 'mobile_money_direct' ? '2px solid #f59e0b' : '1px solid rgba(148,163,184,0.2)',
-                                        background: formData.payment_mode === 'mobile_money_direct' ? 'rgba(245,158,11,0.1)' : 'transparent',
-                                        cursor: 'pointer'
-                                    }}
                                 >
-                                    <div style={{ fontWeight: 600, color: 'white' }}>📱 Mobile Money Direct</div>
-                                    <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>Vérification manuelle</div>
-                                </div>
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            type="radio"
+                                            name="payment_mode"
+                                            checked={formData.payment_mode === 'mobile_money_direct'}
+                                            onChange={() => updateFormData('payment_mode', 'mobile_money_direct')}
+                                            className="accent-emerald-500"
+                                        />
+                                        <div>
+                                            <div className="font-bold text-white">📱 Mobile Money Direct</div>
+                                            <div className="text-slate-400 text-sm">Paiement sur vos numéros. Vérification manuelle requise.</div>
+                                        </div>
+                                    </div>
+                                </label>
                             </div>
 
-                            {/* Mobile Money Numbers (shown only when mobile_money_direct is selected) */}
+                            {/* Mobile Money Numbers (only if direct mode) */}
                             {formData.payment_mode === 'mobile_money_direct' && (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                    <div>
-                                        <label style={{ display: 'block', fontSize: 13, color: '#94a3b8', marginBottom: 4 }}>🟠 Orange Money</label>
-                                        <input
-                                            type="text"
-                                            value={formData.mobile_money_orange}
-                                            onChange={(e) => updateFormData('mobile_money_orange', e.target.value)}
-                                            placeholder="+225 07 XX XX XX XX"
-                                            style={inputStyle}
-                                        />
+                                <div className="space-y-4 animate-in slide-in-from-top-4 duration-300">
+                                    <h4 className="text-lg font-medium text-white">📱 Vos Numéros Mobile Money</h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div>
+                                            <label className="block text-slate-300 font-medium mb-1">🟠 Orange Money</label>
+                                            <input
+                                                type="text"
+                                                value={formData.mobile_money_orange}
+                                                onChange={(e) => updateFormData('mobile_money_orange', e.target.value)}
+                                                className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white outline-none focus:ring-2 focus:ring-orange-500"
+                                                placeholder="+225 07 XX XX XX XX"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-slate-300 font-medium mb-1">🟡 MTN Money</label>
+                                            <input
+                                                type="text"
+                                                value={formData.mobile_money_mtn}
+                                                onChange={(e) => updateFormData('mobile_money_mtn', e.target.value)}
+                                                className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white outline-none focus:ring-2 focus:ring-yellow-500"
+                                                placeholder="+225 05 XX XX XX XX"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-slate-300 font-medium mb-1">🔵 Wave</label>
+                                            <input
+                                                type="text"
+                                                value={formData.mobile_money_wave}
+                                                onChange={(e) => updateFormData('mobile_money_wave', e.target.value)}
+                                                className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white outline-none focus:ring-2 focus:ring-blue-500"
+                                                placeholder="+225 01 XX XX XX XX"
+                                            />
+                                        </div>
                                     </div>
-                                    <div>
-                                        <label style={{ display: 'block', fontSize: 13, color: '#94a3b8', marginBottom: 4 }}>🟡 MTN Money</label>
-                                        <input
-                                            type="text"
-                                            value={formData.mobile_money_mtn}
-                                            onChange={(e) => updateFormData('mobile_money_mtn', e.target.value)}
-                                            placeholder="+225 05 XX XX XX XX"
-                                            style={inputStyle}
-                                        />
+
+                                    {/* Custom Payment Methods */}
+                                    <div className="mt-6">
+                                        <h4 className="text-lg font-medium text-white mb-3">➕ Autres Moyens de Paiement</h4>
+                                        <div className="space-y-2">
+                                            {formData.custom_payment_methods.map((method, index) => (
+                                                <div key={index} className="flex gap-2">
+                                                    <input
+                                                        type="text"
+                                                        value={method.name}
+                                                        onChange={e => {
+                                                            const updated = [...formData.custom_payment_methods]
+                                                            updated[index].name = e.target.value
+                                                            updateFormData('custom_payment_methods', updated)
+                                                        }}
+                                                        className="flex-1 bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white outline-none"
+                                                        placeholder="Nom (ex: PayPal)"
+                                                    />
+                                                    <input
+                                                        type="text"
+                                                        value={method.details}
+                                                        onChange={e => {
+                                                            const updated = [...formData.custom_payment_methods]
+                                                            updated[index].details = e.target.value
+                                                            updateFormData('custom_payment_methods', updated)
+                                                        }}
+                                                        className="flex-1 bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white outline-none"
+                                                        placeholder="Détails (ex: email@paypal.com)"
+                                                    />
+                                                    <button
+                                                        onClick={() => {
+                                                            const updated = formData.custom_payment_methods.filter((_, i) => i !== index)
+                                                            updateFormData('custom_payment_methods', updated)
+                                                        }}
+                                                        className="p-3 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg transition-colors"
+                                                    >
+                                                        🗑️
+                                                    </button>
+                                                </div>
+                                            ))}
+                                            <button
+                                                onClick={() => {
+                                                    updateFormData('custom_payment_methods', [...formData.custom_payment_methods, { name: '', details: '' }])
+                                                }}
+                                                className="w-full p-3 bg-slate-700/50 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors flex items-center justify-center gap-2"
+                                            >
+                                                ➕ Ajouter un moyen de paiement
+                                            </button>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <label style={{ display: 'block', fontSize: 13, color: '#94a3b8', marginBottom: 4 }}>🔵 Wave</label>
-                                        <input
-                                            type="text"
-                                            value={formData.mobile_money_wave}
-                                            onChange={(e) => updateFormData('mobile_money_wave', e.target.value)}
-                                            placeholder="+225 01 XX XX XX XX"
-                                            style={inputStyle}
-                                        />
-                                    </div>
-                                    <div style={{ padding: 12, background: 'rgba(245,158,11,0.1)', borderRadius: 8, marginTop: 8 }}>
-                                        <p style={{ fontSize: 12, color: '#f59e0b' }}>⚠️ Les clients enverront une capture d'écran après paiement. Vous devrez vérifier manuellement dans Commandes.</p>
+
+                                    <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 mt-4">
+                                        <p className="text-amber-400 text-sm">
+                                            ⚠️ Avec ce mode, les clients enverront une capture d'écran après paiement.
+                                            Vous devrez vérifier manuellement dans le module Commandes.
+                                        </p>
                                     </div>
                                 </div>
                             )}
