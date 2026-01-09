@@ -412,7 +412,7 @@ export default function AgentsPage() {
                                 {t('card.test')}
                             </Link>
                             <Link
-                                href={agent.whatsapp_connected ? `/dashboard/agents/${agent.id}` : `/dashboard/agents/${agent.id}?tab=whatsapp`}
+                                href={`/dashboard/agents/${agent.id}?tab=whatsapp`}
                                 style={{
                                     flex: 1,
                                     display: 'flex',
@@ -420,9 +420,7 @@ export default function AgentsPage() {
                                     justifyContent: 'center',
                                     padding: '10px 16px',
                                     borderRadius: 10,
-                                    background: agent.whatsapp_connected
-                                        ? 'linear-gradient(135deg, #10b981, #059669)'
-                                        : 'linear-gradient(135deg, #8b5cf6, #6d28d9)',
+                                    background: 'linear-gradient(135deg, #8b5cf6, #6d28d9)',
                                     color: 'white',
                                     fontSize: 14,
                                     fontWeight: 500,
@@ -430,7 +428,7 @@ export default function AgentsPage() {
                                     cursor: 'pointer'
                                 }}
                             >
-                                {agent.whatsapp_connected ? t('card.configure') : t('card.showQRCode')}
+                                {t('card.showQRCode')}
                             </Link>
                         </div>
                     </motion.div>
