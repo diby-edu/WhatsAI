@@ -58,7 +58,10 @@ export async function PATCH(
             'business_address', 'business_hours', 'contact_phone',
             'social_links', 'custom_rules', 'agent_tone', 'agent_goal',
             // GPS
-            'latitude', 'longitude'
+            'latitude', 'longitude',
+            // Payment settings
+            'payment_mode', 'mobile_money_orange', 'mobile_money_mtn',
+            'mobile_money_wave', 'custom_payment_methods'
         ]
 
         const updates: Record<string, any> = {}

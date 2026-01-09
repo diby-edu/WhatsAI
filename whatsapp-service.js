@@ -220,8 +220,12 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                 finalNotes += `\n📧 Email client: ${email}`
             }
 
-            // Get agent to find user_id (merchant)
-            const { data: agent } = await supabase.from('agents').select('user_id').eq('id', agentId).single()
+            // Get agent with payment settings
+            const { data: agent } = await supabase
+                .from('agents')
+                .select('user_id, payment_mode, mobile_money_orange, mobile_money_mtn, mobile_money_wave, custom_payment_methods')
+                .eq('id', agentId)
+                .single()
             if (!agent) throw new Error('Agent not found')
 
             let total = 0
@@ -355,7 +359,7 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
 
             const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://whatsai.duckdns.org'
 
-            // Conditional response based on payment method
+            // Conditional response based on payment method and agent payment_mode
             if (payment_method === 'cod') {
                 return JSON.stringify({
                     success: true,
@@ -363,7 +367,36 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                     payment_method: 'cod',
                     message: `Commande #${order.id.substring(0, 8)} créée. Total: ${total} FCFA. Paiement à la livraison.`
                 })
+            } else if (agent.payment_mode === 'mobile_money_direct') {
+                // Mobile Money Direct mode - return payment numbers
+                const paymentMethods = []
+                if (agent.mobile_money_orange) paymentMethods.push(`🟠 Orange Money : ${agent.mobile_money_orange}`)
+                if (agent.mobile_money_mtn) paymentMethods.push(`🟡 MTN Money : ${agent.mobile_money_mtn}`)
+                if (agent.mobile_money_wave) paymentMethods.push(`🔵 Wave : ${agent.mobile_money_wave}`)
+
+                // Add custom payment methods
+                if (agent.custom_payment_methods && Array.isArray(agent.custom_payment_methods)) {
+                    for (const method of agent.custom_payment_methods) {
+                        if (method.name && method.details) {
+                            paymentMethods.push(`📱 ${method.name} : ${method.details}`)
+                        }
+                    }
+                }
+
+                // Update order status to awaiting_screenshot
+                await supabase.from('orders').update({
+                    payment_verification_status: 'awaiting_screenshot'
+                }).eq('id', order.id)
+
+                return JSON.stringify({
+                    success: true,
+                    order_id: order.id,
+                    payment_method: 'mobile_money_direct',
+                    payment_methods: paymentMethods,
+                    message: `Commande #${order.id.substring(0, 8)} créée. Total: ${total} FCFA.\n\n📱 *Choisissez votre mode de paiement :*\n${paymentMethods.join('\n')}\n\n⚠️ Après le paiement, envoyez une capture d'écran pour confirmation.`
+                })
             } else {
+                // CinetPay mode (default)
                 return JSON.stringify({
                     success: true,
                     order_id: order.id,
@@ -944,6 +977,66 @@ async function handleMessage(agentId, message, isVoiceMessage = false) {
         if (!profile || profile.credits_balance <= 0) {
             console.log('No credits left')
             return
+        }
+
+        // 📷 SCREENSHOT DETECTION FOR MOBILE MONEY DIRECT
+        // If client sends an image, check if they have a pending order awaiting screenshot
+        if (message.imageBase64) {
+            const { data: pendingOrder } = await supabase
+                .from('orders')
+                .select('id, total_fcfa')
+                .eq('customer_phone', phoneNumber)
+                .eq('user_id', agent.user_id)
+                .eq('payment_verification_status', 'awaiting_screenshot')
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .single()
+
+            if (pendingOrder) {
+                console.log('📷 Screenshot received for order:', pendingOrder.id)
+
+                try {
+                    // Convert base64 to buffer
+                    const imageBuffer = Buffer.from(message.imageBase64, 'base64')
+                    const fileName = `${pendingOrder.id}_${Date.now()}.jpg`
+
+                    // Upload to Supabase Storage
+                    const { data: uploadData, error: uploadError } = await supabase.storage
+                        .from('verification-images')
+                        .upload(fileName, imageBuffer, {
+                            contentType: 'image/jpeg',
+                            upsert: false
+                        })
+
+                    if (uploadError) {
+                        console.error('Screenshot upload error:', uploadError)
+                    } else {
+                        // Update order with screenshot URL and status
+                        await supabase.from('orders').update({
+                            payment_verification_status: 'awaiting_verification',
+                            payment_screenshot_url: uploadData.path
+                        }).eq('id', pendingOrder.id)
+
+                        console.log('✅ Screenshot saved, order updated to awaiting_verification')
+
+                        // Send confirmation message to user
+                        const confirmationMessage = `✅ Capture d'écran reçue pour la commande #${pendingOrder.id.substring(0, 8)} (${pendingOrder.total_fcfa} FCFA).\n\n⏳ Votre paiement est en cours de vérification. Vous recevrez une confirmation dès que c'est validé.`
+
+                        await supabase.from('messages').insert({
+                            conversation_id: conversation.id,
+                            agent_id: agentId,
+                            role: 'assistant',
+                            content: confirmationMessage,
+                            status: 'pending'
+                        })
+
+                        // Skip AI response since we handled the screenshot
+                        return
+                    }
+                } catch (uploadErr) {
+                    console.error('Screenshot processing error:', uploadErr)
+                }
+            }
         }
 
         // Get conversation history

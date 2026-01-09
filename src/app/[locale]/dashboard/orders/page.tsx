@@ -6,7 +6,7 @@ import { motion } from 'framer-motion'
 import {
     ShoppingBag, Search, Filter, Eye,
     CheckCircle, XCircle, Clock, Truck, Package,
-    Loader2
+    Loader2, Image as ImageIcon, Check, X
 } from 'lucide-react'
 import { useTranslations, useFormatter } from 'next-intl'
 
@@ -18,7 +18,9 @@ interface Order {
     status: string
     total_amount: number
     total_fcfa: number
-    payment_method: 'online' | 'cod' | null
+    payment_method: 'online' | 'cod' | 'mobile_money_direct' | null
+    payment_verification_status: string | null
+    payment_screenshot_url: string | null
     created_at: string
     items_count: number
 }
@@ -32,6 +34,9 @@ export default function OrdersPage() {
     const [loading, setLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState('')
     const [filterStatus, setFilterStatus] = useState('')
+    const [activeTab, setActiveTab] = useState<'cinetpay' | 'mobile_money'>('cinetpay')
+    const [verifyingId, setVerifyingId] = useState<string | null>(null)
+    const [screenshotModal, setScreenshotModal] = useState<string | null>(null)
 
     useEffect(() => {
         fetchOrders()
@@ -48,6 +53,29 @@ export default function OrdersPage() {
             console.error('Error fetching orders:', err)
         } finally {
             setLoading(false)
+        }
+    }
+
+    const handleVerify = async (orderId: string, action: 'verify' | 'reject') => {
+        setVerifyingId(orderId)
+        try {
+            const res = await fetch(`/api/orders/${orderId}/verify`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action })
+            })
+            if (res.ok) {
+                // Refresh orders
+                fetchOrders()
+            } else {
+                const data = await res.json()
+                alert(data.error || 'Erreur lors de la vérification')
+            }
+        } catch (err) {
+            console.error('Verify error:', err)
+            alert('Erreur réseau')
+        } finally {
+            setVerifyingId(null)
         }
     }
 
@@ -87,7 +115,20 @@ export default function OrdersPage() {
         }
     }
 
-    const startFilter = orders.filter(o =>
+    // Filter orders by tab
+    const mobileMoneyOrders = orders.filter(o =>
+        o.payment_verification_status &&
+        ['awaiting_screenshot', 'awaiting_verification', 'verified', 'rejected', 'expired'].includes(o.payment_verification_status)
+    )
+    const cinetpayOrders = orders.filter(o => !o.payment_verification_status)
+
+    const pendingVerificationCount = mobileMoneyOrders.filter(
+        o => o.payment_verification_status === 'awaiting_verification'
+    ).length
+
+    const displayOrders = activeTab === 'mobile_money' ? mobileMoneyOrders : cinetpayOrders
+
+    const startFilter = displayOrders.filter(o =>
         (o.order_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
             o.customer_phone.includes(searchTerm) ||
             (o.customer_name && o.customer_name.toLowerCase().includes(searchTerm.toLowerCase())))
@@ -97,6 +138,10 @@ export default function OrdersPage() {
 
     const formatPrice = (price: number) => {
         return new Intl.NumberFormat('fr-FR').format(price) + ' FCFA'
+    }
+
+    const getScreenshotUrl = (path: string) => {
+        return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/verification-images/${path}`
     }
 
     if (loading) {
@@ -160,6 +205,79 @@ export default function OrdersPage() {
                 </div>
             </div>
 
+            {/* Tabs */}
+            <div style={{ display: 'flex', gap: 8, borderBottom: '1px solid rgba(148, 163, 184, 0.1)', paddingBottom: 16 }}>
+                <button
+                    onClick={() => setActiveTab('cinetpay')}
+                    style={{
+                        padding: '12px 20px',
+                        borderRadius: 10,
+                        border: 'none',
+                        background: activeTab === 'cinetpay' ? 'rgba(16, 185, 129, 0.15)' : 'transparent',
+                        color: activeTab === 'cinetpay' ? '#10b981' : '#94a3b8',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8
+                    }}
+                >
+                    🔄 CinetPay ({cinetpayOrders.length})
+                </button>
+                <button
+                    onClick={() => setActiveTab('mobile_money')}
+                    style={{
+                        padding: '12px 20px',
+                        borderRadius: 10,
+                        border: 'none',
+                        background: activeTab === 'mobile_money' ? 'rgba(245, 158, 11, 0.15)' : 'transparent',
+                        color: activeTab === 'mobile_money' ? '#f59e0b' : '#94a3b8',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8
+                    }}
+                >
+                    📱 Mobile Money
+                    {pendingVerificationCount > 0 && (
+                        <span style={{
+                            background: '#ef4444',
+                            color: 'white',
+                            padding: '2px 8px',
+                            borderRadius: 100,
+                            fontSize: 12,
+                            fontWeight: 700
+                        }}>
+                            {pendingVerificationCount}
+                        </span>
+                    )}
+                </button>
+            </div>
+
+            {/* Mobile Money Alert */}
+            {activeTab === 'mobile_money' && pendingVerificationCount > 0 && (
+                <div style={{
+                    background: 'rgba(245, 158, 11, 0.1)',
+                    border: '1px solid rgba(245, 158, 11, 0.3)',
+                    borderRadius: 12,
+                    padding: 16,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12
+                }}>
+                    <span style={{ fontSize: 24 }}>🔔</span>
+                    <div>
+                        <div style={{ color: '#f59e0b', fontWeight: 600 }}>
+                            {pendingVerificationCount} paiement(s) en attente de vérification
+                        </div>
+                        <div style={{ color: '#94a3b8', fontSize: 14 }}>
+                            Vérifiez les captures d'écran et confirmez ou rejetez les paiements.
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Orders List */}
             {startFilter.length === 0 ? (
                 <div style={{
@@ -172,7 +290,9 @@ export default function OrdersPage() {
                     <ShoppingBag style={{ width: 48, height: 48, color: '#64748b', margin: '0 auto 16px' }} />
                     <h3 style={{ color: 'white', fontWeight: 600, marginBottom: 8 }}>{t('empty.title')}</h3>
                     <p style={{ color: '#64748b', fontSize: 14 }}>
-                        {t('empty.message')}
+                        {activeTab === 'mobile_money'
+                            ? "Aucune commande Mobile Money pour le moment."
+                            : t('empty.message')}
                     </p>
                 </div>
             ) : (
@@ -185,7 +305,9 @@ export default function OrdersPage() {
                             transition={{ delay: i * 0.05 }}
                             style={{
                                 background: 'rgba(30, 41, 59, 0.5)',
-                                border: '1px solid rgba(148, 163, 184, 0.1)',
+                                border: order.payment_verification_status === 'awaiting_verification'
+                                    ? '2px solid rgba(245, 158, 11, 0.5)'
+                                    : '1px solid rgba(148, 163, 184, 0.1)',
                                 borderRadius: 16,
                                 padding: 20,
                                 display: 'flex',
@@ -227,6 +349,35 @@ export default function OrdersPage() {
                                             {getStatusIcon(order.status)}
                                             {getStatusLabel(order.status)}
                                         </span>
+                                        {/* Mobile Money Status Badge */}
+                                        {order.payment_verification_status && (
+                                            <span style={{
+                                                padding: '4px 10px',
+                                                borderRadius: 100,
+                                                fontSize: 11,
+                                                fontWeight: 600,
+                                                background: order.payment_verification_status === 'awaiting_verification'
+                                                    ? 'rgba(245, 158, 11, 0.2)'
+                                                    : order.payment_verification_status === 'verified'
+                                                        ? 'rgba(16, 185, 129, 0.2)'
+                                                        : order.payment_verification_status === 'rejected'
+                                                            ? 'rgba(239, 68, 68, 0.2)'
+                                                            : 'rgba(148, 163, 184, 0.2)',
+                                                color: order.payment_verification_status === 'awaiting_verification'
+                                                    ? '#f59e0b'
+                                                    : order.payment_verification_status === 'verified'
+                                                        ? '#10b981'
+                                                        : order.payment_verification_status === 'rejected'
+                                                            ? '#ef4444'
+                                                            : '#94a3b8'
+                                            }}>
+                                                {order.payment_verification_status === 'awaiting_screenshot' && '📷 En attente capture'}
+                                                {order.payment_verification_status === 'awaiting_verification' && '🔍 À vérifier'}
+                                                {order.payment_verification_status === 'verified' && '✅ Vérifié'}
+                                                {order.payment_verification_status === 'rejected' && '❌ Rejeté'}
+                                                {order.payment_verification_status === 'expired' && '⏰ Expiré'}
+                                            </span>
+                                        )}
                                     </div>
                                     <p style={{ color: '#94a3b8', fontSize: 14 }}>
                                         {order.customer_name || order.customer_phone} • {format.dateTime(new Date(order.created_at), { dateStyle: 'medium', timeStyle: 'short' })}
@@ -234,50 +385,145 @@ export default function OrdersPage() {
                                 </div>
                             </div>
 
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                                 <div style={{ textAlign: 'right' }}>
                                     <div style={{ color: 'white', fontWeight: 700, fontSize: 18 }}>
                                         {formatPrice(order.total_fcfa || order.total_amount)}
                                     </div>
-                                    <div style={{ color: '#64748b', fontSize: 13, display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end' }}>
+                                    <div style={{ color: '#64748b', fontSize: 13 }}>
                                         {order.items_count} articles
-                                        {order.payment_method && (
-                                            <span style={{
-                                                padding: '2px 8px',
-                                                borderRadius: 6,
-                                                fontSize: 11,
-                                                background: order.payment_method === 'cod' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(59, 130, 246, 0.15)',
-                                                color: order.payment_method === 'cod' ? '#f59e0b' : '#60a5fa'
-                                            }}>
-                                                {order.payment_method === 'cod' ? '💵 Livraison' : '🌐 En ligne'}
-                                            </span>
-                                        )}
                                     </div>
                                 </div>
-                                <button
-                                    onClick={() => router.push(`/dashboard/orders/${order.id}`)}
-                                    style={{
-                                        padding: '10px 16px',
-                                        borderRadius: 10,
-                                        background: 'rgba(59, 130, 246, 0.15)',
-                                        color: '#60a5fa',
-                                        border: 'none',
-                                        fontWeight: 600,
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 8,
-                                        transition: 'background 0.2s'
-                                    }}
-                                >
-                                    <Eye size={16} />
-                                    {t('card.details')}
-                                </button>
+
+                                {/* Verification Buttons (Mobile Money) */}
+                                {order.payment_verification_status === 'awaiting_verification' && order.payment_screenshot_url && (
+                                    <div style={{ display: 'flex', gap: 8 }}>
+                                        <button
+                                            onClick={() => setScreenshotModal(order.payment_screenshot_url!)}
+                                            style={{
+                                                padding: '10px 14px',
+                                                borderRadius: 10,
+                                                background: 'rgba(59, 130, 246, 0.15)',
+                                                color: '#60a5fa',
+                                                border: 'none',
+                                                fontWeight: 600,
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 6
+                                            }}
+                                        >
+                                            <ImageIcon size={16} /> Voir
+                                        </button>
+                                        <button
+                                            onClick={() => handleVerify(order.id, 'verify')}
+                                            disabled={verifyingId === order.id}
+                                            style={{
+                                                padding: '10px 14px',
+                                                borderRadius: 10,
+                                                background: 'rgba(16, 185, 129, 0.15)',
+                                                color: '#10b981',
+                                                border: 'none',
+                                                fontWeight: 600,
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 6,
+                                                opacity: verifyingId === order.id ? 0.5 : 1
+                                            }}
+                                        >
+                                            <Check size={16} /> Confirmer
+                                        </button>
+                                        <button
+                                            onClick={() => handleVerify(order.id, 'reject')}
+                                            disabled={verifyingId === order.id}
+                                            style={{
+                                                padding: '10px 14px',
+                                                borderRadius: 10,
+                                                background: 'rgba(239, 68, 68, 0.15)',
+                                                color: '#ef4444',
+                                                border: 'none',
+                                                fontWeight: 600,
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 6,
+                                                opacity: verifyingId === order.id ? 0.5 : 1
+                                            }}
+                                        >
+                                            <X size={16} /> Rejeter
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* Regular Details Button */}
+                                {order.payment_verification_status !== 'awaiting_verification' && (
+                                    <button
+                                        onClick={() => router.push(`/dashboard/orders/${order.id}`)}
+                                        style={{
+                                            padding: '10px 16px',
+                                            borderRadius: 10,
+                                            background: 'rgba(59, 130, 246, 0.15)',
+                                            color: '#60a5fa',
+                                            border: 'none',
+                                            fontWeight: 600,
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 8
+                                        }}
+                                    >
+                                        <Eye size={16} />
+                                        {t('card.details')}
+                                    </button>
+                                )}
                             </div>
                         </motion.div>
                     ))}
                 </div>
             )}
+
+            {/* Screenshot Modal */}
+            {screenshotModal && (
+                <div
+                    onClick={() => setScreenshotModal(null)}
+                    style={{
+                        position: 'fixed',
+                        inset: 0,
+                        background: 'rgba(0,0,0,0.8)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 1000,
+                        cursor: 'pointer'
+                    }}
+                >
+                    <div onClick={e => e.stopPropagation()} style={{ maxWidth: '90vw', maxHeight: '90vh' }}>
+                        <img
+                            src={getScreenshotUrl(screenshotModal)}
+                            alt="Capture d'écran paiement"
+                            style={{ maxWidth: '100%', maxHeight: '85vh', borderRadius: 12 }}
+                        />
+                        <div style={{ textAlign: 'center', marginTop: 16 }}>
+                            <button
+                                onClick={() => setScreenshotModal(null)}
+                                style={{
+                                    padding: '12px 24px',
+                                    borderRadius: 10,
+                                    background: '#ef4444',
+                                    color: 'white',
+                                    border: 'none',
+                                    fontWeight: 600,
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Fermer
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <style jsx global>{`
                 @keyframes spin {
                     from { transform: rotate(0deg); }
