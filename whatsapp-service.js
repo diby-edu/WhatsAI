@@ -207,7 +207,7 @@ const TOOLS = [
 ]
 
 // Tool Executor
-async function handleToolCall(toolCall, agentId, customerPhone, products) {
+async function handleToolCall(toolCall, agentId, customerPhone, products, conversationId) {
     if (toolCall.function.name === 'create_order') {
         try {
             console.log('🛠️ Executing tool: create_order')
@@ -338,7 +338,8 @@ async function handleToolCall(toolCall, agentId, customerPhone, products) {
                     total_fcfa: total,
                     delivery_address: `${delivery_address || ''} ${delivery_city || ''}`.trim(),
                     payment_method: payment_method || 'online',
-                    notes: finalNotes
+                    notes: finalNotes,
+                    conversation_id: conversationId // ✅ Link payment to conversation
                 })
                 .select()
                 .single()
@@ -569,6 +570,7 @@ async function generateAIResponse(options) {
             products,
             orders,
             customerPhone,
+            conversationId, // ✅ ID passed from handleMessage
             currency = 'USD' // Default currency
         } = options
 
@@ -838,7 +840,7 @@ Quand le client donne son numéro :
             ]
 
             for (const toolCall of responseMessage.tool_calls) {
-                const toolResult = await handleToolCall(toolCall, agent.id, customerPhone, products)
+                const toolResult = await handleToolCall(toolCall, agent.id, customerPhone, products, options.conversationId)
 
                 newHistory.push({
                     role: 'tool',
@@ -1030,7 +1032,8 @@ async function handleMessage(agentId, message, isVoiceMessage = false) {
             products: products || [],
             currency: profileCurrency,
             orders: orders || [],
-            customerPhone: message.from // FIX: Pass full JID instead of stripped phone
+            customerPhone: message.from, // FIX: Pass full JID instead of stripped phone
+            conversationId: conversation.id // ✅ PASS CONVERSATION ID (Critical for hard link)
         })
         const session = activeSessions.get(agentId)
         if (session && session.socket) {
