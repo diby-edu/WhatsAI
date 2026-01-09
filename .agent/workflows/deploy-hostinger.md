@@ -179,8 +179,10 @@ certbot --nginx -d votre-domaine.com
 
 # OU manuellement :
 cd ~/WhatsAI
-git pull
+git fetch origin
+git reset --hard origin/master
 npm install
+rm -f .next/lock
 npm run build
 pm2 restart whatsai-web  # ⚠️ SEULEMENT web, PAS bot !
 ```
