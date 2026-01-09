@@ -888,6 +888,8 @@ async function handleMessage(agentId, message, isVoiceMessage = false) {
         }
 
         // Get or create conversation
+        // Store the full JID (with suffix) to preserve LID vs phone distinction
+        const fullJid = message.from // e.g., "225xxx@s.whatsapp.net" or "234xxx@lid"
         const phoneNumber = message.from.replace('@s.whatsapp.net', '').replace('@lid', '')
 
         let { data: conversation } = await supabase
@@ -904,6 +906,7 @@ async function handleMessage(agentId, message, isVoiceMessage = false) {
                     agent_id: agentId,
                     user_id: agent.user_id,
                     contact_phone: phoneNumber,
+                    contact_jid: fullJid, // Store full JID for correct sending
                     contact_push_name: message.pushName,
                     status: 'active',
                     bot_paused: false
@@ -1506,6 +1509,7 @@ async function checkPendingHistoryMessages() {
                 *,
                 conversation:conversations!inner(
                     contact_phone,
+                    contact_jid,
                     agent_id,
                     bot_paused
                 )
@@ -1520,12 +1524,18 @@ async function checkPendingHistoryMessages() {
             for (const msg of pendingMessages) {
                 const agentId = msg.conversation.agent_id
                 const phoneNumber = msg.conversation.contact_phone
+                const contactJid = msg.conversation.contact_jid // Full JID if available
                 const session = activeSessions.get(agentId)
 
                 if (session && session.socket) {
                     try {
-                        let jid = phoneNumber
-                        if (!jid.includes('@')) jid = jid.replace(/\D/g, '') + '@s.whatsapp.net'
+                        // Use stored JID if available, otherwise construct from phone
+                        let jid = contactJid || phoneNumber
+                        if (!jid.includes('@')) {
+                            // Detect LID (usually longer than 13 digits and doesn't look like a phone)
+                            const isLid = phoneNumber.length > 15 || !/^\d{10,13}$/.test(phoneNumber)
+                            jid = phoneNumber + (isLid ? '@lid' : '@s.whatsapp.net')
+                        }
 
                         // Send message
                         const result = await session.socket.sendMessage(jid, {
