@@ -123,12 +123,30 @@ export async function POST(request: NextRequest) {
                             const confirmationMessage = `✅ *Paiement reçu !*\n\nMerci ! Votre paiement de ${order.total_fcfa?.toLocaleString('fr-FR')} FCFA pour la commande #${order.id.substring(0, 8)} a été confirmé.\n\n📦 Votre commande est maintenant en cours de traitement.\n\nMerci pour votre confiance ! 🙏`
 
                             // 🎯 HYBRID ROUTING: Check for active conversation
-                            const { data: conversation } = await supabase
-                                .from('conversations')
-                                .select('id')
-                                .eq('agent_id', order.agent_id)
-                                .eq('contact_phone', order.customer_phone)
-                                .single()
+                            // STRATEGY: 1. Try Hard Link (conversation_id) -> 2. Try Soft Link (agent + phone)
+                            let conversationId = order.conversation_id
+                            let conversation = null
+
+                            if (conversationId) {
+                                // Verify it still exists
+                                const { data: linkedConv } = await supabase
+                                    .from('conversations')
+                                    .select('id')
+                                    .eq('id', conversationId)
+                                    .single()
+                                if (linkedConv) conversation = linkedConv
+                            }
+
+                            if (!conversation) {
+                                // Fallback: Soft Link (Legacy/Backup)
+                                const { data: softConv } = await supabase
+                                    .from('conversations')
+                                    .select('id')
+                                    .eq('agent_id', order.agent_id)
+                                    .eq('contact_phone', order.customer_phone)
+                                    .single()
+                                conversation = softConv
+                            }
 
                             if (conversation) {
                                 // CASE 1: Conversation exists -> Insert into history (Smart)
