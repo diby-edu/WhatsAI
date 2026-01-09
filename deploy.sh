@@ -1,37 +1,47 @@
 #!/bin/bash
-# WhatsAI Deploy Script (Fusionné)
-# ⚠️ Le bot peut être redémarré sans déconnecter WhatsApp (session persistante)
+# WhatsAI Deploy Script (Intelligent)
+# Ne redémarre le bot QUE si son code a changé
 
 clear
 echo "╔═══════════════════════════════════════════════════════════════╗"
-echo "║              🚀 WhatsAI - Déploiement Complet                 ║"
+echo "║              🚀 WhatsAI - Déploiement Intelligent             ║"
 echo "╚═══════════════════════════════════════════════════════════════╝"
 echo ""
 
 cd ~/WhatsAI
 
-# Get current commit before update
-OLD_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+# Get current commit
+OLD_COMMIT=$(git rev-parse HEAD 2>/dev/null)
 
-# 1. Libérer la RAM pour le build (le bot garde sa session sur disque)
-echo "🛑 Arrêt temporaire du bot pour libérer la RAM..."
-pm2 stop whatsai-bot 2>/dev/null || true
-
-# 2. Récupérer le code (forcé, sans conflits)
-echo ""
+# 1. Récupérer le code
 echo "📥 Téléchargement des modifications..."
 git fetch origin
-git reset --hard origin/master
 
-# Get new commit after update
-NEW_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+# Check if bot code changed
+BOT_CHANGED=$(git diff $OLD_COMMIT origin/master --name-only | grep -E "whatsapp-service\.js|ecosystem\.config\.js" || true)
+
+# Apply changes
+git reset --hard origin/master
+NEW_COMMIT=$(git rev-parse --short HEAD 2>/dev/null)
+
+# 2. Si le bot a changé, l'arrêter pour libérer la RAM
+if [ -n "$BOT_CHANGED" ]; then
+    echo ""
+    echo "🔄 Code du bot modifié - arrêt temporaire..."
+    pm2 stop whatsai-bot 2>/dev/null || true
+    RESTART_BOT=true
+else
+    echo ""
+    echo "✅ Code du bot inchangé - pas de redémarrage nécessaire"
+    RESTART_BOT=false
+fi
 
 # 3. Installer les dépendances
 echo ""
 echo "📦 Installation des dépendances..."
 npm install --silent
 
-# 4. Build (nettoyer le lock avant)
+# 4. Build
 echo ""
 echo "🔨 Compilation en cours..."
 rm -f .next/lock
@@ -41,33 +51,30 @@ npm run build
 echo ""
 echo "🔄 Redémarrage des services..."
 pm2 restart whatsai-web 2>/dev/null || pm2 start ecosystem.config.js --only whatsai-web
-pm2 restart whatsai-bot 2>/dev/null || pm2 start ecosystem.config.js --only whatsai-bot
+
+if [ "$RESTART_BOT" = true ]; then
+    pm2 restart whatsai-bot 2>/dev/null || pm2 start ecosystem.config.js --only whatsai-bot
+    BOT_ACTION="Redémarré ✅"
+else
+    BOT_ACTION="Non touché 🔒"
+fi
 
 # Wait for services to be ready
 sleep 3
 
-# Get PM2 info
+# Get status
 WEB_STATUS=$(pm2 show whatsai-web 2>/dev/null | grep "status" | head -1 | awk '{print $4}' || echo "online")
 BOT_STATUS=$(pm2 show whatsai-bot 2>/dev/null | grep "status" | head -1 | awk '{print $4}' || echo "online")
-
-# Get resource usage
-DISK_USAGE=$(df -h / | tail -1 | awk '{print $5}')
-MEM_USAGE=$(free | grep Mem | awk '{printf("%.0f%%", $3/$2 * 100)}')
 
 echo ""
 echo "╔═══════════════════════════════════════════════════════════════╗"
 echo "║                  ✅ DÉPLOIEMENT TERMINÉ                       ║"
 echo "╠═══════════════════════════════════════════════════════════════╣"
-printf "║  📌 Commit précédent : %-37s ║\n" "$OLD_COMMIT"
-printf "║  📌 Commit actuel    : %-37s ║\n" "$NEW_COMMIT"
+printf "║  📌 Nouveau commit   : %-37s ║\n" "$NEW_COMMIT"
 echo "╠═══════════════════════════════════════════════════════════════╣"
-printf "║  🌐 WhatsAI Web      : %-37s ║\n" "$WEB_STATUS"
-printf "║  🤖 WhatsApp Bot     : %-37s ║\n" "$BOT_STATUS"
-echo "╠═══════════════════════════════════════════════════════════════╣"
-printf "║  💾 Disque           : %-37s ║\n" "$DISK_USAGE utilisé"
-printf "║  🧠 RAM              : %-37s ║\n" "$MEM_USAGE utilisée"
+printf "║  🌐 WhatsAI Web      : %-37s ║\n" "$WEB_STATUS (Redémarré)"
+printf "║  🤖 WhatsApp Bot     : %-37s ║\n" "$BOT_STATUS ($BOT_ACTION)"
 echo "╚═══════════════════════════════════════════════════════════════╝"
 echo ""
-echo "✅ WhatsApp reste connecté (session préservée sur disque)"
 echo "🔗 Site: https://whatsai.duckdns.org"
 echo ""
