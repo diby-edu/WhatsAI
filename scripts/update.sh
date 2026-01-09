@@ -14,7 +14,8 @@ cd ~/WhatsAI
 OLD_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 
 echo "📥 Téléchargement des modifications..."
-git pull
+git fetch origin
+git reset --hard origin/master
 
 # Get new commit after pull  
 NEW_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
@@ -25,6 +26,7 @@ npm install --silent
 
 echo ""
 echo "🔨 Compilation en cours..."
+rm -f .next/lock  # Évite les erreurs de lock
 npm run build
 
 echo ""
