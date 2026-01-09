@@ -121,8 +121,16 @@ export default function AgentWizardPage({
         latitude: null as number | null,
         longitude: null as number | null,
 
-        // Step 2: Hours
-        business_hours: '',
+        // Step 2: Hours (structured like creation wizard)
+        business_hours: {
+            monday: { open: '09:00', close: '18:00', closed: false },
+            tuesday: { open: '09:00', close: '18:00', closed: false },
+            wednesday: { open: '09:00', close: '18:00', closed: false },
+            thursday: { open: '09:00', close: '18:00', closed: false },
+            friday: { open: '09:00', close: '18:00', closed: false },
+            saturday: { open: '10:00', close: '16:00', closed: false },
+            sunday: { open: '00:00', close: '00:00', closed: true }
+        } as { [key: string]: { open: string; close: string; closed: boolean } },
 
         // Step 3: Personality
         agent_tone: 'friendly',
@@ -177,7 +185,18 @@ export default function AgentWizardPage({
                 latitude: agent.latitude || null,
                 longitude: agent.longitude || null,
 
-                business_hours: agent.business_hours || "Lundi-Vendredi: 08:00 - 18:00\nSamedi: 09:00 - 13:00",
+                // Parse business_hours - support both object and legacy string format
+                business_hours: (typeof agent.business_hours === 'object' && agent.business_hours !== null)
+                    ? agent.business_hours
+                    : {
+                        monday: { open: '09:00', close: '18:00', closed: false },
+                        tuesday: { open: '09:00', close: '18:00', closed: false },
+                        wednesday: { open: '09:00', close: '18:00', closed: false },
+                        thursday: { open: '09:00', close: '18:00', closed: false },
+                        friday: { open: '09:00', close: '18:00', closed: false },
+                        saturday: { open: '10:00', close: '16:00', closed: false },
+                        sunday: { open: '00:00', close: '00:00', closed: true }
+                    },
 
                 agent_tone: agent.agent_tone || 'friendly',
                 agent_goal: agent.agent_goal || 'sales',
@@ -419,6 +438,39 @@ export default function AgentWizardPage({
                 )
 
             case 'hours':
+                const set24_7 = () => {
+                    const allOpen = {
+                        monday: { open: '00:00', close: '23:59', closed: false },
+                        tuesday: { open: '00:00', close: '23:59', closed: false },
+                        wednesday: { open: '00:00', close: '23:59', closed: false },
+                        thursday: { open: '00:00', close: '23:59', closed: false },
+                        friday: { open: '00:00', close: '23:59', closed: false },
+                        saturday: { open: '00:00', close: '23:59', closed: false },
+                        sunday: { open: '00:00', close: '23:59', closed: false }
+                    }
+                    setFormData({ ...formData, business_hours: allOpen })
+                }
+
+                const dayNames: { [key: string]: string } = {
+                    monday: 'Lundi',
+                    tuesday: 'Mardi',
+                    wednesday: 'Mercredi',
+                    thursday: 'Jeudi',
+                    friday: 'Vendredi',
+                    saturday: 'Samedi',
+                    sunday: 'Dimanche'
+                }
+
+                const timeInputStyle = {
+                    padding: '4px 8px',
+                    width: 100,
+                    borderRadius: 8,
+                    border: '1px solid rgba(148, 163, 184, 0.1)',
+                    background: 'rgba(30, 41, 59, 0.5)',
+                    color: 'white',
+                    outline: 'none'
+                }
+
                 return (
                     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                         {/* 24/7 Quick Toggle */}
@@ -429,7 +481,7 @@ export default function AgentWizardPage({
                             </div>
                             <button
                                 type="button"
-                                onClick={() => setFormData({ ...formData, business_hours: "Ouvert 24h/24, 7j/7\n(Service disponible à tout moment)" })}
+                                onClick={set24_7}
                                 style={{
                                     padding: '8px 16px',
                                     background: '#10b981',
@@ -444,23 +496,47 @@ export default function AgentWizardPage({
                             </button>
                         </div>
 
-                        <textarea
-                            value={formData.business_hours}
-                            onChange={e => setFormData({ ...formData, business_hours: e.target.value })}
-                            placeholder={"Lundi - Vendredi : 08:00 - 18:00\nSamedi : 09:00 - 14:00\nDimanche : Fermé\n\nOU\n\nOuvert 24h/24, 7j/7"}
-                            style={{
-                                width: '100%',
-                                padding: 16,
-                                borderRadius: 12,
-                                border: '1px solid rgba(148, 163, 184, 0.1)',
-                                background: 'rgba(30, 41, 59, 0.5)',
-                                color: 'white',
-                                outline: 'none',
-                                height: 200,
-                                resize: 'vertical',
-                                fontFamily: 'inherit'
-                            }}
-                        />
+                        {Object.entries(formData.business_hours).map(([day, hours]) => (
+                            <div key={day} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 12, background: 'rgba(30, 41, 59, 0.3)', borderRadius: 8 }}>
+                                <span style={{ textTransform: 'capitalize', color: 'white', width: 100 }}>{dayNames[day] || day}</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={!hours.closed}
+                                        onChange={e => setFormData({
+                                            ...formData,
+                                            business_hours: { ...formData.business_hours, [day]: { ...hours, closed: !e.target.checked } }
+                                        })}
+                                        style={{ accentColor: '#10b981', width: 16, height: 16 }}
+                                    />
+                                    {!hours.closed ? (
+                                        <>
+                                            <input
+                                                type="time"
+                                                value={hours.open}
+                                                onChange={e => setFormData({
+                                                    ...formData,
+                                                    business_hours: { ...formData.business_hours, [day]: { ...hours, open: e.target.value } }
+                                                })}
+                                                style={timeInputStyle}
+                                            />
+                                            <span style={{ color: '#94a3b8' }}>-</span>
+                                            <input
+                                                type="time"
+                                                value={hours.close}
+                                                onChange={e => setFormData({
+                                                    ...formData,
+                                                    business_hours: { ...formData.business_hours, [day]: { ...hours, close: e.target.value } }
+                                                })}
+                                                style={timeInputStyle}
+                                            />
+                                        </>
+                                    ) : (
+                                        <span style={{ color: '#64748b', fontStyle: 'italic', width: 216, textAlign: 'center' }}>Fermé</span>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
                     </motion.div>
                 )
 
