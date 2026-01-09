@@ -37,55 +37,111 @@ export async function POST(request: NextRequest) {
     try {
         console.log('📩 CinetPay Webhook called!')
 
-        // CinetPay sends x-www-form-urlencoded, NOT JSON!
-        let cpm_trans_id: string = ''
-        let cpm_site_id: string = ''
+        // CinetPay webhook fields (per official documentation)
+        let cpm_site_id = ''
+        let cpm_trans_id = ''
+        let cpm_trans_date = ''
+        let cpm_amount = ''
+        let cpm_currency = ''
+        let signature = ''
+        let payment_method = ''
+        let cel_phone_num = ''
+        let cpm_phone_prefixe = ''
+        let cpm_language = ''
+        let cpm_version = ''
+        let cpm_payment_config = ''
+        let cpm_page_action = ''
+        let cpm_custom = ''
+        let cpm_designation = ''
+        let cpm_error_message = ''
 
         const contentType = request.headers.get('content-type') || ''
 
+        // Parse all fields from the request
         if (contentType.includes('application/x-www-form-urlencoded')) {
-            // Parse form data
             const formData = await request.formData()
-            cpm_trans_id = formData.get('cpm_trans_id')?.toString() || ''
             cpm_site_id = formData.get('cpm_site_id')?.toString() || ''
-            console.log('📋 Form data - trans_id:', cpm_trans_id, 'site_id:', cpm_site_id)
+            cpm_trans_id = formData.get('cpm_trans_id')?.toString() || ''
+            cpm_trans_date = formData.get('cpm_trans_date')?.toString() || ''
+            cpm_amount = formData.get('cpm_amount')?.toString() || ''
+            cpm_currency = formData.get('cpm_currency')?.toString() || ''
+            signature = formData.get('signature')?.toString() || ''
+            payment_method = formData.get('payment_method')?.toString() || ''
+            cel_phone_num = formData.get('cel_phone_num')?.toString() || ''
+            cpm_phone_prefixe = formData.get('cpm_phone_prefixe')?.toString() || ''
+            cpm_language = formData.get('cpm_language')?.toString() || ''
+            cpm_version = formData.get('cpm_version')?.toString() || ''
+            cpm_payment_config = formData.get('cpm_payment_config')?.toString() || ''
+            cpm_page_action = formData.get('cpm_page_action')?.toString() || ''
+            cpm_custom = formData.get('cpm_custom')?.toString() || ''
+            cpm_designation = formData.get('cpm_designation')?.toString() || ''
+            cpm_error_message = formData.get('cpm_error_message')?.toString() || ''
         } else if (contentType.includes('application/json')) {
-            // Fallback to JSON parsing
             const body = await request.json()
-            cpm_trans_id = body.cpm_trans_id || ''
             cpm_site_id = body.cpm_site_id || ''
-            console.log('📋 JSON data - trans_id:', cpm_trans_id, 'site_id:', cpm_site_id)
+            cpm_trans_id = body.cpm_trans_id || ''
+            cpm_trans_date = body.cpm_trans_date || ''
+            cpm_amount = body.cpm_amount || ''
+            cpm_currency = body.cpm_currency || ''
+            signature = body.signature || ''
+            payment_method = body.payment_method || ''
+            cel_phone_num = body.cel_phone_num || ''
+            cpm_phone_prefixe = body.cpm_phone_prefixe || ''
+            cpm_language = body.cpm_language || ''
+            cpm_version = body.cpm_version || ''
+            cpm_payment_config = body.cpm_payment_config || ''
+            cpm_page_action = body.cpm_page_action || ''
+            cpm_custom = body.cpm_custom || ''
+            cpm_designation = body.cpm_designation || ''
+            cpm_error_message = body.cpm_error_message || ''
         } else {
-            // Try to read as text and parse
             const text = await request.text()
-            console.log('📋 Raw text:', text)
             const params = new URLSearchParams(text)
-            cpm_trans_id = params.get('cpm_trans_id') || ''
             cpm_site_id = params.get('cpm_site_id') || ''
+            cpm_trans_id = params.get('cpm_trans_id') || ''
+            cpm_trans_date = params.get('cpm_trans_date') || ''
+            cpm_amount = params.get('cpm_amount') || ''
+            cpm_currency = params.get('cpm_currency') || ''
+            signature = params.get('signature') || ''
+            payment_method = params.get('payment_method') || ''
+            cel_phone_num = params.get('cel_phone_num') || ''
+            cpm_phone_prefixe = params.get('cpm_phone_prefixe') || ''
+            cpm_language = params.get('cpm_language') || ''
+            cpm_version = params.get('cpm_version') || ''
+            cpm_payment_config = params.get('cpm_payment_config') || ''
+            cpm_page_action = params.get('cpm_page_action') || ''
+            cpm_custom = params.get('cpm_custom') || ''
+            cpm_designation = params.get('cpm_designation') || ''
+            cpm_error_message = params.get('cpm_error_message') || ''
         }
+
+        console.log('📋 Webhook data - trans_id:', cpm_trans_id, 'site_id:', cpm_site_id, 'amount:', cpm_amount)
 
         if (!cpm_trans_id) {
             console.error('❌ No transaction ID received')
             return new Response('Missing cpm_trans_id', { status: 400 })
         }
 
-        // SECURITY: Verify HMAC signature from x-token header
-        // NOTE: Real security is the API verification below (checkPaymentStatus)
-        // Signature is optional - some CinetPay setups don't send it
+        // SECURITY: Verify HMAC signature from x-token header (Official CinetPay format)
+        // Payload = ALL 16 fields concatenated in order per documentation
         const xToken = request.headers.get('x-token')
         if (xToken && process.env.CINETPAY_SECRET_KEY) {
-            const signaturePayload = `${cpm_trans_id}${cpm_site_id}`
+            // Official CinetPay HMAC format: concatenate all 16 fields
+            const signaturePayload = cpm_site_id + cpm_trans_id + cpm_trans_date + cpm_amount +
+                cpm_currency + signature + payment_method + cel_phone_num + cpm_phone_prefixe +
+                cpm_language + cpm_version + cpm_payment_config + cpm_page_action +
+                cpm_custom + cpm_designation + cpm_error_message
+
             if (!verifySignature(signaturePayload, xToken)) {
-                console.warn('⚠️ Signature mismatch - continuing with API verification as fallback')
-                // Don't reject - API verification below is the real security
-            } else {
-                console.log('✅ Signature verified successfully')
+                console.error('❌ SECURITY: Invalid HMAC signature! Rejecting webhook.')
+                return new Response('Invalid signature', { status: 403 })
             }
-        } else {
-            console.log('ℹ️ No signature verification (x-token header not present)')
+            console.log('✅ HMAC Signature verified successfully')
+        } else if (!xToken) {
+            console.log('ℹ️ No x-token header - proceeding with API verification only')
         }
 
-        // Verify site_id
+        // Verify site_id matches our configuration
         if (cpm_site_id && cpm_site_id !== process.env.CINETPAY_SITE_ID) {
             console.error('❌ Invalid site_id:', cpm_site_id, 'expected:', process.env.CINETPAY_SITE_ID)
             return new Response('Invalid site_id', { status: 400 })

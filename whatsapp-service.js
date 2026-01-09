@@ -1537,6 +1537,11 @@ async function checkPendingHistoryMessages() {
                             jid = phoneNumber + (isLid ? '@lid' : '@s.whatsapp.net')
                         }
 
+                        // 📊 DEBUG LOGS (Expert Recommendation)
+                        console.log(`   📍 Phone: ${phoneNumber}`)
+                        console.log(`   📍 JID: ${jid}`)
+                        console.log(`   💾 Conversation ID: ${msg.conversation_id}`)
+
                         // Send message
                         const result = await session.socket.sendMessage(jid, {
                             text: msg.content
@@ -1599,6 +1604,10 @@ async function checkOutboundMessages() {
                     try {
                         let jid = msg.recipient_phone
                         if (!jid.includes('@')) jid = jid.replace(/\D/g, '') + '@s.whatsapp.net'
+
+                        // 📊 DEBUG LOG (Expert Recommendation)
+                        console.log(`   📨 [OUTBOUND] Processing message for ${msg.recipient_phone}`)
+                        console.log(`   📍 JID: ${jid}`)
 
                         // Send text message
                         await session.socket.sendMessage(jid, {
