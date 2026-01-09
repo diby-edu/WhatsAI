@@ -737,19 +737,8 @@ export default function AgentWizardPage({
                 }
                 return (
                     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                        {/* AI Model Settings */}
+                        {/* Settings - Only Temperature and Language */}
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                            <div>
-                                <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>Modèle IA</label>
-                                <select
-                                    value={formData.model}
-                                    onChange={e => setFormData({ ...formData, model: e.target.value })}
-                                    style={selectStyle}
-                                >
-                                    <option value="gpt-4o-mini">GPT-4o-mini (Rapide)</option>
-                                    <option value="gpt-4o">GPT-4o (Puissant)</option>
-                                </select>
-                            </div>
                             <div>
                                 <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>Température: {formData.temperature}</label>
                                 <input
@@ -761,6 +750,7 @@ export default function AgentWizardPage({
                                     onChange={e => setFormData({ ...formData, temperature: parseFloat(e.target.value) })}
                                     style={{ width: '100%', accentColor: '#10b981' }}
                                 />
+                                <p style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>Plus élevé = réponses plus créatives</p>
                             </div>
                             <div>
                                 <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>Langue</label>
@@ -772,23 +762,6 @@ export default function AgentWizardPage({
                                     <option value="fr">Français</option>
                                     <option value="en">Anglais</option>
                                 </select>
-                            </div>
-                            <div>
-                                <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>Max Tokens</label>
-                                <input
-                                    type="number"
-                                    value={formData.max_tokens}
-                                    onChange={e => setFormData({ ...formData, max_tokens: parseInt(e.target.value) })}
-                                    style={{
-                                        width: '100%',
-                                        padding: 12,
-                                        borderRadius: 12,
-                                        border: '1px solid rgba(148, 163, 184, 0.1)',
-                                        background: 'rgba(30, 41, 59, 0.5)',
-                                        color: 'white',
-                                        outline: 'none'
-                                    }}
-                                />
                             </div>
                         </div>
 
