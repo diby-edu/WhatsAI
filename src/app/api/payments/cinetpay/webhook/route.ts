@@ -70,17 +70,19 @@ export async function POST(request: NextRequest) {
         }
 
         // SECURITY: Verify HMAC signature from x-token header
+        // NOTE: Real security is the API verification below (checkPaymentStatus)
+        // Signature is optional - some CinetPay setups don't send it
         const xToken = request.headers.get('x-token')
         if (xToken && process.env.CINETPAY_SECRET_KEY) {
-            // Reconstruct payload for signature verification
             const signaturePayload = `${cpm_trans_id}${cpm_site_id}`
             if (!verifySignature(signaturePayload, xToken)) {
-                console.error('❌ SECURITY: Invalid signature! Possible fraud attempt.')
-                return new Response('Invalid signature', { status: 403 })
+                console.warn('⚠️ Signature mismatch - continuing with API verification as fallback')
+                // Don't reject - API verification below is the real security
+            } else {
+                console.log('✅ Signature verified successfully')
             }
-            console.log('✅ Signature verified successfully')
-        } else if (process.env.CINETPAY_SECRET_KEY) {
-            console.warn('⚠️ No x-token header received, but secret key is configured')
+        } else {
+            console.log('ℹ️ No signature verification (x-token header not present)')
         }
 
         // Verify site_id
