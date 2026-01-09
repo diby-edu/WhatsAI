@@ -104,12 +104,18 @@ export default function OrderPaymentPage() {
                         </div>
                     </div>
 
-                    <Link
-                        href={`/${params.locale}/dashboard/orders`}
+                    <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 mb-6">
+                        <p className="text-emerald-400 text-sm">
+                            📱 Vous allez recevoir une confirmation sur WhatsApp
+                        </p>
+                    </div>
+
+                    <button
+                        onClick={() => window.close()}
                         className="inline-flex items-center justify-center w-full py-4 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold transition-colors"
                     >
-                        Voir mes commandes
-                    </Link>
+                        Fermer cette page
+                    </button>
                 </motion.div>
             </div >
         )
