@@ -292,112 +292,127 @@ export default function AgentWizardPage({
 
         switch (step) {
             case 'info':
+                const inputStyle = {
+                    width: '100%',
+                    padding: 12,
+                    borderRadius: 12,
+                    border: '1px solid rgba(148, 163, 184, 0.1)',
+                    background: 'rgba(30, 41, 59, 0.5)',
+                    color: 'white',
+                    outline: 'none'
+                }
                 return (
-                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
-                        <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
-                            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                                <MapPin className="text-emerald-400" size={24} /> Identité de l'Entreprise
-                            </h2>
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-slate-300 font-medium mb-1">Nom du Bot / Agent</label>
-                                    <input
-                                        value={formData.name}
-                                        onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                        className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
-                                        placeholder="Ex: Marius le Vendeur"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-slate-300 font-medium mb-1">Adresse Physique (Complète)</label>
-                                    <input
-                                        value={formData.business_address}
-                                        onChange={e => setFormData({ ...formData, business_address: e.target.value })}
-                                        className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
-                                        placeholder="Ex: Cocody Rivera 2, Abidjan, Côte d'Ivoire"
-                                    />
-                                </div>
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                        <div>
+                            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
+                                Nom du Bot / Agent
+                            </label>
+                            <input
+                                value={formData.name}
+                                onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                placeholder="Ex: Marius le Vendeur"
+                                style={inputStyle}
+                            />
+                        </div>
 
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-slate-300 font-medium mb-1">Latitude (Optionnel)</label>
-                                        <input
-                                            type="number"
-                                            step="any"
-                                            value={formData.latitude || ''}
-                                            onChange={e => setFormData({ ...formData, latitude: parseFloat(e.target.value) })}
-                                            className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none font-mono"
-                                            placeholder="Ex: 5.3599517"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-slate-300 font-medium mb-1">Longitude (Optionnel)</label>
-                                        <input
-                                            type="number"
-                                            step="any"
-                                            value={formData.longitude || ''}
-                                            onChange={e => setFormData({ ...formData, longitude: parseFloat(e.target.value) })}
-                                            className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none font-mono"
-                                            placeholder="Ex: -4.0082563"
-                                        />
-                                    </div>
-                                </div>
-                                <div className="flex justify-end">
-                                    <button
-                                        onClick={() => {
-                                            if (!navigator.geolocation) return alert('Géolocalisation non supportée')
-                                            navigator.geolocation.getCurrentPosition(
-                                                (pos) => {
-                                                    setFormData(prev => ({
-                                                        ...prev,
-                                                        latitude: pos.coords.latitude,
-                                                        longitude: pos.coords.longitude
-                                                    }))
-                                                },
-                                                (err) => alert('Erreur de localisation : ' + err.message)
-                                            )
-                                        }}
-                                        className="text-sm text-emerald-400 hover:text-emerald-300 flex items-center gap-2"
-                                    >
-                                        📍 Utiliser ma position actuelle
-                                    </button>
-                                </div>
-                                <div>
-                                    <label className="block text-slate-300 font-medium mb-1">Téléphone Support / Escalade (Humain)</label>
-                                    <input
-                                        value={formData.contact_phone}
-                                        onChange={e => setFormData({ ...formData, contact_phone: e.target.value })}
-                                        className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
-                                        placeholder="Ex: +225 07 07 ..."
-                                    />
-                                    <p className="text-xs text-slate-500 mt-1">Le bot donnera ce numéro si le client veut parler à un humain.</p>
-                                </div>
+                        <div>
+                            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
+                                Adresse Physique (Complète)
+                            </label>
+                            <input
+                                value={formData.business_address}
+                                onChange={e => setFormData({ ...formData, business_address: e.target.value })}
+                                placeholder="Ex: Cocody Rivera 2, Abidjan, Côte d'Ivoire"
+                                style={inputStyle}
+                            />
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                            <div>
+                                <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
+                                    Latitude (Optionnel)
+                                </label>
+                                <input
+                                    type="number"
+                                    step="any"
+                                    value={formData.latitude || ''}
+                                    onChange={e => setFormData({ ...formData, latitude: parseFloat(e.target.value) })}
+                                    placeholder="Ex: 5.3599517"
+                                    style={inputStyle}
+                                />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
+                                    Longitude (Optionnel)
+                                </label>
+                                <input
+                                    type="number"
+                                    step="any"
+                                    value={formData.longitude || ''}
+                                    onChange={e => setFormData({ ...formData, longitude: parseFloat(e.target.value) })}
+                                    placeholder="Ex: -4.0082563"
+                                    style={inputStyle}
+                                />
                             </div>
                         </div>
 
-                        <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
-                            <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                                <Globe className="text-blue-400" size={20} /> Liens & Réseaux
-                            </h2>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-slate-300 text-sm mb-1">Site Web</label>
-                                    <input
-                                        value={formData.social_links.website}
-                                        onChange={e => setFormData({ ...formData, social_links: { ...formData.social_links, website: e.target.value } })}
-                                        className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white outline-none"
-                                        placeholder="https://..."
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-slate-300 text-sm mb-1">Facebook</label>
-                                    <input
-                                        value={formData.social_links.facebook}
-                                        onChange={e => setFormData({ ...formData, social_links: { ...formData.social_links, facebook: e.target.value } })}
-                                        className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white outline-none"
-                                        placeholder="Page Facebook"
-                                    />
-                                </div>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (!navigator.geolocation) return alert('Géolocalisation non supportée')
+                                    navigator.geolocation.getCurrentPosition(
+                                        (pos) => {
+                                            setFormData(prev => ({
+                                                ...prev,
+                                                latitude: pos.coords.latitude,
+                                                longitude: pos.coords.longitude
+                                            }))
+                                        },
+                                        (err) => alert('Erreur de localisation : ' + err.message)
+                                    )
+                                }}
+                                style={{ fontSize: 14, color: '#f87171', background: 'none', border: 'none', cursor: 'pointer' }}
+                            >
+                                📍 Utiliser ma position actuelle
+                            </button>
+                        </div>
+
+                        <div>
+                            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
+                                Téléphone Support / Escalade (Humain)
+                            </label>
+                            <input
+                                value={formData.contact_phone}
+                                onChange={e => setFormData({ ...formData, contact_phone: e.target.value })}
+                                placeholder="Ex: +225 07 07 ..."
+                                style={inputStyle}
+                            />
+                            <p style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>Le bot donnera ce numéro si le client veut parler à un humain.</p>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                            <div>
+                                <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
+                                    Site Web
+                                </label>
+                                <input
+                                    value={formData.social_links.website}
+                                    onChange={e => setFormData({ ...formData, social_links: { ...formData.social_links, website: e.target.value } })}
+                                    placeholder="https://..."
+                                    style={inputStyle}
+                                />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
+                                    Facebook
+                                </label>
+                                <input
+                                    value={formData.social_links.facebook}
+                                    onChange={e => setFormData({ ...formData, social_links: { ...formData.social_links, facebook: e.target.value } })}
+                                    placeholder="Page Facebook"
+                                    style={inputStyle}
+                                />
                             </div>
                         </div>
                     </motion.div>
@@ -405,66 +420,84 @@ export default function AgentWizardPage({
 
             case 'hours':
                 return (
-                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
-                        <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
-                            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                                <Clock className="text-emerald-400" size={24} /> Horaires d'Ouverture
-                            </h2>
-                            <p className="text-slate-400 mb-4 text-sm">Indiquez clairement vos horaires. Le bot les utilisera pour informer les clients.</p>
-
-                            {/* 24/7 Quick Toggle */}
-                            <div className="flex items-center justify-between p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-lg mb-4">
-                                <div>
-                                    <span className="font-semibold text-emerald-400">🌐 Ouvert 24h/24, 7j/7</span>
-                                    <p className="text-xs text-slate-400 mt-1">Service disponible en permanence</p>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={() => setFormData({ ...formData, business_hours: "Ouvert 24h/24, 7j/7\n(Service disponible à tout moment)" })}
-                                    className="px-4 py-2 bg-emerald-500 text-white rounded-lg font-semibold hover:bg-emerald-600 transition-colors"
-                                >
-                                    Appliquer
-                                </button>
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        {/* 24/7 Quick Toggle */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 16, background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: 12, marginBottom: 8 }}>
+                            <div>
+                                <span style={{ fontWeight: 600, color: '#10b981' }}>🌐 Ouvert 24h/24, 7j/7</span>
+                                <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>Service disponible en permanence</p>
                             </div>
-
-                            <textarea
-                                value={formData.business_hours}
-                                onChange={e => setFormData({ ...formData, business_hours: e.target.value })}
-                                className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-4 text-white font-mono h-48 focus:ring-2 focus:ring-emerald-500 outline-none"
-                                placeholder={"Lundi - Vendredi : 08:00 - 18:00\nSamedi : 09:00 - 14:00\nDimanche : Fermé\n\nOU\n\nOuvert 24h/24, 7j/7"}
-                            />
+                            <button
+                                type="button"
+                                onClick={() => setFormData({ ...formData, business_hours: "Ouvert 24h/24, 7j/7\n(Service disponible à tout moment)" })}
+                                style={{
+                                    padding: '8px 16px',
+                                    background: '#10b981',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: 8,
+                                    fontWeight: 600,
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Appliquer
+                            </button>
                         </div>
+
+                        <textarea
+                            value={formData.business_hours}
+                            onChange={e => setFormData({ ...formData, business_hours: e.target.value })}
+                            placeholder={"Lundi - Vendredi : 08:00 - 18:00\nSamedi : 09:00 - 14:00\nDimanche : Fermé\n\nOU\n\nOuvert 24h/24, 7j/7"}
+                            style={{
+                                width: '100%',
+                                padding: 16,
+                                borderRadius: 12,
+                                border: '1px solid rgba(148, 163, 184, 0.1)',
+                                background: 'rgba(30, 41, 59, 0.5)',
+                                color: 'white',
+                                outline: 'none',
+                                height: 200,
+                                resize: 'vertical',
+                                fontFamily: 'inherit'
+                            }}
+                        />
                     </motion.div>
                 )
 
             case 'mission':
                 return (
-                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
-                        <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
-                            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                                <Target className="text-emerald-400" size={24} /> Mission & Instructions IA
-                            </h2>
-                            <p className="text-slate-400 mb-4 text-sm">
-                                Décrivez la mission de votre agent et ses instructions générales. C'est le "cerveau" de votre bot.
-                            </p>
-                            <textarea
-                                value={formData.system_prompt}
-                                onChange={e => setFormData({ ...formData, system_prompt: e.target.value })}
-                                className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-4 text-white font-mono h-64 focus:ring-2 focus:ring-emerald-500 outline-none"
-                                placeholder="Tu es l'assistant commercial de [Nom de l'entreprise]..."
-                            />
-                        </div>
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                        <p style={{ fontSize: 14, color: '#94a3b8' }}>
+                            Décrivez la mission de votre agent et ses instructions générales. C'est le "cerveau" de votre bot.
+                        </p>
+                        <textarea
+                            value={formData.system_prompt}
+                            onChange={e => setFormData({ ...formData, system_prompt: e.target.value })}
+                            placeholder="Tu es l'assistant commercial de [Nom de l'entreprise]..."
+                            style={{
+                                width: '100%',
+                                padding: 16,
+                                borderRadius: 12,
+                                border: '1px solid rgba(148, 163, 184, 0.1)',
+                                background: 'rgba(30, 41, 59, 0.5)',
+                                color: 'white',
+                                outline: 'none',
+                                height: 280,
+                                resize: 'vertical',
+                                fontFamily: 'inherit'
+                            }}
+                        />
                     </motion.div>
                 )
 
             case 'personality':
                 return (
-                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
                             {/* Tone Selection */}
-                            <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
-                                <h2 className="text-lg font-bold text-white mb-4">Ton de Voix</h2>
-                                <div className="space-y-3">
+                            <div>
+                                <label style={{ display: 'block', fontSize: 16, fontWeight: 600, color: 'white', marginBottom: 12 }}>Ton de Voix</label>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                                     {[
                                         { id: 'professional', label: '👔 Professionnel', desc: 'Vouvoiement, sérieux, précis' },
                                         { id: 'friendly', label: '😊 Amical', desc: 'Tutoiement respectueux, emojis, chaleureux' },
@@ -474,19 +507,25 @@ export default function AgentWizardPage({
                                         <div
                                             key={tone.id}
                                             onClick={() => setFormData({ ...formData, agent_tone: tone.id })}
-                                            className={`p-4 rounded-lg border cursor-pointer transition-all ${formData.agent_tone === tone.id ? 'bg-emerald-500/20 border-emerald-500' : 'bg-slate-900/30 border-slate-700 hover:border-slate-500'}`}
+                                            style={{
+                                                padding: 16,
+                                                borderRadius: 12,
+                                                border: formData.agent_tone === tone.id ? '2px solid #10b981' : '1px solid rgba(148,163,184,0.1)',
+                                                background: formData.agent_tone === tone.id ? 'rgba(16,185,129,0.1)' : 'rgba(30, 41, 59, 0.5)',
+                                                cursor: 'pointer'
+                                            }}
                                         >
-                                            <div className="font-bold text-white">{tone.label}</div>
-                                            <div className="text-xs text-slate-400">{tone.desc}</div>
+                                            <div style={{ fontWeight: 600, color: 'white' }}>{tone.label}</div>
+                                            <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>{tone.desc}</div>
                                         </div>
                                     ))}
                                 </div>
                             </div>
 
                             {/* Goal Selection */}
-                            <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
-                                <h2 className="text-lg font-bold text-white mb-4">Objectif Principal</h2>
-                                <div className="space-y-3">
+                            <div>
+                                <label style={{ display: 'block', fontSize: 16, fontWeight: 600, color: 'white', marginBottom: 12 }}>Objectif Principal</label>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                                     {[
                                         { id: 'sales', label: '💰 Vendeur', desc: 'Priorité absolue : conclure la vente' },
                                         { id: 'support', label: '🛡️ Support', desc: 'Priorité : rassurer et aider le client' },
@@ -495,10 +534,16 @@ export default function AgentWizardPage({
                                         <div
                                             key={goal.id}
                                             onClick={() => setFormData({ ...formData, agent_goal: goal.id })}
-                                            className={`p-4 rounded-lg border cursor-pointer transition-all ${formData.agent_goal === goal.id ? 'bg-emerald-500/20 border-emerald-500' : 'bg-slate-900/30 border-slate-700 hover:border-slate-500'}`}
+                                            style={{
+                                                padding: 16,
+                                                borderRadius: 12,
+                                                border: formData.agent_goal === goal.id ? '2px solid #10b981' : '1px solid rgba(148,163,184,0.1)',
+                                                background: formData.agent_goal === goal.id ? 'rgba(16,185,129,0.1)' : 'rgba(30, 41, 59, 0.5)',
+                                                cursor: 'pointer'
+                                            }}
                                         >
-                                            <div className="font-bold text-white">{goal.label}</div>
-                                            <div className="text-xs text-slate-400">{goal.desc}</div>
+                                            <div style={{ fontWeight: 600, color: 'white' }}>{goal.label}</div>
+                                            <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>{goal.desc}</div>
                                         </div>
                                     ))}
                                 </div>
@@ -506,27 +551,27 @@ export default function AgentWizardPage({
                         </div>
 
                         {/* Model Settings Toggles */}
-                        <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
-                            <h2 className="text-lg font-bold text-white mb-4">Paramètres Avancés</h2>
-                            <div className="flex gap-8">
-                                <label className="flex items-center gap-3 cursor-pointer">
+                        <div>
+                            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 12 }}>Paramètres Avancés</label>
+                            <div style={{ display: 'flex', gap: 32 }}>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
                                     <input
                                         type="checkbox"
                                         checked={formData.use_emojis}
                                         onChange={e => setFormData({ ...formData, use_emojis: e.target.checked })}
-                                        className="w-5 h-5 accent-emerald-500"
+                                        style={{ width: 20, height: 20, accentColor: '#10b981' }}
                                     />
-                                    <span className="text-white">Utiliser des Emojis</span>
+                                    <span style={{ color: 'white' }}>Utiliser des Emojis</span>
                                 </label>
-                                <label className="flex items-center gap-3 cursor-pointer">
+                                <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'not-allowed' }}>
                                     <input
                                         type="checkbox"
                                         checked={formData.enable_voice_responses}
                                         onChange={e => setFormData({ ...formData, enable_voice_responses: e.target.checked })}
-                                        className="w-5 h-5 accent-emerald-500 opacity-50 cursor-not-allowed" // Disabled for now or premium
                                         disabled
+                                        style={{ width: 20, height: 20, accentColor: '#10b981', opacity: 0.5 }}
                                     />
-                                    <span className="text-slate-400">Réponses Vocales (Bientôt)</span>
+                                    <span style={{ color: '#64748b' }}>Réponses Vocales (Bientôt)</span>
                                 </label>
                             </div>
                         </div>
@@ -535,24 +580,19 @@ export default function AgentWizardPage({
 
             case 'rules':
                 return (
-                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
-                        <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
-                            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                                <Shield className="text-emerald-400" size={24} /> Règles Spécifiques & Politique
-                            </h2>
-                            <p className="text-slate-400 mb-4 text-sm">
-                                Ajoutez ici TOUTES vos règles spécifiques que le bot doit respecter absolument.
-                                <br />Politique de retour, Livraison, Paiement, Promos...
-                            </p>
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                        <p style={{ fontSize: 14, color: '#94a3b8' }}>
+                            Ajoutez ici TOUTES vos règles spécifiques que le bot doit respecter absolument.
+                            <br />Politique de retour, Livraison, Paiement, Promos...
+                        </p>
 
-                            <textarea
-                                value={formData.custom_rules}
-                                onChange={e => {
-                                    setFormData({ ...formData, custom_rules: e.target.value })
-                                    setConflictStatus('idle') // Reset on change
-                                }}
-                                className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-4 text-white font-mono h-56 focus:ring-2 focus:ring-emerald-500 outline-none"
-                                placeholder={`Exemples de règles que l'IA doit respecter:
+                        <textarea
+                            value={formData.custom_rules}
+                            onChange={e => {
+                                setFormData({ ...formData, custom_rules: e.target.value })
+                                setConflictStatus('idle')
+                            }}
+                            placeholder={`Exemples de règles que l'IA doit respecter:
 
 📦 LIVRAISON:
 - Livraison gratuite à partir de 50.000 FCFA
@@ -568,82 +608,114 @@ export default function AgentWizardPage({
 
 📞 ESCALADE:
 - Renvoyer vers le support si problème complexe`}
-                            />
+                            style={{
+                                width: '100%',
+                                padding: 16,
+                                borderRadius: 12,
+                                border: '1px solid rgba(148, 163, 184, 0.1)',
+                                background: 'rgba(30, 41, 59, 0.5)',
+                                color: 'white',
+                                outline: 'none',
+                                height: 240,
+                                resize: 'vertical',
+                                fontFamily: 'inherit'
+                            }}
+                        />
 
-                            {/* AI Conflict Detector */}
-                            <div className="flex items-start justify-between gap-4 pt-2">
-                                <div className="flex-1">
-                                    {conflictStatus === 'checking' && <div className="text-emerald-400 text-sm animate-pulse">Analye IA en cours...</div>}
-                                    {conflictStatus === 'safe' && <div className="text-emerald-400 text-sm flex items-center gap-2">✅ Aucune contradiction détectée.</div>}
-                                    {conflictStatus === 'conflict' && (
-                                        <div className="bg-red-500/10 border border-red-500/50 p-3 rounded-lg text-red-300 text-sm">
-                                            <div className="font-bold flex items-center gap-2">⚠️ Conflit Détecté</div>
-                                            {conflictReason}
-                                        </div>
-                                    )}
-                                </div>
-                                <button
-                                    onClick={checkConflict}
-                                    className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg text-sm transition-colors flex items-center gap-2"
-                                >
-                                    🛡️ Vérifier la cohérence
-                                </button>
+                        {/* AI Conflict Detector */}
+                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+                            <div style={{ flex: 1 }}>
+                                {conflictStatus === 'checking' && <div style={{ color: '#10b981', fontSize: 14, animation: 'pulse 2s infinite' }}>Analyse IA en cours...</div>}
+                                {conflictStatus === 'safe' && <div style={{ color: '#10b981', fontSize: 14 }}>✅ Aucune contradiction détectée.</div>}
+                                {conflictStatus === 'conflict' && (
+                                    <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.5)', padding: 12, borderRadius: 8, color: '#fca5a5', fontSize: 14 }}>
+                                        <div style={{ fontWeight: 600 }}>⚠️ Conflit Détecté</div>
+                                        {conflictReason}
+                                    </div>
+                                )}
                             </div>
+                            <button
+                                onClick={checkConflict}
+                                style={{
+                                    background: 'rgba(71, 85, 105, 0.5)',
+                                    color: 'white',
+                                    padding: '8px 16px',
+                                    borderRadius: 8,
+                                    fontSize: 14,
+                                    border: 'none',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                🛡️ Vérifier la cohérence
+                            </button>
                         </div>
                     </motion.div>
                 )
 
             case 'settings':
+                const selectStyle = {
+                    width: '100%',
+                    padding: 12,
+                    borderRadius: 12,
+                    border: '1px solid rgba(148, 163, 184, 0.1)',
+                    background: 'rgba(30, 41, 59, 0.5)',
+                    color: 'white',
+                    outline: 'none'
+                }
                 return (
-                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
-                        <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
-                            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                                <Settings className="text-emerald-400" size={24} /> Paramètres Avancés
-                            </h2>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-slate-300 font-medium mb-1">Modèle IA</label>
-                                    <select
-                                        value={formData.model}
-                                        onChange={e => setFormData({ ...formData, model: e.target.value })}
-                                        className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white outline-none"
-                                    >
-                                        <option value="gpt-4o-mini">GPT-4o-mini (Rapide)</option>
-                                        <option value="gpt-4o">GPT-4o (Puissant)</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-slate-300 font-medium mb-1">Température: {formData.temperature}</label>
-                                    <input
-                                        type="range"
-                                        min="0"
-                                        max="1"
-                                        step="0.1"
-                                        value={formData.temperature}
-                                        onChange={e => setFormData({ ...formData, temperature: parseFloat(e.target.value) })}
-                                        className="w-full accent-emerald-500"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-slate-300 font-medium mb-1">Langue</label>
-                                    <select
-                                        value={formData.language}
-                                        onChange={e => setFormData({ ...formData, language: e.target.value })}
-                                        className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white outline-none"
-                                    >
-                                        <option value="fr">Français</option>
-                                        <option value="en">Anglais</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-slate-300 font-medium mb-1">Max Tokens</label>
-                                    <input
-                                        type="number"
-                                        value={formData.max_tokens}
-                                        onChange={e => setFormData({ ...formData, max_tokens: parseInt(e.target.value) })}
-                                        className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white outline-none"
-                                    />
-                                </div>
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                        {/* AI Model Settings */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                            <div>
+                                <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>Modèle IA</label>
+                                <select
+                                    value={formData.model}
+                                    onChange={e => setFormData({ ...formData, model: e.target.value })}
+                                    style={selectStyle}
+                                >
+                                    <option value="gpt-4o-mini">GPT-4o-mini (Rapide)</option>
+                                    <option value="gpt-4o">GPT-4o (Puissant)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>Température: {formData.temperature}</label>
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max="1"
+                                    step="0.1"
+                                    value={formData.temperature}
+                                    onChange={e => setFormData({ ...formData, temperature: parseFloat(e.target.value) })}
+                                    style={{ width: '100%', accentColor: '#10b981' }}
+                                />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>Langue</label>
+                                <select
+                                    value={formData.language}
+                                    onChange={e => setFormData({ ...formData, language: e.target.value })}
+                                    style={selectStyle}
+                                >
+                                    <option value="fr">Français</option>
+                                    <option value="en">Anglais</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>Max Tokens</label>
+                                <input
+                                    type="number"
+                                    value={formData.max_tokens}
+                                    onChange={e => setFormData({ ...formData, max_tokens: parseInt(e.target.value) })}
+                                    style={{
+                                        width: '100%',
+                                        padding: 12,
+                                        borderRadius: 12,
+                                        border: '1px solid rgba(148, 163, 184, 0.1)',
+                                        background: 'rgba(30, 41, 59, 0.5)',
+                                        color: 'white',
+                                        outline: 'none'
+                                    }}
+                                />
                             </div>
                         </div>
 
