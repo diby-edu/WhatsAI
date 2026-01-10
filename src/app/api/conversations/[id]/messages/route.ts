@@ -43,6 +43,7 @@ export async function POST(
             .from('messages')
             .insert({
                 conversation_id: conversationId,
+                agent_id: conversation.agent?.id || conversation.agent_id,  // FIX: Add required agent_id
                 role: 'assistant',
                 content: message,
                 message_type: 'text',

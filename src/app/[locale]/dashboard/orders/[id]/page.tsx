@@ -65,8 +65,9 @@ export default function OrderDetailsPage() {
     const updateStatus = async (newStatus: string) => {
         setUpdating(true)
         try {
-            const res = await fetch(`/api/orders/${params.id}/status`, {
-                method: 'PUT',
+            // FIX: Use PATCH on /api/orders/[id] instead of PUT on /api/orders/[id]/status
+            const res = await fetch(`/api/orders/${params.id}`, {
+                method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status: newStatus })
             })
