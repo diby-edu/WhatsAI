@@ -32,38 +32,66 @@ TÂCHE: Analyse la description fournie et extrait les éléments dans le format 
     "price": null ou nombre (prix de base si pas de variantes, sinon null),
     "content_included": [] liste de strings (éléments inclus dans le produit),
     "tags": [] liste de strings (caractéristiques, avantages),
-    "variants": [] liste de groupes de variantes
+    "variants": [] liste de groupes de variantes avec catégorie
   },
-  "cleaned_description": "description nettoyée",
+  "cleaned_description": "description NETTOYÉE (sans les variantes/prix/options)",
   "warnings": [] liste de warnings
 }
 
 RÈGLES POUR LES VARIANTES (TRÈS IMPORTANT):
 - Si la description contient des OPTIONS avec des PRIX DIFFÉRENTS, c'est une variante de type "fixed"
-- Chaque groupe de variantes doit avoir: {"name": "Nom du groupe", "type": "fixed" ou "additive", "options": [...]}
-- Chaque option doit avoir: {"value": "Nom complet de l'option avec détails", "price": nombre}
-- CRITIQUE: Le champ "price" doit contenir le PRIX COMPLET de l'option, PAS un ajustement!
-- CRITIQUE: Dans "value", inclure TOUS les détails de l'option (ex: "Débutant - HTML, CSS, JavaScript, 20h vidéo")
+- Chaque groupe de variantes doit avoir: {"name": "Nom", "type": "fixed" ou "additive", "category": "...", "options": [...]}
+- Chaque option doit avoir: {"value": "Nom complet avec détails", "price": nombre}
+
+CATÉGORIES DE VARIANTES (NOUVEAU - TRÈS IMPORTANT):
+Détecte automatiquement la catégorie selon le nom de la variante:
+- "visual" : Couleur, Style, Design, Motif, Finition, Thème, Modèle visuel
+- "size" : Taille, Dimension, Pointure, Format (S, M, L, XL, etc.)
+- "weight" : Poids, Volume, Quantité, Capacité (100g, 500ml, 1kg, etc.)
+- "duration" : Durée, Période, Abonnement, Mois, Semaine (1 mois, 6 mois, etc.)
+- "custom" : Tout autre type de variante (Pack, Niveau, Type, etc.)
+
+NETTOYAGE DE DESCRIPTION (NOUVEAU - TRÈS IMPORTANT):
+La "cleaned_description" doit être DÉBARRASSÉE de:
+- Les listes de couleurs/tailles/options mentionnées
+- Les prix individuels des variantes
+- Les énumérations d'options (ex: "Rouge, Bleu, Noir")
+- Garde uniquement les caractéristiques générales du produit
 
 EXEMPLE ENTRÉE:
-"Formation web 2024. Pack Débutant 35000F: HTML, CSS, 20h. Pack Pro 65000F: React, Node, 50h."
+"T-shirt coton bio 100%. Couleurs: Rouge 15000F, Bleu 15000F, Or Premium 25000F. Tailles: S, M, L +500F, XL +1000F. Livraison gratuite en CI."
 
 EXEMPLE SORTIE:
 {
   "extracted": {
     "price": null,
-    "content_included": ["HTML", "CSS", "React", "Node.js"],
-    "tags": ["Formation 2024"],
-    "variants": [{
-      "name": "Pack",
-      "type": "fixed",
-      "options": [
-        {"value": "Débutant - HTML, CSS, JavaScript basics, 20h de vidéo", "price": 35000},
-        {"value": "Pro - React, Node.js, MongoDB, 50h de vidéo + projets", "price": 65000}
-      ]
-    }]
+    "content_included": [],
+    "tags": ["100% coton bio", "Livraison gratuite CI"],
+    "variants": [
+      {
+        "name": "Couleur",
+        "type": "fixed",
+        "category": "visual",
+        "options": [
+          {"value": "Rouge", "price": 15000},
+          {"value": "Bleu", "price": 15000},
+          {"value": "Or Premium", "price": 25000}
+        ]
+      },
+      {
+        "name": "Taille",
+        "type": "additive",
+        "category": "size",
+        "options": [
+          {"value": "S", "price": 0},
+          {"value": "M", "price": 0},
+          {"value": "L", "price": 500},
+          {"value": "XL", "price": 1000}
+        ]
+      }
+    ]
   },
-  "cleaned_description": "Formation en ligne complète développement web 2024. Accès à vie.",
+  "cleaned_description": "T-shirt 100% coton bio. Livraison gratuite en Côte d'Ivoire.",
   "warnings": []
 }
 
