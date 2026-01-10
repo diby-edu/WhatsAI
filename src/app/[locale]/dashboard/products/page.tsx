@@ -27,7 +27,13 @@ interface Product {
     is_available: boolean
     stock_quantity: number
     variants: Variant[] | null
+    agent_id: string | null
     created_at: string
+}
+
+interface Agent {
+    id: string
+    name: string
 }
 
 export default function ProductsPage() {
@@ -35,8 +41,10 @@ export default function ProductsPage() {
     const format = useFormatter()
     const router = useRouter()
     const [products, setProducts] = useState<Product[]>([])
+    const [agents, setAgents] = useState<Agent[]>([])
     const [loading, setLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState('')
+    const [agentFilter, setAgentFilter] = useState<string>('all')
 
     useEffect(() => {
         fetchProducts()
@@ -47,7 +55,20 @@ export default function ProductsPage() {
     useEffect(() => {
         fetchProducts()
         fetchProfile()
+        fetchAgents()
     }, [])
+
+    const fetchAgents = async () => {
+        try {
+            const res = await fetch('/api/agents')
+            const data = await res.json()
+            if (data.data?.agents) {
+                setAgents(data.data.agents)
+            }
+        } catch (e) {
+            console.error('Error fetching agents', e)
+        }
+    }
 
     const fetchProfile = async () => {
         try {
@@ -86,10 +107,16 @@ export default function ProductsPage() {
         }
     }
 
-    const filteredProducts = products.filter(p =>
-        p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.category?.toLowerCase().includes(searchTerm.toLowerCase())
-    )
+    const filteredProducts = products.filter(p => {
+        // Filter by search term
+        const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            p.category?.toLowerCase().includes(searchTerm.toLowerCase())
+
+        // Filter by agent
+        const matchesAgent = agentFilter === 'all' || p.agent_id === agentFilter
+
+        return matchesSearch && matchesAgent
+    })
 
     const formatPrice = (price: number) => {
         return new Intl.NumberFormat('fr-FR', {
@@ -151,6 +178,30 @@ export default function ProductsPage() {
                             }}
                         />
                     </div>
+
+                    {/* Agent Filter */}
+                    {agents.length > 0 && (
+                        <select
+                            value={agentFilter}
+                            onChange={(e) => setAgentFilter(e.target.value)}
+                            style={{
+                                padding: '12px 14px',
+                                borderRadius: 12,
+                                background: 'rgba(30, 41, 59, 0.5)',
+                                border: '1px solid rgba(148, 163, 184, 0.1)',
+                                color: 'white',
+                                cursor: 'pointer',
+                                minWidth: 160
+                            }}
+                        >
+                            <option value="all" style={{ background: '#1e293b' }}>Tous les agents</option>
+                            {agents.map(agent => (
+                                <option key={agent.id} value={agent.id} style={{ background: '#1e293b' }}>
+                                    {agent.name}
+                                </option>
+                            ))}
+                        </select>
+                    )}
                     <Link
                         href="/dashboard/products/new"
                         style={{

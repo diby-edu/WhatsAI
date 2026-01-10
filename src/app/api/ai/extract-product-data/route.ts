@@ -29,22 +29,47 @@ TÂCHE: Analyse la description fournie et extrait les éléments dans le format 
 
 {
   "extracted": {
-    "price": null ou nombre (ex: 25000),
-    "content_included": [] liste de strings (ex: ["Word", "Excel", "PowerPoint"]),
-    "tags": [] liste de strings (ex: ["Bio", "Garantie", "Livraison rapide"]),
-    "variants": [] liste d'objets avec name et options (ex: [{"name": "Version", "options": [{"value": "Standard", "price_adjustment": 0}]}])
+    "price": null ou nombre (prix de base si pas de variantes, sinon null),
+    "content_included": [] liste de strings (éléments inclus dans le produit),
+    "tags": [] liste de strings (caractéristiques, avantages),
+    "variants": [] liste de groupes de variantes
   },
-  "cleaned_description": "description nettoyée sans prix ni éléments extraits",
-  "warnings": [] liste de warnings si conflits détectés
+  "cleaned_description": "description nettoyée",
+  "warnings": [] liste de warnings
 }
 
-RÈGLES:
-- Price: Extrait le premier prix mentionné en nombre seulement (pas de devise)
-- Content_included: Éléments/composants du produit (applications, accessoires inclus)
-- Tags: Caractéristiques et avantages (Bio, Artisanal, Garantie, Livraison rapide, etc.)
-- Variants: Options de produit (structure stricte: {name: "Nom", options: [{value: "Option A", price_adjustment: 0}]}). Exemple options: [{value: "Standard", price_adjustment: 0}, {value: "Pro", price_adjustment: 5000}]
-- Cleaned_description: Ce qui reste de la description (usage, public cible, avantages généraux)
-- Si aucun élément trouvé, retourne un array vide [] pour les listes ou null pour price
+RÈGLES POUR LES VARIANTES (TRÈS IMPORTANT):
+- Si la description contient des OPTIONS avec des PRIX DIFFÉRENTS, c'est une variante de type "fixed"
+- Chaque groupe de variantes doit avoir: {"name": "Nom du groupe", "type": "fixed" ou "additive", "options": [...]}
+- Chaque option doit avoir: {"value": "Nom complet de l'option avec détails", "price": nombre}
+- CRITIQUE: Le champ "price" doit contenir le PRIX COMPLET de l'option, PAS un ajustement!
+- CRITIQUE: Dans "value", inclure TOUS les détails de l'option (ex: "Débutant - HTML, CSS, JavaScript, 20h vidéo")
+
+EXEMPLE ENTRÉE:
+"Formation web 2024. Pack Débutant 35000F: HTML, CSS, 20h. Pack Pro 65000F: React, Node, 50h."
+
+EXEMPLE SORTIE:
+{
+  "extracted": {
+    "price": null,
+    "content_included": ["HTML", "CSS", "React", "Node.js"],
+    "tags": ["Formation 2024"],
+    "variants": [{
+      "name": "Pack",
+      "type": "fixed",
+      "options": [
+        {"value": "Débutant - HTML, CSS, JavaScript basics, 20h de vidéo", "price": 35000},
+        {"value": "Pro - React, Node.js, MongoDB, 50h de vidéo + projets", "price": 65000}
+      ]
+    }]
+  },
+  "cleaned_description": "Formation en ligne complète développement web 2024. Accès à vie.",
+  "warnings": []
+}
+
+- Si type="fixed", le prix de l'option REMPLACE le prix de base
+- Si type="additive", le prix de l'option S'AJOUTE au prix de base
+- Si une option n'a pas de prix, METS 0 et ajoute un warning
 
 DONNÉES EXISTANTES (ne pas dupliquer):
 ${JSON.stringify(existingData || {}, null, 2)}

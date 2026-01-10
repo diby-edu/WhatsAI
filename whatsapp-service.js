@@ -1250,12 +1250,12 @@ async function handleMessage(agentId, message, isVoiceMessage = false) {
             .order('created_at', { ascending: true })
             .limit(20)
 
-        // Get products
+        // Get products - CRITICAL: Filter by agent_id, not user_id!
         const { data: products } = await supabase
             .from('products')
             // FETCH ALL FIELDS (including pitch, tags, GPS...)
             .select('*')
-            .eq('user_id', agent.user_id)
+            .eq('agent_id', agentId)  // FIX: Filter by agent, not user
             .eq('is_available', true)
             .limit(20)
 
