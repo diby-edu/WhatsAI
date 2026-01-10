@@ -153,6 +153,7 @@ export default function AgentWizardPage({
         mobile_money_mtn: '',
         mobile_money_wave: '',
         custom_payment_methods: [] as { name: string; details: string }[],
+        escalation_phone: '',  // Phone number to display when escalating to human
     })
 
     useEffect(() => {
@@ -217,6 +218,7 @@ export default function AgentWizardPage({
                 mobile_money_mtn: agent.mobile_money_mtn || '',
                 mobile_money_wave: agent.mobile_money_wave || '',
                 custom_payment_methods: agent.custom_payment_methods || [],
+                escalation_phone: agent.escalation_phone || '',
             })
 
             setLoading(false)
@@ -967,6 +969,31 @@ export default function AgentWizardPage({
                                 </div>
                             </div>
                         )}
+
+                        {/* Escalation Phone Section */}
+                        <div style={{ marginTop: 24 }}>
+                            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
+                                📞 Numéro d'Escalade (Support Humain)
+                            </label>
+                            <input
+                                type="text"
+                                value={formData.escalation_phone}
+                                onChange={e => setFormData({ ...formData, escalation_phone: e.target.value })}
+                                placeholder="+225 07 XX XX XX XX"
+                                style={{
+                                    width: '100%',
+                                    padding: 12,
+                                    borderRadius: 12,
+                                    border: '1px solid rgba(148, 163, 184, 0.1)',
+                                    background: 'rgba(30, 41, 59, 0.5)',
+                                    color: 'white',
+                                    outline: 'none'
+                                }}
+                            />
+                            <p style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
+                                Ce numéro sera affiché au client quand le bot transfère vers un humain.
+                            </p>
+                        </div>
                     </motion.div>
                 )
 
