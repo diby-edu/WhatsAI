@@ -75,6 +75,14 @@ export async function PATCH(
     try {
         const body = await request.json()
 
+        // Get order BEFORE update to check old status
+        const { data: oldOrder } = await supabase
+            .from('orders')
+            .select('status, customer_phone, conversation_id, total_fcfa, agent_id')
+            .eq('id', id)
+            .eq('user_id', user.id)
+            .single()
+
         const updateData: any = {}
 
         if (body.status) {
@@ -82,9 +90,15 @@ export async function PATCH(
 
             // Set timestamp based on status change
             if (body.status === 'confirmed') updateData.confirmed_at = new Date().toISOString()
+            if (body.status === 'paid') updateData.paid_at = new Date().toISOString()
             if (body.status === 'shipped') updateData.shipped_at = new Date().toISOString()
             if (body.status === 'delivered') updateData.delivered_at = new Date().toISOString()
             if (body.status === 'cancelled') updateData.cancelled_at = new Date().toISOString()
+
+            // Also update payment_verification_status for mobile money
+            if (body.status === 'paid') {
+                updateData.payment_verification_status = 'verified'
+            }
         }
 
         if (body.delivery_address !== undefined) updateData.delivery_address = body.delivery_address
@@ -99,6 +113,29 @@ export async function PATCH(
             .single()
 
         if (error) throw error
+
+        // 📱 SEND WHATSAPP NOTIFICATION when status changes to 'paid'
+        if (body.status === 'paid' && oldOrder?.status !== 'paid' && oldOrder?.customer_phone) {
+            try {
+                const confirmationMessage = `✅ *Paiement Confirmé !*\n\nVotre paiement de ${oldOrder.total_fcfa || order.total_fcfa} FCFA a été vérifié et accepté.\n\n🎉 Commande #${id.substring(0, 8)} confirmée !\n\nMerci pour votre confiance. Nous allons traiter votre commande dans les plus brefs délais.`
+
+                // Call internal send API
+                await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/internal/send`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        agentId: oldOrder.agent_id,
+                        phone: oldOrder.customer_phone,
+                        message: confirmationMessage
+                    })
+                })
+
+                console.log('✅ WhatsApp notification sent for order:', id)
+            } catch (notifError) {
+                console.error('Failed to send WhatsApp notification:', notifError)
+                // Don't fail the request if notification fails
+            }
+        }
 
         return successResponse({ order })
     } catch (err) {
