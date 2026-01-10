@@ -10,15 +10,23 @@ echo ""
 
 cd ~/WhatsAI
 
-# Get current commit
+# Get current local commit (before pull)
 OLD_COMMIT=$(git rev-parse HEAD 2>/dev/null)
 
 # 1. Récupérer le code
 echo "📥 Téléchargement des modifications..."
 git fetch origin
 
-# Check if bot code changed
-BOT_CHANGED=$(git diff $OLD_COMMIT origin/master --name-only | grep -E "whatsapp-service\.js|ecosystem\.config\.js" || true)
+# Get remote commit
+REMOTE_COMMIT=$(git rev-parse origin/master 2>/dev/null)
+
+# Check if bot code changed between old local and remote
+if [ "$OLD_COMMIT" != "$REMOTE_COMMIT" ]; then
+    BOT_CHANGED=$(git diff $OLD_COMMIT $REMOTE_COMMIT --name-only 2>/dev/null | grep -E "whatsapp-service\.js|ecosystem\.config\.js" || true)
+else
+    # Already up to date, check if last commit touched bot files
+    BOT_CHANGED=$(git diff HEAD~1 HEAD --name-only 2>/dev/null | grep -E "whatsapp-service\.js|ecosystem\.config\.js" || true)
+fi
 
 # Apply changes
 git reset --hard origin/master
@@ -28,6 +36,7 @@ NEW_COMMIT=$(git rev-parse --short HEAD 2>/dev/null)
 if [ -n "$BOT_CHANGED" ]; then
     echo ""
     echo "🔄 Code du bot modifié - arrêt temporaire..."
+    echo "   Fichiers modifiés: $BOT_CHANGED"
     pm2 stop whatsai-bot 2>/dev/null || true
     RESTART_BOT=true
 else
