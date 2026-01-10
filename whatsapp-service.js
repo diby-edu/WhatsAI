@@ -937,6 +937,33 @@ INSTRUCTION IMPORTANTE :
 - Contact Support (Humain) : ${agent.contact_phone || 'Non spécifié'}
 `
 
+        // 📦 ORDERS CONTEXT INJECTION - So bot knows customer's order history
+        let ordersContext = ''
+        if (orders && orders.length > 0) {
+            const statusLabels = {
+                pending: '⏳ En attente de paiement',
+                paid: '✅ Payé',
+                pending_delivery: '📦 Livraison en cours',
+                delivered: '✅ Livré',
+                cancelled: '❌ Annulé',
+                scheduled: '📅 Planifié',
+                in_progress: '🔧 En cours',
+                completed: '✅ Terminé'
+            }
+            ordersContext = `
+
+📦 HISTORIQUE DE CE CLIENT (${orders.length} commande${orders.length > 1 ? 's' : ''}) :
+${orders.map(o => {
+                const items = o.items?.map(i => `${i.product_name} x${i.quantity}`).join(', ') || 'N/A'
+                const status = statusLabels[o.status] || o.status
+                const date = new Date(o.created_at).toLocaleDateString('fr-FR')
+                return `- #${o.id.substring(0, 8)} | ${status} | ${o.total_fcfa} ${currency} | ${items} | ${date}`
+            }).join('\n')}
+
+⚠️ Si le client demande "le statut de ma commande", donne-lui l'état de sa/ses commande(s) ci-dessus.
+`
+        }
+
         // Custom rules or fallback to old system_prompt
         const customRules = agent.custom_rules || agent.system_prompt || ''
 
@@ -946,7 +973,7 @@ ${businessIdentity}
 🎭 IDENTITÉ : Ton ${agent.agent_tone || 'amical'}, Objectif ${agent.agent_goal || 'vendre'}.
 
 ${productsCatalog}
-
+${ordersContext}
 📜 RÈGLES SPÉCIFIQUES & POLITIQUES :
 ${customRules}
 
