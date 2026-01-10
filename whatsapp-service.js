@@ -270,11 +270,12 @@ const TOOLS = [
         type: 'function',
         function: {
             name: 'send_image',
-            description: 'Send an image of a product to the customer. Use this when the user asks to see a product.',
+            description: 'Send an image of a product to the customer. Use this when showing a product. If customer asks for a specific color/variant (Rouge, Bleu, etc.), specify variant_value to show the variant-specific image.',
             parameters: {
                 type: 'object',
                 properties: {
-                    product_name: { type: 'string', description: 'The exact name of the product to show' }
+                    product_name: { type: 'string', description: 'The name of the product to show' },
+                    variant_value: { type: 'string', description: 'Optional: Specific variant option (e.g., "Rouge", "Bleu", "XL") to show variant-specific image if available' }
                 },
                 required: ['product_name']
             }
@@ -610,7 +611,7 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
         try {
             console.log('🛠️ Executing tool: send_image')
             const args = JSON.parse(toolCall.function.arguments)
-            const { product_name } = args
+            const { product_name, variant_value } = args
 
             // ENHANCED: Smart fuzzy match - same algorithm as create_order
             const searchTerms = product_name.toLowerCase().split(' ').filter(w => w.length > 2)
@@ -641,15 +642,44 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                 })
             }
 
-            if (!product.image_url) {
+            // 🎨 VARIANT IMAGE LOGIC: Find variant-specific image if requested
+            let imageToSend = null
+            let imageCaption = `Voici ${product.name} ! 📸`
+
+            if (variant_value && product.variants && product.variants.length > 0) {
+                // Search through visual/custom variants for matching option with image
+                for (const variant of product.variants) {
+                    // Only check visual or custom categories (those that may have images)
+                    const category = variant.category || 'custom'
+                    if (category === 'visual' || category === 'custom') {
+                        for (const option of variant.options || []) {
+                            if (option.value && option.value.toLowerCase() === variant_value.toLowerCase()) {
+                                if (option.image) {
+                                    imageToSend = option.image
+                                    imageCaption = `Voici ${product.name} en ${option.value} ! 📸`
+                                    console.log(`🎨 Found variant image for ${variant.name}=${option.value}:`, option.image)
+                                }
+                                break
+                            }
+                        }
+                    }
+                    if (imageToSend) break
+                }
+            }
+
+            // Fallback to main product image
+            if (!imageToSend) {
+                imageToSend = product.image_url || (product.images && product.images[0])
+            }
+
+            if (!imageToSend) {
                 return JSON.stringify({
                     success: false,
                     error: `Désolé, je n'ai pas encore d'image pour "${product.name}".`
                 })
             }
 
-            console.log('📸 Sending image for:', product.name, product.image_url)
-
+            console.log('📸 Sending image for:', product.name, variant_value ? `(variant: ${variant_value})` : '', imageToSend)
 
             const session = activeSessions.get(agentId)
             if (session && session.socket) {
@@ -673,8 +703,8 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
 
                 try {
                     await session.socket.sendMessage(jid, {
-                        image: { url: product.image_url },
-                        caption: `Voici ${product.name} ! 📸`
+                        image: { url: imageToSend },
+                        caption: imageCaption
                     })
                 } catch (sendError) {
                     console.error('❌ Failed to send image message:', sendError)
