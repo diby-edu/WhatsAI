@@ -1296,8 +1296,13 @@ async function handleMessage(agentId, message, isVoiceMessage = false) {
                 .update({ status: 'escalated', bot_paused: true })
                 .eq('id', conversation.id)
 
-            // 2. Send Handover Message
-            const handoverMessage = "Je détecte que vous n'êtes pas satisfait. Je suspends mon intelligence artificielle et je transmets immédiatement votre dossier à un superviseur humain. Il va vous répondre rapidement. 🙏"
+            // 2. Send Handover Message (more human-friendly + escalation number)
+            let handoverMessage = "Je comprends votre frustration et je m'en excuse sincèrement. 🙏\n\nJe transfère immédiatement votre dossier à un conseiller humain qui va vous contacter très rapidement."
+
+            // Add escalation phone if configured
+            if (agent.escalation_phone) {
+                handoverMessage += `\n\n📞 Vous pouvez aussi appeler directement : ${agent.escalation_phone}`
+            }
 
             const session = activeSessions.get(agentId)
             if (session) {
