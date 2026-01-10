@@ -770,10 +770,9 @@
             "search": "Search...",
             "filter": {
                 "all": "All Statuses",
-                "pending": "Pending",
-                "confirmed": "Confirmed",
-                "processing": "Processing",
-                "shipped": "Shipped",
+                "pending": "Awaiting Payment",
+                "pending_delivery": "Awaiting Delivery",
+                "paid": "Paid",
                 "delivered": "Delivered",
                 "cancelled": "Cancelled"
             },

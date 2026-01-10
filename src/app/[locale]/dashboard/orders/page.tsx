@@ -195,9 +195,8 @@ export default function OrdersPage() {
                         >
                             <option value="">{t('filter.all')}</option>
                             <option value="pending">{t('filter.pending')}</option>
-                            <option value="confirmed">{t('filter.confirmed')}</option>
-                            <option value="processing">{t('filter.processing')}</option>
-                            <option value="shipped">{t('filter.shipped')}</option>
+                            <option value="pending_delivery">{t('filter.pending_delivery')}</option>
+                            <option value="paid">{t('filter.paid')}</option>
                             <option value="delivered">{t('filter.delivered')}</option>
                             <option value="cancelled">{t('filter.cancelled')}</option>
                         </select>

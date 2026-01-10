@@ -807,10 +807,9 @@
       "search": "Rechercher...",
       "filter": {
         "all": "Tous les statuts",
-        "pending": "En attente",
-        "confirmed": "Confirmées",
-        "processing": "En cours",
-        "shipped": "Expédiées",
+        "pending": "Paiement en attente",
+        "pending_delivery": "Livraison en attente",
+        "paid": "Payées",
         "delivered": "Livrées",
         "cancelled": "Annulées"
       },
