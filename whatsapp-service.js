@@ -104,6 +104,82 @@ async function analyzeSentiment(text) {
 }
 
 
+// 🔒 ANTI-HALLUCINATION: Verify AI response doesn't contain fabricated prices
+function verifyResponseIntegrity(aiResponse, products) {
+    const issues = []
+
+    if (!aiResponse || !products || products.length === 0) {
+        return { isValid: true, issues: [] }
+    }
+
+    // Extract all price mentions from response (numbers followed by FCFA, F, or currency symbols)
+    const pricePattern = /(\d[\d\s]*(?:\d{3})*)\s*(?:FCFA|F|CFA|€|\$)/gi
+    const mentionedPrices = []
+    let match
+
+    while ((match = pricePattern.exec(aiResponse)) !== null) {
+        const price = parseInt(match[1].replace(/\s/g, ''), 10)
+        if (price > 0) mentionedPrices.push(price)
+    }
+
+    if (mentionedPrices.length === 0) {
+        return { isValid: true, issues: [] }
+    }
+
+    // Collect all valid prices from catalog (base prices + variant prices)
+    const validPrices = new Set()
+    products.forEach(p => {
+        if (p.price_fcfa) validPrices.add(p.price_fcfa)
+
+        // Add variant prices
+        if (p.variants && Array.isArray(p.variants)) {
+            p.variants.forEach(v => {
+                if (v.options && Array.isArray(v.options)) {
+                    v.options.forEach(opt => {
+                        if (typeof opt === 'object' && opt.price) {
+                            validPrices.add(opt.price)
+                            // Also add base + additive price
+                            if (v.type === 'additive' && p.price_fcfa) {
+                                validPrices.add(p.price_fcfa + opt.price)
+                            }
+                        }
+                    })
+                }
+            })
+        }
+    })
+
+    // Check each mentioned price against valid prices (with 5% tolerance for rounding)
+    mentionedPrices.forEach(price => {
+        let isValid = false
+        for (const validPrice of validPrices) {
+            const tolerance = validPrice * 0.05 // 5% tolerance
+            if (Math.abs(price - validPrice) <= tolerance) {
+                isValid = true
+                break
+            }
+        }
+
+        if (!isValid) {
+            issues.push({
+                type: 'price_hallucination',
+                mentionedPrice: price,
+                validPrices: Array.from(validPrices)
+            })
+        }
+    })
+
+    if (issues.length > 0) {
+        console.warn('⚠️ ANTI-HALLUCINATION: Potential price fabrication detected:', issues)
+    }
+
+    return {
+        isValid: issues.length === 0,
+        issues
+    }
+}
+
+
 
 // Transcribe Audio
 async function transcribeAudio(audioBuffer) {
@@ -201,6 +277,26 @@ const TOOLS = [
                     product_name: { type: 'string', description: 'The exact name of the product to show' }
                 },
                 required: ['product_name']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'create_booking',
+            description: 'Create a booking/reservation for a SERVICE (not physical products). Use this when the user wants to book a service like consultation, installation, maintenance, etc. This is different from create_order which is for products.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    service_name: { type: 'string', description: 'Name of the service from the catalog' },
+                    customer_phone: { type: 'string', description: 'Customer phone number (required)' },
+                    customer_name: { type: 'string', description: 'Customer name' },
+                    preferred_date: { type: 'string', description: 'Preferred date for the service (YYYY-MM-DD format)' },
+                    preferred_time: { type: 'string', description: 'Preferred time (HH:MM format, e.g., 14:00)' },
+                    location: { type: 'string', description: 'Location for the service (address or "remote/online")' },
+                    notes: { type: 'string', description: 'Special requirements or additional details' }
+                },
+                required: ['service_name', 'customer_phone', 'preferred_date']
             }
         }
     }
@@ -472,6 +568,19 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                 case 'delivered':
                     statusMessage = `✅ La commande a été livrée et payée.`
                     break
+                // SERVICE/BOOKING STATUSES
+                case 'scheduled':
+                    statusMessage = `📅 Votre service est confirmé et planifié. Nous vous contacterons pour confirmer les détails.`
+                    break
+                case 'in_progress':
+                    statusMessage = `🔧 Votre service est actuellement en cours. Merci de patienter.`
+                    break
+                case 'completed':
+                    statusMessage = `✅ Votre service a été effectué avec succès. Merci pour votre confiance !`
+                    break
+                case 'cancelled':
+                    statusMessage = `❌ Cette commande/réservation a été annulée.`
+                    break
                 default:
                     // Cas par défaut
                     return JSON.stringify({
@@ -587,6 +696,93 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
         } catch (error) {
             console.error('Send Image Error:', error)
             return JSON.stringify({ success: false, error: "Impossible d'envoyer l'image." })
+        }
+    }
+
+    // 📅 BOOKING HANDLER - For service reservations
+    if (toolCall.function.name === 'create_booking') {
+        try {
+            console.log('🛠️ Executing tool: create_booking')
+            const args = JSON.parse(toolCall.function.arguments)
+            const { service_name, customer_phone, customer_name, preferred_date, preferred_time, location, notes } = args
+
+            // Get agent info
+            const { data: agent } = await supabase
+                .from('agents')
+                .select('user_id, payment_mode, mobile_money_orange, mobile_money_mtn, mobile_money_wave, custom_payment_methods')
+                .eq('id', agentId)
+                .single()
+            if (!agent) throw new Error('Agent not found')
+
+            // Find the service in products
+            const service = products.find(p =>
+                p.product_type === 'service' &&
+                (p.name.toLowerCase().includes(service_name.toLowerCase()) ||
+                    service_name.toLowerCase().includes(p.name.toLowerCase()))
+            )
+
+            if (!service) {
+                const availableServices = products.filter(p => p.product_type === 'service').map(p => p.name).join(', ')
+                return JSON.stringify({
+                    success: false,
+                    error: `Service "${service_name}" non trouvé. Services disponibles : ${availableServices || 'Aucun service disponible'}`
+                })
+            }
+
+            const normalizedPhone = normalizePhoneNumber(customer_phone)
+
+            // Create booking in database
+            const { data: booking, error } = await supabase
+                .from('bookings')
+                .insert({
+                    user_id: agent.user_id,
+                    agent_id: agentId,
+                    customer_phone: normalizedPhone,
+                    customer_name: customer_name || null,
+                    service_name: service.name,
+                    service_id: service.id,
+                    price_fcfa: service.price_fcfa || 0,
+                    preferred_date: preferred_date,
+                    preferred_time: preferred_time || null,
+                    location: location || null,
+                    notes: notes || null,
+                    status: 'scheduled',
+                    conversation_id: conversationId
+                })
+                .select()
+                .single()
+
+            if (error) throw error
+
+            // Build payment info based on agent's payment mode
+            let paymentInfo = ''
+            const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://whatsai.duckdns.org'
+
+            if (agent.payment_mode === 'mobile_money_direct') {
+                const paymentMethods = []
+                if (agent.mobile_money_orange) paymentMethods.push(`🟠 Orange Money : ${agent.mobile_money_orange}`)
+                if (agent.mobile_money_mtn) paymentMethods.push(`🟡 MTN Money : ${agent.mobile_money_mtn}`)
+                if (agent.mobile_money_wave) paymentMethods.push(`🔵 Wave : ${agent.mobile_money_wave}`)
+
+                if (paymentMethods.length > 0) {
+                    paymentInfo = `\n\n📱 Pour confirmer votre réservation, effectuez le paiement de ${service.price_fcfa} FCFA :\n${paymentMethods.join('\n')}\n\n⚠️ Envoyez-nous la capture d'écran du paiement.`
+                }
+            } else {
+                paymentInfo = `\n\n💳 Pour confirmer, finalisez le paiement ici : ${appUrl}/pay/booking/${booking.id}`
+            }
+
+            return JSON.stringify({
+                success: true,
+                booking_id: booking.id,
+                message: `📅 Réservation créée !\n\n🛠️ Service: ${service.name}\n📆 Date: ${preferred_date}${preferred_time ? ` à ${preferred_time}` : ''}\n📍 Lieu: ${location || 'À confirmer'}\n💰 Tarif: ${service.price_fcfa} FCFA${paymentInfo}`
+            })
+
+        } catch (error) {
+            console.error('Booking Creation Error:', error)
+            return JSON.stringify({
+                success: false,
+                error: error.message || 'Erreur lors de la création de la réservation'
+            })
         }
     }
 
@@ -891,6 +1087,13 @@ Quand le client donne son numéro :
             })
 
             content = secondCompletion.choices[0].message.content
+        }
+
+        // 🔒 ANTI-HALLUCINATION CHECK
+        const integrityCheck = verifyResponseIntegrity(content, products)
+        if (!integrityCheck.isValid) {
+            console.log('⚠️ Response integrity issues detected:', integrityCheck.issues)
+            // For now, just log - could regenerate in future
         }
 
         return {
