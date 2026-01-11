@@ -54,13 +54,13 @@ export default function ProductVariantsEditor({ variants, onChange, currencySymb
             const filePath = `products/variants/${fileName}`
 
             const { error: uploadError } = await supabase.storage
-                .from('product-images')
+                .from('images')
                 .upload(filePath, file)
 
             if (uploadError) throw uploadError
 
             const { data: { publicUrl } } = supabase.storage
-                .from('product-images')
+                .from('images')
                 .getPublicUrl(filePath)
 
             updateOption(groupId, optionIndex, { image: publicUrl })
