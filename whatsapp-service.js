@@ -7,7 +7,7 @@
 const { createClient } = require('@supabase/supabase-js')
 const pino = require('pino')
 const OpenAI = require('openai')
-const CinetPay = require('cinetpay')
+const CinetPay = require('./src/lib/whatsapp/utils/cinetpay')
 const path = require('path')
 const { initSession } = require('./src/lib/whatsapp/handlers/session')
 const { checkPendingPayments, cancelExpiredOrders, requestFeedback } = require('./src/lib/whatsapp/cron/jobs')
