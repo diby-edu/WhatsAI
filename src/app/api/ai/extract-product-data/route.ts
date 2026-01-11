@@ -3,27 +3,27 @@ import OpenAI from 'openai'
 import { createClient } from '@/lib/supabase/server'
 
 const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
+  apiKey: process.env.OPENAI_API_KEY
 })
 
 export async function POST(request: NextRequest) {
-    try {
-        const supabase = await createClient()
-        const { data: { user } } = await supabase.auth.getUser()
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
 
-        if (!user) {
-            return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
-        }
+    if (!user) {
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+    }
 
-        const { description, existingData } = await request.json()
+    const { description, existingData } = await request.json()
 
-        if (!description || description.trim().length < 10) {
-            return NextResponse.json({
-                error: 'Description trop courte (minimum 10 caractères)'
-            }, { status: 400 })
-        }
+    if (!description || description.trim().length < 10) {
+      return NextResponse.json({
+        error: 'Description trop courte (minimum 10 caractères)'
+      }, { status: 400 })
+    }
 
-        const systemPrompt = `Tu es un assistant qui analyse des descriptions de produits pour extraire les données structurées.
+    const systemPrompt = `Tu es un assistant qui analyse des descriptions de produits pour extraire les données structurées.
 
 TÂCHE: Analyse la description fournie et extrait les éléments dans le format JSON suivant:
 
@@ -104,45 +104,52 @@ ${JSON.stringify(existingData || {}, null, 2)}
 
 IMPORTANT: Réponds UNIQUEMENT avec le JSON valide, pas d'explication.`
 
-        const response = await openai.chat.completions.create({
-            model: 'gpt-4o-mini',
-            messages: [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: `Analyse cette description:\n\n"${description}"` }
-            ],
-            response_format: { type: 'json_object' },
-            temperature: 0.3,
-            max_tokens: 1500
-        })
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: `Analyse cette description:\n\n"${description}"` }
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0.3,
+      max_tokens: 1500
+    })
 
-        const content = response.choices[0]?.message?.content
-        if (!content) {
-            throw new Error('Pas de réponse de l\'IA')
-        }
-
-        const parsed = JSON.parse(content)
-
-        // Ensure proper structure with null safety
-        const result = {
-            extracted: {
-                price: parsed.extracted?.price ?? parsed.price ?? null,
-                content_included: parsed.extracted?.content_included ?? parsed.content_included ?? [],
-                tags: parsed.extracted?.tags ?? parsed.tags ?? [],
-                variants: parsed.extracted?.variants ?? parsed.variants ?? []
-            },
-            cleaned_description: parsed.cleaned_description ?? parsed.description ?? description,
-            warnings: parsed.warnings ?? []
-        }
-
-        return NextResponse.json({
-            success: true,
-            data: result
-        })
-
-    } catch (error: any) {
-        console.error('Extract product data error:', error)
-        return NextResponse.json({
-            error: error.message || 'Erreur d\'analyse'
-        }, { status: 500 })
+    const content = response.choices[0]?.message?.content
+    if (!content) {
+      throw new Error('Pas de réponse de l\'IA')
     }
+
+    const parsed = JSON.parse(content)
+
+    // Ensure proper structure with null safety + ADD UNIQUE IDs
+    const rawVariants = parsed.extracted?.variants ?? parsed.variants ?? []
+    const variantsWithIds = rawVariants.map((v: any, idx: number) => ({
+      ...v,
+      id: `${Date.now()}_${idx}`,  // Unique ID for each variant
+      category: v.category || v.type === 'fixed' ? 'visual' : 'custom'  // Default category
+    }))
+
+    const result = {
+      extracted: {
+        price: parsed.extracted?.price ?? parsed.price ?? null,
+        content_included: parsed.extracted?.content_included ?? parsed.content_included ?? [],
+        tags: parsed.extracted?.tags ?? parsed.tags ?? [],
+        variants: variantsWithIds
+      },
+      cleaned_description: parsed.cleaned_description ?? parsed.description ?? description,
+      warnings: parsed.warnings ?? []
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: result
+    })
+
+  } catch (error: any) {
+    console.error('Extract product data error:', error)
+    return NextResponse.json({
+      error: error.message || 'Erreur d\'analyse'
+    }, { status: 500 })
+  }
 }
