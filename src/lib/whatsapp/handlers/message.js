@@ -49,7 +49,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
 
         // Ensure conversation exists
         if (!conversation) {
-            const { data: newConv } = await supabase
+            const { data: newConv, error: createError } = await supabase
                 .from('conversations')
                 .insert({
                     agent_id: agentId,
@@ -61,7 +61,17 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                 })
                 .select()
                 .single()
+
+            if (createError || !newConv) {
+                console.error('❌ Failed to create conversation:', createError)
+                return
+            }
             conversation = newConv
+        }
+
+        if (!conversation || !conversation.id) {
+            console.error('❌ Critical: Invalid conversation object', conversation)
+            return
         }
 
         // 2. Store User Message
