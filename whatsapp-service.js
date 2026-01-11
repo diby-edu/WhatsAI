@@ -19,6 +19,7 @@ const path = require('path')
 const fs = require('fs')
 const OpenAI = require('openai')
 const sharp = require('sharp')
+const useSupabaseAuthState = require('./src/lib/whatsapp/supabase-auth')
 
 // Configuration from environment
 require('dotenv').config({ path: '.env.local' })
@@ -1608,8 +1609,9 @@ async function initSession(agentId, agentName) {
     console.log(`🔌 Initializing WhatsApp for ${agentName}...`)
 
     try {
-        const sessionDir = ensureSessionDir(agentId)
-        const { state, saveCreds } = await useMultiFileAuthState(sessionDir)
+        // const sessionDir = ensureSessionDir(agentId) // Legacy: No longer needed
+        // const { state, saveCreds } = await useMultiFileAuthState(sessionDir)
+        const { state, saveCreds } = await useSupabaseAuthState(supabase, agentId)
         const { version } = await fetchLatestBaileysVersion()
 
         const socket = makeWASocket({
@@ -1790,12 +1792,10 @@ async function checkAgents() {
             .eq('whatsapp_connected', true)
 
         for (const agent of connectedAgents || []) {
-            const sessionDir = path.join(path.resolve(SESSION_BASE_DIR), agent.id)
-            const credsFile = path.join(sessionDir, 'creds.json')
-
-            // Only restore if session exists AND not already active
-            if (fs.existsSync(credsFile) && !activeSessions.has(agent.id) && !pendingConnections.has(agent.id)) {
-                console.log(`🔄 Restoring session for ${agent.name}`)
+            // STATELESS UPDATE: Rely on DB status, not local files
+            // Only restore if not already active
+            if (!activeSessions.has(agent.id) && !pendingConnections.has(agent.id)) {
+                console.log(`🔄 Restoring session for ${agent.name} (DB Status: Connected)`)
                 initSession(agent.id, agent.name)
             }
         }
