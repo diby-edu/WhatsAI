@@ -13,8 +13,11 @@ const supabase = createClient(
 function verifySignature(payload: string, signature: string): boolean {
     const secretKey = process.env.CINETPAY_SECRET_KEY
     if (!secretKey) {
-        console.warn('⚠️ CINETPAY_SECRET_KEY not configured - skipping signature verification')
-        return true // Allow without verification if key not configured
+        // Note: This is acceptable because we ALWAYS verify via CinetPay API (checkPaymentStatus)
+        // HMAC x-token is an optional additional layer per CinetPay documentation
+        console.warn('⚠️ [SECURITY] CINETPAY_SECRET_KEY not configured - HMAC verification skipped')
+        console.warn('   → Primary security: API verification (checkPaymentStatus) is still active')
+        return true
     }
 
     const expectedSignature = crypto

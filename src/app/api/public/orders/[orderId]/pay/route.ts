@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { checkRateLimit, getClientIdentifier, RATE_LIMITS, rateLimitResponse } from '@/lib/rate-limit'
 
 // Use service role key for public order lookup
 const supabase = createClient(
@@ -17,6 +18,13 @@ export async function POST(
     { params }: { params: Promise<{ orderId: string }> }
 ) {
     const { orderId } = await params
+
+    // Rate limiting to prevent payment initiation abuse
+    const clientId = getClientIdentifier(request)
+    const rateCheck = checkRateLimit(`payment:${clientId}`, RATE_LIMITS.payment)
+    if (!rateCheck.success) {
+        return rateLimitResponse(rateCheck.resetTime)
+    }
 
     if (!CINETPAY_API_KEY || !CINETPAY_SITE_ID) {
         return NextResponse.json({ error: 'CinetPay non configuré' }, { status: 500 })
