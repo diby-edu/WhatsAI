@@ -323,17 +323,10 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                     statusMessage = `⏳ Le paiement est en attente. Le client doit encore payer ${order.total_fcfa} FCFA.`
                     if (order.payment_method === 'online' && order.cinetpay_transaction_id) {
                         try {
-                            const cinetpay = new CinetPay(
-                                process.env.CINETPAY_SITE_ID,
-                                process.env.CINETPAY_API_KEY,
-                                process.env.CINETPAY_SECRET_KEY,
-                                false
-                            )
-                            const checkStatus = await cinetpay.checkPayStatus({
-                                transaction_id: order.cinetpay_transaction_id
-                            })
+                            // CinetPay is now the module { checkPaymentStatus }
+                            const checkStatus = await CinetPay.checkPaymentStatus(order.cinetpay_transaction_id)
 
-                            if (checkStatus.code === '00') {
+                            if (checkStatus.success && checkStatus.status === 'ACCEPTED') {
                                 await supabase.from('orders').update({ status: 'paid' }).eq('id', order.id)
                                 statusMessage = `✅ Le paiement de ${order.total_fcfa} FCFA a bien été reçu ! La commande est confirmée.`
                             } else {
