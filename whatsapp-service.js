@@ -617,26 +617,49 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
             console.log(`🖼️ send_image called with: product_name="${product_name}", variant_value="${variant_value || 'none'}"`)
             console.log(`📋 Available products: ${products.map(p => p.name).join(', ')}`)
 
-            // ENHANCED: Smart fuzzy match - same algorithm as create_order
+            // 🔧 FIX: Use SCORING system to find BEST match, not first match
             const searchTerms = product_name.toLowerCase().split(' ').filter(w => w.length > 2)
+            const searchName = product_name.toLowerCase()
 
-            const product = products.find(p => {
+            // Score each product and find the best match
+            let bestProduct = null
+            let bestScore = 0
+
+            for (const p of products) {
+                const productName = p.name.toLowerCase()
                 const productText = `${p.name} ${p.description || ''} ${p.ai_instructions || ''}`.toLowerCase()
+                let score = 0
 
-                // Method 1: Direct inclusion
-                if (product_name.toLowerCase().includes(p.name.toLowerCase())) return true
-                if (p.name.toLowerCase().includes(product_name.toLowerCase())) return true
+                // Method 1: EXACT name match (highest priority - 100 points)
+                if (productName === searchName) {
+                    score = 100
+                }
+                // Method 2: Name contains or is contained (50 points)
+                else if (searchName.includes(productName) || productName.includes(searchName)) {
+                    score = 50
+                }
+                // Method 3: Word-by-word matching (10 points per word matched in NAME only)
+                else {
+                    const nameMatchCount = searchTerms.filter(term => productName.includes(term)).length
+                    score = nameMatchCount * 10
 
-                // Method 2: Word-by-word matching
-                const matchCount = searchTerms.filter(term => productText.includes(term)).length
-                if (matchCount >= 2 || (searchTerms.length === 1 && matchCount === 1)) return true
+                    // Bonus: if matches in description too (but less weight - 2 points per word)
+                    if (score < 20) {
+                        const descMatchCount = searchTerms.filter(term => productText.includes(term)).length
+                        score += descMatchCount * 2
+                    }
+                }
 
-                // Method 3: First significant word match
-                const firstWord = searchTerms[0]
-                if (firstWord && productText.includes(firstWord)) return true
+                console.log(`   📊 Scoring "${p.name}": ${score} points`)
 
-                return false
-            })
+                if (score > bestScore) {
+                    bestScore = score
+                    bestProduct = p
+                }
+            }
+
+            // Minimum score threshold to avoid random matches
+            const product = bestScore >= 10 ? bestProduct : null
 
             if (!product) {
                 const availableProducts = products.map(p => p.name).join(', ')
