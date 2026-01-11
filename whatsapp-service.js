@@ -20,6 +20,9 @@ const fs = require('fs')
 const OpenAI = require('openai')
 const sharp = require('sharp')
 const useSupabaseAuthState = require('./src/lib/whatsapp/supabase-auth')
+const { normalizePhoneNumber } = require('./src/lib/whatsapp/utils/format')
+const { transcribeAudio } = require('./src/lib/whatsapp/utils/audio')
+const { verifyResponseIntegrity } = require('./src/lib/whatsapp/utils/security')
 
 // Configuration from environment
 require('dotenv').config({ path: '.env.local' })
@@ -107,120 +110,7 @@ async function analyzeSentiment(text) {
 
 
 // 🔒 ANTI-HALLUCINATION: Verify AI response doesn't contain fabricated prices
-function verifyResponseIntegrity(aiResponse, products) {
-    const issues = []
-
-    if (!aiResponse || !products || products.length === 0) {
-        return { isValid: true, issues: [] }
-    }
-
-    // Extract all price mentions from response (numbers followed by FCFA, F, or currency symbols)
-    const pricePattern = /(\d[\d\s]*(?:\d{3})*)\s*(?:FCFA|F|CFA|€|\$)/gi
-    const mentionedPrices = []
-    let match
-
-    while ((match = pricePattern.exec(aiResponse)) !== null) {
-        const price = parseInt(match[1].replace(/\s/g, ''), 10)
-        if (price > 0) mentionedPrices.push(price)
-    }
-
-    if (mentionedPrices.length === 0) {
-        return { isValid: true, issues: [] }
-    }
-
-    // Collect all valid prices from catalog (base prices + variant prices)
-    const validPrices = new Set()
-    products.forEach(p => {
-        if (p.price_fcfa) validPrices.add(p.price_fcfa)
-
-        // Add variant prices
-        if (p.variants && Array.isArray(p.variants)) {
-            p.variants.forEach(v => {
-                if (v.options && Array.isArray(v.options)) {
-                    v.options.forEach(opt => {
-                        if (typeof opt === 'object' && opt.price) {
-                            validPrices.add(opt.price)
-                            // Also add base + additive price
-                            if (v.type === 'additive' && p.price_fcfa) {
-                                validPrices.add(p.price_fcfa + opt.price)
-                            }
-                        }
-                    })
-                }
-            })
-        }
-    })
-
-    // Check each mentioned price against valid prices (with 5% tolerance for rounding)
-    mentionedPrices.forEach(price => {
-        let isValid = false
-        for (const validPrice of validPrices) {
-            const tolerance = validPrice * 0.05 // 5% tolerance
-            if (Math.abs(price - validPrice) <= tolerance) {
-                isValid = true
-                break
-            }
-        }
-
-        if (!isValid) {
-            issues.push({
-                type: 'price_hallucination',
-                mentionedPrice: price,
-                validPrices: Array.from(validPrices)
-            })
-        }
-    })
-
-    if (issues.length > 0) {
-        console.warn('⚠️ ANTI-HALLUCINATION: Potential price fabrication detected:', issues)
-    }
-
-    return {
-        isValid: issues.length === 0,
-        issues
-    }
-}
-
-
-
-// Transcribe Audio
-async function transcribeAudio(audioBuffer) {
-    try {
-        const tempFile = path.join(SESSION_BASE_DIR, `temp_${Date.now()}.ogg`)
-        fs.writeFileSync(tempFile, audioBuffer)
-
-        const transcription = await openai.audio.transcriptions.create({
-            file: fs.createReadStream(tempFile),
-            model: "whisper-1",
-        })
-
-        fs.unlinkSync(tempFile) // Cleanup
-        return transcription.text
-    } catch (e) {
-        console.error('Transcription Error:', e)
-        return ""
-    }
-}
-
-// Normalize phone number for WhatsApp
-function normalizePhoneNumber(phone) {
-    if (!phone) return phone
-
-    let normalized = phone.toString().trim()
-
-    // Remove common prefixes and non-digits
-    normalized = normalized.replace(/^\+/, '')     // Remove leading +
-    normalized = normalized.replace(/^00/, '')     // Remove leading 00 (international prefix)
-    normalized = normalized.replace(/[\s\-\(\)]/g, '') // Remove spaces, dashes, parentheses
-
-    // If starts with 0 and has 9-10 digits (local number), it needs country code
-    // This will be caught by the AI instructions, but we log for debugging
-    if (/^0\d{8,10}$/.test(normalized)) {
-        console.log('⚠️ Phone number appears to be local (no country code):', normalized)
-    }
-
-    return normalized
-}
+// Utilities extracted to src/lib/whatsapp/utils/
 
 const TOOLS = [
     {
@@ -1730,7 +1620,7 @@ async function initSession(agentId, agentName) {
                             'buffer',
                             { logger }
                         )
-                        text = await transcribeAudio(buffer)
+                        text = await transcribeAudio(openai, buffer)
                         console.log('📝 Transcribed:', text)
                     } catch (err) {
                         console.error('Failed to process audio:', err)
