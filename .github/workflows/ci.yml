@@ -1,0 +1,39 @@
+name: WhatsAI CI
+
+on:
+    push:
+        branches: ["master"]
+    pull_request:
+        branches: ["master"]
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Use Node.js 20
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 20
+                  cache: "npm"
+
+            - name: Install Dependencies
+              run: npm ci
+
+            - name: Run Linter
+              run: npm run lint
+              # Allow lint warning for now (exit 0) if legacy code exists, or enforce strict?
+              # For now, let's keep it standard.
+
+            - name: Run Tests
+              # We only run the unit tests for now
+              run: npm test __tests__/unit/whatsapp/utils.test.js
+
+            - name: Build Check
+              run: npm run build
+              env:
+                  NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+                  SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+                  # Add a dummy value for build passing if Env vars are required at build time
