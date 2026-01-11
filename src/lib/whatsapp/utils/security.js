@@ -12,7 +12,7 @@ function verifyResponseIntegrity(aiResponse, products) {
     }
 
     // Extract all price mentions from response (numbers followed by FCFA, F, or currency symbols)
-    const pricePattern = /(\d[\d\s]*(?:\d{3})*)\s*(?:FCFA|F|CFA|€|\$)/gi
+    const pricePattern = /([\d\s.]+)\s*(?:FCFA|F|CFA|€|\$)/gi
     const mentionedPrices = []
     let match
 

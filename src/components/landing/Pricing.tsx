@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion'
 import { Check, Zap, Crown, Sparkles, ArrowRight, Loader2 } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
 import { useTranslations } from 'next-intl'
@@ -51,7 +51,7 @@ export default function Pricing() {
     ]
 
     // Construct localized plans
-    const localizedPlans: Plan[] = planDefs.map(def => ({
+    const localizedPlans: Plan[] = useMemo(() => planDefs.map(def => ({
         id: def.id,
         name: t(`plans.${def.key}.name`),
         price: def.price,
@@ -60,12 +60,12 @@ export default function Pricing() {
         is_popular: def.is_popular,
         description: t(`plans.${def.key}.description`),
         features: (t.raw(`plans.${def.key}.features`) as string[]) || []
-    }))
+    })), [t])
 
     // Initialize plans state with localized plans
     useEffect(() => {
         setPlans(localizedPlans)
-    }, []) // Run once on mount to set initial localized state
+    }, [localizedPlans]) // Updates when language changes
 
     // Check authentication status
     useEffect(() => {

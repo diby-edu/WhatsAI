@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
+import Link from 'next/link'
 import {
     Users, Bot, MessageSquare, CreditCard, TrendingUp, DollarSign,
     Activity, AlertTriangle, CheckCircle2, Clock, Zap, Loader2, RefreshCw,
@@ -174,7 +175,7 @@ export default function AdminDashboard() {
                 }}>
                     <div style={{ padding: '14px 18px', borderBottom: '1px solid rgba(51, 65, 85, 0.5)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <h2 style={{ fontSize: 14, fontWeight: 600, color: 'white' }}>Dernières inscriptions</h2>
-                        <a href="/admin/users" style={{ fontSize: 12, color: '#34d399', textDecoration: 'none' }}>Voir tout →</a>
+                        <Link href="/admin/users" style={{ fontSize: 12, color: '#34d399', textDecoration: 'none' }}>Voir tout →</Link>
                     </div>
                     <div style={{ padding: '0 6px' }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse' }}>

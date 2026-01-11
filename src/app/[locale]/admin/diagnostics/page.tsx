@@ -40,9 +40,7 @@ export default function AdminDiagnosticsPage() {
     const [loading, setLoading] = useState(true)
     const [lastCheck, setLastCheck] = useState<Date | null>(null)
 
-    useEffect(() => {
-        runDiagnostics()
-    }, [])
+
 
     const addResult = (result: DiagnosticResult, results: DiagnosticResult[]) => {
         const index = results.findIndex(r => r.name === result.name)
@@ -54,7 +52,7 @@ export default function AdminDiagnosticsPage() {
         return [...results]
     }
 
-    const runDiagnostics = async () => {
+    async function runDiagnostics() {
         setLoading(true)
         let results: DiagnosticResult[] = []
         const supabase = createClient()
@@ -876,6 +874,12 @@ export default function AdminDiagnosticsPage() {
         setLastCheck(new Date())
         setLoading(false)
     }
+
+    useEffect(() => {
+        setTimeout(() => {
+            runDiagnostics()
+        }, 0)
+    }, [])
 
     const getStatusIcon = (status: string, Icon: any) => {
         const color = status === 'ok' ? '#34d399' : status === 'warning' ? '#f59e0b' : status === 'error' ? '#f87171' : '#94a3b8'

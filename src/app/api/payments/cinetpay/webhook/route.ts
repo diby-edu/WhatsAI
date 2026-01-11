@@ -194,7 +194,7 @@ export async function POST(request: NextRequest) {
 
                             // 🎯 HYBRID ROUTING: Check for active conversation
                             // STRATEGY: 1. Try Hard Link (conversation_id) -> 2. Try Soft Link (agent + phone)
-                            let conversationId = order.conversation_id
+                            const conversationId = order.conversation_id
                             let conversation = null
 
                             if (conversationId) {
