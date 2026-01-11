@@ -2,14 +2,20 @@ import { NextRequest } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
 // Use service role for admin operations
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+function getSupabaseAdmin() {
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        throw new Error('Supabase credentials missing')
+    }
+    return createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL,
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+    )
+}
 
 // GET - List all credit packs
 export async function GET() {
     try {
+        const supabase = getSupabaseAdmin()
         const { data: packs, error } = await supabase
             .from('credit_packs')
             .select('*')
@@ -34,6 +40,7 @@ export async function POST(request: NextRequest) {
             return Response.json({ error: 'Name, credits and price are required' }, { status: 400 })
         }
 
+        const supabase = getSupabaseAdmin()
         const { data, error } = await supabase
             .from('credit_packs')
             .insert({ name, credits, price, savings, is_active, display_order })
@@ -59,6 +66,7 @@ export async function PUT(request: NextRequest) {
             return Response.json({ error: 'Pack ID is required' }, { status: 400 })
         }
 
+        const supabase = getSupabaseAdmin()
         const { data, error } = await supabase
             .from('credit_packs')
             .update({ ...updates, updated_at: new Date().toISOString() })
@@ -85,6 +93,7 @@ export async function DELETE(request: NextRequest) {
             return Response.json({ error: 'Pack ID is required' }, { status: 400 })
         }
 
+        const supabase = getSupabaseAdmin()
         const { error } = await supabase
             .from('credit_packs')
             .delete()
