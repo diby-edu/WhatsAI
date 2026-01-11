@@ -18,6 +18,7 @@ const pino = require('pino')
 const path = require('path')
 const fs = require('fs')
 const OpenAI = require('openai')
+const sharp = require('sharp')
 
 // Configuration from environment
 require('dotenv').config({ path: '.env.local' })
@@ -755,23 +756,38 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                 try {
                     // 🔧 FIX: Download image as buffer first to avoid Sharp format issues
                     let imageBuffer = null
+                    let compressedBuffer = null
+
                     try {
                         const imageResponse = await fetch(imageToSend)
                         if (imageResponse.ok) {
                             imageBuffer = Buffer.from(await imageResponse.arrayBuffer())
                             console.log(`📥 Downloaded image: ${imageBuffer.length} bytes`)
+
+                            // 🗜️ Try to compress image with Sharp
+                            try {
+                                compressedBuffer = await sharp(imageBuffer)
+                                    .resize(800, 800, { fit: 'inside', withoutEnlargement: true })
+                                    .jpeg({ quality: 80 })
+                                    .toBuffer()
+                                console.log(`🗜️ Compressed image: ${imageBuffer.length} → ${compressedBuffer.length} bytes (${Math.round(100 - (compressedBuffer.length / imageBuffer.length * 100))}% reduction)`)
+                            } catch (compressError) {
+                                console.warn('⚠️ Compression failed, will use original:', compressError.message)
+                            }
                         }
                     } catch (downloadError) {
                         console.warn('⚠️ Failed to download image, will try URL method:', downloadError.message)
                     }
 
-                    // Send image - prefer buffer, fallback to URL
-                    if (imageBuffer && imageBuffer.length > 0) {
+                    // Send image - prefer compressed, fallback to original, fallback to URL
+                    const bufferToSend = compressedBuffer || imageBuffer
+
+                    if (bufferToSend && bufferToSend.length > 0) {
                         await session.socket.sendMessage(jid, {
-                            image: imageBuffer,
+                            image: bufferToSend,
                             caption: imageCaption
                         })
-                        console.log('✅ Image sent via buffer')
+                        console.log(`✅ Image sent via ${compressedBuffer ? 'compressed buffer' : 'original buffer'}`)
                     } else {
                         // Fallback to URL method
                         await session.socket.sendMessage(jid, {
