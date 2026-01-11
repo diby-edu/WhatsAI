@@ -13,7 +13,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             .from('conversations')
             .select('*')
             .eq('agent_id', agentId)
-            .eq('customer_phone', message.from)
+            .eq('contact_phone', message.from)
             .single()
 
         if (conversation) {
@@ -53,7 +53,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                 .from('conversations')
                 .insert({
                     agent_id: agentId,
-                    customer_phone: message.from,
+                    contact_phone: message.from,
                     status: 'active',
                     metadata: {
                         wa_name: message.pushName
