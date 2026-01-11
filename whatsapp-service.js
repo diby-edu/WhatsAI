@@ -1170,7 +1170,7 @@ Instructions:
 - Réponds en ${agent.language || 'français'}
 - ${agent.use_emojis ? 'Utilise des emojis' : 'Pas d\'emojis'}
 - Sois concis et professionnel
-- Ton nom est ${agent.name}
+- Tu représentes l'entreprise "${agent.name}"
 
 👋 MESSAGE DE BIENVENUE [PREMIER MESSAGE] :
 Quand un client te contacte pour la PREMIÈRE fois (premier message de la conversation), tu DOIS te présenter :
