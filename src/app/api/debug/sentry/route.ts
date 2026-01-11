@@ -1,8 +1,24 @@
-import { NextResponse } from "next/server";
+import { NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
+import * as Sentry from "@sentry/nextjs"
 
-export const dynamic = "force-dynamic";
+export async function GET(request: NextRequest) {
+    try {
+        // 1. Capture a message
+        Sentry.captureMessage("Test Diagnostic Message from WhatsAI Admin")
 
-export function GET() {
-    console.log("Creation of a test error for Sentry...");
-    throw new Error("🚨 TEST SENTRY: Ceci est une erreur de test depuis le VPS WhatsAI");
+        // 2. Capture an exception
+        try {
+            throw new Error("Sentry Test Diagnostic Error")
+        } catch (e) {
+            Sentry.captureException(e)
+        }
+
+        return NextResponse.json({
+            success: true,
+            message: "Test events sent to Sentry (Message + Exception). Check your dashboard."
+        })
+    } catch (error) {
+        return NextResponse.json({ success: false, error: String(error) }, { status: 500 })
+    }
 }
