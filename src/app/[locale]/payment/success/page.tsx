@@ -16,6 +16,51 @@ function PaymentSuccessContent() {
     const [retryCount, setRetryCount] = useState(0)
 
     useEffect(() => {
+        let isMounted = true
+        let currentRetry = 0
+
+        const verifyPayment = async (txnId: string) => {
+            if (!isMounted) return
+
+            try {
+                const res = await fetch('/api/payments/cinetpay/status', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ transaction_id: txnId })
+                })
+
+                const data = await res.json()
+
+                if (!isMounted) return
+
+                if (data.success && data.status === 'ACCEPTED') {
+                    setStatus('success')
+                    setCreditsAdded(data.credits_added || 0)
+                    setMessage('Votre paiement a été confirmé et vos crédits ont été ajoutés !')
+                } else if (data.status === 'REFUSED' || data.status === 'CANCELLED') {
+                    setStatus('failed')
+                    setMessage('Le paiement a été refusé ou annulé.')
+                } else {
+                    // Still pending, retry in 3 seconds (max 10 retries)
+                    if (currentRetry < 10) {
+                        setStatus('pending')
+                        setMessage('Vérification du paiement en cours...')
+                        currentRetry++
+                        setTimeout(() => verifyPayment(txnId), 3000)
+                    } else {
+                        setStatus('pending')
+                        setMessage('Le paiement est en cours de traitement. Vous recevrez vos crédits sous peu.')
+                    }
+                }
+            } catch (err) {
+                if (isMounted) {
+                    console.error('Error verifying payment:', err)
+                    setStatus('failed')
+                    setMessage('Erreur lors de la vérification du paiement.')
+                }
+            }
+        }
+
         if (transactionId) {
             verifyPayment(transactionId)
         } else {
@@ -32,45 +77,13 @@ function PaymentSuccessContent() {
                 setMessage('Aucune transaction trouvée.')
             }
         }
+
+        return () => {
+            isMounted = false
+        }
     }, [transactionId, searchParams])
 
-    const verifyPayment = async (txnId: string) => {
-        try {
-            const res = await fetch('/api/payments/cinetpay/status', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ transaction_id: txnId })
-            })
 
-            const data = await res.json()
-
-            if (data.success && data.status === 'ACCEPTED') {
-                setStatus('success')
-                setCreditsAdded(data.credits_added || 0)
-                setMessage('Votre paiement a été confirmé et vos crédits ont été ajoutés !')
-            } else if (data.status === 'REFUSED' || data.status === 'CANCELLED') {
-                setStatus('failed')
-                setMessage('Le paiement a été refusé ou annulé.')
-            } else {
-                // Still pending, retry in 3 seconds (max 10 retries)
-                if (retryCount < 10) {
-                    setStatus('pending')
-                    setMessage('Vérification du paiement en cours...')
-                    setTimeout(() => {
-                        setRetryCount(prev => prev + 1)
-                        verifyPayment(txnId)
-                    }, 3000)
-                } else {
-                    setStatus('pending')
-                    setMessage('Le paiement est en cours de traitement. Vous recevrez vos crédits sous peu.')
-                }
-            }
-        } catch (err) {
-            console.error('Error verifying payment:', err)
-            setStatus('failed')
-            setMessage('Erreur lors de la vérification du paiement.')
-        }
-    }
 
     return (
         <div style={{
