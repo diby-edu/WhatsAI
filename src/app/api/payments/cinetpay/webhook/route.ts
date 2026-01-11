@@ -13,11 +13,12 @@ const supabase = createClient(
 function verifySignature(payload: string, signature: string): boolean {
     const secretKey = process.env.CINETPAY_SECRET_KEY
     if (!secretKey) {
-        // Note: This is acceptable because we ALWAYS verify via CinetPay API (checkPaymentStatus)
-        // HMAC x-token is an optional additional layer per CinetPay documentation
-        console.warn('⚠️ [SECURITY] CINETPAY_SECRET_KEY not configured - HMAC verification skipped')
-        console.warn('   → Primary security: API verification (checkPaymentStatus) is still active')
-        return true
+        console.error('❌ [CRITICAL SECURITY] CINETPAY_SECRET_KEY not configured!')
+        console.error('   Webhook rejected. You MUST configure this variable in .env.local')
+        // Throwing/returning false here relies on the caller handling it, but the caller (POST) 
+        // will get false and should reject.
+        // Actually, verifySignature returns boolean.
+        return false
     }
 
     const expectedSignature = crypto
@@ -136,12 +137,14 @@ export async function POST(request: NextRequest) {
                 cpm_custom + cpm_designation + cpm_error_message
 
             if (!verifySignature(signaturePayload, xToken)) {
-                console.error('❌ SECURITY: Invalid HMAC signature! Rejecting webhook.')
+                console.error('❌ SECURITY: Invalid HMAC signature OR missing secret key! Rejecting webhook.')
                 return new Response('Invalid signature', { status: 403 })
             }
             console.log('✅ HMAC Signature verified successfully')
         } else if (!xToken) {
-            console.log('ℹ️ No x-token header - proceeding with API verification only')
+            // If strict mode is required, uncomment below:
+            // return new Response('Missing x-token', { status: 403 })
+            console.log('ℹ️ No x-token header - proceeding (Legacy mode)')
         }
 
         // Verify site_id matches our configuration
@@ -162,6 +165,12 @@ export async function POST(request: NextRequest) {
 
             if (order) {
                 console.log('✅ Found order:', order.id, 'status:', order.status)
+
+                // IDEMPOTENCY CHECK: If already paid, stop here
+                if (order.status === 'paid' || order.status === 'completed') {
+                    console.log('🛑 Order already paid/completed. Ignoring duplicate webhook.')
+                    return new Response('OK', { status: 200 })
+                }
 
                 // Verify with CinetPay API
                 const cinetpayStatus = await checkPaymentStatus(cpm_trans_id)
