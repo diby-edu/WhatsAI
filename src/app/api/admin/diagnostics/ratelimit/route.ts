@@ -1,71 +1,52 @@
 import { NextRequest } from 'next/server'
-import { successResponse } from '@/lib/api-utils'
+import { successResponse, errorResponse } from '@/lib/api-utils'
+import { checkRateLimit } from '@/lib/rate-limit'
+import { Redis } from '@upstash/redis'
 
 export async function GET(request: NextRequest) {
-    const results: any = {
-        openai: { status: 'unknown', message: '', remaining: null },
-        cinetpay: { status: 'unknown', message: '' },
-        supabase: { status: 'unknown', message: '' }
+    try {
+        const results: any = {
+            message: 'Diagnostic Rate Limit (Redis)',
+            timestamp: new Date().toISOString(),
+            config_detected: false,
+            redis_ping: 'unknown',
+            rate_limit_test: 'unknown'
+        }
+
+        const redisUrl = process.env.UPSTASH_REDIS_REST_URL
+        const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN
+
+        if (redisUrl && redisToken) {
+            results.config_detected = true
+
+            // 1. Test ping
+            try {
+                const redis = Redis.fromEnv()
+                const ping = await redis.ping()
+                results.redis_ping = ping === 'PONG' ? 'success' : `unexpected: ${ping}`
+            } catch (pingError: any) {
+                results.redis_ping = `failed: ${pingError.message}`
+            }
+
+            // 2. Test Rate Limit logic
+            try {
+                const limitResult = await checkRateLimit('diagnostic-test', { windowMs: 10000, maxRequests: 5 })
+                results.rate_limit_test = {
+                    success: limitResult.success,
+                    remaining: limitResult.remaining,
+                    reset_in_ms: limitResult.resetTime - Date.now()
+                }
+            } catch (limitError: any) {
+                results.rate_limit_test = `failed: ${limitError.message}`
+            }
+
+        } else {
+            results.config_detected = false
+            results.message = 'Redis creds missing in env'
+        }
+
+        return successResponse(results)
+    } catch (error: any) {
+        return errorResponse(error.message, 500)
     }
-
-    // 1. OpenAI - Check configuration (no actual API call to save costs)
-    const openaiKey = process.env.OPENAI_API_KEY
-    if (openaiKey && openaiKey.startsWith('sk-')) {
-        results.openai = {
-            status: 'ok',
-            message: 'API configurée',
-            details: 'Clé sk-*** détectée'
-        }
-    } else if (openaiKey) {
-        results.openai = {
-            status: 'warning',
-            message: 'Format de clé inhabituel'
-        }
-    } else {
-        results.openai = {
-            status: 'error',
-            message: 'Clé API non configurée'
-        }
-    }
-
-    // 2. CinetPay - Check if configured (no actual rate limit API)
-    const cinetpayApiKey = process.env.CINETPAY_API_KEY
-    const cinetpaySiteId = process.env.CINETPAY_SITE_ID
-
-    if (cinetpayApiKey && cinetpaySiteId) {
-        results.cinetpay = {
-            status: 'ok',
-            message: 'API configurée',
-            details: 'Pas de limite connue'
-        }
-    } else {
-        results.cinetpay = {
-            status: 'warning',
-            message: 'Non configuré'
-        }
-    }
-
-    // 3. Supabase - Check connection (no rate limit for service role)
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-    if (supabaseUrl && supabaseKey) {
-        results.supabase = {
-            status: 'ok',
-            message: 'Connexion établie',
-            details: 'Service role (pas de limite)'
-        }
-    } else {
-        results.supabase = {
-            status: 'warning',
-            message: 'Configuration incomplète'
-        }
-    }
-
-    // Overall status
-    const statuses = [results.openai.status, results.cinetpay.status, results.supabase.status]
-    results.overallStatus = statuses.includes('error') ? 'error'
-        : statuses.includes('warning') ? 'warning' : 'ok'
-
-    return successResponse(results)
 }
