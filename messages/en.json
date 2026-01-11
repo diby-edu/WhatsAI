@@ -383,8 +383,8 @@
         },
         "Form": {
             "name": {
-                "label": "Agent Name",
-                "placeholder": "Ex: Sales Assistant"
+                "label": "Business Name",
+                "placeholder": "Ex: My Store, Ali's Restaurant..."
             },
             "description": {
                 "label": "Description",
