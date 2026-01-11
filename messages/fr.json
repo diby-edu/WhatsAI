@@ -386,8 +386,8 @@
     },
     "Form": {
       "name": {
-        "label": "Nom de l'agent",
-        "placeholder": "Ex: Assistant Commercial"
+        "label": "Nom de l'entreprise",
+        "placeholder": "Ex: Ma Boutique, Resto Chez Ali..."
       },
       "description": {
         "label": "Description",
