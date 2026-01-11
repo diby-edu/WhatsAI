@@ -753,10 +753,33 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                 console.log(`🚀 DEBUG: Sending image to JID: [${jid}]`)
 
                 try {
-                    await session.socket.sendMessage(jid, {
-                        image: { url: imageToSend },
-                        caption: imageCaption
-                    })
+                    // 🔧 FIX: Download image as buffer first to avoid Sharp format issues
+                    let imageBuffer = null
+                    try {
+                        const imageResponse = await fetch(imageToSend)
+                        if (imageResponse.ok) {
+                            imageBuffer = Buffer.from(await imageResponse.arrayBuffer())
+                            console.log(`📥 Downloaded image: ${imageBuffer.length} bytes`)
+                        }
+                    } catch (downloadError) {
+                        console.warn('⚠️ Failed to download image, will try URL method:', downloadError.message)
+                    }
+
+                    // Send image - prefer buffer, fallback to URL
+                    if (imageBuffer && imageBuffer.length > 0) {
+                        await session.socket.sendMessage(jid, {
+                            image: imageBuffer,
+                            caption: imageCaption
+                        })
+                        console.log('✅ Image sent via buffer')
+                    } else {
+                        // Fallback to URL method
+                        await session.socket.sendMessage(jid, {
+                            image: { url: imageToSend },
+                            caption: imageCaption
+                        })
+                        console.log('✅ Image sent via URL')
+                    }
                 } catch (sendError) {
                     console.error('❌ Failed to send image message:', sendError)
                     throw new Error(`Erreur envoi image WhatsApp: ${sendError.message}`)
