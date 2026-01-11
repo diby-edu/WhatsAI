@@ -613,6 +613,10 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
             const args = JSON.parse(toolCall.function.arguments)
             const { product_name, variant_value } = args
 
+            // 🔍 DEBUG: Log what AI is requesting
+            console.log(`🖼️ send_image called with: product_name="${product_name}", variant_value="${variant_value || 'none'}"`)
+            console.log(`📋 Available products: ${products.map(p => p.name).join(', ')}`)
+
             // ENHANCED: Smart fuzzy match - same algorithm as create_order
             const searchTerms = product_name.toLowerCase().split(' ').filter(w => w.length > 2)
 
@@ -641,6 +645,9 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                     error: `Je ne trouve pas "${product_name}" dans notre catalogue. Produits disponibles : ${availableProducts}`
                 })
             }
+
+            // 🔍 DEBUG: Log which product was matched
+            console.log(`✅ MATCHED product: "${product.name}" (id: ${product.id})`)
 
             // 🎨 VARIANT IMAGE LOGIC: Find variant-specific image if requested
             let imageToSend = null
