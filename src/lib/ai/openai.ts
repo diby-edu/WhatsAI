@@ -1,9 +1,19 @@
 import OpenAI from 'openai'
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-})
+// Lazy initialization for OpenAI client
+let openaiInstance: OpenAI | null = null
+
+function getOpenAIClient(): OpenAI {
+    if (!openaiInstance) {
+        if (!process.env.OPENAI_API_KEY) {
+            console.warn('⚠️ OPENAI_API_KEY is not set. OpenAI features will fail at runtime.')
+        }
+        openaiInstance = new OpenAI({
+            apiKey: process.env.OPENAI_API_KEY || 'dummy_key_for_build', // Fallback for build time
+        })
+    }
+    return openaiInstance
+}
 
 export interface AIMessage {
     role: 'system' | 'user' | 'assistant'
@@ -259,7 +269,7 @@ RÈGLE D'OR : Dès que le client confirme ("Je prends ça", "Je réserve") APRÈ
     ]
 
     try {
-        const completion = await openai.chat.completions.create({
+        const completion = await getOpenAIClient().chat.completions.create({
             model,
             messages,
             temperature,
@@ -321,7 +331,7 @@ Critères d'évaluation:
     ]
 
     try {
-        const completion = await openai.chat.completions.create({
+        const completion = await getOpenAIClient().chat.completions.create({
             model: 'gpt-4o-mini',
             messages,
             temperature: 0.3,
@@ -378,7 +388,7 @@ Réponds en JSON avec ce format:
     ]
 
     try {
-        const completion = await openai.chat.completions.create({
+        const completion = await getOpenAIClient().chat.completions.create({
             model: 'gpt-4o-mini',
             messages,
             temperature: 0.1,
@@ -420,7 +430,7 @@ Le message doit:
 - Être adapté à WhatsApp (court, max 3-4 phrases)`
 
     try {
-        const completion = await openai.chat.completions.create({
+        const completion = await getOpenAIClient().chat.completions.create({
             model: 'gpt-4o-mini',
             messages: [{ role: 'user', content: prompt }],
             temperature: 0.8,
@@ -451,7 +461,7 @@ export async function transcribeAudio(audioBuffer: Buffer): Promise<string> {
         // Write buffer to temp file
         fs.writeFileSync(tmpPath, audioBuffer)
 
-        const transcription = await openai.audio.transcriptions.create({
+        const transcription = await getOpenAIClient().audio.transcriptions.create({
             file: fs.createReadStream(tmpPath),
             model: 'whisper-1',
             language: 'fr', // Optimisation for French
@@ -477,7 +487,7 @@ export async function generateSpeech(
     voice: 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer' = 'alloy'
 ): Promise<Buffer> {
     try {
-        const mp3 = await openai.audio.speech.create({
+        const mp3 = await getOpenAIClient().audio.speech.create({
             model: 'tts-1',
             voice: voice,
             input: text,
@@ -496,7 +506,7 @@ export async function generateSpeech(
  */
 export async function generateEmbedding(text: string): Promise<number[]> {
     try {
-        const response = await openai.embeddings.create({
+        const response = await getOpenAIClient().embeddings.create({
             model: 'text-embedding-3-small',
             input: text.replace(/\n/g, ' '),
         })

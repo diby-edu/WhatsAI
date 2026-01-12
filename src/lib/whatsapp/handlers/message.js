@@ -53,6 +53,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                 .from('conversations')
                 .insert({
                     agent_id: agentId,
+                    user_id: agent.user_id,
                     contact_phone: message.from,
                     status: 'active',
                     metadata: {
