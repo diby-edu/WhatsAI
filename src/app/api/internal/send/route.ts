@@ -1,16 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-// Use service role key for internal calls
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
 // Internal API to send WhatsApp messages (used by webhook)
 // Protected by secret key check
 export async function POST(request: NextRequest) {
     try {
+        // Use service role key for internal calls
+        // Initialize lazily to prevent build errors
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+        const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+        if (!supabaseUrl || !supabaseKey) {
+            console.error('Missing Supabase credentials')
+            return NextResponse.json({ error: 'Configuration Error' }, { status: 500 })
+        }
+
+        const supabase = createClient(supabaseUrl, supabaseKey)
+
         const body = await request.json()
         const { agentId, to, message, secretKey } = body
 
