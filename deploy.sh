@@ -22,10 +22,10 @@ REMOTE_COMMIT=$(git rev-parse origin/master 2>/dev/null)
 
 # Check if bot code changed between old local and remote
 if [ "$OLD_COMMIT" != "$REMOTE_COMMIT" ]; then
-    BOT_CHANGED=$(git diff $OLD_COMMIT $REMOTE_COMMIT --name-only 2>/dev/null | grep -E "whatsapp-service\.js|ecosystem\.config\.js" || true)
+    BOT_CHANGED=$(git diff $OLD_COMMIT $REMOTE_COMMIT --name-only 2>/dev/null | grep -E "src/lib/whatsapp|whatsapp-service\.js|ecosystem\.config\.js" || true)
 else
     # Already up to date, check if last commit touched bot files
-    BOT_CHANGED=$(git diff HEAD~1 HEAD --name-only 2>/dev/null | grep -E "whatsapp-service\.js|ecosystem\.config\.js" || true)
+    BOT_CHANGED=$(git diff HEAD~1 HEAD --name-only 2>/dev/null | grep -E "src/lib/whatsapp|whatsapp-service\.js|ecosystem\.config\.js" || true)
 fi
 
 # Apply changes
