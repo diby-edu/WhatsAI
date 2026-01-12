@@ -231,6 +231,31 @@ export async function initWhatsAppSession(
             // Determine message type and extract text
             let text = ''
             let messageType: WhatsAppMessage['messageType'] = 'text'
+            let quotedText = ''
+
+            // Extract content and potential quoted message
+            const content = messageContent
+            const contextInfo = content?.extendedTextMessage?.contextInfo ||
+                content?.imageMessage?.contextInfo ||
+                content?.videoMessage?.contextInfo ||
+                content?.audioMessage?.contextInfo ||
+                content?.documentMessage?.contextInfo
+
+            // Try to extract quoted text
+            if (contextInfo?.quotedMessage) {
+                const quotedRenderer = contextInfo.quotedMessage
+                if (quotedRenderer.conversation) {
+                    quotedText = quotedRenderer.conversation
+                } else if (quotedRenderer.extendedTextMessage?.text) {
+                    quotedText = quotedRenderer.extendedTextMessage.text
+                } else if (quotedRenderer.imageMessage?.caption) {
+                    quotedText = `[Image: ${quotedRenderer.imageMessage.caption}]`
+                } else if (quotedRenderer.videoMessage?.caption) {
+                    quotedText = `[Vidéo: ${quotedRenderer.videoMessage.caption}]`
+                } else {
+                    quotedText = '[Message cité]'
+                }
+            }
 
             if (messageContent.conversation) {
                 text = messageContent.conversation
@@ -253,6 +278,14 @@ export async function initWhatsAppSession(
                 text = '[Sticker]'
             } else {
                 continue // Skip unsupported message types
+            }
+
+            // If there is a quoted text, prepend it to the message for context
+            if (quotedText) {
+                // Limit quoted text length to avoid token bloat
+                const truncatedQuote = quotedText.length > 100 ? quotedText.substring(0, 100) + '...' : quotedText
+                text = `[En réponse à : "${truncatedQuote}"] ${text}`
+                console.log(`↪️ Added reply context: "${truncatedQuote}"`)
             }
 
             const whatsappMessage: WhatsAppMessage = {
