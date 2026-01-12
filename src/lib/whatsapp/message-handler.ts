@@ -141,7 +141,7 @@ export function initializeMessageHandler() {
                 .select('role, content')
                 .eq('conversation_id', conversation.id)
                 .order('created_at', { ascending: true })
-                .limit(20) // Last 20 messages for context
+                .limit(50) // Last 50 messages for context
 
             const conversationHistory: AIMessage[] = (messages || []).map((m) => ({
                 role: m.role as 'user' | 'assistant',
@@ -168,7 +168,7 @@ export function initializeMessageHandler() {
                 .select('name, price_fcfa, description, product_type, ai_instructions, lead_fields, stock_quantity, short_pitch, marketing_tags, features, variants, related_product_ids')
                 .eq('user_id', agent.user_id)
                 .eq('is_available', true)
-                .limit(20)
+                .limit(100)
 
             console.log(`📦 Found ${products?.length || 0} products for AI context`)
 
