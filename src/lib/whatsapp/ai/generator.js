@@ -148,7 +148,19 @@ INSTRUCTION IMPORTANTE :
 `
 
         let ordersContext = ''
+        let lastOrderInfo = null // Track last order for smart reuse
+
         if (orders && orders.length > 0) {
+            const lastOrder = orders[0] // Most recent order
+
+            // Extract last order details for smart reuse
+            lastOrderInfo = {
+                id: lastOrder.id,
+                phone: lastOrder.customer_phone || null,
+                address: lastOrder.delivery_address || null,
+                status: lastOrder.status
+            }
+
             const statusLabels = {
                 pending: '⏳ En attente de paiement',
                 paid: '✅ Payé',
@@ -159,6 +171,28 @@ INSTRUCTION IMPORTANTE :
                 in_progress: '🔧 En cours',
                 completed: '✅ Terminé'
             }
+
+            // Build smart reuse instructions
+            let reuseInstructions = ''
+            if (lastOrderInfo.phone || lastOrderInfo.address) {
+                reuseInstructions = `
+
+🔄 RÉUTILISATION INTELLIGENTE (Client Connu) :
+Ce client a déjà commandé. Quand tu collectes ses infos :`
+                if (lastOrderInfo.phone) {
+                    reuseInstructions += `
+- TÉLÉPHONE : Demande "Souhaitez-vous utiliser le même numéro (${lastOrderInfo.phone.substring(0, 6)}...) ?"
+  → Si OUI : utilise ${lastOrderInfo.phone}
+  → Si NON : demande le nouveau numéro`
+                }
+                if (lastOrderInfo.address) {
+                    reuseInstructions += `
+- ADRESSE : Demande "Même adresse que la dernière fois (${lastOrderInfo.address.substring(0, 20)}...) ?"
+  → Si OUI : utilise "${lastOrderInfo.address}"
+  → Si NON : demande la nouvelle adresse`
+                }
+            }
+
             ordersContext = `
 
 📦 HISTORIQUE DE CE CLIENT (${orders.length} commande${orders.length > 1 ? 's' : ''}) :
@@ -168,21 +202,40 @@ ${orders.map(o => {
                 const date = new Date(o.created_at).toLocaleDateString('fr-FR')
                 return `- #${o.id.substring(0, 8)} | ${status} | ${o.total_fcfa} ${currency} | ${items} | ${date}`
             }).join('\n')}
+${reuseInstructions}
 
-⚠️ Si le client demande "le statut de ma commande", donne-lui l'état de sa/ses commande(s) ci-dessus.
+⚠️ Si le client demande "le statut de ma commande" SANS donner d'ID, il parle de #${lastOrder.id.substring(0, 8)} (la plus récente).
 `
         }
 
         const customRules = agent.custom_rules || agent.system_prompt || ''
 
-        const systemPrompt = `Tu es l'assistant IA officiel de ${agent.name}.
+        const systemPrompt = `Tu es l'assistant IA de ${agent.name}. Réponds en ${agent.language || 'français'}. ${agent.use_emojis ? 'Utilise des emojis modérément.' : ''}
+
+🚨 RÈGLES PRIORITAIRES (À RESPECTER EN PREMIER) :
+
+1️⃣ ADRESSE : Demande "Votre lieu de livraison ?" UNE SEULE FOIS.
+   Accepte TOUT : "Yopougon", "Abidjan Marcory", coordonnées GPS...
+   ❌ INTERDIT : Demander numéro de rue, code postal ou complément.
+
+2️⃣ TÉLÉPHONE : Format obligatoire 225XXXXXXXXX (sans +, sans espaces).
+   Dis : "Votre numéro précédé de l'indicatif pays, SANS le + (ex: 2250707070707)"
+   Si le client met "+225 07...", nettoie silencieusement → 2250707070707
+
+3️⃣ INSTRUCTIONS SPÉCIALES : AVANT de donner le lien de paiement, demande TOUJOURS :
+   "Avez-vous des instructions spéciales ? (Heure de livraison, message cadeau, etc.)"
+   Attends la réponse, puis finalise.
+
+4️⃣ RÉCAP OBLIGATOIRE : Avant paiement, fais un récapitulatif complet.
+   "Récap: [Articles] - Total: [Prix] FCFA. C'est bon pour vous ?"
+
+5️⃣ CONCISION : Max 3-4 phrases par message. Sois direct.
+
 ${businessIdentity}
-
-🎭 IDENTITÉ : Ton ${agent.agent_tone || 'amical'}, Objectif ${agent.agent_goal || 'vendre'}.
-
-${productsCatalog}
 ${ordersContext}
-📜 RÈGLES SPÉCIFIQUES & POLITIQUES :
+${productsCatalog}
+
+📜 RÈGLES ADDITIONNELLES :
 ${customRules}
 
 📌 GESTION DES PRIX & COMMANDES :
@@ -200,9 +253,8 @@ ${customRules}
    - ✅ Propose UNIQUEMENT le paiement en ligne.
 
 2. 📦 Pour les produits [PHYSIQUE] (vêtements, accessoires, appareils) :
-   - ✅ Demande l'ADRESSE DE LIVRAISON complète et la VILLE.
+   - ✅ Demande le LIEU DE LIVRAISON (Accepte quartier/ville, pas besoin de rue).
    - ✅ Propose le choix : Paiement à la livraison (COD) OU Paiement en ligne.
-   - ℹ️ Si le client est hors zone de livraison (ex: autre pays), privilégie le paiement en ligne.
 
 3. 🛠️ Pour les produits [SERVICE] (consulting, installation, support) :
    - ✅ Demande les DÉTAILS du besoin (Date souhaitée, Heure, Contexte).
@@ -239,12 +291,6 @@ Format OBLIGATOIRE : "Pour toute assistance, contactez notre équipe au ${agent.
 ⚠️ RAPPEL CRITIQUE : Lors de CHAQUE escalade, dis :
 "Je comprends. Pour cette demande, veuillez contacter notre équipe au ${agent.contact_phone || '[Numéro non configuré]'}. Ils pourront vous aider directement."
 
-${orders && orders.length > 0 ? `
-Historique des Commandes du Client:
-${orders.map(o => `- Commande ${o.id} (Ref: #${o.id.substring(0, 8)}) (${new Date(o.created_at).toLocaleDateString()}): ${o.status === 'pending' ? 'En attente' : o.status === 'paid' ? 'Payée' : o.status} - ${o.total_fcfa} FCFA
-  Articles: ${o.items?.map(i => `${i.quantity}x ${i.product_name}`).join(', ')}`).join('\n')}
-` : ''}
-
 ⚠️ GESTION DES IMAGES :
 - Si le client demande à voir un produit, utilise l'outil send_image.
 - N'envoie l'image QUE si le produit est dans le catalogue.
@@ -254,28 +300,9 @@ BASE DE CONNAISSANCES (RAG):
 ${relevantDocs.map(doc => `- ${doc.content}`).join('\n\n')}
 ` : ''}
 
-Instructions:
-- Réponds en ${agent.language || 'français'}
-- ${agent.use_emojis ? 'Utilise des emojis' : 'Pas d\'emojis'}
-- Sois concis et professionnel
-- Tu représentes l'entreprise "${agent.name}"
-
 👋 MESSAGE DE BIENVENUE [PREMIER MESSAGE] :
-Quand un client te contacte pour la PREMIÈRE fois (premier message de la conversation), tu DOIS te présenter :
-"Bienvenue chez ${agent.name} ! 👋 Je suis votre assistant virtuel. Comment puis-je vous aider aujourd'hui ?"
-Ensuite, continue la conversation normalement.
-
-📱 GESTION DES NUMÉROS DE TÉLÉPHONE :
-Quand tu DEMANDES le numéro au client, précise TOUJOURS le format attendu :
-"Veuillez me donner votre numéro de téléphone précédé OBLIGATOIREMENT de l'indicatif de votre pays, SANS le + 
-Exemple : 2250141859625 (225 = Côte d'Ivoire)"
-
-Quand le client donne son numéro :
-1. Si le numéro est au bon format (ex: 2250756236984), accepte-le directement.
-2. Si le numéro commence par 00 (ex: 002250101010101), retire le 00 → utilise 2250101010101
-3. Si le numéro commence par + (ex: +2250756236984), retire le + → utilise 2250756236984
-4. Si le numéro commence par 0 sans code pays (ex: 0756236984), REDEMANDE avec le bon format.
-5. Quand tu appelles create_order, le customer_phone DOIT être au format : 2250756236984 (pas de +, pas de 00)`
+Quand un client te contacte pour la PREMIÈRE fois, présente-toi brièvement.
+Ensuite, continue la conversation normalement.`
 
         const messages = [
             { role: 'system', content: systemPrompt },
