@@ -181,6 +181,7 @@ Instructions supplémentaires:
 - ${useEmojis ? 'Utilise des emojis pour être chaleureux.' : 'N\'utilise pas d\'emojis.'}
 - Réponds principalement en ${language === 'fr' ? 'français' : language}.
 - Si tu ne peux pas aider, suggère poliment de contacter un humain.
+- 💡 PROACTIVITÉ : Si un produit demandé n'est pas disponible ou trouvé, cherche dans la liste et propose des ALTERNATIVES ou VARIANTES proches. Ne dis jamais juste "Non" sans proposer autre chose si possible.
 
 🔴 RÈGLES DE CONCISION (BUDGET OPTIMISATION) :
 1. Sois poli mais DIRECT. Évite les phrases de remplissage.
