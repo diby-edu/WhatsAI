@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import OpenAI from 'openai'
+import { getOpenAIClient } from '@/lib/ai/openai'
 
-// Initialize OpenAI
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
-})
+// Initialize OpenAI lazily inside the handler
+
 
 export async function POST(request: NextRequest) {
     try {
@@ -43,7 +41,7 @@ export async function POST(request: NextRequest) {
             }
         `
 
-        const completion = await openai.chat.completions.create({
+        const completion = await getOpenAIClient().chat.completions.create({
             model: 'gpt-4o-mini',
             messages: [
                 { role: 'system', content: 'Tu es un validateur logique strict qui répond en JSON.' },

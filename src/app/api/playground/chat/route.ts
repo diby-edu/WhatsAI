@@ -1,11 +1,11 @@
 import { NextRequest } from 'next/server'
 import { createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
 import { checkRateLimit, getClientIdentifier, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
-import OpenAI from 'openai'
+import { getOpenAIClient } from '@/lib/ai/openai'
+import OpenAI from 'openai' // Still needed for type definition
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
-})
+// Lazy Init
+
 
 export async function POST(request: NextRequest) {
     const supabase = await createApiClient()
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
 
     // Rate limiting for AI endpoints
     const identifier = getClientIdentifier(request, user.id)
-    const rateLimit = checkRateLimit(identifier, RATE_LIMITS.ai)
+    const rateLimit = await checkRateLimit(identifier, RATE_LIMITS.ai)
 
     if (!rateLimit.success) {
         return rateLimitResponse(rateLimit.resetTime)
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
         })
 
         // Call OpenAI
-        const completion = await openai.chat.completions.create({
+        const completion = await getOpenAIClient().chat.completions.create({
             model: agent.model || 'gpt-3.5-turbo',
             messages,
             temperature: 0.7,
