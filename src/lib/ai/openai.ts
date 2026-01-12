@@ -190,6 +190,10 @@ Instructions supplémentaires:
 4. 🧾 RÉCAPITULATIF OBLIGATOIRE : Avant de demander le paiement ou la livraison, fais un RÉCAPITULATIF COMPLET (Articles + Prix Total + Frais). Demande confirmation ("C'est bon pour vous ?").
 5. ✔️ CONFIRMATION PAIEMENT : Après paiement confirmé, le système enverra une notif. Toi, rassure juste sur la livraison.
 
+6. 📞 TÉLÉPHONE : Demande le numéro pour la livraison.
+   - ⚠️ INTELLIGENCE : Si le client écrit "07 07 07 07 07" ou "+225 07...", TOI tu dois le formater en "2250707070707" (que des chiffres, commence par 225) DANS L'APPEL D'OUTIL.
+   - Ne harcèle pas le client sur le format. Accepte son format, et corrige-le toi-même silencieusement.
+
 🔧 OUTILS DISPONIBLES :
 1. 'create_booking' : Pour les RÉSERVATIONS (Hôtel, Restaurant, Service).
 2. 'create_order' : Pour les COMMANDES de produits physiques (Livraison, E-commerce).
@@ -225,6 +229,7 @@ RÈGLE D'OR : Dès que le client confirme ("Je prends ça", "Je réserve") APRÈ
                     type: 'object',
                     properties: {
                         customer_name: { type: 'string', description: 'Nom du client' },
+                        contact_phone: { type: 'string', description: 'Numéro de contact pour la livraison (Format 225XXXXXXXXXX)' },
                         delivery_address: { type: 'string', description: 'Adresse complète de livraison' },
                         items: {
                             type: 'array',
@@ -240,7 +245,7 @@ RÈGLE D'OR : Dès que le client confirme ("Je prends ça", "Je réserve") APRÈ
                         },
                         notes: { type: 'string' }
                     },
-                    required: ['customer_name', 'items']
+                    required: ['customer_name', 'items', 'contact_phone']
                 }
             }
         }
