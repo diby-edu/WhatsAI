@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import OpenAI from 'openai'
+import { getOpenAIClient } from '@/lib/ai/openai'
 import { createClient } from '@/lib/supabase/server'
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-})
 
 export async function POST(request: NextRequest) {
   try {
@@ -103,6 +99,8 @@ DONNÉES EXISTANTES (ne pas dupliquer):
 ${JSON.stringify(existingData || {}, null, 2)}
 
 IMPORTANT: Réponds UNIQUEMENT avec le JSON valide, pas d'explication.`
+
+    const openai = getOpenAIClient()
 
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
