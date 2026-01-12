@@ -3,7 +3,8 @@ import { createClient } from '@supabase/supabase-js'
 import { checkRateLimit, getClientIdentifier, RATE_LIMITS, rateLimitResponse } from '@/lib/rate-limit'
 
 // Use service role key for public order lookup
-const supabase = createClient(
+// Lazy init helper
+const getSupabase = () => createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
@@ -21,7 +22,7 @@ export async function POST(
 
     // Rate limiting to prevent payment initiation abuse
     const clientId = getClientIdentifier(request)
-    const rateCheck = checkRateLimit(`payment:${clientId}`, RATE_LIMITS.payment)
+    const rateCheck = await checkRateLimit(`payment:${clientId}`, RATE_LIMITS.payment)
     if (!rateCheck.success) {
         return rateLimitResponse(rateCheck.resetTime)
     }
@@ -32,7 +33,7 @@ export async function POST(
 
     try {
         // Get order
-        const { data: order, error } = await supabase
+        const { data: order, error } = await getSupabase()
             .from('orders')
             .select('*')
             .eq('id', orderId)
@@ -88,7 +89,7 @@ export async function POST(
 
         if (result.code === '201') {
             // Update order with transaction ID
-            await supabase.from('orders').update({
+            await getSupabase().from('orders').update({
                 transaction_id: transactionId
             }).eq('id', orderId)
 
