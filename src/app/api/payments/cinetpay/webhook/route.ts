@@ -4,7 +4,8 @@ import { checkPaymentStatus } from '@/lib/payments/cinetpay'
 import crypto from 'crypto'
 
 // Use service role for webhook (no user auth)
-const supabase = createClient(
+// Helper for lazy init
+const getSupabase = () => createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
@@ -157,7 +158,7 @@ export async function POST(request: NextRequest) {
         if (cpm_trans_id.startsWith('ORD_')) {
             console.log('📦 This is an ORDER payment, checking orders table...')
 
-            const { data: order, error: orderError } = await supabase
+            const { data: order, error: orderError } = await getSupabase()
                 .from('orders')
                 .select('*')
                 .eq('transaction_id', cpm_trans_id)
@@ -178,7 +179,7 @@ export async function POST(request: NextRequest) {
 
                 if (cinetpayStatus.status === 'ACCEPTED') {
                     // Update order status to paid
-                    const { error: updateError } = await supabase.from('orders').update({
+                    const { error: updateError } = await getSupabase().from('orders').update({
                         status: 'paid'
                     }).eq('id', order.id)
 
@@ -199,7 +200,7 @@ export async function POST(request: NextRequest) {
 
                             if (conversationId) {
                                 // Verify it still exists
-                                const { data: linkedConv } = await supabase
+                                const { data: linkedConv } = await getSupabase()
                                     .from('conversations')
                                     .select('id')
                                     .eq('id', conversationId)
@@ -209,7 +210,7 @@ export async function POST(request: NextRequest) {
 
                             if (!conversation) {
                                 // Fallback: Soft Link (Legacy/Backup)
-                                const { data: softConv } = await supabase
+                                const { data: softConv } = await getSupabase()
                                     .from('conversations')
                                     .select('id')
                                     .eq('agent_id', order.agent_id)
@@ -220,7 +221,7 @@ export async function POST(request: NextRequest) {
 
                             if (conversation) {
                                 // CASE 1: Conversation exists -> Insert into history (Smart)
-                                await supabase.from('messages').insert({
+                                await getSupabase().from('messages').insert({
                                     conversation_id: conversation.id,
                                     agent_id: order.agent_id,
                                     role: 'assistant',
@@ -229,7 +230,7 @@ export async function POST(request: NextRequest) {
                                 })
 
                                 // Update conversation header
-                                await supabase.from('conversations').update({
+                                await getSupabase().from('conversations').update({
                                     last_message_text: confirmationMessage.substring(0, 200),
                                     last_message_at: new Date().toISOString(),
                                     last_message_role: 'assistant'
@@ -238,7 +239,7 @@ export async function POST(request: NextRequest) {
                                 console.log('💬 Payment confirmation added to conversation history for:', order.customer_phone)
                             } else {
                                 // CASE 2: No conversation -> Fallback to outbound (Reliability)
-                                await supabase.from('outbound_messages').insert({
+                                await getSupabase().from('outbound_messages').insert({
                                     agent_id: order.agent_id,
                                     recipient_phone: order.customer_phone,
                                     message_content: confirmationMessage,
@@ -250,14 +251,14 @@ export async function POST(request: NextRequest) {
                             // 4. (Bonus) Notifier le merchant
                             try {
                                 // Récupérer le numéro du merchant depuis la table profiles
-                                const { data: agentData } = await supabase
+                                const { data: agentData } = await getSupabase()
                                     .from('agents')
                                     .select('user_id')
                                     .eq('id', order.agent_id)
                                     .single()
 
                                 if (agentData) {
-                                    const { data: profile } = await supabase
+                                    const { data: profile } = await getSupabase()
                                         .from('profiles')
                                         .select('phone')
                                         .eq('id', agentData.user_id)
@@ -266,14 +267,14 @@ export async function POST(request: NextRequest) {
                                     // Numéro par défaut ou celui du profil
                                     const merchantPhone = profile?.phone || '+2250504315545'
 
-                                    const itemsList = await supabase
+                                    const itemsList = await getSupabase()
                                         .from('order_items')
                                         .select('product_name, quantity, unit_price_fcfa')
                                         .eq('order_id', order.id)
 
                                     const itemsSummary = itemsList.data?.map((i: any) => `• ${i.quantity}x ${i.product_name}`).join('\n') || 'Articles divers'
 
-                                    await supabase.from('outbound_messages').insert({
+                                    await getSupabase().from('outbound_messages').insert({
                                         agent_id: order.agent_id,
                                         recipient_phone: merchantPhone,
                                         message_content: `🔔 *NOUVEAU PAIEMENT !*\n\n💰 Montant: ${Number(order.total_fcfa).toLocaleString()} FCFA\n📦 Commande: #${order.id.substring(0, 8)}\n👤 Client: ${order.customer_phone}\n\n🛒 Articles:\n${itemsSummary}\n\n💳 Mode: CinetPay`,
@@ -289,7 +290,7 @@ export async function POST(request: NextRequest) {
                         }
                     }
                 } else if (cinetpayStatus.status === 'REFUSED' || cinetpayStatus.status === 'CANCELLED') {
-                    await supabase.from('orders').update({
+                    await getSupabase().from('orders').update({
                         status: 'cancelled'
                     }).eq('id', order.id)
                     console.log('❌ Order payment REFUSED/CANCELLED')
@@ -306,7 +307,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Find payment by transaction ID (for credits/subscriptions)
-        const { data: payment, error: paymentError } = await supabase
+        const { data: payment, error: paymentError } = await getSupabase()
             .from('payments')
             .select('*')
             .eq('provider_transaction_id', cpm_trans_id)
@@ -357,7 +358,7 @@ export async function POST(request: NextRequest) {
 
             if (creditsToAdd > 0) {
                 // Get current balance
-                const { data: profile } = await supabase
+                const { data: profile } = await getSupabase()
                     .from('profiles')
                     .select('credits_balance, plan')
                     .eq('id', payment.user_id)
@@ -383,7 +384,7 @@ export async function POST(request: NextRequest) {
                     }
                 }
 
-                await supabase
+                await getSupabase()
                     .from('profiles')
                     .update(updateData)
                     .eq('id', payment.user_id)
@@ -392,7 +393,7 @@ export async function POST(request: NextRequest) {
             }
 
             // Mark payment as completed
-            await supabase
+            await getSupabase()
                 .from('payments')
                 .update({
                     status: 'completed',
@@ -403,7 +404,7 @@ export async function POST(request: NextRequest) {
 
         } else if (cinetpayStatus.status === 'REFUSED' || cinetpayStatus.status === 'CANCELLED') {
             // Mark as failed
-            await supabase
+            await getSupabase()
                 .from('payments')
                 .update({ status: 'failed' })
                 .eq('id', payment.id)

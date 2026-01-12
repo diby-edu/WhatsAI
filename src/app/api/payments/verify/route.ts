@@ -2,11 +2,13 @@ import { NextRequest } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { checkPaymentStatus } from '@/lib/payments/cinetpay'
 
-// Use service role for admin operations
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+// Helper to get lazy Supabase client
+function getSupabase() {
+    return createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+}
 
 // POST - Check and update payment status from CinetPay
 export async function POST(request: NextRequest) {
@@ -17,7 +19,8 @@ export async function POST(request: NextRequest) {
         console.log('🔍 Manual payment verification requested:', paymentId)
 
         // Get the payment record
-        const { data: payment, error: paymentError } = await supabase
+        // Get the payment record
+        const { data: payment, error: paymentError } = await getSupabase()
             .from('payments')
             .select('*')
             .eq('id', paymentId)
@@ -70,7 +73,8 @@ export async function POST(request: NextRequest) {
             console.log('💰 Credits to add:', creditsToAdd)
 
             // Get current user balance
-            const { data: profile } = await supabase
+            // Get current user balance
+            const { data: profile } = await getSupabase()
                 .from('profiles')
                 .select('credits_balance')
                 .eq('id', payment.user_id)
@@ -80,7 +84,8 @@ export async function POST(request: NextRequest) {
             const newBalance = currentBalance + creditsToAdd
 
             // Update user credits
-            const { error: creditError } = await supabase
+            // Update user credits
+            const { error: creditError } = await getSupabase()
                 .from('profiles')
                 .update({ credits_balance: newBalance })
                 .eq('id', payment.user_id)
@@ -91,7 +96,8 @@ export async function POST(request: NextRequest) {
             }
 
             // Update payment status
-            await supabase
+            // Update payment status
+            await getSupabase()
                 .from('payments')
                 .update({
                     status: 'completed',
@@ -119,7 +125,8 @@ export async function POST(request: NextRequest) {
                     }
 
                     // Update user's plan
-                    await supabase
+                    // Update user's plan
+                    await getSupabase()
                         .from('profiles')
                         .update({ plan: planName })
                         .eq('id', payment.user_id)
@@ -146,7 +153,7 @@ export async function POST(request: NextRequest) {
         let newStatus = payment.status
         if (cinetpayStatus.status === 'REFUSED' || cinetpayStatus.status === 'CANCELLED') {
             newStatus = 'failed'
-            await supabase
+            await getSupabase()
                 .from('payments')
                 .update({ status: newStatus })
                 .eq('id', payment.id)
@@ -169,7 +176,7 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
     try {
         // Get all pending/processing payments
-        const { data: payments, error } = await supabase
+        const { data: payments, error } = await getSupabase()
             .from('payments')
             .select('id, user_id, amount_fcfa, status, provider_transaction_id, created_at')
             .in('status', ['pending', 'processing'])
