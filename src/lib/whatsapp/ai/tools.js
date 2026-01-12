@@ -51,7 +51,7 @@ const TOOLS = [
         type: 'function',
         function: {
             name: 'send_image',
-            description: 'Send an image of a product to the customer. Use this when showing a product. If customer asks for a specific color/variant (Rouge, Bleu, etc.), specify variant_value to show the variant-specific image.',
+            description: 'Send an image of a product. Use ONLY when user explicitly asks to see a product or during a sales pitch. DO NOT use when checking order status.',
             parameters: {
                 type: 'object',
                 properties: {
@@ -494,17 +494,27 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                         console.warn('⚠️ Failed to download image, will try URL method:', downloadError.message)
                     }
 
-                    const bufferToSend = compressedBuffer || imageBuffer
-
-                    if (bufferToSend && bufferToSend.length > 0) {
+                    try {
+                        // Try to send existing buffer if valid
+                        if (compressedBuffer && compressedBuffer.length > 0) {
+                            await session.socket.sendMessage(jid, {
+                                image: compressedBuffer,
+                                caption: imageCaption
+                            })
+                        }
+                        // Fallback to Image URL if buffer failed (Baileys will fetch it)
+                        else {
+                            console.log('📸 Sending image via URL fallback:', imageToSend)
+                            await session.socket.sendMessage(jid, {
+                                image: { url: imageToSend },
+                                caption: imageCaption
+                            })
+                        }
+                    } catch (sendError) {
+                        console.error('❌ Failed to send image via buffer AND url:', sendError.message)
+                        // Last resort: Send as text link
                         await session.socket.sendMessage(jid, {
-                            image: bufferToSend,
-                            caption: imageCaption
-                        })
-                    } else {
-                        await session.socket.sendMessage(jid, {
-                            image: { url: imageToSend },
-                            caption: imageCaption
+                            text: `${imageCaption}\n\n🔗 Voir l'image : ${imageToSend}`
                         })
                     }
                 } catch (sendError) {
