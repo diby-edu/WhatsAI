@@ -168,7 +168,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             })
         }
 
-        // Get recent orders for this customer (Context Injection)
+        // Get recent orders for this customer (Context Injection + Smart Reuse)
         const { data: orders } = await supabase
             .from('orders')
             .select(`
@@ -176,6 +176,8 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                 status,
                 total_fcfa,
                 created_at,
+                customer_phone,
+                delivery_address,
                 items:order_items(product_name, quantity)
             `)
             .eq('user_id', agent.user_id)
