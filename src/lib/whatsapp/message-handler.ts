@@ -287,9 +287,12 @@ export function initializeMessageHandler() {
                             await supabase.from('order_items').insert(orderItems)
                         }
 
+                        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://hebergementci.com'
+                        const paymentLink = order ? `${baseUrl}/fr/pay/${order.id}` : ''
+
                         const toolOutput = orderError
                             ? `Erreur commande: ${orderError.message}`
-                            : `Commande enregistrée (ID: ${order ? order.id.substring(0, 8) : '?'}, Total: ${total}).`
+                            : `Commande enregistrée (ID: ${order ? order.id.substring(0, 8) : '?'}, Total: ${total}).\nLIEN DE PAIEMENT SÉCURISÉ : ${paymentLink}\n\nINSTRUCTION : Partage ce lien EXACT au client pour qu'il règle la commande via CinetPay.`
 
                         const newHistory = [
                             ...conversationHistory.slice(0, -1),
