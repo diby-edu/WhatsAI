@@ -1,0 +1,6 @@
+1348:    setInterval(checkAgents, CHECK_INTERVAL) // 5 seconds
+1351:    setInterval(checkPendingHistoryMessages, 2000) // 2 seconds - RAPIDE pour confirmations
+1354:    setInterval(checkOutboundMessages, 5000) // 5 seconds - Moins urgent
+1357:    setInterval(checkPendingPayments, 10 * 60 * 1000)
+1360:    setInterval(cancelExpiredOrders, 30 * 60 * 1000)
+1363:    setInterval(requestFeedback, 24 * 60 * 60 * 1000)
