@@ -3,7 +3,7 @@ import OpenAI from 'openai'
 // Lazy initialization for OpenAI client
 let openaiInstance: OpenAI | null = null
 
-function getOpenAIClient(): OpenAI {
+export function getOpenAIClient(): OpenAI {
     if (!openaiInstance) {
         if (!process.env.OPENAI_API_KEY) {
             console.warn('⚠️ OPENAI_API_KEY is not set. OpenAI features will fail at runtime.')
