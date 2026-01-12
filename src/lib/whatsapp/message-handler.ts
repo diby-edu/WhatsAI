@@ -266,7 +266,7 @@ export function initializeMessageHandler() {
                             .insert({
                                 user_id: agent.user_id,
                                 agent_id: agentId,
-                                customer_phone: message.from,
+                                customer_phone: args.contact_phone || message.from,
                                 customer_name: args.customer_name,
                                 delivery_address: args.delivery_address,
                                 notes: args.notes,
