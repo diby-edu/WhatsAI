@@ -81,6 +81,7 @@ export type Database = {
                     last_message_text: string | null
                     last_message_at: string | null
                     unread_count: number
+                    metadata: any // JSONB
                     created_at: string
                     updated_at: string
                 }
