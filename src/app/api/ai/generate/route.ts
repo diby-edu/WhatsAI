@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
-import OpenAI from 'openai'
+import { getOpenAIClient } from '@/lib/ai/openai'
 
-// Initialize OpenAI
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-})
+// Initialize OpenAI lazily
+
 
 export async function POST(request: NextRequest) {
     const supabase = await createApiClient()
@@ -99,7 +97,7 @@ export async function POST(request: NextRequest) {
                 return errorResponse('Invalid generation type', 400)
         }
 
-        const completion = await openai.chat.completions.create({
+        const completion = await getOpenAIClient().chat.completions.create({
             model: "gpt-4o-mini",
             messages: [
                 { role: "system", content: systemPrompt },
