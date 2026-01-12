@@ -22,13 +22,14 @@ const TOOLS = [
                         },
                         description: 'List of products to order'
                     },
+                    customer_name: { type: 'string', description: 'Customer full name (required)' },
                     customer_phone: { type: 'string', description: 'Customer phone number (required)' },
                     delivery_address: { type: 'string', description: 'Full Delivery Location (City, Neighborhood, Street, or GPS info). Do NOT split city/street.' },
                     email: { type: 'string', description: 'Customer email (required for digital products)' },
                     payment_method: { type: 'string', enum: ['online', 'cod'], description: 'Payment method choice' },
                     notes: { type: 'string', description: 'Any special instructions' }
                 },
-                required: ['items', 'customer_phone']
+                required: ['items', 'customer_name', 'customer_phone']
             }
         }
     },
@@ -100,7 +101,7 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
         try {
             console.log('🛠️ Executing tool: create_order')
             const args = JSON.parse(toolCall.function.arguments)
-            const { items, customer_phone, delivery_address, email, payment_method, notes } = args
+            const { items, customer_name, customer_phone, delivery_address, email, payment_method, notes } = args
 
             // Append email to notes if present
             let finalNotes = notes || ''
@@ -228,11 +229,11 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                 .insert({
                     user_id: agent.user_id,
                     agent_id: agentId,
+                    customer_name: customer_name || 'Non spécifié',
                     customer_phone: normalizedPhone,
                     status: payment_method === 'cod' ? 'pending_delivery' : 'pending',
                     total_fcfa: total,
                     delivery_address: delivery_address || 'Non spécifié',
-
                     payment_method: payment_method || 'online',
                     notes: finalNotes,
                     conversation_id: conversationId
