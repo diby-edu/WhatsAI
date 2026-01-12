@@ -218,6 +218,12 @@ export async function initWhatsAppSession(
                 continue
             }
 
+            // Ignore status updates (broadcasts)
+            if (msg.key.remoteJid === 'status@broadcast' || msg.key.remoteJid?.includes('@broadcast')) {
+                console.log('⏭️ Skipping status/broadcast message')
+                continue
+            }
+
             // Extract message content
             const messageContent = msg.message
             if (!messageContent) continue
