@@ -23,8 +23,7 @@ const TOOLS = [
                         description: 'List of products to order'
                     },
                     customer_phone: { type: 'string', description: 'Customer phone number (required)' },
-                    delivery_address: { type: 'string', description: 'Delivery address provided by user (required for physical products)' },
-                    delivery_city: { type: 'string', description: 'Delivery city' },
+                    delivery_address: { type: 'string', description: 'Full Delivery Location (City, Neighborhood, Street, or GPS info). Do NOT split city/street.' },
                     email: { type: 'string', description: 'Customer email (required for digital products)' },
                     payment_method: { type: 'string', enum: ['online', 'cod'], description: 'Payment method choice' },
                     notes: { type: 'string', description: 'Any special instructions' }
@@ -101,7 +100,7 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
         try {
             console.log('🛠️ Executing tool: create_order')
             const args = JSON.parse(toolCall.function.arguments)
-            const { items, customer_phone, delivery_address, delivery_city, email, payment_method, notes } = args
+            const { items, customer_phone, delivery_address, email, payment_method, notes } = args
 
             // Append email to notes if present
             let finalNotes = notes || ''
@@ -232,7 +231,8 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                     customer_phone: normalizedPhone,
                     status: payment_method === 'cod' ? 'pending_delivery' : 'pending',
                     total_fcfa: total,
-                    delivery_address: `${delivery_address || ''} ${delivery_city || ''}`.trim(),
+                    delivery_address: delivery_address || 'Non spécifié',
+
                     payment_method: payment_method || 'online',
                     notes: finalNotes,
                     conversation_id: conversationId
