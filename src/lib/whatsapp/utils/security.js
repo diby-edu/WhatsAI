@@ -11,14 +11,17 @@ function verifyResponseIntegrity(aiResponse, products) {
         return { isValid: true, issues: [] }
     }
 
-    // Extract all price mentions from response (numbers followed by FCFA, F, or currency symbols)
-    const pricePattern = /([\d\s.]+)\s*(?:FCFA|F|CFA|€|\$)/gi
+    // Extract all price mentions from response (numbers DIRECTLY followed by FCFA/CFA without letters before)
+    // Improved regex: must have space or hyphen before the number, not a letter (to avoid "Office 365")
+    const pricePattern = /(?:^|[\s\-:;])([\d\s.]+)\s*(?:FCFA|CFA|francs?)/gi
     const mentionedPrices = []
     let match
 
     while ((match = pricePattern.exec(aiResponse)) !== null) {
         const price = parseInt(match[1].replace(/\s/g, ''), 10)
-        if (price > 0) mentionedPrices.push(price)
+        // Only consider prices > 50 (to avoid small numbers that are often not prices)
+        // and prices that are likely to be real prices (multiples of 5 or 10 in FCFA)
+        if (price >= 50) mentionedPrices.push(price)
     }
 
     if (mentionedPrices.length === 0) {
