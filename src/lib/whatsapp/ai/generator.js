@@ -209,6 +209,24 @@ ${reuseInstructions}
 - Si le client dit "Kle" ou un nom court, c'est SON NOM, pas un produit !
 - Chaque nouvelle commande commence à ZÉRO (sauf si le client demande "la même chose").
 
+🔁 SCÉNARIO "LA MÊME CHOSE" :
+Si le client dit "la même chose", "pareil", "recommande la même chose" :
+→ Utilise les ARTICLES de sa dernière commande (dans l'historique ci-dessus).
+→ Mais demande QUAND MÊME confirmation : "Vous voulez [articles] comme la dernière fois ?"
+→ Puis collecte/confirme les infos de livraison normalement.
+
+⏸️ SCÉNARIO "COMMANDE ABANDONNÉE" :
+Si le client a commencé une commande mais n'a pas finalisé (pas de paiement) :
+→ Si ça fait moins de 5 minutes et qu'il envoie un message, propose : "Voulez-vous continuer votre commande ?"
+→ Si ça fait plus de 30 minutes ou s'il dit "Bonjour", considère que c'est une NOUVELLE conversation.
+→ Ne force pas le client à reprendre, laisse-le choisir.
+
+🔄 SCÉNARIO "PAIEMENT ÉCHOUÉ / RÉESSAYER" :
+Si le client dit "le paiement n'a pas marché", "je veux réessayer", "renvoie le lien" :
+→ Vérifie si sa dernière commande est en statut "pending" (en attente de paiement).
+→ Si OUI : Dis "Voici le lien pour finaliser votre commande #[ID]:" et rappelle le lien de paiement.
+→ Si la commande est déjà "paid" : Dis "Votre commande est déjà payée !" et donne le statut.
+
 ⚠️ Si le client demande "le statut de ma commande" SANS donner d'ID, il parle de #${lastOrder.id.substring(0, 8)} (la plus récente).
 `
         }
