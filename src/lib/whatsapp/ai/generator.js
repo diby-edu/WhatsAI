@@ -178,24 +178,22 @@ INSTRUCTION IMPORTANTE :
                 reuseInstructions = `
 
 🔄 RÉUTILISATION INTELLIGENTE (Client Connu) :
-Ce client a déjà commandé. Quand tu collectes ses infos :`
+Ce client a déjà commandé. Tu peux proposer de réutiliser ses infos :
+⚠️ ATTENTION : NE RÉUTILISE CES DONNÉES QUE SI LE CLIENT DIT EXPLICITEMENT "oui", "même chose", "pareil", etc.
+⚠️ SI LE CLIENT DONNE DE NOUVELLES INFOS, UTILISE LES NOUVELLES, PAS LES ANCIENNES.`
                 if (lastOrderInfo.phone) {
                     reuseInstructions += `
-- TÉLÉPHONE : Demande "Souhaitez-vous utiliser le même numéro (${lastOrderInfo.phone.substring(0, 6)}...) ?"
-  → Si OUI : utilise ${lastOrderInfo.phone}
-  → Si NON : demande le nouveau numéro`
+- TÉLÉPHONE PRÉCÉDENT : ${lastOrderInfo.phone.substring(0, 6)}... → Propose "Même numéro ?"`
                 }
                 if (lastOrderInfo.address) {
                     reuseInstructions += `
-- ADRESSE : Demande "Même adresse que la dernière fois (${lastOrderInfo.address.substring(0, 20)}...) ?"
-  → Si OUI : utilise "${lastOrderInfo.address}"
-  → Si NON : demande la nouvelle adresse`
+- ADRESSE PRÉCÉDENTE : ${lastOrderInfo.address.substring(0, 20)}... → Propose "Même adresse ?"`
                 }
             }
 
             ordersContext = `
 
-📦 HISTORIQUE DE CE CLIENT (${orders.length} commande${orders.length > 1 ? 's' : ''}) :
+📜 HISTORIQUE PASSÉ (pour info uniquement, NE PAS mélanger avec la commande actuelle) :
 ${orders.map(o => {
                 const items = o.items?.map(i => `${i.product_name} x${i.quantity}`).join(', ') || 'N/A'
                 const status = statusLabels[o.status] || o.status
@@ -203,6 +201,13 @@ ${orders.map(o => {
                 return `- #${o.id.substring(0, 8)} | ${status} | ${o.total_fcfa} ${currency} | ${items} | ${date}`
             }).join('\n')}
 ${reuseInstructions}
+
+🚨 RÈGLE ANTI-CONFUSION [CRITIQUE] :
+- La COMMANDE EN COURS est celle que tu es en train de construire MAINTENANT dans cette conversation.
+- L'HISTORIQUE ci-dessus concerne des commandes TERMINÉES (payées ou annulées).
+- NE JAMAIS mélanger les produits/prix/quantités de l'historique avec la commande en cours.
+- Si le client dit "Kle" ou un nom court, c'est SON NOM, pas un produit !
+- Chaque nouvelle commande commence à ZÉRO (sauf si le client demande "la même chose").
 
 ⚠️ Si le client demande "le statut de ma commande" SANS donner d'ID, il parle de #${lastOrder.id.substring(0, 8)} (la plus récente).
 `
