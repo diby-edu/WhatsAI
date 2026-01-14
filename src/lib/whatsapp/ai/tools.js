@@ -307,7 +307,7 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
 
             const { data: order, error } = await supabase
                 .from('orders')
-                .select('id, status, total_fcfa, payment_method, cinetpay_transaction_id, cinetpay_payment_url')
+                .select('id, status, total_fcfa, payment_method, payment_verification_status, cinetpay_transaction_id, cinetpay_payment_url')
                 .eq('id', order_id)
                 .single()
 
@@ -321,25 +321,29 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                     statusMessage = `✅ Le paiement de ${order.total_fcfa} FCFA a bien été reçu ! La commande est confirmée.`
                     break
                 case 'pending':
-                    statusMessage = `⏳ Le paiement est en attente. Le client doit encore payer ${order.total_fcfa} FCFA.`
-                    if (order.payment_method === 'online' && order.cinetpay_transaction_id) {
-                        try {
-                            // CinetPay is now the module { checkPaymentStatus }
-                            const checkStatus = await CinetPay.checkPaymentStatus(order.cinetpay_transaction_id)
+                    if (order.payment_verification_status === 'awaiting_screenshot') {
+                        statusMessage = `⏳ Votre paiement est en cours de vérification.\nNotre équipe valide les screenshots manuellement.\nConfirmation très prochainement ! ⏰`
+                    } else {
+                        statusMessage = `⏳ Le paiement est en attente. Le client doit encore payer ${order.total_fcfa} FCFA.`
+                        if (order.payment_method === 'online' && order.cinetpay_transaction_id) {
+                            try {
+                                // CinetPay is now the module { checkPaymentStatus }
+                                const checkStatus = await CinetPay.checkPaymentStatus(order.cinetpay_transaction_id)
 
-                            if (checkStatus.success && checkStatus.status === 'ACCEPTED') {
-                                await supabase.from('orders').update({ status: 'paid' }).eq('id', order.id)
-                                statusMessage = `✅ Le paiement de ${order.total_fcfa} FCFA a bien été reçu ! La commande est confirmée.`
-                            } else {
-                                statusMessage = `⏳ Le paiement est en attente. Le client doit encore payer ${order.total_fcfa} FCFA. Vous pouvez payer ici: ${order.cinetpay_payment_url}`
+                                if (checkStatus.success && checkStatus.status === 'ACCEPTED') {
+                                    await supabase.from('orders').update({ status: 'paid' }).eq('id', order.id)
+                                    statusMessage = `✅ Le paiement de ${order.total_fcfa} FCFA a bien été reçu ! La commande est confirmée.`
+                                } else {
+                                    statusMessage = `⏳ Le paiement est en attente. Le client doit encore payer ${order.total_fcfa} FCFA. Vous pouvez payer ici: ${order.cinetpay_payment_url}`
+                                }
+                            } catch (apiError) {
+                                console.error('CinetPay Verify Error:', apiError)
+                                return JSON.stringify({
+                                    success: false,
+                                    status: 'pending',
+                                    message: `⏳ Vérification temporairement indisponible. Si vous avez déjà payé, votre commande sera confirmée dans quelques instants. Sinon, vous pouvez payer ici:\n${order.cinetpay_payment_url}`
+                                })
                             }
-                        } catch (apiError) {
-                            console.error('CinetPay Verify Error:', apiError)
-                            return JSON.stringify({
-                                success: false,
-                                status: 'pending',
-                                message: `⏳ Vérification temporairement indisponible. Si vous avez déjà payé, votre commande sera confirmée dans quelques instants. Sinon, vous pouvez payer ici:\n${order.cinetpay_payment_url}`
-                            })
                         }
                     }
                     break
