@@ -97,7 +97,10 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             try {
                 // Download audio buffer
                 const buffer = await downloadMediaMessage(
-                    message,
+                    {
+                        key: message.key,
+                        message: { audioMessage: message.audioMessage }
+                    },
                     'buffer',
                     { logger: console }
                 )
@@ -128,7 +131,10 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             console.log('📸 Image received, downloading...')
             try {
                 const buffer = await downloadMediaMessage(
-                    message,
+                    {
+                        key: message.key,
+                        message: { imageMessage: message.imageMessage }
+                    },
                     'buffer',
                     { logger: console }
                 )
