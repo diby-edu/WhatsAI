@@ -1,0 +1,20 @@
+# Ignore documentation/patch folders
+PACKAGE AUDI COMPLET/
+PACKAGE COMPLET  REFACTORING/
+Package Complet Fourni 6 FICHIERS/
+package complet MESSAGE FALLBACK D'ERREUR/
+ANALYSE EXPERT AMELIORER/
+
+# Ignore test files in root
+__tests__/
+
+# Next.js
+.next/
+out/
+
+# Build outputs
+build/
+dist/
+
+# Node
+node_modules/
