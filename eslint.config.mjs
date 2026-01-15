@@ -51,6 +51,13 @@ const eslintConfig = defineConfig([
     // Node.js standalone files (not React)
     "whatsapp-service.js",
     "ecosystem.config.js",
+    // Documentation/patch folders (contain incomplete code snippets)
+    "PACKAGE AUDI COMPLET/**",
+    "PACKAGE COMPLET  REFACTORING/**",
+    "Package Complet Fourni 6 FICHIERS/**",
+    "package complet MESSAGE FALLBACK D*ERREUR/**",
+    "ANALYSE EXPERT AMELIORER/**",
+    "__tests__/**",
   ]),
 ]);
 
