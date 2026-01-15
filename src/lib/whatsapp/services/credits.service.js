@@ -15,7 +15,7 @@
  * - getBalance() : Récupère le solde actuel
  */
 
-const { AppError } = require('../utils/errors')
+const { AppError } = require('./errors')
 
 class InsufficientCreditsError extends AppError {
     constructor(message, context) {
@@ -38,25 +38,25 @@ class CreditsService {
                 .select('credits_balance')
                 .eq('id', userId)
                 .single()
-            
+
             if (!profile) {
                 console.error(`⚠️ Profile not found: ${userId}`)
                 return false
             }
-            
+
             const hasCredits = profile.credits_balance > 0
-            
+
             if (!hasCredits) {
                 console.warn(`💰 Insufficient credits for user ${userId}`)
             }
-            
+
             return hasCredits
         } catch (error) {
             console.error('Credits check failed:', error)
             return false // Fail-safe : considérer comme insuffisant
         }
     }
-    
+
     /**
      * Récupère le solde actuel
      * 
@@ -71,9 +71,9 @@ class CreditsService {
                 .select('credits_balance, credits_used_this_month')
                 .eq('id', userId)
                 .single()
-            
+
             if (!profile) return null
-            
+
             return {
                 balance: profile.credits_balance,
                 usedThisMonth: profile.credits_used_this_month || 0
@@ -83,7 +83,7 @@ class CreditsService {
             return null
         }
     }
-    
+
     /**
      * Déduit des crédits de manière ATOMIQUE
      * 
@@ -109,12 +109,12 @@ class CreditsService {
             // 4. Retourne le nouveau solde
             // 
             // Voir migration SQL : /supabase/migrations/deduct_credits_function.sql
-            
+
             const { data, error } = await supabase.rpc('deduct_credits', {
                 p_user_id: userId,
                 p_amount: amount
             })
-            
+
             // Gestion des erreurs spécifiques
             if (error) {
                 // P0001 = Code d'erreur PostgreSQL pour "Insufficient credits"
@@ -124,30 +124,30 @@ class CreditsService {
                         { userId, requested: amount }
                     )
                 }
-                
+
                 throw new AppError('Credit deduction failed', {
                     code: 'CREDIT_DEDUCT_FAILED',
                     cause: error
                 })
             }
-            
+
             const newBalance = data[0]?.new_balance || 0
             console.log(`💰 Credits deducted: ${amount} (new balance: ${newBalance})`)
-            
+
             return newBalance
-            
+
         } catch (error) {
             if (error instanceof InsufficientCreditsError || error instanceof AppError) {
                 throw error
             }
-            
+
             throw new AppError('Credit deduction failed', {
                 code: 'CREDIT_DEDUCT_FAILED',
                 cause: error
             })
         }
     }
-    
+
     /**
      * Déduit des crédits (FALLBACK non-atomique)
      * 
@@ -162,7 +162,7 @@ class CreditsService {
      */
     static async deductFallback(supabase, userId, amount) {
         console.warn('⚠️ Using non-atomic credit deduction (FALLBACK)')
-        
+
         try {
             // 1. Récupérer solde actuel
             const { data: profile } = await supabase
@@ -170,11 +170,11 @@ class CreditsService {
                 .select('credits_balance, credits_used_this_month')
                 .eq('id', userId)
                 .single()
-            
+
             if (!profile) {
                 throw new AppError('Profile not found', { code: 'PROFILE_NOT_FOUND' })
             }
-            
+
             // 2. Vérifier suffisance
             if (profile.credits_balance < amount) {
                 throw new InsufficientCreditsError('Crédits insuffisants', {
@@ -183,7 +183,7 @@ class CreditsService {
                     requested: amount
                 })
             }
-            
+
             // 3. Déduire (NON ATOMIQUE - Race condition possible)
             const { error } = await supabase
                 .from('profiles')
@@ -192,23 +192,23 @@ class CreditsService {
                     credits_used_this_month: (profile.credits_used_this_month || 0) + amount
                 })
                 .eq('id', userId)
-            
+
             if (error) throw error
-            
+
             return profile.credits_balance - amount
-            
+
         } catch (error) {
             if (error instanceof InsufficientCreditsError || error instanceof AppError) {
                 throw error
             }
-            
+
             throw new AppError('Credit deduction failed', {
                 code: 'CREDIT_DEDUCT_FAILED',
                 cause: error
             })
         }
     }
-    
+
     /**
      * Calcule le coût d'un message
      * 
@@ -218,13 +218,13 @@ class CreditsService {
     static calculateCost(isVoiceEnabled = false) {
         // Coût de base : 1 crédit par message
         const baseCost = 1
-        
+
         // Synthèse vocale : +4 crédits
         const voiceCost = isVoiceEnabled ? 4 : 0
-        
+
         return baseCost + voiceCost
     }
-    
+
     /**
      * Ajoute des crédits (pour paiements)
      * 
@@ -240,26 +240,26 @@ class CreditsService {
                 .select('credits_balance')
                 .eq('id', userId)
                 .single()
-            
+
             if (!profile) {
                 throw new AppError('Profile not found', { code: 'PROFILE_NOT_FOUND' })
             }
-            
+
             const newBalance = profile.credits_balance + amount
-            
+
             const { error } = await supabase
                 .from('profiles')
                 .update({ credits_balance: newBalance })
                 .eq('id', userId)
-            
+
             if (error) throw error
-            
+
             console.log(`💰 Credits added: ${amount} (new balance: ${newBalance})`)
             return newBalance
-            
+
         } catch (error) {
             if (error instanceof AppError) throw error
-            
+
             throw new AppError('Credit addition failed', {
                 code: 'CREDIT_ADD_FAILED',
                 cause: error
