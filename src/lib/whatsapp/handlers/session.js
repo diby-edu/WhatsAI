@@ -13,7 +13,7 @@ const { handleMessage } = require('./message')
 
 const logger = pino({ level: 'warn' })
 
-async function initSession(context, agentId, agentName) {
+async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
     const { supabase, activeSessions, pendingConnections } = context
 
     if (activeSessions.has(agentId) && activeSessions.get(agentId).status === 'connected') {
@@ -46,7 +46,12 @@ async function initSession(context, agentId, agentName) {
             generateHighQualityLinkPreview: true
         })
 
-        const session = { socket, status: 'connecting', agentName }
+        const session = {
+            socket,
+            status: 'connecting',
+            agentName,
+            reconnectAttempts: reconnectAttempt
+        }
         activeSessions.set(agentId, session)
 
         // Handle connection updates
@@ -88,9 +93,33 @@ async function initSession(context, agentId, agentName) {
 
                 if (shouldReconnect) {
                     activeSessions.delete(agentId)
-                    setTimeout(() => initSession(context, agentId, agentName), 5000)
+
+                    // ⭐ EXPONENTIAL BACKOFF (Robustesse Expert)
+                    // Augmente le délai à chaque tentative pour éviter le spam/ban
+                    const attempt = (session.reconnectAttempts || 0) + 1
+                    const delay = Math.min(5000 * Math.pow(2, attempt - 1), 60000) // Max 1 minute
+
+                    console.log(`📡 Reconnecting in ${delay / 1000}s (Attempt ${attempt})...`)
+
+                    setTimeout(() => {
+                        initSession(context, agentId, agentName, attempt)
+                    }, delay)
                 } else {
                     activeSessions.delete(agentId)
+
+                    // ⭐ ROBUST CLEANUP (Sécurité Expert)
+                    // Supprime toutes les clés de session dans Supabase si déconnexion définitive
+                    console.log(`🧹 Cleaning up session data for ${agentName}...`)
+
+                    supabase
+                        .from('whatsapp_sessions')
+                        .delete()
+                        .eq('session_id', agentId)
+                        .then(({ error }) => {
+                            if (error) console.error('❌ Failed to cleanup session:', error.message)
+                            else console.log('✅ Session data cleared from DB')
+                        })
+
                     /* 
                     // Session dir cleanup not needed with Supabase Auth
                     try {
