@@ -13,7 +13,7 @@
  * - updateMetadata() : Met à jour les métadonnées
  */
 
-const { AppError } = require('../utils/errors')
+const { AppError } = require('./errors')
 
 class ConversationService {
     /**
@@ -34,12 +34,12 @@ class ConversationService {
                 .eq('agent_id', agentId)
                 .eq('contact_phone', contactPhone)
                 .single()
-            
+
             if (existing) {
                 console.log(`📂 Conversation found: ${existing.id}`)
                 return new Conversation(existing, supabase)
             }
-            
+
             // 2. Créer nouvelle conversation
             console.log(`📂 Creating new conversation for ${contactPhone}`)
             const { data: newConv, error } = await supabase
@@ -53,17 +53,17 @@ class ConversationService {
                 })
                 .select()
                 .single()
-            
+
             if (error || !newConv) {
                 throw new AppError('Failed to create conversation', {
                     code: 'CONVERSATION_CREATE_FAILED',
                     cause: error
                 })
             }
-            
+
             console.log(`✅ Conversation created: ${newConv.id}`)
             return new Conversation(newConv, supabase)
-            
+
         } catch (error) {
             if (error instanceof AppError) throw error
             throw new AppError('Conversation retrieval failed', {
@@ -72,7 +72,7 @@ class ConversationService {
             })
         }
     }
-    
+
     /**
      * Met le bot en pause pour une conversation
      * 
@@ -90,9 +90,9 @@ class ConversationService {
                     pause_reason: reason
                 })
                 .eq('id', conversationId)
-            
+
             if (error) throw error
-            
+
             console.log(`⏸️ Conversation ${conversationId} paused`)
         } catch (error) {
             throw new AppError('Failed to pause conversation', {
@@ -101,7 +101,7 @@ class ConversationService {
             })
         }
     }
-    
+
     /**
      * Escalade la conversation vers un humain
      * 
@@ -120,9 +120,9 @@ class ConversationService {
                     escalated_at: new Date().toISOString()
                 })
                 .eq('id', conversationId)
-            
+
             if (error) throw error
-            
+
             console.log(`🚨 Conversation ${conversationId} escalated: ${reason}`)
         } catch (error) {
             throw new AppError('Failed to escalate conversation', {
@@ -131,7 +131,7 @@ class ConversationService {
             })
         }
     }
-    
+
     /**
      * Charge l'historique d'une conversation
      * 
@@ -148,16 +148,16 @@ class ConversationService {
                 .eq('conversation_id', conversationId)
                 .order('created_at', { ascending: true })
                 .limit(limit)
-            
+
             if (error) throw error
-            
+
             return data || []
         } catch (error) {
             console.error('Failed to load conversation history:', error)
             return [] // Dégradation gracieuse
         }
     }
-    
+
     /**
      * Met à jour les métadonnées d'une conversation
      * 
@@ -173,15 +173,15 @@ class ConversationService {
                 .select('metadata')
                 .eq('id', conversationId)
                 .single()
-            
+
             // Merger avec nouvelles
             const merged = { ...current?.metadata, ...updates }
-            
+
             const { error } = await supabase
                 .from('conversations')
                 .update({ metadata: merged })
                 .eq('id', conversationId)
-            
+
             if (error) throw error
         } catch (error) {
             console.error('Failed to update conversation metadata:', error)
@@ -202,7 +202,7 @@ class Conversation {
         Object.assign(this, data)
         this.supabase = supabase
     }
-    
+
     /**
      * Vérifie si le bot est en pause
      * @returns {boolean}
@@ -210,7 +210,7 @@ class Conversation {
     isPaused() {
         return this.bot_paused === true
     }
-    
+
     /**
      * Vérifie si la conversation est escaladée
      * @returns {boolean}
@@ -218,7 +218,7 @@ class Conversation {
     isEscalated() {
         return this.status === 'escalated'
     }
-    
+
     /**
      * Vérifie si la conversation doit être escaladée
      * basé sur l'analyse de sentiment
@@ -228,20 +228,20 @@ class Conversation {
      */
     shouldEscalate(sentimentAnalysis) {
         if (!sentimentAnalysis) return false
-        
+
         // Escalade immédiate si client en colère
         if (sentimentAnalysis.sentiment === 'angry') {
             return true
         }
-        
+
         // Escalade si négatif + urgent
         if (sentimentAnalysis.sentiment === 'negative' && sentimentAnalysis.is_urgent) {
             return true
         }
-        
+
         return false
     }
-    
+
     /**
      * Escalade cette conversation
      * @param {string} reason - Raison de l'escalade
@@ -251,7 +251,7 @@ class Conversation {
         this.status = 'escalated'
         this.bot_paused = true
     }
-    
+
     /**
      * Met cette conversation en pause
      * @param {string} reason - Raison de la pause
@@ -260,7 +260,7 @@ class Conversation {
         await ConversationService.pause(this.supabase, this.id, reason)
         this.bot_paused = true
     }
-    
+
     /**
      * Charge l'historique de cette conversation
      * @param {number} limit - Nombre de messages
@@ -269,7 +269,7 @@ class Conversation {
     async getHistory(limit = 20) {
         return await ConversationService.getHistory(this.supabase, this.id, limit)
     }
-    
+
     /**
      * Vérifie si la conversation est active
      * @returns {boolean}
