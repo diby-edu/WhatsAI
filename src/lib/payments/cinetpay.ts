@@ -161,7 +161,7 @@ export async function checkPaymentStatus(
 }
 
 /**
- * Verify webhook signature
+ * Verify webhook signature (Timing-Safe)
  */
 export function verifyWebhookSignature(
     payload: string,
@@ -174,7 +174,19 @@ export function verifyWebhookSignature(
         .update(payload)
         .digest('hex')
 
-    return signature === expectedSignature
+    // ⭐ SECURITY FIX: Use timing-safe comparison to prevent timing attacks
+    if (signature.length !== expectedSignature.length) {
+        return false
+    }
+
+    try {
+        return crypto.timingSafeEqual(
+            Buffer.from(signature, 'hex'),
+            Buffer.from(expectedSignature, 'hex')
+        )
+    } catch {
+        return false
+    }
 }
 
 /**
