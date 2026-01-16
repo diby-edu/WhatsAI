@@ -20,8 +20,8 @@ class AIService {
             openai
         } = options
 
-        // Déléguer à la fonction existante
-        return await generateAIResponse({
+        // Préparer les options (données du message)
+        const generatorOptions = {
             agent,
             conversationHistory: context.history,
             userMessage: message.text,
@@ -29,11 +29,20 @@ class AIService {
             products: context.products,
             currency: context.currency,
             orders: context.orders,
-            activeSessions: context.activeSessions,
-            supabase: context.supabase,
+            customerPhone: message.from,
+            conversationId: context.conversationId
+        }
+
+        // Préparer les dépendances (services externes)
+        const dependencies = {
             openai,
+            supabase: context.supabase,
+            activeSessions: context.activeSessions,
             CinetPay: context.CinetPay
-        })
+        }
+
+        // Déléguer à la fonction existante avec 2 arguments
+        return await generateAIResponse(generatorOptions, dependencies)
     }
 }
 
