@@ -44,11 +44,25 @@ function normalizePhoneNumber(phone) {
         normalized = '+' + normalized.substring(2)
     }
 
-    // 3. VALIDATION STRICTE : Doit commencer par "+"
+    // 3. AUTO-AJOUTER "+" pour les indicatifs pays connus (si absent)
+    // Indicatifs courants: 225 (Côte d'Ivoire), 33 (France), 1 (USA/Canada), etc.
+    const knownCountryCodes = ['225', '33', '32', '221', '237', '229', '228', '223', '224', '1', '44', '49']
+    if (!normalized.startsWith('+')) {
+        for (const code of knownCountryCodes) {
+            if (normalized.startsWith(code) && normalized.length >= 10) {
+                normalized = '+' + normalized
+                console.log(`📱 Auto-added "+" for country code ${code}`)
+                break
+            }
+        }
+    }
+
+    // 4. VALIDATION : Doit maintenant commencer par "+"
     if (!normalized.startsWith('+')) {
         console.warn('⚠️ PHONE REJECTED : Missing country code ("+") :', phone)
         return null
     }
+
 
     // 4. VÉRIFIER : Au moins 10 chiffres après le "+"
     const digitsOnly = normalized.substring(1) // Retirer le "+"
