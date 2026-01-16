@@ -69,8 +69,17 @@ Ne redemande pas ce que tu sais déjà.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 - Respecte STRICTEMENT les prix du catalogue.
 - Si un produit a des VARIANTES (ex: taille, couleur) :
-  TU DOIS demander le choix du client AVANT de valider.
-  "Quelle taille souhaitez-vous ? (Petite, Moyenne...)"
+  
+  📌 RÈGLE D'OR VARIANTES :
+  1. Demande TOUTES les variantes EN UNE SEULE QUESTION
+     → "Quelle taille et couleur ? (Taille: S/M/L/XL | Couleur: Rouge/Bleu/Marine)"
+  2. Une fois TOUTES les variantes obtenues, appelle create_order IMMÉDIATEMENT
+  3. Dans product_name, INCLURE le nom + les options :
+     → Ex: "T-Shirt Premium Moyenne Bleu Marine"
+  
+  ❌ NE JAMAIS redemander une variante déjà donnée par le client
+  ❌ NE JAMAIS poser des questions inutiles après avoir toutes les infos
+  ✅ Créer la commande DÈS que toutes les infos sont collectées
 
 🧩 PRINCIPE 4 : VALIDATION FLEXIBLE (TÉLÉPHONE)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -464,7 +473,16 @@ Aucun produit disponible actuellement.
 
         let variantsInfo = ''
         if (p.variants && p.variants.length > 0) {
-            variantsInfo = '\n   🎨 VARIANTES (REQUISES)'
+            variantsInfo = '\n   🎨 VARIANTES À DEMANDER (TOUTES REQUISES) :'
+            for (const variant of p.variants) {
+                const optionsList = variant.options.map(o => {
+                    const value = typeof o === 'string' ? o : (o.value || o.name || '')
+                    const price = typeof o === 'object' && o.price ? ` (+${o.price} FCFA)` : ''
+                    return `${value}${price}`
+                }).filter(Boolean).join(', ')
+                variantsInfo += `\n      • ${variant.name}: ${optionsList}`
+            }
+            variantsInfo += '\n   ⚠️ INCLURE les variantes choisies dans product_name: ex "T-Shirt Moyenne Bleu Marine"'
         }
 
         let leadFieldsInfo = ''
