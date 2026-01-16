@@ -14,7 +14,8 @@ const { handleMessage } = require('./message')
 const logger = pino({ level: 'warn' })
 
 async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
-    const { supabase, activeSessions, pendingConnections } = context
+    const { supabase, activeSessions, pendingConnections, openai, CinetPay } = context
+
 
     if (activeSessions.has(agentId) && activeSessions.get(agentId).status === 'connected') {
         console.log(`Session already active for ${agentName}`)
