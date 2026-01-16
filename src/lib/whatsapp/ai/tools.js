@@ -147,6 +147,20 @@ IMPORTANT - VARIANTES :
                 required: ['service_name', 'customer_phone', 'preferred_date']
             }
         }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'find_order',
+            description: 'Trouver les dernières commandes d\'un client par son numéro de téléphone.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    phone_number: { type: 'string', description: 'Numéro de téléphone du client' }
+                },
+                required: ['phone_number']
+            }
+        }
     }
 ]
 
@@ -565,11 +579,15 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                 return JSON.stringify({ success: false, error: `Pas d'image pour "${product.name}".` })
             }
 
+            const caption = variant_value
+                ? `Voici ${product.name} (${variant_value}) !`
+                : `Voici ${product.name} !`
+
             return JSON.stringify({
                 success: true,
                 action: 'send_image',
                 image_url: imageUrl,
-                caption: `Voici ${product.name} !`,
+                caption: caption,
                 product_name: product.name
             })
 
@@ -637,6 +655,49 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
         } catch (error) {
             console.error('❌ Booking Error:', error)
             return JSON.stringify({ success: false, error: error.message || 'Erreur lors de la réservation' })
+        }
+    }
+
+
+
+    // ═══════════════════════════════════════════════════════════
+    // FIND ORDER (BY PHONE)
+    // ═══════════════════════════════════════════════════════════
+    if (toolCall.function.name === 'find_order') {
+        try {
+            console.log('🛠️ Executing tool: find_order')
+            const args = JSON.parse(toolCall.function.arguments)
+            const { phone_number } = args
+            const normalizedPhone = normalizePhoneNumber(phone_number)
+
+            if (!normalizedPhone) return JSON.stringify({ success: false, error: 'Numéro invalide' })
+
+            const { data: orders } = await supabase
+                .from('orders')
+                .select('id, total_fcfa, status, created_at, items:order_items(product_name, quantity)')
+                .eq('customer_phone', normalizedPhone)
+                .order('created_at', { ascending: false })
+                .limit(3)
+
+            if (!orders || orders.length === 0) {
+                return JSON.stringify({ success: true, message: 'Aucune commande trouvée pour ce numéro.' })
+            }
+
+            // Formater pour l'IA
+            const ordersList = orders.map(o => {
+                const date = new Date(o.created_at).toLocaleDateString('fr-FR')
+                const items = o.items.map(i => `${i.quantity}x ${i.product_name}`).join(', ')
+                return `- Commande #${o.id.substring(0, 8)} du ${date} (${o.total_fcfa} FCFA) : ${o.status}\n  Articles: ${items}`
+            }).join('\n\n')
+
+            return JSON.stringify({
+                success: true,
+                message: `Voici les dernières commandes trouvées :\n${ordersList}`
+            })
+
+        } catch (error) {
+            console.error('❌ Find Order Error:', error)
+            return JSON.stringify({ success: false, error: 'Erreur lors de la recherche.' })
         }
     }
 
