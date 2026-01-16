@@ -78,13 +78,20 @@ Confirmez-vous cette commande ?"
     const collectOrder = `
 📋 ORDRE DE COLLECTE (Strict) :
 1. Collecter : Produit + Quantité
-2. Collecter : Variantes (si applicable) → "Quelle taille ? Quelle couleur ?"
-3. Collecter : Nom, Téléphone, Adresse
-4. Collecter : Mode de paiement (En ligne ou À la livraison)
-5. 🛑 STOP : Faire le RÉCAPITULATIF (avec prix) + Demander "CONFIRMEZ-VOUS ?"
-6. ⏳ ATTENDRE la réponse "OUI" du client
-7. ✅ SI OUI SEULEMENT → Appeler create_order
+   ⚠️ Si variantes : Demander "Quelle couleur ?" "Quelle taille ?" AVANT de continuer.
+2. Collecter : Nom, Téléphone, Adresse
+3. Collecter : Mode de paiement
+   ⚠️ DEMANDER : "Souhaitez-vous payer en ligne ou à la livraison ?"
+   ➡️ ATTENDRE la réponse du client.
+4. 🛑 RÉCAPITULATIF FINAL :
+   - Afficher les articles + PRIX
+   - Afficher le total
+   - Afficher l'adresse et le mode de paiement choisi
+   - Demander : "Confirmez-vous cette commande ?"
+5. ✅ CRÉATION :
+   - SI "OUI" → Appeler create_order
 `
+
 
 
     // ═══════════════════════════════════════════════════════════════
@@ -150,7 +157,7 @@ function buildCatalogueSection(products, currency) {
 
     const currencySymbol = currency === 'XOF' ? 'FCFA' : currency
 
-    const catalogueItems = products.map(p => {
+    const catalogueItems = products.map((p, index) => {
         const typeIcon = p.product_type === 'service' ? '🛎️' :
             p.product_type === 'virtual' ? '💻' : '📦'
 
@@ -205,7 +212,8 @@ function buildCatalogueSection(products, currency) {
             variantsInfo = `\n   🔹 ${variantsList}`
         }
 
-        return `${p.name} ${typeIcon} - ${priceDisplay}${variantsInfo}`
+        // Numérotation et Gras uniquement sur le nom
+        return `${index + 1}. *${p.name}* ${typeIcon} - ${priceDisplay}${variantsInfo}`
     }).join('\n\n') // Espacement entre produits
 
 
