@@ -9,9 +9,11 @@ const pino = require('pino')
 const OpenAI = require('openai')
 const CinetPay = require('./src/lib/whatsapp/utils/cinetpay')
 const path = require('path')
+const http = require('http')
 const { initSession } = require('./src/lib/whatsapp/handlers/session')
 const { checkPendingPayments, cancelExpiredOrders, requestFeedback } = require('./src/lib/whatsapp/cron/jobs')
 const { checkPendingHistoryMessages, checkOutboundMessages } = require('./src/lib/whatsapp/cron/outgoing')
+
 
 // Configuration from environment
 require('dotenv').config({ path: '.env.local' })
@@ -129,10 +131,38 @@ async function main() {
     // ✅ Request feedback (24h)
     setInterval(() => requestFeedback(supabase), 24 * 60 * 60 * 1000)
 
+    // ═══════════════════════════════════════════════════════════
+    // 🏥 HEALTHCHECK SERVER (pour PM2/Docker/Kubernetes)
+    // ═══════════════════════════════════════════════════════════
+    const HEALTH_PORT = process.env.HEALTH_PORT || 3001
+
+    const healthServer = http.createServer((req, res) => {
+        if (req.url === '/health' || req.url === '/') {
+            res.writeHead(200, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({
+                status: 'healthy',
+                service: 'whatsapp-service',
+                activeSessions: activeSessions.size,
+                pendingConnections: pendingConnections.size,
+                uptime: Math.floor(process.uptime()),
+                timestamp: new Date().toISOString()
+            }))
+        } else {
+            res.writeHead(404)
+            res.end('Not Found')
+        }
+    })
+
+    healthServer.listen(HEALTH_PORT, () => {
+        console.log(`🏥 Healthcheck server running on port ${HEALTH_PORT}`)
+    })
+
     console.log('✅ WhatsApp Service running')
     console.log('   📊 Checking history messages every 2 seconds')
     console.log('   📨 Checking outbound messages every 5 seconds')
+    console.log(`   🏥 Healthcheck: http://localhost:${HEALTH_PORT}/health`)
     console.log('⚠️  DO NOT restart this service during deployments!')
 }
 
 main()
+
