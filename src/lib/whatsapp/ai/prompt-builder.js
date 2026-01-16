@@ -238,7 +238,8 @@ function buildClientHistory(orders) {
 
     return `
 📜 CLIENT CONNU :
-• Dernière commande: #${lastOrder.id?.substring(0, 8) || '?'} (${lastOrder.status})
+• Dernière commande: #${lastOrder.id?.substring(0, 8) || '?'} (Statut: ${lastOrder.status})
+• ID COMPLET (interne): ${lastOrder.id}
 ${phone ? `• Tél: ${phone}` : ''}
 `
 }
