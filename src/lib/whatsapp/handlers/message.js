@@ -196,7 +196,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             .eq('user_id', agent.user_id)
             .eq('customer_phone', message.from)
             .order('created_at', { ascending: false })
-            .limit(5)
+            .limit(20) // Augmenté pour couvrir l'historique de 15 jours
 
         // ═══════════════════════════════════════════════════════════
         // PHASE 4 : ANALYSE SENTIMENT & ESCALADE

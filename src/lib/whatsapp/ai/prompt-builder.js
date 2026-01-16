@@ -231,25 +231,36 @@ function buildClientHistory(orders) {
         return '\n📜 CLIENT : Nouveau client\n'
     }
 
-    // Afficher les 3 dernières commandes pour que le bot ait le contexte complet
-    const recentOrders = orders.slice(0, 3).map((o, i) => {
+    // 15 jours en arrière
+    const fifteenDaysAgo = new Date()
+    fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15)
+
+    // Filtrer les commandes des 15 derniers jours
+    let recentOrders = orders.filter(o => new Date(o.created_at) >= fifteenDaysAgo)
+
+    // Fallback : Si aucune commande récente, conserver au moins la toute dernière pour le contexte "Client Connu"
+    let displayTitle = '📜 HISTORIQUE COMMANDES (15 derniers jours) :'
+    if (recentOrders.length === 0) {
+        recentOrders = [orders[0]]
+        displayTitle = '📜 HISTORIQUE (Dernière commande connue) :'
+    }
+
+    const ordersList = recentOrders.map((o, i) => {
         const date = new Date(o.created_at).toLocaleDateString('fr-FR')
         const items = o.items ? o.items.map(item => `${item.quantity}x ${item.product_name}`).join(', ') : '?'
         return `
-[Commande ${i + 1}]
-• Date: ${date}
+[Commande du ${date}]
 • Statut: ${o.status}
-• ID (Public): #${o.id.substring(0, 8)} 
+• Total: ${o.total_fcfa} FCFA
 • ID (Interne): ${o.id}
-• Articles: ${items}
-• Total: ${o.total_fcfa} FCFA`
+• Articles: ${items}`
     }).join('\n')
 
     const lastPhone = orders[0].customer_phone || ''
 
     return `
-📜 HISTORIQUE CLIENT (3 dernières commandes) :
-${recentOrders}
+${displayTitle}
+${ordersList}
 ${lastPhone ? `\n📞 Tél connu: ${lastPhone}` : ''}
 `
 }
