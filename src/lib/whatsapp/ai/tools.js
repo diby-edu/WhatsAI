@@ -422,6 +422,9 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
 
             console.log(`✅ Commande créée: ${order.id}`)
 
+            // Résumé des items pour l'IA
+            const itemsSummary = orderItems.map(i => `- ${i.quantity}x ${i.product_name}`).join('\n')
+
             // Préparer la réponse selon le mode de paiement
             const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://whatsai.duckdns.org'
 
@@ -430,7 +433,8 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                     success: true,
                     order_id: order.id,
                     payment_method: 'cod',
-                    message: `✅ Commande #${order.id.substring(0, 8)} créée ! Total: ${total} FCFA. Paiement à la livraison.`
+                    items: itemsSummary,
+                    message: `✅ Commande confirmée ! Nous préparons la livraison. 🚚\nPaiement de ${total} FCFA à prévoir à la livraison.`
                 })
             }
 
@@ -446,7 +450,8 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                     total: total,
                     payment_method: 'mobile_money_direct',
                     payment_methods: paymentMethods,
-                    message: `✅ Commande #${order.id.substring(0, 8)} créée ! Total: ${total} FCFA. Envoyez le paiement puis la capture d'écran.`
+                    items: itemsSummary,
+                    message: `✅ Commande enregistrée en attente de paiement. Veuillez effectuer le transfert de ${total} FCFA.`
                 })
             }
 
@@ -457,8 +462,10 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                 total: total,
                 payment_method: 'online',
                 payment_link: `${appUrl}/pay/${order.id}`,
-                message: `✅ Commande #${order.id.substring(0, 8)} créée ! Total: ${total} FCFA.`
+                items: itemsSummary,
+                message: `✅ Commande créée ! Lien de paiement généré pour ${total} FCFA.`
             })
+
 
         } catch (error) {
             console.error('❌ Create Order Error:', error)

@@ -76,14 +76,13 @@ Confirmez-vous cette commande ?"
     // SECTION 4 : ORDRE DE COLLECTE
     // ═══════════════════════════════════════════════════════════════
     const collectOrder = `
-📋 ORDRE DE COLLECTE :
-1. Produit + Quantité
-2. Variantes (si applicable) → "Quelle taille ? Quelle couleur ?"
-3. Nom complet
-4. Téléphone (format: 225XXXXXXXX)
-5. Adresse de livraison
-6. → Récapitule avec les PRIX avant de créer la commande
-7. → Appeler create_order avec selected_variants
+📋 ORDRE DE COLLECTE (Strict) :
+1. Collecter : Produit + Quantité
+2. Collecter : Variantes (si applicable) → "Quelle taille ? Quelle couleur ?"
+3. Collecter : Nom, Téléphone, Adresse
+4. 🛑 STOP : Faire le RÉCAPITULATIF (avec prix) + Demander "CONFIRMEZ-VOUS ?"
+5. ⏳ ATTENDRE la réponse "OUI" du client
+6. ✅ SI OUI SEULEMENT → Appeler create_order
 `
 
     // ═══════════════════════════════════════════════════════════════
@@ -91,13 +90,13 @@ Confirmez-vous cette commande ?"
     // ═══════════════════════════════════════════════════════════════
     const rules = `
 📌 RÈGLES :
-• TÉLÉPHONE : Accepte tout format, ne bloque jamais
+• NE JAMAIS CRÉER la commande avant d'avoir reçu un "OUI" explicite après le récapitulatif
+• TÉLÉPHONE : Accepte tout format, ne bloque jamais, ne demande jamais le code pays
 • PRIX : Utilise UNIQUEMENT les prix du catalogue
-• RÉCAP : TOUJOURS afficher les prix et le total avant de créer la commande
-• IMAGES : Quand le client demande "montre-moi", utilise send_image (pas de liens !)
-• ESCALADE : Si client mécontent → "Je transmets à l'équipe"
-• PAIEMENT : Suis les instructions retournées par create_order
+• IMAGES : Quand le client demande "montre et", utilise send_image
+• VARIANTES : Ne mentionne pas "pas de variantes" si le produit n'en a pas
 `
+
 
 
     // ═══════════════════════════════════════════════════════════════
@@ -177,7 +176,7 @@ function buildCatalogueSection(products, currency) {
             }
 
             if (minPrice !== Infinity && minPrice !== maxPrice) {
-                priceDisplay = `${minPrice.toLocaleString()} - ${maxPrice.toLocaleString()} ${currencySymbol}`
+                priceDisplay = `Prix entre ${minPrice.toLocaleString()} et ${maxPrice.toLocaleString()} ${currencySymbol}`
             } else if (minPrice !== Infinity) {
                 priceDisplay = `${minPrice.toLocaleString()} ${currencySymbol}`
             } else {
@@ -198,14 +197,15 @@ function buildCatalogueSection(products, currency) {
                     // Extraire le nom court (avant les parenthèses)
                     return val.split('(')[0].trim()
                 }).join(', ')
-                return `${v.name}: [${opts}]`
-            }).join(' | ')
+                return `${v.name} disponibles : ${opts}`
+            }).join('\n   🔹 ') // Saut de ligne pour lisibilité
 
-            variantsInfo = `\n   ⚠️ VARIANTES: ${variantsList}`
+            variantsInfo = `\n   🔹 ${variantsList}`
         }
 
-        return `• ${p.name} ${typeIcon} - ${priceDisplay}${variantsInfo}`
-    }).join('\n')
+        return `${p.name} ${typeIcon} - ${priceDisplay}${variantsInfo}`
+    }).join('\n\n') // Espacement entre produits
+
 
     return `
 📦 CATALOGUE :
