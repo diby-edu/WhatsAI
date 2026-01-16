@@ -23,6 +23,52 @@ const { ErrorHandler } = require('../services/errors')
 const { analyzeSentiment } = require('../ai/sentiment')
 const { downloadMediaMessage } = require('@whiskeysockets/baileys')
 
+// ═══════════════════════════════════════════════════════════════
+// RATE LIMITING - Protection contre les abus
+// ═══════════════════════════════════════════════════════════════
+const rateLimitMap = new Map()
+const RATE_LIMIT = {
+    maxMessages: 10,      // Max 10 messages
+    windowMs: 60000,      // Par minute
+    cleanupInterval: 300000  // Nettoyage toutes les 5 minutes
+}
+
+// Nettoyage périodique pour éviter fuite mémoire
+setInterval(() => {
+    const now = Date.now()
+    for (const [key, record] of rateLimitMap.entries()) {
+        if (now - record.windowStart > RATE_LIMIT.windowMs * 2) {
+            rateLimitMap.delete(key)
+        }
+    }
+}, RATE_LIMIT.cleanupInterval)
+
+/**
+ * Vérifie si un contact est rate-limited
+ * @param {string} contactId - ID du contact WhatsApp
+ * @returns {boolean} - true si limité
+ */
+function isRateLimited(contactId) {
+    const now = Date.now()
+    const record = rateLimitMap.get(contactId) || { count: 0, windowStart: now }
+
+    if (now - record.windowStart > RATE_LIMIT.windowMs) {
+        // Nouvelle fenêtre
+        record.count = 1
+        record.windowStart = now
+    } else {
+        record.count++
+    }
+
+    rateLimitMap.set(contactId, record)
+
+    if (record.count > RATE_LIMIT.maxMessages) {
+        console.log(`⚠️ Rate limited: ${contactId} (${record.count} msgs in window)`)
+        return true
+    }
+    return false
+}
+
 /**
  * Point d'entrée principal pour traiter un message entrant
  * 
@@ -33,31 +79,39 @@ const { downloadMediaMessage } = require('@whiskeysockets/baileys')
  */
 async function handleMessage(context, agentId, message, isVoiceMessage = false) {
     const { openai, supabase, activeSessions, CinetPay } = context
-    
+
+    // ═══════════════════════════════════════════════════════════
+    // RATE LIMITING - Protection contre les abus
+    // ═══════════════════════════════════════════════════════════
+    if (isRateLimited(message.from)) {
+        return // Silently drop excessive messages
+    }
+
     try {
+
         // ═══════════════════════════════════════════════════════════
         // PHASE 1 : VÉRIFICATIONS INITIALES
         // ═══════════════════════════════════════════════════════════
-        
+
         // 1.1 Récupérer l'agent
         const { data: agent } = await supabase
             .from('agents')
             .select('*')
             .eq('id', agentId)
             .single()
-        
+
         if (!agent) {
             console.error(`Agent not found: ${agentId}`)
             return
         }
-        
+
         // 1.2 Vérifier les crédits
         const hasCredits = await CreditsService.check(supabase, agent.user_id)
         if (!hasCredits) {
             console.log(`⚠️ Insufficient credits for user ${agent.user_id}`)
             return
         }
-        
+
         // 1.3 Récupérer ou créer la conversation
         const conversation = await ConversationService.getOrCreate(
             supabase,
@@ -66,17 +120,17 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             message.from,
             { wa_name: message.pushName }
         )
-        
+
         // 1.4 Vérifier si conversation active
         if (!conversation.isActive()) {
             console.log('Conversation paused or escalated, skipping')
             return
         }
-        
+
         // ═══════════════════════════════════════════════════════════
         // PHASE 2 : TRAITEMENT DU MESSAGE ENTRANT
         // ═══════════════════════════════════════════════════════════
-        
+
         // 2.1 Sauvegarder le message utilisateur
         await supabase.from('messages').insert({
             conversation_id: conversation.id,
@@ -90,7 +144,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                 has_media: !!message.imageMessage
             }
         })
-        
+
         // 2.2 Traiter message vocal (transcription)
         if (isVoiceMessage && message.audioMessage) {
             console.log('🎤 Transcribing voice message...')
@@ -102,12 +156,12 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                 'buffer',
                 { logger: console }
             )
-            
+
             const transcription = await MediaService.transcribeAudio(openai, buffer)
             message.text = transcription
             console.log(`📝 Transcription: ${transcription}`)
         }
-        
+
         // 2.3 Traiter image
         if (message.imageMessage) {
             console.log('📸 Processing image...')
@@ -115,14 +169,14 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             message.imageBase64 = imageBase64
             message.text = message.text || message.caption || "Que penses-tu de cette image ?"
         }
-        
+
         // ═══════════════════════════════════════════════════════════
         // PHASE 3 : CHARGEMENT DU CONTEXTE
         // ═══════════════════════════════════════════════════════════
-        
+
         // 3.1 Historique de conversation
         const conversationHistory = await conversation.getHistory(20)
-        
+
         // 3.2 Produits de l'agent
         const { data: products } = await supabase
             .from('products')
@@ -130,7 +184,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             .eq('agent_id', agentId)
             .eq('is_available', true)
             .limit(20)
-        
+
         // 3.3 Commandes récentes du client
         const { data: orders } = await supabase
             .from('orders')
@@ -143,42 +197,42 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             .eq('customer_phone', message.from)
             .order('created_at', { ascending: false })
             .limit(5)
-        
+
         // ═══════════════════════════════════════════════════════════
         // PHASE 4 : ANALYSE SENTIMENT & ESCALADE
         // ═══════════════════════════════════════════════════════════
-        
+
         const sentimentAnalysis = await analyzeSentiment(openai, message.text)
         console.log(`❤️ Sentiment: ${sentimentAnalysis.sentiment}`)
-        
+
         if (conversation.shouldEscalate(sentimentAnalysis)) {
             console.log('🚨 Escalating angry customer...')
-            
+
             await conversation.escalate('Client en colère détecté')
-            
+
             // Message de transfert
             let handoverMessage = "Je comprends votre frustration et je m'en excuse sincèrement. 🙏\n\n"
             handoverMessage += "Je transfère immédiatement votre dossier à un conseiller humain qui va vous contacter très rapidement."
-            
+
             if (agent.escalation_phone) {
                 handoverMessage += `\n\n📞 Vous pouvez aussi appeler directement : ${agent.escalation_phone}`
             }
-            
+
             await MessagingService.sendText(
                 activeSessions.get(agentId),
                 message.from,
                 handoverMessage
             )
-            
+
             return // Stop AI
         }
-        
+
         // ═══════════════════════════════════════════════════════════
         // PHASE 5 : GÉNÉRATION RÉPONSE IA
         // ═══════════════════════════════════════════════════════════
-        
+
         console.log('🧠 Generating AI response...')
-        
+
         const aiResponse = await AIService.generate({
             agent,
             message,
@@ -193,14 +247,14 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             },
             openai
         })
-        
+
         // ═══════════════════════════════════════════════════════════
         // PHASE 6 : ENVOI RÉPONSE
         // ═══════════════════════════════════════════════════════════
-        
+
         const session = activeSessions.get(agentId)
         let voiceSent = false
-        
+
         // 6.1 Synthèse vocale (si activée)
         if (agent.voice_enabled && aiResponse.content.length <= 500) {
             try {
@@ -216,7 +270,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                 console.warn('Voice failed, falling back to text:', voiceError.message)
             }
         }
-        
+
         // 6.2 Fallback texte
         if (!voiceSent) {
             await MessagingService.sendText(
@@ -226,7 +280,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             )
             console.log('💬 Text message sent')
         }
-        
+
         // 6.3 Sauvegarder la réponse
         await supabase.from('messages').insert({
             conversation_id: conversation.id,
@@ -236,25 +290,25 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             tokens_used: aiResponse.tokensUsed,
             status: 'sent'
         })
-        
+
         // ═══════════════════════════════════════════════════════════
         // PHASE 7 : MISE À JOUR STATS & CRÉDITS
         // ═══════════════════════════════════════════════════════════
-        
+
         // 7.1 Déduction crédits (ATOMIQUE)
         const creditsToDeduct = CreditsService.calculateCost(voiceSent)
         await CreditsService.deduct(supabase, agent.user_id, creditsToDeduct)
-        
+
         // 7.2 Stats agent
         await AnalyticsService.trackInteraction(supabase, agentId, 2)
-        
+
         // 7.3 Analyse qualité lead (tous les 5 messages)
         if ((conversationHistory.length + 1) % 5 === 0) {
             const leadAnalysis = await AnalyticsService.analyzeLeadQuality(
                 openai,
                 conversationHistory
             )
-            
+
             if (leadAnalysis) {
                 await supabase.from('conversations').update({
                     lead_status: leadAnalysis.status,
@@ -263,14 +317,14 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                 }).eq('id', conversation.id)
             }
         }
-        
+
         console.log(`✅ Message handled successfully for conversation ${conversation.id}`)
-        
+
     } catch (error) {
         // ═══════════════════════════════════════════════════════════
         // GESTION D'ERREUR CENTRALISÉE
         // ═══════════════════════════════════════════════════════════
-        
+
         await ErrorHandler.handle(error, {
             agentId,
             message,
