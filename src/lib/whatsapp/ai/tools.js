@@ -15,8 +15,41 @@ const { normalizePhoneNumber } = require('../utils/format')
 const sharp = require('sharp')
 
 // ═══════════════════════════════════════════════════════════════
+// 🔒 HELPER : MASQUAGE DONNÉES SENSIBLES (RGPD)
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Masque les données sensibles pour les logs
+ * @param {Object} obj - Objet à sanitizer
+ * @returns {Object} - Copie avec données masquées
+ */
+function sanitizeForLog(obj) {
+    if (!obj || typeof obj !== 'object') return obj
+    const sanitized = { ...obj }
+
+    // Masquer téléphone (garder les 5 premiers caractères)
+    if (sanitized.customer_phone) {
+        sanitized.customer_phone = sanitized.customer_phone.slice(0, 5) + '****'
+    }
+
+    // Masquer adresse
+    if (sanitized.delivery_address) {
+        sanitized.delivery_address = '[MASKED]'
+    }
+
+    // Masquer email
+    if (sanitized.email) {
+        const parts = sanitized.email.split('@')
+        sanitized.email = parts[0].slice(0, 2) + '***@' + (parts[1] || '')
+    }
+
+    return sanitized
+}
+
+// ═══════════════════════════════════════════════════════════════
 // DÉFINITION DES TOOLS OPENAI
 // ═══════════════════════════════════════════════════════════════
+
 
 const TOOLS = [
     {
@@ -132,13 +165,13 @@ IMPORTANT - VARIANTES :
  */
 function findMatchingOption(variant, selectedValue) {
     if (!selectedValue || !variant.options) return null
-    
+
     const selectedLower = selectedValue.toLowerCase().trim()
-    
+
     for (const option of variant.options) {
         const optValue = (typeof option === 'string') ? option : (option.value || option.name || '')
         const optValueLower = optValue.toLowerCase().trim()
-        
+
         // Matching flexible (ordre de priorité) :
         // 1. Égalité exacte
         if (optValueLower === selectedLower) {
@@ -157,7 +190,7 @@ function findMatchingOption(variant, selectedValue) {
             return option
         }
     }
-    
+
     return null
 }
 
@@ -180,7 +213,7 @@ function getOptionPrice(option) {
 // ═══════════════════════════════════════════════════════════════
 
 async function handleToolCall(toolCall, agentId, customerPhone, products, conversationId, supabase, activeSessions, CinetPay) {
-    
+
     // ═══════════════════════════════════════════════════════════
     // CREATE ORDER
     // ═══════════════════════════════════════════════════════════
@@ -200,7 +233,7 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                 .select('user_id, payment_mode, mobile_money_orange, mobile_money_mtn, mobile_money_wave, custom_payment_methods')
                 .eq('id', agentId)
                 .single()
-            
+
             if (!agent) throw new Error('Agent not found')
 
             let total = 0
@@ -209,7 +242,7 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
             // Traiter chaque item
             for (const item of items) {
                 console.log(`\n📦 Traitement: "${item.product_name}" x${item.quantity}`)
-                
+
                 // Recherche du produit (scoring)
                 const searchTerms = item.product_name.toLowerCase().split(' ').filter(w => w.length > 2)
                 const searchName = item.product_name.toLowerCase()
@@ -246,7 +279,7 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                 }
 
                 console.log(`   ✅ Produit trouvé: "${product.name}" (score: ${bestScore})`)
-                
+
                 let price = product.price_fcfa || 0
                 let matchedVariantOption = null
 
@@ -263,7 +296,7 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
 
                         for (const variant of product.variants) {
                             const variantNameLower = variant.name.toLowerCase()
-                            
+
                             // Chercher la valeur envoyée
                             const selectedEntry = Object.entries(item.selected_variants).find(
                                 ([key]) => key.toLowerCase() === variantNameLower
@@ -277,13 +310,13 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                                 if (validOption) {
                                     const optionPrice = getOptionPrice(validOption)
                                     const optionValue = getOptionValue(validOption)
-                                    
+
                                     if (variant.type === 'fixed') {
                                         price = optionPrice
                                     } else {
                                         price += optionPrice
                                     }
-                                    
+
                                     matchedVariantsByType[variant.name] = optionValue
                                     console.log(`      ✅ ${variant.name}: "${selectedValue}" → "${optionValue}" (+${optionPrice} FCFA)`)
                                 } else {
@@ -321,9 +354,9 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                             const opts = v.options.map(o => getOptionValue(o)).join(', ')
                             return `${v.name}: [${opts}]`
                         }).join(' | ')
-                        
+
                         console.log(`   ❌ Variantes manquantes: ${missingVariants.map(v => v.name).join(', ')}`)
-                        
+
                         return JSON.stringify({
                             success: false,
                             error: `VARIANTES MANQUANTES pour "${product.name}". Demandez: ${missingList}`,
@@ -337,7 +370,7 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
 
                     matchedVariantOption = Object.values(matchedVariantsByType).join(', ')
                     console.log(`   ✅ Toutes variantes OK: ${matchedVariantOption}`)
-                    
+
                 } else {
                     // FIX #4 : Log pour produits sans variantes
                     console.log(`   ℹ️ Pas de variantes requises`)
@@ -346,14 +379,14 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                 // Ajouter à la commande
                 total += price * item.quantity
                 orderItems.push({
-                    product_name: matchedVariantOption 
+                    product_name: matchedVariantOption
                         ? `${product.name} (${matchedVariantOption})`
                         : product.name,
                     product_description: product.description,
                     quantity: item.quantity,
                     unit_price_fcfa: price
                 })
-                
+
                 console.log(`   💰 ${item.quantity}x @ ${price} FCFA = ${price * item.quantity} FCFA`)
             }
 
@@ -486,7 +519,7 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
             const { product_name, variant_value } = args
 
             const searchName = product_name.toLowerCase()
-            const product = products.find(p => 
+            const product = products.find(p =>
                 p.name.toLowerCase() === searchName ||
                 searchName.includes(p.name.toLowerCase()) ||
                 p.name.toLowerCase().includes(searchName)
@@ -599,8 +632,8 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
 // EXPORTS
 // ═══════════════════════════════════════════════════════════════
 
-module.exports = { 
-    TOOLS, 
+module.exports = {
+    TOOLS,
     handleToolCall,
     findMatchingOption,  // Exporté pour le pre-check dans generator.js
     getOptionValue,
