@@ -47,6 +47,23 @@ class MessagingService {
     }
 
     /**
+     * Envoie une image depuis une URL
+     */
+    static async sendImage(session, to, imageUrl, caption = '') {
+        return await this.withRetry(async () => {
+            if (!session || !session.socket) {
+                throw new Error('WhatsApp session or socket unavailable')
+            }
+
+            return await session.socket.sendMessage(to, {
+                image: { url: imageUrl },
+                caption: caption
+            })
+        }, 3) // 3 tentatives
+    }
+
+
+    /**
      * Retry logic (exponentiel backoff)
      */
     static async withRetry(fn, maxAttempts, baseDelay = 1000) {

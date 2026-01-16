@@ -72,7 +72,7 @@ function preCheckCreateOrder(toolCall, products) {
             // Vérifier les variantes
             if (product.variants && product.variants.length > 0) {
                 console.log(`   📋 Variantes requises: ${product.variants.map(v => v.name).join(', ')}`)
-                
+
                 const selectedVariants = item.selected_variants || {}
 
                 for (const variant of product.variants) {
@@ -88,31 +88,31 @@ function preCheckCreateOrder(toolCall, products) {
                         // Variante manquante
                         const options = variant.options.map(o => getOptionValue(o)).join(', ')
                         console.log(`   ❌ Variante "${variantName}" MANQUANTE`)
-                        
+
                         return {
                             valid: false,
                             error: `Variante "${variantName}" manquante. ` +
-                                   `Demande au client de choisir parmi: ${options}. ` +
-                                   `Puis rappelle create_order avec selected_variants: {"${variantName}": "choix"}`
+                                `Demande au client de choisir parmi: ${options}. ` +
+                                `Puis rappelle create_order avec selected_variants: {"${variantName}": "choix"}`
                         }
                     }
 
                     const selectedValue = selectedEntry[1]
-                    
+
                     // 🎯 FIX #2 : Valider que l'option existe avec matching flexible
                     const validOption = findMatchingOption(variant, selectedValue)
-                    
+
                     if (!validOption) {
                         const options = variant.options.map(o => getOptionValue(o)).join(', ')
                         console.log(`   ❌ Option "${selectedValue}" INVALIDE pour ${variantName}`)
-                        
+
                         return {
                             valid: false,
                             error: `Option "${selectedValue}" invalide pour ${variantName}. ` +
-                                   `Options valides: ${options}`
+                                `Options valides: ${options}`
                         }
                     }
-                    
+
                     const matchedValue = getOptionValue(validOption)
                     console.log(`   ✅ ${variantName}: "${selectedValue}" → "${matchedValue}"`)
                 }
@@ -135,7 +135,7 @@ function preCheckCreateOrder(toolCall, products) {
  */
 async function callOpenAIWithRetry(openai, params, maxRetries = MAX_RETRIES) {
     let lastError = null
-    
+
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
             const completion = await openai.chat.completions.create(params)
@@ -143,12 +143,12 @@ async function callOpenAIWithRetry(openai, params, maxRetries = MAX_RETRIES) {
         } catch (error) {
             lastError = error
             console.log(`⚠️ OpenAI attempt ${attempt}/${maxRetries} failed:`, error.message)
-            
+
             // Ne pas retry si c'est une erreur de contenu (pas réseau)
             if (error.code === 'content_filter' || error.code === 'invalid_api_key') {
                 throw error
             }
-            
+
             if (attempt < maxRetries) {
                 const delay = RETRY_DELAY_MS * attempt
                 console.log(`   ⏳ Retry in ${delay}ms...`)
@@ -156,7 +156,7 @@ async function callOpenAIWithRetry(openai, params, maxRetries = MAX_RETRIES) {
             }
         }
     }
-    
+
     throw lastError
 }
 
@@ -166,8 +166,11 @@ async function callOpenAIWithRetry(openai, params, maxRetries = MAX_RETRIES) {
 async function generateAIResponse(options, dependencies) {
     const { openai, supabase, activeSessions, CinetPay } = dependencies
 
+    let imageActions = []  // Collecter les images à envoyer
+
     try {
         const {
+
             agent,
             conversationHistory,
             userMessage,
@@ -297,6 +300,22 @@ async function generateAIResponse(options, dependencies) {
                     CinetPay
                 )
 
+                // Collecter les actions d'images pour envoi réel
+                try {
+                    const parsedResult = JSON.parse(toolResult)
+                    if (parsedResult.action === 'send_image' && parsedResult.image_url) {
+                        if (!imageActions) imageActions = []
+                        imageActions.push({
+                            image_url: parsedResult.image_url,
+                            caption: parsedResult.caption || '',
+                            product_name: parsedResult.product_name
+                        })
+                        console.log(`📸 Image à envoyer: ${parsedResult.product_name}`)
+                    }
+                } catch (e) {
+                    // Pas de parsing nécessaire
+                }
+
                 newHistory.push({
                     role: 'tool',
                     tool_call_id: toolCall.id,
@@ -324,8 +343,10 @@ async function generateAIResponse(options, dependencies) {
 
         return {
             content: content,
-            tokensUsed: (completion.usage?.total_tokens || 0) + 100
+            tokensUsed: (completion.usage?.total_tokens || 0) + 100,
+            imageActions: imageActions || []  // Retourner les images à envoyer
         }
+
 
     } catch (error) {
         console.error('❌ OpenAI Error:', error)

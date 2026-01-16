@@ -255,6 +255,23 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
         const session = activeSessions.get(agentId)
         let voiceSent = false
 
+        // 6.0 Envoyer les images demandées (send_image tool)
+        if (aiResponse.imageActions && aiResponse.imageActions.length > 0) {
+            for (const imgAction of aiResponse.imageActions) {
+                try {
+                    await MessagingService.sendImage(
+                        session,
+                        message.from,
+                        imgAction.image_url,
+                        imgAction.caption
+                    )
+                    console.log(`📸 Image sent: ${imgAction.product_name}`)
+                } catch (imgError) {
+                    console.error('Image send failed:', imgError.message)
+                }
+            }
+        }
+
         // 6.1 Synthèse vocale (si activée)
         if (agent.voice_enabled && aiResponse.content.length <= 500) {
             try {
@@ -280,6 +297,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             )
             console.log('💬 Text message sent')
         }
+
 
         // 6.3 Sauvegarder la réponse
         await supabase.from('messages').insert({
