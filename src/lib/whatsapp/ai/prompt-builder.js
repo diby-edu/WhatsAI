@@ -80,10 +80,12 @@ Confirmez-vous cette commande ?"
 1. Collecter : Produit + Quantité
 2. Collecter : Variantes (si applicable) → "Quelle taille ? Quelle couleur ?"
 3. Collecter : Nom, Téléphone, Adresse
-4. 🛑 STOP : Faire le RÉCAPITULATIF (avec prix) + Demander "CONFIRMEZ-VOUS ?"
-5. ⏳ ATTENDRE la réponse "OUI" du client
-6. ✅ SI OUI SEULEMENT → Appeler create_order
+4. Collecter : Mode de paiement (En ligne ou À la livraison)
+5. 🛑 STOP : Faire le RÉCAPITULATIF (avec prix) + Demander "CONFIRMEZ-VOUS ?"
+6. ⏳ ATTENDRE la réponse "OUI" du client
+7. ✅ SI OUI SEULEMENT → Appeler create_order
 `
+
 
     // ═══════════════════════════════════════════════════════════════
     // SECTION 5 : RÈGLES
