@@ -20,14 +20,20 @@ describe('Utils: normalizePhoneNumber (v2.2 - Strict Mode)', () => {
         expect(normalizePhoneNumber('+225 07-56-23-69-84')).toBe('+2250756236984');
     });
 
-    // Invalid formats (rejected - no international prefix)
-    test('should reject phone without international prefix', () => {
-        expect(normalizePhoneNumber('2250756236984')).toBe(null);
+    // UPDATED v2.3: Known country codes (225, 33, etc.) are now auto-prefixed with +
+    test('should auto-add + for known country code (225 = Ivory Coast)', () => {
+        expect(normalizePhoneNumber('2250756236984')).toBe('+2250756236984');
     });
 
-    test('should reject phone with only local formatting', () => {
-        expect(normalizePhoneNumber('(225) 07-56-23 69 84')).toBe(null);
+    test('should auto-add + for known country code with formatting', () => {
+        expect(normalizePhoneNumber('(225) 07-56-23 69 84')).toBe('+2250756236984');
     });
+
+    // Unknown country codes without + should still be rejected
+    test('should reject phone with unknown country code and no +', () => {
+        expect(normalizePhoneNumber('999123456789')).toBe(null);
+    });
+
 
     // Edge cases
     test('should return null for null/empty input', () => {
