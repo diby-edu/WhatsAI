@@ -30,8 +30,10 @@ describe('Utils: normalizePhoneNumber (v2.2 - Strict Mode)', () => {
     });
 
     // Unknown country codes without + should still be rejected
-    test('should reject phone with unknown country code and no +', () => {
-        expect(normalizePhoneNumber('999123456789')).toBe(null);
+    // Unknown country codes without + should use fallback +225
+    test('should apply fallback +225 for unknown format', () => {
+        // 999123456789 -> +225999123456789
+        expect(normalizePhoneNumber('999123456789')).toBe('+225999123456789');
     });
 
 
