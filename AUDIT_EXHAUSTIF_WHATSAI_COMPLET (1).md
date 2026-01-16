@@ -576,3 +576,50 @@ Le système v2.7 corrige les problèmes de variantes identifiés précédemment.
 
 *Rapport généré le 16 janvier 2026*
 *Expert : Claude (Anthropic)*
+
+---
+
+# 🔵 SECTION 7 : MISES À JOUR JANVIER 2026 (v2.9.7)
+
+Suite aux tests utilisateurs et audits, une série de correctifs majeurs et d'améliorations UX a été déployée en Janvier 2026.
+
+## 7.1 Corrections Critiques
+
+### ✅ PRIX : Calcul Fiabilisé (CRITIQUE)
+**Problème :** Le bot sélectionnait parfois le prix maximum d'une gamme (ex: 25,000 FCFA) pour une variante bon marché (150 FCFA), causant des totaux erronés (ex: 1.7M FCFA).
+**Solution :**
+*   Modification de `tools.js` pour **ignorer le prix par défaut du produit parent** dès lors que des variantes de type `fixed` sont détectées.
+*   Le prix de base est réinitialisé à 0, forçant l'utilisation du prix spécifique de la variante sélectionnée.
+
+### ✅ COMMANDE : Flux Strict
+**Problème :** Le bot faisait le récapitulatif avant de demander le paiement.
+**Solution :**
+*   Mise à jour du System Prompt (`prompt-builder.js`) pour imposer une séquence stricte :
+    1.  Collecte Infos
+    2.  Collecte Mode de Paiement
+    3.   **ALORS SEULEMENT** Récapitulatif + Prix
+    4.  Attente "OUI" explicite
+
+## 7.2 Améliorations UX & Intelligence
+
+### 🧠 Mémoire Temporelle (15 Jours)
+**Innovation :** Au lieu de perdre le contexte ou de demander l'ID de commande :
+*   Le bot reçoit maintenant **automatiquement** un résumé des commandes des **15 derniers jours** dans son prompt système à chaque message.
+*   Il voit l'ID interne, le statut, les articles et la date.
+*   **Résultat :** Le client peut dire "Où en est ma commande ?" sans jamais donner de numéro. Le bot "sait".
+
+### 🖼️ Gestion Image Améliorée
+*   **Vraies Images** : Envoi de fichiers médias réels (et non de liens texte).
+*   **Légendes Intelligentes** : "Voici T-Shirt Premium **(Rouge)**" - La variante est incluse dans la légende.
+*   **Anti-Spam** : Suppression stricte des liens markdown redondants après les images.
+
+### 📋 Catalogue Plus Clair
+*   **Numérotation** : "1. Produit A", "2. Produit B".
+*   **Lisibilité** : Gras uniquement sur les noms, affichage des prix "Entre X et Y".
+
+### 📞 Numéros de Téléphone
+*   **Auto-Correction** : Le bot accepte les numéros sans indicatif et ajoute automatiquement le préfixe pays configuré (ex: +225) pour la recherche en base de données.
+
+---
+*Mise à jour v2.9.7 - 16 Janvier 2026*
+
