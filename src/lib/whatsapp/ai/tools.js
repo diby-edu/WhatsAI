@@ -1,34 +1,35 @@
 /**
  * ═══════════════════════════════════════════════════════════════
- * TOOLS.JS v2.6 - FIX MATCHING FLEXIBLE DES VARIANTES
+ * TOOLS.JS v2.7 - VERSION CONSOLIDÉE (AUDIT COMPLET)
  * ═══════════════════════════════════════════════════════════════
  * 
- * BUG IDENTIFIÉ :
- * - L'IA envoie: selected_variants: { Taille: "Petite" }
- * - La BDD contient: options: ["Petite (50g)", "Moyenne (100g)", "Grande (200g)"]
- * - Le code cherchait une égalité stricte "Petite" === "Petite (50g)" → FALSE
- * 
- * FIX v2.6 :
- * - Matching flexible : l'option CONTIENT ou COMMENCE PAR la valeur envoyée
- * - "Petite" matche "Petite (50g)" ✅
- * - "Or Premium" matche "Or Premium" ✅
- * - Logs améliorés pour debug
+ * CORRECTIONS INCLUSES :
+ * ✅ #1 : Matching flexible des variantes (v2.6)
+ * ✅ #4 : Logs pour produits sans variantes
+ * ✅ Export de findMatchingOption pour pre-check
+ * ✅ Logs améliorés pour debug complet
+ * ✅ Gestion d'erreurs robuste
  */
 
 const { normalizePhoneNumber } = require('../utils/format')
 const sharp = require('sharp')
+
+// ═══════════════════════════════════════════════════════════════
+// DÉFINITION DES TOOLS OPENAI
+// ═══════════════════════════════════════════════════════════════
 
 const TOOLS = [
     {
         type: 'function',
         function: {
             name: 'create_order',
-            description: `Create a new order for a customer. Use this when the user wants to buy something.
-IMPORTANT FOR PRODUCTS WITH VARIANTS:
-- If a product has variants (size, color, etc.), you MUST specify them in 'selected_variants'
-- Collect ALL variants from the customer BEFORE calling this function
-- Example: selected_variants: {"Taille": "Moyenne", "Couleur": "Bleu Marine"}
-- If variants are missing, the order will FAIL and you'll need to ask the customer`,
+            description: `Créer une commande pour un client.
+
+IMPORTANT - VARIANTES :
+- Si un produit a des variantes (taille, couleur, etc.), tu DOIS les spécifier dans 'selected_variants'
+- Collecte TOUTES les variantes AVANT d'appeler cette fonction
+- Exemple: selected_variants: {"Taille": "Petite", "Couleur": "Bleu"}
+- Les noms courts suffisent: "Petite" matchera "Petite (50g)"`,
             parameters: {
                 type: 'object',
                 properties: {
@@ -39,28 +40,27 @@ IMPORTANT FOR PRODUCTS WITH VARIANTS:
                             properties: {
                                 product_name: {
                                     type: 'string',
-                                    description: 'EXACT name of the product from the catalog (without variant info)'
+                                    description: 'Nom du produit (sans les variantes)'
                                 },
                                 quantity: {
                                     type: 'integer',
-                                    description: 'Quantity ordered'
+                                    description: 'Quantité'
                                 },
                                 selected_variants: {
                                     type: 'object',
-                                    description: 'REQUIRED if product has variants. Key = variant name (e.g. "Taille", "Couleur"), Value = selected option (e.g. "Moyenne", "Bleu Marine")',
+                                    description: 'Variantes sélectionnées. Ex: {"Taille": "Petite", "Couleur": "Rouge"}',
                                     additionalProperties: { type: 'string' }
                                 }
                             },
                             required: ['product_name', 'quantity']
-                        },
-                        description: 'List of products to order'
+                        }
                     },
-                    customer_name: { type: 'string', description: 'Customer full name (required)' },
-                    customer_phone: { type: 'string', description: 'Customer phone number (required)' },
-                    delivery_address: { type: 'string', description: 'Full Delivery Location (City, Neighborhood, Street, or GPS info). Do NOT split city/street.' },
-                    email: { type: 'string', description: 'Customer email (required for digital products)' },
-                    payment_method: { type: 'string', enum: ['online', 'cod'], description: 'Payment method choice' },
-                    notes: { type: 'string', description: 'Any special instructions' }
+                    customer_name: { type: 'string', description: 'Nom complet du client' },
+                    customer_phone: { type: 'string', description: 'Numéro de téléphone' },
+                    delivery_address: { type: 'string', description: 'Adresse de livraison complète' },
+                    email: { type: 'string', description: 'Email (requis pour produits numériques)' },
+                    payment_method: { type: 'string', enum: ['online', 'cod'], description: 'Mode de paiement' },
+                    notes: { type: 'string', description: 'Instructions spéciales' }
                 },
                 required: ['items', 'customer_name', 'customer_phone']
             }
@@ -70,11 +70,11 @@ IMPORTANT FOR PRODUCTS WITH VARIANTS:
         type: 'function',
         function: {
             name: 'check_payment_status',
-            description: 'Check the status of a specific order. If the user asks about "my order" or "the payment" without giving an ID, USE the most recent UUID found in the "Historique des Commandes" context.',
+            description: 'Vérifier le statut d\'une commande.',
             parameters: {
                 type: 'object',
                 properties: {
-                    order_id: { type: 'string', description: 'The Order ID UUID' }
+                    order_id: { type: 'string', description: 'ID de la commande (UUID)' }
                 },
                 required: ['order_id']
             }
@@ -84,12 +84,12 @@ IMPORTANT FOR PRODUCTS WITH VARIANTS:
         type: 'function',
         function: {
             name: 'send_image',
-            description: 'Send an image of a product. Use ONLY when user explicitly asks to see a product or during a sales pitch. DO NOT use when checking order status.',
+            description: 'Envoyer l\'image d\'un produit au client.',
             parameters: {
                 type: 'object',
                 properties: {
-                    product_name: { type: 'string', description: 'The name of the product to show' },
-                    variant_value: { type: 'string', description: 'Optional: Specific variant option (e.g., "Rouge", "Bleu", "XL") to show variant-specific image if available' }
+                    product_name: { type: 'string', description: 'Nom du produit' },
+                    variant_value: { type: 'string', description: 'Variante spécifique (optionnel)' }
                 },
                 required: ['product_name']
             }
@@ -99,17 +99,17 @@ IMPORTANT FOR PRODUCTS WITH VARIANTS:
         type: 'function',
         function: {
             name: 'create_booking',
-            description: 'Create a booking/reservation for a SERVICE (not physical products). Use this when the user wants to book a service like consultation, installation, maintenance, etc. This is different from create_order which is for products.',
+            description: 'Créer une réservation pour un service.',
             parameters: {
                 type: 'object',
                 properties: {
-                    service_name: { type: 'string', description: 'Name of the service from the catalog' },
-                    customer_phone: { type: 'string', description: 'Customer phone number (required)' },
-                    customer_name: { type: 'string', description: 'Customer name' },
-                    preferred_date: { type: 'string', description: 'Preferred date for the service (YYYY-MM-DD format)' },
-                    preferred_time: { type: 'string', description: 'Preferred time (HH:MM format, e.g., 14:00)' },
-                    location: { type: 'string', description: 'Location for the service (address or "remote/online")' },
-                    notes: { type: 'string', description: 'Special requirements or additional details' }
+                    service_name: { type: 'string', description: 'Nom du service' },
+                    customer_phone: { type: 'string', description: 'Téléphone du client' },
+                    customer_name: { type: 'string', description: 'Nom du client' },
+                    preferred_date: { type: 'string', description: 'Date souhaitée (YYYY-MM-DD)' },
+                    preferred_time: { type: 'string', description: 'Heure souhaitée (HH:MM)' },
+                    location: { type: 'string', description: 'Lieu du service' },
+                    notes: { type: 'string', description: 'Notes supplémentaires' }
                 },
                 required: ['service_name', 'customer_phone', 'preferred_date']
             }
@@ -117,65 +117,100 @@ IMPORTANT FOR PRODUCTS WITH VARIANTS:
     }
 ]
 
+// ═══════════════════════════════════════════════════════════════
+// 🔧 HELPER : MATCHING FLEXIBLE DES VARIANTES (EXPORTÉ)
+// ═══════════════════════════════════════════════════════════════
+
 /**
- * 🔧 HELPER : Matching flexible des options de variantes
- * "Petite" doit matcher "Petite (50g)"
- * "Or Premium" doit matcher "Or Premium"
+ * Trouve l'option correspondante avec matching flexible
+ * "Petite" matche "Petite (50g)"
+ * "Or Premium" matche "Or Premium"
+ * 
+ * @param {Object} variant - L'objet variante du produit
+ * @param {string} selectedValue - La valeur envoyée par l'IA
+ * @returns {Object|string|null} - L'option trouvée ou null
  */
 function findMatchingOption(variant, selectedValue) {
+    if (!selectedValue || !variant.options) return null
+    
     const selectedLower = selectedValue.toLowerCase().trim()
     
     for (const option of variant.options) {
         const optValue = (typeof option === 'string') ? option : (option.value || option.name || '')
         const optValueLower = optValue.toLowerCase().trim()
         
-        // Matching flexible :
+        // Matching flexible (ordre de priorité) :
         // 1. Égalité exacte
-        // 2. L'option commence par la valeur sélectionnée
-        // 3. La valeur sélectionnée commence par l'option (cas inverse)
-        // 4. L'option contient la valeur sélectionnée
-        if (
-            optValueLower === selectedLower ||
-            optValueLower.startsWith(selectedLower) ||
-            selectedLower.startsWith(optValueLower) ||
-            optValueLower.includes(selectedLower)
-        ) {
-            console.log(`      🎯 Match trouvé: "${selectedValue}" → "${optValue}"`)
+        if (optValueLower === selectedLower) {
+            return option
+        }
+        // 2. L'option commence par la valeur ("Petite (50g)".startsWith("petite"))
+        if (optValueLower.startsWith(selectedLower)) {
+            return option
+        }
+        // 3. La valeur commence par l'option
+        if (selectedLower.startsWith(optValueLower)) {
+            return option
+        }
+        // 4. L'option contient la valeur
+        if (optValueLower.includes(selectedLower)) {
             return option
         }
     }
     
-    console.log(`      ❌ Pas de match pour "${selectedValue}" dans [${variant.options.map(o => typeof o === 'string' ? o : o.value).join(', ')}]`)
     return null
 }
 
 /**
- * Tool Executor v2.6
+ * Récupère la valeur affichable d'une option
  */
+function getOptionValue(option) {
+    return (typeof option === 'string') ? option : (option.value || option.name || '')
+}
+
+/**
+ * Récupère le prix d'une option
+ */
+function getOptionPrice(option) {
+    return (typeof option === 'string') ? 0 : (option.price || 0)
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 🔧 TOOL EXECUTOR
+// ═══════════════════════════════════════════════════════════════
+
 async function handleToolCall(toolCall, agentId, customerPhone, products, conversationId, supabase, activeSessions, CinetPay) {
     
+    // ═══════════════════════════════════════════════════════════
+    // CREATE ORDER
+    // ═══════════════════════════════════════════════════════════
     if (toolCall.function.name === 'create_order') {
         try {
             console.log('🛠️ Executing tool: create_order')
             const args = JSON.parse(toolCall.function.arguments)
             const { items, customer_name, customer_phone, delivery_address, email, payment_method, notes } = args
 
+            // Préparer les notes
             let finalNotes = notes || ''
-            if (email) {
-                finalNotes += `\n📧 Email client: ${email}`
-            }
+            if (email) finalNotes += `\n📧 Email: ${email}`
 
+            // Récupérer l'agent
             const { data: agent } = await supabase
                 .from('agents')
                 .select('user_id, payment_mode, mobile_money_orange, mobile_money_mtn, mobile_money_wave, custom_payment_methods')
                 .eq('id', agentId)
                 .single()
+            
             if (!agent) throw new Error('Agent not found')
 
             let total = 0
             const orderItems = []
 
+            // Traiter chaque item
             for (const item of items) {
+                console.log(`\n📦 Traitement: "${item.product_name}" x${item.quantity}`)
+                
+                // Recherche du produit (scoring)
                 const searchTerms = item.product_name.toLowerCase().split(' ').filter(w => w.length > 2)
                 const searchName = item.product_name.toLowerCase()
 
@@ -187,19 +222,11 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                     const productText = `${p.name} ${p.description || ''} ${p.ai_instructions || ''}`.toLowerCase()
                     let score = 0
 
-                    if (productName === searchName) {
-                        score = 100
-                    }
-                    else if (searchName.includes(productName) || productName.includes(searchName)) {
-                        score = 50
-                    }
+                    if (productName === searchName) score = 100
+                    else if (searchName.includes(productName) || productName.includes(searchName)) score = 50
                     else {
-                        const nameMatchCount = searchTerms.filter(term => productName.includes(term)).length
-                        score = nameMatchCount * 10
-                        if (score < 20) {
-                            const descMatchCount = searchTerms.filter(term => productText.includes(term)).length
-                            score += descMatchCount * 2
-                        }
+                        score = searchTerms.filter(term => productName.includes(term)).length * 10
+                        if (score < 20) score += searchTerms.filter(term => productText.includes(term)).length * 2
                     }
 
                     if (score > bestScore) {
@@ -210,130 +237,129 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
 
                 const product = bestScore >= 10 ? bestProduct : null
 
-                if (product) {
-                    let price = product.price_fcfa || 0
-                    let matchedVariantOption = null
+                if (!product) {
+                    console.log(`   ❌ Produit non trouvé`)
+                    return JSON.stringify({
+                        success: false,
+                        error: `Produit "${item.product_name}" non trouvé. Disponibles: ${products.map(p => p.name).join(', ')}`
+                    })
+                }
 
-                    // ═══════════════════════════════════════════════════════
-                    // 🔧 FIX v2.6 : MATCHING FLEXIBLE DES VARIANTES
-                    // ═══════════════════════════════════════════════════════
-                    if (product.variants && product.variants.length > 0) {
-                        const matchedVariantsByType = {}
+                console.log(`   ✅ Produit trouvé: "${product.name}" (score: ${bestScore})`)
+                
+                let price = product.price_fcfa || 0
+                let matchedVariantOption = null
 
-                        console.log(`   📋 Produit "${product.name}" a ${product.variants.length} variante(s)`)
+                // ═══════════════════════════════════════════════════════
+                // GESTION DES VARIANTES
+                // ═══════════════════════════════════════════════════════
+                if (product.variants && product.variants.length > 0) {
+                    console.log(`   📋 ${product.variants.length} variante(s) requise(s)`)
+                    const matchedVariantsByType = {}
 
-                        // 📌 MÉTHODE 1 : Utiliser selected_variants (PRIORITAIRE)
-                        if (item.selected_variants && typeof item.selected_variants === 'object') {
-                            console.log('   📦 Using selected_variants:', item.selected_variants)
+                    // MÉTHODE 1 : Via selected_variants (prioritaire)
+                    if (item.selected_variants && typeof item.selected_variants === 'object') {
+                        console.log(`   📦 selected_variants reçu:`, item.selected_variants)
 
-                            for (const variant of product.variants) {
-                                const variantNameLower = variant.name.toLowerCase()
-                                console.log(`      Cherche variante "${variant.name}"...`)
-
-                                // Chercher dans selected_variants (case insensitive)
-                                const selectedEntry = Object.entries(item.selected_variants).find(
-                                    ([key]) => key.toLowerCase() === variantNameLower
-                                )
-                                
-                                const selectedValue = selectedEntry ? selectedEntry[1] : null
-
-                                if (selectedValue) {
-                                    console.log(`      Valeur envoyée: "${selectedValue}"`)
-                                    
-                                    // 🔧 FIX v2.6 : Matching flexible
-                                    const validOption = findMatchingOption(variant, selectedValue)
-
-                                    if (validOption) {
-                                        const optionPrice = (typeof validOption === 'string') ? 0 : (validOption.price || 0)
-                                        if (variant.type === 'fixed') {
-                                            price = optionPrice
-                                        } else {
-                                            price += optionPrice
-                                        }
-                                        const optionValue = (typeof validOption === 'string') ? validOption : (validOption.value || validOption.name)
-                                        matchedVariantsByType[variant.name] = optionValue
-                                        console.log(`      ✅ Variant matched: ${variant.name} = "${optionValue}" (prix: ${optionPrice})`)
-                                    } else {
-                                        console.log(`      ❌ Option "${selectedValue}" invalide pour ${variant.name}`)
-                                    }
-                                } else {
-                                    console.log(`      ⚠️ Variante "${variant.name}" non trouvée dans selected_variants`)
-                                }
-                            }
-                        }
-
-                        // 📌 MÉTHODE 2 : Fallback - Chercher dans product_name
                         for (const variant of product.variants) {
-                            if (matchedVariantsByType[variant.name]) continue
+                            const variantNameLower = variant.name.toLowerCase()
+                            
+                            // Chercher la valeur envoyée
+                            const selectedEntry = Object.entries(item.selected_variants).find(
+                                ([key]) => key.toLowerCase() === variantNameLower
+                            )
+                            const selectedValue = selectedEntry ? selectedEntry[1] : null
 
-                            for (const option of variant.options) {
-                                const optionValue = (typeof option === 'string') ? option : (option.value || option.name || '')
+                            if (selectedValue) {
+                                // 🎯 Matching flexible
+                                const validOption = findMatchingOption(variant, selectedValue)
 
-                                if (optionValue && item.product_name.toLowerCase().includes(optionValue.toLowerCase())) {
-                                    const optionPrice = (typeof option === 'string') ? 0 : (option.price || 0)
+                                if (validOption) {
+                                    const optionPrice = getOptionPrice(validOption)
+                                    const optionValue = getOptionValue(validOption)
+                                    
                                     if (variant.type === 'fixed') {
                                         price = optionPrice
                                     } else {
                                         price += optionPrice
                                     }
+                                    
                                     matchedVariantsByType[variant.name] = optionValue
-                                    console.log(`      ✅ Variant found in product_name: ${variant.name} = "${optionValue}"`)
-                                    break
+                                    console.log(`      ✅ ${variant.name}: "${selectedValue}" → "${optionValue}" (+${optionPrice} FCFA)`)
+                                } else {
+                                    const options = variant.options.map(o => getOptionValue(o)).join(', ')
+                                    console.log(`      ❌ "${selectedValue}" invalide pour ${variant.name}. Options: ${options}`)
                                 }
+                            } else {
+                                console.log(`      ⚠️ ${variant.name} non fourni dans selected_variants`)
                             }
                         }
-
-                        // Vérifier les variantes manquantes
-                        const unMatchedVariants = product.variants.filter(v => !matchedVariantsByType[v.name])
-
-                        if (unMatchedVariants.length > 0) {
-                            console.log('   ❌ Missing variant types:', unMatchedVariants.map(v => v.name).join(', '))
-                            const missingOptions = unMatchedVariants.map(v =>
-                                `${v.name}: ${v.options.map(o => typeof o === 'string' ? o : (o.value || o.name)).join(', ')}`
-                            ).join(' | ')
-
-                            return JSON.stringify({
-                                success: false,
-                                error: `VARIANTES MANQUANTES pour "${product.name}". Demandez au client: ${missingOptions}`,
-                                product_name: product.name,
-                                missing_variants: unMatchedVariants.map(v => ({
-                                    name: v.name,
-                                    options: v.options.map(o => typeof o === 'string' ? o : (o.value || o.name))
-                                })),
-                                hint: 'Utilisez "selected_variants" dans items. Exemple: {"Taille": "Moyenne", "Couleur": "Bleu Marine"}'
-                            })
-                        }
-                        
-                        matchedVariantOption = Object.values(matchedVariantsByType).join(', ')
-                        console.log(`   ✅ Toutes les variantes matchées: ${matchedVariantOption}`)
                     }
 
-                    total += price * item.quantity
-                    orderItems.push({
-                        product_name: matchedVariantOption
-                            ? `${product.name} (${matchedVariantOption})`
-                            : product.name,
-                        product_description: product.description,
-                        quantity: item.quantity,
-                        unit_price_fcfa: price
-                    })
-                    
-                    console.log(`   💰 Item ajouté: ${item.quantity}x "${orderItems[orderItems.length-1].product_name}" @ ${price} FCFA`)
+                    // MÉTHODE 2 : Fallback - chercher dans product_name
+                    for (const variant of product.variants) {
+                        if (matchedVariantsByType[variant.name]) continue
+
+                        for (const option of variant.options) {
+                            const optValue = getOptionValue(option)
+                            if (optValue && item.product_name.toLowerCase().includes(optValue.toLowerCase())) {
+                                const optionPrice = getOptionPrice(option)
+                                if (variant.type === 'fixed') price = optionPrice
+                                else price += optionPrice
+                                matchedVariantsByType[variant.name] = optValue
+                                console.log(`      ✅ ${variant.name} trouvé dans nom: "${optValue}"`)
+                                break
+                            }
+                        }
+                    }
+
+                    // Vérifier les variantes manquantes
+                    const missingVariants = product.variants.filter(v => !matchedVariantsByType[v.name])
+
+                    if (missingVariants.length > 0) {
+                        const missingList = missingVariants.map(v => {
+                            const opts = v.options.map(o => getOptionValue(o)).join(', ')
+                            return `${v.name}: [${opts}]`
+                        }).join(' | ')
+                        
+                        console.log(`   ❌ Variantes manquantes: ${missingVariants.map(v => v.name).join(', ')}`)
+                        
+                        return JSON.stringify({
+                            success: false,
+                            error: `VARIANTES MANQUANTES pour "${product.name}". Demandez: ${missingList}`,
+                            missing_variants: missingVariants.map(v => ({
+                                name: v.name,
+                                options: v.options.map(o => getOptionValue(o))
+                            })),
+                            hint: 'Utilisez selected_variants. Exemple: {"Taille": "Petite"}'
+                        })
+                    }
+
+                    matchedVariantOption = Object.values(matchedVariantsByType).join(', ')
+                    console.log(`   ✅ Toutes variantes OK: ${matchedVariantOption}`)
                     
                 } else {
-                    console.log('❌ Product not found in catalog:', item.product_name)
-                    const availableProducts = products.map(p => p.name).join(', ')
-                    return JSON.stringify({
-                        success: false,
-                        error: `Je ne trouve pas "${item.product_name}" dans notre catalogue. Voici nos produits disponibles : ${availableProducts}`,
-                        available_products: products.map(p => p.name)
-                    })
+                    // FIX #4 : Log pour produits sans variantes
+                    console.log(`   ℹ️ Pas de variantes requises`)
                 }
+
+                // Ajouter à la commande
+                total += price * item.quantity
+                orderItems.push({
+                    product_name: matchedVariantOption 
+                        ? `${product.name} (${matchedVariantOption})`
+                        : product.name,
+                    product_description: product.description,
+                    quantity: item.quantity,
+                    unit_price_fcfa: price
+                })
+                
+                console.log(`   💰 ${item.quantity}x @ ${price} FCFA = ${price * item.quantity} FCFA`)
             }
 
+            // Créer la commande
             const normalizedPhone = normalizePhoneNumber(customer_phone || customerPhone)
-
-            console.log(`📝 Création commande: ${orderItems.length} items, Total: ${total} FCFA`)
+            console.log(`\n📝 Création commande: ${orderItems.length} items, Total: ${total} FCFA`)
 
             const { data: order, error } = await supabase
                 .from('orders')
@@ -354,14 +380,16 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
 
             if (error) throw error
 
+            // Ajouter les items
             if (orderItems.length > 0) {
                 await supabase.from('order_items').insert(
                     orderItems.map(i => ({ ...i, order_id: order.id }))
                 )
             }
 
-            console.log(`✅ Order created: ${order.id}`)
+            console.log(`✅ Commande créée: ${order.id}`)
 
+            // Préparer la réponse selon le mode de paiement
             const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://whatsai.duckdns.org'
 
             if (payment_method === 'cod') {
@@ -369,7 +397,7 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                     success: true,
                     order_id: order.id,
                     payment_method: 'cod',
-                    message: `Commande #${order.id.substring(0, 8)} créée. Total: ${total} FCFA. Paiement à la livraison.`
+                    message: `✅ Commande #${order.id.substring(0, 8)} créée ! Total: ${total} FCFA. Paiement à la livraison.`
                 })
             }
 
@@ -385,24 +413,22 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                     total: total,
                     payment_method: 'mobile_money_direct',
                     payment_methods: paymentMethods,
-                    message: `Commande #${order.id.substring(0, 8)} créée. Total: ${total} FCFA. Envoyez le paiement puis la capture d'écran.`
+                    message: `✅ Commande #${order.id.substring(0, 8)} créée ! Total: ${total} FCFA. Envoyez le paiement puis la capture d'écran.`
                 })
             }
 
-            // CinetPay
-            let paymentLink = `${appUrl}/pay/${order.id}`
-
+            // CinetPay (défaut)
             return JSON.stringify({
                 success: true,
                 order_id: order.id,
                 total: total,
                 payment_method: 'online',
-                payment_link: paymentLink,
-                message: `Commande #${order.id.substring(0, 8)} créée. Total: ${total} FCFA.`
+                payment_link: `${appUrl}/pay/${order.id}`,
+                message: `✅ Commande #${order.id.substring(0, 8)} créée ! Total: ${total} FCFA.`
             })
 
         } catch (error) {
-            console.error('Create Order Error:', error)
+            console.error('❌ Create Order Error:', error)
             return JSON.stringify({
                 success: false,
                 error: error.message || 'Erreur lors de la création de la commande'
@@ -410,6 +436,9 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
         }
     }
 
+    // ═══════════════════════════════════════════════════════════
+    // CHECK PAYMENT STATUS
+    // ═══════════════════════════════════════════════════════════
     if (toolCall.function.name === 'check_payment_status') {
         try {
             console.log('🛠️ Executing tool: check_payment_status')
@@ -423,49 +452,33 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                 .single()
 
             if (error || !order) {
-                return JSON.stringify({
-                    success: false,
-                    error: `Commande ${order_id} introuvable.`
-                })
+                return JSON.stringify({ success: false, error: `Commande ${order_id} introuvable.` })
             }
 
-            let statusMessage = ''
-            switch (order.status) {
-                case 'pending':
-                    statusMessage = `⏳ Paiement en attente pour la commande #${order.id.substring(0, 8)}. Total: ${order.total_fcfa} FCFA.`
-                    break
-                case 'paid':
-                    statusMessage = `✅ Paiement confirmé ! Commande #${order.id.substring(0, 8)} en cours de traitement.`
-                    break
-                case 'pending_delivery':
-                    statusMessage = `📦 Commande #${order.id.substring(0, 8)} en cours de livraison.`
-                    break
-                case 'delivered':
-                    statusMessage = `🎉 Commande #${order.id.substring(0, 8)} livrée avec succès !`
-                    break
-                case 'cancelled':
-                    statusMessage = `❌ Commande #${order.id.substring(0, 8)} annulée.`
-                    break
-                default:
-                    statusMessage = `Statut: ${order.status}`
+            const statusMessages = {
+                'pending': `⏳ En attente de paiement. Total: ${order.total_fcfa} FCFA.`,
+                'paid': `✅ Paiement confirmé ! En cours de traitement.`,
+                'pending_delivery': `📦 En cours de livraison.`,
+                'delivered': `🎉 Livrée avec succès !`,
+                'cancelled': `❌ Commande annulée.`
             }
 
             return JSON.stringify({
                 success: true,
                 order_id: order.id,
                 status: order.status,
-                message: statusMessage
+                message: `Commande #${order.id.substring(0, 8)} : ${statusMessages[order.status] || order.status}`
             })
 
         } catch (error) {
-            console.error('Check Payment Error:', error)
-            return JSON.stringify({
-                success: false,
-                error: 'Erreur lors de la vérification du paiement.'
-            })
+            console.error('❌ Check Payment Error:', error)
+            return JSON.stringify({ success: false, error: 'Erreur lors de la vérification.' })
         }
     }
 
+    // ═══════════════════════════════════════════════════════════
+    // SEND IMAGE
+    // ═══════════════════════════════════════════════════════════
     if (toolCall.function.name === 'send_image') {
         try {
             console.log('🛠️ Executing tool: send_image')
@@ -473,30 +486,19 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
             const { product_name, variant_value } = args
 
             const searchName = product_name.toLowerCase()
-            let bestProduct = null
-            let bestScore = 0
-
-            for (const p of products) {
-                const productName = p.name.toLowerCase()
-                let score = 0
-                if (productName === searchName) score = 100
-                else if (searchName.includes(productName) || productName.includes(searchName)) score = 50
-                if (score > bestScore) {
-                    bestScore = score
-                    bestProduct = p
-                }
-            }
-
-            const product = bestScore >= 10 ? bestProduct : null
+            const product = products.find(p => 
+                p.name.toLowerCase() === searchName ||
+                searchName.includes(p.name.toLowerCase()) ||
+                p.name.toLowerCase().includes(searchName)
+            )
 
             if (!product) {
-                return JSON.stringify({
-                    success: false,
-                    error: `Produit "${product_name}" introuvable.`
-                })
+                return JSON.stringify({ success: false, error: `Produit "${product_name}" introuvable.` })
             }
 
             let imageUrl = product.image_url
+
+            // Chercher image de variante si spécifiée
             if (variant_value && product.variants) {
                 for (const variant of product.variants) {
                     for (const opt of variant.options) {
@@ -512,10 +514,7 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
             }
 
             if (!imageUrl) {
-                return JSON.stringify({
-                    success: false,
-                    error: `Pas d'image disponible pour "${product.name}".`
-                })
+                return JSON.stringify({ success: false, error: `Pas d'image pour "${product.name}".` })
             }
 
             return JSON.stringify({
@@ -527,14 +526,14 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
             })
 
         } catch (error) {
-            console.error('Send Image Error:', error)
-            return JSON.stringify({
-                success: false,
-                error: 'Erreur lors de l\'envoi de l\'image.'
-            })
+            console.error('❌ Send Image Error:', error)
+            return JSON.stringify({ success: false, error: 'Erreur lors de l\'envoi.' })
         }
     }
 
+    // ═══════════════════════════════════════════════════════════
+    // CREATE BOOKING
+    // ═══════════════════════════════════════════════════════════
     if (toolCall.function.name === 'create_booking') {
         try {
             console.log('🛠️ Executing tool: create_booking')
@@ -553,26 +552,23 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
             const service = services.find(s => s.name.toLowerCase().includes(service_name.toLowerCase()))
 
             if (!service) {
-                const availableServices = services.map(s => s.name).join(', ')
                 return JSON.stringify({
                     success: false,
-                    error: `Service "${service_name}" non trouvé. Services disponibles : ${availableServices || 'Aucun'}`
+                    error: `Service "${service_name}" non trouvé. Disponibles: ${services.map(s => s.name).join(', ') || 'Aucun'}`
                 })
             }
-
-            const normalizedPhone = normalizePhoneNumber(customer_phone)
 
             const { data: booking, error } = await supabase
                 .from('bookings')
                 .insert({
                     user_id: agent.user_id,
                     agent_id: agentId,
-                    customer_phone: normalizedPhone,
+                    customer_phone: normalizePhoneNumber(customer_phone),
                     customer_name: customer_name || null,
                     service_name: service.name,
                     service_id: service.id,
                     price_fcfa: service.price_fcfa || 0,
-                    preferred_date: preferred_date,
+                    preferred_date,
                     preferred_time: preferred_time || null,
                     location: location || null,
                     notes: notes || null,
@@ -587,19 +583,26 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
             return JSON.stringify({
                 success: true,
                 booking_id: booking.id,
-                message: `📅 Réservation créée ! Service: ${service.name}, Date: ${preferred_date}`
+                message: `📅 Réservation créée ! ${service.name} le ${preferred_date}${preferred_time ? ` à ${preferred_time}` : ''}.`
             })
 
         } catch (error) {
-            console.error('Booking Error:', error)
-            return JSON.stringify({
-                success: false,
-                error: error.message || 'Erreur lors de la réservation'
-            })
+            console.error('❌ Booking Error:', error)
+            return JSON.stringify({ success: false, error: error.message || 'Erreur lors de la réservation' })
         }
     }
 
-    return JSON.stringify({ success: false, error: 'Unknown tool' })
+    return JSON.stringify({ success: false, error: 'Outil inconnu' })
 }
 
-module.exports = { TOOLS, handleToolCall }
+// ═══════════════════════════════════════════════════════════════
+// EXPORTS
+// ═══════════════════════════════════════════════════════════════
+
+module.exports = { 
+    TOOLS, 
+    handleToolCall,
+    findMatchingOption,  // Exporté pour le pre-check dans generator.js
+    getOptionValue,
+    getOptionPrice
+}

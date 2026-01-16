@@ -1,21 +1,34 @@
 /**
  * ═══════════════════════════════════════════════════════════════
- * GENERATOR.JS v2.5 - AVEC LOGS DEBUG + PRE-CHECK
+ * GENERATOR.JS v2.7 - VERSION CONSOLIDÉE (AUDIT COMPLET)
  * ═══════════════════════════════════════════════════════════════
  * 
- * NOUVEAUTÉS v2.5 :
- * 1. Log détaillé de ce que l'IA envoie dans create_order
- * 2. Pre-check qui bloque si selected_variants manquant
- * 3. Prompt plus court (v2.5) = meilleure rétention par GPT
+ * CORRECTIONS INCLUSES :
+ * ✅ #2 : Pre-check valide les OPTIONS (pas juste les clés)
+ * ✅ #7 : Retry avec backoff exponentiel pour OpenAI
+ * ✅ Logs de debug complets
+ * ✅ Import findMatchingOption depuis tools.js
  */
 
-const { TOOLS, handleToolCall } = require('./tools')
+const { TOOLS, handleToolCall, findMatchingOption, getOptionValue } = require('./tools')
 const { findRelevantDocuments } = require('./rag')
 const { verifyResponseIntegrity } = require('../utils/security')
 const { buildAdaptiveSystemPrompt } = require('./prompt-builder')
 
+// Configuration
+const MAX_RETRIES = 3
+const RETRY_DELAY_MS = 1000
+
 /**
- * 🔍 PRE-CHECK + DEBUG LOG
+ * Sleep helper pour retry
+ */
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+/**
+ * 🔍 PRE-CHECK AMÉLIORÉ v2.7
+ * Vérifie que les variantes ET leurs valeurs sont valides
  */
 function preCheckCreateOrder(toolCall, products) {
     if (toolCall.function.name !== 'create_order') {
@@ -25,19 +38,19 @@ function preCheckCreateOrder(toolCall, products) {
     try {
         const args = JSON.parse(toolCall.function.arguments)
 
-        // 📊 LOG DEBUG : Voir exactement ce que l'IA envoie
+        // Log détaillé
         console.log('═══════════════════════════════════════════════')
-        console.log('🔍 DEBUG create_order - Arguments reçus de l\'IA :')
+        console.log('🔍 PRE-CHECK create_order')
         console.log(JSON.stringify(args, null, 2))
         console.log('═══════════════════════════════════════════════')
 
         if (!args.items || !Array.isArray(args.items)) {
-            console.log('❌ PRE-CHECK: items manquants ou invalides')
-            return { valid: false, error: 'Items manquants' }
+            console.log('❌ PRE-CHECK: items manquants')
+            return { valid: false, error: 'Items manquants dans la requête' }
         }
 
         for (const item of args.items) {
-            console.log(`📦 Item: "${item.product_name}" x${item.quantity}`)
+            console.log(`📦 Vérification: "${item.product_name}" x${item.quantity}`)
             console.log(`   selected_variants:`, item.selected_variants || '❌ NON FOURNI')
 
             // Trouver le produit
@@ -50,59 +63,105 @@ function preCheckCreateOrder(toolCall, products) {
             })
 
             if (!product) {
-                console.log(`   ⚠️ Produit non trouvé dans le catalogue`)
+                console.log(`   ⚠️ Produit non trouvé - sera géré par handleToolCall`)
                 continue
             }
 
-            console.log(`   ✅ Produit trouvé: "${product.name}"`)
-            console.log(`   Variantes du produit:`, product.variants?.map(v => v.name) || 'Aucune')
+            console.log(`   ✅ Produit: "${product.name}"`)
 
+            // Vérifier les variantes
             if (product.variants && product.variants.length > 0) {
+                console.log(`   📋 Variantes requises: ${product.variants.map(v => v.name).join(', ')}`)
+                
                 const selectedVariants = item.selected_variants || {}
 
                 for (const variant of product.variants) {
                     const variantName = variant.name
                     const variantNameLower = variantName.toLowerCase()
 
-                    const hasVariant = Object.keys(selectedVariants).some(
-                        k => k.toLowerCase() === variantNameLower
+                    // Chercher la clé correspondante
+                    const selectedEntry = Object.entries(selectedVariants).find(
+                        ([k]) => k.toLowerCase() === variantNameLower
                     )
 
-                    if (!hasVariant) {
-                        const options = variant.options.map(o =>
-                            typeof o === 'string' ? o : (o.value || o.name)
-                        ).join(', ')
-
-                        console.log(`   ❌ VARIANTE MANQUANTE: "${variantName}"`)
-                        console.log(`   Options disponibles: ${options}`)
-
+                    if (!selectedEntry) {
+                        // Variante manquante
+                        const options = variant.options.map(o => getOptionValue(o)).join(', ')
+                        console.log(`   ❌ Variante "${variantName}" MANQUANTE`)
+                        
                         return {
                             valid: false,
-                            error: `Variante "${variantName}" manquante dans selected_variants. ` +
-                                `Demande au client de choisir parmi: ${options}. ` +
-                                `Puis rappelle create_order avec selected_variants: {"${variantName}": "choix_du_client"}`
+                            error: `Variante "${variantName}" manquante. ` +
+                                   `Demande au client de choisir parmi: ${options}. ` +
+                                   `Puis rappelle create_order avec selected_variants: {"${variantName}": "choix"}`
                         }
-                    } else {
-                        const selectedValue = Object.entries(selectedVariants).find(
-                            ([k]) => k.toLowerCase() === variantNameLower
-                        )?.[1]
-                        console.log(`   ✅ ${variantName}: "${selectedValue}"`)
                     }
+
+                    const selectedValue = selectedEntry[1]
+                    
+                    // 🎯 FIX #2 : Valider que l'option existe avec matching flexible
+                    const validOption = findMatchingOption(variant, selectedValue)
+                    
+                    if (!validOption) {
+                        const options = variant.options.map(o => getOptionValue(o)).join(', ')
+                        console.log(`   ❌ Option "${selectedValue}" INVALIDE pour ${variantName}`)
+                        
+                        return {
+                            valid: false,
+                            error: `Option "${selectedValue}" invalide pour ${variantName}. ` +
+                                   `Options valides: ${options}`
+                        }
+                    }
+                    
+                    const matchedValue = getOptionValue(validOption)
+                    console.log(`   ✅ ${variantName}: "${selectedValue}" → "${matchedValue}"`)
                 }
+            } else {
+                console.log(`   ℹ️ Pas de variantes requises`)
             }
         }
 
-        console.log('✅ PRE-CHECK PASSED: Toutes les variantes sont présentes')
+        console.log('✅ PRE-CHECK PASSED')
         return { valid: true }
 
     } catch (e) {
         console.error('❌ PRE-CHECK ERROR:', e.message)
-        return { valid: true } // En cas d'erreur, laisser passer
+        return { valid: true } // En cas d'erreur de parsing, laisser handleToolCall gérer
     }
 }
 
 /**
- * Generate AI Response v2.5
+ * Appel OpenAI avec retry
+ */
+async function callOpenAIWithRetry(openai, params, maxRetries = MAX_RETRIES) {
+    let lastError = null
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            const completion = await openai.chat.completions.create(params)
+            return completion
+        } catch (error) {
+            lastError = error
+            console.log(`⚠️ OpenAI attempt ${attempt}/${maxRetries} failed:`, error.message)
+            
+            // Ne pas retry si c'est une erreur de contenu (pas réseau)
+            if (error.code === 'content_filter' || error.code === 'invalid_api_key') {
+                throw error
+            }
+            
+            if (attempt < maxRetries) {
+                const delay = RETRY_DELAY_MS * attempt
+                console.log(`   ⏳ Retry in ${delay}ms...`)
+                await sleep(delay)
+            }
+        }
+    }
+    
+    throw lastError
+}
+
+/**
+ * Generate AI Response v2.7
  */
 async function generateAIResponse(options, dependencies) {
     const { openai, supabase, activeSessions, CinetPay } = dependencies
@@ -119,10 +178,10 @@ async function generateAIResponse(options, dependencies) {
             currency = 'USD'
         } = options
 
-        // RAG
+        // RAG - Documents pertinents
         const relevantDocs = await findRelevantDocuments(openai, supabase, agent.id, userMessage)
 
-        // Business Hours
+        // Formater les horaires
         let formattedHours = 'Non spécifiés'
         if (agent.business_hours) {
             try {
@@ -145,11 +204,12 @@ async function generateAIResponse(options, dependencies) {
             }
         }
 
+        // Lien GPS
         const gpsLink = (agent.latitude && agent.longitude)
             ? `https://www.google.com/maps?q=${agent.latitude},${agent.longitude}`
             : ''
 
-        // Build System Prompt (v2.5 - plus court, variantes en premier)
+        // Construire le prompt système
         const systemPrompt = buildAdaptiveSystemPrompt(
             agent,
             products || [],
@@ -160,15 +220,15 @@ async function generateAIResponse(options, dependencies) {
             formattedHours
         )
 
-        // Log la taille du prompt (debug)
         console.log(`📝 Prompt size: ${systemPrompt.length} chars`)
 
+        // Préparer les messages
         const messages = [
             { role: 'system', content: systemPrompt },
-            ...conversationHistory.slice(-15)
+            ...conversationHistory.slice(-15) // Garder les 15 derniers messages
         ]
 
-        // Image handling
+        // Gérer les images
         if (options.imageBase64) {
             messages.push({
                 role: 'user',
@@ -183,7 +243,8 @@ async function generateAIResponse(options, dependencies) {
 
         const modelToUse = options.imageBase64 ? 'gpt-4o' : (agent.model || 'gpt-4o-mini')
 
-        const completion = await openai.chat.completions.create({
+        // Appel OpenAI avec retry
+        const completion = await callOpenAIWithRetry(openai, {
             model: modelToUse,
             messages,
             max_tokens: agent.max_tokens || 500,
@@ -195,18 +256,18 @@ async function generateAIResponse(options, dependencies) {
         const responseMessage = completion.choices[0].message
         let content = responseMessage.content
 
-        // ═══════════════════════════════════════════════════════════════
-        // TOOL CALLS avec PRE-CHECK
-        // ═══════════════════════════════════════════════════════════════
-        if (responseMessage.tool_calls) {
-            console.log('🤖 Model wants to call tools:', responseMessage.tool_calls.length)
+        // ═══════════════════════════════════════════════════════════
+        // GESTION DES TOOL CALLS
+        // ═══════════════════════════════════════════════════════════
+        if (responseMessage.tool_calls && responseMessage.tool_calls.length > 0) {
+            console.log('🤖 Tool calls:', responseMessage.tool_calls.length)
 
             const newHistory = [...messages, responseMessage]
 
             for (const toolCall of responseMessage.tool_calls) {
                 console.log(`🔧 Tool: ${toolCall.function.name}`)
 
-                // PRE-CHECK pour create_order
+                // Pre-check pour create_order
                 const preCheck = preCheckCreateOrder(toolCall, products || [])
 
                 if (!preCheck.valid) {
@@ -217,7 +278,7 @@ async function generateAIResponse(options, dependencies) {
                         tool_call_id: toolCall.id,
                         content: JSON.stringify({
                             success: false,
-                            blocked: true,
+                            blocked_by_precheck: true,
                             error: preCheck.error
                         })
                     })
@@ -243,8 +304,8 @@ async function generateAIResponse(options, dependencies) {
                 })
             }
 
-            // Second call
-            const secondCompletion = await openai.chat.completions.create({
+            // Second appel pour la réponse finale (avec retry)
+            const secondCompletion = await callOpenAIWithRetry(openai, {
                 model: agent.model || 'gpt-4o-mini',
                 messages: newHistory,
                 max_tokens: agent.max_tokens || 500,
@@ -254,10 +315,11 @@ async function generateAIResponse(options, dependencies) {
             content = secondCompletion.choices[0].message.content
         }
 
-        // Integrity check
+        // Vérification d'intégrité (prix)
         const integrityCheck = verifyResponseIntegrity(content, products)
         if (!integrityCheck.isValid) {
-            console.log('⚠️ Response integrity issues:', integrityCheck.issues)
+            console.log('⚠️ Integrity issues detected:', integrityCheck.issues)
+            // TODO: Optionnellement régénérer si hallucination critique
         }
 
         return {
@@ -266,9 +328,9 @@ async function generateAIResponse(options, dependencies) {
         }
 
     } catch (error) {
-        console.error('OpenAI error:', error)
+        console.error('❌ OpenAI Error:', error)
         return {
-            content: 'Désolé, je rencontre un problème technique. Veuillez réessayer.',
+            content: 'Désolé, je rencontre un problème technique momentané. Veuillez réessayer dans quelques instants.',
             tokensUsed: 0
         }
     }

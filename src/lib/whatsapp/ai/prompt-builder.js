@@ -1,55 +1,45 @@
 /**
  * ═══════════════════════════════════════════════════════════════
- * PROMPT BUILDER v2.5 - VARIANTES EN PREMIER (Fix Priorité GPT)
+ * PROMPT BUILDER v2.7 - VERSION CONSOLIDÉE (AUDIT COMPLET)
  * ═══════════════════════════════════════════════════════════════
  * 
- * CHANGEMENT MAJEUR v2.5 :
- * Les instructions sur selected_variants sont maintenant AU TOUT DÉBUT
- * du prompt, pas au milieu. GPT accorde plus d'importance aux premières
- * instructions qu'à celles du milieu.
- * 
- * STRUCTURE DU PROMPT :
- * 1. 🚨 RÈGLE CRITIQUE : VARIANTES (EN PREMIER !)
- * 2. Identité de l'agent
- * 3. Catalogue (avec rappels variantes)
- * 4. Autres principes
- * 5. Historique client
- * 6. Infos entreprise
+ * CORRECTIONS INCLUSES :
+ * ✅ #6 : Prix "0 FCFA" remplacé par "Prix selon variante"
+ * ✅ Variantes EN PREMIER dans le prompt
+ * ✅ Instructions claires pour selected_variants
+ * ✅ Prompt optimisé (~2500 chars)
  */
 
 function buildAdaptiveSystemPrompt(agent, products, orders, relevantDocs, currency, gpsLink, formattedHours) {
 
     // ═══════════════════════════════════════════════════════════════
-    // 🚨 SECTION 1 : VARIANTES - DOIT ÊTRE EN PREMIER !
+    // 🚨 SECTION 1 : VARIANTES - EN PREMIER !
     // ═══════════════════════════════════════════════════════════════
     const variantsFirst = `
 🚨🚨🚨 RÈGLE ABSOLUE - LIS CECI EN PREMIER 🚨🚨🚨
 
 QUAND TU APPELLES create_order POUR UN PRODUIT AVEC VARIANTES :
-Tu DOIS utiliser le champ "selected_variants" dans chaque item.
+Tu DOIS utiliser "selected_variants" dans chaque item.
 
-EXEMPLE OBLIGATOIRE :
+EXEMPLE :
 {
   "items": [{
-    "product_name": "T-Shirt Premium en coton bio",
+    "product_name": "T-Shirt Premium",
     "quantity": 10,
     "selected_variants": {
       "Taille": "Moyenne",
-      "Couleur": "Bleu Marine"
+      "Couleur": "Bleu"
     }
   }],
-  "customer_name": "Koli Koli",
-  "customer_phone": "2250976536780",
-  "delivery_address": "Port Bouet 2"
+  "customer_name": "Nom Client",
+  "customer_phone": "225XXXXXXXX",
+  "delivery_address": "Adresse"
 }
 
-⛔ SI TU OUBLIES "selected_variants" → LA COMMANDE ÉCHOUERA !
-⛔ NE JAMAIS appeler create_order sans avoir TOUTES les variantes !
-
-AVANT D'APPELER create_order, VÉRIFIE :
-✓ J'ai demandé TOUTES les variantes au client ? (Taille ET Couleur)
-✓ J'ai mis les réponses dans "selected_variants" ?
-✓ Les noms correspondent au catalogue ? ("Taille", "Couleur", etc.)
+⚠️ IMPORTANT :
+- Utilise les noms COURTS des options (ex: "Petite" pas "Petite (50g)")
+- Le système fera le matching automatiquement
+- Si tu oublies selected_variants → LA COMMANDE ÉCHOUERA
 
 🚨🚨🚨 FIN DE LA RÈGLE ABSOLUE 🚨🚨🚨
 `
@@ -58,16 +48,16 @@ AVANT D'APPELER create_order, VÉRIFIE :
     // SECTION 2 : IDENTITÉ
     // ═══════════════════════════════════════════════════════════════
     const identity = `
-Tu es l'assistant IA de ${agent.name}. 
-Langue : ${agent.language || 'français'}. 
-${agent.use_emojis ? 'Utilise des emojis modérément.' : 'Pas d\'emojis.'}
+Tu es l'assistant IA de ${agent.name}.
+Langue : ${agent.language || 'français'}.
+${agent.use_emojis ? 'Utilise des emojis modérément.' : ''}
 
-Ta mission : Transformer chaque conversation en vente réussie.
-Sois concis (max 3-4 phrases par message).
+Mission : Transformer chaque conversation en vente.
+Style : Concis (max 3-4 phrases), amical, professionnel.
 `
 
     // ═══════════════════════════════════════════════════════════════
-    // SECTION 3 : CATALOGUE (avec rappels variantes intégrés)
+    // SECTION 3 : CATALOGUE
     // ═══════════════════════════════════════════════════════════════
     const catalogueSection = buildCatalogueSection(products, currency)
 
@@ -75,28 +65,24 @@ Sois concis (max 3-4 phrases par message).
     // SECTION 4 : ORDRE DE COLLECTE
     // ═══════════════════════════════════════════════════════════════
     const collectOrder = `
-📋 ORDRE DE COLLECTE (respecte cet ordre) :
-
-1. Produit + Quantité → "Combien voulez-vous ?"
-2. VARIANTES (si le produit en a) → "Quelle taille ? Quelle couleur ?"
-3. Nom → "Votre nom complet ?"
-4. Téléphone → "Votre numéro ?"
-5. Adresse → "Adresse de livraison ?"
-6. create_order avec selected_variants ✅
-
-⚠️ Ne saute JAMAIS l'étape 2 si le produit a des variantes !
+📋 ORDRE DE COLLECTE :
+1. Produit + Quantité
+2. Variantes (si applicable) → "Quelle taille ? Quelle couleur ?"
+3. Nom complet
+4. Téléphone (format: 225XXXXXXXX)
+5. Adresse de livraison
+6. → Appeler create_order avec selected_variants
 `
 
     // ═══════════════════════════════════════════════════════════════
-    // SECTION 5 : AUTRES PRINCIPES (condensés)
+    // SECTION 5 : RÈGLES
     // ═══════════════════════════════════════════════════════════════
-    const otherPrinciples = `
-📌 AUTRES RÈGLES :
-
-• TÉLÉPHONE : Accepte tout format, ne bloque jamais.
-• PRIX : Utilise UNIQUEMENT les prix du catalogue. N'invente JAMAIS.
-• ESCALADE : Si client mécontent → "Je transmets à l'équipe."
-• PAIEMENT : Après create_order, suis les instructions retournées.
+    const rules = `
+📌 RÈGLES :
+• TÉLÉPHONE : Accepte tout format, ne bloque jamais
+• PRIX : Utilise UNIQUEMENT les prix du catalogue
+• ESCALADE : Si client mécontent → "Je transmets à l'équipe"
+• PAIEMENT : Suis les instructions retournées par create_order
 `
 
     // ═══════════════════════════════════════════════════════════════
@@ -104,73 +90,103 @@ Sois concis (max 3-4 phrases par message).
     // ═══════════════════════════════════════════════════════════════
     const tools = `
 🔧 OUTILS :
-
-• create_order → Créer commande (⚠️ AVEC selected_variants !)
+• create_order → Créer commande (AVEC selected_variants!)
 • check_payment_status → Vérifier paiement
 • send_image → Montrer un produit
 • create_booking → Réserver un service
 `
 
     // ═══════════════════════════════════════════════════════════════
-    // SECTION 7 : HISTORIQUE & INFOS
+    // SECTION 7 : CONTEXTE
     // ═══════════════════════════════════════════════════════════════
     const clientHistory = buildClientHistory(orders)
     const knowledgeSection = buildKnowledgeSection(relevantDocs)
 
-    const businessInfo = agent.business_address || gpsLink || formattedHours !== 'Non spécifiés'
+    const businessInfo = (agent.business_address || gpsLink || formattedHours !== 'Non spécifiés')
         ? `
-🏢 INFOS ENTREPRISE :
-${agent.business_address ? `Adresse : ${agent.business_address}` : ''}
-${gpsLink ? `GPS : ${gpsLink}` : ''}
-${formattedHours !== 'Non spécifiés' ? `Horaires : ${formattedHours}` : ''}
+🏢 ENTREPRISE :
+${agent.business_address ? `📍 ${agent.business_address}` : ''}
+${gpsLink ? `🗺️ ${gpsLink}` : ''}
+${formattedHours !== 'Non spécifiés' ? `⏰ ${formattedHours}` : ''}
 ` : ''
 
     // ═══════════════════════════════════════════════════════════════
-    // ASSEMBLAGE FINAL - VARIANTES EN PREMIER !
+    // ASSEMBLAGE
     // ═══════════════════════════════════════════════════════════════
     return `${variantsFirst}
 ${identity}
 ${catalogueSection}
 ${collectOrder}
-${otherPrinciples}
+${rules}
 ${tools}
 ${clientHistory}
 ${knowledgeSection}
-${businessInfo}`
+${businessInfo}`.trim()
 }
 
 /**
- * Build Catalogue avec RAPPELS VARIANTES pour chaque produit
+ * Build Catalogue avec gestion intelligente des prix
  */
 function buildCatalogueSection(products, currency) {
     if (!products || products.length === 0) {
-        return `
-📦 CATALOGUE : Aucun produit configuré.
-`
+        return '\n📦 CATALOGUE : Aucun produit configuré.\n'
     }
+
+    const currencySymbol = currency === 'XOF' ? 'FCFA' : currency
 
     const catalogueItems = products.map(p => {
         const typeIcon = p.product_type === 'service' ? '🛎️' :
             p.product_type === 'virtual' ? '💻' : '📦'
 
-        let priceDisplay = p.price_fcfa
-            ? `${p.price_fcfa.toLocaleString()} ${currency === 'XOF' ? 'FCFA' : currency}`
-            : 'Selon variante'
+        // FIX #6 : Gestion intelligente du prix
+        let priceDisplay
+        const hasVariants = p.variants && p.variants.length > 0
+        
+        if (p.price_fcfa && p.price_fcfa > 0) {
+            priceDisplay = `${p.price_fcfa.toLocaleString()} ${currencySymbol}`
+        } else if (hasVariants) {
+            // Chercher le prix min/max des variantes
+            let minPrice = Infinity
+            let maxPrice = 0
+            
+            for (const variant of p.variants) {
+                if (variant.type === 'fixed') {
+                    for (const opt of variant.options) {
+                        const optPrice = (typeof opt === 'object') ? (opt.price || 0) : 0
+                        if (optPrice > 0) {
+                            minPrice = Math.min(minPrice, optPrice)
+                            maxPrice = Math.max(maxPrice, optPrice)
+                        }
+                    }
+                }
+            }
+            
+            if (minPrice !== Infinity && minPrice !== maxPrice) {
+                priceDisplay = `${minPrice.toLocaleString()} - ${maxPrice.toLocaleString()} ${currencySymbol}`
+            } else if (minPrice !== Infinity) {
+                priceDisplay = `${minPrice.toLocaleString()} ${currencySymbol}`
+            } else {
+                priceDisplay = 'Prix selon option'
+            }
+        } else {
+            priceDisplay = 'Gratuit'
+        }
 
-        // VARIANTES avec rappel selected_variants
+        // Variantes
         let variantsInfo = ''
-        if (p.variants && p.variants.length > 0) {
+        if (hasVariants) {
             const variantsList = p.variants.map(v => {
+                // Afficher les noms COURTS des options
                 const opts = v.options.map(o => {
                     if (typeof o === 'string') return o
-                    return o.value || o.name
+                    const val = o.value || o.name || ''
+                    // Extraire le nom court (avant les parenthèses)
+                    return val.split('(')[0].trim()
                 }).join(', ')
                 return `${v.name}: [${opts}]`
             }).join(' | ')
 
-            variantsInfo = `
-   ⚠️ VARIANTES: ${variantsList}
-   → Tu DOIS mettre ces variantes dans selected_variants !`
+            variantsInfo = `\n   ⚠️ VARIANTES: ${variantsList}`
         }
 
         return `• ${p.name} ${typeIcon} - ${priceDisplay}${variantsInfo}`
@@ -184,14 +200,18 @@ ${catalogueItems}
 
 function buildClientHistory(orders) {
     if (!orders || orders.length === 0) {
-        return `📜 CLIENT : Nouveau client.`
+        return '\n📜 CLIENT : Nouveau client\n'
     }
 
     const lastOrder = orders[0]
+    const phone = lastOrder.customer_phone 
+        ? `${lastOrder.customer_phone.substring(0, 8)}***` 
+        : ''
+        
     return `
 📜 CLIENT CONNU :
-Dernière commande : #${lastOrder.id?.substring(0, 8) || '?'} (${lastOrder.status})
-${lastOrder.customer_phone ? `Tél : ${lastOrder.customer_phone.substring(0, 8)}***` : ''}
+• Dernière commande: #${lastOrder.id?.substring(0, 8) || '?'} (${lastOrder.status})
+${phone ? `• Tél: ${phone}` : ''}
 `
 }
 
@@ -199,10 +219,11 @@ function buildKnowledgeSection(relevantDocs) {
     if (!relevantDocs || relevantDocs.length === 0) {
         return ''
     }
-    const docsContent = relevantDocs.slice(0, 3).map(d => `• ${d.content}`).join('\n')
+    
+    const docs = relevantDocs.slice(0, 3).map(d => `• ${d.content}`).join('\n')
     return `
 📚 CONNAISSANCES :
-${docsContent}
+${docs}
 `
 }
 
