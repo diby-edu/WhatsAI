@@ -11,17 +11,19 @@
 
 | Catégorie | Critiques | Majeurs | Mineurs | Total |
 |-----------|-----------|---------|---------|-------|
-| **Sécurité** | 2 | 3 | 2 | 7 |
-| **Fiabilité Bot** | 1 | 3 | 4 | 8 |
-| **Performance** | 0 | 2 | 3 | 5 |
-| **Code Quality** | 0 | 4 | 6 | 10 |
-| **TOTAL** | **3** | **12** | **15** | **30** |
+| **Sécurité** | 0 | 0 | 0 | 0 |
+| **Fiabilité Bot** | 0 | 0 | 0 | 0 |
+| **Performance** | 0 | 0 | 0 | 0 |
+| **Code Quality** | 0 | 0 | 0 | 0 |
+| **TOTAL** | **0** | **0** | **0** | **0** |
+
+> **Mise à jour (16/01/2026)** : Tous les problèmes identifiés ci-dessous ont été traités et résolus.
 
 ---
 
 # 🔴 SECTION 1 : PROBLÈMES CRITIQUES (3)
 
-## CRITIQUE #1 : Race Condition sur Déduction de Crédits
+## CRITIQUE #1 : Race Condition sur Déduction de Crédits [RÉSOLU]
 
 ### Localisation
 `src/lib/whatsapp/services/credits.service.js` - méthode `deductFallback()`
@@ -73,7 +75,7 @@ static async deduct(supabase, userId, amount) {
 
 ---
 
-## CRITIQUE #2 : Sécurité Storage - Suppression par tout utilisateur
+## CRITIQUE #2 : Sécurité Storage - Suppression par tout utilisateur [RÉSOLU]
 
 ### Localisation
 `DB_SCHEMA_EXTRACT.txt` lignes 356-360 - Policy storage
@@ -110,7 +112,7 @@ Cela nécessite que les images soient stockées avec le pattern `{user_id}/filen
 
 ---
 
-## CRITIQUE #3 : Pas de Rate Limiting sur le Bot WhatsApp
+## CRITIQUE #3 : Pas de Rate Limiting sur le Bot WhatsApp [RÉSOLU]
 
 ### Localisation
 `src/lib/whatsapp/handlers/message.js`
@@ -161,7 +163,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage) {
 
 # 🟠 SECTION 2 : PROBLÈMES MAJEURS (12)
 
-## MAJEUR #1 : Reconnexion WhatsApp - Backoff Insuffisant
+## MAJEUR #1 : Reconnexion WhatsApp - Backoff Insuffisant [RÉSOLU]
 
 ### Localisation
 `src/lib/whatsapp/handlers/session.js` lignes ~80-90
@@ -194,7 +196,7 @@ const delay = Math.min(5000 * Math.pow(1.5, attempt - 1), MAX_DELAY)
 
 ---
 
-## MAJEUR #2 : MessagingService non implémenté
+## MAJEUR #2 : MessagingService non implémenté [RÉSOLU]
 
 ### Localisation
 `src/lib/whatsapp/handlers/message.js` ligne 8
@@ -217,7 +219,7 @@ Si inexistant, créer le fichier ou retirer l'import.
 
 ---
 
-## MAJEUR #3 : Historique Conversation Limité à 20 Messages
+## MAJEUR #3 : Historique Conversation Limité à 20 Messages [RÉSOLU]
 
 ### Localisation
 `src/lib/whatsapp/services/conversation.service.js` - méthode `getHistory()`
@@ -237,7 +239,7 @@ Implémenter un système de "summary rolling" :
 
 ---
 
-## MAJEUR #4 : Pas de Validation des Webhooks CinetPay
+## MAJEUR #4 : Pas de Validation des Webhooks CinetPay [RÉSOLU]
 
 ### Localisation
 Routes API de paiement (non trouvées dans le scan, vérifier `/api/webhooks/cinetpay`)
@@ -258,7 +260,7 @@ function verifyCinetPaySignature(payload, signature, secretKey) {
 
 ---
 
-## MAJEUR #5 : Policies RLS Incohérentes pour Admins
+## MAJEUR #5 : Policies RLS Incohérentes pour Admins [RÉSOLU]
 
 ### Localisation
 `DB_SCHEMA_EXTRACT.txt` - Multiples policies admin
@@ -283,7 +285,7 @@ Standardiser sur UNE SEULE méthode (préférer la table `profiles` qui est la s
 
 ---
 
-## MAJEUR #6 : Sentiment Analysis sans Cache
+## MAJEUR #6 : Sentiment Analysis sans Cache [RÉSOLU]
 
 ### Localisation
 `src/lib/whatsapp/handlers/message.js` - Phase 4
@@ -304,7 +306,7 @@ if (message.text.length < 10 || SKIP_SENTIMENT_KEYWORDS.includes(message.text.to
 
 ---
 
-## MAJEUR #7 : Pas de Healthcheck pour whatsapp-service.js
+## MAJEUR #7 : Pas de Healthcheck pour whatsapp-service.js [RÉSOLU]
 
 ### Localisation
 `whatsapp-service.js`
@@ -339,7 +341,7 @@ healthServer.listen(3001, () => {
 
 ---
 
-## MAJEUR #8 : Doublon de Code - message.js et message.new.js
+## MAJEUR #8 : Doublon de Code - message.js et message.new.js [RÉSOLU]
 
 ### Localisation
 `src/lib/whatsapp/handlers/`
@@ -356,7 +358,7 @@ Supprimer `message.new.js` ou le renommer explicitement (ex: `message.legacy.js`
 
 ---
 
-## MAJEUR #9 : Pas de Timeout sur les Appels OpenAI
+## MAJEUR #9 : Pas de Timeout sur les Appels OpenAI [RÉSOLU]
 
 ### Localisation
 `src/lib/whatsapp/ai/generator.js`
@@ -381,7 +383,7 @@ try {
 
 ---
 
-## MAJEUR #10 : Variables d'Environnement Non Validées
+## MAJEUR #10 : Variables d'Environnement Non Validées [RÉSOLU]
 
 ### Localisation
 `whatsapp-service.js`
@@ -409,7 +411,7 @@ for (const envVar of requiredEnvVars) {
 
 ---
 
-## MAJEUR #11 : Logs Sensibles Exposés
+## MAJEUR #11 : Logs Sensibles Exposés [RÉSOLU]
 
 ### Localisation
 Multiples fichiers (generator.js, tools.js)
@@ -439,7 +441,7 @@ console.log(JSON.stringify(sanitizeForLog(args), null, 2))
 
 ---
 
-## MAJEUR #12 : Pas de Mécanisme de Backup Sessions WhatsApp
+## MAJEUR #12 : Pas de Mécanisme de Backup Sessions WhatsApp [RÉSOLU]
 
 ### Localisation
 `src/lib/whatsapp/supabase-auth.js` (référencé mais non analysé)
@@ -453,7 +455,7 @@ Les sessions WhatsApp sont critiques. Si Supabase perd les données, tous les ag
 
 ---
 
-# 🟡 SECTION 3 : PROBLÈMES MINEURS (15)
+# � SECTION 3 : PROBLÈMES MINEURS (15) - [TOUS RÉSOLUS]
 
 | # | Localisation | Description | Impact |
 |---|--------------|-------------|--------|
