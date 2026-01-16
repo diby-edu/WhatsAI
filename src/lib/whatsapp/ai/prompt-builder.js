@@ -54,6 +54,17 @@ ${agent.use_emojis ? 'Utilise des emojis modérément.' : ''}
 
 Mission : Transformer chaque conversation en vente.
 Style : Concis (max 3-4 phrases), amical, professionnel.
+
+🎯 PREMIÈRE SALUTATION (message initial du client) :
+"Bonjour ! 👋 Je suis l'assistant virtuel de ${agent.name}. Comment puis-je vous aider aujourd'hui ?"
+
+📝 RÉCAPITULATIF DE COMMANDE (TOUJOURS inclure les prix) :
+Avant de créer la commande, présente ce récap :
+"Récapitulatif de votre commande :
+- [Quantité]x [Produit] ([Variante]) : [Prix unitaire] × [Quantité] = [Sous-total] FCFA
+...
+📦 Total : [TOTAL] FCFA
+Confirmez-vous cette commande ?"
 `
 
     // ═══════════════════════════════════════════════════════════════
@@ -71,7 +82,8 @@ Style : Concis (max 3-4 phrases), amical, professionnel.
 3. Nom complet
 4. Téléphone (format: 225XXXXXXXX)
 5. Adresse de livraison
-6. → Appeler create_order avec selected_variants
+6. → Récapitule avec les PRIX avant de créer la commande
+7. → Appeler create_order avec selected_variants
 `
 
     // ═══════════════════════════════════════════════════════════════
@@ -81,9 +93,12 @@ Style : Concis (max 3-4 phrases), amical, professionnel.
 📌 RÈGLES :
 • TÉLÉPHONE : Accepte tout format, ne bloque jamais
 • PRIX : Utilise UNIQUEMENT les prix du catalogue
+• RÉCAP : TOUJOURS afficher les prix et le total avant de créer la commande
+• IMAGES : Quand le client demande "montre-moi", utilise send_image (pas de liens !)
 • ESCALADE : Si client mécontent → "Je transmets à l'équipe"
 • PAIEMENT : Suis les instructions retournées par create_order
 `
+
 
     // ═══════════════════════════════════════════════════════════════
     // SECTION 6 : OUTILS
@@ -141,14 +156,14 @@ function buildCatalogueSection(products, currency) {
         // FIX #6 : Gestion intelligente du prix
         let priceDisplay
         const hasVariants = p.variants && p.variants.length > 0
-        
+
         if (p.price_fcfa && p.price_fcfa > 0) {
             priceDisplay = `${p.price_fcfa.toLocaleString()} ${currencySymbol}`
         } else if (hasVariants) {
             // Chercher le prix min/max des variantes
             let minPrice = Infinity
             let maxPrice = 0
-            
+
             for (const variant of p.variants) {
                 if (variant.type === 'fixed') {
                     for (const opt of variant.options) {
@@ -160,7 +175,7 @@ function buildCatalogueSection(products, currency) {
                     }
                 }
             }
-            
+
             if (minPrice !== Infinity && minPrice !== maxPrice) {
                 priceDisplay = `${minPrice.toLocaleString()} - ${maxPrice.toLocaleString()} ${currencySymbol}`
             } else if (minPrice !== Infinity) {
@@ -204,10 +219,10 @@ function buildClientHistory(orders) {
     }
 
     const lastOrder = orders[0]
-    const phone = lastOrder.customer_phone 
-        ? `${lastOrder.customer_phone.substring(0, 8)}***` 
+    const phone = lastOrder.customer_phone
+        ? `${lastOrder.customer_phone.substring(0, 8)}***`
         : ''
-        
+
     return `
 📜 CLIENT CONNU :
 • Dernière commande: #${lastOrder.id?.substring(0, 8) || '?'} (${lastOrder.status})
@@ -219,7 +234,7 @@ function buildKnowledgeSection(relevantDocs) {
     if (!relevantDocs || relevantDocs.length === 0) {
         return ''
     }
-    
+
     const docs = relevantDocs.slice(0, 3).map(d => `• ${d.content}`).join('\n')
     return `
 📚 CONNAISSANCES :
