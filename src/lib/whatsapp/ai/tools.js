@@ -281,6 +281,14 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                 console.log(`   ✅ Produit trouvé: "${product.name}" (score: ${bestScore})`)
 
                 let price = product.price_fcfa || 0
+
+                // FIX #CRITIQUE : Si variantes FIXED, ne pas utiliser le prix parent (souvent MAX ou Placeholder)
+                // Cela évite le bug où un T-shirt à 150 FCFA est facturé 25,000 FCFA car le parent a le prix max.
+                if (product.variants && product.variants.some(v => v.type === 'fixed')) {
+                    console.log(`   🛡️ Variantes FIXED détectées : Reset prix de base ${price} -> 0`)
+                    price = 0
+                }
+
                 let matchedVariantOption = null
 
                 // ═══════════════════════════════════════════════════════
