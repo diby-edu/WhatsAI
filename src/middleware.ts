@@ -13,15 +13,13 @@ export async function middleware(request: NextRequest) {
     // 1. Run next-intl middleware
     let response = handleI18n(request);
 
-    // If API route, bypass intl logic (though matcher handles this mostly)
-    // We create a passthrough response for API to allow headers manipulation if needed
+    // If API route, bypass intl logic
     if (pathname.startsWith('/api')) {
         response = NextResponse.next({ request });
     }
 
     // 2. Supabase Logic
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-        // Dev fallback if keys missing
         return response
     }
 
@@ -50,7 +48,6 @@ export async function middleware(request: NextRequest) {
     } = await supabase.auth.getUser()
 
     // 3. Auth Guard Logic
-    // Normalize path to ignore locale (remove /fr or /en prefix)
     const pathnameWithoutLocale = pathname.replace(/^\/(fr|en)/, '') || '/';
 
     const publicRoutes = [
@@ -79,28 +76,61 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(redirectUrl);
     }
 
-    // Admin checks
-    if (pathnameWithoutLocale.startsWith('/admin') && user) {
-        if (user.user_metadata?.role === 'admin') {
-            return response
+    // ═══════════════════════════════════════════════════════════════
+    // ⭐ FIX #1 : Vérifier le rôle de l'utilisateur connecté
+    // ═══════════════════════════════════════════════════════════════
+    let userRole: string | null = null;
+    
+    if (user) {
+        // Vérifier métadonnées (rapide)
+        userRole = user.user_metadata?.role;
+        
+        // Si pas dans metadata, vérifier DB
+        if (!userRole) {
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', user.id)
+                .single();
+            
+            userRole = profile?.role || null;
         }
+        
+        console.log(`🔐 Middleware - User: ${user.email}, Role: ${userRole}, Path: ${pathnameWithoutLocale}`);
+    }
+    
+    const isAdmin = userRole === 'admin' || userRole === 'superadmin';
 
-        const { data: profile } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', user.id)
-            .single()
-
-        if (!profile || profile.role !== 'admin') {
-            const locale = pathname.match(/^\/(fr|en)/)?.[1] || 'fr';
-            return NextResponse.redirect(new URL(`/${locale}/dashboard`, request.url))
-        }
+    // ═══════════════════════════════════════════════════════════════
+    // ⭐ FIX #2 : Rediriger admin de /dashboard vers /admin
+    // ═══════════════════════════════════════════════════════════════
+    if (user && isAdmin && pathnameWithoutLocale.startsWith('/dashboard')) {
+        const locale = pathname.match(/^\/(fr|en)/)?.[1] || 'fr';
+        console.log(`🔄 Redirecting admin from /dashboard to /admin`);
+        return NextResponse.redirect(new URL(`/${locale}/admin`, request.url));
     }
 
-    // Authenticated user trying to access auth pages
+    // ═══════════════════════════════════════════════════════════════
+    // ⭐ FIX #3 : Bloquer non-admin qui essaye d'accéder à /admin
+    // ═══════════════════════════════════════════════════════════════
+    if (user && !isAdmin && pathnameWithoutLocale.startsWith('/admin')) {
+        const locale = pathname.match(/^\/(fr|en)/)?.[1] || 'fr';
+        console.log(`❌ Non-admin blocked from /admin, redirecting to /dashboard`);
+        return NextResponse.redirect(new URL(`/${locale}/dashboard`, request.url));
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // ⭐ FIX #4 : Rediriger admin qui se connecte vers /admin (pas /dashboard)
+    // ═══════════════════════════════════════════════════════════════
     if (user && (pathnameWithoutLocale === '/login' || pathnameWithoutLocale === '/register')) {
         const locale = pathname.match(/^\/(fr|en)/)?.[1] || 'fr';
-        return NextResponse.redirect(new URL(`/${locale}/dashboard`, request.url))
+        
+        if (isAdmin) {
+            console.log(`🔄 Redirecting admin from login to /admin`);
+            return NextResponse.redirect(new URL(`/${locale}/admin`, request.url));
+        }
+        
+        return NextResponse.redirect(new URL(`/${locale}/dashboard`, request.url));
     }
 
     return response
@@ -108,7 +138,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
     matcher: [
-        // Match all except static files and API
         '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
     ],
 }
