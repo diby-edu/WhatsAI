@@ -231,16 +231,26 @@ function buildClientHistory(orders) {
         return '\n📜 CLIENT : Nouveau client\n'
     }
 
-    const lastOrder = orders[0]
-    const phone = lastOrder.customer_phone
-        ? `${lastOrder.customer_phone.substring(0, 8)}***`
-        : ''
+    // Afficher les 3 dernières commandes pour que le bot ait le contexte complet
+    const recentOrders = orders.slice(0, 3).map((o, i) => {
+        const date = new Date(o.created_at).toLocaleDateString('fr-FR')
+        const items = o.items ? o.items.map(item => `${item.quantity}x ${item.product_name}`).join(', ') : '?'
+        return `
+[Commande ${i + 1}]
+• Date: ${date}
+• Statut: ${o.status}
+• ID (Public): #${o.id.substring(0, 8)} 
+• ID (Interne): ${o.id}
+• Articles: ${items}
+• Total: ${o.total_fcfa} FCFA`
+    }).join('\n')
+
+    const lastPhone = orders[0].customer_phone || ''
 
     return `
-📜 CLIENT CONNU :
-• Dernière commande: #${lastOrder.id?.substring(0, 8) || '?'} (Statut: ${lastOrder.status})
-• ID COMPLET (interne): ${lastOrder.id}
-${phone ? `• Tél: ${phone}` : ''}
+📜 HISTORIQUE CLIENT (3 dernières commandes) :
+${recentOrders}
+${lastPhone ? `\n📞 Tél connu: ${lastPhone}` : ''}
 `
 }
 
