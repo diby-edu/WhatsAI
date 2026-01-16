@@ -45,11 +45,18 @@ function normalizePhoneNumber(phone) {
     }
 
     // 3. AUTO-AJOUTER "+" pour les indicatifs pays connus (si absent)
-    // Indicatifs courants: 225 (Côte d'Ivoire), 33 (France), 1 (USA/Canada), etc.
     const knownCountryCodes = ['225', '33', '32', '221', '237', '229', '228', '223', '224', '1', '44', '49']
+
+    // Cas spécial : Numéro local 10 chiffres (ex: 0747094746) → Ajouter +225 par défaut
+    if (!normalized.startsWith('+') && normalized.length === 10 && normalized.startsWith('0')) {
+        console.log(`📱 Local number detected (${normalized}), adding default +225`)
+        normalized = '+225' + normalized.substring(1) // Enlever le 0
+    }
+
+    // Cas standard : Commence par un code pays mais sans le "+"
     if (!normalized.startsWith('+')) {
         for (const code of knownCountryCodes) {
-            if (normalized.startsWith(code) && normalized.length >= 10) {
+            if (normalized.startsWith(code) && normalized.length >= (code.length + 6)) { // au moins 6 chiffres après le code
                 normalized = '+' + normalized
                 console.log(`📱 Auto-added "+" for country code ${code}`)
                 break
@@ -59,19 +66,24 @@ function normalizePhoneNumber(phone) {
 
     // 4. VALIDATION : Doit maintenant commencer par "+"
     if (!normalized.startsWith('+')) {
-        console.warn('⚠️ PHONE REJECTED : Missing country code ("+") :', phone)
-        return null
+        // DERNIÈRE CHANCE : Si ressemble à un format valide (10-15 digits) mais sans code, on assume 225
+        if (/^\d{10,15}$/.test(normalized)) {
+            console.log('⚠️ No country code detected, enforcing +225 fallback')
+            if (normalized.startsWith('0')) normalized = normalized.substring(1)
+            if (!normalized.startsWith('225')) normalized = '225' + normalized
+            normalized = '+' + normalized
+        } else {
+            console.warn('⚠️ PHONE REJECTED : Missing country code ("+") :', phone)
+            return null
+        }
     }
 
-
-    // 4. VÉRIFIER : Au moins 10 chiffres après le "+"
     const digitsOnly = normalized.substring(1) // Retirer le "+"
     if (!/^\d{10,15}$/.test(digitsOnly)) {
         console.warn('⚠️ PHONE REJECTED : Invalid format (must contain 10-15 digits) :', phone)
         return null
     }
 
-    // 5. RETOURNER le numéro normalisé AVEC le "+"
     console.log(`✅ Phone Normalized : "${phone}" → "${normalized}"`)
     return normalized
 }
