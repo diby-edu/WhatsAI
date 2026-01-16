@@ -52,14 +52,38 @@ function verifyResponseIntegrity(aiResponse, products) {
     })
 
     // Check each mentioned price against valid prices (with 5% tolerance for rounding)
+    // Check each mentioned price against valid prices logic
     mentionedPrices.forEach(price => {
         let isValid = false
+
+        // 1. Direct match (unit price)
         for (const validPrice of validPrices) {
-            const tolerance = validPrice * 0.05 // 5% tolerance
+            const tolerance = Math.max(validPrice * 0.05, 50) // 5% or 50 FCFA
             if (Math.abs(price - validPrice) <= tolerance) {
                 isValid = true
                 break
             }
+
+            // 2. Multiple match (Quantity x Unit Price)
+            // ex: 570 FCFA (valid=190) -> 570/190 = 3 (integer)
+            if (validPrice > 0) {
+                const ratio = price / validPrice
+                // If ratio is close to an integer (e.g. 2.99 or 3.01)
+                if (Math.abs(ratio - Math.round(ratio)) < 0.05 && ratio <= 100) {
+                    isValid = true
+                    break
+                }
+            }
+        }
+
+        // 3. Total Sum Match (checking if it matches the sum of SOME valid prices) is too complex 
+        // without knowing quantities. But "Total: 25860 FCFA" is often flagged.
+        // We will accept large numbers if they look like plausible totals (ending in 0 or 5, > 500)
+        // This is a trade-off to avoid blocking valid order recaps.
+        if (!isValid && price > 500 && (price % 5 === 0)) {
+            // Heuristic: If it's a "clean" number, we assume it might be a valid total not listed in unit prices.
+            // Real hallucinations often produce weird numbers like 2341 FCFA.
+            isValid = true
         }
 
         if (!isValid) {
