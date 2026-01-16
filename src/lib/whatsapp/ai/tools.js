@@ -6,7 +6,12 @@ const TOOLS = [
         type: 'function',
         function: {
             name: 'create_order',
-            description: 'Create a new order for a customer. Use this when the user wants to buy something.',
+            description: `Create a new order for a customer. Use this when the user wants to buy something.
+IMPORTANT FOR PRODUCTS WITH VARIANTS:
+- If a product has variants (size, color, etc.), you MUST specify them in 'selected_variants'
+- Collect ALL variants from the customer BEFORE calling this function
+- Example: selected_variants: {"Taille": "Moyenne", "Couleur": "Bleu Marine"}
+- If variants are missing, the order will FAIL and you'll need to ask the customer`,
             parameters: {
                 type: 'object',
                 properties: {
@@ -15,8 +20,19 @@ const TOOLS = [
                         items: {
                             type: 'object',
                             properties: {
-                                product_name: { type: 'string', description: 'Name of the product from the catalog' },
-                                quantity: { type: 'integer', description: 'Quantity ordered' }
+                                product_name: {
+                                    type: 'string',
+                                    description: 'EXACT name of the product from the catalog (without variant info)'
+                                },
+                                quantity: {
+                                    type: 'integer',
+                                    description: 'Quantity ordered'
+                                },
+                                selected_variants: {
+                                    type: 'object',
+                                    description: 'REQUIRED if product has variants. Key = variant name (e.g. "Taille", "Couleur"), Value = selected option (e.g. "Moyenne", "Bleu Marine")',
+                                    additionalProperties: { type: 'string' }
+                                }
                             },
                             required: ['product_name', 'quantity']
                         },
@@ -161,10 +177,49 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                     let price = product.price_fcfa || 0
                     let matchedVariantOption = null
 
+                    // ═══════════════════════════════════════════════════════
+                    // 🔧 FIX v2.3 : NOUVELLE LOGIQUE DE MATCHING DES VARIANTES
+                    // ═══════════════════════════════════════════════════════
                     if (product.variants && product.variants.length > 0) {
                         const matchedVariantsByType = {}
 
+                        // 📌 MÉTHODE 1 : Utiliser selected_variants (PRIORITAIRE)
+                        if (item.selected_variants && typeof item.selected_variants === 'object') {
+                            console.log('📦 Using selected_variants:', item.selected_variants)
+
+                            for (const variant of product.variants) {
+                                const variantName = variant.name.toLowerCase()
+
+                                // Chercher dans selected_variants (case insensitive)
+                                const selectedValue = Object.entries(item.selected_variants).find(
+                                    ([key]) => key.toLowerCase() === variantName
+                                )?.[1]
+
+                                if (selectedValue) {
+                                    // Valider que cette option existe
+                                    const validOption = variant.options.find(opt => {
+                                        const optValue = (typeof opt === 'string') ? opt : (opt.value || opt.name || '')
+                                        return optValue.toLowerCase() === selectedValue.toLowerCase()
+                                    })
+
+                                    if (validOption) {
+                                        const optionPrice = (typeof validOption === 'string') ? 0 : (validOption.price || 0)
+                                        if (variant.type === 'fixed') {
+                                            price = optionPrice
+                                        } else {
+                                            price += optionPrice
+                                        }
+                                        matchedVariantsByType[variant.name] = (typeof validOption === 'string') ? validOption : (validOption.value || validOption.name)
+                                        console.log(`✅ Variant matched: ${variant.name} = ${matchedVariantsByType[variant.name]}`)
+                                    }
+                                }
+                            }
+                        }
+
+                        // 📌 MÉTHODE 2 : Fallback - Chercher dans product_name (ancien comportement)
                         for (const variant of product.variants) {
+                            if (matchedVariantsByType[variant.name]) continue // Déjà trouvé
+
                             for (const option of variant.options) {
                                 const optionValue = (typeof option === 'string') ? option : (option.value || option.name || '')
 
@@ -176,6 +231,7 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                                         price += optionPrice
                                     }
                                     matchedVariantsByType[variant.name] = optionValue
+                                    console.log(`✅ Variant found in product_name: ${variant.name} = ${optionValue}`)
                                     break
                                 }
                             }
@@ -186,21 +242,23 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                         if (unMatchedVariants.length > 0) {
                             console.log('❌ Missing variant types:', unMatchedVariants.map(v => v.name).join(', '))
                             const missingOptions = unMatchedVariants.map(v =>
-                                `${v.name}: ${v.options.map(o => o.value || o.name).join(', ')}`
+                                `${v.name}: ${v.options.map(o => typeof o === 'string' ? o : (o.value || o.name)).join(', ')}`
                             ).join(' | ')
 
                             return JSON.stringify({
                                 success: false,
-                                error: `Pour commander "${product.name}", veuillez préciser: ${missingOptions}`,
+                                error: `VARIANTES MANQUANTES pour "${product.name}". Demandez au client: ${missingOptions}`,
                                 product_name: product.name,
                                 missing_variants: unMatchedVariants.map(v => ({
                                     name: v.name,
-                                    options: v.options.map(o => o.value || o.name)
-                                }))
+                                    options: v.options.map(o => typeof o === 'string' ? o : (o.value || o.name))
+                                })),
+                                hint: 'Utilisez "selected_variants" dans items. Exemple: {"Taille": "Moyenne", "Couleur": "Bleu Marine"}'
                             })
                         }
                         matchedVariantOption = Object.values(matchedVariantsByType).join(', ')
                     }
+
 
                     total += price * item.quantity
                     orderItems.push({
