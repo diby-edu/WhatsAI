@@ -24,7 +24,7 @@ function preCheckCreateOrder(toolCall, products) {
 
     try {
         const args = JSON.parse(toolCall.function.arguments)
-
+        
         // 📊 LOG DEBUG : Voir exactement ce que l'IA envoie
         console.log('═══════════════════════════════════════════════')
         console.log('🔍 DEBUG create_order - Arguments reçus de l\'IA :')
@@ -44,9 +44,9 @@ function preCheckCreateOrder(toolCall, products) {
             const productName = item.product_name?.toLowerCase() || ''
             const product = products.find(p => {
                 const pName = p.name.toLowerCase()
-                return pName === productName ||
-                    productName.includes(pName) ||
-                    pName.includes(productName)
+                return pName === productName || 
+                       productName.includes(pName) || 
+                       pName.includes(productName)
             })
 
             if (!product) {
@@ -59,28 +59,28 @@ function preCheckCreateOrder(toolCall, products) {
 
             if (product.variants && product.variants.length > 0) {
                 const selectedVariants = item.selected_variants || {}
-
+                
                 for (const variant of product.variants) {
                     const variantName = variant.name
                     const variantNameLower = variantName.toLowerCase()
-
+                    
                     const hasVariant = Object.keys(selectedVariants).some(
                         k => k.toLowerCase() === variantNameLower
                     )
-
+                    
                     if (!hasVariant) {
-                        const options = variant.options.map(o =>
+                        const options = variant.options.map(o => 
                             typeof o === 'string' ? o : (o.value || o.name)
                         ).join(', ')
-
+                        
                         console.log(`   ❌ VARIANTE MANQUANTE: "${variantName}"`)
                         console.log(`   Options disponibles: ${options}`)
-
+                        
                         return {
                             valid: false,
                             error: `Variante "${variantName}" manquante dans selected_variants. ` +
-                                `Demande au client de choisir parmi: ${options}. ` +
-                                `Puis rappelle create_order avec selected_variants: {"${variantName}": "choix_du_client"}`
+                                   `Demande au client de choisir parmi: ${options}. ` +
+                                   `Puis rappelle create_order avec selected_variants: {"${variantName}": "choix_du_client"}`
                         }
                     } else {
                         const selectedValue = Object.entries(selectedVariants).find(
@@ -94,7 +94,7 @@ function preCheckCreateOrder(toolCall, products) {
 
         console.log('✅ PRE-CHECK PASSED: Toutes les variantes sont présentes')
         return { valid: true }
-
+        
     } catch (e) {
         console.error('❌ PRE-CHECK ERROR:', e.message)
         return { valid: true } // En cas d'erreur, laisser passer
@@ -106,7 +106,7 @@ function preCheckCreateOrder(toolCall, products) {
  */
 async function generateAIResponse(options, dependencies) {
     const { openai, supabase, activeSessions, CinetPay } = dependencies
-
+    
     try {
         const {
             agent,
@@ -205,13 +205,13 @@ async function generateAIResponse(options, dependencies) {
 
             for (const toolCall of responseMessage.tool_calls) {
                 console.log(`🔧 Tool: ${toolCall.function.name}`)
-
+                
                 // PRE-CHECK pour create_order
                 const preCheck = preCheckCreateOrder(toolCall, products || [])
-
+                
                 if (!preCheck.valid) {
                     console.log('🚫 PRE-CHECK BLOCKED:', preCheck.error)
-
+                    
                     newHistory.push({
                         role: 'tool',
                         tool_call_id: toolCall.id,
@@ -264,12 +264,12 @@ async function generateAIResponse(options, dependencies) {
             content: content,
             tokensUsed: (completion.usage?.total_tokens || 0) + 100
         }
-
+        
     } catch (error) {
         console.error('OpenAI error:', error)
-        return {
-            content: 'Désolé, je rencontre un problème technique. Veuillez réessayer.',
-            tokensUsed: 0
+        return { 
+            content: 'Désolé, je rencontre un problème technique. Veuillez réessayer.', 
+            tokensUsed: 0 
         }
     }
 }

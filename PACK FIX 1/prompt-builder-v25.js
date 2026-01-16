@@ -116,8 +116,8 @@ Sois concis (max 3-4 phrases par message).
     // ═══════════════════════════════════════════════════════════════
     const clientHistory = buildClientHistory(orders)
     const knowledgeSection = buildKnowledgeSection(relevantDocs)
-
-    const businessInfo = agent.business_address || gpsLink || formattedHours !== 'Non spécifiés'
+    
+    const businessInfo = agent.business_address || gpsLink || formattedHours !== 'Non spécifiés' 
         ? `
 🏢 INFOS ENTREPRISE :
 ${agent.business_address ? `Adresse : ${agent.business_address}` : ''}
@@ -167,7 +167,7 @@ function buildCatalogueSection(products, currency) {
                 }).join(', ')
                 return `${v.name}: [${opts}]`
             }).join(' | ')
-
+            
             variantsInfo = `
    ⚠️ VARIANTES: ${variantsList}
    → Tu DOIS mettre ces variantes dans selected_variants !`
