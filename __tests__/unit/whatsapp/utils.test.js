@@ -31,24 +31,27 @@ describe('Utils: normalizePhoneNumber (v2.2 - Strict Mode)', () => {
 
     // Unknown country codes without + should still be rejected
     // Unknown country codes without + should use fallback +225
-    test('should apply fallback +225 for unknown format', () => {
-        // 999123456789 -> +225999123456789
-        expect(normalizePhoneNumber('999123456789')).toBe('+225999123456789');
+    test('should apply fallback + for unknown format that looks valid', () => {
+        // 999123456789 (12 chars) -> considered international without + -> adds +
+        // Logic v2.8: Case 7 (Fallback Ultimate)
+        expect(normalizePhoneNumber('999123456789')).toBe('+999123456789');
     });
-
 
     // Edge cases
-    test('should return null for null/empty input', () => {
-        expect(normalizePhoneNumber(null)).toBe(null);
-        expect(normalizePhoneNumber('')).toBe(null);
-        expect(normalizePhoneNumber(undefined)).toBe(null);
+    test('should return placeholder for null/empty input', () => {
+        // Logic v2.8: Never return null to avoid crashes
+        expect(normalizePhoneNumber(null)).toBe('+000000000000');
+        expect(normalizePhoneNumber('')).toBe('+000000000000');
+        expect(normalizePhoneNumber(undefined)).toBe('+000000000000');
     });
 
-    test('should reject phone that is too short', () => {
-        expect(normalizePhoneNumber('+123')).toBe(null);
+    test('should NOT reject phone that is too short (permissive mode)', () => {
+        // Logic v2.8: Case 3 (Starts with +) -> returns as is even if short
+        expect(normalizePhoneNumber('+123')).toBe('+123');
     });
 
-    test('should reject phone that is too long', () => {
-        expect(normalizePhoneNumber('+12345678901234567890')).toBe(null);
+    test('should NOT reject phone that is too long (permissive mode)', () => {
+        // Logic v2.8: Case 3 (Starts with +) -> returns as is even if long
+        expect(normalizePhoneNumber('+12345678901234567890')).toBe('+12345678901234567890');
     });
 });
