@@ -20,6 +20,17 @@ class AIService {
             openai
         } = options
 
+        // Détecter si une commande vient d'être passée (moins de 5 minutes)
+        let justOrdered = false
+        if (context.orders && context.orders.length > 0) {
+            const lastOrder = context.orders[0]
+            const orderTime = new Date(lastOrder.created_at).getTime()
+            const timeDiff = Date.now() - orderTime
+            if (timeDiff < 5 * 60 * 1000) { // 5 minutes
+                justOrdered = true
+            }
+        }
+
         // Préparer les options (données du message)
         const generatorOptions = {
             agent,
@@ -30,7 +41,8 @@ class AIService {
             currency: context.currency,
             orders: context.orders,
             customerPhone: message.from,
-            conversationId: context.conversationId
+            conversationId: context.conversationId,
+            justOrdered // Signal pour le prompt builder
         }
 
         // Préparer les dépendances (services externes)

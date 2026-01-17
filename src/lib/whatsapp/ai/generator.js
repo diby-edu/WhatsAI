@@ -212,17 +212,17 @@ async function generateAIResponse(options, dependencies) {
             ? `https://www.google.com/maps?q=${agent.latitude},${agent.longitude}`
             : ''
 
-        // Construire le prompt système
+        // 3. Construire le System Prompt
         const systemPrompt = buildAdaptiveSystemPrompt(
             agent,
             products || [],
             orders || [],
             relevantDocs || [],
             currency,
-            gpsLink,
-            formattedHours
+            options.gpsLink || '',    // TODO: Passer via options
+            options.formattedHours || 'Non spécifiés', // TODO: Passer via options
+            options.justOrdered || false // Passer le flag de reset
         )
-
         console.log(`📝 Prompt size: ${systemPrompt.length} chars`)
 
         // Préparer les messages

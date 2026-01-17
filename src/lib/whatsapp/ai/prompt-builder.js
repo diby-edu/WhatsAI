@@ -10,7 +10,31 @@
  * ✅ Prompt optimisé (~2500 chars)
  */
 
-function buildAdaptiveSystemPrompt(agent, products, orders, relevantDocs, currency, gpsLink, formattedHours) {
+function buildAdaptiveSystemPrompt(agent, products, orders, relevantDocs, currency, gpsLink, formattedHours, justOrdered = false) {
+
+    // ═══════════════════════════════════════════════════════════════
+    // 🚨 SECTION 0 : RESET CONTEXT (SI DÉJÀ COMMANDÉ)
+    // ═══════════════════════════════════════════════════════════════
+    let resetContext = ''
+    if (justOrdered) {
+        resetContext = `
+🛑🛑🛑 ATTENTION : UNE COMMANDE VIENT D'ÊTRE VALIDÉE (Il y a moins de 5 min) 🛑🛑🛑
+
+CONSIDÈRE QUE LE PANIER EST VIDE.
+TOUT CE QUI A ÉTÉ MENTIONNÉ AVANT CE MESSAGE EST "DÉJÀ TRAITÉ".
+
+SI LE CLIENT DEMANDE UN NOUVEAU PRODUIT (ex: "Je veux aussi X", "Ajoute Y") :
+➡️ C'EST UNE NOUVELLE COMMANDE.
+➡️ NE REPRENDS PAS LES ARTICLES DE LA COMMANDE PRÉCÉDENTE.
+➡️ CRÉE UN NOUVEAU PANIER AVEC UNIQUEMENT LE NOUVEAU PRODUIT DEMANDÉ MAINTENANT.
+
+Exemple :
+- Avant: Acheté 10x bougies.
+- Client: "Ajoute 1 T-shirt"
+- Réponse CORRECTE : "Entendu, je crée une NOUVELLE commande pour 1 T-shirt."
+- Réponse INTERDITE : "Je rajoute 1 T-shirt aux 10 bougies." (NON !)
+`
+    }
 
     // ═══════════════════════════════════════════════════════════════
     // 🚨 SECTION 1 : VARIANTES - EN PREMIER !
@@ -140,7 +164,8 @@ ${formattedHours !== 'Non spécifiés' ? `⏰ ${formattedHours}` : ''}
     // ═══════════════════════════════════════════════════════════════
     // ASSEMBLAGE
     // ═══════════════════════════════════════════════════════════════
-    return `${variantsFirst}
+    return `${resetContext}
+${variantsFirst}
 ${identity}
 ${catalogueSection}
 ${collectOrder}
