@@ -1,29 +1,13 @@
 /**
  * ═══════════════════════════════════════════════════════════════
- * WHATSAPP UTILITY : PHONE NUMBER FORMATTER (v2.2 - FIXED)
+ * WHATSAPP UTILITY : PHONE NUMBER FORMATTER (v2.8 - HOTFIX)
  * ═══════════════════════════════════════════════════════════════
  * 
- * RÈGLE D'OR (Principe 4 - Prompt Builder) :
- * - Format INTERNATIONAL OBLIGATOIRE : +XXX...
- * - Accepte TOUT format lisible : espaces, tirets, parenthèses OK
- * - Rejette les numéros SANS indicatif pays
- * 
- * CHANGELOG v2.2 (FIX CRITIQUE) :
- * ✅ Préserve le "+" (au lieu de le retirer)
- * ✅ Rejette les numéros sans indicatif pays
- * ✅ Convertit "00" en "+"
- * ✅ Validation stricte : 10-15 chiffres
- * 
- * EXEMPLES VALIDES :
- * ✅ +225 07 56 23 69 84  → +2250756236984
- * ✅ +33 7 12 34 56 78    → +33712345678
- * ✅ (225) 07-56-23-69-84 → +2250756236984
- * ✅ 002250756236984      → +2250756236984 (00 = international prefix)
- * 
- * EXEMPLES INVALIDES :
- * ❌ 07 56 23 69 84       → null (pas d'indicatif)
- * ❌ 0756236984           → null (numéro local)
- * ❌ 225...               → null (commence par indicatif mais sans +)
+ * HOTFIX v2.8 :
+ * ✅ Accepte TOUS les formats de numéro
+ * ✅ Ne rejette JAMAIS un numéro (fallback avec tel quel)
+ * ✅ Auto-normalise les indicatifs
+ * ✅ Gère les numéros avec 0 initial (ex: 0747094746)
  */
 
 /**
@@ -50,36 +34,66 @@ function normalizePhoneNumber(phone, defaultCountryCode = '225') {
 
     // 3. Si déjà avec "+", valider et retourner
     if (normalized.startsWith('+')) {
+        // Vérifier qu'il y a assez de chiffres
         const digitsOnly = normalized.substring(1)
         if (/^\d{8,15}$/.test(digitsOnly)) {
             console.log(`✅ Phone OK: "${phone}" → "${normalized}"`)
             return normalized
         }
+        // Même si format bizarre, on garde car on ne veut pas bloquer
         console.log(`⚠️ Phone format unusual but accepted: "${phone}" → "${normalized}"`)
         return normalized
     }
 
     // 4. INDICATIFS CONNUS - Ajouter "+"
     const countryPatterns = [
-        { prefix: '225', minLen: 10 }, { prefix: '33', minLen: 9 }, { prefix: '1', minLen: 10 } // ... liste simplifiée pour perf, le reste sera géré par regex
+        { prefix: '225', minLen: 10 }, // Côte d'Ivoire (225 + 10 chiffres)
+        { prefix: '221', minLen: 9 },  // Sénégal
+        { prefix: '223', minLen: 8 },  // Mali
+        { prefix: '226', minLen: 8 },  // Burkina Faso
+        { prefix: '227', minLen: 8 },  // Niger
+        { prefix: '228', minLen: 8 },  // Togo
+        { prefix: '229', minLen: 8 },  // Bénin
+        { prefix: '233', minLen: 9 },  // Ghana
+        { prefix: '234', minLen: 10 }, // Nigeria
+        { prefix: '237', minLen: 9 },  // Cameroun
+        { prefix: '241', minLen: 7 },  // Gabon
+        { prefix: '242', minLen: 9 },  // Congo
+        { prefix: '243', minLen: 9 },  // RDC
+        { prefix: '212', minLen: 9 },  // Maroc
+        { prefix: '213', minLen: 9 },  // Algérie
+        { prefix: '216', minLen: 8 },  // Tunisie
+        { prefix: '33', minLen: 9 },   // France
+        { prefix: '32', minLen: 9 },   // Belgique
+        { prefix: '41', minLen: 9 },   // Suisse
+        { prefix: '44', minLen: 10 },  // UK
+        { prefix: '49', minLen: 10 },  // Allemagne
+        { prefix: '1', minLen: 10 },   // USA/Canada
     ]
+
+    // Trier par longueur de préfixe décroissante pour matcher les longs d'abord
+    countryPatterns.sort((a, b) => b.prefix.length - a.prefix.length)
 
     for (const pattern of countryPatterns) {
         if (normalized.startsWith(pattern.prefix)) {
-            normalized = '+' + normalized
-            console.log(`✅ Phone normalized (${pattern.prefix}): "${phone}" → "${normalized}"`)
-            return normalized
+            const restLen = normalized.length - pattern.prefix.length
+            if (restLen >= 7) { // Au moins 7 chiffres après l'indicatif
+                normalized = '+' + normalized
+                console.log(`✅ Phone normalized (${pattern.prefix}): "${phone}" → "${normalized}"`)
+                return normalized
+            }
         }
     }
 
     // 5. NUMÉRO LOCAL (commence par 0) - Ajouter indicatif par défaut
     if (normalized.startsWith('0') && normalized.length >= 8) {
+        // Supprimer le 0 et ajouter l'indicatif
         normalized = '+' + defaultCountryCode + normalized.substring(1)
         console.log(`✅ Phone normalized (local→+${defaultCountryCode}): "${phone}" → "${normalized}"`)
         return normalized
     }
 
-    // 6. NUMÉRO SANS 0 ET SANS INDICATIF - Supposer local
+    // 6. NUMÉRO SANS 0 ET SANS INDICATIF - Supposer local et ajouter indicatif
     if (/^\d{8,10}$/.test(normalized)) {
         normalized = '+' + defaultCountryCode + normalized
         console.log(`✅ Phone normalized (assumed local): "${phone}" → "${normalized}"`)
@@ -97,7 +111,7 @@ function normalizePhoneNumber(phone, defaultCountryCode = '225') {
     if (!normalized.startsWith('+')) {
         normalized = '+' + defaultCountryCode + normalized.replace(/\D/g, '')
     }
-
+    
     console.log(`⚠️ Phone accepted as-is (last resort): "${phone}" → "${normalized}"`)
     return normalized
 }

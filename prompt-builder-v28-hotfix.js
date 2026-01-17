@@ -1,13 +1,13 @@
 /**
  * ═══════════════════════════════════════════════════════════════
- * PROMPT BUILDER v2.7 - VERSION CONSOLIDÉE (AUDIT COMPLET)
+ * PROMPT BUILDER v2.8 - HOTFIX CONFIRMATION LOOP
  * ═══════════════════════════════════════════════════════════════
  * 
- * CORRECTIONS INCLUSES :
- * ✅ #6 : Prix "0 FCFA" remplacé par "Prix selon variante"
- * ✅ Variantes EN PREMIER dans le prompt
- * ✅ Instructions claires pour selected_variants
- * ✅ Prompt optimisé (~2500 chars)
+ * CORRECTIONS v2.8 :
+ * ✅ Suppression de la boucle infinie de confirmation
+ * ✅ Mode de paiement : mémoriser la réponse du client
+ * ✅ "OUI" = créer la commande IMMÉDIATEMENT
+ * ✅ Ne plus redemander le mode de paiement après réponse
  */
 
 function buildAdaptiveSystemPrompt(agent, products, orders, relevantDocs, currency, gpsLink, formattedHours, justOrdered = false) {
@@ -18,26 +18,11 @@ function buildAdaptiveSystemPrompt(agent, products, orders, relevantDocs, curren
     let resetContext = ''
     if (justOrdered) {
         resetContext = `
-🛑🛑🛑 MODE "TRAIN RAPIDE" (Fast Track) ACTIVÉ 🛑🛑🛑
+🛑 MODE "COMMANDE RÉCENTE" ACTIVÉ
 Le client vient de passer commande (< 5 min).
-
-1. 🛒 PANIER : CONSIDÈRE QU'IL EST VIDE. (Les articles précédents sont validés/archivés).
-2. 👤 INFOS CLIENT : GARDE-LES EN MÉMOIRE ! (Nom, Tél, Adresse).
-   ➡️ NE REDEMANDE PAS les infos que tu as déjà.
-
-SCÉNARIO : Le client ajoute un produit ("Ajoute aussi X").
-TON ACTION :
-1. Crée une NOUVELLE commande (distincte).
-2. Dis : "C'est noté ! Je crée une SECONDE commande pour X."
-3. Ajoute : "On garde la même adresse ([Adresse]) et le même paiement ?"
-
-RÉACTIONS CLIENT :
-- SI "OUI" : ✅ Passe DIRECTEMENT au Récapitulatif Final.
-- SI "NON" (ou change d'avis) : 🔄 Demande simplement : "D'accord, quelle est la nouvelle adresse / le nouveau mode de paiement ?"
-
-❌ INTERDIT : "Modifier" la commande précédente (trop risqué).
-❌ INTERDIT : Redemander "Quel est votre nom ?".
-✅ AUTORISÉ : Créer Order #2 avec les infos de Order #1.
+- PANIER : Vide (commande précédente archivée)
+- INFOS CLIENT : Mémorisées (ne pas redemander nom/tél/adresse)
+- Si nouveau produit demandé → Nouvelle commande distincte
 `
     }
 
@@ -45,32 +30,21 @@ RÉACTIONS CLIENT :
     // 🚨 SECTION 1 : VARIANTES - EN PREMIER !
     // ═══════════════════════════════════════════════════════════════
     const variantsFirst = `
-🚨🚨🚨 RÈGLE ABSOLUE - LIS CECI EN PREMIER 🚨🚨🚨
-
-QUAND TU APPELLES create_order POUR UN PRODUIT AVEC VARIANTES :
-Tu DOIS utiliser "selected_variants" dans chaque item.
-
-EXEMPLE :
+🚨 RÈGLE VARIANTES (CRITIQUE)
+Quand tu appelles create_order avec des variantes :
 {
   "items": [{
     "product_name": "T-Shirt Premium",
     "quantity": 10,
-    "selected_variants": {
-      "Taille": "Moyenne",
-      "Couleur": "Bleu"
-    }
+    "selected_variants": { "Taille": "Moyenne", "Couleur": "Bleu" }
   }],
-  "customer_name": "Nom Client",
-  "customer_phone": "225XXXXXXXX",
-  "delivery_address": "Adresse"
+  "customer_name": "...",
+  "customer_phone": "...",
+  "delivery_address": "...",
+  "payment_method": "cod"
 }
-
-⚠️ IMPORTANT :
-- Utilise les noms COURTS des options (ex: "Petite" pas "Petite (50g)")
-- Le système fera le matching automatiquement
-- Si tu oublies selected_variants → LA COMMANDE ÉCHOUERA
-
-🚨🚨🚨 FIN DE LA RÈGLE ABSOLUE 🚨🚨🚨
+- Utilise les noms COURTS ("Petite" pas "Petite (50g)")
+- payment_method: "cod" = livraison, "online" = en ligne
 `
 
     // ═══════════════════════════════════════════════════════════════
@@ -83,17 +57,6 @@ ${agent.use_emojis ? 'Utilise des emojis modérément.' : ''}
 
 Mission : Transformer chaque conversation en vente.
 Style : Concis (max 3-4 phrases), amical, professionnel.
-
-🎯 PREMIÈRE SALUTATION (message initial du client) :
-"Bonjour ! 👋 Je suis l'assistant virtuel de ${agent.name}. Comment puis-je vous aider aujourd'hui ?"
-
-📝 RÉCAPITULATIF DE COMMANDE (TOUJOURS inclure les prix) :
-Avant de créer la commande, présente ce récap :
-"Récapitulatif de votre commande :
-- [Quantité]x [Produit] ([Variante]) : [Prix unitaire] × [Quantité] = [Sous-total] FCFA
-...
-📦 Total : [TOTAL] FCFA
-Confirmez-vous cette commande ?"
 `
 
     // ═══════════════════════════════════════════════════════════════
@@ -101,9 +64,6 @@ Confirmez-vous cette commande ?"
     // ═══════════════════════════════════════════════════════════════
     const catalogueSection = buildCatalogueSection(products, currency)
 
-    // ═══════════════════════════════════════════════════════════════
-    // SECTION 4 : ORDRE DE COLLECTE
-    // ═══════════════════════════════════════════════════════════════
     // ═══════════════════════════════════════════════════════════════
     // 🔥 SECTION 4 : FLUX DE COMMANDE (HOTFIX v2.8)
     // ═══════════════════════════════════════════════════════════════
@@ -162,14 +122,12 @@ MAPPING MODE DE PAIEMENT :
 - "en ligne", "online", "carte", "mobile money" → payment_method: "online"
 `
 
-
-
     // ═══════════════════════════════════════════════════════════════
     // SECTION 6 : OUTILS
     // ═══════════════════════════════════════════════════════════════
     const tools = `
-🔧 OUTILS :
-• create_order → Créer commande (AVEC selected_variants!)
+🔧 OUTILS DISPONIBLES :
+• create_order → Créer commande (AVEC selected_variants si variantes!)
 • check_payment_status → Vérifier paiement (avec ID)
 • find_order → Retrouver commandes (par téléphone)
 • send_image → Montrer un produit
@@ -219,14 +177,12 @@ function buildCatalogueSection(products, currency) {
         const typeIcon = p.product_type === 'service' ? '🛎️' :
             p.product_type === 'virtual' ? '💻' : '📦'
 
-        // FIX #6 : Gestion intelligente du prix
         let priceDisplay
         const hasVariants = p.variants && p.variants.length > 0
 
         if (p.price_fcfa && p.price_fcfa > 0) {
             priceDisplay = `${p.price_fcfa.toLocaleString()} ${currencySymbol}`
         } else if (hasVariants) {
-            // Chercher le prix min/max des variantes
             let minPrice = Infinity
             let maxPrice = 0
 
@@ -243,7 +199,7 @@ function buildCatalogueSection(products, currency) {
             }
 
             if (minPrice !== Infinity && minPrice !== maxPrice) {
-                priceDisplay = `Prix entre ${minPrice.toLocaleString()} et ${maxPrice.toLocaleString()} ${currencySymbol}`
+                priceDisplay = `Entre ${minPrice.toLocaleString()} et ${maxPrice.toLocaleString()} ${currencySymbol}`
             } else if (minPrice !== Infinity) {
                 priceDisplay = `${minPrice.toLocaleString()} ${currencySymbol}`
             } else {
@@ -253,27 +209,22 @@ function buildCatalogueSection(products, currency) {
             priceDisplay = 'Gratuit'
         }
 
-        // Variantes
         let variantsInfo = ''
         if (hasVariants) {
             const variantsList = p.variants.map(v => {
-                // Afficher les noms COURTS des options
                 const opts = v.options.map(o => {
                     if (typeof o === 'string') return o
                     const val = o.value || o.name || ''
-                    // Extraire le nom court (avant les parenthèses)
                     return val.split('(')[0].trim()
                 }).join(', ')
-                return `${v.name} disponibles : ${opts}`
-            }).join('\n   🔹 ') // Saut de ligne pour lisibilité
+                return `${v.name}: ${opts}`
+            }).join(' | ')
 
-            variantsInfo = `\n   🔹 ${variantsList}`
+            variantsInfo = ` [${variantsList}]`
         }
 
-        // Numérotation et Gras uniquement sur le nom
         return `${index + 1}. *${p.name}* ${typeIcon} - ${priceDisplay}${variantsInfo}`
-    }).join('\n\n') // Espacement entre produits
-
+    }).join('\n')
 
     return `
 📦 CATALOGUE :
@@ -286,37 +237,26 @@ function buildClientHistory(orders) {
         return '\n📜 CLIENT : Nouveau client\n'
     }
 
-    // 15 jours en arrière
     const fifteenDaysAgo = new Date()
     fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15)
 
-    // Filtrer les commandes des 15 derniers jours
     let recentOrders = orders.filter(o => new Date(o.created_at) >= fifteenDaysAgo)
 
-    // Fallback : Si aucune commande récente, conserver au moins la toute dernière pour le contexte "Client Connu"
-    let displayTitle = '📜 HISTORIQUE COMMANDES (15 derniers jours) :'
+    let displayTitle = '📜 HISTORIQUE (15 jours) :'
     if (recentOrders.length === 0) {
         recentOrders = [orders[0]]
-        displayTitle = '📜 HISTORIQUE (Dernière commande connue) :'
+        displayTitle = '📜 DERNIÈRE COMMANDE :'
     }
 
-    const ordersList = recentOrders.map((o, i) => {
+    const ordersList = recentOrders.slice(0, 3).map(o => {
         const date = new Date(o.created_at).toLocaleDateString('fr-FR')
         const items = o.items ? o.items.map(item => `${item.quantity}x ${item.product_name}`).join(', ') : '?'
-        return `
-[Commande du ${date}]
-• Statut: ${o.status}
-• Total: ${o.total_fcfa} FCFA
-• ID (Interne): ${o.id}
-• Articles: ${items}`
+        return `• ${date} - ${o.status} - ${o.total_fcfa} FCFA - ${items}`
     }).join('\n')
-
-    const lastPhone = orders[0].customer_phone || ''
 
     return `
 ${displayTitle}
 ${ordersList}
-${lastPhone ? `\n📞 Tél connu: ${lastPhone}` : ''}
 `
 }
 
@@ -327,7 +267,7 @@ function buildKnowledgeSection(relevantDocs) {
 
     const docs = relevantDocs.slice(0, 3).map(d => `• ${d.content}`).join('\n')
     return `
-📚 CONNAISSANCES :
+📚 INFOS UTILES :
 ${docs}
 `
 }
