@@ -288,14 +288,24 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             }
         }
 
-        // 6.2 Fallback texte
+        // 6.2 Fallback texte (Nettoyé des liens d'images si images envoyées)
         if (!voiceSent) {
+            let finalContent = aiResponse.content
+
+            // Si on a envoyé des images via l'outil, on supprime les liens texte inutiles
+            if (aiResponse.imageActions && aiResponse.imageActions.length > 0) {
+                // Supprimer les patterns comme ![text](url) ou [text](url) qui contiennent des extensions d'image
+                finalContent = finalContent.replace(/!\[.*?\]\(.*?\)/g, '') // Supprimer tout markdown image
+                finalContent = finalContent.replace(/\[.*?\]\(.*?https?:\/\/.*\.(?:jpg|jpeg|png|webp).*\)/gi, '') // Supprimer liens vers images
+                finalContent = finalContent.trim()
+            }
+
             await MessagingService.sendText(
                 session,
                 message.from,
-                aiResponse.content
+                finalContent
             )
-            console.log('💬 Text message sent')
+            console.log('💬 Text message sent (cleaned)')
         }
 
 

@@ -105,7 +105,8 @@ Confirmez-vous cette commande ?"
 • IMAGES : Quand le client demande "montre et", utilise send_image
 • VARIANTES : Ne mentionne pas "pas de variantes" si le produit n'en a pas
 • ANTI-SPAM : NE JAMAIS renvoyer de lien ou tag markdown ![img] dans le texte. L'image part toute seule.
-• SUPPORT : Si le client veut un statut sans ID, demande son téléphone et utilise l'outil find_order.
+• SUPPORT : Si le client veut un statut, TU CONNAIS DÉJÀ SON TÉLÉPHONE (c'est l'expéditeur). Cherche d'abord dans ton "HISTORIQUE COMMANDES". Ne demande le numéro que si l'historique est vide.
+• NOUVELLE COMMANDE : Si le client a DÉJÀ validé une commande (OUI final) lors de cette session, considère que c'est TERMINÉ. S'il demande un autre produit ensuite, c'est une NOUVELLE commande distincte (Ex: "Je veux aussi 5 bougies" -> Nouvelle commande de 5 bougies, pas d'ajout).
 `
 
 
