@@ -18,21 +18,22 @@ function buildAdaptiveSystemPrompt(agent, products, orders, relevantDocs, curren
     let resetContext = ''
     if (justOrdered) {
         resetContext = `
-🛑🛑🛑 ATTENTION : UNE COMMANDE VIENT D'ÊTRE VALIDÉE (Il y a moins de 5 min) 🛑🛑🛑
+🛑🛑🛑 MODE "TRAIN RAPIDE" (Fast Track) ACTIVÉ 🛑🛑🛑
+Le client vient de passer commande (< 5 min).
 
-CONSIDÈRE QUE LE PANIER EST VIDE.
-TOUT CE QUI A ÉTÉ MENTIONNÉ AVANT CE MESSAGE EST "DÉJÀ TRAITÉ".
+1. 🛒 PANIER : CONSIDÈRE QU'IL EST VIDE. (Les articles précédents sont validés/archivés).
+2. 👤 INFOS CLIENT : GARDE-LES EN MÉMOIRE ! (Nom, Tél, Adresse).
+   ➡️ NE REDEMANDE PAS les infos que tu as déjà.
 
-SI LE CLIENT DEMANDE UN NOUVEAU PRODUIT (ex: "Je veux aussi X", "Ajoute Y") :
-➡️ C'EST UNE NOUVELLE COMMANDE.
-➡️ NE REPRENDS PAS LES ARTICLES DE LA COMMANDE PRÉCÉDENTE.
-➡️ CRÉE UN NOUVEAU PANIER AVEC UNIQUEMENT LE NOUVEAU PRODUIT DEMANDÉ MAINTENANT.
+SCÉNARIO : Le client ajoute un produit ("Ajoute aussi X").
+TON ACTION :
+1. Crée une NOUVELLE commande (distincte).
+2. Dis : "C'est noté ! Je crée une SECONDE commande pour X."
+3. Ajoute : "On garde la même adresse ([Adresse]) et le même paiement ?"
 
-Exemple :
-- Avant: Acheté 10x bougies.
-- Client: "Ajoute 1 T-shirt"
-- Réponse CORRECTE : "Entendu, je crée une NOUVELLE commande pour 1 T-shirt."
-- Réponse INTERDITE : "Je rajoute 1 T-shirt aux 10 bougies." (NON !)
+❌ INTERDIT : "Modifier" la commande précédente (trop risqué).
+❌ INTERDIT : Redemander "Quel est votre nom ?".
+✅ AUTORISÉ : Créer Order #2 avec les infos de Order #1.
 `
     }
 
