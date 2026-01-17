@@ -159,7 +159,7 @@ export async function POST(request: NextRequest) {
         if (cpm_trans_id.startsWith('ORD_')) {
             console.log('📦 This is an ORDER payment, checking orders table...')
 
-            const { data: order, error: orderError } = await getSupabase()
+            const { data: order, error: _orderError } = await getSupabase()
                 .from('orders')
                 .select('*')
                 .eq('transaction_id', cpm_trans_id)
@@ -191,7 +191,7 @@ export async function POST(request: NextRequest) {
 
                         // Send WhatsApp notification to client
                         try {
-                            const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://whatsai.duckdns.org'
+
                             const confirmationMessage = `✅ *Paiement reçu !*\n\nMerci ! Votre paiement de ${order.total_fcfa?.toLocaleString('fr-FR')} FCFA pour la commande #${order.id.substring(0, 8)} a été confirmé.\n\n📦 Votre commande est maintenant en cours de traitement.\n\nMerci pour votre confiance ! 🙏`
 
                             // 🎯 HYBRID ROUTING: Check for active conversation
@@ -421,6 +421,6 @@ export async function POST(request: NextRequest) {
 }
 
 // GET for testing availability
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
     return new Response('CinetPay Webhook Endpoint Active', { status: 200 })
 }

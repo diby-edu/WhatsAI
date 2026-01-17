@@ -202,7 +202,7 @@ async function generateAIResponse(options, dependencies) {
                     if (schedule.closed) return `${dayName}: Fermé`
                     return `${dayName}: ${schedule.open} - ${schedule.close}`
                 }).join('\n  ')
-            } catch (e) {
+            } catch (_e) {
                 formattedHours = String(agent.business_hours)
             }
         }
@@ -219,8 +219,8 @@ async function generateAIResponse(options, dependencies) {
             orders || [],
             relevantDocs || [],
             currency,
-            options.gpsLink || '',    // TODO: Passer via options
-            options.formattedHours || 'Non spécifiés', // TODO: Passer via options
+            options.gpsLink || gpsLink || '',
+            options.formattedHours || formattedHours || 'Non spécifiés',
             options.justOrdered || false // Passer le flag de reset
         )
         console.log(`📝 Prompt size: ${systemPrompt.length} chars`)
@@ -312,7 +312,7 @@ async function generateAIResponse(options, dependencies) {
                         })
                         console.log(`📸 Image à envoyer: ${parsedResult.product_name}`)
                     }
-                } catch (e) {
+                } catch (_e) {
                     // Pas de parsing nécessaire
                 }
 
