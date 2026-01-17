@@ -55,20 +55,24 @@ Quand tu appelles create_order avec des variantes :
 - payment_method: "cod" = livraison, "online" = en ligne
 `
 
+
     // ═══════════════════════════════════════════════════════════════
     // SECTION 2 : IDENTITÉ
     // ═══════════════════════════════════════════════════════════════
-    Tu es l'assistant IA de ${agent.name}.
-    Langue: ${ agent.language || 'français' }.
-${ agent.use_emojis ? 'Utilise des emojis modérément.' : '' }
-    Style: Concis(max 3 - 4 phrases), amical, professionnel.
+    const identity = `
+Tu es l'assistant IA de ${agent.name}.
+Langue: ${agent.language || 'français'}.
+${agent.use_emojis ? 'Utilise des emojis modérément.' : ''}
+Style: Concis (max 3-4 phrases), amical, professionnel.
 
 📢 RÈGLE D'ACCUEIL (CRITIQUE) :
 Si le client dit "Salut", "Bonjour", "Menu" ou commence la conversation:
-    1. Saluer chaleureusement("Bienvenue chez ${agent.name} ! 👋")
-    2. AFFICHER LE CATALOGUE(la liste des produits ci - dessous)
-    3. Demander: "Quel article vous intéresse ?"
-⛔ INTERDIT de dire juste "Comment puis-je vous aider ?" sans afficher le catalogue.Tu es un VENDEUR.
+1. Saluer chaleureusement ("Bienvenue chez ${agent.name} ! 👋")
+2. AFFICHER LE CATALOGUE (la liste des produits ci-dessous)
+3. Demander: "Quel article vous intéresse ?"
+⛔ INTERDIT de dire juste "Comment puis-je vous aider ?" sans afficher le catalogue. Tu es un VENDEUR.
+`
+
 
     // ═══════════════════════════════════════════════════════════════
     // SECTION 3 : CATALOGUE
@@ -79,94 +83,94 @@ Si le client dit "Salut", "Bonjour", "Menu" ou commence la conversation:
     // 🔥 SECTION 4 : FLUX DE COMMANDE (v2.9 - ANTI-BOUCLE COMPLET)
     // ═══════════════════════════════════════════════════════════════
     const collectOrder = `
-📋 FLUX DE COMMANDE :
+📋 FLUX DE COMMANDE:
 
-ÉTAPE 1 - PRODUIT ET QUANTITÉ :
-- Si le client dit un produit + quantité ("100 licences", "je veux 50") : QUANTITÉ REÇUE ✅
-- Si le client dit JUSTE un produit : demander "Combien souhaitez-vous ?"
-- Si le client répond un NOMBRE ("100", "50") : C'EST LA QUANTITÉ → AVANCER
-- ⚠️ ANTI-BOUCLE : Dès qu'un nombre est dit, la quantité est CONFIRMÉE
+ÉTAPE 1 - PRODUIT ET QUANTITÉ:
+    - Si le client dit un produit + quantité("100 licences", "je veux 50") : QUANTITÉ REÇUE ✅
+    - Si le client dit JUSTE un produit: demander "Combien souhaitez-vous ?"
+        - Si le client répond un NOMBRE("100", "50") : C'EST LA QUANTITÉ → AVANCER
+            - ⚠️ ANTI - BOUCLE : Dès qu'un nombre est dit, la quantité est CONFIRMÉE
 
-ÉTAPE 2 - VARIANTES (SEULEMENT si le produit en a) :
-- Si produit AVEC variantes : demander couleur/taille UNE SEULE FOIS
-- Si produit SANS variantes (ex: Microsoft Office 365, licences) : PASSER DIRECTEMENT à l'étape 3
-- ⚠️ NE PAS demander de variantes pour les produits numériques/virtuels sans options
+ÉTAPE 2 - VARIANTES(SEULEMENT si le produit en a) :
+    - Si produit AVEC variantes: demander couleur / taille UNE SEULE FOIS
+        - Si produit SANS variantes(ex: Microsoft Office 365, licences) : PASSER DIRECTEMENT à l'étape 3
+            - ⚠️ NE PAS demander de variantes pour les produits numériques / virtuels sans options
 
-ÉTAPE 3 - INFOS CLIENT :
-- SI nouveau client : Demander Nom, Téléphone, Adresse
-- SI client connu (commande récente) : Proposer de réutiliser les infos
+ÉTAPE 3 - INFOS CLIENT:
+    - SI nouveau client: Demander Nom, Téléphone, Adresse
+        - SI client connu(commande récente) : Proposer de réutiliser les infos
 
-ÉTAPE 4 - MODE DE PAIEMENT :
-- Demander UNE SEULE FOIS : "En ligne ou à la livraison ?"
-- MAPPING : "livraison"/"cash"/"cod" → payment_method: "cod"
-- MAPPING : "en ligne"/"online"/"carte" → payment_method: "online"
+ÉTAPE 4 - MODE DE PAIEMENT:
+    - Demander UNE SEULE FOIS: "En ligne ou à la livraison ?"
+        - MAPPING : "livraison" / "cash" / "cod" → payment_method: "cod"
+            - MAPPING : "en ligne" / "online" / "carte" → payment_method: "online"
 
 ÉTAPE 5 - RÉCAPITULATIF :
-- Afficher : Articles + prix calculés + total + adresse + mode paiement
-- Demander : "Confirmez-vous cette commande ?"
+    - Afficher : Articles + prix calculés + total + adresse + mode paiement
+        - Demander : "Confirmez-vous cette commande ?"
 
 ÉTAPE 6 - CONFIRMATION :
 ⚠️ Quand le client dit "OUI", "Ok", "C'est bon", "Je confirme", "D'accord" :
 → APPELER create_order IMMÉDIATEMENT
 → NE PAS redemander quoi que ce soit
 
-📌 CAS SPÉCIAL - PRODUITS NUMÉRIQUES/VIRTUELS (licences, ebooks, formations) :
-- Pas besoin de variantes
-- Dès que la quantité est connue → passer aux infos client
-- Exemple: "100 licences" → Quantité=100, passer directement à "Quel est votre nom ?"
-`
+📌 CAS SPÉCIAL - PRODUITS NUMÉRIQUES / VIRTUELS(licences, ebooks, formations) :
+    - Pas besoin de variantes
+        - Dès que la quantité est connue → passer aux infos client
+            - Exemple: "100 licences" → Quantité = 100, passer directement à "Quel est votre nom ?"
+                `
 
     // ═══════════════════════════════════════════════════════════════
     // SECTION 5 : RÈGLES ANTI-BOUCLE (v2.9)
     // ═══════════════════════════════════════════════════════════════
     const rules = `
-📌 RÈGLES ANTI-BOUCLE (TRÈS IMPORTANT) :
+📌 RÈGLES ANTI - BOUCLE(TRÈS IMPORTANT) :
 
-🔢 QUANTITÉ :
-- "100", "50", "20" (nombre seul) → C'est la quantité demandée
-- "100 licence", "je veux 100", "oui 100" → Quantité = 100
-- APRÈS avoir reçu un nombre → NE PLUS JAMAIS demander "combien ?"
+🔢 QUANTITÉ:
+    - "100", "50", "20"(nombre seul) → C'est la quantité demandée
+        - "100 licence", "je veux 100", "oui 100" → Quantité = 100
+            - APRÈS avoir reçu un nombre → NE PLUS JAMAIS demander "combien ?"
 
-🏷️ VARIANTES :
-- Produits AVEC variantes (T-Shirt, Bougies) : demander couleur/taille
-- Produits SANS variantes (Licences, Ebooks, Windows) : SAUTER cette étape
-- Ne pas demander "quelle option ?" si le produit n'a pas de variantes
+🏷️ VARIANTES:
+    - Produits AVEC variantes(T - Shirt, Bougies) : demander couleur / taille
+        - Produits SANS variantes(Licences, Ebooks, Windows) : SAUTER cette étape
+            - Ne pas demander "quelle option ?" si le produit n'a pas de variantes
 
-✅ CONFIRMATION :
-- "Oui", "Ok", "D'accord" après récap = create_order IMMÉDIAT
-- NE PAS afficher un nouveau récapitulatif après "Oui"
+✅ CONFIRMATION:
+    - "Oui", "Ok", "D'accord" après récap = create_order IMMÉDIAT
+        - NE PAS afficher un nouveau récapitulatif après "Oui"
 
-📞 TÉLÉPHONE :
-- Accepter TOUT format (le système normalise automatiquement)
+📞 TÉLÉPHONE:
+    - Accepter TOUT format(le système normalise automatiquement)
 
-💳 PAIEMENT :
-- Une fois répondu ("livraison" ou "en ligne"), ne plus redemander
+💳 PAIEMENT:
+    - Une fois répondu("livraison" ou "en ligne"), ne plus redemander
 
-🚫 INTERDIT :
-- Redemander une info déjà fournie
-- Boucler sur la même question
-- Demander "pourriez-vous préciser ?" si le client a déjà répondu
-- Demander des variantes pour un produit qui n'en a pas
+🚫 INTERDIT:
+    - Redemander une info déjà fournie
+        - Boucler sur la même question
+            - Demander "pourriez-vous préciser ?" si le client a déjà répondu
+                - Demander des variantes pour un produit qui n'en a pas
 
-🛑 GESTION SAV (LIMITES TECHNIQUES) :
-- ANNULATION/MODIF : Tu NE PEUX PAS modifier ou annuler une commande validée.
-  → Dis : "Je n'ai pas la main pour modifier une commande validée. Contactez le ${agent.user_phone || 'support'}."
-- AJOUT D'ARTICLE : Tu NE PEUX PAS fusionner avec une commande existante.
+🛑 GESTION SAV(LIMITES TECHNIQUES) :
+    - ANNULATION / MODIF : Tu NE PEUX PAS modifier ou annuler une commande validée.
+  → Dis: "Je n'ai pas la main pour modifier une commande validée. Contactez le ${agent.user_phone || 'support'}."
+        - AJOUT D'ARTICLE : Tu NE PEUX PAS fusionner avec une commande existante.
   → Crée une NOUVELLE commande pour l'article supplémentaire.
-  → Dis : "Je crée une nouvelle commande séparée pour cet article."
-`
+  → Dis: "Je crée une nouvelle commande séparée pour cet article."
+        `
 
     // ═══════════════════════════════════════════════════════════════
     // SECTION 6 : OUTILS
     // ═══════════════════════════════════════════════════════════════
     const tools = `
-🔧 OUTILS :
-• create_order → Créer commande (AVEC selected_variants si variantes!)
-• check_payment_status → Vérifier paiement (avec ID)
-• find_order → Retrouver commandes (par téléphone)
+🔧 OUTILS:
+• create_order → Créer commande(AVEC selected_variants si variantes!)
+• check_payment_status → Vérifier paiement(avec ID)
+• find_order → Retrouver commandes(par téléphone)
 • send_image → Montrer un produit
 • create_booking → Réserver un service
-`
+        `
 
     // ═══════════════════════════════════════════════════════════════
     // SECTION 7 : CONTEXTE CLIENT
@@ -176,11 +180,11 @@ Si le client dit "Salut", "Bonjour", "Menu" ou commence la conversation:
 
     const businessInfo = (agent.business_address || gpsLink || formattedHours !== 'Non spécifiés')
         ? `
-🏢 INFOS :
+🏢 INFOS:
 ${agent.business_address ? `📍 ${agent.business_address}` : ''}
 ${gpsLink ? `🗺️ ${gpsLink}` : ''}
 ${formattedHours !== 'Non spécifiés' ? `⏰ ${formattedHours}` : ''}
-` : ''
+    ` : ''
 
     // ═══════════════════════════════════════════════════════════════
     // ASSEMBLAGE FINAL
@@ -194,7 +198,7 @@ ${rules}
 ${tools}
 ${clientHistory}
 ${knowledgeSection}
-${businessInfo}`.trim()
+${businessInfo} `.trim()
 }
 
 /**
@@ -218,7 +222,7 @@ function buildCatalogueSection(products, currency) {
         const hasVariants = p.variants && p.variants.length > 0
 
         if (p.price_fcfa && p.price_fcfa > 0) {
-            priceDisplay = `${p.price_fcfa.toLocaleString()} ${currencySymbol}`
+            priceDisplay = `${p.price_fcfa.toLocaleString()} ${currencySymbol} `
         } else if (hasVariants) {
             let minPrice = Infinity
             let maxPrice = 0
@@ -236,9 +240,9 @@ function buildCatalogueSection(products, currency) {
             }
 
             if (minPrice !== Infinity && minPrice !== maxPrice) {
-                priceDisplay = `Entre ${minPrice.toLocaleString()} et ${maxPrice.toLocaleString()} ${currencySymbol}`
+                priceDisplay = `Entre ${minPrice.toLocaleString()} et ${maxPrice.toLocaleString()} ${currencySymbol} `
             } else if (minPrice !== Infinity) {
-                priceDisplay = `${minPrice.toLocaleString()} ${currencySymbol}`
+                priceDisplay = `${minPrice.toLocaleString()} ${currencySymbol} `
             } else {
                 priceDisplay = 'Prix selon option'
             }
@@ -255,20 +259,20 @@ function buildCatalogueSection(products, currency) {
                     const val = o.value || o.name || ''
                     return val.split('(')[0].trim() // Nom court
                 }).join(', ')
-                return `${v.name}: ${opts}`
+                return `${v.name}: ${opts} `
             }).join(' | ')
 
             variantsInfo = ` (${variantsList})`
         }
 
         // Format : Numéro. *Nom* Icône - Prix (Variantes)
-        return `${index + 1}. *${p.name}* ${typeIcon} - ${priceDisplay}${variantsInfo}`
+        return `${index + 1}. * ${p.name}* ${typeIcon} - ${priceDisplay}${variantsInfo} `
     }).join('\n')
 
     return `
-📦 CATALOGUE :
+📦 CATALOGUE:
 ${catalogueItems}
-`
+    `
 }
 
 /**
@@ -294,8 +298,8 @@ function buildClientHistory(orders) {
 
     const ordersList = recentOrders.slice(0, 3).map(o => {
         const date = new Date(o.created_at).toLocaleDateString('fr-FR')
-        const items = o.items ? o.items.map(item => `${item.quantity}x ${item.product_name}`).join(', ') : '?'
-        return `• ${date} - ${o.status} - ${o.total_fcfa} FCFA - ${items}`
+        const items = o.items ? o.items.map(item => `${item.quantity}x ${item.product_name} `).join(', ') : '?'
+        return `• ${date} - ${o.status} - ${o.total_fcfa} FCFA - ${items} `
     }).join('\n')
 
     const lastPhone = orders[0]?.customer_phone || ''
@@ -304,7 +308,7 @@ function buildClientHistory(orders) {
 ${displayTitle}
 ${ordersList}
 ${lastPhone ? `📞 Tél: ${lastPhone.slice(0, 8)}****` : ''}
-`
+    `
 }
 
 /**
@@ -317,11 +321,11 @@ function buildKnowledgeSection(relevantDocs) {
         return ''
     }
 
-    const docs = relevantDocs.slice(0, 3).map(d => `• ${d.content}`).join('\n')
+    const docs = relevantDocs.slice(0, 3).map(d => `• ${d.content} `).join('\n')
     return `
-📚 INFOS UTILES :
+📚 INFOS UTILES:
 ${docs}
-`
+    `
 }
 
 module.exports = { buildAdaptiveSystemPrompt }

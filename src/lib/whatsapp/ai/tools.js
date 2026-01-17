@@ -12,7 +12,7 @@
  */
 
 const normalizePhoneNumber = require('../utils/format')
-const sharp = require('sharp')
+
 
 // ═══════════════════════════════════════════════════════════════
 // FONCTION HELPER : Vérifier si un produit a VRAIMENT des variantes
@@ -285,7 +285,7 @@ function getOptionPrice(option) {
 // 🔧 TOOL EXECUTOR
 // ═══════════════════════════════════════════════════════════════
 
-async function handleToolCall(toolCall, agentId, customerPhone, products, conversationId, supabase, activeSessions, CinetPay) {
+async function handleToolCall(toolCall, agentId, customerPhone, products, conversationId, supabase, _activeSessions, _CinetPay) {
 
     // ═══════════════════════════════════════════════════════════
     // CREATE ORDER
