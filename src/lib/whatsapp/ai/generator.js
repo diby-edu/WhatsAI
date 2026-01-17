@@ -10,7 +10,7 @@
  * ✅ Import findMatchingOption depuis tools.js
  */
 
-const { TOOLS, handleToolCall, findMatchingOption, getOptionValue } = require('./tools')
+const { TOOLS, handleToolCall, findMatchingOption, getOptionValue, productHasRealVariants } = require('./tools')
 const { findRelevantDocuments } = require('./rag')
 const { verifyResponseIntegrity } = require('../utils/security')
 const { buildAdaptiveSystemPrompt } = require('./prompt-builder')
@@ -70,7 +70,7 @@ function preCheckCreateOrder(toolCall, products) {
             console.log(`   ✅ Produit: "${product.name}"`)
 
             // Vérifier les variantes
-            if (product.variants && product.variants.length > 0) {
+            if (productHasRealVariants(product)) {
                 console.log(`   📋 Variantes requises: ${product.variants.map(v => v.name).join(', ')}`)
 
                 const selectedVariants = item.selected_variants || {}

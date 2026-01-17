@@ -11,8 +11,67 @@
  * ✅ Gestion d'erreurs robuste
  */
 
-const { normalizePhoneNumber } = require('../utils/format')
+const normalizePhoneNumber = require('../utils/format')
 const sharp = require('sharp')
+
+// ═══════════════════════════════════════════════════════════════
+// FONCTION HELPER : Vérifier si un produit a VRAIMENT des variantes
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Vérifie si un produit a des variantes RÉELLES (pas juste un array vide)
+ * @param {Object} product - Le produit à vérifier
+ * @returns {boolean} - true si le produit a des variantes avec des options
+ */
+function productHasRealVariants(product) {
+    // Pas de variantes du tout
+    if (!product.variants) return false
+
+    // Array vide
+    if (!Array.isArray(product.variants)) return false
+    if (product.variants.length === 0) return false
+
+    // Vérifier que chaque variante a des options
+    for (const variant of product.variants) {
+        if (!variant.options || !Array.isArray(variant.options) || variant.options.length === 0) {
+            continue // Cette variante est vide, ignorer
+        }
+        // Au moins une variante a des options
+        return true
+    }
+
+    // Toutes les variantes sont vides
+    return false
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FONCTION HELPER : Vérifier le stock
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Vérifie si le stock est suffisant
+ * @param {Object} product - Le produit
+ * @param {number} quantity - La quantité demandée
+ * @returns {Object} - { ok: boolean, available: number, message: string }
+ */
+function checkStock(product, quantity) {
+    // Stock illimité (-1 ou null)
+    if (product.stock_quantity === -1 || product.stock_quantity === null || product.stock_quantity === undefined) {
+        return { ok: true, available: Infinity, message: 'Stock illimité' }
+    }
+
+    // Stock suffisant
+    if (product.stock_quantity >= quantity) {
+        return { ok: true, available: product.stock_quantity, message: 'Stock OK' }
+    }
+
+    // Stock insuffisant
+    return {
+        ok: false,
+        available: product.stock_quantity,
+        message: `Stock insuffisant. Disponible: ${product.stock_quantity}, Demandé: ${quantity}`
+    }
+}
 
 // ═══════════════════════════════════════════════════════════════
 // 🔒 HELPER : MASQUAGE DONNÉES SENSIBLES (RGPD)
@@ -294,65 +353,70 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
 
                 console.log(`   ✅ Produit trouvé: "${product.name}" (score: ${bestScore})`)
 
-                let price = product.price_fcfa || 0
-
-                // FIX #CRITIQUE : Si variantes FIXED, ne pas utiliser le prix parent (souvent MAX ou Placeholder)
-                // Cela évite le bug où un T-shirt à 150 FCFA est facturé 25,000 FCFA car le parent a le prix max.
-                if (product.variants && product.variants.some(v => v.type === 'fixed')) {
-                    console.log(`   🛡️ Variantes FIXED détectées : Reset prix de base ${price} -> 0`)
-                    price = 0
+                // ═══════════════════════════════════════════════════════
+                // VÉRIFICATION DU STOCK (NOUVEAU v2.10)
+                // ═══════════════════════════════════════════════════════
+                const stockCheck = checkStock(product, item.quantity)
+                if (!stockCheck.ok) {
+                    console.log(`   ❌ Stock insuffisant: ${stockCheck.message}`)
+                    return JSON.stringify({
+                        success: false,
+                        error: `Stock insuffisant pour "${product.name}". ${stockCheck.available > 0 ? `Seulement ${stockCheck.available} disponible(s).` : 'Produit épuisé.'}`,
+                        available_stock: stockCheck.available,
+                        hint: stockCheck.available > 0
+                            ? `Proposez ${stockCheck.available} unités ou un produit alternatif.`
+                            : 'Proposez un produit alternatif.'
+                    })
                 }
+                console.log(`   ✅ Stock OK: ${stockCheck.available === Infinity ? 'illimité' : stockCheck.available}`)
 
+                // ═══════════════════════════════════════════════════════
+                // GESTION DU PRIX ET DES VARIANTES (v2.10 - CORRIGÉ)
+                // ═══════════════════════════════════════════════════════
+                let price = product.price_fcfa || 0
                 let matchedVariantOption = null
 
-                // ═══════════════════════════════════════════════════════
-                // GESTION DES VARIANTES
-                // ═══════════════════════════════════════════════════════
-                if (product.variants && product.variants.length > 0) {
-                    console.log(`   📋 ${product.variants.length} variante(s) requise(s)`)
+                // Vérifier si le produit a des variantes RÉELLES
+                if (productHasRealVariants(product)) {
+                    console.log(`   📋 Produit avec variantes RÉELLES`)
+
+                    // Reset prix si variantes FIXED
+                    if (product.variants.some(v => v.type === 'fixed')) {
+                        console.log(`   🛡️ Variantes FIXED détectées : Reset prix ${price} -> 0`)
+                        price = 0
+                    }
+
                     const matchedVariantsByType = {}
 
-                    // MÉTHODE 1 : Via selected_variants (prioritaire)
+                    // MÉTHODE 1 : Via selected_variants
                     if (item.selected_variants && typeof item.selected_variants === 'object') {
                         console.log(`   📦 selected_variants reçu:`, item.selected_variants)
 
                         for (const variant of product.variants) {
-                            const variantNameLower = variant.name.toLowerCase()
+                            if (!variant.options || variant.options.length === 0) continue
 
-                            // Chercher la valeur envoyée
+                            const variantNameLower = variant.name.toLowerCase()
                             const selectedEntry = Object.entries(item.selected_variants).find(
                                 ([key]) => key.toLowerCase() === variantNameLower
                             )
                             const selectedValue = selectedEntry ? selectedEntry[1] : null
 
                             if (selectedValue) {
-                                // 🎯 Matching flexible
                                 const validOption = findMatchingOption(variant, selectedValue)
-
                                 if (validOption) {
                                     const optionPrice = getOptionPrice(validOption)
-                                    const optionValue = getOptionValue(validOption)
-
-                                    if (variant.type === 'fixed') {
-                                        price = optionPrice
-                                    } else {
-                                        price += optionPrice
-                                    }
-
-                                    matchedVariantsByType[variant.name] = optionValue
-                                    console.log(`      ✅ ${variant.name}: "${selectedValue}" → "${optionValue}" (+${optionPrice} FCFA)`)
-                                } else {
-                                    const options = variant.options.map(o => getOptionValue(o)).join(', ')
-                                    console.log(`      ❌ "${selectedValue}" invalide pour ${variant.name}. Options: ${options}`)
+                                    if (variant.type === 'fixed') price = optionPrice
+                                    else price += optionPrice
+                                    matchedVariantsByType[variant.name] = getOptionValue(validOption)
+                                    console.log(`      ✅ ${variant.name}: "${selectedValue}" → "${getOptionValue(validOption)}" (${optionPrice} FCFA)`)
                                 }
-                            } else {
-                                console.log(`      ⚠️ ${variant.name} non fourni dans selected_variants`)
                             }
                         }
                     }
 
                     // MÉTHODE 2 : Fallback - chercher dans product_name
                     for (const variant of product.variants) {
+                        if (!variant.options || variant.options.length === 0) continue
                         if (matchedVariantsByType[variant.name]) continue
 
                         for (const option of variant.options) {
@@ -368,8 +432,10 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                         }
                     }
 
-                    // Vérifier les variantes manquantes
-                    const missingVariants = product.variants.filter(v => !matchedVariantsByType[v.name])
+                    // Vérifier les variantes manquantes (seulement celles avec des options)
+                    const missingVariants = product.variants.filter(v =>
+                        v.options && v.options.length > 0 && !matchedVariantsByType[v.name]
+                    )
 
                     if (missingVariants.length > 0) {
                         const missingList = missingVariants.map(v => {
@@ -394,8 +460,8 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                     console.log(`   ✅ Toutes variantes OK: ${matchedVariantOption}`)
 
                 } else {
-                    // FIX #4 : Log pour produits sans variantes
-                    console.log(`   ℹ️ Pas de variantes requises`)
+                    // PRODUIT SANS VARIANTES (ou variantes vides)
+                    console.log(`   ℹ️ Produit SANS variantes - Utilisation du prix catalogue: ${price} FCFA`)
                 }
 
                 // Ajouter à la commande
@@ -713,5 +779,7 @@ module.exports = {
     handleToolCall,
     findMatchingOption,  // Exporté pour le pre-check dans generator.js
     getOptionValue,
-    getOptionPrice
+    getOptionPrice,
+    productHasRealVariants,
+    checkStock
 }
