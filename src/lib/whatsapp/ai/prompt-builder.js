@@ -257,7 +257,13 @@ function buildCatalogueSection(products, currency) {
                 const opts = v.options.map(o => {
                     if (typeof o === 'string') return o
                     const val = o.value || o.name || ''
-                    return val.split('(')[0].trim() // Nom court
+                    let display = val.split('(')[0].trim() // Nom court
+
+                    // Ajouter le prix si présent
+                    if (typeof o === 'object' && o.price && o.price > 0) {
+                        display += ` (${o.price} FCFA)`
+                    }
+                    return display
                 }).join(', ')
                 return `${v.name}: ${opts} `
             }).join(' | ')
