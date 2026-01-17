@@ -623,5 +623,15 @@ Suite aux tests utilisateurs et audits, une série de correctifs majeurs et d'am
 *   **Auto-Correction** : Le bot accepte les numéros sans indicatif et ajoute automatiquement le préfixe pays configuré (ex: +225) pour la recherche en base de données.
 
 ---
-*Mise à jour v2.9.7 - 16 Janvier 2026*
+### 🚅 "Fast Track" Mode (Commandes Additives)
+*   **Problème** : Le client ajoute un article *après* avoir validé/payé sa commande précédente.
+*   **Solution** :
+    *   **Séparation Technique** : Le système crée une **NOUVELLE** commande (Order #2) pour éviter de corrompre la précédente.
+    *   **Rapidité UX** : Le bot demande *"On garde les mêmes infos ?"*.
+    *   **Si OUI** : Création instantanée sans redemander le nom/adresse.
+    *   **Si NON** : Redemande les nouvelles infos.
+    *   **Résultat** : Sécurité des données + Expérience fluide.
+
+---
+*Mise à jour v2.9.9 - 17 Janvier 2026*
 
