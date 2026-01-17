@@ -62,6 +62,12 @@ function isRateLimited(contactId) {
 
     rateLimitMap.set(contactId, record)
 
+    // 🔒 SECURITÉ DOS MEMOIRE : Max 5000 entrées
+    if (rateLimitMap.size > 5000) {
+        console.warn('⚠️ Rate limit map full, clearing to prevent DoS')
+        rateLimitMap.clear()
+    }
+
     if (record.count > RATE_LIMIT.maxMessages) {
         console.log(`⚠️ Rate limited: ${contactId} (${record.count} msgs in window)`)
         return true
@@ -81,8 +87,16 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
     const { openai, supabase, activeSessions, CinetPay } = context
 
     // ═══════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════
     // RATE LIMITING - Protection contre les abus
     // ═══════════════════════════════════════════════════════════
+
+    // 🔒 FIX CRASH : Validation input
+    if (!message || !message.from) {
+        console.error('❌ Malformed message received (no sender)', message)
+        return
+    }
+
     if (isRateLimited(message.from)) {
         return // Silently drop excessive messages
     }

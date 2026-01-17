@@ -226,7 +226,7 @@ class CreditsService {
     }
 
     /**
-     * Ajoute des crédits (pour paiements)
+     * Ajoute des crédits (pour paiements) - ATOMIQUE
      * 
      * @param {Object} supabase - Client Supabase
      * @param {string} userId - ID de l'utilisateur
@@ -235,31 +235,26 @@ class CreditsService {
      */
     static async add(supabase, userId, amount) {
         try {
-            const { data: profile } = await supabase
-                .from('profiles')
-                .select('credits_balance')
-                .eq('id', userId)
-                .single()
+            // ═══════════════════════════════════════════════════════════
+            // ⭐ FIX SECURITY: ATOMIC INCREMENT (v2.10)
+            // ═══════════════════════════════════════════════════════════
+            // Remplace l'ancienne logique (Select -> Update) qui était vulnérable
+            // aux race conditions ("Lost Updates").
 
-            if (!profile) {
-                throw new AppError('Profile not found', { code: 'PROFILE_NOT_FOUND' })
-            }
-
-            const newBalance = profile.credits_balance + amount
-
-            const { error } = await supabase
-                .from('profiles')
-                .update({ credits_balance: newBalance })
-                .eq('id', userId)
+            const { data, error } = await supabase.rpc('increment_credits', {
+                p_user_id: userId,
+                p_amount: amount
+            })
 
             if (error) throw error
 
-            console.log(`💰 Credits added: ${amount} (new balance: ${newBalance})`)
+            const newBalance = data[0]?.new_balance ?? 0 // data[0] car returns table
+            console.log(`💰 Credits added ATOMICALLY: +${amount} (new balance: ${newBalance})`)
+
             return newBalance
 
         } catch (error) {
-            if (error instanceof AppError) throw error
-
+            console.error('Atomic credit add failed:', error)
             throw new AppError('Credit addition failed', {
                 code: 'CREDIT_ADD_FAILED',
                 cause: error

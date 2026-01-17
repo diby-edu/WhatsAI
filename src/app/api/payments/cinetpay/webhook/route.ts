@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { checkPaymentStatus } from '@/lib/payments/cinetpay'
+import { CreditsService } from '@/lib/whatsapp/services/credits.service'
 import crypto from 'crypto'
 
 // Use service role for webhook (no user auth)
@@ -357,39 +358,38 @@ export async function POST(request: NextRequest) {
             console.log('💰 Credits to add:', creditsToAdd)
 
             if (creditsToAdd > 0) {
-                // Get current balance
-                const { data: profile } = await getSupabase()
-                    .from('profiles')
-                    .select('credits_balance, plan')
-                    .eq('id', payment.user_id)
-                    .single()
+                // ═══════════════════════════════════════════════════════════
+                // ⭐ FIX SECURITY: ATOMIC UPDATE (v2.10)
+                // ═══════════════════════════════════════════════════════════
+                // Use the atomic service method (RPC) instead of select/update
 
-                const currentBalance = profile?.credits_balance || 0
-                const newBalance = currentBalance + creditsToAdd
+                try {
+                    const newBalance = await CreditsService.add(getSupabase(), payment.user_id, creditsToAdd)
 
-                // Update profile with new credits
-                const updateData: { credits_balance: number; plan?: string } = {
-                    credits_balance: newBalance
-                }
+                    // Update plan based on credits added (Business Logic)
+                    // Note: This part is still non-atomic regarding plan switch, 
+                    // but credit balance is safe.
+                    const updateData: { plan?: string } = {}
 
-                // Update plan if subscription payment
-                if (payment.payment_type === 'subscription') {
-                    const metadata = payment.provider_response
-                    if (creditsToAdd >= 5000) {
-                        updateData.plan = 'business'
-                    } else if (creditsToAdd >= 3000) {
-                        updateData.plan = 'pro'
-                    } else if (creditsToAdd >= 1000) {
-                        updateData.plan = 'starter'
+                    if (payment.payment_type === 'subscription') {
+                        if (creditsToAdd >= 5000) updateData.plan = 'business'
+                        else if (creditsToAdd >= 3000) updateData.plan = 'pro'
+                        else if (creditsToAdd >= 1000) updateData.plan = 'starter'
+
+                        if (Object.keys(updateData).length > 0) {
+                            await getSupabase()
+                                .from('profiles')
+                                .update(updateData)
+                                .eq('id', payment.user_id)
+                        }
                     }
+
+                    console.log(`✅ SUCCESS! Added ${creditsToAdd} credits. New Balance: ${newBalance}`)
+
+                } catch (creditError) {
+                    console.error('❌ Failed to add credits atomicaly:', creditError)
+                    // We don't fail the webhook response, but we log critically
                 }
-
-                await getSupabase()
-                    .from('profiles')
-                    .update(updateData)
-                    .eq('id', payment.user_id)
-
-                console.log(`✅ SUCCESS! Added ${creditsToAdd} credits. Balance: ${currentBalance} → ${newBalance}`)
             }
 
             // Mark payment as completed
