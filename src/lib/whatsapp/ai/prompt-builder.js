@@ -133,6 +133,7 @@ Si le client dit "Salut", "Bonjour", "Menu" ou commence la conversation:
     - Pas besoin de variantes
         - Dès que la quantité est connue → passer aux infos client
             - Exemple: "100 licences" → Quantité = 100, passer directement à "Quel est votre nom ?"
+    `
 
     // ═══════════════════════════════════════════════════════════════
     // SECTION 5 : RÈGLES ANTI-BOUCLE (v2.9)
@@ -201,24 +202,24 @@ Si le client dit "Salut", "Bonjour", "Menu" ou commence la conversation:
     const businessInfo = (agent.business_address || gpsLink || formattedHours !== 'Non spécifiés')
         ? `
 🏢 INFOS:
-${ agent.business_address ? `📍 ${agent.business_address}` : '' }
-${ gpsLink ? `🗺️ ${gpsLink}` : '' }
-${ formattedHours !== 'Non spécifiés' ? `⏰ ${formattedHours}` : '' }
+${agent.business_address ? `📍 ${agent.business_address}` : ''}
+${gpsLink ? `🗺️ ${gpsLink}` : ''}
+${formattedHours !== 'Non spécifiés' ? `⏰ ${formattedHours}` : ''}
     ` : ''
 
     // ═══════════════════════════════════════════════════════════════
     // ASSEMBLAGE FINAL
     // ═══════════════════════════════════════════════════════════════
-    return `${ resetContext }
-${ variantsFirst }
-${ identity }
-${ catalogueSection }
-${ collectOrder }
-${ rules }
-${ tools }
-${ clientHistory }
-${ knowledgeSection }
-${ businessInfo } `.trim()
+    return `${resetContext}
+${variantsFirst}
+${identity}
+${catalogueSection}
+${collectOrder}
+${rules}
+${tools}
+${clientHistory}
+${knowledgeSection}
+${businessInfo} `.trim()
 }
 
 /**
@@ -242,7 +243,7 @@ function buildCatalogueSection(products, currency) {
         const hasVariants = p.variants && p.variants.length > 0
 
         if (p.price_fcfa && p.price_fcfa > 0) {
-            priceDisplay = `${ p.price_fcfa.toLocaleString() } ${ currencySymbol } `
+            priceDisplay = `${p.price_fcfa.toLocaleString()} ${currencySymbol} `
         } else if (hasVariants) {
             let minPrice = Infinity
             let maxPrice = 0
@@ -260,9 +261,9 @@ function buildCatalogueSection(products, currency) {
             }
 
             if (minPrice !== Infinity && minPrice !== maxPrice) {
-                priceDisplay = `Entre ${ minPrice.toLocaleString() } et ${ maxPrice.toLocaleString() } ${ currencySymbol } `
+                priceDisplay = `Entre ${minPrice.toLocaleString()} et ${maxPrice.toLocaleString()} ${currencySymbol} `
             } else if (minPrice !== Infinity) {
-                priceDisplay = `${ minPrice.toLocaleString() } ${ currencySymbol } `
+                priceDisplay = `${minPrice.toLocaleString()} ${currencySymbol} `
             } else {
                 priceDisplay = 'Prix selon option'
             }
@@ -282,7 +283,7 @@ function buildCatalogueSection(products, currency) {
                     // Ajouter le prix si présent
                     if (typeof o === 'object') {
                         if (o.price && o.price > 0) {
-                            display += ` (${ o.price } FCFA)`
+                            display += ` (${o.price} FCFA)`
                         } else {
                             // Si prix 0 ou null, préciser que c'est le prix de base pour éviter l'hallucination
                             display += ` (Prix standard)`
@@ -290,19 +291,19 @@ function buildCatalogueSection(products, currency) {
                     }
                     return display
                 }).join(', ')
-                return `${ v.name }: ${ opts } `
+                return `${v.name}: ${opts} `
             }).join(' | ')
 
-            variantsInfo = ` (${ variantsList })`
+            variantsInfo = ` (${variantsList})`
         }
 
         // Format : Numéro. *Nom* Icône - Prix (Variantes)
-        return `${ index + 1 }. * ${ p.name }* ${ typeIcon } - ${ priceDisplay }${ variantsInfo } `
+        return `${index + 1}. * ${p.name}* ${typeIcon} - ${priceDisplay}${variantsInfo} `
     }).join('\n')
 
     return `
 📦 CATALOGUE:
-${ catalogueItems }
+${catalogueItems}
     `
 }
 
@@ -329,16 +330,16 @@ function buildClientHistory(orders) {
 
     const ordersList = recentOrders.slice(0, 3).map(o => {
         const date = new Date(o.created_at).toLocaleDateString('fr-FR')
-        const items = o.items ? o.items.map(item => `${ item.quantity }x ${ item.product_name } `).join(', ') : '?'
-        return `• ${ date } - ${ o.status } - ${ o.total_fcfa } FCFA - ${ items } `
+        const items = o.items ? o.items.map(item => `${item.quantity}x ${item.product_name} `).join(', ') : '?'
+        return `• ${date} - ${o.status} - ${o.total_fcfa} FCFA - ${items} `
     }).join('\n')
 
     const lastPhone = orders[0]?.customer_phone || ''
 
     return `
-${ displayTitle }
-${ ordersList }
-${ lastPhone ? `📞 Tél: ${lastPhone.slice(0, 8)}****` : '' }
+${displayTitle}
+${ordersList}
+${lastPhone ? `📞 Tél: ${lastPhone.slice(0, 8)}****` : ''}
     `
 }
 
@@ -352,10 +353,10 @@ function buildKnowledgeSection(relevantDocs) {
         return ''
     }
 
-    const docs = relevantDocs.slice(0, 3).map(d => `• ${ d.content } `).join('\n')
+    const docs = relevantDocs.slice(0, 3).map(d => `• ${d.content} `).join('\n')
     return `
 📚 INFOS UTILES:
-${ docs }
+${docs}
     `
 }
 
