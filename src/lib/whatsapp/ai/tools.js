@@ -1,17 +1,23 @@
 /**
  * ═══════════════════════════════════════════════════════════════
- * TOOLS.JS v2.7 - VERSION CONSOLIDÉE (AUDIT COMPLET)
+ * TOOLS.JS v2.23 - ULTIME FIX (NUCLEAR SAFETY)
  * ═══════════════════════════════════════════════════════════════
  * 
- * CORRECTIONS INCLUSES :
- * ✅ #1 : Matching flexible des variantes (v2.6)
- * ✅ #4 : Logs pour produits sans variantes
- * ✅ Export de findMatchingOption pour pre-check
- * ✅ Logs améliorés pour debug complet
- * ✅ Gestion d'erreurs robuste
+ * changelog:
+ * ✅ v2.23 : 'var price' (scope global function), safe import normalizePhoneNumber
  */
 
-const { normalizePhoneNumber } = require('../utils/format')
+console.log("🚀 TOOLS.JS v2.23 LOADED - PRICE SAFETY ACTIVE")
+
+// IMPORT SECURISE
+let normalizePhoneNumber = null
+try {
+    const formatUtils = require('../utils/format')
+    normalizePhoneNumber = formatUtils.normalizePhoneNumber
+    console.log("✅ normalizePhoneNumber IMPORTED OK")
+} catch (e) {
+    console.error("❌ ERROR IMPORTING normalizePhoneNumber:", e)
+}
 
 
 // ═══════════════════════════════════════════════════════════════
