@@ -371,66 +371,77 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                 console.log(`   ✅ Stock OK: ${stockCheck.available === Infinity ? 'illimité' : stockCheck.available}`)
 
                 // ═══════════════════════════════════════════════════════
-                // GESTION DU PRIX ET DES VARIANTES (v2.10 - CORRIGÉ)
+                // GESTION DU PRIX ET DES VARIANTES (v2.12 - HYBRID LOGIC)
                 // ═══════════════════════════════════════════════════════
-                let price = product.price_fcfa || 0
+                // Logique Simplifiée :
+                // 1. Base Price = Product Price
+                // 2. Si Variante Prix > 0 (et pas supplément) → Remplace Base Price
+                // 3. Si Variante Type = 'supplement' → Ajoute au Total
+                
+                let effectiveBasePrice = product.price_fcfa || 0
+                let totalSupplements = 0
                 let matchedVariantOption = null
 
                 // Vérifier si le produit a des variantes RÉELLES
                 if (productHasRealVariants(product)) {
                     console.log(`   📋 Produit avec variantes RÉELLES`)
 
-                    // Reset prix si variantes FIXED
-                    if (product.variants.some(v => v.type === 'fixed')) {
-                        console.log(`   🛡️ Variantes FIXED détectées : Reset prix ${price} -> 0`)
-                        price = 0
-                    }
-
                     const matchedVariantsByType = {}
-
-                    // MÉTHODE 1 : Via selected_variants
+                    
+                    // Fusionner les sources de variantes (priorité à selected_variants de l'outil, fallback sur analyse de texte dans product_name)
+                    // Cette étape construit une map "NomVariante" -> "ValeurOption"
+                    
+                    // A. Extract from explicit selection
                     if (item.selected_variants && typeof item.selected_variants === 'object') {
-                        console.log(`   📦 selected_variants reçu:`, item.selected_variants)
-
-                        for (const variant of product.variants) {
-                            if (!variant.options || variant.options.length === 0) continue
-
-                            const variantNameLower = variant.name.toLowerCase()
-                            const selectedEntry = Object.entries(item.selected_variants).find(
-                                ([key]) => key.toLowerCase() === variantNameLower
-                            )
-                            const selectedValue = selectedEntry ? selectedEntry[1] : null
-
-                            if (selectedValue) {
-                                const validOption = findMatchingOption(variant, selectedValue)
-                                if (validOption) {
-                                    const optionPrice = getOptionPrice(validOption)
-                                    if (variant.type === 'fixed') price = optionPrice
-                                    else price += optionPrice
-                                    matchedVariantsByType[variant.name] = getOptionValue(validOption)
-                                    console.log(`      ✅ ${variant.name}: "${selectedValue}" → "${getOptionValue(validOption)}" (${optionPrice} FCFA)`)
-                                }
-                            }
-                        }
+                        Object.entries(item.selected_variants).forEach(([k, v]) => {
+                             // Find exact variant name check
+                             const targetVariant = product.variants.find(pv => pv.name.toLowerCase() === k.toLowerCase())
+                             if(targetVariant) matchedVariantsByType[targetVariant.name] = v
+                        })
                     }
 
-                    // MÉTHODE 2 : Fallback - chercher dans product_name
-                    for (const variant of product.variants) {
-                        if (!variant.options || variant.options.length === 0) continue
-                        if (matchedVariantsByType[variant.name]) continue
+                    // B. Extract from product name (fallback)
+                    product.variants.forEach(variant => {
+                        if (matchedVariantsByType[variant.name]) return // Déjà trouvé
+                        if (!variant.options || variant.options.length === 0) return
 
                         for (const option of variant.options) {
-                            const optValue = getOptionValue(option)
-                            if (optValue && item.product_name.toLowerCase().includes(optValue.toLowerCase())) {
-                                const optionPrice = getOptionPrice(option)
-                                if (variant.type === 'fixed') price = optionPrice
-                                else price += optionPrice
-                                matchedVariantsByType[variant.name] = optValue
-                                console.log(`      ✅ ${variant.name} trouvé dans nom: "${optValue}"`)
-                                break
-                            }
+                             const optValue = getOptionValue(option)
+                             // Simple includes check - can be fragile but aligns with existing logic
+                             if (optValue && item.product_name.toLowerCase().includes(optValue.toLowerCase())) {
+                                 matchedVariantsByType[variant.name] = optValue
+                                 break
+                             }
+                        }
+                    })
+
+                    // C. CALCULATE PRICE based on matched variants
+                    for (const variant of product.variants) {
+                        const selectedValue = matchedVariantsByType[variant.name]
+                        if (selectedValue) {
+                             const validOption = findMatchingOption(variant, selectedValue)
+                             if (validOption) {
+                                  const optionPrice = getOptionPrice(validOption)
+                                  
+                                  if (variant.type === 'supplement') {
+                                      totalSupplements += optionPrice
+                                      console.log(`      ➕ Supplément "${variant.name}": +${optionPrice} FCFA`)
+                                  } else {
+                                      if (optionPrice > 0) {
+                                          effectiveBasePrice = optionPrice
+                                          console.log(`      🔄 Remplacement Base "${variant.name}": ${optionPrice} FCFA`)
+                                      } else {
+                                          console.log(`      ⏹️ Maintien Base "${variant.name}": (0 FCFA)`)
+                                      }
+                                  }
+                                  // Update matched value for description
+                                  matchedVariantsByType[variant.name] = getOptionValue(validOption)
+                             }
                         }
                     }
+                    
+                    // Calcul Final
+                    price = effectiveBasePrice + totalSupplements
 
                     // Vérifier les variantes manquantes (seulement celles avec des options)
                     const missingVariants = product.variants.filter(v =>

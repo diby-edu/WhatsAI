@@ -261,40 +261,51 @@ function buildCatalogueSection(products, currency) {
         const typeIcon = p.product_type === 'service' ? '🛎️' :
             p.product_type === 'virtual' ? '💻' : '📦'
 
-        // Gestion intelligente du prix
+        // Gestion intelligente du prix (Hybrid Logic v2.12)
         let priceDisplay
         const hasVariants = p.variants && p.variants.length > 0
 
-        if (p.price_fcfa && p.price_fcfa > 0) {
-            priceDisplay = `${p.price_fcfa.toLocaleString()} ${currencySymbol} `
-        } else if (hasVariants) {
-            let minPrice = Infinity
-            let maxPrice = 0
+        // 1. Calculer la fourchette de Prix de Base (Replacements)
+        let minBase = p.price_fcfa || 0
+        let maxBase = p.price_fcfa || 0
+        let hasReplacement = false
+
+        if (hasVariants) {
+            let replacementPrices = []
 
             for (const variant of p.variants) {
-                if (variant.type === 'fixed') {
-                    for (const opt of variant.options) {
-                        const optPrice = (typeof opt === 'object') ? (opt.price || 0) : 0
-                        if (optPrice > 0) {
-                            minPrice = Math.min(minPrice, optPrice)
-                            maxPrice = Math.max(maxPrice, optPrice)
-                        }
+                if (variant.type === 'supplement') continue // Ignorer suppléments pour la base
+
+                for (const opt of variant.options) {
+                    const optPrice = (typeof opt === 'object') ? (opt.price || 0) : 0
+                    if (optPrice > 0) {
+                        replacementPrices.push(optPrice)
                     }
                 }
             }
 
-            if (minPrice !== Infinity && minPrice !== maxPrice) {
-                priceDisplay = `Entre ${minPrice.toLocaleString()} et ${maxPrice.toLocaleString()} ${currencySymbol} `
-            } else if (minPrice !== Infinity) {
-                priceDisplay = `${minPrice.toLocaleString()} ${currencySymbol} `
+            if (replacementPrices.length > 0) {
+                minBase = Math.min(...replacementPrices)
+                maxBase = Math.max(...replacementPrices)
+                hasReplacement = true
+            }
+        }
+
+        if (hasReplacement) {
+            if (minBase !== maxBase) {
+                priceDisplay = `Entre ${minBase.toLocaleString()} et ${maxBase.toLocaleString()} ${currencySymbol} `
             } else {
-                priceDisplay = 'Prix selon option'
+                priceDisplay = `${minBase.toLocaleString()} ${currencySymbol} `
             }
         } else {
+            priceDisplay = `${(p.price_fcfa || 0).toLocaleString()} ${currencySymbol} `
+        }
+
+        if (p.price_fcfa === 0 && !hasReplacement) {
             priceDisplay = 'Gratuit'
         }
 
-        // Variantes (noms courts)
+        // Variantes (noms courts et prix)
         let variantsInfo = ''
         if (hasVariants) {
             const variantsList = p.variants.map(v => {
@@ -306,15 +317,23 @@ function buildCatalogueSection(products, currency) {
                     // Ajouter le prix si présent
                     if (typeof o === 'object') {
                         if (o.price && o.price > 0) {
-                            display += ` (${o.price} FCFA)`
+                            if (v.type === 'supplement') {
+                                display += ` (+${o.price} FCFA)`
+                            } else {
+                                display += ` (${o.price} FCFA)`
+                            }
                         } else {
-                            // Si prix 0 ou null, préciser que c'est le prix de base pour éviter l'hallucination
-                            display += ` (Prix standard)`
+                            if (v.type === 'supplement') {
+                                // Supplément gratuit ?
+                            } else {
+                                // Si prix 0 ou null, et qu'il y a des replacements par ailleurs, préciser standard
+                                if (hasReplacement) display += ` (Standard)`
+                            }
                         }
                     }
                     return display
                 }).join(', ')
-                return `${v.name}: ${opts} `
+                return `${v.name}${v.type === 'supplement' ? ' (Suppléments)' : ''}: ${opts} `
             }).join(' | ')
 
             variantsInfo = ` (${variantsList})`
