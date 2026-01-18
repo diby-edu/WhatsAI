@@ -11,7 +11,7 @@
  * ✅ Gestion d'erreurs robuste
  */
 
-const normalizePhoneNumber = require('../utils/format')
+const { normalizePhoneNumber } = require('../utils/format')
 
 
 // ═══════════════════════════════════════════════════════════════
