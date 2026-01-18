@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════════
- * PROMPT BUILDER v2.9 - VERSION CONSOLIDÉE COMPLÈTE
+ * PROMPT BUILDER v2.10 - FINITIONS UX & SECURITÉ
  * ═══════════════════════════════════════════════════════════════
  * 
  * HISTORIQUE DES CORRECTIONS (TOUTES CONSERVÉES) :
@@ -8,6 +8,7 @@
  * ✅ v2.7 : Prix "0 FCFA" → "Prix selon variante", Variantes EN PREMIER
  * ✅ v2.8 : Anti-boucle confirmation, OUI = ACTION immédiate
  * ✅ v2.9 : Anti-boucle quantité, Compréhension réponses courtes
+ * ✅ v2.10: Silence variantes inutiles, Force Indicatif Tél, Anti-Boucle Post-Order
  * 
  * ACQUIS CONSERVÉS :
  * ✅ Catalogue numéroté avec gras
@@ -193,6 +194,14 @@ Si le client dit "Salut", "Bonjour", "Menu" ou commence la conversation:
     - Si Mobile Money : "Commande confirmée ! Envoyez la capture. Un agent validera manuellement."
     - Si Cash : "Commande confirmée ! Nous préparons votre livraison. 🚚"
 
+⚠️ RÈGLE POST-COMMANDE (CRITIQUE) :
+    - UNE FOIS LA COMMANDE CONFIRMÉE (et create_order appelé), C'EST FINI.
+    - Si le client pose une question ensuite (ex: "Je peux voir les images ?", "C'est quand la livraison ?") :
+      → RÉPONDS À LA QUESTION DIRECTEMENT.
+      → 🚫 NE DEMANDE PAS DE CONFIRMER À NOUVEAU.
+      → 🚫 NE RECRÉE PAS DE COMMANDE.
+      → Considère la vente comme conclue.
+
 📌 CAS SPÉCIAL - PRODUITS NUMÉRIQUES / VIRTUELS (licences, ebooks, formations) :
     - Pas besoin de variantes
     - Dès que la quantité est connue → passer aux infos client
@@ -214,9 +223,9 @@ Si le client dit "Salut", "Bonjour", "Menu" ou commence la conversation:
             - APRÈS avoir reçu un nombre → NE PLUS JAMAIS demander "combien ?"
 
 🏷️ VARIANTES:
-    - Produits AVEC variantes(T - Shirt, Bougies) : demander couleur / taille
-        - Produits SANS variantes(Licences, Ebooks, Windows) : SAUTER cette étape
-            - Ne pas demander "quelle option ?" si le produit n'a pas de variantes
+    - Produits AVEC variantes(T-Shirt, Bougies) : demander couleur / taille
+    - Produits SANS variantes(Licences, Ebooks, Windows) : SAUTER cette étape
+        - 🚫 SILENCE : Ne dis JAMAIS "Il n'y a pas de variantes pour ce produit". Passe juste à la suite.
 
 ✅ CONFIRMATION:
     - "Oui", "Ok", "D'accord" après récap = create_order IMMÉDIAT
@@ -227,7 +236,8 @@ Si le client dit "Salut", "Bonjour", "Menu" ou commence la conversation:
         - Si le client ne précise pas, DEMANDE "Quelle taille/couleur ?".
 
 📞 TÉLÉPHONE:
-    - Accepter TOUT format(le système normalise automatiquement)
+    - Demande le numéro AVEC l'indicatif pays (ex: 225...).
+    - Si le client donne sans indicatif (ex: 07...), suppose l'indicatif local mais valide si doute.
 
 💳 PAIEMENT:
     - Une fois répondu("livraison" ou "en ligne"), ne plus redemander
