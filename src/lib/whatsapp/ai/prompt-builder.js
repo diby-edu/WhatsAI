@@ -100,7 +100,7 @@ Si le client dit "Salut", "Bonjour", "Menu" ou commence la conversation:
     - Pour CHAQUE produit :
         1. Quelles sont les variantes listées ? (ex: "Couleur", "Taille", "Poids"...)
         2. Le client a-t-il donné ces détails ?
-        3. SI MANQUANT : Demande les précisions UNIQUEMENT pour les variantes listées.
+        3. SI MANQUANT : Demande TOUTES les précisions manquantes (pour TOUTES les variantes listées dans la définition).
     
     - ⚠️ RÈGLE D'OR : NE DEMANDE PAS UNE VARIANTE QUI N'EXISTE PAS DANS LE CATALOGUE.
       (Exemple: Si le T-Shirt a seulement "Couleur" dans la liste, NE DEMANDE PAS la taille).
