@@ -1,1 +1,13 @@
 [TAILING] Tailing last 100 lines for [whatsapp-service] process (change the value with --lines option)
+
+
+ VULNÉRABILITÉS CRITIQUES DÉCOUVERTES
+1. 💰 ARGENT MAGIQUE (Webhook CinetPay - route.ts)
+La Faille (Lost Update Race Condition) : Quand CinetPay valide un paiement, le code fait : Lire Solde (100) -> Ajouter +50 -> Écraser Solde (150).
+L'Attaque : Si l'utilisateur dépense 10 crédits exactement au même moment (via le bot), sa dépense est écrasée par le webhook.
+Résultat : Solde 150 au lieu de 140. Il a gagné 10 crédits gratuits.
+Impact : Fuite de revenus silencieuse.
+2. 💥 CRASH SUR MESSAGE MALFORMÉ (message.js)
+La Faille : Le rate limiter utilise message.from comme clé. Si message.from est undefined (bug WhatsApp ou attaque), le bot peut crasher tout le serveur Node.js.
+Impact : Déni de service (DoS) du bot pour tous les clients.
+3. 🧠 DOS MEMOIRE (message.js)
