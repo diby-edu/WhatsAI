@@ -1,13 +1,14 @@
 /**
  * ═══════════════════════════════════════════════════════════════
- * TOOLS.JS v2.23 - ULTIME FIX (NUCLEAR SAFETY)
+ * TOOLS.JS v2.24 - ULTIME FIX (NUCLEAR SAFETY)
  * ═══════════════════════════════════════════════════════════════
  * 
  * changelog:
+ * ✅ v2.24 : Fix 'variants' ReferenceError (line 450)
  * ✅ v2.23 : 'var price' (scope global function), safe import normalizePhoneNumber
  */
 
-console.log("🚀 TOOLS.JS v2.23 LOADED - PRICE SAFETY ACTIVE")
+console.log("🚀 TOOLS.JS v2.24 LOADED - PRICE SAFETY ACTIVE")
 
 // IMPORT SECURISE
 let normalizePhoneNumber = null
@@ -394,6 +395,7 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                 if (productHasRealVariants(product)) {
                     console.log(`   📋 Produit avec variantes RÉELLES`)
 
+                    const variants = product.variants // ✅ FIX ReferenceError v2.24
                     const matchedVariantsByType = {}
 
                     // Fusionner les sources de variantes (priorité à selected_variants de l'outil, fallback sur analyse de texte dans product_name)
