@@ -378,7 +378,9 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                 // 2. Si Variante Prix > 0 (et pas supplément) → Remplace Base Price
                 // 3. Si Variante Type = 'supplement' → Ajoute au Total
 
-                let effectiveBasePrice = product.price_fcfa || 0
+                // Initialiser le prix avec le prix de base par défaut (SAFE SCOPE)
+                let price = product.price_fcfa || 0
+                let effectiveBasePrice = price
                 let totalSupplements = 0
                 let matchedVariantOption = null
 
