@@ -251,7 +251,11 @@ Si le client dit "Salut", "Bonjour", "Menu" ou commence la conversation:
     // ═══════════════════════════════════════════════════════════════
     const tools = `
 🔧 OUTILS:
-• create_order → Créer commande(AVEC selected_variants si variantes!)
+• create_order → Créer commande.
+    ⚠️ REGLE CRITIQUE PAYLOAD : Si 1 produit a plusieurs variantes (ex: 3 Rouges, 2 Bleus), TU DOIS CRÉER 2 ITEMS DISTINCTS !
+    - Item 1 : { product: ..., qty: 3, selected_variants: { Couleur: Rouge } }
+    - Item 2 : { product: ..., qty: 2, selected_variants: { Couleur: Bleu } }
+    🚫 NE JAMAIS GROUPER (qty: 5) sans variantes précises.
 • check_payment_status → Vérifier paiement(avec ID)
 • find_order → Retrouver commandes(par téléphone)
 • send_image → Montrer un produit
