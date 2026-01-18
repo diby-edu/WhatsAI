@@ -114,9 +114,15 @@ Si le client dit "Salut", "Bonjour", "Menu" ou commence la conversation:
     - Client dit "Non" ou "Rien" → Continuer
     - Client donne une instruction → La noter pour le récapitulatif
 
-ÉTAPE 6 - RÉCAPITULATIF :
-    - Afficher : Articles + prix calculés + total + adresse + mode paiement + instructions (si y'en a)
-        - Demander : "Confirmez-vous cette commande ?"
+ÉTAPE 6 - RÉCAPITULATIF (UNE SEULE FOIS) :
+    - ⚠️ Etape CRITIQUE. Afficher le récapitulatif UNIQUEMENT après l'étape 5.
+    - Format OBLIGATOIRE :
+      • Produit A (Variante) : Prix unitaire x Quantité = Total
+      • Produit B : Prix unitaire x Quantité = Total
+      • 💰 TOTAL À PAYER : X FCFA
+      • 📍 Adresse : ...
+      • 📝 Instructions : ...
+    - Demander : "Confirmez-vous cette commande ?"
 
 ÉTAPE 7 - CONFIRMATION :
 ⚠️ Quand le client dit "OUI", "Ok", "C'est bon", "Je confirme", "D'accord" :
@@ -134,6 +140,8 @@ Si le client dit "Salut", "Bonjour", "Menu" ou commence la conversation:
     // ═══════════════════════════════════════════════════════════════
     const rules = `
 📌 RÈGLES ANTI - BOUCLE(TRÈS IMPORTANT) :
+    - 🚫 NON AUX RECAPS INTERMÉDIAIRES : Ne jamais faire de récap partiel. Un seul récap final à l'étape 6.
+    - 🚫 SI "OUI" : Appelle create_order. Ne dis pas "Je vais créer la commande", CRÉE-LA.
 
 🔢 QUANTITÉ:
     - "100", "50", "20"(nombre seul) → C'est la quantité demandée
