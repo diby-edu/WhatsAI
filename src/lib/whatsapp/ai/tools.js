@@ -377,7 +377,7 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                 // 1. Base Price = Product Price
                 // 2. Si Variante Prix > 0 (et pas supplément) → Remplace Base Price
                 // 3. Si Variante Type = 'supplement' → Ajoute au Total
-                
+
                 let effectiveBasePrice = product.price_fcfa || 0
                 let totalSupplements = 0
                 let matchedVariantOption = null
@@ -387,16 +387,16 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                     console.log(`   📋 Produit avec variantes RÉELLES`)
 
                     const matchedVariantsByType = {}
-                    
+
                     // Fusionner les sources de variantes (priorité à selected_variants de l'outil, fallback sur analyse de texte dans product_name)
                     // Cette étape construit une map "NomVariante" -> "ValeurOption"
-                    
+
                     // A. Extract from explicit selection
                     if (item.selected_variants && typeof item.selected_variants === 'object') {
                         Object.entries(item.selected_variants).forEach(([k, v]) => {
-                             // Find exact variant name check
-                             const targetVariant = product.variants.find(pv => pv.name.toLowerCase() === k.toLowerCase())
-                             if(targetVariant) matchedVariantsByType[targetVariant.name] = v
+                            // Find exact variant name check
+                            const targetVariant = product.variants.find(pv => pv.name.toLowerCase() === k.toLowerCase())
+                            if (targetVariant) matchedVariantsByType[targetVariant.name] = v
                         })
                     }
 
@@ -406,12 +406,12 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                         if (!variant.options || variant.options.length === 0) return
 
                         for (const option of variant.options) {
-                             const optValue = getOptionValue(option)
-                             // Simple includes check - can be fragile but aligns with existing logic
-                             if (optValue && item.product_name.toLowerCase().includes(optValue.toLowerCase())) {
-                                 matchedVariantsByType[variant.name] = optValue
-                                 break
-                             }
+                            const optValue = getOptionValue(option)
+                            // Simple includes check - can be fragile but aligns with existing logic
+                            if (optValue && item.product_name.toLowerCase().includes(optValue.toLowerCase())) {
+                                matchedVariantsByType[variant.name] = optValue
+                                break
+                            }
                         }
                     })
 
@@ -419,32 +419,33 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                     for (const variant of product.variants) {
                         const selectedValue = matchedVariantsByType[variant.name]
                         if (selectedValue) {
-                             const validOption = findMatchingOption(variant, selectedValue)
-                             if (validOption) {
-                                  const optionPrice = getOptionPrice(validOption)
-                                  
-                                  if (variant.type === 'supplement') {
-                                      totalSupplements += optionPrice
-                                      console.log(`      ➕ Supplément "${variant.name}": +${optionPrice} FCFA`)
-                                  } else {
-                                      if (optionPrice > 0) {
-                                          effectiveBasePrice = optionPrice
-                                          console.log(`      🔄 Remplacement Base "${variant.name}": ${optionPrice} FCFA`)
-                                      } else {
-                                          console.log(`      ⏹️ Maintien Base "${variant.name}": (0 FCFA)`)
-                                      }
-                                  }
-                                  // Update matched value for description
-                                  matchedVariantsByType[variant.name] = getOptionValue(validOption)
-                             }
+                            const validOption = findMatchingOption(variant, selectedValue)
+                            if (validOption) {
+                                const optionPrice = getOptionPrice(validOption)
+
+                                if (variant.type === 'supplement') {
+                                    totalSupplements += optionPrice
+                                    console.log(`      ➕ Supplément "${variant.name}": +${optionPrice} FCFA`)
+                                } else {
+                                    if (optionPrice > 0) {
+                                        effectiveBasePrice = optionPrice
+                                        console.log(`      🔄 Remplacement Base "${variant.name}": ${optionPrice} FCFA`)
+                                    } else {
+                                        console.log(`      ⏹️ Maintien Base "${variant.name}": (0 FCFA)`)
+                                    }
+                                }
+                                // Update matched value for description
+                                matchedVariantsByType[variant.name] = getOptionValue(validOption)
+                            }
                         }
                     }
-                    
-                    // Calcul Final
-                    price = effectiveBasePrice + totalSupplements
 
-                    // Vérifier les variantes manquantes (seulement celles avec des options)
-                    const missingVariants = product.variants.filter(v =>
+                    // 3. Calcul Final du Prix (Base + Supplément)
+                    price = effectiveBasePrice + totalSupplements
+                    matchedVariantOption = Object.values(matchedVariantsByType).join(', ')
+
+                    // 4. Check Manquants
+                    const missingVariants = variants.filter(v =>
                         v.options && v.options.length > 0 && !matchedVariantsByType[v.name]
                     )
 
@@ -467,20 +468,17 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                         })
                     }
 
-                    matchedVariantOption = Object.values(matchedVariantsByType).join(', ')
-                    console.log(`   ✅ Toutes variantes OK: ${matchedVariantOption}`)
+                    console.log(`      ✅ Variants validés: ${matchedVariantOption}`)
+                    console.log(`      💵 Prix calculé: ${effectiveBasePrice} (Base) + ${totalSupplements} (Supp) = ${price} FCFA`)
 
                 } else {
-                    // PRODUIT SANS VARIANTES (ou variantes vides)
-                    console.log(`   ℹ️ Produit SANS variantes - Utilisation du prix catalogue: ${price} FCFA`)
+                    console.log(`   ℹ️ Produit SANS variantes - Prix: ${price} FCFA`)
                 }
 
-                // Ajouter à la commande
+                // AJOUT A LA COMMANDE
                 total += price * item.quantity
                 orderItems.push({
-                    product_name: matchedVariantOption
-                        ? `${product.name} (${matchedVariantOption})`
-                        : product.name,
+                    product_name: matchedVariantOption ? `${product.name} (${matchedVariantOption})` : product.name,
                     product_description: product.description,
                     quantity: item.quantity,
                     unit_price_fcfa: price
@@ -490,7 +488,16 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
             }
 
             // Créer la commande
-            const normalizedPhone = normalizePhoneNumber(customer_phone || customerPhone)
+            const safeNormalize = (phone) => {
+                // Assuming normalizePhoneNumber is imported or globally available.
+                // If not, this check prevents a ReferenceError.
+                if (typeof normalizePhoneNumber === 'function') {
+                    return normalizePhoneNumber(phone)
+                }
+                console.error("❌ CRITICAL: normalizePhoneNumber is not a function! Falling back to simple strip.")
+                return phone ? phone.replace(/\D/g, '') : ''
+            }
+            const normalizedPhone = safeNormalize(customer_phone || customerPhone)
             console.log(`\n📝 Création commande: ${orderItems.length} items, Total: ${total} FCFA`)
 
             const { data: order, error } = await supabase
