@@ -17,7 +17,7 @@
 | **Code Quality** | 0 | 0 | 0 | 0 |
 | **TOTAL** | **0** | **0** | **0** | **0** |
 
-> **Mise à jour (16/01/2026)** : Tous les problèmes identifiés ci-dessous ont été traités et résolus.
+> **Mise à jour (18/01/2026)** : Tous les problèmes identifiés ci-dessous ont été traités et résolus. La base de données a été auditée et verrouillée.
 
 ---
 
@@ -254,7 +254,7 @@ function verifyCinetPaySignature(payload, signature, secretKey) {
         .createHmac('sha256', secretKey)
         .update(JSON.stringify(payload))
         .digest('hex')
-    return computed === signature
+        return computed === signature
 }
 ```
 
@@ -359,7 +359,6 @@ Supprimer `message.new.js` ou le renommer explicitement (ex: `message.legacy.js`
 ---
 
 ## MAJEUR #9 : Pas de Timeout sur les Appels OpenAI [RÉSOLU]
-
 ### Localisation
 `src/lib/whatsapp/ai/generator.js`
 
@@ -455,7 +454,7 @@ Les sessions WhatsApp sont critiques. Si Supabase perd les données, tous les ag
 
 ---
 
-# � SECTION 3 : PROBLÈMES MINEURS (15) - [TOUS RÉSOLUS]
+#  SECTION 3 : PROBLÈMES MINEURS (15) - [TOUS RÉSOLUS]
 
 | # | Localisation | Description | Impact |
 |---|--------------|-------------|--------|
@@ -633,5 +632,27 @@ Suite aux tests utilisateurs et audits, une série de correctifs majeurs et d'am
     *   **Résultat** : Sécurité des données + Expérience fluide.
 
 ---
-*Mise à jour v2.9.9 - 17 Janvier 2026*
 
+# 🟢 SECTION 8 : MISSION VÉRITÉ TERRAIN (DB) - Janvier 18 2026
+
+**Objectif :** Éliminer le flou artistique entre "Ce qu'on croit avoir comme BDD" (Migrations) et "La BDD réelle" (Prod).
+
+## 8.1 PROBLÈME DÉCOUVERT : "Ghost Tables"
+*   L'audit a révélé que les migrations locales (`supabase/migrations`) manquaient des tables critiques présentes en prod :
+    *   `broadcasts` (Marketing de masse)
+    *   `audit_logs` (Sécurité)
+    *   `feature_flags` (Déploiement progressif)
+*   De plus, certaines contraintes (`CHECK`, `UNIQUE`) manquaient dans les fichiers locaux.
+
+## 8.2 SOLUTION APPLIQUÉE : Reverse Engineering Strict
+*   **Introspection** : Nous avons interrogé `pg_constraint` directement sur la prod.
+*   **Résultat** : Un fichier `PRODUCTION_SCHEMA.sql` qui est un pur reflet 1:1 de la réalité.
+    *   Contient désormais les `CHECK (status IN ...)` exacts.
+    *   Contient les contraintes d'unicité (ex: `order_number`).
+
+## 8.3 IMPACT POUR LE DÉV
+*   **Fin des devinettes** : Si ça n'est pas dans `PRODUCTION_SCHEMA.sql`, ça n'existe pas.
+*   **Sécurité** : Les contraintes DB protègent désormais l'intégrité des données même si le code JS bug.
+
+---
+*Fin du rapport d'audit exhaustif.*

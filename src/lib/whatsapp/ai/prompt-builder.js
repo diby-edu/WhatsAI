@@ -298,7 +298,7 @@ function buildCatalogueSection(products, currency) {
         }
 
         // Format : Numéro. *Nom* Icône - Prix (Variantes)
-        return `${index + 1}. * ${p.name}* ${typeIcon} - ${priceDisplay}${variantsInfo} `
+        return `${index + 1}. *${p.name}* ${typeIcon} - ${priceDisplay}${variantsInfo}`
     }).join('\n')
 
     return `
