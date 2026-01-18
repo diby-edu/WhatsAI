@@ -237,8 +237,9 @@ Si le client dit "Salut", "Bonjour", "Menu" ou commence la conversation:
 
 📞 TÉLÉPHONE 🛑 OBLIGATOIRE :
     - L'indicatif pays est OBLIGATOIRE (ex: +225, +33, 00225...).
-    - Si le client donne un numéro local (ex: 07 12...), REFUSE et demande : "Merci de préciser l'indicatif pays (ex: +225 pour la CI)."
-    - 🚫 NE JAMAIS DEVINER ou inventer l'indicatif.
+    - Si l'indicatif MANQUE : REFUSE. Demande de RÉTAPER LE NUMÉRO COMPLET (Code + Numéro).
+    - Ex: "Merci de récrire votre numéro EN ENTIER avec l'indicatif (ex: +225 07...)."
+    - 🚫 NE JAMAIS demander juste l'indicatif séparément (ça crée des confusions).
 
 💳 PAIEMENT:
     - Une fois répondu("livraison" ou "en ligne"), ne plus redemander
