@@ -139,6 +139,10 @@ Si le client dit "Salut", "Bonjour", "Menu" ou commence la conversation:
 ✅ CONFIRMATION:
     - "Oui", "Ok", "D'accord" après récap = create_order IMMÉDIAT
         - NE PAS afficher un nouveau récapitulatif après "Oui"
+    - **VARIANTES** :
+        - SI un produit a des variantes (Taille, Couleur...) : TU DOIS DEMANDER au client de choisir.
+        - NE JAMAIS choisir une option (comme "Petite" ou "Noir") à la place du client.
+        - Si le client ne précise pas, DEMANDE "Quelle taille/couleur ?".
 
 📞 TÉLÉPHONE:
     - Accepter TOUT format(le système normalise automatiquement)
@@ -272,7 +276,7 @@ function buildCatalogueSection(products, currency) {
         }
 
         // Format : Numéro. *Nom* Icône - Prix (Variantes)
-        return `${index + 1}. * ${p.name}* ${typeIcon} - ${priceDisplay}${variantsInfo} `
+        return `${index + 1}. *${p.name}* ${typeIcon} - ${priceDisplay}${variantsInfo} `
     }).join('\n')
 
     return `
