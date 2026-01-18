@@ -109,19 +109,19 @@ Si le client dit "Salut", "Bonjour", "Menu" ou commence la conversation:
         - MAPPING : "livraison" / "cash" / "cod" → payment_method: "cod"
             - MAPPING : "en ligne" / "online" / "carte" → payment_method: "online"
 
-ÉTAPE 5 - INSTRUCTIONS SPÉCIALES (NOUVEAU):
-    - JUSTE AVANT le récapitulatif, demander : "Avez-vous une instruction particulière pour cette commande ?"
-    - Client dit "Non" ou "Rien" → Continuer
-    - Client donne une instruction → La noter pour le récapitulatif
+ÉTAPE 5 - INSTRUCTIONS SPÉCIALES (OBLIGATOIRE):
+    - 🛑 STOP ! Ne fais PAS le récapitulatif tout de suite.
+    - DEMANDE D'ABORD : "Souhaitez-vous ajouter une instruction particulière (ex: appeler à l'arrivée) ?"
+    - ATTENDS la réponse (Oui/Non/Texte) avant de passer à l'étape 6.
 
 ÉTAPE 6 - RÉCAPITULATIF (UNE SEULE FOIS) :
-    - ⚠️ Etape CRITIQUE. Afficher le récapitulatif UNIQUEMENT après l'étape 5.
+    - ⚠️ Etape CRITIQUE. Afficher le récapitulatif UNIQUEMENT après avoir reçu les instructions (ou "Non").
     - Format OBLIGATOIRE :
       • Produit A (Variante) : Prix unitaire x Quantité = Total
       • Produit B : Prix unitaire x Quantité = Total
       • 💰 TOTAL À PAYER : X FCFA
       • 📍 Adresse : ...
-      • 📝 Instructions : ...
+      • 📝 Instructions : [Texte du client ou "Aucune"]
     - Demander : "Confirmez-vous cette commande ?"
 
 ÉTAPE 7 - CONFIRMATION :
@@ -133,15 +133,14 @@ Si le client dit "Salut", "Bonjour", "Menu" ou commence la conversation:
     - Pas besoin de variantes
         - Dès que la quantité est connue → passer aux infos client
             - Exemple: "100 licences" → Quantité = 100, passer directement à "Quel est votre nom ?"
-                `
 
     // ═══════════════════════════════════════════════════════════════
     // SECTION 5 : RÈGLES ANTI-BOUCLE (v2.9)
     // ═══════════════════════════════════════════════════════════════
     const rules = `
 📌 RÈGLES ANTI - BOUCLE(TRÈS IMPORTANT) :
-    - 🚫 NON AUX RECAPS INTERMÉDIAIRES : Ne jamais faire de récap partiel. Un seul récap final à l'étape 6.
-    - 🚫 SI "OUI" : Appelle create_order. Ne dis pas "Je vais créer la commande", CRÉE-LA.
+    - 🚫 NON AUX RECAPS INTERMÉDIAIRES: Ne jamais faire de récap partiel.
+    - 🧩 VARIANTES MANQUANTES: Si le client donne une couleur mais oublie la taille(ou vice versa), DEMANDE LA PARTIE MANQUANTE TOUT DE SUITE.N'attends pas la fin.
 
 🔢 QUANTITÉ:
     - "100", "50", "20"(nombre seul) → C'est la quantité demandée
@@ -156,9 +155,9 @@ Si le client dit "Salut", "Bonjour", "Menu" ou commence la conversation:
 ✅ CONFIRMATION:
     - "Oui", "Ok", "D'accord" après récap = create_order IMMÉDIAT
         - NE PAS afficher un nouveau récapitulatif après "Oui"
-    - **VARIANTES** :
-        - SI un produit a des variantes (Taille, Couleur...) : TU DOIS DEMANDER au client de choisir.
-        - NE JAMAIS choisir une option (comme "Petite" ou "Noir") à la place du client.
+            - ** VARIANTES ** :
+    - SI un produit a des variantes(Taille, Couleur...) : TU DOIS DEMANDER au client de choisir.
+        - NE JAMAIS choisir une option(comme "Petite" ou "Noir") à la place du client.
         - Si le client ne précise pas, DEMANDE "Quelle taille/couleur ?".
 
 📞 TÉLÉPHONE:
@@ -202,24 +201,24 @@ Si le client dit "Salut", "Bonjour", "Menu" ou commence la conversation:
     const businessInfo = (agent.business_address || gpsLink || formattedHours !== 'Non spécifiés')
         ? `
 🏢 INFOS:
-${agent.business_address ? `📍 ${agent.business_address}` : ''}
-${gpsLink ? `🗺️ ${gpsLink}` : ''}
-${formattedHours !== 'Non spécifiés' ? `⏰ ${formattedHours}` : ''}
+${ agent.business_address ? `📍 ${agent.business_address}` : '' }
+${ gpsLink ? `🗺️ ${gpsLink}` : '' }
+${ formattedHours !== 'Non spécifiés' ? `⏰ ${formattedHours}` : '' }
     ` : ''
 
     // ═══════════════════════════════════════════════════════════════
     // ASSEMBLAGE FINAL
     // ═══════════════════════════════════════════════════════════════
-    return `${resetContext}
-${variantsFirst}
-${identity}
-${catalogueSection}
-${collectOrder}
-${rules}
-${tools}
-${clientHistory}
-${knowledgeSection}
-${businessInfo} `.trim()
+    return `${ resetContext }
+${ variantsFirst }
+${ identity }
+${ catalogueSection }
+${ collectOrder }
+${ rules }
+${ tools }
+${ clientHistory }
+${ knowledgeSection }
+${ businessInfo } `.trim()
 }
 
 /**
@@ -243,7 +242,7 @@ function buildCatalogueSection(products, currency) {
         const hasVariants = p.variants && p.variants.length > 0
 
         if (p.price_fcfa && p.price_fcfa > 0) {
-            priceDisplay = `${p.price_fcfa.toLocaleString()} ${currencySymbol} `
+            priceDisplay = `${ p.price_fcfa.toLocaleString() } ${ currencySymbol } `
         } else if (hasVariants) {
             let minPrice = Infinity
             let maxPrice = 0
@@ -261,9 +260,9 @@ function buildCatalogueSection(products, currency) {
             }
 
             if (minPrice !== Infinity && minPrice !== maxPrice) {
-                priceDisplay = `Entre ${minPrice.toLocaleString()} et ${maxPrice.toLocaleString()} ${currencySymbol} `
+                priceDisplay = `Entre ${ minPrice.toLocaleString() } et ${ maxPrice.toLocaleString() } ${ currencySymbol } `
             } else if (minPrice !== Infinity) {
-                priceDisplay = `${minPrice.toLocaleString()} ${currencySymbol} `
+                priceDisplay = `${ minPrice.toLocaleString() } ${ currencySymbol } `
             } else {
                 priceDisplay = 'Prix selon option'
             }
@@ -283,7 +282,7 @@ function buildCatalogueSection(products, currency) {
                     // Ajouter le prix si présent
                     if (typeof o === 'object') {
                         if (o.price && o.price > 0) {
-                            display += ` (${o.price} FCFA)`
+                            display += ` (${ o.price } FCFA)`
                         } else {
                             // Si prix 0 ou null, préciser que c'est le prix de base pour éviter l'hallucination
                             display += ` (Prix standard)`
@@ -291,19 +290,19 @@ function buildCatalogueSection(products, currency) {
                     }
                     return display
                 }).join(', ')
-                return `${v.name}: ${opts} `
+                return `${ v.name }: ${ opts } `
             }).join(' | ')
 
-            variantsInfo = ` (${variantsList})`
+            variantsInfo = ` (${ variantsList })`
         }
 
         // Format : Numéro. *Nom* Icône - Prix (Variantes)
-        return `${index + 1}. *${p.name}* ${typeIcon} - ${priceDisplay}${variantsInfo} `
+        return `${ index + 1 }. * ${ p.name }* ${ typeIcon } - ${ priceDisplay }${ variantsInfo } `
     }).join('\n')
 
     return `
 📦 CATALOGUE:
-${catalogueItems}
+${ catalogueItems }
     `
 }
 
@@ -330,16 +329,16 @@ function buildClientHistory(orders) {
 
     const ordersList = recentOrders.slice(0, 3).map(o => {
         const date = new Date(o.created_at).toLocaleDateString('fr-FR')
-        const items = o.items ? o.items.map(item => `${item.quantity}x ${item.product_name} `).join(', ') : '?'
-        return `• ${date} - ${o.status} - ${o.total_fcfa} FCFA - ${items} `
+        const items = o.items ? o.items.map(item => `${ item.quantity }x ${ item.product_name } `).join(', ') : '?'
+        return `• ${ date } - ${ o.status } - ${ o.total_fcfa } FCFA - ${ items } `
     }).join('\n')
 
     const lastPhone = orders[0]?.customer_phone || ''
 
     return `
-${displayTitle}
-${ordersList}
-${lastPhone ? `📞 Tél: ${lastPhone.slice(0, 8)}****` : ''}
+${ displayTitle }
+${ ordersList }
+${ lastPhone ? `📞 Tél: ${lastPhone.slice(0, 8)}****` : '' }
     `
 }
 
@@ -353,10 +352,10 @@ function buildKnowledgeSection(relevantDocs) {
         return ''
     }
 
-    const docs = relevantDocs.slice(0, 3).map(d => `• ${d.content} `).join('\n')
+    const docs = relevantDocs.slice(0, 3).map(d => `• ${ d.content } `).join('\n')
     return `
 📚 INFOS UTILES:
-${docs}
+${ docs }
     `
 }
 
