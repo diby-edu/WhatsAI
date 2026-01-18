@@ -1,9 +1,10 @@
 /**
  * ═══════════════════════════════════════════════════════════════
- * TOOLS.JS v2.24 - ULTIME FIX (NUCLEAR SAFETY)
+ * TOOLS.JS v2.25 - VARIANT IMAGES SUPPORT (P1-2)
  * ═══════════════════════════════════════════════════════════════
  * 
  * changelog:
+ * ✅ v2.25 : send_image supporte selected_variants (findMatchingOption)
  * ✅ v2.24 : Fix 'variants' ReferenceError (line 450)
  * ✅ v2.23 : 'var price' (scope global function), safe import normalizePhoneNumber
  */
@@ -188,7 +189,12 @@ IMPORTANT - VARIANTES :
                 type: 'object',
                 properties: {
                     product_name: { type: 'string', description: 'Nom du produit' },
-                    variant_value: { type: 'string', description: 'Variante spécifique (optionnel)' }
+                    selected_variants: {
+                        type: 'object',
+                        description: 'Variantes sélectionnées. Ex: {"Couleur": "Rouge"}',
+                        additionalProperties: { type: 'string' }
+                    },
+                    variant_value: { type: 'string', description: 'OBSOLÈTE (Utiliser selected_variants)' }
                 },
                 required: ['product_name']
             }
@@ -639,7 +645,12 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
         try {
             console.log('🛠️ Executing tool: send_image')
             const args = JSON.parse(toolCall.function.arguments)
-            const { product_name, variant_value } = args
+            let { product_name, variant_value, selected_variants } = args
+
+            // Normalisation des arguments
+            if (variant_value && !selected_variants) {
+                console.log(`⚠️ Legacy variant_value used: "${variant_value}"`)
+            }
 
             const searchName = product_name.toLowerCase()
             const product = products.find(p =>
@@ -654,16 +665,26 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
 
             let imageUrl = product.image_url
 
-            // Chercher image de variante si spécifiée
-            if (variant_value && product.variants) {
+            let foundVariantName = null
+
+            // 1. Chercher image spécifique si variantes
+            if (product.variants && (selected_variants || variant_value)) {
                 for (const variant of product.variants) {
-                    for (const opt of variant.options) {
-                        if (typeof opt !== 'string' && opt.image) {
-                            const optValue = opt.value || opt.name || ''
-                            if (optValue.toLowerCase().includes(variant_value.toLowerCase())) {
-                                imageUrl = opt.image
-                                break
-                            }
+                    let targetValue = null
+
+                    if (selected_variants) {
+                        const entry = Object.entries(selected_variants).find(([k]) => k.toLowerCase() === variant.name.toLowerCase())
+                        if (entry) targetValue = entry[1]
+                    }
+                    if (!targetValue && variant_value) targetValue = variant_value
+
+                    if (targetValue) {
+                        const validOption = findMatchingOption(variant, targetValue)
+                        if (validOption && typeof validOption === 'object' && validOption.image) {
+                            imageUrl = validOption.image
+                            foundVariantName = getOptionValue(validOption)
+                            console.log(`✅ Image variante trouvée pour "${variant.name}": ${foundVariantName}`)
+                            break
                         }
                     }
                 }
@@ -673,9 +694,11 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                 return JSON.stringify({ success: false, error: `Pas d'image pour "${product.name}".` })
             }
 
-            const caption = variant_value
-                ? `Voici ${product.name} (${variant_value}) !`
+            const caption = foundVariantName
+                ? `Voici ${product.name} (${foundVariantName}) !`
                 : `Voici ${product.name} !`
+
+            console.log(`📸 Image à envoyer: ${product.name} ${foundVariantName ? `(${foundVariantName})` : ''}`)
 
             return JSON.stringify({
                 success: true,
