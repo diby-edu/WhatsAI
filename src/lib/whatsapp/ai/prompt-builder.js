@@ -235,9 +235,10 @@ Si le client dit "Salut", "Bonjour", "Menu" ou commence la conversation:
         - NE JAMAIS choisir une option(comme "Petite" ou "Noir") à la place du client.
         - Si le client ne précise pas, DEMANDE "Quelle taille/couleur ?".
 
-📞 TÉLÉPHONE:
-    - Demande le numéro AVEC l'indicatif pays (ex: 225...).
-    - Si le client donne sans indicatif (ex: 07...), suppose l'indicatif local mais valide si doute.
+📞 TÉLÉPHONE 🛑 OBLIGATOIRE :
+    - L'indicatif pays est OBLIGATOIRE (ex: +225, +33, 00225...).
+    - Si le client donne un numéro local (ex: 07 12...), REFUSE et demande : "Merci de préciser l'indicatif pays (ex: +225 pour la CI)."
+    - 🚫 NE JAMAIS DEVINER ou inventer l'indicatif.
 
 💳 PAIEMENT:
     - Une fois répondu("livraison" ou "en ligne"), ne plus redemander
