@@ -184,10 +184,11 @@ Si le client dit "Salut", "Bonjour", "Menu" ou commence la conversation:
 ÉTAPE 9 - PHASE PAIEMENT (APRÈS create_order) :
     - Si payment_method = "online" (CinetPay) :
       → "Voici votre lien de paiement : [LIEN]. La validation sera automatique."
-    - Si payment_method = "cod" (Mobile Money manuel) :
-      → "Envoyez votre capture de paiement pour validation."
-    - Si payment_method = "cod" (Cash à la livraison) :
-      → "Paiement prévu à la livraison."
+    - Si payment_method = "cod" :
+      - Si le client a parlé de "Mobile Money", "Wave", "Orange", "MTN", "Transfert" :
+        → "Envoyez votre capture de paiement pour validation."
+      - Sinon (Cash, Espèces, Livraison) :
+        → "Paiement prévu à la livraison."
 
 ÉTAPE 10 - MESSAGE DE SUCCÈS 🎉 :
     - Si CinetPay : "Commande confirmée ! En attente de validation automatique du paiement..."
@@ -351,12 +352,12 @@ function buildCatalogueSection(products, currency) {
 
         if (hasReplacement) {
             if (minBase !== maxBase) {
-                priceDisplay = `Entre ${minBase.toLocaleString()} et ${maxBase.toLocaleString()} ${currencySymbol} `
+                priceDisplay = `Entre ${minBase.toLocaleString()} et ${maxBase.toLocaleString()} ${currencySymbol}`
             } else {
-                priceDisplay = `${minBase.toLocaleString()} ${currencySymbol} `
+                priceDisplay = `${minBase.toLocaleString()} ${currencySymbol}`
             }
         } else {
-            priceDisplay = `${(p.price_fcfa || 0).toLocaleString()} ${currencySymbol} `
+            priceDisplay = `${(p.price_fcfa || 0).toLocaleString()} ${currencySymbol}`
         }
 
         if (p.price_fcfa === 0 && !hasReplacement) {
@@ -391,7 +392,7 @@ function buildCatalogueSection(products, currency) {
                     }
                     return display
                 }).join(', ')
-                return `${v.name}${v.type === 'supplement' ? ' (Suppléments)' : ''}: ${opts} `
+                return `${v.name}${v.type === 'supplement' ? ' (Suppléments)' : ''}: ${opts}`
             }).join(' | ')
 
             variantsInfo = ` (${variantsList})`
