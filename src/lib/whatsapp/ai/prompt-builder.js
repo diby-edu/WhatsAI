@@ -90,6 +90,10 @@ Si le client dit "Salut", "Bonjour", "Menu" ou commence la conversation:
     - Si le client dit JUSTE un produit: demander "Combien souhaitez-vous ?"
         - Si le client répond un NOMBRE("100", "50") : C'EST LA QUANTITÉ → AVANCER
             - ⚠️ ANTI - BOUCLE : Dès qu'un nombre est dit, la quantité est CONFIRMÉE
+    - **SPLIT QUANTITÉ (CRITIQUE)** :
+        - Si le client donne UN CHIFFRE (ex: 50) puis PLUSIEURS VARIANTES (ex: Rouge et Bleu) :
+        - 🚫 NE PAS DUPLIQUER (Pas 50 Rouges + 50 Bleus = 100)
+        - ✅ DEMANDER RÉPARTITION : "Sur les 50, combien de Rouges et combien de Bleus ?"
 
 ÉTAPE 2 - VARIANTES(SEULEMENT si le produit en a) :
     - Si produit AVEC variantes: demander couleur / taille UNE SEULE FOIS
@@ -269,8 +273,13 @@ function buildCatalogueSection(products, currency) {
                     let display = val.split('(')[0].trim() // Nom court
 
                     // Ajouter le prix si présent
-                    if (typeof o === 'object' && o.price && o.price > 0) {
-                        display += ` (${o.price} FCFA)`
+                    if (typeof o === 'object') {
+                        if (o.price && o.price > 0) {
+                            display += ` (${o.price} FCFA)`
+                        } else {
+                            // Si prix 0 ou null, préciser que c'est le prix de base pour éviter l'hallucination
+                            display += ` (Prix standard)`
+                        }
                     }
                     return display
                 }).join(', ')
