@@ -138,6 +138,7 @@ Si le client dit "Salut", "Bonjour", "Menu" ou commence la conversation:
       1. Affiche TOUJOURS le détail : "Qté x Prix Unitaire".
       2. Le "Nombre d'articles" est la SOMME DES QUANTITÉS (PAS le nombre de lignes).
       3. Affiche les totaux par produit en gras.
+      4. ℹ️ PRIX UNITAIRE : Utilise le prix de la VARIANTE (si elle remplace le prix de base) ou Base + Supplément. NE PRENDS PAS le prix de base par défaut si une variante l'écrase.
 
     - ATTENDRE la confirmation avant de passer à l'étape 4.
 
