@@ -11,15 +11,35 @@
 
 console.log("🚀 TOOLS.JS v2.24 LOADED - PRICE SAFETY ACTIVE")
 
-// IMPORT SECURISE
-let normalizePhoneNumber = null
-try {
-    const formatUtils = require('../utils/format')
-    normalizePhoneNumber = formatUtils.normalizePhoneNumber
-    console.log("✅ normalizePhoneNumber IMPORTED OK")
-} catch (e) {
-    console.error("❌ ERROR IMPORTING normalizePhoneNumber:", e)
+// ═══════════════════════════════════════════════════════════════
+// 📞 HELPER : NORMALIZE PHONE NUMBER (INLINED SAFETY)
+// ═══════════════════════════════════════════════════════════════
+function normalizePhoneNumber(phone, defaultCountryCode = '225') {
+    if (!phone) {
+        return '+000000000000'
+    }
+
+    let normalized = phone.toString().trim()
+    normalized = normalized.replace(/[\s\-\(\)\.]/g, '')
+
+    if (normalized.startsWith('00')) normalized = '+' + normalized.substring(2)
+    if (normalized.startsWith('+')) return normalized
+
+    // 4. INDICATIFS CONNUS
+    const countryPatterns = [{ prefix: '225' }, { prefix: '33' }, { prefix: '1' }]
+    for (const pattern of countryPatterns) {
+        if (normalized.startsWith(pattern.prefix)) return '+' + normalized
+    }
+
+    // 5. NUMÉRO LOCAL (commence par 0)
+    if (normalized.startsWith('0') && normalized.length >= 8) {
+        return '+' + defaultCountryCode + normalized.substring(1)
+    }
+
+    // 7. FALLBACK
+    return '+' + defaultCountryCode + normalized.replace(/\D/g, '')
 }
+console.log("✅ normalizePhoneNumber INLINED OK")
 
 
 // ═══════════════════════════════════════════════════════════════
