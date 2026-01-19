@@ -39,8 +39,8 @@ function buildAdaptiveSystemPrompt(agent, products, orders, relevantDocs, curren
 ------------------------------------------------------------
 La commande précédente est VALIDÉE et CLÔTURÉE.
 RÈGLE ABSOLUE "ZOMBIE KILLER" 🧟‍♂️🔫 :
-1. SI le client demande des infos (images, livraison, lieu) sur CETTE commande :
-   → DONNE L'INFO (ex: envoie l'image).
+1. SI le client demande des infos (images, livraison, lieu) sur CETTE commande OU UNE PRÉCÉDENTE :
+   → DONNE L'INFO (ex: envoie l'image, statut livraison).
    → ET TAI-TOI APRÈS. NE DEMANDE PAS DE CONFIRMER.
    → NE DIS PAS "Souhaitez-vous confirmer ?". C'EST DÉJÀ FAIT.
 
