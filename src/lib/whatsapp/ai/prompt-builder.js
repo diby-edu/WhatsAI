@@ -22,16 +22,36 @@
 function buildAdaptiveSystemPrompt(agent, products, orders, relevantDocs, currency, gpsLink, formattedHours, justOrdered = false) {
 
     // ═══════════════════════════════════════════════════════════════
-    // 🚨 SECTION 0 : RESET CONTEXT (SI DÉJÀ COMMANDÉ)
+    // 🚨 SECTION 0 : RESET CONTEXT & MODE "POST-COMMANDE" (INCASSABLE)
     // ═══════════════════════════════════════════════════════════════
+
+    // Détection robuste d'une commande récente (< 10 mn)
+    const lastOrder = orders && orders.length > 0 ? orders[0] : null
+    const timeSinceLastOrder = lastOrder ? (new Date() - new Date(lastOrder.created_at)) : 99999999
+    const isRecentOrder = justOrdered || timeSinceLastOrder < (10 * 60 * 1000)
+
     let resetContext = ''
-    if (justOrdered) {
+
+    // Si commande très récente (< 10 min), on active le bouclier anti-zombie
+    if (isRecentOrder) {
         resetContext = `
-🛑 MODE "COMMANDE RÉCENTE" ACTIVÉ (< 5 min)
-- PANIER : Vide (commande précédente archivée)
-- INFOS CLIENT : Mémorisées → NE PAS redemander nom/tél/adresse
-- Si nouveau produit → Nouvelle commande avec mêmes infos
-- Dire : "On garde la même adresse et le même paiement ?"
+🛑 MODE "COMMANDE TERMINÉE" ACTIVÉ (Il y a moins de 10 min)
+------------------------------------------------------------
+La commande précédente est VALIDÉE et CLÔTURÉE.
+RÈGLE ABSOLUE "ZOMBIE KILLER" 🧟‍♂️🔫 :
+1. SI le client demande des infos (images, livraison, lieu) sur CETTE commande :
+   → DONNE L'INFO (ex: envoie l'image).
+   → ET TAI-TOI APRÈS. NE DEMANDE PAS DE CONFIRMER.
+   → NE DIS PAS "Souhaitez-vous confirmer ?". C'EST DÉJÀ FAIT.
+
+2. SI le client veut commander UN AUTRE article (ex: "Je veux aussi un chapeau") :
+   → CRÉE une NOUVELLE commande séparée pour cet article.
+   → NE MODIFIE PAS l'ancienne.
+
+3. CONTEXTE :
+   - Panier précédent : VIDE (Archivé).
+   - Infos client (Nom/Adress) : CONNUES (Réutiliser).
+------------------------------------------------------------
 `
     }
 
