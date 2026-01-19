@@ -98,7 +98,17 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
     }
 
     if (isRateLimited(message.from)) {
-        return // Silently drop excessive messages
+        // Informer le client du rate limit
+        const session = activeSessions.get(agentId)
+        if (session) {
+            const { MessagingService } = require('../services/messaging.service')
+            await MessagingService.sendText(
+                session,
+                message.from,
+                "⏳ Vous envoyez trop de messages. Merci de patienter quelques instants avant de réessayer."
+            ).catch(() => {}) // Ignorer les erreurs d'envoi
+        }
+        return
     }
 
     try {
@@ -123,6 +133,15 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
         const hasCredits = await CreditsService.check(supabase, agent.user_id)
         if (!hasCredits) {
             console.log(`⚠️ Insufficient credits for user ${agent.user_id}`)
+            // Informer le client que le service est indisponible
+            const session = activeSessions.get(agentId)
+            if (session) {
+                await MessagingService.sendText(
+                    session,
+                    message.from,
+                    "🔧 Notre service est temporairement indisponible. Veuillez réessayer plus tard."
+                ).catch(() => {})
+            }
             return
         }
 
@@ -189,7 +208,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
         // ═══════════════════════════════════════════════════════════
 
         // 3.1 Historique de conversation
-        const conversationHistory = await conversation.getHistory(20)
+        const conversationHistory = await conversation.getHistory(50)
 
         // 3.2 Produits de l'agent
         const { data: products } = await supabase

@@ -233,6 +233,8 @@ Si le client dit "Salut", "Bonjour", "Menu" ou commence la conversation:
 📌 CAS SPÉCIAL - PRODUITS NUMÉRIQUES / VIRTUELS (licences, ebooks, formations) :
     - Pas besoin de variantes
     - Dès que la quantité est connue → passer aux infos client
+    - ⚠️ EMAIL OBLIGATOIRE : Demander l'adresse email pour l'envoi du produit numérique
+      → "Quelle est votre adresse email pour recevoir [produit] ?"
     - ⚠️ PAS DE CASH À LA LIVRAISON pour les produits numériques
     - Paiement OBLIGATOIREMENT AVANT livraison
     `
