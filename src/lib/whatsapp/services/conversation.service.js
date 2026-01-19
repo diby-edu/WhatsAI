@@ -140,18 +140,21 @@ class ConversationService {
      * @param {number} limit - Nombre de messages max (défaut: 20)
      * @returns {Promise<Array>} Messages de la conversation
      */
-    static async getHistory(supabase, conversationId, limit = 20) {
+    static async getHistory(supabase, conversationId, limit = 50) {
         try {
+            // IMPORTANT: Charger les messages les plus RÉCENTS d'abord
+            // puis les inverser pour avoir l'ordre chronologique
             const { data, error } = await supabase
                 .from('messages')
                 .select('role, content, created_at')
                 .eq('conversation_id', conversationId)
-                .order('created_at', { ascending: true })
+                .order('created_at', { ascending: false }) // Plus récents d'abord
                 .limit(limit)
 
             if (error) throw error
 
-            return data || []
+            // Inverser pour avoir l'ordre chronologique (ancien → récent)
+            return (data || []).reverse()
         } catch (error) {
             console.error('Failed to load conversation history:', error)
             return [] // Dégradation gracieuse

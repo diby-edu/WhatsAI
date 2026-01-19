@@ -40,7 +40,7 @@ Ce document est la source de vérité pour la collaboration entre Antigravity (A
 6.  **Paiement** :
     *   *Si "Cash/Livraison" activé* : Noter "Paiement à la livraison".
     *   *Si "En ligne" (CinetPay/Monet)* : Générer le lien de paiement (si supporté) ou noter "Paiement en ligne".
-7.  **Instructions** ("Une instruction particulière ?") 🛑 **BLOQUANT**
+7.  **Instructions** ("Une instruction particulière ?") 🛑 **B![alt text](image.png)LOQUANT**
 8.  **Récapitulatif FINAL** (Prix x Qté = Total + Livraison + Instructions)
 9.  **Confirmation** (OUI)
 10. ⚙️ **Action Système** : Appel `create_order` -> Attendre succès (ID Commande).

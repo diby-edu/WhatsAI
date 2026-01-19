@@ -228,7 +228,7 @@ async function generateAIResponse(options, dependencies) {
         // Préparer les messages
         const messages = [
             { role: 'system', content: systemPrompt },
-            ...conversationHistory.slice(-15) // Garder les 15 derniers messages
+            ...conversationHistory.slice(-50) // Garder les 50 derniers messages
         ]
 
         // Gérer les images
@@ -350,6 +350,22 @@ async function generateAIResponse(options, dependencies) {
 
     } catch (error) {
         console.error('❌ OpenAI Error:', error)
+
+        // Logger à Sentry si disponible
+        try {
+            const Sentry = require('@sentry/node')
+            Sentry.captureException(error, {
+                tags: { component: 'generator', type: 'openai_error' },
+                extra: {
+                    agentId: options.agent?.id,
+                    customerPhone: options.customerPhone,
+                    messageLength: options.userMessage?.length
+                }
+            })
+        } catch (_e) {
+            // Sentry non configuré, ignorer
+        }
+
         return {
             content: 'Désolé, je rencontre un problème technique momentané. Veuillez réessayer dans quelques instants.',
             tokensUsed: 0
