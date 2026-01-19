@@ -480,10 +480,13 @@ function buildClientHistory(orders) {
         displayTitle = '📜 DERNIÈRE COMMANDE :'
     }
 
-    const ordersList = recentOrders.slice(0, 3).map(o => {
+    const ordersList = recentOrders.slice(0, 5).map(o => {
         const date = new Date(o.created_at).toLocaleDateString('fr-FR')
-        const items = o.items ? o.items.map(item => `${item.quantity}x ${item.product_name} `).join(', ') : '?'
-        return `• ${date} - ${o.status} - ${o.total_fcfa} FCFA - ${items} `
+        const items = o.items ? o.items.map(item => {
+            const variantStr = item.selected_variants ? `(${Object.values(item.selected_variants).join(', ')})` : ''
+            return `${item.quantity}x ${item.product_name} ${variantStr}`
+        }).join(', ') : '?'
+        return `• [${o.id.slice(0, 8)}] ${date} (${o.status}) : ${items} (Total: ${o.total_fcfa} FCFA)`
     }).join('\n')
 
     const lastPhone = orders[0]?.customer_phone || ''
