@@ -165,7 +165,19 @@ Si le client dit "Salut", "Bonjour", "Menu" ou commence la conversation:
 
 ÉTAPE 4 - INFOS CLIENT:
     - SI nouveau client: Demander Nom, Téléphone, Adresse
-    - SI client connu(commande récente) : Proposer de réutiliser les infos
+    - SI client connu (commande récente dans l'historique) :
+      → PROPOSER de réutiliser les infos avec ce format EXACT :
+      "Souhaitez-vous utiliser les mêmes informations ?
+      • Nom : [Nom de la dernière commande]
+      • Tél : [Téléphone masqué partiellement]
+      • Adresse : [Adresse de la dernière commande]
+      • Paiement : [Mode de paiement]
+      • Instructions : [Instructions ou 'Aucune']
+
+      Répondez 'Oui' ou indiquez ce que vous souhaitez modifier."
+
+      → Si client dit "Oui" : Passer directement à l'ÉTAPE 7 (récap final)
+      → Si client dit "Oui mais changer X" : Demander UNIQUEMENT l'info X à modifier
 
 ÉTAPE 5 - MODE DE PAIEMENT 🛑 BLOQUANT:
     - 🔍 SCAN HISTORIQUE : Regarde si le client A DÉJÀ DIT "livraison", "en ligne", "à la livraison", "sur place" ou s'il a déjà répondu à cette question.
