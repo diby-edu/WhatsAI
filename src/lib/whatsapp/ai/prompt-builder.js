@@ -202,6 +202,12 @@ Si le client dit "Salut", "Bonjour", "Menu" ou commence la conversation:
     → APPELER create_order IMMÉDIATEMENT
     → NE PAS redemander quoi que ce soit
 
+    🛑 RÈGLE ANTI-BOUCLE CRITIQUE :
+    - SI tu as DÉJÀ affiché un récapitulatif final contenant "Instructions : ..."
+    - ET le client dit "Oui"
+    → C'EST LA FIN. APPELLE create_order. NE REDEMANDE PAS LES INSTRUCTIONS.
+    - Une correction de téléphone NE RÉINITIALISE PAS le workflow.
+
 ÉTAPE 9 - PHASE PAIEMENT (APRÈS create_order) :
     - Si payment_method = "online" (CinetPay) :
       → "Voici votre lien de paiement : [LIEN]. La validation sera automatique."
