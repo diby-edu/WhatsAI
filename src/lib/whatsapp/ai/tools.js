@@ -224,19 +224,23 @@ IMPORTANT - VARIANTES :
         type: 'function',
         function: {
             name: 'create_booking',
-            description: 'Créer une réservation pour un service.',
+            description: 'Créer une réservation pour un service (hôtel, restaurant, salon, consulting, etc.).',
             parameters: {
                 type: 'object',
                 properties: {
-                    service_name: { type: 'string', description: 'Nom du service' },
-                    customer_phone: { type: 'string', description: 'Téléphone du client' },
+                    service_name: { type: 'string', description: 'Nom du service réservé' },
+                    customer_phone: { type: 'string', description: 'Téléphone du client (avec indicatif)' },
                     customer_name: { type: 'string', description: 'Nom du client' },
-                    preferred_date: { type: 'string', description: 'Date souhaitée (YYYY-MM-DD)' },
-                    preferred_time: { type: 'string', description: 'Heure souhaitée (HH:MM)' },
-                    location: { type: 'string', description: 'Lieu du service' },
-                    notes: { type: 'string', description: 'Notes supplémentaires' }
+                    customer_email: { type: 'string', description: 'Email du client (optionnel)' },
+                    preferred_date: { type: 'string', description: 'Date de la réservation (YYYY-MM-DD)' },
+                    preferred_time: { type: 'string', description: 'Heure de la réservation (HH:MM)' },
+                    end_date: { type: 'string', description: 'Date de fin (pour hôtels - YYYY-MM-DD)' },
+                    number_of_people: { type: 'number', description: 'Nombre de personnes/couverts' },
+                    location: { type: 'string', description: 'Lieu du service (si applicable)' },
+                    payment_method: { type: 'string', description: 'Mode de paiement: "online", "cod" (sur place), "deposit" (acompte)' },
+                    notes: { type: 'string', description: 'Demandes spéciales (allergies, préférences, etc.)' }
                 },
-                required: ['service_name', 'customer_phone', 'preferred_date']
+                required: ['service_name', 'customer_phone', 'customer_name', 'preferred_date']
             }
         }
     },
@@ -735,13 +739,25 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
     }
 
     // ═══════════════════════════════════════════════════════════
-    // CREATE BOOKING
+    // CREATE BOOKING (Services: Hôtel, Restaurant, Salon, Consulting...)
     // ═══════════════════════════════════════════════════════════
     if (toolCall.function.name === 'create_booking') {
         try {
             console.log('🛠️ Executing tool: create_booking')
             const args = JSON.parse(toolCall.function.arguments)
-            const { service_name, customer_phone, customer_name, preferred_date, preferred_time, location, notes } = args
+            const {
+                service_name,
+                customer_phone,
+                customer_name,
+                customer_email,
+                preferred_date,
+                preferred_time,
+                end_date,
+                number_of_people,
+                location,
+                payment_method,
+                notes
+            } = args
 
             const { data: agent } = await supabase
                 .from('agents')
@@ -768,12 +784,16 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                     agent_id: agentId,
                     customer_phone: normalizePhoneNumber(customer_phone),
                     customer_name: customer_name || null,
+                    customer_email: customer_email || null,
                     service_name: service.name,
                     service_id: service.id,
                     price_fcfa: service.price_fcfa || 0,
                     preferred_date,
                     preferred_time: preferred_time || null,
+                    end_date: end_date || null,
+                    number_of_people: number_of_people || null,
                     location: location || null,
+                    payment_method: payment_method || 'cod',
                     notes: notes || null,
                     status: 'scheduled',
                     conversation_id: conversationId
@@ -783,10 +803,23 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
 
             if (error) throw error
 
+            // Message de confirmation adapté au type de service
+            let confirmMsg = `📅 Réservation créée ! ${service.name} le ${preferred_date}`
+            if (preferred_time) confirmMsg += ` à ${preferred_time}`
+            if (end_date) confirmMsg += ` jusqu'au ${end_date}` // Hôtels
+            if (number_of_people) confirmMsg += ` pour ${number_of_people} personne(s)`
+            confirmMsg += '.'
+
             return JSON.stringify({
                 success: true,
                 booking_id: booking.id,
-                message: `📅 Réservation créée ! ${service.name} le ${preferred_date}${preferred_time ? ` à ${preferred_time}` : ''}.`
+                service_name: service.name,
+                date: preferred_date,
+                time: preferred_time,
+                end_date: end_date,
+                number_of_people: number_of_people,
+                price_fcfa: service.price_fcfa,
+                message: confirmMsg
             })
 
         } catch (error) {
