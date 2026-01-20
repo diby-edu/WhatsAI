@@ -164,26 +164,23 @@ Si le client dit "Salut", "Bonjour", "Menu" ou commence la conversation:
     - ATTENDRE la confirmation avant de passer à l'étape 4.
 
 ÉTAPE 4 - INFOS CLIENT:
-    🔍 CHECK PRIORITAIRE : Le client a-t-il un historique (voir section LISTE HISTORIQUE ci-dessous) ?
-
-    👉 CAS 1 : CLIENT CONNU (Une commande passée il y a moins de 15 jours)
-      🛑 NE DEMANDE PAS LE NOM OU L'ADRESSE !
-      ✅ PROPOSE IMMÉDIATEMENT de réutiliser les infos avec ce format EXACT :
+${(orders && orders.length > 0) ? `
+    👉 CLIENT CONNU DÉTECTÉ (Historique présent) :
+      🛑 INTERDICTION DE DEMANDER LE NOM OU L'ADRESSE !
+      ✅ TU DOIS IMPÉRATIVEMENT PROPOSER DE RÉUTILISER LES INFOS :
       
       "Souhaitez-vous utiliser les mêmes informations ?
-      • Nom : [Nom de la dernière commande]
-      • Tél : [Téléphone masqué partiellement]
-      • Adresse : [Adresse de la dernière commande]
-      • Paiement : [Mode de paiement]
-      • Instructions : [Instructions ou 'Aucune']
+      • Nom : ${orders[0].customer_name || 'Inconnu'}
+      • Tél : ${orders[0].customer_phone || 'Inconnu'}
+      • Adresse : ${orders[0].delivery_address || 'Inconnu'}
+      • Paiement : ${orders[0].payment_method === 'cod' ? 'À la livraison' : 'En ligne'}
+      • Instructions : ${orders[0].notes || 'Aucune'}"
 
       Répondez 'Oui' ou indiquez ce que vous souhaitez modifier."
-
-      → Si client dit "Oui" : Passer directement à l'ÉTAPE 7 (récap final)
-      → Si client dit "Oui mais changer X" : Demander UNIQUEMENT l'info X à modifier
-
-    👉 CAS 2 : NOUVEAU CLIENT (Pas d'historique)
+` : `
+    👉 NOUVEAU CLIENT :
       → Demander Nom, Téléphone, Adresse
+`}
 
 ÉTAPE 5 - MODE DE PAIEMENT 🛑 BLOQUANT:
     - 🔍 SCAN HISTORIQUE : Regarde si le client A DÉJÀ DIT "livraison", "en ligne", "à la livraison", "sur place" ou s'il a déjà répondu à cette question.
