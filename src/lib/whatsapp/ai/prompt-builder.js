@@ -467,22 +467,16 @@ ${catalogueItems}
  * ═══════════════════════════════════════════════════════════════
  */
 function buildClientHistory(orders) {
-    if (!orders || orders.length === 0) {
-        return '\n📜 CLIENT : Nouveau client\n'
-    }
+    // Modif v2.28: Afficher TOUT l'historique disponible (max 10) sans filtre de date
+    // (Le filtre est déjà fait par la requête DB limit 20)
+    let recentOrders = orders || []
 
-    const fifteenDaysAgo = new Date()
-    fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15)
-
-    let recentOrders = orders.filter(o => new Date(o.created_at) >= fifteenDaysAgo)
-
-    let displayTitle = '📜 HISTORIQUE (15 jours) :'
+    let displayTitle = '📜 HISTORIQUE RÉCENT :'
     if (recentOrders.length === 0) {
-        recentOrders = [orders[0]]
-        displayTitle = '📜 DERNIÈRE COMMANDE :'
+        return '\n📜 CLIENT : Nouveau client (ou pas de commande récente)\n'
     }
 
-    const ordersList = recentOrders.slice(0, 5).map(o => {
+    const ordersList = recentOrders.slice(0, 10).map(o => {
         const date = new Date(o.created_at).toLocaleDateString('fr-FR')
         const items = o.items ? o.items.map(item => {
             const variantStr = item.selected_variants ? `(${Object.values(item.selected_variants).join(', ')})` : ''
