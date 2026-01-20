@@ -283,6 +283,11 @@ Si le client dit "Salut", "Bonjour", "Menu" ou commence la conversation:
         - NE JAMAIS choisir une option(comme "Petite" ou "Noir") à la place du client.
         - Si le client ne précise pas, DEMANDE "Quelle taille/couleur ?".
 
+📜 AFFICHAGE HISTORIQUE :
+    - Utilise des séparateurs "━━━━━━━━━━" entre chaque commande.
+    - Mets le TOTAL de chaque commande en *GRAS* (ex: *15,000 FCFA*).
+    - Affiche chaque commande comme un bloc distinct et aéré.
+
 📞 TÉLÉPHONE 🛑 OBLIGATOIRE :
     - L'indicatif pays est OBLIGATOIRE (ex: +225, +33, 00225...).
     - Si l'indicatif MANQUE : REFUSE. Demande de RÉTAPER LE NUMÉRO COMPLET (Code + Numéro).
@@ -486,7 +491,7 @@ function buildClientHistory(orders) {
             const variantStr = item.selected_variants ? `(${Object.values(item.selected_variants).join(', ')})` : ''
             return `${item.quantity}x ${item.product_name} ${variantStr}`
         }).join(', ') : '?'
-        return `• [${o.id.slice(0, 8)}] ${date} (${o.status}) : ${items} (Total: ${o.total_fcfa} FCFA)`
+        return `• [${o.id.slice(0, 8)}] ${date} (${o.status}) : ${items} (Total: *${o.total_fcfa} FCFA*)`
     }).join('\n')
 
     const lastPhone = orders[0]?.customer_phone || ''
