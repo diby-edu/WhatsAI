@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════════
- * PROMPT BUILDER v2.14 - FIX RÉCAPS INTERMÉDIAIRES
+ * PROMPT BUILDER v2.15 - FIX DÉTECTION TYPE PRODUIT
  * ═══════════════════════════════════════════════════════════════
  *
  * HISTORIQUE DES CORRECTIONS (TOUTES CONSERVÉES) :
@@ -26,6 +26,10 @@
  *          - Exactement 3 récaps autorisés : PANIER, INFOS, FINAL
  *          - Interdit de faire un récap après collecte adresse/avant paiement
  *          - Exemple de flux correct avec numérotation des messages
+ * ✅ v2.15: FIX DÉTECTION TYPE PRODUIT (ÉTAPE 4)
+ *          - Détection explicite : 💻 = EMAIL, 🛎️ = DATE/HEURE, 📦 = ADRESSE
+ *          - Interdiction renforcée : JAMAIS demander adresse pour 💻
+ *          - Message formaté pour chaque type de produit
  *
  * ACQUIS CONSERVÉS :
  * ✅ Catalogue numéroté avec gras
@@ -203,6 +207,17 @@ Si le client dit "Salut", "Bonjour", "Menu" ou commence la conversation:
 
 ÉTAPE 4 - INFOS CLIENT:
 
+    🚨🚨🚨 DÉTECTION DU TYPE DE PRODUIT (CRITIQUE) 🚨🚨🚨
+    AVANT de demander les infos, REGARDE le catalogue ci-dessus :
+    - Si le produit a 💻 ou [NUMÉRIQUE] → C'est un produit NUMÉRIQUE
+    - Si le produit a 🛎️ ou [SERVICE] → C'est un SERVICE
+    - Si le produit a 📦 (ou rien de spécial) → C'est un produit PHYSIQUE
+
+    ⛔ RÈGLE ABSOLUE :
+    - 💻 NUMÉRIQUE = PAS D'ADRESSE DE LIVRAISON (demander EMAIL à la place)
+    - 🛎️ SERVICE = PAS D'ADRESSE DE LIVRAISON (demander DATE/HEURE)
+    - 📦 PHYSIQUE = ADRESSE DE LIVRAISON OBLIGATOIRE
+
     📦 PRODUITS PHYSIQUES :
 ${(orders && orders.length > 0) ? `
     👉 CLIENT CONNU : Proposer de réutiliser les infos :
@@ -214,7 +229,8 @@ ${(orders && orders.length > 0) ? `
 ` : `
     👉 NOUVEAU CLIENT : Demander Nom, Téléphone, Adresse de livraison
 `}
-    💻 PRODUITS NUMÉRIQUES :
+    💻 PRODUITS NUMÉRIQUES (Office, Windows, Licences, Ebooks...) :
+    ⚠️ DÉTECTION : Regarde si le produit a 💻 ou [NUMÉRIQUE] dans le catalogue
 ${(orders && orders.length > 0) ? `
     👉 CLIENT CONNU : Proposer de réutiliser les infos :
       "Souhaitez-vous utiliser les mêmes informations ?
@@ -222,18 +238,32 @@ ${(orders && orders.length > 0) ? `
       • Tél : ${orders[0].customer_phone || 'Inconnu'}"
       + DEMANDER l'email : "À quelle adresse email souhaitez-vous recevoir votre produit ?"
 ` : `
-    👉 NOUVEAU CLIENT : Demander Nom, Téléphone, 📧 Email (OBLIGATOIRE)
-    🚫 PAS d'adresse de livraison !
+    👉 NOUVEAU CLIENT :
+      "Pour finaliser, j'ai besoin de :
+      • Votre nom complet
+      • Téléphone (avec indicatif)
+      • 📧 Email (pour recevoir votre produit)"
+
+    🚫🚫🚫 INTERDIT DE DEMANDER UNE ADRESSE DE LIVRAISON POUR UN PRODUIT NUMÉRIQUE ! 🚫🚫🚫
+    C'est un produit NUMÉRIQUE, il sera envoyé par EMAIL, pas par la poste !
 `}
-    🛎️ SERVICES :
+    🛎️ SERVICES (Consultation, Installation, Réservation...) :
+    ⚠️ DÉTECTION : Regarde si le produit a 🛎️ ou [SERVICE] dans le catalogue
 ${(orders && orders.length > 0) ? `
     👉 CLIENT CONNU : Proposer de réutiliser les infos :
       "Souhaitez-vous utiliser les mêmes informations ?
       • Nom : ${orders[0].customer_name || 'Inconnu'}
       • Tél : ${orders[0].customer_phone || 'Inconnu'}"
+      + DEMANDER : Date/heure et nombre de personnes (si applicable)
 ` : `
-    👉 NOUVEAU CLIENT : Demander Nom, Téléphone
-    🚫 PAS d'adresse de livraison !
+    👉 NOUVEAU CLIENT :
+      "Pour finaliser, j'ai besoin de :
+      • Votre nom complet
+      • Téléphone (avec indicatif)
+      • 📅 Date et heure souhaitées
+      • 👥 Nombre de personnes (si applicable)"
+
+    🚫 PAS d'adresse de livraison (c'est un SERVICE) !
 `}
 
 ÉTAPE 5 - MODE DE PAIEMENT 🛑 BLOQUANT:
