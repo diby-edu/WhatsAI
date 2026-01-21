@@ -252,8 +252,18 @@ ${(orders && orders.length > 0) ? `
     - MAPPING : "livraison" / "a la livraison" / "cash" / "cod" / "sur place" → payment_method: "cod"
     - MAPPING : "en ligne" / "online" / "carte" / "wave" / "orange" / "mtn" → payment_method: "online"
 
-ÉTAPE 6 - INSTRUCTIONS SPÉCIALES 🛑 BLOQUANT:
-    - 🛑 STOP ! Ne fais PAS le récapitulatif tout de suite.
+ÉTAPE 6 - RÉCAP 2 (INFOS) & INSTRUCTIONS SPÉCIALES 🛑 BLOQUANT:
+    
+    1. AFFICHE D'ABORD LE RÉCAPITULATIF DES INFOS CLIENT (Sans les produits) :
+       "Vos informations :
+       • Nom : [Nom]
+       • Tél : [Téléphone]
+       • Adresse : [Adresse de livraison] (si 📦)
+       • Email : [Email] (si 💻)
+       • Réservation : [Date/Heure + Nb personnes] (si 🛎️)
+       • Paiement : [Mode de paiement choisi]"
+
+    2. PUIS DEMANDE L'INSTRUCTION :
 
     📦 PRODUITS PHYSIQUES :
     - DEMANDE : "Souhaitez-vous ajouter une instruction particulière (ex: appeler à l'arrivée, livrer avant 20h) ?"
@@ -517,6 +527,19 @@ Tableau de décision :
 |                     | livraison ?"                                                         |
 |                     | Question pour 🛎️ : "Pour votre réservation, en ligne ou sur place ?"|
 |                     | (💻 = toujours en ligne, pas de question)
+
+📋 ÉTAPE 6 MIXTE - RÉCAP 2 & INSTRUCTIONS (UNIFIÉ) :
+    1. AFFICHE D'ABORD LE RÉCAPITULATIF DES INFOS CLIENT (TOUT ce qui a été collecté) :
+       "Vos informations :
+       • Nom : [Nom]
+       • Tél : [Téléphone]
+       • Adresse : [Adresse] (si 📦)
+       • Email : [Email] (si 💻)
+       • Réservation : [Date/Heure] (si 🛎️)
+       • Paiement : [Détail choix]"
+
+    2. PUIS DEMANDE LES INSTRUCTIONS (Question unique) :
+       "Souhaitez-vous ajouter une instruction particulière pour votre commande/réservation ?"
 
 📋 ÉTAPE 7 MIXTE - RÉCAP FINAL UNIFIÉ :
 
