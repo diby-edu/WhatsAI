@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════════
- * PROMPT BUILDER v2.12 - PAIEMENTS SÉPARÉS COMMANDES MIXTES
+ * PROMPT BUILDER v2.13 - FIX HALLUCINATION VARIANTES
  * ═══════════════════════════════════════════════════════════════
  *
  * HISTORIQUE DES CORRECTIONS (TOUTES CONSERVÉES) :
@@ -18,6 +18,10 @@
  *          - 💻 = toujours en ligne (pas de question)
  *          - Si 📦 cash + 💻 présent → 2 create_order séparés
  *          - Si 📦 en ligne → 1 create_order unifié
+ * ✅ v2.13: FIX HALLUCINATION VARIANTES
+ *          - Règle renforcée : UNIQUEMENT variantes entre parenthèses
+ *          - Exemple explicite d'erreur à éviter (Taille non listée)
+ *          - Méthode de vérification obligatoire
  *
  * ACQUIS CONSERVÉS :
  * ✅ Catalogue numéroté avec gras
@@ -132,18 +136,39 @@ Si le client dit "Salut", "Bonjour", "Menu" ou commence la conversation:
         2. Le client a-t-il donné ces détails ?
         3. SI MANQUANT : Demande TOUTES les précisions manquantes (pour TOUTES les variantes/options listées dans la définition).
     
-    - ⚠️ RÈGLE D'OR : NE DEMANDE PAS UNE VARIANTE QUI N'EXISTE PAS DANS LE CATALOGUE.
-      (Exemple: Si le T-Shirt a seulement "Couleur" dans la liste, NE DEMANDE PAS la taille).
-    
+    🚨🚨🚨 ANTI-HALLUCINATION VARIANTES (CRITIQUE - LIRE ATTENTIVEMENT) 🚨🚨🚨
+
+    ⛔ RÈGLE ABSOLUE : Tu peux UNIQUEMENT demander les variantes qui apparaissent
+       ENTRE PARENTHÈSES dans la description du produit au catalogue ci-dessus.
+
+    📋 MÉTHODE DE VÉRIFICATION (OBLIGATOIRE avant de demander une variante) :
+       1. Regarde la ligne du produit dans le catalogue
+       2. Cherche les parenthèses : "(Variante: option1, option2...)"
+       3. Si une variante N'APPARAÎT PAS entre parenthèses → TU NE PEUX PAS LA DEMANDER
+
+    ✅ EXEMPLE CORRECT :
+       Catalogue : "T-Shirt 📦 - 5000 FCFA (Couleur: Rouge, Bleu, Noir)"
+       → Tu peux demander : "Quelle couleur ?"
+       → Tu NE PEUX PAS demander : Taille, Poids, Matière (non listés)
+
+    ❌ EXEMPLE D'ERREUR GRAVE (À NE JAMAIS FAIRE) :
+       Catalogue : "T-Shirt 📦 - 5000 FCFA (Couleur: Rouge, Bleu)"
+       Client : "Je veux 100 T-Shirts"
+       Toi : "Quelle couleur et quelle TAILLE ?" ← ERREUR ! Taille n'est pas dans les parenthèses !
+
+    🚫 VARIANTES INTERDITES SI NON LISTÉES :
+       - Taille (sauf si "(Taille: ...)" est dans le catalogue)
+       - Poids (sauf si "(Poids: ...)" est dans le catalogue)
+       - Format, Matière, Style, etc.
+
     - ⚠️ INTERDIT D'INVENTER : Ne choisis JAMAIS une option par défaut.
     - ⚠️ INTERDIT D'AVANCER : Tant qu'il manque un détail requis par le catalogue, RESTE ICI.
-    
+
     - Exemple de comportement correct :
+      Catalogue: "T-Shirt (Couleur: Rouge, Bleu)" et "Bougies (Taille: Petite, Moyenne)"
       Client: "Je veux 10 T-Shirts et 5 Bougies"
-      (Catalogue: T-Shirt -> Couleur; Bougies -> Taille)
-      Toi: "Pour les 10 T-Shirts, quelle couleur choisissez-vous ? Et pour les 5 Bougies, quelle taille (Petite, Moyenne...) ?"
-      Client: "T-Shirts Rouges XL"
-      Toi: (Il manque les bougies !) -> "C'est noté pour les T-Shirts. Pour les 5 bougies, quelle taille souhaitez-vous ?"
+      Toi: "Pour les 10 T-Shirts, quelle couleur (Rouge ou Bleu) ? Et pour les 5 Bougies, quelle taille (Petite ou Moyenne) ?"
+      ⚠️ NOTE : Tu ne demandes PAS la taille des T-Shirts car elle n'est pas listée dans le catalogue !
 
     - CAS PRODUITS NUMÉRIQUES (ex: Office, Windows) : Ignorer variantes, passer au suivant.
 
