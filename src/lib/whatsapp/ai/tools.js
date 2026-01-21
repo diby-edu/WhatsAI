@@ -9,7 +9,7 @@
  * ✅ v2.23 : 'var price' (scope global function), safe import normalizePhoneNumber
  */
 
-console.log("🚀 TOOLS.JS v2.24 LOADED - PRICE SAFETY ACTIVE")
+console.log("🚀 TOOLS.JS v2.25 LOADED - VARIANTS SCOPE FIX")
 
 // ═══════════════════════════════════════════════════════════════
 // 📞 HELPER : NORMALIZE PHONE NUMBER (INLINED SAFETY)
@@ -422,10 +422,11 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                 let matchedVariantOption = null
 
                 // Vérifier si le produit a des variantes RÉELLES
+                let variants = []
                 if (productHasRealVariants(product)) {
                     console.log(`   📋 Produit avec variantes RÉELLES`)
 
-                    const variants = product.variants // ✅ FIX ReferenceError v2.24
+                    variants = product.variants // ✅ FIX ReferenceError v2.25 (Scope Fix)
                     const matchedVariantsByType = {}
 
                     // Fusionner les sources de variantes (priorité à selected_variants de l'outil, fallback sur analyse de texte dans product_name)
