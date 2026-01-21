@@ -940,8 +940,9 @@ function buildCatalogueSection(products, currency) {
     const currencySymbol = currency === 'XOF' ? 'FCFA' : currency
 
     const catalogueItems = products.map((p, index) => {
+        // FIX: DB utilise 'digital' pas 'virtual'
         const typeIcon = p.product_type === 'service' ? '🛎️ [SERVICE]' :
-            p.product_type === 'virtual' ? '💻 [NUMÉRIQUE]' : '📦'
+            (p.product_type === 'virtual' || p.product_type === 'digital') ? '💻 [NUMÉRIQUE]' : '📦'
 
         // Gestion intelligente du prix (Hybrid Logic v2.12)
         let priceDisplay
