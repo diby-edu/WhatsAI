@@ -1,15 +1,16 @@
 /**
  * ═══════════════════════════════════════════════════════════════
- * TOOLS.JS v2.25 - VARIANT IMAGES SUPPORT (P1-2)
+ * TOOLS.JS v2.26 - EMAIL REQUIS POUR PRODUITS NUMÉRIQUES
  * ═══════════════════════════════════════════════════════════════
- * 
+ *
  * changelog:
+ * ✅ v2.26 : Validation email obligatoire pour product_type === 'digital'
  * ✅ v2.25 : send_image supporte selected_variants (findMatchingOption)
  * ✅ v2.24 : Fix 'variants' ReferenceError (line 450)
  * ✅ v2.23 : 'var price' (scope global function), safe import normalizePhoneNumber
  */
 
-console.log("🚀 TOOLS.JS v2.25 LOADED - VARIANTS SCOPE FIX")
+console.log("🚀 TOOLS.JS v2.26 LOADED - EMAIL REQUIRED FOR DIGITAL")
 
 // ═══════════════════════════════════════════════════════════════
 // 📞 HELPER : NORMALIZE PHONE NUMBER (INLINED SAFETY)
@@ -345,6 +346,28 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                 .single()
 
             if (!agent) throw new Error('Agent not found')
+
+            // ═══════════════════════════════════════════════════════════
+            // ⭐ VALIDATION EMAIL POUR PRODUITS NUMÉRIQUES (v2.26)
+            // ═══════════════════════════════════════════════════════════
+            // Vérifier si un produit numérique est dans la commande
+            const hasDigitalProduct = items.some(item => {
+                const searchName = item.product_name.toLowerCase()
+                const matchedProduct = products.find(p => {
+                    const pName = p.name.toLowerCase()
+                    return pName === searchName || searchName.includes(pName) || pName.includes(searchName)
+                })
+                return matchedProduct && matchedProduct.product_type === 'digital'
+            })
+
+            if (hasDigitalProduct && !email) {
+                console.log('❌ Email requis pour produit numérique mais non fourni')
+                return JSON.stringify({
+                    success: false,
+                    error: 'EMAIL REQUIS. Ce produit numérique sera envoyé par email. Demande l\'adresse email du client avant de créer la commande.',
+                    hint: 'Demande : "À quelle adresse email souhaitez-vous recevoir votre produit ?"'
+                })
+            }
 
             let total = 0
             const orderItems = []
