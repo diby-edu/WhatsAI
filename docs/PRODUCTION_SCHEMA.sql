@@ -1,8 +1,8 @@
 -- =========================================================================
--- 🗄️ PRODUCTION SCHEMA (STRICT MATCH v2)
--- Date: 18 Jan 2026
+-- 🗄️ PRODUCTION SCHEMA (STRICT MATCH v3)
+-- Date: 23 Jan 2026
 -- Source: Live Database via pg_constraint extraction
--- Status: VERIFIED & ACTIVE
+-- Status: VERIFIED & ACTIVE (includes v2.19 Service Verticalization)
 -- =========================================================================
 
 -- 1. NOYAU UTILISATEURS & AGENTS
@@ -221,8 +221,19 @@ CREATE TABLE IF NOT EXISTS public.products (
     lead_fields JSONB DEFAULT '[]'::jsonb,
     related_product_ids JSONB DEFAULT '[]'::jsonb,
     
+    -- v2.19: Service Verticalization
+    service_subtype TEXT,
+    
     created_at TIMESTAMPTZ DEFAULT now(),
-    updated_at TIMESTAMPTZ DEFAULT now()
+    updated_at TIMESTAMPTZ DEFAULT now(),
+
+    -- STRICT CONSTRAINTS
+    CONSTRAINT products_service_subtype_check CHECK (
+        service_subtype IS NULL OR service_subtype IN (
+            'hotel', 'residence', 'restaurant', 'formation', 'event',
+            'coiffeur', 'medecin', 'coaching', 'rental', 'other'
+        )
+    )
 );
 
 CREATE TABLE IF NOT EXISTS public.orders (
