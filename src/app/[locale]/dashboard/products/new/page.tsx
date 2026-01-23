@@ -173,6 +173,13 @@ export default function NewProductPage() {
     }
 
     const handleSave = async () => {
+        // v2.19: Validate mandatory service_subtype for Services
+        if (formData.product_type === 'service' && !formData.service_subtype) {
+            alert('Veuillez sélectionner une catégorie de service (Hôtel, Restaurant, etc.)')
+            setCurrentStep(0) // Go back to step with selector
+            return
+        }
+
         setLoading(true)
         try {
             // Prepare data with proper types
