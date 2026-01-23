@@ -66,25 +66,112 @@ export default function NewProductPage() {
 
     // v2.19: Dynamic placeholders based on service_subtype
     const getServicePlaceholders = () => {
-        const placeholders: Record<string, { name: string, desc: string, category: string }> = {
-            hotel: { name: "Ex: Hôtel Le Grand Palace", desc: "Description de l'établissement, chambres, équipements...", category: "Hébergement" },
-            residence: { name: "Ex: Villa Sunshine", desc: "Capacité, équipements, proximité...", category: "Location" },
-            restaurant: { name: "Ex: Le Gourmet Africain", desc: "Spécialités, ambiance, capacité...", category: "Restauration" },
-            coiffeur: { name: "Ex: Coupe Homme Tendance", desc: "Durée, technique utilisée...", category: "Beauté" },
-            medecin: { name: "Ex: Consultation Générale", desc: "Durée, préparation nécessaire...", category: "Santé" },
-            formation: { name: "Ex: Formation Excel Avancé", desc: "Durée, niveau requis, certificat...", category: "Formation" },
-            event: { name: "Ex: Concert Live Didier Awadi", desc: "Date, lieu, programme...", category: "Événement" },
-            coaching: { name: "Ex: Session Coaching Carrière", desc: "Durée, objectifs, format...", category: "Coaching" },
-            rental: { name: "Ex: Location SUV Toyota RAV4", desc: "Caractéristiques, conditions, caution...", category: "Location" },
-            other: { name: "Ex: Service Personnalisé", desc: "Décrivez votre prestation...", category: "Service" }
+        const servicePlaceholders: Record<string, {
+            name: string, desc: string, category: string,
+            descFull: string, content: string, features: string
+        }> = {
+            hotel: {
+                name: "Ex: Hôtel Le Grand Palace",
+                desc: "Description de l'établissement, chambres, équipements...",
+                category: "Hébergement",
+                descFull: "Décrivez l'hôtel : chambres disponibles, équipements (piscine, wifi, parking), services inclus...",
+                content: "Ex: Petit-déjeuner, WiFi, Piscine...",
+                features: "Ex: Vue mer, Climatisation, Room service..."
+            },
+            residence: {
+                name: "Ex: Villa Sunshine",
+                desc: "Capacité, équipements, proximité...",
+                category: "Location",
+                descFull: "Décrivez la résidence : capacité, équipements, localisation, proximité avec les commodités...",
+                content: "Ex: Cuisine équipée, Terrasse, Parking...",
+                features: "Ex: Bord de mer, Calme, Famille..."
+            },
+            restaurant: {
+                name: "Ex: Le Gourmet Africain",
+                desc: "Spécialités, ambiance, capacité...",
+                category: "Restauration",
+                descFull: "Décrivez le restaurant : type de cuisine, spécialités, ambiance, capacité d'accueil...",
+                content: "Ex: Entrée, Plat, Dessert, Boisson...",
+                features: "Ex: Halal, Végétarien, Terrasse, Live music..."
+            },
+            coiffeur: {
+                name: "Ex: Coupe Homme Tendance",
+                desc: "Durée, technique utilisée...",
+                category: "Beauté",
+                descFull: "Décrivez le service : durée, technique, produits utilisés, résultat attendu...",
+                content: "Ex: Shampoing, Coupe, Brushing...",
+                features: "Ex: Sans RDV, Domicile, Produits bio..."
+            },
+            medecin: {
+                name: "Ex: Consultation Générale",
+                desc: "Durée, préparation nécessaire...",
+                category: "Santé",
+                descFull: "Décrivez la consultation : durée, spécialité, préparation nécessaire, documents à apporter...",
+                content: "Ex: Examen clinique, Ordonnance, Conseil...",
+                features: "Ex: Téléconsultation, Urgence, Spécialiste..."
+            },
+            formation: {
+                name: "Ex: Formation Excel Avancé",
+                desc: "Durée, niveau requis, certificat...",
+                category: "Formation",
+                descFull: "Décrivez la formation : durée, niveau requis, objectifs, certificat délivré, matériel fourni...",
+                content: "Ex: Support PDF, Exercices, Certificat...",
+                features: "Ex: En ligne, Présentiel, Débutant, Avancé..."
+            },
+            event: {
+                name: "Ex: Concert Live Didier Awadi",
+                desc: "Date, lieu, programme...",
+                category: "Événement",
+                descFull: "Décrivez l'événement : date, heure, lieu, programme, artistes/intervenants...",
+                content: "Ex: Entrée, Cocktail, Concert...",
+                features: "Ex: VIP, Parking inclus, Dress code..."
+            },
+            coaching: {
+                name: "Ex: Session Coaching Carrière",
+                desc: "Durée, objectifs, format...",
+                category: "Coaching",
+                descFull: "Décrivez la session : durée, format (visio/présentiel), objectifs, méthode...",
+                content: "Ex: Bilan, Plan d'action, Suivi...",
+                features: "Ex: Visio, Individuel, Groupe..."
+            },
+            rental: {
+                name: "Ex: Location SUV Toyota RAV4",
+                desc: "Caractéristiques, conditions, caution...",
+                category: "Location",
+                descFull: "Décrivez le véhicule/matériel : caractéristiques, conditions de location, caution, kilométrage inclus...",
+                content: "Ex: Assurance, Kilométrage illimité, GPS...",
+                features: "Ex: Automatique, Diesel, Clim, 5 places..."
+            },
+            other: {
+                name: "Ex: Service Personnalisé",
+                desc: "Décrivez votre prestation...",
+                category: "Service",
+                descFull: "Décrivez votre service : ce qu'il inclut, durée, conditions...",
+                content: "Ex: Ce qui est inclus...",
+                features: "Ex: Caractéristiques du service..."
+            }
         }
-        const defaultPlaceholders = { name: "Ex: Bougie Vanille", desc: "Description du produit...", category: "Ex: Maison" }
+        const defaultPlaceholders = {
+            name: "Ex: Bougie Vanille",
+            desc: "Description du produit...",
+            category: "Ex: Maison",
+            descFull: "Ex: Office 2021 Pro à 25000F, inclut Word, Excel, PowerPoint. Licence à vie, activation en ligne.",
+            content: "Ex: Word, Excel, PowerPoint...",
+            features: "Ex: Bio, Artisanal, Garantie 2 ans..."
+        }
 
         if (formData.product_type === 'service' && formData.service_subtype) {
-            return placeholders[formData.service_subtype] || defaultPlaceholders
+            return servicePlaceholders[formData.service_subtype] || defaultPlaceholders
         }
         if (formData.product_type === 'digital') {
-            return { name: "Ex: Ebook Marketing Digital", desc: "Contenu, format, pages...", category: "Numérique" }
+            return {
+                name: "Ex: Ebook Marketing Digital",
+                desc: "Contenu, format, pages...",
+                category: "Numérique",
+                descFull: "Ex: E-book PDF de 150 pages sur le marketing digital. Stratégies et cas pratiques.",
+                content: "Ex: PDF, Vidéos bonus, Templates...",
+                features: "Ex: Téléchargement instantané, Mise à jour gratuite..."
+            }
         }
         return defaultPlaceholders
     }
@@ -527,14 +614,19 @@ export default function NewProductPage() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                         {/* Description with AI Analysis */}
                         <div>
-                            <label style={labelStyle}>Description du produit</label>
+                            <label style={labelStyle}>
+                                {formData.product_type === 'service' ? 'Description du service' : 'Description du produit'}
+                            </label>
                             <p style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8 }}>
-                                Décrivez librement votre produit. L'IA extraira automatiquement les informations structurées.
+                                {formData.product_type === 'service'
+                                    ? "Décrivez votre service en détail. L'IA adaptera les questions au type de service."
+                                    : "Décrivez librement votre produit. L'IA extraira automatiquement les informations structurées."
+                                }
                             </p>
                             <textarea
                                 value={formData.description}
                                 onChange={e => setFormData({ ...formData, description: e.target.value })}
-                                placeholder="Ex: Office 2021 Pro à 25000F, inclut Word, Excel, PowerPoint. Licence à vie, activation en ligne. Idéal pour les professionnels et étudiants."
+                                placeholder={getServicePlaceholders().descFull}
                                 style={{ ...inputStyle, minHeight: 120, fontFamily: 'inherit' }}
                                 maxLength={2000}
                             />
@@ -616,9 +708,13 @@ export default function NewProductPage() {
 
                         {/* Content Included */}
                         <div>
-                            <label style={labelStyle}>Contenu inclus</label>
+                            <label style={labelStyle}>
+                                {formData.product_type === 'service' ? 'Ce qui est inclus' : 'Contenu inclus'}
+                            </label>
                             <p style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8 }}>
-                                Listez ce qui est inclus dans le produit (pour logiciels, packs, etc.)
+                                {formData.product_type === 'service'
+                                    ? "Listez les éléments inclus dans votre service"
+                                    : "Listez ce qui est inclus dans le produit (pour logiciels, packs, etc.)"}
                             </p>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
                                 {formData.content_included.map((c, i) => (
@@ -649,7 +745,7 @@ export default function NewProductPage() {
                                             setContentInput('')
                                         }
                                     }}
-                                    placeholder="Ex: Word, Excel, PowerPoint..."
+                                    placeholder={getServicePlaceholders().content}
                                     style={inputStyle}
                                 />
                                 <button
@@ -668,7 +764,9 @@ export default function NewProductPage() {
 
                         {/* Tags/Features */}
                         <div>
-                            <label style={labelStyle}>Caractéristiques (Tags)</label>
+                            <label style={labelStyle}>
+                                {formData.product_type === 'service' ? 'Caractéristiques du service' : 'Caractéristiques (Tags)'}
+                            </label>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
                                 {formData.features.map((f, i) => (
                                     <span key={i} style={{
@@ -693,7 +791,7 @@ export default function NewProductPage() {
                                     value={featureInput}
                                     onChange={e => setFeatureInput(e.target.value)}
                                     onKeyDown={e => e.key === 'Enter' && addFeature()}
-                                    placeholder="Ex: Bio, Artisanal, Garantie 2 ans..."
+                                    placeholder={getServicePlaceholders().features}
                                     style={inputStyle}
                                 />
                                 <button onClick={addFeature} style={{ ...buttonSecondaryStyle, padding: '0 16px' }}>
