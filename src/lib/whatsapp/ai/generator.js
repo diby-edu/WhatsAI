@@ -221,7 +221,8 @@ async function generateAIResponse(options, dependencies) {
             currency,
             options.gpsLink || gpsLink || '',
             options.formattedHours || formattedHours || 'Non spécifiés',
-            options.justOrdered || false // Passer le flag de reset
+            options.justOrdered || false, // Passer le flag de reset
+            userMessage || '' // v2.19: Intent Detection Context
         )
         console.log(`📝 Prompt size: ${systemPrompt.length} chars`)
 

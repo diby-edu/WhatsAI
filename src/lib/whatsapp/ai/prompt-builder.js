@@ -44,7 +44,7 @@
  * ✅ Mode "Train Rapide" après commande
  */
 
-function buildAdaptiveSystemPrompt(agent, products, orders, relevantDocs, currency, gpsLink, formattedHours, justOrdered = false) {
+function buildAdaptiveSystemPrompt(agent, products, orders, relevantDocs, currency, gpsLink, formattedHours, justOrdered = false, userMessage = '') {
 
     // ═══════════════════════════════════════════════════════════════
     // 🚨 SECTION 0 : RESET CONTEXT & MODE "POST-COMMANDE" (INCASSABLE)
@@ -155,14 +155,23 @@ Si le client dit "Salut", "Bonjour", "Menu" ou commence la conversation:
         if (mainItem.product_type === 'service') {
             // Récupérer le sous-type (mocké pour l'instant via nom ou metadata)
             // const detectedSubtype = mainItem.subtype || 'other' 
+        }
+    }
 
-            // Pour l'instant, on reste sur 'generic' tant qu'on n'a pas la colonne DB
-            // MAIS le code est prêt :
-            /*
-            const detectedSubtype = mainItem.subtype || 'other'
+    // 🧠 v2.19: DÉTECTION INTELLIGENTE BASÉE SUR LE MESSAGE (LIVE)
+    // Si le message contient le nom d'un service, on active le moteur correspondant.
+    if (userMessage && products && products.length > 0) {
+        const lowerMsg = userMessage.toLowerCase()
+
+        // Chercher le produit le plus long qui matche (pour éviter les faux positifs courts)
+        const matchedProduct = products
+            .filter(p => lowerMsg.includes(p.name.toLowerCase()))
+            .sort((a, b) => b.name.length - a.name.length)[0]
+
+        if (matchedProduct && matchedProduct.service_subtype) {
+            console.log(`🧠 INTENT DETECTED: ${matchedProduct.name} -> ${matchedProduct.service_subtype}`)
             conversationIntent = 'service_booking'
-            activeEngine = SERVICE_ENGINE_MAP[detectedSubtype] || 'SLOT'
-            */
+            activeEngine = SERVICE_ENGINE_MAP[matchedProduct.service_subtype] || 'SLOT'
         }
     }
 
