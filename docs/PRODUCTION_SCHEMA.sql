@@ -1,15 +1,16 @@
 -- =========================================================================
--- 🗄️ PRODUCTION SCHEMA (STRICT MATCH v3)
+-- 🗄️ PRODUCTION SCHEMA (STRICT MATCH v4)
 -- Date: 23 Jan 2026
 -- Source: Live Database via pg_constraint extraction
 -- Status: VERIFIED & ACTIVE (includes v2.19 Service Verticalization)
+-- Tables: 21 | Constraints: 68 | Foreign Keys: 26
 -- =========================================================================
 
 -- 1. NOYAU UTILISATEURS & AGENTS
 -- =========================================================================
 
 CREATE TABLE IF NOT EXISTS public.profiles (
-    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    id UUID PRIMARY KEY,
     email TEXT NOT NULL,
     full_name TEXT,
     avatar_url TEXT,
@@ -29,13 +30,14 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     updated_at TIMESTAMPTZ DEFAULT now(),
 
     -- STRICT CONSTRAINTS
+    CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE,
     CONSTRAINT profiles_role_check CHECK (role IN ('user', 'admin', 'superadmin')),
     CONSTRAINT profiles_plan_check CHECK (plan IN ('free', 'starter', 'pro', 'business'))
 );
 
 CREATE TABLE IF NOT EXISTS public.agents (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL,
     name TEXT NOT NULL,
     description TEXT,
     avatar_url TEXT,
@@ -95,6 +97,7 @@ CREATE TABLE IF NOT EXISTS public.agents (
     updated_at TIMESTAMPTZ DEFAULT now(),
 
     -- STRICT CONSTRAINTS
+    CONSTRAINT agents_user_id_fkey FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE,
     CONSTRAINT agents_personality_check CHECK (personality IN ('professional', 'friendly', 'casual', 'formal'))
 );
 
@@ -112,8 +115,8 @@ CREATE TABLE IF NOT EXISTS public.whatsapp_sessions (
 
 CREATE TABLE IF NOT EXISTS public.conversations (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    agent_id UUID NOT NULL REFERENCES public.agents(id) ON DELETE CASCADE,
-    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    agent_id UUID NOT NULL,
+    user_id UUID NOT NULL,
     contact_phone TEXT NOT NULL,
     contact_name TEXT,
     contact_push_name TEXT,
@@ -139,14 +142,16 @@ CREATE TABLE IF NOT EXISTS public.conversations (
     updated_at TIMESTAMPTZ DEFAULT now(),
 
     -- STRICT CONSTRAINTS
+    CONSTRAINT conversations_agent_id_fkey FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE,
+    CONSTRAINT conversations_user_id_fkey FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE,
     CONSTRAINT conversations_status_check CHECK (status IN ('active', 'closed', 'escalated', 'spam')),
     CONSTRAINT conversations_lead_status_check CHECK (lead_status IN ('new', 'qualified', 'contacted', 'negotiation', 'converted', 'lost'))
 );
 
 CREATE TABLE IF NOT EXISTS public.messages (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    conversation_id UUID NOT NULL REFERENCES public.conversations(id) ON DELETE CASCADE,
-    agent_id UUID NOT NULL REFERENCES public.agents(id) ON DELETE CASCADE,
+    conversation_id UUID NOT NULL,
+    agent_id UUID NOT NULL,
     role TEXT NOT NULL,
     content TEXT NOT NULL,
     whatsapp_message_id TEXT,
@@ -164,6 +169,8 @@ CREATE TABLE IF NOT EXISTS public.messages (
     created_at TIMESTAMPTZ DEFAULT now(),
 
     -- STRICT CONSTRAINTS
+    CONSTRAINT messages_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
+    CONSTRAINT messages_agent_id_fkey FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE,
     CONSTRAINT messages_role_check CHECK (role IN ('user', 'assistant', 'system')),
     CONSTRAINT messages_message_type_check CHECK (message_type IN ('text', 'image', 'audio', 'video', 'document', 'location', 'contact', 'sticker')),
     CONSTRAINT messages_status_check CHECK (status IN ('pending', 'sent', 'delivered', 'read', 'failed', 'received'))
@@ -171,26 +178,27 @@ CREATE TABLE IF NOT EXISTS public.messages (
 
 CREATE TABLE IF NOT EXISTS public.outbound_messages (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    agent_id UUID NOT NULL REFERENCES public.agents(id) ON DELETE CASCADE, -- Note: Cascade confirmed
+    agent_id UUID NOT NULL,
     recipient_phone TEXT NOT NULL,
     message_content TEXT NOT NULL,
     status TEXT DEFAULT 'pending',
     sent_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ DEFAULT now()
-    
-    -- CHECK constraint for status was not explicitly in the JSON dump for this table, 
-    -- but implied 'pending' default suggests standard lifecycle. 
-    -- Leaving out explicit CHECK if not in JSON to avoid divergence, 
-    -- or user JSON implies no check constraint named outbound_messages_status_check.
+    created_at TIMESTAMPTZ DEFAULT now(),
+
+    -- STRICT CONSTRAINTS
+    CONSTRAINT outbound_messages_agent_id_fkey FOREIGN KEY (agent_id) REFERENCES agents(id)
 );
 
 CREATE TABLE IF NOT EXISTS public.broadcasts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    agent_id UUID REFERENCES public.agents(id) ON DELETE CASCADE,
+    agent_id UUID,
     message TEXT NOT NULL,
     recipients_count INTEGER DEFAULT 0,
     status TEXT DEFAULT 'sent',
-    created_at TIMESTAMPTZ DEFAULT now()
+    created_at TIMESTAMPTZ DEFAULT now(),
+
+    -- STRICT CONSTRAINTS
+    CONSTRAINT broadcasts_agent_id_fkey FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE
 );
 
 -- 3. COMMERCE
@@ -198,8 +206,8 @@ CREATE TABLE IF NOT EXISTS public.broadcasts (
 
 CREATE TABLE IF NOT EXISTS public.products (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    agent_id UUID REFERENCES public.agents(id) ON DELETE SET NULL,
+    user_id UUID NOT NULL,
+    agent_id UUID,
     name TEXT NOT NULL,
     description TEXT,
     price_fcfa INTEGER NOT NULL DEFAULT 0,
@@ -228,19 +236,19 @@ CREATE TABLE IF NOT EXISTS public.products (
     updated_at TIMESTAMPTZ DEFAULT now(),
 
     -- STRICT CONSTRAINTS
-    CONSTRAINT products_service_subtype_check CHECK (
-        service_subtype IS NULL OR service_subtype IN (
-            'hotel', 'residence', 'restaurant', 'formation', 'event',
-            'coiffeur', 'medecin', 'coaching', 'rental', 'other'
-        )
-    )
+    CONSTRAINT products_user_id_fkey FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE,
+    CONSTRAINT products_agent_id_fkey FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE SET NULL,
+    CONSTRAINT check_service_subtype CHECK (service_subtype IN (
+        'hotel', 'residence', 'restaurant', 'formation', 'event',
+        'coiffeur', 'medecin', 'coaching', 'prestation', 'rental', 'other'
+    ))
 );
 
 CREATE TABLE IF NOT EXISTS public.orders (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    agent_id UUID REFERENCES public.agents(id) ON DELETE SET NULL,
-    conversation_id UUID REFERENCES public.conversations(id) ON DELETE SET NULL,
+    user_id UUID NOT NULL,
+    agent_id UUID,
+    conversation_id UUID,
     
     customer_phone TEXT NOT NULL,
     customer_name TEXT,
@@ -267,26 +275,33 @@ CREATE TABLE IF NOT EXISTS public.orders (
     updated_at TIMESTAMPTZ DEFAULT now(),
 
     -- STRICT CONSTRAINTS
+    CONSTRAINT orders_user_id_fkey FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE,
+    CONSTRAINT orders_agent_id_fkey FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE SET NULL,
+    CONSTRAINT orders_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE SET NULL,
     CONSTRAINT orders_status_check CHECK (status IN ('pending', 'paid', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'pending_delivery', 'refunded'))
 );
 
 CREATE TABLE IF NOT EXISTS public.order_items (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    order_id UUID NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
-    product_id UUID REFERENCES public.products(id) ON DELETE SET NULL,
+    order_id UUID NOT NULL,
+    product_id UUID,
     product_name TEXT NOT NULL,
     product_description TEXT,
     quantity INTEGER NOT NULL DEFAULT 1,
     unit_price_fcfa INTEGER NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT now()
+    created_at TIMESTAMPTZ DEFAULT now(),
+
+    -- STRICT CONSTRAINTS
+    CONSTRAINT order_items_order_id_fkey FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+    CONSTRAINT order_items_product_id_fkey FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS public.bookings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    agent_id UUID NOT NULL REFERENCES public.agents(id) ON DELETE CASCADE,
-    user_id UUID REFERENCES public.profiles(id),
-    conversation_id UUID REFERENCES public.conversations(id),
-    service_id UUID REFERENCES public.products(id),
+    agent_id UUID NOT NULL,
+    user_id UUID,
+    conversation_id UUID,
+    service_id UUID,
     
     customer_phone TEXT NOT NULL,
     customer_name TEXT,
@@ -304,19 +319,28 @@ CREATE TABLE IF NOT EXISTS public.bookings (
     price_fcfa INTEGER DEFAULT 0,
     
     created_at TIMESTAMPTZ DEFAULT now(),
-    updated_at TIMESTAMPTZ DEFAULT now()
+    updated_at TIMESTAMPTZ DEFAULT now(),
+
+    -- STRICT CONSTRAINTS
+    CONSTRAINT bookings_agent_id_fkey FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE,
+    CONSTRAINT bookings_user_id_fkey FOREIGN KEY (user_id) REFERENCES profiles(id),
+    CONSTRAINT bookings_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES conversations(id),
+    CONSTRAINT bookings_service_id_fkey FOREIGN KEY (service_id) REFERENCES products(id)
 );
 
 CREATE TABLE IF NOT EXISTS public.future_bookings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    agent_id UUID NOT NULL REFERENCES public.agents(id) ON DELETE CASCADE,
+    agent_id UUID NOT NULL,
     customer_phone TEXT NOT NULL,
     booking_type TEXT NOT NULL,
     status TEXT DEFAULT 'confirmed',
     start_time TIMESTAMPTZ NOT NULL,
     party_size INTEGER DEFAULT 1,
     notes TEXT,
-    created_at TIMESTAMPTZ DEFAULT now()
+    created_at TIMESTAMPTZ DEFAULT now(),
+
+    -- STRICT CONSTRAINTS
+    CONSTRAINT future_bookings_agent_id_fkey FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE
 );
 
 -- 4. PAIEMENTS & SYSTEME
@@ -324,8 +348,8 @@ CREATE TABLE IF NOT EXISTS public.future_bookings (
 
 CREATE TABLE IF NOT EXISTS public.payments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    subscription_id UUID REFERENCES public.subscriptions(id),
+    user_id UUID NOT NULL,
+    subscription_id UUID,
     amount_fcfa INTEGER NOT NULL,
     currency TEXT DEFAULT 'XOF',
     payment_type TEXT NOT NULL,
@@ -345,6 +369,8 @@ CREATE TABLE IF NOT EXISTS public.payments (
     created_at TIMESTAMPTZ DEFAULT now(),
 
     -- STRICT CONSTRAINTS
+    CONSTRAINT payments_user_id_fkey FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE,
+    CONSTRAINT payments_subscription_id_fkey FOREIGN KEY (subscription_id) REFERENCES subscriptions(id),
     CONSTRAINT payments_payment_type_check CHECK (payment_type IN ('subscription', 'credits', 'one_time')),
     CONSTRAINT payments_status_check CHECK (status IN ('pending', 'processing', 'completed', 'failed', 'refunded', 'cancelled'))
 );
@@ -353,7 +379,7 @@ CREATE TABLE IF NOT EXISTS public.subscription_plans (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL,
     description TEXT,
-    price_fcfa INTEGER NOT NULL,
+    price_fcfa INTEGER NOT NULL DEFAULT 0,
     credits_included INTEGER NOT NULL DEFAULT 100,
     features JSONB DEFAULT '[]'::jsonb,
     billing_cycle TEXT DEFAULT 'monthly',
@@ -364,12 +390,13 @@ CREATE TABLE IF NOT EXISTS public.subscription_plans (
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now(),
 
+    -- STRICT CONSTRAINTS
     CONSTRAINT subscription_plans_billing_cycle_check CHECK (billing_cycle IN ('monthly', 'yearly'))
 );
 
 CREATE TABLE IF NOT EXISTS public.subscriptions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL,
     plan TEXT NOT NULL,
     status TEXT DEFAULT 'active',
     credits_included INTEGER NOT NULL,
@@ -388,6 +415,7 @@ CREATE TABLE IF NOT EXISTS public.subscriptions (
     updated_at TIMESTAMPTZ DEFAULT now(),
 
     -- STRICT CONSTRAINTS
+    CONSTRAINT subscriptions_user_id_fkey FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE,
     CONSTRAINT subscriptions_status_check CHECK (status IN ('active', 'cancelled', 'expired', 'past_due', 'trialing')),
     CONSTRAINT subscriptions_plan_check CHECK (plan IN ('starter', 'pro', 'business')),
     CONSTRAINT subscriptions_billing_cycle_check CHECK (billing_cycle IN ('monthly', 'yearly'))
@@ -405,17 +433,10 @@ CREATE TABLE IF NOT EXISTS public.credit_packs (
     updated_at TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE TABLE IF NOT EXISTS public.credit_usage_stats (
-    date DATE,
-    deduction_count INT8,
-    total_credits_used INT8,
-    avg_balance NUMERIC
-);
-
 CREATE TABLE IF NOT EXISTS public.knowledge_base (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    agent_id UUID NOT NULL REFERENCES public.agents(id) ON DELETE CASCADE,
-    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    agent_id UUID NOT NULL,
+    user_id UUID NOT NULL,
     title TEXT NOT NULL,
     content TEXT NOT NULL,
     content_type TEXT DEFAULT 'text',
@@ -426,6 +447,8 @@ CREATE TABLE IF NOT EXISTS public.knowledge_base (
     updated_at TIMESTAMPTZ DEFAULT now(),
 
     -- STRICT CONSTRAINTS
+    CONSTRAINT knowledge_base_agent_id_fkey FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE,
+    CONSTRAINT knowledge_base_user_id_fkey FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE,
     CONSTRAINT knowledge_base_content_type_check CHECK (content_type IN ('text', 'faq', 'document', 'url', 'product'))
 );
 
@@ -434,14 +457,17 @@ CREATE TABLE IF NOT EXISTS public.admin_settings (
     key TEXT NOT NULL UNIQUE,
     value JSONB NOT NULL,
     description TEXT,
-    updated_by UUID REFERENCES public.profiles(id),
+    updated_by UUID,
     created_at TIMESTAMPTZ DEFAULT now(),
-    updated_at TIMESTAMPTZ DEFAULT now()
+    updated_at TIMESTAMPTZ DEFAULT now(),
+
+    -- STRICT CONSTRAINTS
+    CONSTRAINT admin_settings_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES profiles(id)
 );
 
 CREATE TABLE IF NOT EXISTS public.audit_logs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES public.profiles(id),
+    user_id UUID,
     action TEXT NOT NULL,
     entity_type TEXT NOT NULL,
     entity_id UUID,
@@ -449,7 +475,10 @@ CREATE TABLE IF NOT EXISTS public.audit_logs (
     new_data JSONB,
     ip_address TEXT,
     user_agent TEXT,
-    created_at TIMESTAMPTZ DEFAULT now()
+    created_at TIMESTAMPTZ DEFAULT now(),
+
+    -- STRICT CONSTRAINTS
+    CONSTRAINT audit_logs_user_id_fkey FOREIGN KEY (user_id) REFERENCES profiles(id)
 );
 
 CREATE TABLE IF NOT EXISTS public.feature_flags (
@@ -460,4 +489,5 @@ CREATE TABLE IF NOT EXISTS public.feature_flags (
     updated_at TIMESTAMPTZ DEFAULT now()
 );
 
--- END OF STRICT SCHEMA
+-- END OF STRICT SCHEMA v4
+-- Generated from Live Database on 23 Jan 2026
