@@ -229,19 +229,17 @@ IMPORTANT - VARIANTES :
             parameters: {
                 type: 'object',
                 properties: {
+                    booking_type: { type: 'string', description: 'Type de réservation: "stay" (hôtel), "table" (restaurant), "slot" (rdv), "rental" (location)' },
                     service_name: { type: 'string', description: 'Nom du service réservé' },
                     customer_phone: { type: 'string', description: 'Téléphone du client (avec indicatif)' },
                     customer_name: { type: 'string', description: 'Nom du client' },
-                    customer_email: { type: 'string', description: 'Email du client (optionnel)' },
-                    preferred_date: { type: 'string', description: 'Date de la réservation (YYYY-MM-DD)' },
-                    preferred_time: { type: 'string', description: 'Heure de la réservation (HH:MM)' },
-                    end_date: { type: 'string', description: 'Date de fin (pour hôtels - YYYY-MM-DD)' },
-                    number_of_people: { type: 'number', description: 'Nombre de personnes/couverts' },
-                    location: { type: 'string', description: 'Lieu du service (si applicable)' },
-                    payment_method: { type: 'string', description: 'Mode de paiement: "online", "cod" (sur place), "deposit" (acompte)' },
+                    preferred_date: { type: 'string', description: 'Date de début (YYYY-MM-DD)' },
+                    preferred_time: { type: 'string', description: 'Heure (HH:MM) - pour table/slot' },
+                    end_date: { type: 'string', description: 'Date de fin (YYYY-MM-DD) - pour stay/rental' },
+                    party_size: { type: 'number', description: 'Nombre de personnes/couverts' },
                     notes: { type: 'string', description: 'Demandes spéciales (allergies, préférences, etc.)' }
                 },
-                required: ['service_name', 'customer_phone', 'customer_name', 'preferred_date']
+                required: ['booking_type', 'service_name', 'customer_phone', 'customer_name', 'preferred_date']
             }
         }
     },
@@ -770,22 +768,20 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
             console.log('🛠️ Executing tool: create_booking')
             const args = JSON.parse(toolCall.function.arguments)
             const {
+                booking_type,
                 service_name,
                 customer_phone,
                 customer_name,
-                customer_email,
                 preferred_date,
                 preferred_time,
                 end_date,
-                number_of_people,
-                location,
-                payment_method,
+                party_size,
                 notes
             } = args
 
             const { data: agent } = await supabase
                 .from('agents')
-                .select('user_id, payment_mode, mobile_money_orange, mobile_money_mtn, mobile_money_wave')
+                .select('user_id')
                 .eq('id', agentId)
                 .single()
 
@@ -801,25 +797,28 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                 })
             }
 
+            // Calculer start_time (obligatoire dans le schéma)
+            const start_time = preferred_date && preferred_time
+                ? new Date(`${preferred_date}T${preferred_time}:00`).toISOString()
+                : new Date(`${preferred_date}T09:00:00`).toISOString()
+
             const { data: booking, error } = await supabase
                 .from('bookings')
                 .insert({
                     user_id: agent.user_id,
                     agent_id: agentId,
+                    booking_type: booking_type || 'slot',
+                    start_time: start_time,
                     customer_phone: normalizePhoneNumber(customer_phone),
                     customer_name: customer_name || null,
-                    customer_email: customer_email || null,
                     service_name: service.name,
                     service_id: service.id,
                     price_fcfa: service.price_fcfa || 0,
-                    preferred_date,
+                    preferred_date: preferred_date || null,
                     preferred_time: preferred_time || null,
-                    end_date: end_date || null,
-                    number_of_people: number_of_people || null,
-                    location: location || null,
-                    payment_method: payment_method || 'cod',
+                    party_size: party_size || 1,
                     notes: notes || null,
-                    status: 'scheduled',
+                    status: 'confirmed',
                     conversation_id: conversationId
                 })
                 .select()
@@ -828,20 +827,21 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
             if (error) throw error
 
             // Message de confirmation adapté au type de service
-            let confirmMsg = `📅 Réservation créée ! ${service.name} le ${preferred_date}`
+            let confirmMsg = `📅 Réservation confirmée ! ${service.name} le ${preferred_date}`
             if (preferred_time) confirmMsg += ` à ${preferred_time}`
-            if (end_date) confirmMsg += ` jusqu'au ${end_date}` // Hôtels
-            if (number_of_people) confirmMsg += ` pour ${number_of_people} personne(s)`
+            if (end_date) confirmMsg += ` jusqu'au ${end_date}`
+            if (party_size && party_size > 1) confirmMsg += ` pour ${party_size} personne(s)`
             confirmMsg += '.'
 
             return JSON.stringify({
                 success: true,
                 booking_id: booking.id,
+                booking_type: booking_type,
                 service_name: service.name,
                 date: preferred_date,
                 time: preferred_time,
                 end_date: end_date,
-                number_of_people: number_of_people,
+                party_size: party_size,
                 price_fcfa: service.price_fcfa,
                 message: confirmMsg
             })

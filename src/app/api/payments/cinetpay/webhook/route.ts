@@ -40,8 +40,16 @@ function verifySignature(payload: string, signature: string): boolean {
 }
 
 export async function POST(request: NextRequest) {
+    // ═══════════════════════════════════════════════════════════════
+    // 🔍 DEBUG: Log EVERYTHING at the start to diagnose webhook issues
+    // ═══════════════════════════════════════════════════════════════
+    console.log('═══════════════════════════════════════════════════════')
+    console.log('📩 CinetPay Webhook called at:', new Date().toISOString())
+    console.log('📍 Request URL:', request.url)
+    console.log('📋 Headers:', JSON.stringify(Object.fromEntries(request.headers.entries())))
+
     try {
-        console.log('📩 CinetPay Webhook called!')
+        console.log('📩 Processing webhook...')
 
         // CinetPay webhook fields (per official documentation)
         let cpm_site_id = ''
@@ -131,6 +139,9 @@ export async function POST(request: NextRequest) {
         // SECURITY: Verify HMAC signature from x-token header (Official CinetPay format)
         // Payload = ALL 16 fields concatenated in order per documentation
         const xToken = request.headers.get('x-token')
+        console.log('🔐 x-token present:', !!xToken)
+        console.log('🔐 CINETPAY_SECRET_KEY configured:', !!process.env.CINETPAY_SECRET_KEY)
+
         if (xToken && process.env.CINETPAY_SECRET_KEY) {
             // Official CinetPay HMAC format: concatenate all 16 fields
             const signaturePayload = cpm_site_id + cpm_trans_id + cpm_trans_date + cpm_amount +
@@ -139,7 +150,9 @@ export async function POST(request: NextRequest) {
                 cpm_custom + cpm_designation + cpm_error_message
 
             if (!verifySignature(signaturePayload, xToken)) {
-                console.error('❌ SECURITY: Invalid HMAC signature OR missing secret key! Rejecting webhook.')
+                console.error('❌ SECURITY: Invalid HMAC signature! Rejecting webhook.')
+                console.error('   x-token received:', xToken.substring(0, 20) + '...')
+                console.error('   payload used:', signaturePayload.substring(0, 50) + '...')
                 return new Response('Invalid signature', { status: 403 })
             }
             console.log('✅ HMAC Signature verified successfully')
@@ -147,6 +160,8 @@ export async function POST(request: NextRequest) {
             // If strict mode is required, uncomment below:
             // return new Response('Missing x-token', { status: 403 })
             console.log('ℹ️ No x-token header - proceeding (Legacy mode)')
+        } else if (xToken && !process.env.CINETPAY_SECRET_KEY) {
+            console.log('⚠️ x-token received but CINETPAY_SECRET_KEY not configured - proceeding anyway')
         }
 
         // Verify site_id matches our configuration
@@ -220,32 +235,57 @@ export async function POST(request: NextRequest) {
                                 conversation = softConv
                             }
 
+                            console.log('🔍 Conversation lookup result:', conversation ? 'FOUND' : 'NOT FOUND')
+                            console.log('   order.conversation_id:', conversationId)
+                            console.log('   order.agent_id:', order.agent_id)
+                            console.log('   order.customer_phone:', order.customer_phone)
+
+                            let messageInsertedSuccessfully = false
+
                             if (conversation) {
                                 // CASE 1: Conversation exists -> Insert into history (Smart)
-                                await getSupabase().from('messages').insert({
+                                console.log('📝 Inserting message into messages table...')
+                                const { data: insertedMsg, error: insertErr } = await getSupabase().from('messages').insert({
                                     conversation_id: conversation.id,
                                     agent_id: order.agent_id,
                                     role: 'assistant',
                                     content: confirmationMessage,
                                     status: 'pending' // Will be picked up by checkPendingMessages
-                                })
+                                }).select().single()
 
-                                // Update conversation header
-                                await getSupabase().from('conversations').update({
-                                    last_message_text: confirmationMessage.substring(0, 200),
-                                    last_message_at: new Date().toISOString(),
-                                    last_message_role: 'assistant'
-                                }).eq('id', conversation.id)
+                                if (insertErr) {
+                                    console.error('❌ Failed to insert message:', insertErr)
+                                } else {
+                                    console.log('✅ Message inserted with ID:', insertedMsg?.id)
+                                    messageInsertedSuccessfully = true
 
-                                console.log('💬 Payment confirmation added to conversation history for:', order.customer_phone)
-                            } else {
-                                // CASE 2: No conversation -> Fallback to outbound (Reliability)
-                                await getSupabase().from('outbound_messages').insert({
+                                    // Update conversation header
+                                    await getSupabase().from('conversations').update({
+                                        last_message_text: confirmationMessage.substring(0, 200),
+                                        last_message_at: new Date().toISOString(),
+                                        last_message_role: 'assistant'
+                                    }).eq('id', conversation.id)
+
+                                    console.log('💬 Payment confirmation added to conversation history for:', order.customer_phone)
+                                }
+                            }
+
+                            // FALLBACK: Always queue to outbound_messages if message insertion failed or no conversation
+                            // This ensures the message is sent even if the bot is offline when webhook is received
+                            if (!messageInsertedSuccessfully) {
+                                console.log('📝 Inserting message into outbound_messages table (fallback)...')
+                                const { data: outboundMsg, error: outboundErr } = await getSupabase().from('outbound_messages').insert({
                                     agent_id: order.agent_id,
                                     recipient_phone: order.customer_phone,
                                     message_content: confirmationMessage,
                                     status: 'pending'
-                                })
+                                }).select().single()
+
+                                if (outboundErr) {
+                                    console.error('❌ Failed to insert outbound message:', outboundErr)
+                                } else {
+                                    console.log('✅ Outbound message inserted with ID:', outboundMsg?.id)
+                                }
                                 console.log('📱 Payment confirmation queued via outbound_messages for:', order.customer_phone)
                             }
 

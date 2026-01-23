@@ -838,8 +838,22 @@ Vos produits seront envoyés à [email] dès validation.
 📋 FLUX [SLOT] (RENDEZ-VOUS SIMPLE):
 1. PRODUIT: Valider prestation.
 2. PLANIF: Demander "Date" 📅 et "Heure précise" ⏰.
-3. CONFIRMATION: Récapitulatif (Prestation + Créneau).
+3. NOTES: Demander "Des demandes particulières ?" (BLOQUANT).
+4. INFOS: Nom + Téléphone.
+5. CONFIRMATION: Récapitulatif (Prestation + Créneau + Notes).
 🚫 PAS D'ADRESSE.
+`.trim()
+
+    // --- TEMPLATE MOTEUR: RENTAL (Location Véhicules/Matériel) ---
+    const prompt_RENTAL = `
+📋 FLUX [RENTAL] (LOCATION):
+1. PRODUIT: Valider véhicule/matériel choisi.
+2. DATES: Demander "Date de début" 📅 et "Date de fin" 📅.
+3. OPTIONS: Demander options (GPS, siège bébé, km illimité, etc.).
+4. INFOS: Nom + Téléphone + Permis (si véhicule).
+5. NOTES: Demander "Des demandes particulières ?" (BLOQUANT).
+6. CONFIRMATION: Récapitulatif (Véhicule + Période + Options + Prix).
+🚫 PAS D'ADRESSE DE LIVRAISON (retrait sur place).
 `.trim()
 
 
@@ -850,6 +864,7 @@ Vos produits seront envoyés à [email] dès validation.
         if (activeEngine === 'STAY') collectOrder = prompt_STAY
         else if (activeEngine === 'TABLE') collectOrder = prompt_TABLE
         else if (activeEngine === 'SLOT') collectOrder = prompt_SLOT
+        else if (activeEngine === 'RENTAL') collectOrder = prompt_RENTAL
         else collectOrder = collectOrderGeneric // Fallback
     } else {
         collectOrder = collectOrderGeneric // Par défaut (Produit / Mixte actuel)
