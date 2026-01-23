@@ -38,6 +38,11 @@ export async function POST(request: NextRequest) {
     try {
         const body = await request.json()
 
+        // v2.19: Mandatory service_subtype validation
+        if (body.product_type === 'service' && !body.service_subtype) {
+            return errorResponse('Catégorie de service obligatoire', 400)
+        }
+
         const { data: product, error } = await supabase
             .from('products')
             .insert({
