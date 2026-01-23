@@ -22,14 +22,98 @@ Ce document est la source de vérité pour la collaboration entre Antigravity (A
 *   **MANDAT** : Interdiction de commiter un fix si cela déstabilise les étapes précédentes. Si vous touchez à une brique, vérifiez tout le mur.
 
 ### 4. ZONES DE DANGER TECHNIQUE (Vigilance Maximale pour les deux)
-*   **`tools.js`** : Attention à l'import `normalizePhoneNumber`. Il DOIT être destructuré : `const { normalizePhoneNumber } = require(...)`.
-*   **`prompt-builder.js`** : Syntaxe EXTRÊMEMENT FRAGILE (template literals imbriqués). Vérifiez toujours les backticks fermants (`) après edit.
+*   **`tools.js`** :
+    *   ☢️ **NUCLEAR SAFETY** : Interdiction totale d'utiliser `require` ou `import` pour des utilitaires critiques (téléphone, prix).
+    *   Tout code vital DOIT être **INLINÉ** dans `tools.js` pour éviter les crashs de dépendance (ReferenceError/TypeError).
+3. **DETERMINISM OVER AI**:
+   - Pour la réutilisation de contexte, NE PAS LAISSER L'IA DÉCIDER.
+   - Injecter le bloc "Réutilisation" via Code (`prompt-builder.js` Step 4 Logic) si l'historique existe.
+
+## 💰 ÉCONOMIE & SETUP
+- **Modèle** : `gpt-4o-mini` par défaut (Coût ~35 FCFA / 100 msgs).
+- **Vision** : Bascule sur `gpt-4o` UNIQUEMENT si image présente.
+- **Rentabilité** : Vendre des packs (ex: 1000 FCFA/100 msgs) génère ~96% de marge.
+- **Erreurs** : `PreKeyError` est BENIN (auto-guérison activée).
+
+## 💎 ÉTAT ACTUEL (v2.29)
+- **Status** : PIXEL PERFECT.
+- **Contexte** : 10 dernières commandes (sans limite de date).
+- **Style** : Totaux GRAS + Séparateurs visuels.
+- **Sécurité** : Inline + Pre-Check + Validation Stricte.
 *   **Logique Métier** :
     *   **Split Quantité** : Une commande "47 T-Shirts Rouge et Noir" NE DOIT PAS donner 47 Rouges + 47 Noirs. TOUJOURS demander la répartition.
     *   **Instructions Spéciales** : Étape OBLIGATOIRE et BLOQUANTE avant le récapitulatif.
     *   **Prix** : Interdiction d'halluciner des prix. Si `null`, afficher `(Prix standard)`.
 
-## 📜 WORKFLOWS MÉTIER STRICTS (Séquences Immuables)
+## � v2.19 : SERVICE VERTICALIZATION (CRITIQUE)
+
+### ⛔ RÈGLE D'ISOLATION SERVICES (CHANGEMENT MAJEUR)
+**Les Services NE PEUVENT PLUS être mixés avec Physique/Numérique dans une même commande.**
+
+| Avant v2.19 | Après v2.19 |
+|---|---|
+| 📦 T-Shirt + 💻 Office + 🛎️ RDV Coiffeur = 1 commande mixte | 🚫 **INTERDIT** |
+| L'IA essayait de gérer les 3 workflows en parallèle | Panier = UNE catégorie à la fois |
+
+**Raison :** Les Services ont des questions spécifiques (Date, Heure, Nb personnes) qui ne s'appliquent pas aux produits. Mixer créait de la confusion.
+
+**Nouveau comportement :**
+- Si le client veut un T-Shirt + un RDV Massage : **2 commandes séparées**.
+- L'IA doit finir la première commande avant d'entamer la seconde.
+
+---
+
+### 📋 LES 11 SOUS-CATÉGORIES DE SERVICES (Liste Complète)
+
+| `service_subtype` | Icône | Exemples | Engine |
+|---|---|---|---|
+| `hotel` | 🏨 | Hôtel, Residence hôtelière | **STAY** |
+| `residence` | 🏠 | Location vacances, Airbnb | **STAY** |
+| `restaurant` | 🍽️ | Restaurant, Bar, Lounge | **TABLE** |
+| `formation` | 🎓 | Formation, Atelier, Séminaire | **TABLE** |
+| `event` | 🎟️ | Événement, Spectacle, Concert | **TABLE** |
+| `coiffeur` | 💇 | Coiffure, Barbier, Esthétique | **SLOT** |
+| `medecin` | 🩺 | Médecin, Clinique, Dentiste | **SLOT** |
+| `coaching` | 🧠 | Coaching, Consulting, Thérapie | **SLOT** |
+| `prestation` | 🔧 | Prestation sur mesure | **SLOT** |
+| `rental` | 🚗 | Location voiture/moto/matériel | **RENTAL** |
+| `other` | 🧩 | Autre (Prestation générique) | **SLOT** |
+
+---
+
+### 🧠 Architecture "Intent Detection" (Comment ça marche)
+
+```
+Client: "Je veux réserver au Restaurant Le Gourmet"
+       ↓
+[generator.js] passe userMessage à prompt-builder
+       ↓
+[prompt-builder.js] scanne les produits, trouve "Restaurant Le Gourmet"
+       ↓
+Ce produit a service_subtype = 'restaurant'
+       ↓
+Engine activé = 'TABLE'
+       ↓
+Questions adaptées : "Pour quelle date ? Quelle heure ? Combien de couverts ?"
+```
+
+---
+
+### 📁 Fichiers Clés
+*   `supabase/migrations/20260124_service_verticalization.sql` : Ajoute `service_subtype` à `products`.
+*   `src/app/[locale]/dashboard/products/new/page.tsx` : Sélecteur de sous-type (Menu déroulant).
+*   `src/app/api/products/route.ts` : Validation **OBLIGATOIRE** du sous-type pour les Services.
+*   `src/lib/whatsapp/ai/prompt-builder.js` : Détection d'intention Live (Keyword-Based) + Templates par Engine.
+*   `src/lib/whatsapp/ai/generator.js` : Passe `userMessage` au prompt builder.
+
+---
+
+### ✅ Règles de Déploiement
+1.  **Dashboard** : Si `product_type = 'service'`, alors `service_subtype` **DOIT** être sélectionné. Sinon → Blocage UI.
+2.  **API** : Validation serveur. Erreur 400 si sous-type manquant.
+3.  **Bot** : Si un Service est détecté, les questions sont adaptées automatiquement (pas d'action requise).
+
+## �📜 WORKFLOWS MÉTIER STRICTS (Séquences Immuables)
 
 ### 📦 CAS 1 : PRODUIT PHYSIQUE
 1.  **Choix Produit**
@@ -40,7 +124,7 @@ Ce document est la source de vérité pour la collaboration entre Antigravity (A
 6.  **Paiement** :
     *   *Si "Cash/Livraison" activé* : Noter "Paiement à la livraison".
     *   *Si "En ligne" (CinetPay/Monet)* : Générer le lien de paiement (si supporté) ou noter "Paiement en ligne".
-7.  **Instructions** ("Une instruction particulière ?") 🛑 **B![alt text](image.png)LOQUANT**
+7.  **Instructions** ("Une instruction particulière ?") 🛑 **BLOQUANT**
 8.  **Récapitulatif FINAL** (Prix x Qté = Total + Livraison + Instructions)
 9.  **Confirmation** (OUI)
 10. ⚙️ **Action Système** : Appel `create_order` -> Attendre succès (ID Commande).
@@ -83,7 +167,7 @@ Ce document est la source de vérité pour la collaboration entre Antigravity (A
 6.  **Instructions** ("Une instruction particulière ?") 🛑 **BLOQUANT**
 7.  **Récapitulatif FINAL**
 8.  **Confirmation**
-9.  ⚙️ **Action Système** : Appel `create_order` -> Attendre succès.
+9.  ⚙️ **Action Système** : Appel `create_booking` -> Attendre succès.
 10. **Phase Paiement** (Si Acompte requis) : "Voici lien/numéro pour l'acompte."
 11. **🎉 Message de Succès** : "Rendez-vous pré-confirmé. Merci."
 
@@ -128,12 +212,12 @@ Ce document est la source de vérité pour la collaboration entre Antigravity (A
 
 ## 🗄️ BASE DE DONNÉES (SCHEMA SNAPSHOT)
 *Pour connaître la structure des tables (Orders, Products, etc.).*
-👉 **Voir fichier :** `DB_SCHEMA_SNAPSHOT.md`
+👉 **Voir fichier :** `DB_SCHEMA_SNAPSHOT.md` (v7) & `PRODUCTION_SCHEMA.sql` (v4)
 
 ### 🚨 Règle de Maintenance :
 *   Toute modification de table (CREATE/ALTER) doit être reportée dans `DB_SCHEMA_SNAPSHOT.md`.
 *   L'IA **DOIT** lire ce snapshot avant d'écrire une requête SQL complexe.
 
 ---
-*Mis à jour le 18 Jan 2026 - Mode Collaboration Totale*
+*Mis à jour le 23 Jan 2026 - v2.29 Service Verticalization Complete*
 *Expert Valideur, à toi de jouer.* 🏁
