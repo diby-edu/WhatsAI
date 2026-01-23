@@ -816,6 +816,7 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                     price_fcfa: service.price_fcfa || 0,
                     preferred_date: preferred_date || null,
                     preferred_time: preferred_time || null,
+                    end_date: end_date || null,  // Pour STAY/RENTAL
                     party_size: party_size || 1,
                     notes: notes || null,
                     status: 'confirmed',

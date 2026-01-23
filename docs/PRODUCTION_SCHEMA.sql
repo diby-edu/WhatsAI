@@ -313,6 +313,7 @@ CREATE TABLE IF NOT EXISTS public.bookings (
     start_time TIMESTAMPTZ NOT NULL,
     preferred_date DATE,
     preferred_time TIME,
+    end_date DATE,  -- v2.29: Pour STAY/RENTAL (check-out, return date)
     party_size INTEGER DEFAULT 1,
     location TEXT,
     notes TEXT,
