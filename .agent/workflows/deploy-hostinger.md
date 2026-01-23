@@ -10,10 +10,14 @@ WhatsAI utilise **2 services séparés** :
 
 | Service | Description | Redémarrage |
 |---------|-------------|-------------|
-| `whatsai-web` | Application Next.js | ✅ OK pendant les déploiements |
-| `whatsai-bot` | Service WhatsApp | ❌ JAMAIS (sauf déconnexion manuelle) |
+| `whatsai-web` | Application Next.js | ✅ OK |
+| `whatsai-bot` | Service WhatsApp | ✅ OK (reconnexion auto) |
 
-Cette architecture garantit que le **bot WhatsApp NE SE DÉCONNECTE JAMAIS** lors des mises à jour du code.
+### 🔄 Session Persistence (v2.19+)
+Grâce à `session-restore.ts`, le bot **reconnecte automatiquement** les sessions WhatsApp au redémarrage :
+- Sessions stockées dans `.whatsapp-sessions/{agent_id}/creds.json`
+- Restauration automatique des agents marqués `whatsapp_connected = true`
+- **PAS de re-scan QR code** nécessaire !
 
 ---
 
@@ -172,7 +176,7 @@ certbot --nginx -d votre-domaine.com
 
 ## 📋 COMMANDES IMPORTANTES
 
-### Mise à jour (SANS déconnecter WhatsApp)
+### Mise à jour (Avec reconnexion auto WhatsApp)
 ```bash
 # UTILISER LE SCRIPT DE MISE À JOUR
 ~/WhatsAI/scripts/update.sh
@@ -184,7 +188,7 @@ git reset --hard origin/master
 npm install
 rm -f .next/lock
 npm run build
-pm2 restart whatsai-web  # ⚠️ SEULEMENT web, PAS bot !
+pm2 restart all  # ✅ Reconnexion auto grâce à session-restore.ts
 ```
 
 ### Logs
@@ -199,13 +203,16 @@ pm2 logs whatsai-bot
 pm2 logs
 ```
 
-### Redémarrer (avec précaution)
+### Redémarrer
 ```bash
-# App web seulement (sessions WhatsApp préservées)
+# App web seulement
 pm2 restart whatsai-web
 
-# Bot WhatsApp (⚠️ DÉCONNECTE les sessions !)
+# Bot WhatsApp (✅ reconnexion automatique)
 pm2 restart whatsai-bot
+
+# Tout redémarrer (✅ OK maintenant)
+pm2 restart all
 ```
 
 ---
