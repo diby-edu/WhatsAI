@@ -64,6 +64,31 @@ export default function NewProductPage() {
         lead_fields: []
     })
 
+    // v2.19: Dynamic placeholders based on service_subtype
+    const getServicePlaceholders = () => {
+        const placeholders: Record<string, { name: string, desc: string, category: string }> = {
+            hotel: { name: "Ex: Hôtel Le Grand Palace", desc: "Description de l'établissement, chambres, équipements...", category: "Hébergement" },
+            residence: { name: "Ex: Villa Sunshine", desc: "Capacité, équipements, proximité...", category: "Location" },
+            restaurant: { name: "Ex: Le Gourmet Africain", desc: "Spécialités, ambiance, capacité...", category: "Restauration" },
+            coiffeur: { name: "Ex: Coupe Homme Tendance", desc: "Durée, technique utilisée...", category: "Beauté" },
+            medecin: { name: "Ex: Consultation Générale", desc: "Durée, préparation nécessaire...", category: "Santé" },
+            formation: { name: "Ex: Formation Excel Avancé", desc: "Durée, niveau requis, certificat...", category: "Formation" },
+            event: { name: "Ex: Concert Live Didier Awadi", desc: "Date, lieu, programme...", category: "Événement" },
+            coaching: { name: "Ex: Session Coaching Carrière", desc: "Durée, objectifs, format...", category: "Coaching" },
+            rental: { name: "Ex: Location SUV Toyota RAV4", desc: "Caractéristiques, conditions, caution...", category: "Location" },
+            other: { name: "Ex: Service Personnalisé", desc: "Décrivez votre prestation...", category: "Service" }
+        }
+        const defaultPlaceholders = { name: "Ex: Bougie Vanille", desc: "Description du produit...", category: "Ex: Maison" }
+
+        if (formData.product_type === 'service' && formData.service_subtype) {
+            return placeholders[formData.service_subtype] || defaultPlaceholders
+        }
+        if (formData.product_type === 'digital') {
+            return { name: "Ex: Ebook Marketing Digital", desc: "Contenu, format, pages...", category: "Numérique" }
+        }
+        return defaultPlaceholders
+    }
+
     const [featureInput, setFeatureInput] = useState('')
     const [contentInput, setContentInput] = useState('')
 
@@ -437,12 +462,15 @@ export default function NewProductPage() {
                         </div>
 
                         <div>
-                            <label style={labelStyle}>Nom du Produit</label>
+                            <label style={labelStyle}>
+                                {formData.product_type === 'service' ? 'Nom du Service' :
+                                    formData.product_type === 'digital' ? 'Nom du Produit Numérique' : 'Nom du Produit'}
+                            </label>
                             <input
                                 type="text"
                                 value={formData.name}
                                 onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                placeholder="Ex: Bougie Vanille"
+                                placeholder={getServicePlaceholders().name}
                                 style={inputStyle}
                             />
                         </div>
@@ -474,7 +502,7 @@ export default function NewProductPage() {
                                     type="text"
                                     value={formData.category}
                                     onChange={e => setFormData({ ...formData, category: e.target.value })}
-                                    placeholder="Ex: Maison"
+                                    placeholder={getServicePlaceholders().category}
                                     style={inputStyle}
                                 />
                             </div>
