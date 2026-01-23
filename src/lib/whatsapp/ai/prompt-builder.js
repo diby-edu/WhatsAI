@@ -13,6 +13,10 @@
  *          - Collecte Date/Heure/Nb personnes
  *          - Messages de confirmation adaptés
  *          - create_booking au lieu de create_order
+ * ✅ v2.17: INTENT ARCHITECTURE (SKELETON)
+ *          - Introduction de `conversation_intent`
+ *          - Switch templates (Generic par défaut)
+ *          - Compatibilité 100% existant
  * ✅ v2.12: COMMANDES MIXTES - Paiements séparés
  *          - NE JAMAIS demander "CinetPay ou Mobile Money" (config agent)
  *          - 💻 = toujours en ligne (pas de question)
@@ -122,10 +126,29 @@ Si le client dit "Salut", "Bonjour", "Menu" ou commence la conversation:
     const catalogueSection = buildCatalogueSection(products, currency)
 
     // ═══════════════════════════════════════════════════════════════
-    // 🔥 SECTION 4 : FLUX DE COMMANDE (v2.9 - ANTI-BOUCLE COMPLET)
+    // 🧠 SECTION 3.5 : DÉTECTION DE L'INTENTION (ARCHITECTURE v2.17)
     // ═══════════════════════════════════════════════════════════════
-    const collectOrder = `
-📋 FLUX DE COMMANDE:
+    // 1. Définir l'intention dominante (Pilote du parcours)
+    let conversationIntent = 'generic' // fallback default
+    let serviceSubtype = null
+
+    // Simulation de détection (Pour futur usage avec DB)
+    if (orders && orders.length > 0) {
+        // Le premier item définit souvent l'intention principale
+        const mainItem = orders[0]
+        if (mainItem.product_type === 'service') {
+            // serviceSubtype = mainItem.subtype || null (Futur)
+            conversationIntent = 'service_booking'
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 🔥 SECTION 4 : FLUX DE COMMANDE DYNAMIQUE (v2.17 - SWITCH)
+    // ═══════════════════════════════════════════════════════════════
+
+    // TEMPLATE PAR DÉFAUT (L'EXISTANT ÉPROUVÉ)
+    const collectOrderGeneric = `
+📋 FLUX DE COMMANDE (MODE GÉNÉRIQUE / PRODUIT):
 
 ÉTAPE 1 - PRODUIT ET QUANTITÉ:
     - Si le client dit un produit + quantité("100 licences", "je veux 50") : QUANTITÉ REÇUE ✅
@@ -751,6 +774,22 @@ Vos produits seront envoyés à [email] dès validation.
 
 (N'affiche que les lignes correspondant aux types présents)
     `
+
+    // ═══════════════════════════════════════════════════════════════
+    // 🧠 SÉLECTEUR DE TEMPLATE (V2.17)
+    // ═══════════════════════════════════════════════════════════════
+    let collectOrder = ''
+
+    switch (conversationIntent) {
+        case 'hotel_booking':
+            collectOrder = collectOrderGeneric // Placeholder
+            break
+        case 'restaurant_booking':
+            collectOrder = collectOrderGeneric // Placeholder
+            break
+        default:
+            collectOrder = collectOrderGeneric // Comportement Actuel
+    }
 
     // ═══════════════════════════════════════════════════════════════
     // SECTION 5 : RÈGLES ANTI-BOUCLE (v2.9 + v2.14 ANTI-RÉCAP INTERMÉDIAIRE)
