@@ -126,19 +126,43 @@ Si le client dit "Salut", "Bonjour", "Menu" ou commence la conversation:
     const catalogueSection = buildCatalogueSection(products, currency)
 
     // ═══════════════════════════════════════════════════════════════
-    // 🧠 SECTION 3.5 : DÉTECTION DE L'INTENTION (ARCHITECTURE v2.17)
+    // 🧠 SECTION 3.5 : DÉTECTION DE L'INTENTION & MAPPING MOTEUR (v2.18)
     // ═══════════════════════════════════════════════════════════════
-    // 1. Définir l'intention dominante (Pilote du parcours)
-    let conversationIntent = 'generic' // fallback default
-    let serviceSubtype = null
+
+    // 1. CONFIGURATION DU MAPPING (Métier -> Moteur)
+    const SERVICE_ENGINE_MAP = {
+        'hotel': 'STAY',
+        'residence': 'STAY',
+        'restaurant': 'TABLE',
+        'formation': 'TABLE',
+        'event': 'TABLE',
+        'coiffeur': 'SLOT',
+        'medecin': 'SLOT',
+        'coaching': 'SLOT',
+        'prestation': 'SLOT',
+        'rental': 'RENTAL',
+        'other': 'SLOT' // Fallback service
+    }
+
+    // 2. Définir l'intention dominante (Pilote du parcours)
+    let conversationIntent = 'generic' // 'product_order' (default)
+    let activeEngine = null
 
     // Simulation de détection (Pour futur usage avec DB)
     if (orders && orders.length > 0) {
         // Le premier item définit souvent l'intention principale
         const mainItem = orders[0]
         if (mainItem.product_type === 'service') {
-            // serviceSubtype = mainItem.subtype || null (Futur)
+            // Récupérer le sous-type (mocké pour l'instant via nom ou metadata)
+            // const detectedSubtype = mainItem.subtype || 'other' 
+
+            // Pour l'instant, on reste sur 'generic' tant qu'on n'a pas la colonne DB
+            // MAIS le code est prêt :
+            /*
+            const detectedSubtype = mainItem.subtype || 'other'
             conversationIntent = 'service_booking'
+            activeEngine = SERVICE_ENGINE_MAP[detectedSubtype] || 'SLOT'
+            */
         }
     }
 
@@ -776,19 +800,50 @@ Vos produits seront envoyés à [email] dès validation.
     `
 
     // ═══════════════════════════════════════════════════════════════
-    // 🧠 SÉLECTEUR DE TEMPLATE (V2.17)
     // ═══════════════════════════════════════════════════════════════
+    // 🧠 SÉLECTEUR DE TEMPLATE (V2.18 - ACTIVE ENGINES)
+    // ═══════════════════════════════════════════════════════════════
+
+    // --- TEMPLATE MOTEUR: STAY (Hôtel, Résidence) ---
+    const prompt_STAY = `
+📋 FLUX [STAY] (HÉBERGEMENT):
+1. PRODUIT: Valider choix chambre.
+2. DATES: Demander "Date d'arrivée" 📅 et "Date de départ" 🛫.
+3. VOYAGEURS: Demander "Nombre d'adultes et d'enfants" 👥.
+4. CONFIRMATION: Récapitulatif (Hébergement + Dates + Pax).
+🚫 PAS D'ADRESSE.
+`.trim()
+
+    // --- TEMPLATE MOTEUR: TABLE (Resto, Event) ---
+    const prompt_TABLE = `
+📋 FLUX [TABLE] (RESERVATION GROUPE):
+1. PRODUIT: Valider choix.
+2. PLANIF: Demander "Date" 📅 et "Heure" ⏰.
+3. CAPACITÉ: Demander "Nombre de personnes/couverts" 🍽️.
+4. CONFIRMATION: Récapitulatif complet.
+🚫 PAS D'ADRESSE.
+`.trim()
+
+    // --- TEMPLATE MOTEUR: SLOT (RDV, Coiffeur, Pro) ---
+    const prompt_SLOT = `
+📋 FLUX [SLOT] (RENDEZ-VOUS SIMPLE):
+1. PRODUIT: Valider prestation.
+2. PLANIF: Demander "Date" 📅 et "Heure précise" ⏰.
+3. CONFIRMATION: Récapitulatif (Prestation + Créneau).
+🚫 PAS D'ADRESSE.
+`.trim()
+
+
     let collectOrder = ''
 
-    switch (conversationIntent) {
-        case 'hotel_booking':
-            collectOrder = collectOrderGeneric // Placeholder
-            break
-        case 'restaurant_booking':
-            collectOrder = collectOrderGeneric // Placeholder
-            break
-        default:
-            collectOrder = collectOrderGeneric // Comportement Actuel
+    // LOGIQUE DE BASCULE
+    if (conversationIntent === 'service_booking' && activeEngine) {
+        if (activeEngine === 'STAY') collectOrder = prompt_STAY
+        else if (activeEngine === 'TABLE') collectOrder = prompt_TABLE
+        else if (activeEngine === 'SLOT') collectOrder = prompt_SLOT
+        else collectOrder = collectOrderGeneric // Fallback
+    } else {
+        collectOrder = collectOrderGeneric // Par défaut (Produit / Mixte actuel)
     }
 
     // ═══════════════════════════════════════════════════════════════
