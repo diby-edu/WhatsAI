@@ -59,6 +59,7 @@ export default function NewProductPage() {
 
         // Defaults
         product_type: 'product',
+        service_subtype: '', // v2.19 Intent Mapping (hotel, restaurant, etc.)
         stock_quantity: -1,
         lead_fields: []
     })
@@ -292,6 +293,56 @@ export default function NewProductPage() {
                             </div>
                         </div>
 
+                        {/* SERVICE SUBTYPE SELECTOR (v2.19) */}
+                        {
+                            formData.product_type === 'service' && (
+                                <motion.div
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: 'auto' }}
+                                >
+                                    <label style={labelStyle}>Catégorie de Service (Important pour l'IA)</label>
+                                    <p style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8 }}>
+                                        Permet à l'IA de poser les bonnes questions (ex: Restaurat = nb couverts, Hotel = Check-in/out).
+                                    </p>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+                                        {[
+                                            { id: 'restaurant', icon: '🍽️', label: 'Restaurant / Bar' },
+                                            { id: 'hotel', icon: '🏨', label: 'Hôtel / Hébergement' },
+                                            { id: 'coiffeur', icon: '💇', label: 'Coiffure / Beauté' },
+                                            { id: 'medecin', icon: '🩺', label: 'Santé / Clinique' },
+                                            { id: 'formation', icon: '🎓', label: 'Formation / Atelier' },
+                                            { id: 'event', icon: '🎟️', label: 'Événement' },
+                                            { id: 'coaching', icon: '🧠', label: 'Coaching / Conseil' },
+                                            { id: 'rental', icon: '🚗', label: 'Location (Voiture/Mat.)' },
+                                            { id: 'other', icon: '🧩', label: 'Autre Service' }
+                                        ].map(sub => (
+                                            <button
+                                                key={sub.id}
+                                                type="button"
+                                                onClick={() => setFormData({ ...formData, service_subtype: sub.id })}
+                                                style={{
+                                                    padding: '10px',
+                                                    borderRadius: 8,
+                                                    border: formData.service_subtype === sub.id ? '2px solid #a855f7' : '1px solid rgba(148, 163, 184, 0.2)',
+                                                    background: formData.service_subtype === sub.id ? 'rgba(168, 85, 247, 0.1)' : 'rgba(30, 41, 59, 0.5)',
+                                                    textAlign: 'left',
+                                                    cursor: 'pointer',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: 8,
+                                                    color: 'white',
+                                                    fontSize: 13
+                                                }}
+                                            >
+                                                <span style={{ fontSize: 16 }}>{sub.icon}</span>
+                                                {sub.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </motion.div>
+                            )
+                        }
+
                         {/* Multi-Image Upload Gallery */}
                         <div>
                             <label style={labelStyle}>Images du produit ({formData.images.length}/10)</label>
@@ -433,7 +484,7 @@ export default function NewProductPage() {
                                 {agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                             </select>
                         </div>
-                    </div>
+                    </div >
                 )
 
             case 1: // DETAILS

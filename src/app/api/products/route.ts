@@ -60,7 +60,8 @@ export async function POST(request: NextRequest) {
                 short_pitch: body.short_pitch || null,
                 features: body.features || [],
                 marketing_tags: body.marketing_tags || [],
-                related_product_ids: body.related_product_ids || []
+                related_product_ids: body.related_product_ids || [],
+                service_subtype: body.service_subtype || null
             })
             .select()
             .single()
