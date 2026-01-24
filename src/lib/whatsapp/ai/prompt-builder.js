@@ -1262,18 +1262,18 @@ function buildCatalogueSection(products, currency) {
         }
 
         // 2. Construire l'affichage des variantes FIXED (options principales)
-        // v2.31: Format multi-lignes avec tirets pour meilleure lisibilité
+        // v2.32: Format multi-lignes avec 🔸 pour meilleure lisibilité
         let fixedInfo = ''
         if (fixedVariants.length > 0) {
             const fixedList = fixedVariants.map(v => {
                 const optLines = v.options.map(o => {
-                    if (typeof o === 'string') return `      - ${o}`
+                    if (typeof o === 'string') return `      🔸 ${o}`
                     const val = o.value || o.name || ''
                     const optPrice = (typeof o === 'object') ? (o.price || 0) : 0
                     if (optPrice > 0) {
-                        return `      - ${val}: ${optPrice.toLocaleString()} ${currencySymbol}`
+                        return `      🔸 ${val}: ${optPrice.toLocaleString()} ${currencySymbol}`
                     }
-                    return `      - ${val}`
+                    return `      🔸 ${val}`
                 }).join('\n')
                 return `   - ${v.name}:\n${optLines}`
             }).join('\n')
@@ -1281,18 +1281,18 @@ function buildCatalogueSection(products, currency) {
         }
 
         // 3. Construire l'affichage des SUPPLÉMENTS (additifs)
-        // v2.31: Format multi-lignes avec tirets
+        // v2.32: Format multi-lignes avec ➕
         let supplementInfo = ''
         if (additiveVariants.length > 0) {
             const suppList = additiveVariants.map(v => {
                 const optLines = v.options.map(o => {
-                    if (typeof o === 'string') return `      - ${o}`
+                    if (typeof o === 'string') return `      ➕ ${o}`
                     const val = o.value || o.name || ''
                     const optPrice = (typeof o === 'object') ? (o.price || 0) : 0
                     if (optPrice > 0) {
-                        return `      - ${val}: +${optPrice.toLocaleString()} ${currencySymbol}`
+                        return `      ➕ ${val}: +${optPrice.toLocaleString()} ${currencySymbol}`
                     }
-                    return `      - ${val} (inclus)`
+                    return `      ➕ ${val} (inclus)`
                 }).join('\n')
                 return `   - Suppléments:\n${optLines}`
             }).join('\n')
