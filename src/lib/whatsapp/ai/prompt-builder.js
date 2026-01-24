@@ -845,8 +845,8 @@ Vos produits seront envoyés à [email] dès validation.
 ÉTAPE 5 - INFORMATIONS CLIENT:
 - Demander: "Votre nom complet" 👤
 - Demander: "Votre numéro de téléphone (avec indicatif)" 📱
-- ⚠️ ACCEPTE TOUT FORMAT : +225 07..., 0707..., sans espaces, avec espaces
-- ⚠️ NE DEMANDE DE RÉÉCRIRE QUE SI IL MANQUE DES CHIFFRES (< 8 chiffres)
+- ⚠️ INDICATIF OBLIGATOIRE (ex: +225...)
+- Si l'indicatif manque : REDEMANDE-LE poliment ("Merci de préciser l'indicatif pays, ex: +225")
 - 🚫 NE PAS demander d'adresse !
 
 ÉTAPE 6 - PAIEMENT:
@@ -897,7 +897,8 @@ Confirmez-vous cette réservation ?"
 ÉTAPE 5 - INFORMATIONS CLIENT:
 - Demander: "Votre nom" 👤
 - Demander: "Votre numéro de téléphone" 📱
-- ⚠️ ACCEPTE TOUT FORMAT DE NUMÉRO
+- ⚠️ INDICATIF OBLIGATOIRE (ex: +225...)
+- Si l'indicatif manque : REDEMANDE-LE
 - 🚫 NE PAS demander d'adresse !
 
 ÉTAPE 6 - PAIEMENT:
@@ -942,7 +943,8 @@ Confirmez-vous ?"
 ÉTAPE 4 - INFORMATIONS CLIENT:
 - Demander: "Votre nom" 👤
 - Demander: "Votre numéro de téléphone" 📱
-- ⚠️ ACCEPTE TOUT FORMAT DE NUMÉRO
+- ⚠️ INDICATIF OBLIGATOIRE (ex: +225...)
+- Si l'indicatif manque : REDEMANDE-LE
 - 🚫 NE PAS demander d'adresse !
 
 ÉTAPE 5 - PAIEMENT:
@@ -989,7 +991,8 @@ Confirmez-vous ?"
 ÉTAPE 5 - INFORMATIONS CLIENT:
 - Demander: "Votre nom complet" 👤
 - Demander: "Votre numéro de téléphone" 📱
-- ⚠️ ACCEPTE TOUT FORMAT DE NUMÉRO
+- ⚠️ INDICATIF OBLIGATOIRE (ex: +225...)
+- Si l'indicatif manque : REDEMANDE-LE
 - Si véhicule: "Avez-vous un permis de conduire valide ?"
 - 🚫 NE PAS demander d'adresse de livraison (retrait sur place) !
 
