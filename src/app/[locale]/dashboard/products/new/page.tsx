@@ -35,6 +35,7 @@ export default function NewProductPage() {
     const [currency, setCurrency] = useState('USD')
     const [analyzing, setAnalyzing] = useState(false)
     const [analysisResult, setAnalysisResult] = useState<any>(null)
+    const [existingProductTypes, setExistingProductTypes] = useState<string[]>([])
 
     // Form Data
     const [formData, setFormData] = useState({
@@ -187,7 +188,53 @@ export default function NewProductPage() {
     useEffect(() => {
         loadAgents()
         fetchProfile()
+        checkExistingProductTypes()
     }, [])
+
+    // v2.30: Check if user already has services or products to enforce isolation
+    const checkExistingProductTypes = async () => {
+        try {
+            const { data: products } = await supabase
+                .from('products')
+                .select('product_type')
+                .limit(50)
+
+            if (products && products.length > 0) {
+                const types = [...new Set(products.map((p: { product_type: string }) => p.product_type))]
+                setExistingProductTypes(types)
+            }
+        } catch (e) {
+            console.error('Error checking existing products:', e)
+        }
+    }
+
+    // v2.30: Check if a product type should be disabled based on isolation rules
+    const isProductTypeDisabled = (typeId: string) => {
+        if (existingProductTypes.length === 0) return false
+
+        const hasService = existingProductTypes.includes('service')
+        const hasNonService = existingProductTypes.some(t => t === 'product' || t === 'digital')
+
+        // If services exist, disable physical and digital
+        if (hasService && (typeId === 'product' || typeId === 'digital')) {
+            return true
+        }
+        // If physical/digital exist, disable service
+        if (hasNonService && typeId === 'service') {
+            return true
+        }
+        return false
+    }
+
+    const getDisabledReason = () => {
+        if (existingProductTypes.includes('service')) {
+            return '⚠️ Vous avez déjà des Services. Les produits physiques/numériques ne peuvent pas être mélangés avec les services.'
+        }
+        if (existingProductTypes.some(t => t === 'product' || t === 'digital')) {
+            return '⚠️ Vous avez déjà des Produits. Les services doivent être créés sur un compte séparé.'
+        }
+        return null
+    }
 
     const fetchProfile = async () => {
         try {
@@ -386,29 +433,39 @@ export default function NewProductPage() {
                         {/* Product Type Selection */}
                         <div>
                             <label style={labelStyle}>Type de produit</label>
+                            {getDisabledReason() && (
+                                <p style={{ fontSize: 12, color: '#f59e0b', marginBottom: 8, padding: '8px 12px', background: 'rgba(245, 158, 11, 0.1)', borderRadius: 8 }}>
+                                    {getDisabledReason()}
+                                </p>
+                            )}
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
                                 {[
                                     { id: 'product', label: '📦 Physique', desc: 'Produit livrable' },
                                     { id: 'digital', label: '💻 Numérique', desc: 'Téléchargement' },
                                     { id: 'service', label: '🛠️ Service', desc: 'Prestation' }
-                                ].map(type => (
-                                    <button
-                                        key={type.id}
-                                        type="button"
-                                        onClick={() => setFormData({ ...formData, product_type: type.id })}
-                                        style={{
-                                            padding: 16,
-                                            borderRadius: 12,
-                                            border: formData.product_type === type.id ? '2px solid #10b981' : '1px solid rgba(148, 163, 184, 0.2)',
-                                            background: formData.product_type === type.id ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
-                                            textAlign: 'center',
-                                            cursor: 'pointer'
-                                        }}
-                                    >
-                                        <div style={{ fontSize: 18 }}>{type.label}</div>
-                                        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>{type.desc}</div>
-                                    </button>
-                                ))}
+                                ].map(type => {
+                                    const isDisabled = isProductTypeDisabled(type.id)
+                                    return (
+                                        <button
+                                            key={type.id}
+                                            type="button"
+                                            disabled={isDisabled}
+                                            onClick={() => !isDisabled && setFormData({ ...formData, product_type: type.id })}
+                                            style={{
+                                                padding: 16,
+                                                borderRadius: 12,
+                                                border: formData.product_type === type.id ? '2px solid #10b981' : '1px solid rgba(148, 163, 184, 0.2)',
+                                                background: formData.product_type === type.id ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
+                                                textAlign: 'center',
+                                                cursor: isDisabled ? 'not-allowed' : 'pointer',
+                                                opacity: isDisabled ? 0.4 : 1
+                                            }}
+                                        >
+                                            <div style={{ fontSize: 18 }}>{type.label}</div>
+                                            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>{type.desc}</div>
+                                        </button>
+                                    )
+                                })}
                             </div>
                         </div>
 

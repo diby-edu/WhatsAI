@@ -6,7 +6,8 @@ import { motion } from 'framer-motion'
 import {
     ShoppingBag, Search, Filter, Eye,
     CheckCircle, XCircle, Clock, Truck, Package,
-    Loader2, Image as ImageIcon, Check, X
+    Loader2, Image as ImageIcon, Check, X,
+    CalendarCheck, ChevronDown, Users, MapPin
 } from 'lucide-react'
 import { useTranslations, useFormatter } from 'next-intl'
 
@@ -25,21 +26,39 @@ interface Order {
     items_count: number
 }
 
+interface Booking {
+    id: string
+    customer_name: string | null
+    customer_phone: string
+    booking_type: string
+    service_name: string | null
+    status: string
+    start_time: string
+    party_size: number
+    location: string | null
+    notes: string | null
+    price_fcfa: number
+    created_at: string
+}
+
 export default function OrdersPage() {
     const t = useTranslations('Orders.List')
     const tStatus = useTranslations('Orders.Status')
     const format = useFormatter()
     const router = useRouter()
     const [orders, setOrders] = useState<Order[]>([])
+    const [bookings, setBookings] = useState<Booking[]>([])
     const [loading, setLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState('')
     const [filterStatus, setFilterStatus] = useState('')
-    const [activeTab, setActiveTab] = useState<'cinetpay' | 'mobile_money'>('cinetpay')
+    const [activeTab, setActiveTab] = useState<'cinetpay' | 'mobile_money' | 'bookings'>('cinetpay')
     const [verifyingId, setVerifyingId] = useState<string | null>(null)
     const [screenshotModal, setScreenshotModal] = useState<string | null>(null)
+    const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null)
 
     useEffect(() => {
         fetchOrders()
+        fetchBookings()
     }, [])
 
     const fetchOrders = async () => {
@@ -53,6 +72,93 @@ export default function OrdersPage() {
             console.error('Error fetching orders:', err)
         } finally {
             setLoading(false)
+        }
+    }
+
+    const fetchBookings = async () => {
+        try {
+            const res = await fetch('/api/bookings')
+            const data = await res.json()
+            if (data.data?.bookings) {
+                setBookings(data.data.bookings)
+            }
+        } catch (err) {
+            console.error('Error fetching bookings:', err)
+        }
+    }
+
+    const handleStatusChange = async (orderId: string, newStatus: string) => {
+        setUpdatingStatusId(orderId)
+        try {
+            const res = await fetch(`/api/orders/${orderId}/status`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: newStatus })
+            })
+            if (res.ok) {
+                fetchOrders()
+            } else {
+                const data = await res.json()
+                alert(data.error || 'Erreur lors du changement de statut')
+            }
+        } catch (err) {
+            console.error('Status change error:', err)
+        } finally {
+            setUpdatingStatusId(null)
+        }
+    }
+
+    const handleBookingStatusChange = async (bookingId: string, newStatus: string) => {
+        setUpdatingStatusId(bookingId)
+        try {
+            const res = await fetch(`/api/bookings/${bookingId}/status`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: newStatus })
+            })
+            if (res.ok) {
+                fetchBookings()
+            } else {
+                const data = await res.json()
+                alert(data.error || 'Erreur lors du changement de statut')
+            }
+        } catch (err) {
+            console.error('Booking status change error:', err)
+        } finally {
+            setUpdatingStatusId(null)
+        }
+    }
+
+    // Status options for orders (based on payment method)
+    const getNextStatusOptions = (order: Order) => {
+        const isCOD = order.payment_method === 'cod'
+        switch (order.status) {
+            case 'pending':
+                return isCOD ? [{ value: 'shipped', label: '📦 Expédier' }] : []
+            case 'paid':
+                return [{ value: 'shipped', label: '📦 Expédier' }]
+            case 'shipped':
+                return [{ value: 'delivered', label: '✅ Livré' }]
+            default:
+                return []
+        }
+    }
+
+    // Status options for bookings
+    const getBookingStatusOptions = (status: string) => {
+        switch (status) {
+            case 'pending':
+                return [
+                    { value: 'confirmed', label: '✅ Confirmer' },
+                    { value: 'cancelled', label: '❌ Annuler' }
+                ]
+            case 'confirmed':
+                return [
+                    { value: 'completed', label: '🎉 Terminé' },
+                    { value: 'cancelled', label: '❌ Annuler' }
+                ]
+            default:
+                return []
         }
     }
 
@@ -252,6 +358,35 @@ export default function OrdersPage() {
                         </span>
                     )}
                 </button>
+                <button
+                    onClick={() => setActiveTab('bookings')}
+                    style={{
+                        padding: '12px 20px',
+                        borderRadius: 10,
+                        border: 'none',
+                        background: activeTab === 'bookings' ? 'rgba(139, 92, 246, 0.15)' : 'transparent',
+                        color: activeTab === 'bookings' ? '#a78bfa' : '#94a3b8',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8
+                    }}
+                >
+                    🛎️ Réservations ({bookings.length})
+                    {bookings.filter(b => b.status === 'pending').length > 0 && (
+                        <span style={{
+                            background: '#8b5cf6',
+                            color: 'white',
+                            padding: '2px 8px',
+                            borderRadius: 100,
+                            fontSize: 12,
+                            fontWeight: 700
+                        }}>
+                            {bookings.filter(b => b.status === 'pending').length}
+                        </span>
+                    )}
+                </button>
             </div>
 
             {/* Mobile Money Alert */}
@@ -277,8 +412,8 @@ export default function OrdersPage() {
                 </div>
             )}
 
-            {/* Orders List */}
-            {startFilter.length === 0 ? (
+            {/* Orders List - Show only when NOT on bookings tab */}
+            {activeTab !== 'bookings' && (startFilter.length === 0 ? (
                 <div style={{
                     background: 'rgba(30, 41, 59, 0.5)',
                     border: '1px solid rgba(148, 163, 184, 0.1)',
@@ -480,6 +615,137 @@ export default function OrdersPage() {
                         </motion.div>
                     ))}
                 </div>
+            ))}
+
+            {/* Bookings List - Show only on bookings tab */}
+            {activeTab === 'bookings' && (
+                bookings.length === 0 ? (
+                    <div style={{
+                        background: 'rgba(30, 41, 59, 0.5)',
+                        border: '1px solid rgba(148, 163, 184, 0.1)',
+                        borderRadius: 16,
+                        padding: 48,
+                        textAlign: 'center'
+                    }}>
+                        <CalendarCheck style={{ width: 48, height: 48, color: '#64748b', margin: '0 auto 16px' }} />
+                        <h3 style={{ color: 'white', fontWeight: 600, marginBottom: 8 }}>Aucune réservation</h3>
+                        <p style={{ color: '#64748b', fontSize: 14 }}>
+                            Les réservations de services (hôtel, restaurant, coiffeur...) apparaîtront ici.
+                        </p>
+                    </div>
+                ) : (
+                    <div style={{ display: 'grid', gap: 16 }}>
+                        {bookings.map((booking, i) => (
+                            <motion.div
+                                key={booking.id}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: i * 0.05 }}
+                                style={{
+                                    background: 'rgba(30, 41, 59, 0.5)',
+                                    border: booking.status === 'pending'
+                                        ? '2px solid rgba(139, 92, 246, 0.5)'
+                                        : '1px solid rgba(148, 163, 184, 0.1)',
+                                    borderRadius: 16,
+                                    padding: 20,
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    flexWrap: 'wrap',
+                                    gap: 20
+                                }}
+                            >
+                                <div style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
+                                    <div style={{
+                                        width: 48,
+                                        height: 48,
+                                        borderRadius: 12,
+                                        background: 'rgba(139, 92, 246, 0.1)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        color: '#a78bfa'
+                                    }}>
+                                        <CalendarCheck size={24} />
+                                    </div>
+                                    <div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
+                                            <h3 style={{ color: 'white', fontWeight: 600, fontSize: 16 }}>
+                                                {booking.service_name || booking.booking_type}
+                                            </h3>
+                                            <span style={{
+                                                padding: '4px 10px',
+                                                borderRadius: 100,
+                                                fontSize: 12,
+                                                fontWeight: 600,
+                                                background: booking.status === 'pending' ? 'rgba(251, 191, 36, 0.2)'
+                                                    : booking.status === 'confirmed' ? 'rgba(16, 185, 129, 0.2)'
+                                                        : booking.status === 'completed' ? 'rgba(59, 130, 246, 0.2)'
+                                                            : 'rgba(239, 68, 68, 0.2)',
+                                                color: booking.status === 'pending' ? '#fbbf24'
+                                                    : booking.status === 'confirmed' ? '#10b981'
+                                                        : booking.status === 'completed' ? '#60a5fa'
+                                                            : '#ef4444'
+                                            }}>
+                                                {booking.status === 'pending' && '🟡 En attente'}
+                                                {booking.status === 'confirmed' && '✅ Confirmé'}
+                                                {booking.status === 'completed' && '🎉 Terminé'}
+                                                {booking.status === 'cancelled' && '❌ Annulé'}
+                                            </span>
+                                        </div>
+                                        <p style={{ color: '#94a3b8', fontSize: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
+                                            <span>{booking.customer_name || booking.customer_phone}</span>
+                                            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                                <Users size={14} /> {booking.party_size}
+                                            </span>
+                                            <span>📅 {format.dateTime(new Date(booking.start_time), { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                                        </p>
+                                        {booking.location && (
+                                            <p style={{ color: '#64748b', fontSize: 13, marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                                <MapPin size={12} /> {booking.location}
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                                    {booking.price_fcfa > 0 && (
+                                        <div style={{ textAlign: 'right' }}>
+                                            <div style={{ color: 'white', fontWeight: 700, fontSize: 18 }}>
+                                                {formatPrice(booking.price_fcfa)}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Booking Status Actions */}
+                                    {getBookingStatusOptions(booking.status).length > 0 && (
+                                        <div style={{ display: 'flex', gap: 8 }}>
+                                            {getBookingStatusOptions(booking.status).map(option => (
+                                                <button
+                                                    key={option.value}
+                                                    onClick={() => handleBookingStatusChange(booking.id, option.value)}
+                                                    disabled={updatingStatusId === booking.id}
+                                                    style={{
+                                                        padding: '10px 14px',
+                                                        borderRadius: 10,
+                                                        background: option.value === 'cancelled' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+                                                        color: option.value === 'cancelled' ? '#ef4444' : '#10b981',
+                                                        border: 'none',
+                                                        fontWeight: 600,
+                                                        cursor: 'pointer',
+                                                        opacity: updatingStatusId === booking.id ? 0.5 : 1
+                                                    }}
+                                                >
+                                                    {option.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </motion.div>
+                        ))}
+                    </div>
+                )
             )}
 
             {/* Screenshot Modal */}

@@ -75,7 +75,19 @@ export default function DashboardConversationsPage() {
 
     const formatPhoneNumber = (phone: string) => {
         if (!phone) return t('card.unknown')
+
+        // Detect LID format - these are WhatsApp Business internal IDs, NOT phone numbers
+        // LIDs look like long numbers that don't start with country codes
+        const isLid = phone.includes('@lid') || (phone.length > 20 && !phone.startsWith('+'))
+
         const clean = phone.replace(/@s\.whatsapp\.net|@lid|@g\.us/g, '')
+
+        // If it's a LID, show a masked version
+        if (isLid || clean.length > 15) {
+            // Show first 4 and last 4 characters with mask
+            return `ID: ${clean.substring(0, 4)}...${clean.substring(clean.length - 4)}`
+        }
+
         if (clean.length >= 11) {
             const countryCode = clean.substring(0, 3)
             const rest = clean.substring(3)
@@ -85,7 +97,8 @@ export default function DashboardConversationsPage() {
     }
 
     const getDisplayName = (conv: Conversation) => {
-        if (conv.contact_push_name && conv.contact_push_name !== 'undefined') {
+        // Always prioritize push name for LID contacts
+        if (conv.contact_push_name && conv.contact_push_name !== 'undefined' && conv.contact_push_name.trim() !== '') {
             return conv.contact_push_name
         }
         return formatPhoneNumber(conv.contact_phone)

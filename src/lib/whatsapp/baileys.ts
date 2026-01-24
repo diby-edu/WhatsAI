@@ -228,6 +228,24 @@ export async function initWhatsAppSession(
             const messageContent = msg.message
             if (!messageContent) continue
 
+            // 🚫 Ignore reaction messages (❤️, 👍, etc.) - they are NOT real conversations
+            if (messageContent.reactionMessage) {
+                console.log('⏭️ Skipping reaction message (emoji reaction)')
+                continue
+            }
+
+            // 🚫 Ignore protocol messages (receipts, presence updates, etc.)
+            if (messageContent.protocolMessage || messageContent.senderKeyDistributionMessage) {
+                console.log('⏭️ Skipping protocol/system message')
+                continue
+            }
+
+            // 🚫 Ignore poll updates and other non-conversation content
+            if (messageContent.pollUpdateMessage || messageContent.pollCreationMessage) {
+                console.log('⏭️ Skipping poll message')
+                continue
+            }
+
             // Determine message type and extract text
             let text = ''
             let messageType: WhatsAppMessage['messageType'] = 'text'
