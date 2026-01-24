@@ -1,12 +1,14 @@
 'use client'
 
-import { useState, useRef } from 'react'
-import { Plus, X, Trash2, Edit2, Check, DollarSign, ImageIcon, Upload, Palette, Ruler, Scale, Clock, Settings } from 'lucide-react'
+import { useState, useRef, useMemo } from 'react'
+import { Plus, X, Trash2, Edit2, Check, DollarSign, ImageIcon, Upload, Palette, Ruler, Scale, Clock, Settings, Bed, Utensils, Scissors, Car, Calendar, Users, Coffee, Sparkles } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
 
 // Category types for variants
-export type VariantCategory = 'visual' | 'size' | 'weight' | 'duration' | 'custom'
+export type VariantCategory = 'visual' | 'size' | 'weight' | 'duration' | 'custom' |
+    // Service-specific categories
+    'room_type' | 'view' | 'pension' | 'menu' | 'formula' | 'service_type' | 'vehicle' | 'option' | 'participants'
 
 export interface VariantOption {
     value: string
@@ -22,8 +24,8 @@ export interface VariantGroup {
     options: VariantOption[]
 }
 
-// Category configuration
-const CATEGORY_CONFIG: Record<VariantCategory, { label: string; icon: any; needsImage: boolean; color: string }> = {
+// Default category configuration (for products)
+const DEFAULT_CATEGORY_CONFIG: Record<string, { label: string; icon: any; needsImage: boolean; color: string }> = {
     visual: { label: '🎨 Couleur / Style', icon: Palette, needsImage: true, color: '#f59e0b' },
     size: { label: '📏 Taille', icon: Ruler, needsImage: false, color: '#3b82f6' },
     weight: { label: '⚖️ Poids / Volume', icon: Scale, needsImage: false, color: '#8b5cf6' },
@@ -31,17 +33,91 @@ const CATEGORY_CONFIG: Record<VariantCategory, { label: string; icon: any; needs
     custom: { label: '⚙️ Autre', icon: Settings, needsImage: true, color: '#64748b' }
 }
 
+// Service-specific category configurations
+const SERVICE_CATEGORY_CONFIGS: Record<string, Record<string, { label: string; icon: any; needsImage: boolean; color: string }>> = {
+    hotel: {
+        room_type: { label: '🛏️ Type de chambre', icon: Bed, needsImage: true, color: '#3b82f6' },
+        view: { label: '🌅 Vue', icon: Sparkles, needsImage: true, color: '#10b981' },
+        pension: { label: '🍽️ Pension', icon: Coffee, needsImage: false, color: '#f59e0b' },
+        participants: { label: '👥 Nb personnes', icon: Users, needsImage: false, color: '#8b5cf6' },
+        custom: { label: '⚙️ Autre', icon: Settings, needsImage: false, color: '#64748b' }
+    },
+    residence: {
+        room_type: { label: '🏠 Type logement', icon: Bed, needsImage: true, color: '#3b82f6' },
+        participants: { label: '👥 Capacité', icon: Users, needsImage: false, color: '#8b5cf6' },
+        duration: { label: '📅 Durée séjour', icon: Calendar, needsImage: false, color: '#10b981' },
+        custom: { label: '⚙️ Autre', icon: Settings, needsImage: false, color: '#64748b' }
+    },
+    restaurant: {
+        menu: { label: '🍽️ Menu / Formule', icon: Utensils, needsImage: true, color: '#f59e0b' },
+        participants: { label: '👥 Nb couverts', icon: Users, needsImage: false, color: '#8b5cf6' },
+        option: { label: '➕ Supplément', icon: Plus, needsImage: false, color: '#10b981' },
+        custom: { label: '⚙️ Autre', icon: Settings, needsImage: false, color: '#64748b' }
+    },
+    coiffeur: {
+        service_type: { label: '✂️ Type de service', icon: Scissors, needsImage: false, color: '#f59e0b' },
+        duration: { label: '⏱️ Durée', icon: Clock, needsImage: false, color: '#3b82f6' },
+        option: { label: '💆 Soin / Option', icon: Sparkles, needsImage: false, color: '#a855f7' },
+        custom: { label: '⚙️ Autre', icon: Settings, needsImage: false, color: '#64748b' }
+    },
+    medecin: {
+        service_type: { label: '🩺 Type consultation', icon: Settings, needsImage: false, color: '#3b82f6' },
+        duration: { label: '⏱️ Durée', icon: Clock, needsImage: false, color: '#10b981' },
+        custom: { label: '⚙️ Autre', icon: Settings, needsImage: false, color: '#64748b' }
+    },
+    formation: {
+        formula: { label: '🎓 Formule', icon: Calendar, needsImage: false, color: '#3b82f6' },
+        duration: { label: '⏱️ Durée', icon: Clock, needsImage: false, color: '#10b981' },
+        participants: { label: '👥 Nb participants', icon: Users, needsImage: false, color: '#8b5cf6' },
+        option: { label: '📚 Support inclus', icon: Plus, needsImage: false, color: '#f59e0b' },
+        custom: { label: '⚙️ Autre', icon: Settings, needsImage: false, color: '#64748b' }
+    },
+    event: {
+        formula: { label: '🎟️ Type billet', icon: Calendar, needsImage: true, color: '#a855f7' },
+        participants: { label: '👥 Nb places', icon: Users, needsImage: false, color: '#8b5cf6' },
+        option: { label: '✨ Option VIP', icon: Sparkles, needsImage: false, color: '#f59e0b' },
+        custom: { label: '⚙️ Autre', icon: Settings, needsImage: false, color: '#64748b' }
+    },
+    coaching: {
+        formula: { label: '🧠 Format', icon: Calendar, needsImage: false, color: '#3b82f6' },
+        duration: { label: '⏱️ Durée session', icon: Clock, needsImage: false, color: '#10b981' },
+        participants: { label: '👥 Individuel/Groupe', icon: Users, needsImage: false, color: '#8b5cf6' },
+        custom: { label: '⚙️ Autre', icon: Settings, needsImage: false, color: '#64748b' }
+    },
+    rental: {
+        vehicle: { label: '🚗 Catégorie véhicule', icon: Car, needsImage: true, color: '#3b82f6' },
+        duration: { label: '📅 Durée location', icon: Calendar, needsImage: false, color: '#10b981' },
+        option: { label: '➕ Option (GPS, siège...)', icon: Plus, needsImage: false, color: '#f59e0b' },
+        custom: { label: '⚙️ Autre', icon: Settings, needsImage: false, color: '#64748b' }
+    },
+    other: {
+        service_type: { label: '🔧 Type de service', icon: Settings, needsImage: false, color: '#3b82f6' },
+        duration: { label: '⏱️ Durée', icon: Clock, needsImage: false, color: '#10b981' },
+        option: { label: '➕ Option', icon: Plus, needsImage: false, color: '#f59e0b' },
+        custom: { label: '⚙️ Autre', icon: Settings, needsImage: false, color: '#64748b' }
+    }
+}
+
 interface ProductVariantsEditorProps {
     variants: VariantGroup[]
     onChange: (variants: VariantGroup[]) => void
     currencySymbol: string
+    serviceSubtype?: string  // v2.19: Service subtype to determine available categories
 }
 
-export default function ProductVariantsEditor({ variants, onChange, currencySymbol }: ProductVariantsEditorProps) {
+export default function ProductVariantsEditor({ variants, onChange, currencySymbol, serviceSubtype }: ProductVariantsEditorProps) {
     const [editingGroup, setEditingGroup] = useState<string | null>(null)
     const [uploadingOptionKey, setUploadingOptionKey] = useState<string | null>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
     const supabase = createClient()
+
+    // v2.19: Get category config based on service subtype
+    const CATEGORY_CONFIG = useMemo(() => {
+        if (serviceSubtype && SERVICE_CATEGORY_CONFIGS[serviceSubtype]) {
+            return SERVICE_CATEGORY_CONFIGS[serviceSubtype]
+        }
+        return DEFAULT_CATEGORY_CONFIG
+    }, [serviceSubtype])
 
     // Handle image upload for a variant option
     const handleImageUpload = async (groupId: string, optionIndex: number, file: File) => {

@@ -814,6 +814,7 @@ export default function NewProductPage() {
                                 variants={formData.variants}
                                 onChange={v => setFormData({ ...formData, variants: v })}
                                 currencySymbol={currency}
+                                serviceSubtype={formData.service_subtype}
                             />
                         </div>
                     </div>
