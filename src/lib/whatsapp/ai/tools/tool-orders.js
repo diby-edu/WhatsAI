@@ -88,67 +88,24 @@ async function handleCreateOrder(args, agentId, products, conversationId, supaba
                 })
             }
 
-            // Price & Variants
-            let price = product.price_fcfa || 0
-            let effectiveBasePrice = price
-            let totalSupplements = 0
-            let matchedVariantOption = null
+            // Price & Variants (Refactored v4.1)
+            const { calculateItemPrice } = require('./pricing-logic')
 
-            if (productHasRealVariants(product)) {
-                let variants = product.variants
-                const matchedVariantsByType = {}
+            const pricingResult = calculateItemPrice(product, item.selected_variants, item.product_name)
 
-                if (item.selected_variants && typeof item.selected_variants === 'object') {
-                    Object.entries(item.selected_variants).forEach(([k, v]) => {
-                        const targetVariant = product.variants.find(pv => pv.name.toLowerCase() === k.toLowerCase())
-                        if (targetVariant) matchedVariantsByType[targetVariant.name] = v
-                    })
-                }
+            // Log des étapes de calcul (debug)
+            if (pricingResult.logs) pricingResult.logs.forEach(l => console.log(`      ${l}`))
 
-                // Match from name fallback
-                product.variants.forEach(variant => {
-                    if (matchedVariantsByType[variant.name]) return
-                    if (!variant.options) return
-                    for (const option of variant.options) {
-                        const optValue = getOptionValue(option)
-                        if (optValue && item.product_name.toLowerCase().includes(optValue.toLowerCase())) {
-                            matchedVariantsByType[variant.name] = optValue
-                            break
-                        }
-                    }
+            if (pricingResult.error) {
+                return JSON.stringify({
+                    success: false,
+                    error: pricingResult.error,
+                    hint: 'Utilisez selected_variants.'
                 })
-
-                // Calculate Logic
-                for (const variant of product.variants) {
-                    const selectedValue = matchedVariantsByType[variant.name]
-                    if (selectedValue) {
-                        const validOption = findMatchingOption(variant, selectedValue)
-                        if (validOption) {
-                            const optionPrice = getOptionPrice(validOption)
-                            if (variant.type === 'additive' || variant.type === 'supplement') {
-                                totalSupplements += optionPrice
-                            } else {
-                                if (optionPrice > 0) effectiveBasePrice = optionPrice
-                            }
-                            matchedVariantsByType[variant.name] = getOptionValue(validOption)
-                        }
-                    }
-                }
-
-                price = effectiveBasePrice + totalSupplements
-                matchedVariantOption = Object.values(matchedVariantsByType).join(', ')
-
-                // Missing Check
-                const missingVariants = variants.filter(v => v.options && v.options.length > 0 && !matchedVariantsByType[v.name])
-                if (missingVariants.length > 0) {
-                    const missingList = missingVariants.map(v => `${v.name}: [${v.options.map(o => getOptionValue(o)).join(', ')}]`).join(' | ')
-                    return JSON.stringify({
-                        success: false,
-                        error: `VARIANTES MANQUANTES pour "${product.name}". Demandez: ${missingList}`,
-                        hint: 'Utilisez selected_variants.'
-                    })
-                }
             }
+
+            let price = pricingResult.price
+            let matchedVariantOption = pricingResult.variantOptionName
 
             total += price * item.quantity
             orderItems.push({
