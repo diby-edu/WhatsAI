@@ -9,7 +9,10 @@
 
 const { buildResetContext, variantsRules, antiLoopRules, toolsDefinition } = require('./prompts/context-rules')
 const { buildGenericWorkflow } = require('./prompts/workflow-generic')
-const { prompt_STAY, prompt_TABLE, prompt_SLOT, prompt_RENTAL } = require('./prompts/workflow-services')
+const { prompt_STAY } = require('./prompts/workflow-service-stay')
+const { prompt_TABLE } = require('./prompts/workflow-service-table')
+const { prompt_SLOT } = require('./prompts/workflow-service-slot')
+const { prompt_RENTAL } = require('./prompts/workflow-service-rental')
 const { buildCatalogueSection, buildClientHistory, buildKnowledgeSection } = require('./prompts/sections')
 
 // Mapping des sous-types de services vers les moteurs de template
