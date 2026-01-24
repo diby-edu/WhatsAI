@@ -1059,90 +1059,93 @@ function buildCatalogueSection(products, currency) {
 
     const catalogueItems = products.map((p, index) => {
         // FIX: DB utilise 'digital' pas 'virtual'
-        const typeIcon = p.product_type === 'service' ? '🛎️ [SERVICE]' :
-            (p.product_type === 'virtual' || p.product_type === 'digital') ? '💻 [NUMÉRIQUE]' : '📦'
+        const typeIcon = p.product_type === 'service' ? '🛎️' :
+            (p.product_type === 'virtual' || p.product_type === 'digital') ? '💻' : '📦'
 
-        // Gestion intelligente du prix (Hybrid Logic v2.12)
-        let priceDisplay
         const hasVariants = p.variants && p.variants.length > 0
 
-        // 1. Calculer la fourchette de Prix de Base (Replacements)
+        // Séparer variantes fixes (prix de base) et suppléments (additifs)
+        const fixedVariants = hasVariants ? p.variants.filter(v => v.type === 'fixed') : []
+        const additiveVariants = hasVariants ? p.variants.filter(v => v.type === 'additive') : []
+
+        // 1. Calculer la fourchette de Prix de Base (uniquement variantes fixed)
         let minBase = p.price_fcfa || 0
         let maxBase = p.price_fcfa || 0
-        let hasReplacement = false
+        let hasFixedPrices = false
 
-        if (hasVariants) {
-            let replacementPrices = []
-
-            for (const variant of p.variants) {
-                if (variant.type === 'supplement') continue // Ignorer suppléments pour la base
-
+        if (fixedVariants.length > 0) {
+            let fixedPrices = []
+            for (const variant of fixedVariants) {
                 for (const opt of variant.options) {
                     const optPrice = (typeof opt === 'object') ? (opt.price || 0) : 0
                     if (optPrice > 0) {
-                        replacementPrices.push(optPrice)
+                        fixedPrices.push(optPrice)
                     }
                 }
             }
-
-            if (replacementPrices.length > 0) {
-                minBase = Math.min(...replacementPrices)
-                maxBase = Math.max(...replacementPrices)
-                hasReplacement = true
+            if (fixedPrices.length > 0) {
+                minBase = Math.min(...fixedPrices)
+                maxBase = Math.max(...fixedPrices)
+                hasFixedPrices = true
             }
         }
 
-        if (hasReplacement) {
+        // Affichage du prix principal
+        let priceDisplay
+        if (hasFixedPrices) {
             if (minBase !== maxBase) {
-                priceDisplay = `Entre ${minBase.toLocaleString()} et ${maxBase.toLocaleString()} ${currencySymbol}`
+                priceDisplay = `${minBase.toLocaleString()} à ${maxBase.toLocaleString()} ${currencySymbol}`
             } else {
                 priceDisplay = `${minBase.toLocaleString()} ${currencySymbol}`
             }
         } else {
-            priceDisplay = `${(p.price_fcfa || 0).toLocaleString()} ${currencySymbol}`
+            priceDisplay = p.price_fcfa > 0 ? `${(p.price_fcfa || 0).toLocaleString()} ${currencySymbol}` : 'Gratuit'
         }
 
-        if (p.price_fcfa === 0 && !hasReplacement) {
-            priceDisplay = 'Gratuit'
-        }
-
-        // Variantes (noms courts et prix)
-        let variantsInfo = ''
-        if (hasVariants) {
-            const variantsList = p.variants.map(v => {
+        // 2. Construire l'affichage des variantes FIXED (options principales)
+        let fixedInfo = ''
+        if (fixedVariants.length > 0) {
+            const fixedList = fixedVariants.map(v => {
                 const opts = v.options.map(o => {
                     if (typeof o === 'string') return o
                     const val = o.value || o.name || ''
-                    let display = val.split('(')[0].trim() // Nom court
-
-                    // Ajouter le prix si présent
-                    if (typeof o === 'object') {
-                        if (o.price && o.price > 0) {
-                            if (v.type === 'supplement') {
-                                display += ` (+${o.price} FCFA)`
-                            } else {
-                                display += ` (${o.price} FCFA)`
-                            }
-                        } else {
-                            if (v.type === 'supplement') {
-                                // Supplément gratuit ?
-                            } else {
-                                // Si prix 0 ou null, et qu'il y a des replacements par ailleurs, préciser standard
-                                if (hasReplacement) display += ` (Standard)`
-                            }
-                        }
+                    const optPrice = (typeof o === 'object') ? (o.price || 0) : 0
+                    if (optPrice > 0) {
+                        return `${val} (${optPrice.toLocaleString()} ${currencySymbol})`
                     }
-                    return display
+                    return val
                 }).join(', ')
-                return `${v.name}${v.type === 'supplement' ? ' (Suppléments)' : ''}: ${opts}`
-            }).join(' | ')
-
-            variantsInfo = ` (${variantsList})`
+                return `   • ${v.name}: ${opts}`
+            }).join('\n')
+            fixedInfo = `\n${fixedList}`
         }
 
-        // Format : Numéro. *Nom* Icône - Prix (Variantes)
-        return `${index + 1}. *${p.name}* ${typeIcon} - ${priceDisplay}${variantsInfo}`
-    }).join('\n')
+        // 3. Construire l'affichage des SUPPLÉMENTS (additifs)
+        let supplementInfo = ''
+        if (additiveVariants.length > 0) {
+            const suppList = additiveVariants.map(v => {
+                const opts = v.options.map(o => {
+                    if (typeof o === 'string') return o
+                    const val = o.value || o.name || ''
+                    const optPrice = (typeof o === 'object') ? (o.price || 0) : 0
+                    if (optPrice > 0) {
+                        return `${val} (+${optPrice.toLocaleString()} ${currencySymbol})`
+                    }
+                    return `${val} (inclus)`
+                }).join(', ')
+                return `   ➕ ${v.name}: ${opts}`
+            }).join('\n')
+            supplementInfo = `\n${suppList}`
+        }
+
+        // Format multi-lignes pour les services avec variantes
+        if (hasVariants && (fixedInfo || supplementInfo)) {
+            return `${index + 1}. *${p.name}* ${typeIcon} - ${priceDisplay}${fixedInfo}${supplementInfo}`
+        }
+
+        // Format simple pour produits sans variantes
+        return `${index + 1}. *${p.name}* ${typeIcon} - ${priceDisplay}`
+    }).join('\n\n')
 
     return `
 📦 CATALOGUE:

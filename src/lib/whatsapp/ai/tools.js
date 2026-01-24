@@ -485,7 +485,7 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                             if (validOption) {
                                 const optionPrice = getOptionPrice(validOption)
 
-                                if (variant.type === 'supplement') {
+                                if (variant.type === 'additive' || variant.type === 'supplement') {
                                     totalSupplements += optionPrice
                                     console.log(`      ➕ Supplément "${variant.name}": +${optionPrice} FCFA`)
                                 } else {

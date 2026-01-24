@@ -71,27 +71,27 @@ export default function NewProductPage() {
             descFull: string, content: string, features: string
         }> = {
             hotel: {
-                name: "Ex: Hôtel Le Grand Palace",
-                desc: "Description de l'établissement, chambres, équipements...",
+                name: "Ex: Chambre Standard, Nuitée, Suite...",
+                desc: "Type de chambre, équipements inclus, capacité...",
                 category: "Hébergement",
-                descFull: "Décrivez l'hôtel : chambres disponibles, équipements (piscine, wifi, parking), services inclus...",
-                content: "Ex: Petit-déjeuner, WiFi, Piscine...",
+                descFull: "Décrivez le type de chambre : équipements (TV, wifi, minibar), vue, taille du lit, capacité max...",
+                content: "Ex: WiFi, Petit-déjeuner, Piscine, Vue mer, Climatisation, Room service...",
                 features: "Ex: Vue mer, Climatisation, Room service..."
             },
             residence: {
-                name: "Ex: Villa Sunshine",
-                desc: "Capacité, équipements, proximité...",
+                name: "Ex: Appartement 2 pièces, Studio meublé...",
+                desc: "Capacité, équipements, durée minimum...",
                 category: "Location",
-                descFull: "Décrivez la résidence : capacité, équipements, localisation, proximité avec les commodités...",
-                content: "Ex: Cuisine équipée, Terrasse, Parking...",
+                descFull: "Décrivez le logement : nombre de pièces, capacité, équipements, durée minimum de séjour...",
+                content: "Ex: Cuisine équipée, Terrasse, Parking, Bord de mer, Calme, Wifi...",
                 features: "Ex: Bord de mer, Calme, Famille..."
             },
             restaurant: {
-                name: "Ex: Le Gourmet Africain",
-                desc: "Spécialités, ambiance, capacité...",
+                name: "Ex: Table, Menu Dégustation, Brunch...",
+                desc: "Type de réservation, capacité, formule...",
                 category: "Restauration",
-                descFull: "Décrivez le restaurant : type de cuisine, spécialités, ambiance, capacité d'accueil...",
-                content: "Ex: Entrée, Plat, Dessert, Boisson...",
+                descFull: "Décrivez la formule : type de menu, nombre de plats, boissons incluses, ambiance...",
+                content: "Ex: Terrasse, Parking, Halal, Végétarien, Live music, Climatisé...",
                 features: "Ex: Halal, Végétarien, Terrasse, Live music..."
             },
             coiffeur: {
@@ -99,7 +99,7 @@ export default function NewProductPage() {
                 desc: "Durée, technique utilisée...",
                 category: "Beauté",
                 descFull: "Décrivez le service : durée, technique, produits utilisés, résultat attendu...",
-                content: "Ex: Shampoing, Coupe, Brushing...",
+                content: "Ex: Shampoing, Coupe, Brushing, Sans RDV, Domicile, Produits bio...",
                 features: "Ex: Sans RDV, Domicile, Produits bio..."
             },
             medecin: {
@@ -107,7 +107,7 @@ export default function NewProductPage() {
                 desc: "Durée, préparation nécessaire...",
                 category: "Santé",
                 descFull: "Décrivez la consultation : durée, spécialité, préparation nécessaire, documents à apporter...",
-                content: "Ex: Examen clinique, Ordonnance, Conseil...",
+                content: "Ex: Examen clinique, Ordonnance, Conseil, Téléconsultation, Urgence...",
                 features: "Ex: Téléconsultation, Urgence, Spécialiste..."
             },
             formation: {
@@ -115,7 +115,7 @@ export default function NewProductPage() {
                 desc: "Durée, niveau requis, certificat...",
                 category: "Formation",
                 descFull: "Décrivez la formation : durée, niveau requis, objectifs, certificat délivré, matériel fourni...",
-                content: "Ex: Support PDF, Exercices, Certificat...",
+                content: "Ex: Support PDF, Exercices, Certificat, En ligne, Présentiel...",
                 features: "Ex: En ligne, Présentiel, Débutant, Avancé..."
             },
             event: {
@@ -123,7 +123,7 @@ export default function NewProductPage() {
                 desc: "Date, lieu, programme...",
                 category: "Événement",
                 descFull: "Décrivez l'événement : date, heure, lieu, programme, artistes/intervenants...",
-                content: "Ex: Entrée, Cocktail, Concert...",
+                content: "Ex: Entrée, Cocktail, Concert, VIP, Parking inclus, Dress code...",
                 features: "Ex: VIP, Parking inclus, Dress code..."
             },
             coaching: {
@@ -131,15 +131,15 @@ export default function NewProductPage() {
                 desc: "Durée, objectifs, format...",
                 category: "Coaching",
                 descFull: "Décrivez la session : durée, format (visio/présentiel), objectifs, méthode...",
-                content: "Ex: Bilan, Plan d'action, Suivi...",
+                content: "Ex: Bilan, Plan d'action, Suivi, Visio, Individuel, Groupe...",
                 features: "Ex: Visio, Individuel, Groupe..."
             },
             rental: {
-                name: "Ex: Location SUV Toyota RAV4",
-                desc: "Caractéristiques, conditions, caution...",
+                name: "Ex: Citadine, SUV, Camion 20m³...",
+                desc: "Type de véhicule/matériel, caractéristiques...",
                 category: "Location",
                 descFull: "Décrivez le véhicule/matériel : caractéristiques, conditions de location, caution, kilométrage inclus...",
-                content: "Ex: Assurance, Kilométrage illimité, GPS...",
+                content: "Ex: Assurance, Kilométrage illimité, GPS, Automatique, Diesel, Clim...",
                 features: "Ex: Automatique, Diesel, Clim, 5 places..."
             },
             other: {
@@ -147,7 +147,7 @@ export default function NewProductPage() {
                 desc: "Décrivez votre prestation...",
                 category: "Service",
                 descFull: "Décrivez votre service : ce qu'il inclut, durée, conditions...",
-                content: "Ex: Ce qui est inclus...",
+                content: "Ex: Ce qui est inclus, caractéristiques...",
                 features: "Ex: Caractéristiques du service..."
             }
         }
@@ -706,14 +706,14 @@ export default function NewProductPage() {
                             )}
                         </div>
 
-                        {/* Content Included */}
+                        {/* Content Included (+ Features fusionnés pour les services) */}
                         <div>
                             <label style={labelStyle}>
-                                {formData.product_type === 'service' ? 'Ce qui est inclus' : 'Contenu inclus'}
+                                {formData.product_type === 'service' ? 'Inclus & Caractéristiques' : 'Contenu inclus'}
                             </label>
                             <p style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8 }}>
                                 {formData.product_type === 'service'
-                                    ? "Listez les éléments inclus dans votre service"
+                                    ? "Listez ce qui est inclus et les caractéristiques de votre service"
                                     : "Listez ce qui est inclus dans le produit (pour logiciels, packs, etc.)"}
                             </p>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
@@ -762,43 +762,45 @@ export default function NewProductPage() {
                             </div>
                         </div>
 
-                        {/* Tags/Features */}
-                        <div>
-                            <label style={labelStyle}>
-                                {formData.product_type === 'service' ? 'Caractéristiques du service' : 'Caractéristiques (Tags)'}
-                            </label>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
-                                {formData.features.map((f, i) => (
-                                    <span key={i} style={{
-                                        padding: '4px 12px',
-                                        background: 'rgba(16, 185, 129, 0.1)',
-                                        border: '1px solid rgba(16, 185, 129, 0.2)',
-                                        borderRadius: 20,
-                                        fontSize: 12,
-                                        color: '#34d399',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 6
-                                    }}>
-                                        {f}
-                                        <X size={12} style={{ cursor: 'pointer' }} onClick={() => setFormData(p => ({ ...p, features: p.features.filter((_, idx) => idx !== i) }))} />
-                                    </span>
-                                ))}
+                        {/* Tags/Features - Masqué pour les services (fusionné avec content_included) */}
+                        {formData.product_type !== 'service' && (
+                            <div>
+                                <label style={labelStyle}>
+                                    Caractéristiques (Tags)
+                                </label>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+                                    {formData.features.map((f, i) => (
+                                        <span key={i} style={{
+                                            padding: '4px 12px',
+                                            background: 'rgba(16, 185, 129, 0.1)',
+                                            border: '1px solid rgba(16, 185, 129, 0.2)',
+                                            borderRadius: 20,
+                                            fontSize: 12,
+                                            color: '#34d399',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 6
+                                        }}>
+                                            {f}
+                                            <X size={12} style={{ cursor: 'pointer' }} onClick={() => setFormData(p => ({ ...p, features: p.features.filter((_, idx) => idx !== i) }))} />
+                                        </span>
+                                    ))}
+                                </div>
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                    <input
+                                        type="text"
+                                        value={featureInput}
+                                        onChange={e => setFeatureInput(e.target.value)}
+                                        onKeyDown={e => e.key === 'Enter' && addFeature()}
+                                        placeholder={getServicePlaceholders().features}
+                                        style={inputStyle}
+                                    />
+                                    <button onClick={addFeature} style={{ ...buttonSecondaryStyle, padding: '0 16px' }}>
+                                        <Plus size={20} />
+                                    </button>
+                                </div>
                             </div>
-                            <div style={{ display: 'flex', gap: 8 }}>
-                                <input
-                                    type="text"
-                                    value={featureInput}
-                                    onChange={e => setFeatureInput(e.target.value)}
-                                    onKeyDown={e => e.key === 'Enter' && addFeature()}
-                                    placeholder={getServicePlaceholders().features}
-                                    style={inputStyle}
-                                />
-                                <button onClick={addFeature} style={{ ...buttonSecondaryStyle, padding: '0 16px' }}>
-                                    <Plus size={20} />
-                                </button>
-                            </div>
-                        </div>
+                        )}
 
                         {/* Variants */}
                         <div style={{
