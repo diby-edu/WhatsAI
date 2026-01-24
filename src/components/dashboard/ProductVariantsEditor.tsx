@@ -25,76 +25,78 @@ export interface VariantGroup {
 }
 
 // Default category configuration (for products)
+// v2.30: needsImage=true pour TOUTES les catégories (l'image est optionnelle mais toujours disponible)
 const DEFAULT_CATEGORY_CONFIG: Record<string, { label: string; icon: any; needsImage: boolean; color: string }> = {
     visual: { label: '🎨 Couleur / Style', icon: Palette, needsImage: true, color: '#f59e0b' },
-    size: { label: '📏 Taille', icon: Ruler, needsImage: false, color: '#3b82f6' },
-    weight: { label: '⚖️ Poids / Volume', icon: Scale, needsImage: false, color: '#8b5cf6' },
-    duration: { label: '⏱️ Durée', icon: Clock, needsImage: false, color: '#10b981' },
+    size: { label: '📏 Taille', icon: Ruler, needsImage: true, color: '#3b82f6' },
+    weight: { label: '⚖️ Poids / Volume', icon: Scale, needsImage: true, color: '#8b5cf6' },
+    duration: { label: '⏱️ Durée', icon: Clock, needsImage: true, color: '#10b981' },
     custom: { label: '⚙️ Autre', icon: Settings, needsImage: true, color: '#64748b' }
 }
 
 // Service-specific category configurations
+// v2.30: needsImage=true pour TOUTES les catégories
 const SERVICE_CATEGORY_CONFIGS: Record<string, Record<string, { label: string; icon: any; needsImage: boolean; color: string }>> = {
     hotel: {
         room_type: { label: '🛏️ Type de chambre', icon: Bed, needsImage: true, color: '#3b82f6' },
         view: { label: '🌅 Vue', icon: Sparkles, needsImage: true, color: '#10b981' },
-        pension: { label: '🍽️ Pension', icon: Coffee, needsImage: false, color: '#f59e0b' },
-        participants: { label: '👥 Nb personnes', icon: Users, needsImage: false, color: '#8b5cf6' },
-        custom: { label: '⚙️ Autre', icon: Settings, needsImage: false, color: '#64748b' }
+        pension: { label: '🍽️ Pension', icon: Coffee, needsImage: true, color: '#f59e0b' },
+        participants: { label: '👥 Nb personnes', icon: Users, needsImage: true, color: '#8b5cf6' },
+        custom: { label: '⚙️ Autre', icon: Settings, needsImage: true, color: '#64748b' }
     },
     residence: {
         room_type: { label: '🏠 Type logement', icon: Bed, needsImage: true, color: '#3b82f6' },
-        participants: { label: '👥 Capacité', icon: Users, needsImage: false, color: '#8b5cf6' },
-        duration: { label: '📅 Durée séjour', icon: Calendar, needsImage: false, color: '#10b981' },
-        custom: { label: '⚙️ Autre', icon: Settings, needsImage: false, color: '#64748b' }
+        participants: { label: '👥 Capacité', icon: Users, needsImage: true, color: '#8b5cf6' },
+        duration: { label: '📅 Durée séjour', icon: Calendar, needsImage: true, color: '#10b981' },
+        custom: { label: '⚙️ Autre', icon: Settings, needsImage: true, color: '#64748b' }
     },
     restaurant: {
         menu: { label: '🍽️ Menu / Formule', icon: Utensils, needsImage: true, color: '#f59e0b' },
-        participants: { label: '👥 Nb couverts', icon: Users, needsImage: false, color: '#8b5cf6' },
-        option: { label: '➕ Supplément', icon: Plus, needsImage: false, color: '#10b981' },
-        custom: { label: '⚙️ Autre', icon: Settings, needsImage: false, color: '#64748b' }
+        participants: { label: '👥 Nb couverts', icon: Users, needsImage: true, color: '#8b5cf6' },
+        option: { label: '➕ Supplément', icon: Plus, needsImage: true, color: '#10b981' },
+        custom: { label: '⚙️ Autre', icon: Settings, needsImage: true, color: '#64748b' }
     },
     coiffeur: {
-        service_type: { label: '✂️ Type de service', icon: Scissors, needsImage: false, color: '#f59e0b' },
-        duration: { label: '⏱️ Durée', icon: Clock, needsImage: false, color: '#3b82f6' },
-        option: { label: '💆 Soin / Option', icon: Sparkles, needsImage: false, color: '#a855f7' },
-        custom: { label: '⚙️ Autre', icon: Settings, needsImage: false, color: '#64748b' }
+        service_type: { label: '✂️ Type de service', icon: Scissors, needsImage: true, color: '#f59e0b' },
+        duration: { label: '⏱️ Durée', icon: Clock, needsImage: true, color: '#3b82f6' },
+        option: { label: '💆 Soin / Option', icon: Sparkles, needsImage: true, color: '#a855f7' },
+        custom: { label: '⚙️ Autre', icon: Settings, needsImage: true, color: '#64748b' }
     },
     medecin: {
-        service_type: { label: '🩺 Type consultation', icon: Settings, needsImage: false, color: '#3b82f6' },
-        duration: { label: '⏱️ Durée', icon: Clock, needsImage: false, color: '#10b981' },
-        custom: { label: '⚙️ Autre', icon: Settings, needsImage: false, color: '#64748b' }
+        service_type: { label: '🩺 Type consultation', icon: Settings, needsImage: true, color: '#3b82f6' },
+        duration: { label: '⏱️ Durée', icon: Clock, needsImage: true, color: '#10b981' },
+        custom: { label: '⚙️ Autre', icon: Settings, needsImage: true, color: '#64748b' }
     },
     formation: {
-        formula: { label: '🎓 Formule', icon: Calendar, needsImage: false, color: '#3b82f6' },
-        duration: { label: '⏱️ Durée', icon: Clock, needsImage: false, color: '#10b981' },
-        participants: { label: '👥 Nb participants', icon: Users, needsImage: false, color: '#8b5cf6' },
-        option: { label: '📚 Support inclus', icon: Plus, needsImage: false, color: '#f59e0b' },
-        custom: { label: '⚙️ Autre', icon: Settings, needsImage: false, color: '#64748b' }
+        formula: { label: '🎓 Formule', icon: Calendar, needsImage: true, color: '#3b82f6' },
+        duration: { label: '⏱️ Durée', icon: Clock, needsImage: true, color: '#10b981' },
+        participants: { label: '👥 Nb participants', icon: Users, needsImage: true, color: '#8b5cf6' },
+        option: { label: '📚 Support inclus', icon: Plus, needsImage: true, color: '#f59e0b' },
+        custom: { label: '⚙️ Autre', icon: Settings, needsImage: true, color: '#64748b' }
     },
     event: {
         formula: { label: '🎟️ Type billet', icon: Calendar, needsImage: true, color: '#a855f7' },
-        participants: { label: '👥 Nb places', icon: Users, needsImage: false, color: '#8b5cf6' },
-        option: { label: '✨ Option VIP', icon: Sparkles, needsImage: false, color: '#f59e0b' },
-        custom: { label: '⚙️ Autre', icon: Settings, needsImage: false, color: '#64748b' }
+        participants: { label: '👥 Nb places', icon: Users, needsImage: true, color: '#8b5cf6' },
+        option: { label: '✨ Option VIP', icon: Sparkles, needsImage: true, color: '#f59e0b' },
+        custom: { label: '⚙️ Autre', icon: Settings, needsImage: true, color: '#64748b' }
     },
     coaching: {
-        formula: { label: '🧠 Format', icon: Calendar, needsImage: false, color: '#3b82f6' },
-        duration: { label: '⏱️ Durée session', icon: Clock, needsImage: false, color: '#10b981' },
-        participants: { label: '👥 Individuel/Groupe', icon: Users, needsImage: false, color: '#8b5cf6' },
-        custom: { label: '⚙️ Autre', icon: Settings, needsImage: false, color: '#64748b' }
+        formula: { label: '🧠 Format', icon: Calendar, needsImage: true, color: '#3b82f6' },
+        duration: { label: '⏱️ Durée session', icon: Clock, needsImage: true, color: '#10b981' },
+        participants: { label: '👥 Individuel/Groupe', icon: Users, needsImage: true, color: '#8b5cf6' },
+        custom: { label: '⚙️ Autre', icon: Settings, needsImage: true, color: '#64748b' }
     },
     rental: {
         vehicle: { label: '🚗 Catégorie véhicule', icon: Car, needsImage: true, color: '#3b82f6' },
-        duration: { label: '📅 Durée location', icon: Calendar, needsImage: false, color: '#10b981' },
-        option: { label: '➕ Option (GPS, siège...)', icon: Plus, needsImage: false, color: '#f59e0b' },
-        custom: { label: '⚙️ Autre', icon: Settings, needsImage: false, color: '#64748b' }
+        duration: { label: '📅 Durée location', icon: Calendar, needsImage: true, color: '#10b981' },
+        option: { label: '➕ Option (GPS, siège...)', icon: Plus, needsImage: true, color: '#f59e0b' },
+        custom: { label: '⚙️ Autre', icon: Settings, needsImage: true, color: '#64748b' }
     },
     other: {
-        service_type: { label: '🔧 Type de service', icon: Settings, needsImage: false, color: '#3b82f6' },
-        duration: { label: '⏱️ Durée', icon: Clock, needsImage: false, color: '#10b981' },
-        option: { label: '➕ Option', icon: Plus, needsImage: false, color: '#f59e0b' },
-        custom: { label: '⚙️ Autre', icon: Settings, needsImage: false, color: '#64748b' }
+        service_type: { label: '🔧 Type de service', icon: Settings, needsImage: true, color: '#3b82f6' },
+        duration: { label: '⏱️ Durée', icon: Clock, needsImage: true, color: '#10b981' },
+        option: { label: '➕ Option', icon: Plus, needsImage: true, color: '#f59e0b' },
+        custom: { label: '⚙️ Autre', icon: Settings, needsImage: true, color: '#64748b' }
     }
 }
 
