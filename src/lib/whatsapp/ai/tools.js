@@ -341,7 +341,7 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
             // Récupérer l'agent
             const { data: agent } = await supabase
                 .from('agents')
-                .select('user_id, payment_mode, mobile_money_orange, mobile_money_mtn, mobile_money_wave, custom_payment_methods')
+                .select('user_id, payment_mode, mobile_money_orange, mobile_money_mtn, mobile_money_wave, custom_payment_methods, escalation_phone')
                 .eq('id', agentId)
                 .single()
 
@@ -599,12 +599,15 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
             const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://whatsai.duckdns.org'
 
             if (payment_method === 'cod') {
+                let msg = `✅ Commande confirmée ! Nous préparons la livraison. 🚚\nPaiement de ${total} FCFA à prévoir à la livraison.`
+                if (agent.escalation_phone) msg += `\n\n📞 En cas de besoin, contactez le service client au ${agent.escalation_phone}.`
+
                 return JSON.stringify({
                     success: true,
                     order_id: order.id,
                     payment_method: 'cod',
                     items: itemsSummary,
-                    message: `✅ Commande confirmée ! Nous préparons la livraison. 🚚\nPaiement de ${total} FCFA à prévoir à la livraison.`
+                    message: msg
                 })
             }
 
@@ -614,6 +617,9 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                 if (agent.mobile_money_mtn) paymentMethods.push({ type: 'MTN Money', number: agent.mobile_money_mtn })
                 if (agent.mobile_money_wave) paymentMethods.push({ type: 'Wave', number: agent.mobile_money_wave })
 
+                let msg = `✅ Commande enregistrée en attente de paiement. Veuillez effectuer le transfert de ${total} FCFA.`
+                if (agent.escalation_phone) msg += `\n\n📞 En cas de besoin, contactez le service client au ${agent.escalation_phone}.`
+
                 return JSON.stringify({
                     success: true,
                     order_id: order.id,
@@ -621,11 +627,14 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                     payment_method: 'mobile_money_direct',
                     payment_methods: paymentMethods,
                     items: itemsSummary,
-                    message: `✅ Commande enregistrée en attente de paiement. Veuillez effectuer le transfert de ${total} FCFA.`
+                    message: msg
                 })
             }
 
             // CinetPay (défaut)
+            let msg = `✅ Commande créée ! Lien de paiement généré pour ${total} FCFA.`
+            if (agent.escalation_phone) msg += `\n\n📞 En cas de besoin, contactez le service client au ${agent.escalation_phone}.`
+
             return JSON.stringify({
                 success: true,
                 order_id: order.id,
@@ -633,7 +642,7 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                 payment_method: 'online',
                 payment_link: `${appUrl}/pay/${order.id}`,
                 items: itemsSummary,
-                message: `✅ Commande créée ! Lien de paiement généré pour ${total} FCFA.`
+                message: msg
             })
 
 
@@ -787,7 +796,7 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
 
             const { data: agent } = await supabase
                 .from('agents')
-                .select('user_id')
+                .select('user_id, escalation_phone')
                 .eq('id', agentId)
                 .single()
 
@@ -888,6 +897,11 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
             if (end_date) confirmMsg += ` jusqu'au ${end_date}`
             if (party_size && party_size > 1) confirmMsg += ` pour ${party_size} personne(s)`
             confirmMsg += '.'
+
+            // v2.33: Ajout du numéro d'escalade si disponible
+            if (agent.escalation_phone) {
+                confirmMsg += `\n\n📞 En cas de besoin, contactez le service client au ${agent.escalation_phone}.`
+            }
 
             return JSON.stringify({
                 success: true,
