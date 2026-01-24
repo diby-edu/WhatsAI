@@ -158,9 +158,21 @@ Si le client dit "Salut", "Bonjour", "Menu" ou commence la conversation:
         }
     }
 
-    // 🧠 v2.19: DÉTECTION INTELLIGENTE BASÉE SUR LE MESSAGE (LIVE)
-    // Si le message contient le nom d'un service, on active le moteur correspondant.
-    if (userMessage && products && products.length > 0) {
+    // 🧠 v2.31: DÉTECTION INTELLIGENTE DU MODE SERVICE
+    // RÈGLE: Si TOUS les produits de l'agent sont des services, activer le mode service automatiquement
+
+    const serviceProducts = products ? products.filter(p => p.product_type === 'service' && p.service_subtype) : []
+    const nonServiceProducts = products ? products.filter(p => p.product_type !== 'service') : []
+    const isServiceOnlyAgent = serviceProducts.length > 0 && nonServiceProducts.length === 0
+
+    if (isServiceOnlyAgent) {
+        // Agent 100% service : utiliser le template du premier service trouvé
+        const mainService = serviceProducts[0]
+        console.log(`🏨 SERVICE-ONLY AGENT: ${mainService.service_subtype} (${serviceProducts.length} services, 0 produits)`)
+        conversationIntent = 'service_booking'
+        activeEngine = SERVICE_ENGINE_MAP[mainService.service_subtype] || 'SLOT'
+    } else if (userMessage && products && products.length > 0) {
+        // Agent mixte : détecter via le nom du produit dans le message
         const lowerMsg = userMessage.toLowerCase()
 
         // Chercher le produit le plus long qui matche (pour éviter les faux positifs courts)
@@ -815,45 +827,189 @@ Vos produits seront envoyés à [email] dès validation.
 
     // --- TEMPLATE MOTEUR: STAY (Hôtel, Résidence) ---
     const prompt_STAY = `
-📋 FLUX [STAY] (HÉBERGEMENT):
-1. PRODUIT: Valider choix chambre.
-2. DATES: Demander "Date d'arrivée" 📅 et "Date de départ" 🛫.
-3. VOYAGEURS: Demander "Nombre d'adultes et d'enfants" 👥.
-4. CONFIRMATION: Récapitulatif (Hébergement + Dates + Pax).
-🚫 PAS D'ADRESSE.
+📋 FLUX [STAY] - RÉSERVATION HÉBERGEMENT (ÉTAPES OBLIGATOIRES):
+
+🚫🚫🚫 INTERDIT ABSOLU 🚫🚫🚫
+- NE JAMAIS demander d'adresse de livraison
+- NE JAMAIS mentionner "livraison" ou "🚚"
+- C'est une RÉSERVATION, pas une commande physique
+- Le client VIENT à l'établissement, pas l'inverse
+
+ÉTAPE 1 - CHOIX DE L'HÉBERGEMENT:
+- Présenter les options (chambres/logements avec leurs prix)
+- Attendre le choix du client
+- Si variantes (type de chambre, vue, etc.), demander la préférence
+
+ÉTAPE 2 - DATES DU SÉJOUR:
+- Demander: "Pour quelles dates ? (arrivée et départ)" 📅
+- Format attendu: "Du [date] au [date]"
+
+ÉTAPE 3 - NOMBRE DE VOYAGEURS:
+- Demander: "Combien de personnes (adultes et enfants) ?" 👥
+
+ÉTAPE 4 - DEMANDES SPÉCIALES:
+- Demander: "Des demandes particulières ? (lit bébé, étage haut, vue mer, etc.)"
+
+ÉTAPE 5 - INFORMATIONS CLIENT:
+- Demander: "Votre nom complet" 👤
+- Demander: "Votre numéro de téléphone (avec indicatif)" 📱
+- 🚫 NE PAS demander d'adresse !
+
+ÉTAPE 6 - PAIEMENT:
+- Demander: "Souhaitez-vous payer en ligne ou régler sur place ?"
+- Options: "en ligne" → CinetPay | "sur place" → paiement à l'arrivée
+
+ÉTAPE 7 - RÉCAPITULATIF FINAL:
+"Récapitulatif de votre réservation :
+🏨 *[Nom hébergement]* - [Type chambre si applicable]
+📅 Du [date arrivée] au [date départ] ([X] nuits)
+👥 [Nombre] personnes
+💰 Total : *[PRIX] FCFA*
+👤 Nom : [Nom]
+📱 Tél : [Téléphone]
+💳 Paiement : [Mode choisi]
+📝 Notes : [Demandes ou 'Aucune']
+
+Confirmez-vous cette réservation ?"
+
+ÉTAPE 8 - CONFIRMATION:
+- Quand le client dit "Oui" → Appeler create_booking IMMÉDIATEMENT
+- 🚫 NE PAS appeler create_order (c'est un SERVICE)
 `.trim()
 
     // --- TEMPLATE MOTEUR: TABLE (Resto, Event) ---
     const prompt_TABLE = `
-📋 FLUX [TABLE] (RESERVATION GROUPE):
-1. PRODUIT: Valider choix.
-2. PLANIF: Demander "Date" 📅 et "Heure" ⏰.
-3. CAPACITÉ: Demander "Nombre de personnes/couverts" 🍽️.
-4. CONFIRMATION: Récapitulatif complet.
-🚫 PAS D'ADRESSE.
+📋 FLUX [TABLE] - RÉSERVATION RESTAURANT/ÉVÉNEMENT (ÉTAPES OBLIGATOIRES):
+
+🚫🚫🚫 INTERDIT ABSOLU 🚫🚫🚫
+- NE JAMAIS demander d'adresse de livraison
+- NE JAMAIS mentionner "livraison" ou "🚚"
+- C'est une RÉSERVATION, le client VIENT sur place
+
+ÉTAPE 1 - CHOIX:
+- Présenter les options (menus, formules, billets avec leurs prix)
+- Attendre le choix du client
+
+ÉTAPE 2 - DATE ET HEURE:
+- Demander: "Pour quelle date et quelle heure ?" 📅⏰
+
+ÉTAPE 3 - NOMBRE DE PERSONNES:
+- Demander: "Combien de personnes/couverts ?" 🍽️
+
+ÉTAPE 4 - DEMANDES SPÉCIALES:
+- Demander: "Des demandes particulières ? (allergies, chaise bébé, emplacement...)"
+
+ÉTAPE 5 - INFORMATIONS CLIENT:
+- Demander: "Votre nom" 👤
+- Demander: "Votre numéro de téléphone" 📱
+- 🚫 NE PAS demander d'adresse !
+
+ÉTAPE 6 - PAIEMENT:
+- Demander: "Paiement en ligne ou sur place ?"
+
+ÉTAPE 7 - RÉCAPITULATIF FINAL:
+"Récapitulatif de votre réservation :
+🍽️ *[Service/Menu]*
+📅 [Date] à [Heure]
+👥 [Nombre] personnes
+💰 Total : *[PRIX] FCFA*
+👤 [Nom] | 📱 [Téléphone]
+💳 Paiement : [Mode]
+📝 Notes : [Demandes ou 'Aucune']
+
+Confirmez-vous ?"
+
+ÉTAPE 8 - CONFIRMATION:
+- "Oui" → Appeler create_booking
 `.trim()
 
     // --- TEMPLATE MOTEUR: SLOT (RDV, Coiffeur, Pro) ---
     const prompt_SLOT = `
-📋 FLUX [SLOT] (RENDEZ-VOUS SIMPLE):
-1. PRODUIT: Valider prestation.
-2. PLANIF: Demander "Date" 📅 et "Heure précise" ⏰.
-3. NOTES: Demander "Des demandes particulières ?" (BLOQUANT).
-4. INFOS: Nom + Téléphone.
-5. CONFIRMATION: Récapitulatif (Prestation + Créneau + Notes).
-🚫 PAS D'ADRESSE.
+📋 FLUX [SLOT] - RENDEZ-VOUS/PRESTATION (ÉTAPES OBLIGATOIRES):
+
+🚫🚫🚫 INTERDIT ABSOLU 🚫🚫🚫
+- NE JAMAIS demander d'adresse de livraison
+- NE JAMAIS mentionner "livraison" ou "🚚"
+- C'est un RENDEZ-VOUS, le client VIENT ou c'est à distance
+
+ÉTAPE 1 - CHOIX DE LA PRESTATION:
+- Présenter les services disponibles avec leurs prix
+- Attendre le choix du client
+
+ÉTAPE 2 - DATE ET HEURE:
+- Demander: "Pour quelle date et à quelle heure ?" 📅⏰
+
+ÉTAPE 3 - DEMANDES SPÉCIALES:
+- Demander: "Des demandes particulières ?" (style, préférence, notes...)
+
+ÉTAPE 4 - INFORMATIONS CLIENT:
+- Demander: "Votre nom" 👤
+- Demander: "Votre numéro de téléphone" 📱
+- 🚫 NE PAS demander d'adresse !
+
+ÉTAPE 5 - PAIEMENT:
+- Demander: "Paiement en ligne ou sur place ?"
+
+ÉTAPE 6 - RÉCAPITULATIF FINAL:
+"Récapitulatif de votre rendez-vous :
+✨ *[Prestation]*
+📅 [Date] à [Heure]
+💰 Prix : *[PRIX] FCFA*
+👤 [Nom] | 📱 [Téléphone]
+💳 Paiement : [Mode]
+📝 Notes : [Demandes ou 'Aucune']
+
+Confirmez-vous ?"
+
+ÉTAPE 7 - CONFIRMATION:
+- "Oui" → Appeler create_booking
 `.trim()
 
     // --- TEMPLATE MOTEUR: RENTAL (Location Véhicules/Matériel) ---
     const prompt_RENTAL = `
-📋 FLUX [RENTAL] (LOCATION):
-1. PRODUIT: Valider véhicule/matériel choisi.
-2. DATES: Demander "Date de début" 📅 et "Date de fin" 📅.
-3. OPTIONS: Demander options (GPS, siège bébé, km illimité, etc.).
-4. INFOS: Nom + Téléphone + Permis (si véhicule).
-5. NOTES: Demander "Des demandes particulières ?" (BLOQUANT).
-6. CONFIRMATION: Récapitulatif (Véhicule + Période + Options + Prix).
-🚫 PAS D'ADRESSE DE LIVRAISON (retrait sur place).
+📋 FLUX [RENTAL] - LOCATION VÉHICULE/MATÉRIEL (ÉTAPES OBLIGATOIRES):
+
+🚫🚫🚫 INTERDIT ABSOLU 🚫🚫🚫
+- NE JAMAIS demander d'adresse de livraison
+- NE JAMAIS mentionner "livraison" ou "🚚"
+- C'est une LOCATION, le client récupère sur place
+
+ÉTAPE 1 - CHOIX DU VÉHICULE/MATÉRIEL:
+- Présenter le catalogue avec les prix
+- Attendre le choix du client
+
+ÉTAPE 2 - PÉRIODE DE LOCATION:
+- Demander: "Date de début et date de fin de location ?" 📅
+
+ÉTAPE 3 - OPTIONS:
+- Demander: "Souhaitez-vous des options ? (GPS, siège bébé, assurance, km illimité...)"
+
+ÉTAPE 4 - DEMANDES SPÉCIALES:
+- Demander: "Des demandes particulières ?"
+
+ÉTAPE 5 - INFORMATIONS CLIENT:
+- Demander: "Votre nom complet" 👤
+- Demander: "Votre numéro de téléphone" 📱
+- Si véhicule: "Avez-vous un permis de conduire valide ?"
+- 🚫 NE PAS demander d'adresse de livraison (retrait sur place) !
+
+ÉTAPE 6 - PAIEMENT:
+- Demander: "Paiement en ligne ou au retrait ?"
+
+ÉTAPE 7 - RÉCAPITULATIF FINAL:
+"Récapitulatif de votre location :
+🚗 *[Véhicule/Matériel]*
+📅 Du [date début] au [date fin]
+➕ Options : [Options ou 'Aucune']
+💰 Total : *[PRIX] FCFA*
+👤 [Nom] | 📱 [Téléphone]
+💳 Paiement : [Mode]
+📝 Notes : [Demandes ou 'Aucune']
+
+Confirmez-vous ?"
+
+ÉTAPE 8 - CONFIRMATION:
+- "Oui" → Appeler create_booking
 `.trim()
 
 
