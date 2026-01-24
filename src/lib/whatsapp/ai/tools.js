@@ -230,13 +230,15 @@ IMPORTANT - VARIANTES :
                 type: 'object',
                 properties: {
                     booking_type: { type: 'string', description: 'Type de réservation: "stay" (hôtel), "table" (restaurant), "slot" (rdv), "rental" (location)' },
-                    service_name: { type: 'string', description: 'Nom du service réservé' },
+                    service_name: { type: 'string', description: 'Nom du service/produit dans le catalogue (ex: "Chambres", "Menu Gourmet")' },
+                    selected_variant: { type: 'string', description: 'Variante choisie (ex: "Suite", "VIP", "Menu Découverte") - OBLIGATOIRE si le service a des variantes' },
                     customer_phone: { type: 'string', description: 'Téléphone du client (avec indicatif)' },
                     customer_name: { type: 'string', description: 'Nom du client' },
                     preferred_date: { type: 'string', description: 'Date de début (YYYY-MM-DD)' },
                     preferred_time: { type: 'string', description: 'Heure (HH:MM) - pour table/slot' },
                     end_date: { type: 'string', description: 'Date de fin (YYYY-MM-DD) - pour stay/rental' },
                     party_size: { type: 'number', description: 'Nombre de personnes/couverts' },
+                    selected_supplements: { type: 'object', description: 'Suppléments choisis (ex: {"Petit déjeuner": true, "Deuxième lit": true})' },
                     notes: { type: 'string', description: 'Demandes spéciales (allergies, préférences, etc.)' }
                 },
                 required: ['booking_type', 'service_name', 'customer_phone', 'customer_name', 'preferred_date']
@@ -770,6 +772,8 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
             const {
                 booking_type,
                 service_name,
+                selected_variant,      // v2.31: Pour chambres, menus, etc.
+                selected_supplements,  // v2.31: Petit déjeuner, deuxième lit, etc.
                 customer_phone,
                 customer_name,
                 preferred_date,
@@ -778,6 +782,8 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                 party_size,
                 notes
             } = args
+
+            console.log(`🏨 create_booking: service="${service_name}", variant="${selected_variant}"`)
 
             const { data: agent } = await supabase
                 .from('agents')
@@ -797,6 +803,53 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                 })
             }
 
+            // v2.31: Calculer le prix basé sur la variante sélectionnée
+            let finalPrice = service.price_fcfa || 0
+            let variantDetails = null
+
+            if (selected_variant && service.variants && service.variants.length > 0) {
+                // Chercher la variante dans les variantes FIXED (type de chambre, menu, etc.)
+                for (const variant of service.variants) {
+                    if (variant.type === 'fixed' && variant.options) {
+                        const matchedOption = findMatchingOption(variant, selected_variant)
+                        if (matchedOption) {
+                            const optPrice = (typeof matchedOption === 'object') ? (matchedOption.price || 0) : 0
+                            if (optPrice > 0) {
+                                finalPrice = optPrice
+                                variantDetails = {
+                                    name: variant.name,
+                                    value: (typeof matchedOption === 'object') ? (matchedOption.value || matchedOption.name) : matchedOption
+                                }
+                                console.log(`✅ Variante trouvée: ${variantDetails.name}=${variantDetails.value} @ ${finalPrice} FCFA`)
+                            }
+                            break
+                        }
+                    }
+                }
+            }
+
+            // v2.31: Calculer les suppléments additifs
+            let supplementsTotal = 0
+            let supplementsList = []
+            if (selected_supplements && service.variants) {
+                for (const variant of service.variants) {
+                    if (variant.type === 'additive' && variant.options) {
+                        for (const opt of variant.options) {
+                            const optName = (typeof opt === 'object') ? (opt.value || opt.name) : opt
+                            const optPrice = (typeof opt === 'object') ? (opt.price || 0) : 0
+                            // Vérifier si ce supplément est sélectionné
+                            if (selected_supplements[optName] === true) {
+                                supplementsTotal += optPrice
+                                supplementsList.push({ name: optName, price: optPrice })
+                                console.log(`➕ Supplément: ${optName} +${optPrice} FCFA`)
+                            }
+                        }
+                    }
+                }
+            }
+
+            finalPrice += supplementsTotal
+
             // Calculer start_time (obligatoire dans le schéma)
             const start_time = preferred_date && preferred_time
                 ? new Date(`${preferred_date}T${preferred_time}:00`).toISOString()
@@ -813,7 +866,9 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
                     customer_name: customer_name || null,
                     service_name: service.name,
                     service_id: service.id,
-                    price_fcfa: service.price_fcfa || 0,
+                    selected_variant: variantDetails ? JSON.stringify(variantDetails) : null,
+                    selected_supplements: supplementsList.length > 0 ? JSON.stringify(supplementsList) : null,
+                    price_fcfa: finalPrice,
                     preferred_date: preferred_date || null,
                     preferred_time: preferred_time || null,
                     end_date: end_date || null,  // Pour STAY/RENTAL

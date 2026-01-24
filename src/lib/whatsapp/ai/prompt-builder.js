@@ -115,7 +115,7 @@ Style: Concis (max 3-4 phrases), amical, professionnel.
 Si le client dit "Salut", "Bonjour", "Menu" ou commence la conversation:
 1. Saluer chaleureusement ("Bienvenue chez ${agent.name} ! 👋")
 2. AFFICHER LE CATALOGUE (la liste des produits ci-dessous)
-3. Demander: "Quel article vous intéresse ?"
+3. Demander: "${isServiceOnlyAgent ? 'Quelle prestation souhaitez-vous réserver ?' : 'Quel article vous intéresse ?'}"
 ⛔ INTERDIT de dire juste "Comment puis-je vous aider ?" sans afficher le catalogue. Tu es un VENDEUR.
 `
 
@@ -128,21 +128,6 @@ Si le client dit "Salut", "Bonjour", "Menu" ou commence la conversation:
     // ═══════════════════════════════════════════════════════════════
     // 🧠 SECTION 3.5 : DÉTECTION DE L'INTENTION & MAPPING MOTEUR (v2.18)
     // ═══════════════════════════════════════════════════════════════
-
-    // 1. CONFIGURATION DU MAPPING (Métier -> Moteur)
-    const SERVICE_ENGINE_MAP = {
-        'hotel': 'STAY',
-        'residence': 'STAY',
-        'restaurant': 'TABLE',
-        'formation': 'TABLE',
-        'event': 'TABLE',
-        'coiffeur': 'SLOT',
-        'medecin': 'SLOT',
-        'coaching': 'SLOT',
-        'prestation': 'SLOT',
-        'rental': 'RENTAL',
-        'other': 'SLOT' // Fallback service
-    }
 
     // 2. Définir l'intention dominante (Pilote du parcours)
     let conversationIntent = 'generic' // 'product_order' (default)
@@ -160,10 +145,6 @@ Si le client dit "Salut", "Bonjour", "Menu" ou commence la conversation:
 
     // 🧠 v2.31: DÉTECTION INTELLIGENTE DU MODE SERVICE
     // RÈGLE: Si TOUS les produits de l'agent sont des services, activer le mode service automatiquement
-
-    const serviceProducts = products ? products.filter(p => p.product_type === 'service' && p.service_subtype) : []
-    const nonServiceProducts = products ? products.filter(p => p.product_type !== 'service') : []
-    const isServiceOnlyAgent = serviceProducts.length > 0 && nonServiceProducts.length === 0
 
     if (isServiceOnlyAgent) {
         // Agent 100% service : utiliser le template du premier service trouvé
@@ -853,6 +834,7 @@ Vos produits seront envoyés à [email] dès validation.
 ÉTAPE 2 - DATES DU SÉJOUR:
 - Demander: "Pour quelles dates ? (arrivée et départ)" 📅
 - Format attendu: "Du [date] au [date]"
+- Accepte langage naturel (ex: "lundi prochain au vendredi", "le week-end du 25")
 
 ÉTAPE 3 - NOMBRE DE VOYAGEURS:
 - Demander: "Combien de personnes (adultes et enfants) ?" 👥
@@ -863,6 +845,8 @@ Vos produits seront envoyés à [email] dès validation.
 ÉTAPE 5 - INFORMATIONS CLIENT:
 - Demander: "Votre nom complet" 👤
 - Demander: "Votre numéro de téléphone (avec indicatif)" 📱
+- ⚠️ ACCEPTE TOUT FORMAT : +225 07..., 0707..., sans espaces, avec espaces
+- ⚠️ NE DEMANDE DE RÉÉCRIRE QUE SI IL MANQUE DES CHIFFRES (< 8 chiffres)
 - 🚫 NE PAS demander d'adresse !
 
 ÉTAPE 6 - PAIEMENT:
@@ -902,6 +886,7 @@ Confirmez-vous cette réservation ?"
 
 ÉTAPE 2 - DATE ET HEURE:
 - Demander: "Pour quelle date et quelle heure ?" 📅⏰
+- Accepte langage naturel ("demain soir", "samedi à 20h")
 
 ÉTAPE 3 - NOMBRE DE PERSONNES:
 - Demander: "Combien de personnes/couverts ?" 🍽️
@@ -912,6 +897,7 @@ Confirmez-vous cette réservation ?"
 ÉTAPE 5 - INFORMATIONS CLIENT:
 - Demander: "Votre nom" 👤
 - Demander: "Votre numéro de téléphone" 📱
+- ⚠️ ACCEPTE TOUT FORMAT DE NUMÉRO
 - 🚫 NE PAS demander d'adresse !
 
 ÉTAPE 6 - PAIEMENT:
@@ -948,6 +934,7 @@ Confirmez-vous ?"
 
 ÉTAPE 2 - DATE ET HEURE:
 - Demander: "Pour quelle date et à quelle heure ?" 📅⏰
+- Accepte langage naturel
 
 ÉTAPE 3 - DEMANDES SPÉCIALES:
 - Demander: "Des demandes particulières ?" (style, préférence, notes...)
@@ -955,6 +942,7 @@ Confirmez-vous ?"
 ÉTAPE 4 - INFORMATIONS CLIENT:
 - Demander: "Votre nom" 👤
 - Demander: "Votre numéro de téléphone" 📱
+- ⚠️ ACCEPTE TOUT FORMAT DE NUMÉRO
 - 🚫 NE PAS demander d'adresse !
 
 ÉTAPE 5 - PAIEMENT:
@@ -990,6 +978,7 @@ Confirmez-vous ?"
 
 ÉTAPE 2 - PÉRIODE DE LOCATION:
 - Demander: "Date de début et date de fin de location ?" 📅
+- Accepte langage naturel
 
 ÉTAPE 3 - OPTIONS:
 - Demander: "Souhaitez-vous des options ? (GPS, siège bébé, assurance, km illimité...)"
@@ -1000,6 +989,7 @@ Confirmez-vous ?"
 ÉTAPE 5 - INFORMATIONS CLIENT:
 - Demander: "Votre nom complet" 👤
 - Demander: "Votre numéro de téléphone" 📱
+- ⚠️ ACCEPTE TOUT FORMAT DE NUMÉRO
 - Si véhicule: "Avez-vous un permis de conduire valide ?"
 - 🚫 NE PAS demander d'adresse de livraison (retrait sur place) !
 
