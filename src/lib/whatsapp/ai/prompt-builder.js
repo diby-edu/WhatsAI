@@ -92,9 +92,9 @@ Si le client dit "Salut", "Bonjour", "Menu" ou commence la conversation:
         else if (activeEngine === 'TABLE') collectOrder = prompt_TABLE
         else if (activeEngine === 'SLOT') collectOrder = prompt_SLOT
         else if (activeEngine === 'RENTAL') collectOrder = prompt_RENTAL
-        else collectOrder = buildGenericWorkflow(orders) // Fallback
+        else collectOrder = buildGenericWorkflow(orders, products) // Fallback
     } else {
-        collectOrder = buildGenericWorkflow(orders) // Default Generic/Mixed
+        collectOrder = buildGenericWorkflow(orders, products) // Default Generic/Mixed
     }
 
     // Section 4: Contexte & Business Info
