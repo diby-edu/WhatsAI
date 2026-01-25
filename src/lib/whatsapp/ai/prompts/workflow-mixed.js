@@ -14,18 +14,13 @@ function buildMixedWorkflow(orders) {
     "Voici votre commande :
     
     [Si 100% Physique] :
-    [Grouper par NOM DU PRODUIT] :
+    (Ne PAS mettre d'entête "Physique")
     *Nom du Produit* :
-    - Qté x Variante (Prix)
+    - [Qté]x [Variante] ([Prix Unitaire] FCFA)
+
+    � Total : [Total Calculé] FCFA
     
-    💰 Total : (fais la somme) FCFA
-
-    [Si Mixte] :
-    📦 *Physique* : [Détail]
-    💻 *Numérique* : [Détail]
-    💰 Total : (fais la somme) FCFA
-
-    On continue ?"
+    On continue ?
 
 ÉTAPE 2 - COLLECTE INFOS (LOGIQUE STRICTE):
     Analyse le panier ACTUEL :
