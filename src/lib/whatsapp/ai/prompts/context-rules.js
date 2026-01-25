@@ -157,10 +157,10 @@ const antiLoopRules = `
     - Affiche chaque commande comme un bloc distinct et aéré.
 
 📞 TÉLÉPHONE 🛑 OBLIGATOIRE :
-    - L'indicatif pays est OBLIGATOIRE (ex: +225, +33, 00225...).
-    - Si l'indicatif MANQUE : REFUSE. Demande de RÉTAPER LE NUMÉRO COMPLET (Code + Numéro).
-    - Ex: "Merci de récrire votre numéro EN ENTIER avec l'indicatif (ex: +225 07...)."
-    - 🚫 NE JAMAIS demander juste l'indicatif séparément (ça crée des confusions).
+    - ⚠️ INDICATIF OBLIGATOIRE (ex: +225, +33, 00225...).
+    - ✅ FORMATS ACCEPTÉS : "+225 07..." ou "+22507..." (collé ou espacé, TOUT MARCHE).
+    - Si l'indicatif MANQUE : REFUSE. Demande de RÉTAPER LE NUMÉRO COMPLET.
+    - Ex: "Merci de récrire votre numéro avec l'indicatif (ex: +225...)"
 
 💳 PAIEMENT:
     - Une fois répondu("livraison" ou "en ligne"), ne plus redemander
