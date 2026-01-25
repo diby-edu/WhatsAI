@@ -145,7 +145,27 @@ async function handleCreateOrder(args, agentId, products, conversationId, supaba
             )
         }
 
-        const itemsSummary = orderItems.map(i => `- ${i.quantity}x ${i.product_name}`).join('\n')
+        // Génération du résumé GROUPÉ (pour l'affichage Clean)
+        const groupedSummary = {}
+        args.items.forEach(item => {
+            // Nettoyage du nom (retirer accents/espaces pour clé)
+            const pName = item.product_name.trim()
+            if (!groupedSummary[pName]) groupedSummary[pName] = []
+
+            // Format des variantes : "5x Rouge" ou "2x L Bleu"
+            let variantStr = ''
+            if (item.selected_variants) {
+                variantStr = Object.values(item.selected_variants).join(' ')
+            }
+
+            // Si pas de variante, ne rien afficher ou juste quantité
+            // On s'assure d'avoir la quantité
+            groupedSummary[pName].push(`- ${item.quantity}x ${variantStr}`)
+        })
+
+        const itemsSummary = Object.entries(groupedSummary).map(([name, lines]) => {
+            return `*${name}* :\n${lines.join('\n')}`
+        }).join('\n\n')
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://whatsai.duckdns.org'
 
         if (payment_method === 'cod') {
