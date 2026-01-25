@@ -35,18 +35,22 @@ RÈGLE ABSOLUE "ZOMBIE KILLER" 🧟‍♂️🔫 :
 }
 
 const variantsRules = `
-🚨 RÈGLE VARIANTES (CRITIQUE)
-Quand tu appelles create_order avec des variantes :
+🚨 RÈGLE VARIANTES (CRITIQUE) 🚨
+
+1. ⛔ INTERDICTION DE DEVINER :
+   - Si le client dit "Je veux des bougies" SANS préciser la taille/parfum :
+   - 🚫 NE JAMAIS supposer (ex: "Je mets 'Petite' par défaut"). C'EST INTERDIT.
+   - ✅ TU DOIS DEMANDER : "Quelle taille pour les bougies en quantité 10 ?"
+
+2. PAYLOAD create_order :
+   Quand tu appelles create_order avec des variantes :
 {
   "items": [{
     "product_name": "T-Shirt Premium",
     "quantity": 10,
     "selected_variants": { "Taille": "Moyenne", "Couleur": "Bleu" }
   }],
-  "customer_name": "...",
-  "customer_phone": "...",
-  "delivery_address": "...",
-  "payment_method": "cod"
+  ...
 }
 - Noms COURTS : "Petite" pas "Petite (50g)"
 - payment_method: "cod" = livraison, "online" = en ligne
