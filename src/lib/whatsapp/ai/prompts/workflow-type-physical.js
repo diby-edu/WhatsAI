@@ -43,7 +43,7 @@ ${(orders && orders.length > 0) ? `
 
 ÉTAPE 7 - RÉCAP FINAL:
     "Récapitulatif :
-    📦 *[Produits]* (Total: [Prix] FCFA)
+    📦 *[Produits]* (Total: [SOMME_CALCULEE] FCFA)
     📍 Livraison à : [Adresse]
     💳 Paiement : [Mode]
     📝 Note : [Note]
