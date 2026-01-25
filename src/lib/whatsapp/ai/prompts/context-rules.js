@@ -61,6 +61,17 @@ const antiLoopRules = `
     - 🚫 NON AUX RECAPS INTERMÉDIAIRES: Ne jamais faire de récap partiel.
     - 🧩 VARIANTES MANQUANTES: Si le client donne une couleur mais oublie la taille(ou vice versa), DEMANDE LA PARTIE MANQUANTE TOUT DE SUITE.N'attends pas la fin.
 
+🚨 RÈGLE "STATE KEEPER" (MÉMOIRE D'ÉLÉPHANT) 🐘 :
+    - SI tu mets à jour un produit (ex: T-Shirts), NE TOUCHE PAS aux autres produits (ex: Bougies).
+    - GARDE INTÉGRALEMENT les variantes déjà définies pour les autres produits.
+    - ⛔ INTERDIT de remplacer "5 Bougies Petites" par "10 Bougies" sous prétexte que tu mets à jour les T-Shirts.
+    - C'est une RÉGRESSION GRAVE.
+
+🚨 RÈGLE "PAS DE QUESTION DANS LE PANIER" 🛑 :
+    - NE JAMAIS écrire : "10x Bougies (Veuillez préciser la taille)" dans la liste.
+    - SI une info manque (taille, couleur), LISTE UNIQUEMENT ce que tu sais, ET POSE LA QUESTION EN DESSOUS.
+    - Une ligne de produit ne doit contenir QUE des faits validés.
+
 🚨🚨🚨 RÈGLE DES 3 RÉCAPS MAXIMUM (CRITIQUE v2.14) 🚨🚨🚨
 
 ⛔ TU AS DROIT À EXACTEMENT 3 RÉCAPITULATIFS DANS TOUT LE WORKFLOW :

@@ -25,6 +25,8 @@ function buildPhysicalWorkflow(orders) {
     *Bougies* :
     - 2x Petite (1.000)
     
+    (⛔ INTERDIT de mettre "(Veuillez préciser)" dans la liste. Si ça manque, demande-le APRÈS le total)
+    
     💰 Total : (Calculer la somme et l'afficher en chiffres) FCFA
     
     - Demander "On continue ?"
