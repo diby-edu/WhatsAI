@@ -56,7 +56,9 @@ export default function NewAgentPage() {
         voiceId: 'alloy',
         // NEW FIELDS
         business_address: '',
-        contact_phone: '',
+        business_address: '',
+        // contact_phone removed
+        escalation_phone: '',
         site_url: '',
         latitude: '',
         longitude: '',
@@ -401,7 +403,9 @@ Règles:
                     voice_id: formData.voiceId,
                     // New Fields
                     business_address: formData.business_address,
-                    contact_phone: formData.contact_phone,
+                    business_address: formData.business_address,
+                    // contact_phone removed
+                    escalation_phone: formData.escalation_phone,
                     site_url: formData.site_url,
                     latitude: parseFloat(formData.latitude) || null,
                     longitude: parseFloat(formData.longitude) || null,
@@ -708,15 +712,18 @@ Règles:
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                             <div>
                                 <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                    Téléphone Support
+                                    Numéro d'Escalade / SAV
                                 </label>
                                 <input
                                     type="text"
-                                    value={formData.contact_phone}
-                                    onChange={(e) => updateFormData('contact_phone', e.target.value)}
-                                    placeholder="+225..."
+                                    value={formData.escalation_phone}
+                                    onChange={(e) => updateFormData('escalation_phone', e.target.value)}
+                                    placeholder="+225 07 XX XX XX XX"
                                     style={inputStyle}
                                 />
+                                <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
+                                    Numéro donné au client en cas de problème (SAV).
+                                </p>
                             </div>
                             <div>
                                 <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
