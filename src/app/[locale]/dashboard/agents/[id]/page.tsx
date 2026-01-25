@@ -55,7 +55,6 @@ export default function AgentWizardPage({
 
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
-    const [saving, setSaving] = useState(false)
     const [currentStep, setCurrentStep] = useState(0)
     const [highlightEscalation, setHighlightEscalation] = useState(false)
 
@@ -96,7 +95,7 @@ export default function AgentWizardPage({
                     structuredData: {
                         hours: formData.business_hours,
                         address: formData.business_address,
-                        phone: formData.contact_phone,
+                        phone: formData.escalation_phone,
                     },
                     customRules: formData.custom_rules
                 })
@@ -122,7 +121,6 @@ export default function AgentWizardPage({
         is_active: true,
 
         // Step 1: Identity
-        business_address: '',
         business_address: '',
         // contact_phone removed in favor of escalation_phone
         social_links: {
@@ -192,7 +190,6 @@ export default function AgentWizardPage({
                 description: agent.description || '',
                 is_active: agent.is_active,
 
-                business_address: agent.business_address || '',
                 business_address: agent.business_address || '',
                 // contact_phone map removed
                 social_links: agent.social_links || { website: '', facebook: '', email: '' },
@@ -809,375 +806,175 @@ export default function AgentWizardPage({
                             </div>
                         </div>
 
-                        {/* Payment Settings Section */}
-                        <div style={{ marginTop: 24 }}>
-                            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                Mode de Paiement
-                            </label>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                                <div
-                                    onClick={() => setFormData({ ...formData, payment_mode: 'cinetpay' })}
-                                    style={{
-                                        padding: 16,
-                                        borderRadius: 12,
-                                        border: formData.payment_mode === 'cinetpay' ? '2px solid #10b981' : '1px solid rgba(148,163,184,0.1)',
-                                        background: formData.payment_mode === 'cinetpay' ? 'rgba(16,185,129,0.1)' : 'rgba(30, 41, 59, 0.5)',
-                                        cursor: 'pointer'
-                                    }}
-                                >
-                                    <div style={{ fontWeight: 600, color: 'white' }}>🔄 CinetPay (Automatique)</div>
-                                    <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 4 }}>Lien de paiement sécurisé</div>
-                                </div>
-                                <div
-                                    onClick={() => setFormData({ ...formData, payment_mode: 'mobile_money_direct' })}
-                                    style={{
-                                        padding: 16,
-                                        borderRadius: 12,
-                                        border: formData.payment_mode === 'mobile_money_direct' ? '2px solid #10b981' : '1px solid rgba(148,163,184,0.1)',
-                                        background: formData.payment_mode === 'mobile_money_direct' ? 'rgba(16,185,129,0.1)' : 'rgba(30, 41, 59, 0.5)',
-                                        cursor: 'pointer'
-                                    }}
-                                >
-                                    <div style={{ fontWeight: 600, color: 'white' }}>📱 Mobile Money Direct</div>
-                                    <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 4 }}>Vérification manuelle</div>
-                                </div>
-                            </div>
+                        <div style={{ padding: 24, textAlign: 'center', color: '#94a3b8' }}>
+                            Paramètres de paiement en cours de maintenance.
+                            Veuillez configurer via la base de données ou contacter le support.
                         </div>
-
-                        {/* Mobile Money Numbers (only if direct mode) */}
-                        {formData.payment_mode === 'mobile_money_direct' && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 16 }}>
-                                <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0' }}>
-                                    Vos Numéros Mobile Money
-                                </label>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                                    <div>
-                                        <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                            🟠 Orange Money
-                                        </label>
-                                        <input
-                                            type="text"
-                                            value={formData.mobile_money_orange}
-                                            onChange={e => setFormData({ ...formData, mobile_money_orange: e.target.value })}
-                                            placeholder="+225 07 XX XX XX XX"
-                                            style={{
-                                                width: '100%',
-                                                padding: 12,
-                                                borderRadius: 12,
-                                                border: '1px solid rgba(148, 163, 184, 0.1)',
-                                                background: 'rgba(30, 41, 59, 0.5)',
-                                                color: 'white',
-                                                outline: 'none'
-                                            }}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                            🟡 MTN Money
-                                        </label>
-                                        <input
-                                            type="text"
-                                            value={formData.mobile_money_mtn}
-                                            onChange={e => setFormData({ ...formData, mobile_money_mtn: e.target.value })}
-                                            placeholder="+225 05 XX XX XX XX"
-                                            style={{
-                                                width: '100%',
-                                                padding: 12,
-                                                borderRadius: 12,
-                                                border: '1px solid rgba(148, 163, 184, 0.1)',
-                                                background: 'rgba(30, 41, 59, 0.5)',
-                                                color: 'white',
-                                                outline: 'none'
-                                            }}
-                                        />
-                                    </div>
-                                </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                                    <div>
-                                        <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                            🔵 Wave
-                                        </label>
-                                        <input
-                                            type="text"
-                                            value={formData.mobile_money_wave}
-                                            onChange={e => setFormData({ ...formData, mobile_money_wave: e.target.value })}
-                                            placeholder="+225 01 XX XX XX XX"
-                                            style={{
-                                                width: '100%',
-                                                padding: 12,
-                                                borderRadius: 12,
-                                                border: '1px solid rgba(148, 163, 184, 0.1)',
-                                                background: 'rgba(30, 41, 59, 0.5)',
-                                                color: 'white',
-                                                outline: 'none'
-                                            }}
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Custom Payment Methods */}
-                                <div>
-                                    <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                        Autres Moyens de Paiement
-                                    </label>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                        {formData.custom_payment_methods.map((method, index) => (
-                                            <div key={index} style={{ display: 'flex', gap: 8 }}>
-                                                <input
-                                                    type="text"
-                                                    value={method.name}
-                                                    onChange={e => {
-                                                        const updated = [...formData.custom_payment_methods]
-                                                        updated[index].name = e.target.value
-                                                        setFormData({ ...formData, custom_payment_methods: updated })
-                                                    }}
-                                                    placeholder="Nom (ex: PayPal)"
-                                                    style={{
-                                                        flex: 1,
-                                                        padding: 12,
-                                                        borderRadius: 12,
-                                                        border: '1px solid rgba(148, 163, 184, 0.1)',
-                                                        background: 'rgba(30, 41, 59, 0.5)',
-                                                        color: 'white',
-                                                        outline: 'none'
-                                                    }}
-                                                />
-                                                <input
-                                                    type="text"
-                                                    value={method.details}
-                                                    onChange={e => {
-                                                        const updated = [...formData.custom_payment_methods]
-                                                        updated[index].details = e.target.value
-                                                        setFormData({ ...formData, custom_payment_methods: updated })
-                                                    }}
-                                                    placeholder="Détails (ex: email@paypal.com)"
-                                                    style={{
-                                                        flex: 1,
-                                                        padding: 12,
-                                                        borderRadius: 12,
-                                                        border: '1px solid rgba(148, 163, 184, 0.1)',
-                                                        background: 'rgba(30, 41, 59, 0.5)',
-                                                        color: 'white',
-                                                        outline: 'none'
-                                                    }}
-                                                />
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        const updated = formData.custom_payment_methods.filter((_, i) => i !== index)
-                                                        setFormData({ ...formData, custom_payment_methods: updated })
-                                                    }}
-                                                    style={{
-                                                        padding: '12px 16px',
-                                                        background: 'rgba(239, 68, 68, 0.2)',
-                                                        border: 'none',
-                                                        borderRadius: 12,
-                                                        color: '#f87171',
-                                                        cursor: 'pointer'
-                                                    }}
-                                                >
-                                                    🗑️
-                                                </button>
-                                            </div>
-                                        ))}
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setFormData({
-                                                    ...formData,
-                                                    custom_payment_methods: [...formData.custom_payment_methods, { name: '', details: '' }]
-                                                })
-                                            }}
-                                            style={{
-                                                padding: '12px 16px',
-                                                background: 'rgba(30, 41, 59, 0.5)',
-                                                border: '1px solid rgba(148, 163, 184, 0.1)',
-                                                borderRadius: 12,
-                                                color: '#94a3b8',
-                                                cursor: 'pointer',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                gap: 8
-                                            }}
-                                        >
-                                            ➕ Ajouter un moyen de paiement
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div style={{ marginTop: 8, fontSize: 12, color: '#fbbf24', background: 'rgba(251, 191, 36, 0.1)', padding: 12, borderRadius: 8 }}>
-                                    ⚠️ Avec ce mode, les clients enverront une capture d'écran après paiement. Vous devrez vérifier manuellement dans Commandes.
-                                </div>
-                            </div>
-                        )}
-
-                    </div>
-                    </motion.div >
+                    </motion.div>
                 )
 
             case 'whatsapp':
-    return (
-        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6 text-center">
-            <div className="bg-slate-800/50 p-8 rounded-xl border border-slate-700/50 flex flex-col items-center">
-                <h2 className="text-2xl font-bold text-white mb-6">Connexion WhatsApp</h2>
+                return (
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6 text-center">
+                        <div className="bg-slate-800/50 p-8 rounded-xl border border-slate-700/50 flex flex-col items-center">
+                            <h2 className="text-2xl font-bold text-white mb-6">Connexion WhatsApp</h2>
 
-                {whatsappStatus === 'idle' && (
-                    <button onClick={connectWhatsApp} className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold flex items-center gap-2 transition-all">
-                        <QrCode size={20} /> Générer le QR Code
-                    </button>
-                )}
+                            {whatsappStatus === 'idle' && (
+                                <button onClick={connectWhatsApp} className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold flex items-center gap-2 transition-all">
+                                    <QrCode size={20} /> Générer le QR Code
+                                </button>
+                            )}
 
-                {whatsappStatus === 'connecting' && (
-                    <div className="text-emerald-400 flex flex-col items-center gap-2">
-                        <Loader2 className="w-10 h-10 animate-spin" />
-                        <span>Préparation...</span>
-                    </div>
-                )}
+                            {whatsappStatus === 'connecting' && (
+                                <div className="text-emerald-400 flex flex-col items-center gap-2">
+                                    <Loader2 className="w-10 h-10 animate-spin" />
+                                    <span>Préparation...</span>
+                                </div>
+                            )}
 
-                {whatsappStatus === 'qr_ready' && qrCode && (
-                    <div className="bg-white p-4 rounded-xl animate-in zoom-in duration-300">
-                        <img src={qrCode} alt="QR" className="w-64 h-64" />
-                        <p className="text-slate-500 mt-2 text-sm">Scannez avec WhatsApp (Appareils connectés)</p>
-                    </div>
-                )}
+                            {whatsappStatus === 'qr_ready' && qrCode && (
+                                <div className="bg-white p-4 rounded-xl animate-in zoom-in duration-300">
+                                    <img src={qrCode} alt="QR" className="w-64 h-64" />
+                                    <p className="text-slate-500 mt-2 text-sm">Scannez avec WhatsApp (Appareils connectés)</p>
+                                </div>
+                            )}
 
-                {whatsappStatus === 'connected' && (
-                    <div className="text-emerald-400 flex flex-col items-center gap-4">
-                        <div className="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center">
-                            <CheckCircle2 size={40} />
+                            {whatsappStatus === 'connected' && (
+                                <div className="text-emerald-400 flex flex-col items-center gap-4">
+                                    <div className="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center">
+                                        <CheckCircle2 size={40} />
+                                    </div>
+                                    <div className="text-xl font-bold">Connecté !</div>
+                                    <div className="text-slate-300">{connectedPhone}</div>
+                                    <button onClick={disconnectWhatsApp} className="mt-4 text-red-400 hover:text-red-300 text-sm underline">
+                                        Déconnecter
+                                    </button>
+                                </div>
+                            )}
                         </div>
-                        <div className="text-xl font-bold">Connecté !</div>
-                        <div className="text-slate-300">{connectedPhone}</div>
-                        <button onClick={disconnectWhatsApp} className="mt-4 text-red-400 hover:text-red-300 text-sm underline">
-                            Déconnecter
-                        </button>
-                    </div>
-                )}
-            </div>
-        </motion.div>
-    )
-}
+                    </motion.div>
+                )
+        }
     }
 
-// --- Main Layout ---
-return (
-    <div className="min-h-screen bg-slate-900 pb-20">
-        {/* Top Bar */}
-        <div className="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-10">
-            <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <Link href="/dashboard/agents" className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors">
-                        <ArrowLeft size={20} />
-                    </Link>
-                    <div>
-                        <h1 className="text-xl font-bold text-white">{formData.name || 'Configuration Agent'}</h1>
-                        <p className="text-xs text-slate-400">{STEPS[currentStep].title}</p>
+    // --- Main Layout ---
+    return (
+        <div className="min-h-screen bg-slate-900 pb-20">
+            {/* Top Bar */}
+            <div className="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-10">
+                <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <Link href="/dashboard/agents" className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors">
+                            <ArrowLeft size={20} />
+                        </Link>
+                        <div>
+                            <h1 className="text-xl font-bold text-white">{formData.name || 'Configuration Agent'}</h1>
+                            <p className="text-xs text-slate-400">{STEPS[currentStep].title}</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => handleSave(false)}
+                            disabled={saving}
+                            className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 transition-all"
+                        >
+                            {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                            Sauvegarder
+                        </button>
                     </div>
                 </div>
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={() => handleSave(false)}
-                        disabled={saving}
-                        className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 transition-all"
-                    >
-                        {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                        Sauvegarder
-                    </button>
+
+                {/* Progress Bar */}
+                <div className="max-w-4xl mx-auto px-4 mt-2 mb-0">
+                    <div className="flex justify-between items-center relative">
+                        {/* Line */}
+                        <div className="absolute top-1/2 left-0 w-full h-1 bg-slate-800 -z-0 rounded-full"></div>
+                        <div
+                            className="absolute top-1/2 left-0 h-1 bg-emerald-500/50 -z-0 rounded-full transition-all duration-300"
+                            style={{ width: `${(currentStep / (STEPS.length - 1)) * 100}%` }}
+                        ></div>
+
+                        {STEPS.map((step, index) => {
+                            const isActive = index === currentStep
+                            const isCompleted = index < currentStep
+                            return (
+                                <button
+                                    key={step.id}
+                                    onClick={() => {
+                                        // Block navigation if rules conflict
+                                        if (STEPS[currentStep].id === 'rules' && formData.custom_rules.length > 5 && conflictStatus !== 'safe') {
+                                            alert("🛡️ SÉCURITÉ : Veuillez vérifier la cohérence de vos règles (Cliquez sur 'Vérifier') avant de quitter cette étape.")
+                                            return
+                                        }
+                                        setCurrentStep(index)
+                                    }}
+                                    className={`relative z-10 flex flex-col items-center gap-2 group focus:outline-none`}
+                                >
+                                    <div className={`
+                                            w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300
+                                            ${isActive ? 'bg-slate-900 border-emerald-400 text-emerald-400 scale-110 shadow-[0_0_15px_rgba(52,211,153,0.3)]' :
+                                            isCompleted ? 'bg-emerald-500 border-emerald-500 text-slate-900' :
+                                                'bg-slate-800 border-slate-700 text-slate-500 group-hover:border-slate-500'}
+                                        `}>
+                                        <step.icon size={18} />
+                                    </div>
+                                    <span className={`text-xs font-medium transition-colors ${isActive ? 'text-emerald-400' : isCompleted ? 'text-emerald-500/70' : 'text-slate-600'}`}>
+                                        {step.title}
+                                    </span>
+                                </button>
+                            )
+                        })}
+                    </div>
                 </div>
             </div>
 
-            {/* Progress Bar */}
-            <div className="max-w-4xl mx-auto px-4 mt-2 mb-0">
-                <div className="flex justify-between items-center relative">
-                    {/* Line */}
-                    <div className="absolute top-1/2 left-0 w-full h-1 bg-slate-800 -z-0 rounded-full"></div>
-                    <div
-                        className="absolute top-1/2 left-0 h-1 bg-emerald-500/50 -z-0 rounded-full transition-all duration-300"
-                        style={{ width: `${(currentStep / (STEPS.length - 1)) * 100}%` }}
-                    ></div>
+            {/* Content */}
+            <div className="max-w-3xl mx-auto px-4 py-8 pb-32">
+                {renderStep()}
+            </div>
 
-                    {STEPS.map((step, index) => {
-                        const isActive = index === currentStep
-                        const isCompleted = index < currentStep
-                        return (
-                            <button
-                                key={step.id}
-                                onClick={() => {
-                                    // Block navigation if rules conflict
-                                    if (STEPS[currentStep].id === 'rules' && formData.custom_rules.length > 5 && conflictStatus !== 'safe') {
-                                        alert("🛡️ SÉCURITÉ : Veuillez vérifier la cohérence de vos règles (Cliquez sur 'Vérifier') avant de quitter cette étape.")
-                                        return
-                                    }
-                                    setCurrentStep(index)
-                                }}
-                                className={`relative z-10 flex flex-col items-center gap-2 group focus:outline-none`}
-                            >
-                                <div className={`
-                                        w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300
-                                        ${isActive ? 'bg-slate-900 border-emerald-400 text-emerald-400 scale-110 shadow-[0_0_15px_rgba(52,211,153,0.3)]' :
-                                        isCompleted ? 'bg-emerald-500 border-emerald-500 text-slate-900' :
-                                            'bg-slate-800 border-slate-700 text-slate-500 group-hover:border-slate-500'}
-                                    `}>
-                                    <step.icon size={18} />
-                                </div>
-                                <span className={`text-xs font-medium transition-colors ${isActive ? 'text-emerald-400' : isCompleted ? 'text-emerald-500/70' : 'text-slate-600'}`}>
-                                    {step.title}
-                                </span>
-                            </button>
-                        )
-                    })}
+            {/* Bottom Navigation */}
+            <div className="fixed bottom-0 left-0 w-full bg-slate-900/90 backdrop-blur border-t border-slate-800 p-4 z-20">
+                <div className="max-w-3xl mx-auto flex justify-between items-center">
+                    <button
+                        onClick={() => setCurrentStep(prev => Math.max(0, prev - 1))}
+                        disabled={currentStep === 0}
+                        className={`px-6 py-3 rounded-xl font-bold flex items-center gap-2 ${currentStep === 0 ? 'opacity-0 pointer-events-none' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                    >
+                        <ChevronLeft size={20} /> Précédent
+                    </button>
+
+                    {currentStep < STEPS.length - 1 ? (
+                        <button
+                            onClick={() => {
+                                // Block if rules conflict
+                                if (STEPS[currentStep].id === 'rules' && formData.custom_rules.length > 5 && conflictStatus !== 'safe') {
+                                    alert("🛡️ SÉCURITÉ : Veuillez vérifier la cohérence de vos règles (Cliquez sur 'Vérifier') avant de continuer.")
+                                    return
+                                }
+                                handleSave(true) // Auto-save
+                                setCurrentStep(prev => Math.min(STEPS.length - 1, prev + 1))
+                            }}
+                            className="px-6 py-3 bg-white text-slate-900 hover:bg-slate-200 rounded-xl font-bold flex items-center gap-2 shadow-lg transition-all"
+                        >
+                            Suivant <ChevronRight size={20} />
+                        </button>
+                    ) : (
+                        <button
+                            onClick={() => {
+                                if (STEPS[currentStep].id === 'rules' && formData.custom_rules.length > 5 && conflictStatus !== 'safe') {
+                                    alert("🛡️ SÉCURITÉ : Veuillez vérifier la cohérence des règles avant de terminer.")
+                                    return
+                                }
+                                router.push('/dashboard/agents')
+                            }}
+                            className="px-6 py-3 bg-emerald-500 text-white hover:bg-emerald-600 rounded-xl font-bold flex items-center gap-2 shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all"
+                        >
+                            <CheckCircle2 size={20} /> Terminer
+                        </button>
+                    )}
                 </div>
             </div>
         </div>
-
-        {/* Content */}
-        <div className="max-w-3xl mx-auto px-4 py-8 pb-32">
-            {renderStep()}
-        </div>
-
-        {/* Bottom Navigation */}
-        <div className="fixed bottom-0 left-0 w-full bg-slate-900/90 backdrop-blur border-t border-slate-800 p-4 z-20">
-            <div className="max-w-3xl mx-auto flex justify-between items-center">
-                <button
-                    onClick={() => setCurrentStep(prev => Math.max(0, prev - 1))}
-                    disabled={currentStep === 0}
-                    className={`px-6 py-3 rounded-xl font-bold flex items-center gap-2 ${currentStep === 0 ? 'opacity-0 pointer-events-none' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
-                >
-                    <ChevronLeft size={20} /> Précédent
-                </button>
-
-                {currentStep < STEPS.length - 1 ? (
-                    <button
-                        onClick={() => {
-                            // Block if rules conflict
-                            if (STEPS[currentStep].id === 'rules' && formData.custom_rules.length > 5 && conflictStatus !== 'safe') {
-                                alert("🛡️ SÉCURITÉ : Veuillez vérifier la cohérence de vos règles (Cliquez sur 'Vérifier') avant de continuer.")
-                                return
-                            }
-                            handleSave(true) // Auto-save
-                            setCurrentStep(prev => Math.min(STEPS.length - 1, prev + 1))
-                        }}
-                        className="px-6 py-3 bg-white text-slate-900 hover:bg-slate-200 rounded-xl font-bold flex items-center gap-2 shadow-lg transition-all"
-                    >
-                        Suivant <ChevronRight size={20} />
-                    </button>
-                ) : (
-                    <button
-                        onClick={() => {
-                            if (STEPS[currentStep].id === 'rules' && formData.custom_rules.length > 5 && conflictStatus !== 'safe') {
-                                alert("🛡️ SÉCURITÉ : Veuillez vérifier la cohérence des règles avant de terminer.")
-                                return
-                            }
-                            router.push('/dashboard/agents')
-                        }}
-                        className="px-6 py-3 bg-emerald-500 text-white hover:bg-emerald-600 rounded-xl font-bold flex items-center gap-2 shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all"
-                    >
-                        <CheckCircle2 size={20} /> Terminer
-                    </button>
-                )}
-            </div>
-        </div>
-    </div>
-)
+    )
 }
