@@ -55,13 +55,24 @@ export default function AgentWizardPage({
 
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
+    const [saving, setSaving] = useState(false)
     const [currentStep, setCurrentStep] = useState(0)
+    const [highlightEscalation, setHighlightEscalation] = useState(false)
 
-    // Handle deep linking to tabs
+    // Handle deep linking to tabs or focus fields
     useEffect(() => {
         if (sp?.tab === 'whatsapp') {
             const whatsappIndex = STEPS.findIndex(s => s.id === 'whatsapp')
             if (whatsappIndex !== -1) setCurrentStep(whatsappIndex)
+        }
+        if (sp?.focus === 'escalation') {
+            setCurrentStep(0) // Ensure we are on Identity step
+            // Small delay to allow render
+            setTimeout(() => {
+                setHighlightEscalation(true)
+                // Remove highlight after 5 seconds
+                setTimeout(() => setHighlightEscalation(false), 5000)
+            }, 500)
         }
     }, [sp])
 
@@ -112,7 +123,8 @@ export default function AgentWizardPage({
 
         // Step 1: Identity
         business_address: '',
-        contact_phone: '',
+        business_address: '',
+        // contact_phone removed in favor of escalation_phone
         social_links: {
             website: '',
             facebook: '',
@@ -181,7 +193,8 @@ export default function AgentWizardPage({
                 is_active: agent.is_active,
 
                 business_address: agent.business_address || '',
-                contact_phone: agent.contact_phone || '',
+                business_address: agent.business_address || '',
+                // contact_phone map removed
                 social_links: agent.social_links || { website: '', facebook: '', email: '' },
                 latitude: agent.latitude || null,
                 longitude: agent.longitude || null,
@@ -425,14 +438,32 @@ export default function AgentWizardPage({
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                             <div>
                                 <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                    Téléphone Support
+                                    Numéro d'Escalade / SAV
                                 </label>
                                 <input
-                                    value={formData.contact_phone}
-                                    onChange={e => setFormData({ ...formData, contact_phone: e.target.value })}
-                                    placeholder="+225..."
-                                    style={inputStyle}
+                                    value={formData.escalation_phone}
+                                    onChange={e => setFormData({ ...formData, escalation_phone: e.target.value })}
+                                    onChange={e => setFormData({ ...formData, escalation_phone: e.target.value })}
+                                    placeholder="+225 07 XX XX XX XX"
+                                    style={{
+                                        ...inputStyle,
+                                        border: highlightEscalation ? '2px solid #fbbf24' : inputStyle.border,
+                                        boxShadow: highlightEscalation ? '0 0 15px rgba(251, 191, 36, 0.3)' : 'none',
+                                        transition: 'all 0.3s ease'
+                                    }}
                                 />
+                                {highlightEscalation && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: -5 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        className="text-amber-400 text-xs font-bold mt-1"
+                                    >
+                                        👈 C'est ici !
+                                    </motion.div>
+                                )}
+                                <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
+                                    Numéro donné au client en cas de problème (SAV).
+                                </p>
                             </div>
                             <div>
                                 <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
@@ -970,195 +1001,172 @@ export default function AgentWizardPage({
                             </div>
                         )}
 
-                        {/* Escalation Phone Section */}
-                        <div style={{ marginTop: 24 }}>
-                            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                📞 Numéro d'Escalade (Support Humain)
-                            </label>
-                            <input
-                                type="text"
-                                value={formData.escalation_phone}
-                                onChange={e => setFormData({ ...formData, escalation_phone: e.target.value })}
-                                placeholder="+225 07 XX XX XX XX"
-                                style={{
-                                    width: '100%',
-                                    padding: 12,
-                                    borderRadius: 12,
-                                    border: '1px solid rgba(148, 163, 184, 0.1)',
-                                    background: 'rgba(30, 41, 59, 0.5)',
-                                    color: 'white',
-                                    outline: 'none'
-                                }}
-                            />
-                            <p style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
-                                Ce numéro sera affiché au client quand le bot transfère vers un humain.
-                            </p>
-                        </div>
-                    </motion.div>
+                    </div>
+                    </motion.div >
                 )
 
             case 'whatsapp':
-                return (
-                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6 text-center">
-                        <div className="bg-slate-800/50 p-8 rounded-xl border border-slate-700/50 flex flex-col items-center">
-                            <h2 className="text-2xl font-bold text-white mb-6">Connexion WhatsApp</h2>
+    return (
+        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6 text-center">
+            <div className="bg-slate-800/50 p-8 rounded-xl border border-slate-700/50 flex flex-col items-center">
+                <h2 className="text-2xl font-bold text-white mb-6">Connexion WhatsApp</h2>
 
-                            {whatsappStatus === 'idle' && (
-                                <button onClick={connectWhatsApp} className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold flex items-center gap-2 transition-all">
-                                    <QrCode size={20} /> Générer le QR Code
-                                </button>
-                            )}
+                {whatsappStatus === 'idle' && (
+                    <button onClick={connectWhatsApp} className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold flex items-center gap-2 transition-all">
+                        <QrCode size={20} /> Générer le QR Code
+                    </button>
+                )}
 
-                            {whatsappStatus === 'connecting' && (
-                                <div className="text-emerald-400 flex flex-col items-center gap-2">
-                                    <Loader2 className="w-10 h-10 animate-spin" />
-                                    <span>Préparation...</span>
-                                </div>
-                            )}
+                {whatsappStatus === 'connecting' && (
+                    <div className="text-emerald-400 flex flex-col items-center gap-2">
+                        <Loader2 className="w-10 h-10 animate-spin" />
+                        <span>Préparation...</span>
+                    </div>
+                )}
 
-                            {whatsappStatus === 'qr_ready' && qrCode && (
-                                <div className="bg-white p-4 rounded-xl animate-in zoom-in duration-300">
-                                    <img src={qrCode} alt="QR" className="w-64 h-64" />
-                                    <p className="text-slate-500 mt-2 text-sm">Scannez avec WhatsApp (Appareils connectés)</p>
-                                </div>
-                            )}
+                {whatsappStatus === 'qr_ready' && qrCode && (
+                    <div className="bg-white p-4 rounded-xl animate-in zoom-in duration-300">
+                        <img src={qrCode} alt="QR" className="w-64 h-64" />
+                        <p className="text-slate-500 mt-2 text-sm">Scannez avec WhatsApp (Appareils connectés)</p>
+                    </div>
+                )}
 
-                            {whatsappStatus === 'connected' && (
-                                <div className="text-emerald-400 flex flex-col items-center gap-4">
-                                    <div className="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center">
-                                        <CheckCircle2 size={40} />
-                                    </div>
-                                    <div className="text-xl font-bold">Connecté !</div>
-                                    <div className="text-slate-300">{connectedPhone}</div>
-                                    <button onClick={disconnectWhatsApp} className="mt-4 text-red-400 hover:text-red-300 text-sm underline">
-                                        Déconnecter
-                                    </button>
-                                </div>
-                            )}
+                {whatsappStatus === 'connected' && (
+                    <div className="text-emerald-400 flex flex-col items-center gap-4">
+                        <div className="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center">
+                            <CheckCircle2 size={40} />
                         </div>
-                    </motion.div>
-                )
-        }
+                        <div className="text-xl font-bold">Connecté !</div>
+                        <div className="text-slate-300">{connectedPhone}</div>
+                        <button onClick={disconnectWhatsApp} className="mt-4 text-red-400 hover:text-red-300 text-sm underline">
+                            Déconnecter
+                        </button>
+                    </div>
+                )}
+            </div>
+        </motion.div>
+    )
+}
     }
 
-    // --- Main Layout ---
-    return (
-        <div className="min-h-screen bg-slate-900 pb-20">
-            {/* Top Bar */}
-            <div className="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-10">
-                <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <Link href="/dashboard/agents" className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors">
-                            <ArrowLeft size={20} />
-                        </Link>
-                        <div>
-                            <h1 className="text-xl font-bold text-white">{formData.name || 'Configuration Agent'}</h1>
-                            <p className="text-xs text-slate-400">{STEPS[currentStep].title}</p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <button
-                            onClick={() => handleSave(false)}
-                            disabled={saving}
-                            className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 transition-all"
-                        >
-                            {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                            Sauvegarder
-                        </button>
+// --- Main Layout ---
+return (
+    <div className="min-h-screen bg-slate-900 pb-20">
+        {/* Top Bar */}
+        <div className="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-10">
+            <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                    <Link href="/dashboard/agents" className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors">
+                        <ArrowLeft size={20} />
+                    </Link>
+                    <div>
+                        <h1 className="text-xl font-bold text-white">{formData.name || 'Configuration Agent'}</h1>
+                        <p className="text-xs text-slate-400">{STEPS[currentStep].title}</p>
                     </div>
                 </div>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => handleSave(false)}
+                        disabled={saving}
+                        className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 transition-all"
+                    >
+                        {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                        Sauvegarder
+                    </button>
+                </div>
+            </div>
 
-                {/* Progress Bar */}
-                <div className="max-w-4xl mx-auto px-4 mt-2 mb-0">
-                    <div className="flex justify-between items-center relative">
-                        {/* Line */}
-                        <div className="absolute top-1/2 left-0 w-full h-1 bg-slate-800 -z-0 rounded-full"></div>
-                        <div
-                            className="absolute top-1/2 left-0 h-1 bg-emerald-500/50 -z-0 rounded-full transition-all duration-300"
-                            style={{ width: `${(currentStep / (STEPS.length - 1)) * 100}%` }}
-                        ></div>
+            {/* Progress Bar */}
+            <div className="max-w-4xl mx-auto px-4 mt-2 mb-0">
+                <div className="flex justify-between items-center relative">
+                    {/* Line */}
+                    <div className="absolute top-1/2 left-0 w-full h-1 bg-slate-800 -z-0 rounded-full"></div>
+                    <div
+                        className="absolute top-1/2 left-0 h-1 bg-emerald-500/50 -z-0 rounded-full transition-all duration-300"
+                        style={{ width: `${(currentStep / (STEPS.length - 1)) * 100}%` }}
+                    ></div>
 
-                        {STEPS.map((step, index) => {
-                            const isActive = index === currentStep
-                            const isCompleted = index < currentStep
-                            return (
-                                <button
-                                    key={step.id}
-                                    onClick={() => {
-                                        // Block navigation if rules conflict
-                                        if (STEPS[currentStep].id === 'rules' && formData.custom_rules.length > 5 && conflictStatus !== 'safe') {
-                                            alert("🛡️ SÉCURITÉ : Veuillez vérifier la cohérence de vos règles (Cliquez sur 'Vérifier') avant de quitter cette étape.")
-                                            return
-                                        }
-                                        setCurrentStep(index)
-                                    }}
-                                    className={`relative z-10 flex flex-col items-center gap-2 group focus:outline-none`}
-                                >
-                                    <div className={`
+                    {STEPS.map((step, index) => {
+                        const isActive = index === currentStep
+                        const isCompleted = index < currentStep
+                        return (
+                            <button
+                                key={step.id}
+                                onClick={() => {
+                                    // Block navigation if rules conflict
+                                    if (STEPS[currentStep].id === 'rules' && formData.custom_rules.length > 5 && conflictStatus !== 'safe') {
+                                        alert("🛡️ SÉCURITÉ : Veuillez vérifier la cohérence de vos règles (Cliquez sur 'Vérifier') avant de quitter cette étape.")
+                                        return
+                                    }
+                                    setCurrentStep(index)
+                                }}
+                                className={`relative z-10 flex flex-col items-center gap-2 group focus:outline-none`}
+                            >
+                                <div className={`
                                         w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300
                                         ${isActive ? 'bg-slate-900 border-emerald-400 text-emerald-400 scale-110 shadow-[0_0_15px_rgba(52,211,153,0.3)]' :
-                                            isCompleted ? 'bg-emerald-500 border-emerald-500 text-slate-900' :
-                                                'bg-slate-800 border-slate-700 text-slate-500 group-hover:border-slate-500'}
+                                        isCompleted ? 'bg-emerald-500 border-emerald-500 text-slate-900' :
+                                            'bg-slate-800 border-slate-700 text-slate-500 group-hover:border-slate-500'}
                                     `}>
-                                        <step.icon size={18} />
-                                    </div>
-                                    <span className={`text-xs font-medium transition-colors ${isActive ? 'text-emerald-400' : isCompleted ? 'text-emerald-500/70' : 'text-slate-600'}`}>
-                                        {step.title}
-                                    </span>
-                                </button>
-                            )
-                        })}
-                    </div>
-                </div>
-            </div>
-
-            {/* Content */}
-            <div className="max-w-3xl mx-auto px-4 py-8 pb-32">
-                {renderStep()}
-            </div>
-
-            {/* Bottom Navigation */}
-            <div className="fixed bottom-0 left-0 w-full bg-slate-900/90 backdrop-blur border-t border-slate-800 p-4 z-20">
-                <div className="max-w-3xl mx-auto flex justify-between items-center">
-                    <button
-                        onClick={() => setCurrentStep(prev => Math.max(0, prev - 1))}
-                        disabled={currentStep === 0}
-                        className={`px-6 py-3 rounded-xl font-bold flex items-center gap-2 ${currentStep === 0 ? 'opacity-0 pointer-events-none' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
-                    >
-                        <ChevronLeft size={20} /> Précédent
-                    </button>
-
-                    {currentStep < STEPS.length - 1 ? (
-                        <button
-                            onClick={() => {
-                                // Block if rules conflict
-                                if (STEPS[currentStep].id === 'rules' && formData.custom_rules.length > 5 && conflictStatus !== 'safe') {
-                                    alert("🛡️ SÉCURITÉ : Veuillez vérifier la cohérence de vos règles (Cliquez sur 'Vérifier') avant de continuer.")
-                                    return
-                                }
-                                handleSave(true) // Auto-save
-                                setCurrentStep(prev => Math.min(STEPS.length - 1, prev + 1))
-                            }}
-                            className="px-6 py-3 bg-white text-slate-900 hover:bg-slate-200 rounded-xl font-bold flex items-center gap-2 shadow-lg transition-all"
-                        >
-                            Suivant <ChevronRight size={20} />
-                        </button>
-                    ) : (
-                        <button
-                            onClick={() => {
-                                if (STEPS[currentStep].id === 'rules' && formData.custom_rules.length > 5 && conflictStatus !== 'safe') {
-                                    alert("🛡️ SÉCURITÉ : Veuillez vérifier la cohérence des règles avant de terminer.")
-                                    return
-                                }
-                                router.push('/dashboard/agents')
-                            }}
-                            className="px-6 py-3 bg-emerald-500 text-white hover:bg-emerald-600 rounded-xl font-bold flex items-center gap-2 shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all"
-                        >
-                            <CheckCircle2 size={20} /> Terminer
-                        </button>
-                    )}
+                                    <step.icon size={18} />
+                                </div>
+                                <span className={`text-xs font-medium transition-colors ${isActive ? 'text-emerald-400' : isCompleted ? 'text-emerald-500/70' : 'text-slate-600'}`}>
+                                    {step.title}
+                                </span>
+                            </button>
+                        )
+                    })}
                 </div>
             </div>
         </div>
-    )
+
+        {/* Content */}
+        <div className="max-w-3xl mx-auto px-4 py-8 pb-32">
+            {renderStep()}
+        </div>
+
+        {/* Bottom Navigation */}
+        <div className="fixed bottom-0 left-0 w-full bg-slate-900/90 backdrop-blur border-t border-slate-800 p-4 z-20">
+            <div className="max-w-3xl mx-auto flex justify-between items-center">
+                <button
+                    onClick={() => setCurrentStep(prev => Math.max(0, prev - 1))}
+                    disabled={currentStep === 0}
+                    className={`px-6 py-3 rounded-xl font-bold flex items-center gap-2 ${currentStep === 0 ? 'opacity-0 pointer-events-none' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                >
+                    <ChevronLeft size={20} /> Précédent
+                </button>
+
+                {currentStep < STEPS.length - 1 ? (
+                    <button
+                        onClick={() => {
+                            // Block if rules conflict
+                            if (STEPS[currentStep].id === 'rules' && formData.custom_rules.length > 5 && conflictStatus !== 'safe') {
+                                alert("🛡️ SÉCURITÉ : Veuillez vérifier la cohérence de vos règles (Cliquez sur 'Vérifier') avant de continuer.")
+                                return
+                            }
+                            handleSave(true) // Auto-save
+                            setCurrentStep(prev => Math.min(STEPS.length - 1, prev + 1))
+                        }}
+                        className="px-6 py-3 bg-white text-slate-900 hover:bg-slate-200 rounded-xl font-bold flex items-center gap-2 shadow-lg transition-all"
+                    >
+                        Suivant <ChevronRight size={20} />
+                    </button>
+                ) : (
+                    <button
+                        onClick={() => {
+                            if (STEPS[currentStep].id === 'rules' && formData.custom_rules.length > 5 && conflictStatus !== 'safe') {
+                                alert("🛡️ SÉCURITÉ : Veuillez vérifier la cohérence des règles avant de terminer.")
+                                return
+                            }
+                            router.push('/dashboard/agents')
+                        }}
+                        className="px-6 py-3 bg-emerald-500 text-white hover:bg-emerald-600 rounded-xl font-bold flex items-center gap-2 shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all"
+                    >
+                        <CheckCircle2 size={20} /> Terminer
+                    </button>
+                )}
+            </div>
+        </div>
+    </div>
+)
 }

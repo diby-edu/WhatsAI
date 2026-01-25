@@ -24,6 +24,7 @@ export default function DashboardPage() {
     const [recentConversations, setRecentConversations] = useState<any[]>([])
     const [userName, setUserName] = useState<string>('')
     const [showEscalationAlert, setShowEscalationAlert] = useState(false)
+    const [agentToFixId, setAgentToFixId] = useState<string | null>(null)
     const [loading, setLoading] = useState(true)
 
     // Base stats config - rebuilt inside component to access safe t function or at least keys
@@ -104,8 +105,13 @@ export default function DashboardPage() {
 
             if (data.data?.agents) {
                 // Check for missing escalation phone on active agents
-                const missingPhone = data.data.agents.some((a: any) => a.is_active && !a.escalation_phone)
-                setShowEscalationAlert(missingPhone)
+                const agentMissingPhone = data.data.agents.find((a: any) => a.is_active && !a.escalation_phone)
+                if (agentMissingPhone) {
+                    setShowEscalationAlert(true)
+                    setAgentToFixId(agentMissingPhone.id)
+                } else {
+                    setShowEscalationAlert(false)
+                }
 
                 const mappedAgents = data.data.agents.slice(0, 3).map((a: any) => ({
                     id: a.id,
@@ -205,7 +211,7 @@ export default function DashboardPage() {
                         </div>
                     </div>
                     <Link
-                        href="/dashboard/agents"
+                        href={agentToFixId ? `/dashboard/agents/${agentToFixId}?focus=escalation` : '/dashboard/agents'}
                         style={{
                             padding: '10px 20px',
                             background: '#fbbf24',

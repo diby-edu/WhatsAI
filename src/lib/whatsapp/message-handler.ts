@@ -192,7 +192,8 @@ export function initializeMessageHandler() {
                 longitude: agent.longitude,
                 inputImageUrls: inputImageUrls,
                 // Currency for product pricing
-                currency: profile.currency || 'XOF'
+                currency: profile.currency || 'XOF',
+                escalationPhone: agent.escalation_phone
             })
             console.log('✅ AI Response generated:', aiResponse.content.substring(0, 100), '...')
 
