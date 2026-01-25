@@ -5,10 +5,21 @@ import crypto from 'crypto'
 
 const execAsync = promisify(exec)
 
-// Secret for GitHub webhook verification
-const DEPLOY_SECRET = process.env.DEPLOY_SECRET || 'whatsai-deploy-secret-2024'
+// Secret for GitHub webhook verification - MUST be configured
+const DEPLOY_SECRET = process.env.DEPLOY_SECRET
+
+// 🔴 SECURITY: Fail early if secret not configured
+if (!DEPLOY_SECRET) {
+    console.error('❌ CRITICAL: DEPLOY_SECRET environment variable is not configured!')
+    console.error('   This webhook will reject ALL requests until configured.')
+}
 
 function verifySignature(payload: string, signature: string | null): boolean {
+    // 🔴 SECURITY: Reject if secret not configured
+    if (!DEPLOY_SECRET) {
+        console.error('❌ SECURITY: Cannot verify signature - DEPLOY_SECRET not configured')
+        return false
+    }
     if (!signature) return false
 
     const hmac = crypto.createHmac('sha256', DEPLOY_SECRET)

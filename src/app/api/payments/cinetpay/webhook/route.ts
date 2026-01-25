@@ -157,11 +157,15 @@ export async function POST(request: NextRequest) {
             }
             console.log('✅ HMAC Signature verified successfully')
         } else if (!xToken) {
-            // If strict mode is required, uncomment below:
-            // return new Response('Missing x-token', { status: 403 })
-            console.log('ℹ️ No x-token header - proceeding (Legacy mode)')
+            // 🔴 SECURITY: Reject webhooks without signature
+            console.error('❌ SECURITY: Missing x-token header - rejecting webhook')
+            console.error('   All CinetPay webhooks MUST include x-token for HMAC verification')
+            return new Response('Missing x-token', { status: 403 })
         } else if (xToken && !process.env.CINETPAY_SECRET_KEY) {
-            console.log('⚠️ x-token received but CINETPAY_SECRET_KEY not configured - proceeding anyway')
+            // 🔴 SECURITY: Reject if we can't verify
+            console.error('❌ SECURITY: x-token received but CINETPAY_SECRET_KEY not configured')
+            console.error('   Configure CINETPAY_SECRET_KEY in .env.local to verify webhooks')
+            return new Response('Server not configured for signature verification', { status: 500 })
         }
 
         // Verify site_id matches our configuration
