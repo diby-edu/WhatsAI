@@ -1,7 +1,7 @@
 import { createAdminClient } from '@/lib/api-utils'
 import { generateAIResponse, analyzeLeadQuality, AIMessage, transcribeAudio, generateSpeech } from '@/lib/ai/openai'
 import { sendMessageWithTyping, WhatsAppMessage, setMessageHandler, downloadMedia, sendAudioMessage } from '@/lib/whatsapp/baileys'
-// @ts-ignore
+// @ts-expect-error
 const { CreditsService } = require('./services/credits.service')
 
 /**

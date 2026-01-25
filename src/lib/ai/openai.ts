@@ -52,6 +52,7 @@ export interface GenerateResponseOptions {
     businessHours?: any
     latitude?: number | null
     longitude?: number | null
+    escalationPhone?: string
     // Vision
     inputImageUrls?: string[]
 }
