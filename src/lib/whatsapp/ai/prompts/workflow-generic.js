@@ -21,14 +21,18 @@ function buildGenericWorkflow(orders, products) {
   const hasDigital = products.some(p => p.product_type === 'digital' || p.product_type === 'virtual')
 
   // 2. Dispatch intelligent
+  console.log(`🧠 [DEBUG-GENERIC] Physical: ${hasPhysical}, Digital: ${hasDigital}`)
   if (hasPhysical && hasDigital) {
     // Agent mixte (vend des T-shirts et des Licences)
+    console.log(`🧠 [DEBUG-GENERIC] -> MIXED WORKFLOW`)
     return buildMixedWorkflow(orders)
   } else if (hasDigital && !hasPhysical) {
     // Agent 100% Numérique
+    console.log(`🧠 [DEBUG-GENERIC] -> DIGITAL WORKFLOW`)
     return buildDigitalWorkflow(orders)
   } else {
     // Agent 100% Physique (ou cas par défaut)
+    console.log(`🧠 [DEBUG-GENERIC] -> PHYSICAL WORKFLOW`)
     return buildPhysicalWorkflow(orders)
   }
 }
