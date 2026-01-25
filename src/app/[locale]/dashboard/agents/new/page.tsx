@@ -1475,7 +1475,7 @@ Règles:
     }
 
     return (
-        <div style={{ maxWidth: 700, margin: '0 auto' }}>
+        <div style={{ maxWidth: 700, margin: '0 auto', paddingBottom: 150 }}>
             {/* Header */}
             <div style={{ marginBottom: 32 }}>
                 <Link
