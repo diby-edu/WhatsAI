@@ -320,8 +320,8 @@ export default function PlaygroundPage() {
                                     <span className="text-white">{messages.length}</span>
                                 </div>
                                 <div className="flex justify-between">
-                                    <span>Latence (simulée)</span>
-                                    <span className="text-white">1.5s</span>
+                                    <span>État</span>
+                                    <span className="text-green-400">Connecté (Live)</span>
                                 </div>
                             </div>
                         </div>
