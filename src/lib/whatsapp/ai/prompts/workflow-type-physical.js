@@ -16,18 +16,21 @@ function buildPhysicalWorkflow(orders) {
     - 🚨 ANTI-HALLUCINATION : Ne demander QUE ce qui est dans le catalogue.
 
 ÉTAPE 3 - MINI-RÉCAP PANIER:
-    - Afficher le détail GROUPÉ par produit.
+    - Afficher le détail GROUPÉ par produit avec calculs détaillés.
     
     Exemple de format attendu :
     *T-Shirts* :
-    - 5x Noir (15.000)
+    - Rouge 2 X 15,000 = 30,000 FCFA
+    - Noir 3 X 15,000 = 45,000 FCFA
+    Sous-total = 75,000 FCFA
     
     *Bougies* :
-    - 2x Petite (1.000)
+    - Petite 2 X 1,000 = 2,000 FCFA
+    Sous-total = 2,000 FCFA
     
-    (⛔ INTERDIT de mettre "(Veuillez préciser)" dans la liste. Si ça manque, demande-le APRÈS le total)
+    (⛔ INTERDIT de mettre "(Veuillez préciser)" dans la liste.)
     
-    💰 Total : (Calculer la somme et l'afficher en chiffres) FCFA
+    💰 Total : (Somme des sous-totaux) FCFA
     
     - Demander "On continue ?"
 
@@ -57,12 +60,14 @@ ${(orders && orders.length > 0) ? `
     📦 *Détails*:
     
     *<Nom Exact du Produit 1>* :
-    - Qté x Variante (Prix)
+    - Variante A [Qty] X [PrixU] = [TotalLigne] FCFA
+    - Variante B [Qty] X [PrixU] = [TotalLigne] FCFA
+    Sous-total = [TotalProduit] FCFA
     
     *<Nom Exact du Produit 2>* :
     - ...
     
-    💰 Total : (Calculer la somme réelle) FCFA
+    💰 Total : (Somme des sous-totaux) FCFA
     📍 Livraison à : [Adresse]
     💳 Paiement : [Mode]
     📝 Note : [Note]

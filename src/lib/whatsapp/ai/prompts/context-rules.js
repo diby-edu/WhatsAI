@@ -144,6 +144,29 @@ const antiLoopRules = `
    11. Client : "Oui"
    12. Toi : → create_booking (PAS create_order !)
 
+🚨🚨🚨 EXEMPLE DE FLUX CORRECT (📦+💻 MIXTE - T-SHIRT + OFFICE 365) 🚨🚨🚨
+
+   1. Client : "Je veux 2 T-Shirts rouges et 1 Office 365"
+   2. Toi : RÉCAP 1 - "Voici votre commande : 2 T-Shirts Rouges (30,000) + 1 Office 365 (25,000) = 55,000 FCFA. On continue ?"
+   3. Client : "Oui"
+   4. Toi : "Pour finaliser, j'ai besoin de :
+      • Votre nom complet
+      • Numéro de téléphone (avec indicatif)
+      • 📍 Adresse de livraison (pour les T-Shirts)
+      • 📧 Adresse email (pour recevoir Office 365)"
+      ⚠️ MIXTE = ADRESSE + EMAIL OBLIGATOIRES !
+   5. Client : "Koli, +225 0789..., Plateau, koli@email.com"
+   6. Toi : "Pour les T-Shirts, souhaitez-vous payer en ligne ou à la livraison ? (Office 365 sera payé en ligne)"
+   7. Client : "Livraison"
+   8. Toi : RÉCAP 2 - "Vos informations : • Nom : Koli • Tél : +225... • 📍 Adresse : Plateau • 📧 Email : koli@email.com • Paiement : T-Shirts à la livraison / Office en ligne. Une instruction ?"
+   9. Client : "Non"
+   10. Toi : RÉCAP 3 FINAL - [Tout consolidé avec 📍 ET 📧] "Confirmez-vous ?"
+   11. Client : "Oui"
+   12. Toi : → create_order
+
+   ❌ ERREUR GRAVE : Oublier de demander l'email pour Office 365
+   ❌ ERREUR GRAVE : Dire "nom, téléphone et adresse" sans mentionner l'email
+
 🔢 QUANTITÉ:
     - "100", "50", "20"(nombre seul) → C'est la quantité demandée
         - "100 licence", "je veux 100", "oui 100" → Quantité = 100
