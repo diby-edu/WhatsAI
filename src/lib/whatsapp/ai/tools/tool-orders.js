@@ -146,25 +146,37 @@ async function handleCreateOrder(args, agentId, products, conversationId, supaba
         }
 
         // Génération du résumé GROUPÉ (pour l'affichage Clean)
+        // Génération du résumé GROUPÉ et DÉTAILLÉ (Format v5: Qty X Unit = Total)
         const groupedSummary = {}
-        args.items.forEach(item => {
-            // Nettoyage du nom (retirer accents/espaces pour clé)
-            const pName = item.product_name.trim()
-            if (!groupedSummary[pName]) groupedSummary[pName] = []
 
-            // Format des variantes : "5x Rouge" ou "2x L Bleu"
-            let variantStr = ''
-            if (item.selected_variants) {
-                variantStr = Object.values(item.selected_variants).join(' ')
+        // On itère sur orderItems pour avoir les prix validés
+        orderItems.forEach(item => {
+            // Retrouver le Nom produit de base (sans variantes)
+            // item.product_name est "T-Shirt (Rouge)" ou juste "T-Shirt"
+
+            let baseName = item.product_name
+            let variantDetail = 'Standard'
+
+            if (baseName.includes('(')) {
+                const part = baseName.split('(')
+                baseName = part[0].trim()
+                // Retirer la dernière parenthèse fermante
+                variantDetail = part[1].substring(0, part[1].length - 1).trim()
             }
 
-            // Si pas de variante, ne rien afficher ou juste quantité
-            // On s'assure d'avoir la quantité
-            groupedSummary[pName].push(`- ${item.quantity}x ${variantStr}`)
+            if (!groupedSummary[baseName]) groupedSummary[baseName] = { lines: [], subTotal: 0 }
+
+            const lineTotal = item.quantity * item.unit_price_fcfa
+            groupedSummary[baseName].subTotal += lineTotal
+
+            // Format: "- Rouge 2 X 15,000 = 30,000 FCFA"
+            // Ou "- Standard 2 X 15,000 = 30,000 FCFA"
+            const lineStr = `- ${variantDetail} ${item.quantity} X ${item.unit_price_fcfa.toLocaleString('fr-FR')} = ${lineTotal.toLocaleString('fr-FR')} FCFA`
+            groupedSummary[baseName].lines.push(lineStr)
         })
 
-        const itemsSummary = Object.entries(groupedSummary).map(([name, lines]) => {
-            return `*${name}* :\n${lines.join('\n')}`
+        const itemsSummary = Object.entries(groupedSummary).map(([name, data]) => {
+            return `*${name}* :\n${data.lines.join('\n')}\nSous-total = ${data.subTotal.toLocaleString('fr-FR')} FCFA`
         }).join('\n\n')
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://whatsai.duckdns.org'
 

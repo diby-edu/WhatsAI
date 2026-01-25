@@ -57,7 +57,8 @@ function buildMixedWorkflow(orders) {
 
     📦 EXEMPLE PHYSIQUE SEUL (T-Shirt) :
     "*T-Shirt* :
-    - 2x Rouge (30.000 FCFA)
+    - Rouge 2 X 15,000 = 30,000 FCFA
+    Sous-total = 30,000 FCFA
 
     📍 Livraison à : Abidjan, Cocody
     💰 Total : 30.000 FCFA
@@ -66,7 +67,8 @@ function buildMixedWorkflow(orders) {
 
     💻 EXEMPLE NUMÉRIQUE SEUL (Office 365) :
     "*Office 365* :
-    - 1x Licence Famille (25.000 FCFA)
+    - Licence Famille 1 X 25,000 = 25,000 FCFA
+    Sous-total = 25,000 FCFA
 
     📧 Envoi à : client@email.com
     💰 Total : 25.000 FCFA
@@ -75,10 +77,12 @@ function buildMixedWorkflow(orders) {
 
     🚨 EXEMPLE MIXTE (T-Shirt + Office 365) - DOIT AFFICHER LES DEUX :
     "*T-Shirt* :
-    - 2x Rouge (30.000 FCFA)
+    - Rouge 2 X 15,000 = 30,000 FCFA
+    Sous-total = 30,000 FCFA
 
     *Office 365* :
-    - 1x Licence Famille (25.000 FCFA)
+    - Licence Famille 1 X 25,000 = 25,000 FCFA
+    Sous-total = 25,000 FCFA
 
     📍 Livraison à : Abidjan, Cocody (T-Shirt)
     📧 Envoi à : client@email.com (Office 365)
@@ -95,20 +99,30 @@ function buildMixedWorkflow(orders) {
 
          📦 SI PHYSIQUE SEUL :
          "Commande confirmée ! 🎉
-         *T-Shirt* : 2x Rouge
+         *T-Shirt* :
+         - Rouge 2 X 15,000 = 30,000 FCFA
+         Sous-total = 30,000 FCFA
+         
          📍 Livraison à : Abidjan, Cocody
          Merci !"
 
          💻 SI NUMÉRIQUE SEUL :
          "Commande confirmée ! 🎉
-         *Office 365* : 1x Licence Famille
+         *Office 365* :
+         - Licence Famille 1 X 25,000 = 25,000 FCFA
+         Sous-total = 25,000 FCFA
+         
          📧 Envoyé à : client@email.com
          Merci !"
 
          🚨 SI MIXTE (DOIT MONTRER ADRESSE + EMAIL) :
          "Commande confirmée ! 🎉
-         *T-Shirt* : 2x Rouge
-         *Office 365* : 1x Licence Famille
+         *T-Shirt* :
+         - Rouge 2 X 15,000 = 30,000 FCFA
+         
+         *Office 365* :
+         - Licence Famille 1 X 25,000 = 25,000 FCFA
+         
          📍 Livraison à : Abidjan, Cocody
          📧 Code envoyé à : client@email.com
          Merci !"
