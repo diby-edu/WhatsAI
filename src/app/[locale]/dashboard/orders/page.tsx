@@ -228,19 +228,22 @@ export default function OrdersPage() {
     }
 
     // Helper to determine order type
-    const getOrderType = (order: Order): 'physical' | 'digital' | 'mixed' | 'unknown' => {
+    const getOrderType = (order: Order): 'physical' | 'digital' | 'service' | 'mixed' | 'unknown' => {
         if (!order.items || order.items.length === 0) return 'unknown'
 
         let hasPhysical = false
         let hasDigital = false
+        let hasService = false
 
         order.items.forEach(item => {
-            const type = item.product?.product_type
+            const type = item.product?.product_type?.toLowerCase()
             if (type === 'digital') hasDigital = true
+            else if (type === 'service') hasService = true
             else hasPhysical = true // Default to physical if unknown or explicit
         })
 
-        if (hasPhysical && hasDigital) return 'mixed'
+        if ((hasPhysical && hasDigital) || (hasPhysical && hasService) || (hasDigital && hasService)) return 'mixed'
+        if (hasService) return 'service'
         if (hasDigital) return 'digital'
         return 'physical'
     }
@@ -249,6 +252,7 @@ export default function OrdersPage() {
         switch (type) {
             case 'physical': return <Package size={24} />
             case 'digital': return <FileText size={24} />
+            case 'service': return <CalendarCheck size={24} />
             case 'mixed': return <Layers size={24} />
             default: return <ShoppingBag size={24} />
         }
@@ -258,6 +262,7 @@ export default function OrdersPage() {
         switch (type) {
             case 'physical': return 'Physique'
             case 'digital': return 'Numérique'
+            case 'service': return 'Service'
             case 'mixed': return 'Mixte'
             default: return ''
         }
@@ -267,6 +272,7 @@ export default function OrdersPage() {
         switch (type) {
             case 'physical': return '#f59e0b' // Orange
             case 'digital': return '#3b82f6' // Blue
+            case 'service': return '#ec4899' // Pink
             case 'mixed': return '#8b5cf6' // Purple
             default: return '#64748b'
         }

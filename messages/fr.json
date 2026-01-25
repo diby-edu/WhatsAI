@@ -849,6 +849,7 @@
     },
     "Status": {
       "pending": "En attente",
+      "pending_delivery": "Livraison en attente",
       "confirmed": "Confirmée",
       "processing": "En cours",
       "shipped": "Expédiée",

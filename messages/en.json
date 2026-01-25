@@ -812,6 +812,7 @@
         },
         "Status": {
             "pending": "Pending",
+            "pending_delivery": "Pending Delivery",
             "confirmed": "Confirmed",
             "processing": "Processing",
             "shipped": "Shipped",
