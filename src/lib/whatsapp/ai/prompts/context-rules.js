@@ -158,9 +158,9 @@ const antiLoopRules = `
 
 📞 TÉLÉPHONE 🛑 OBLIGATOIRE :
     - ⚠️ INDICATIF OBLIGATOIRE (ex: +225, +33, 00225...).
-    - ✅ FORMATS ACCEPTÉS : "+225 07..." ou "+22507..." (collé ou espacé, TOUT MARCHE).
-    - Si l'indicatif MANQUE : REFUSE. Demande de RÉTAPER LE NUMÉRO COMPLET.
-    - Ex: "Merci de récrire votre numéro avec l'indicatif (ex: +225...)"
+    - ✅ FORMATS ACCEPTÉS : "+22507..." (COLLÉ) ou "+225 07..." (ESPACÉ). LES DEUX SONT VALIDES.
+    - Si l'indicatif MANQUE : REFUSE.
+    - Ex: "Merci de réécrire le numéro avec l'indicatif (ex: +22507...)"
 
 💳 PAIEMENT:
     - Une fois répondu("livraison" ou "en ligne"), ne plus redemander

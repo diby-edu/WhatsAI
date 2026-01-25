@@ -14,7 +14,7 @@ function buildMixedWorkflow(orders) {
     "Voici votre commande :
     📦 *Physique* : [Détail]
     💻 *Numérique* : [Détail]
-    💰 Total : [Total] FCFA
+    💰 Total : (fais la somme) FCFA
     On continue ?"
 
 ÉTAPE 2 - COLLECTE INFOS (LOGIQUE STRICTE):
@@ -42,7 +42,7 @@ function buildMixedWorkflow(orders) {
     Exemple Physique Seul :
     "📦 [Produits]
      📍 Livraison à [Adresse]
-     💰 Total : [Total]
+     💰 Total : (somme calculée) FCFA
      💳 Paiement : [Mode]
      Confirmez-vous ?"
 
