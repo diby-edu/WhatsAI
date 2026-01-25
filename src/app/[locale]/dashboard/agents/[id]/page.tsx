@@ -443,7 +443,7 @@ export default function AgentWizardPage({
                                 <input
                                     value={formData.escalation_phone}
                                     onChange={e => setFormData({ ...formData, escalation_phone: e.target.value })}
-                                    onChange={e => setFormData({ ...formData, escalation_phone: e.target.value })}
+
                                     placeholder="+225 07 XX XX XX XX"
                                     style={{
                                         ...inputStyle,
