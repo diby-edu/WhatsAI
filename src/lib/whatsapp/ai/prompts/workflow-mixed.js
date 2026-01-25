@@ -13,14 +13,28 @@ function buildMixedWorkflow(orders) {
 ÉTAPE 1 - RÉCAP PANIER MIXTE (ADAPTATIF):
     "Voici votre commande :
     
-    [Si 100% Physique] :
-    (Ne PAS mettre d'entête "Physique")
-    *Nom du Produit* :
-    - [Qté]x [Variante] ([Prix Unitaire] FCFA)
-
-    � Total : [Total Calculé] FCFA
+    [Si 100% Physique] (Pas d'entête "Physique"):
+    Exemple:
+    *T-Shirts* :
+    - Rouge 2 X 15,000 = 30,000 FCFA
+    Sous-total = 30,000 FCFA
+    
+    💰 Total : 30,000 FCFA
     
     On continue ?
+
+    [Si Mixte] :
+    📦 *Physique* :
+    *T-Shirts* :
+    - Rouge 2 X 15,000 = 30,000 FCFA
+    Sous-total = 30,000 FCFA
+    
+    💻 *Numérique* :
+    *Office 365* :
+    - Licence Famille 1 X 25,000 = 25,000 FCFA
+    Sous-total = 25,000 FCFA
+    
+    💰 Total : 55,000 FCFA"
 
 ÉTAPE 2 - COLLECTE INFOS (🚨 CRITIQUE - LIRE ATTENTIVEMENT):
 
