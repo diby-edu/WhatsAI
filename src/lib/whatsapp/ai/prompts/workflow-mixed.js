@@ -45,9 +45,13 @@ function buildMixedWorkflow(orders) {
     - N'affiche la ligne "💻 Numérique" et l'email QUE SI applicable.
     
     Exemple Physique Seul :
-    "📦 [Produits]
+    "📦 [Produits] (Groupés par nom)
+    
+    *<Nom Exact du Produit>* :
+    - Qté x Variante...
+    
      📍 Livraison à [Adresse]
-     💰 Total : (somme calculée) FCFA
+     💰 Total : (Calculer la somme réelle) FCFA
      💳 Paiement : [Mode]
      Confirmez-vous ?"
 
@@ -56,10 +60,12 @@ function buildMixedWorkflow(orders) {
        - Lancer create_order()
        - Message de SUCCÈS :
          "Commande confirmée !
-         [Si 100% Physique] :
-         (Pas d'entête "Physique")
-         *Nom du Produit* :
-         - Qté x Variante..."
+         
+         [Si 100% Physique] (Pas d'entête "Physique"):
+         
+         *<Nom Exact du Produit>* :
+         - Qté x Variante...
+         "
     - 🛑 FIN DU FLUX.
 `.trim()
 }
