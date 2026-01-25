@@ -10,11 +10,19 @@ function buildMixedWorkflow(orders) {
 ⚠️ CE FLUX GÈRE DEUX TYPES DE PRODUITS EN MÊME TEMPS.
 ⚠️ RÈGLE D'OR : UN SEUL FLUX unifié, pas deux conversations parallèles.
 
-ÉTAPE 1 - RÉCAP PANIER MIXTE:
+ÉTAPE 1 - RÉCAP PANIER MIXTE (ADAPTATIF):
     "Voici votre commande :
+    
+    [Si 100% Physique] :
+    - [Produit A]
+    - [Produit B]
+    💰 Total : (fais la somme) FCFA
+
+    [Si Mixte] :
     📦 *Physique* : [Détail]
     💻 *Numérique* : [Détail]
     💰 Total : (fais la somme) FCFA
+
     On continue ?"
 
 ÉTAPE 2 - COLLECTE INFOS (LOGIQUE STRICTE):
