@@ -1,6 +1,8 @@
 import { createAdminClient } from '@/lib/api-utils'
 import { generateAIResponse, analyzeLeadQuality, AIMessage, transcribeAudio, generateSpeech } from '@/lib/ai/openai'
 import { sendMessageWithTyping, WhatsAppMessage, setMessageHandler, downloadMedia, sendAudioMessage } from '@/lib/whatsapp/baileys'
+// @ts-ignore
+const { CreditsService } = require('./services/credits.service')
 
 /**
  * Main message handler that processes incoming WhatsApp messages
@@ -375,17 +377,17 @@ export function initializeMessageHandler() {
                     status: sendResult.success ? 'sent' : 'failed',
                 })
 
-            // Deduct credits
+            // Deduct credits ATOMICALLY to prevent race conditions
             // Base cost = 1. Voice cost = +4 (Total 5).
             const creditsToDeduct = voiceSent ? 5 : 1
 
-            await supabase
-                .from('profiles')
-                .update({
-                    credits_balance: profile.credits_balance - creditsToDeduct,
-                    credits_used_this_month: (profile.credits_used_this_month || 0) + creditsToDeduct,
-                })
-                .eq('id', agent.user_id)
+            try {
+                const newBalance = await CreditsService.deduct(supabase, agent.user_id, creditsToDeduct)
+                console.log(`💰 Secure deduction successful. New Balance: ${newBalance}`)
+            } catch (creditError) {
+                console.error('❌ CRITICAL: Failed to deduct credits:', creditError)
+                // Continue execution, don't crash the bot, but log heavily
+            }
 
             // Update agent stats
             await supabase

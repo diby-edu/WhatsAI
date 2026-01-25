@@ -248,7 +248,7 @@ Règles:
     const canProceed = () => {
         switch (currentStep) {
             case 0: // Info
-                return formData.name.trim() !== ''
+                return formData.name.trim() !== '' && formData.escalation_phone.trim() !== ''
             case 1: // Hours
                 return true
             case 2: // Mission
@@ -712,17 +712,20 @@ Règles:
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                             <div>
                                 <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                    Numéro d'Escalade / SAV
+                                    Numéro d'Escalade / SAV *
                                 </label>
                                 <input
                                     type="text"
                                     value={formData.escalation_phone}
                                     onChange={(e) => updateFormData('escalation_phone', e.target.value)}
-                                    placeholder="+225 07 XX XX XX XX"
-                                    style={inputStyle}
+                                    placeholder="Ex: +225 07 07... (Indispensable pour l'IA)"
+                                    style={{
+                                        ...inputStyle,
+                                        border: (formData.escalation_phone.trim() === '') ? '1px solid #f87171' : inputStyle.border
+                                    }}
                                 />
-                                <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
-                                    Numéro donné au client en cas de problème (SAV).
+                                <p style={{ fontSize: 11, color: '#f87171', marginTop: 4 }}>
+                                    {formData.escalation_phone.trim() === '' ? 'Ce numéro est requis pour le SAV.' : ''}
                                 </p>
                             </div>
                             <div>
