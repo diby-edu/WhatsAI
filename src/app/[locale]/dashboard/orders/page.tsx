@@ -236,7 +236,26 @@ export default function OrdersPage() {
         let hasService = false
 
         order.items.forEach(item => {
-            const type = item.product?.product_type?.toLowerCase()
+            let type = item.product?.product_type?.toLowerCase()
+
+            // 🤖 FALLBACK: If no product link, infer from name
+            if (!type && item.product_name) {
+                const lowerName = item.product_name.toLowerCase()
+
+                // Common Digital Keywords
+                if (lowerName.match(/office|windows|licence|license|clé|key|ebook|pdf|numérique|digital/)) {
+                    type = 'digital'
+                }
+                // Common Service Keywords
+                else if (lowerName.match(/service|consultation|coaching|formation|cours|atelier|réservation|hotel|restaurant|soin/)) {
+                    type = 'service'
+                }
+                // Default to physical
+                else {
+                    type = 'physical'
+                }
+            }
+
             if (type === 'digital') hasDigital = true
             else if (type === 'service') hasService = true
             else hasPhysical = true // Default to physical if unknown or explicit
