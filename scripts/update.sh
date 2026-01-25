@@ -31,10 +31,11 @@ npm run build
 
 echo ""
 echo "🔄 Redémarrage de l'app web UNIQUEMENT..."
-pm2 reload whatsai-web --update-env 2>/dev/null || pm2 restart whatsai-web 2>/dev/null
+pm2 delete whatsai-web 2>/dev/null
+pm2 start ecosystem.config.js --only whatsai-web --update-env 2>/dev/null
 
 # Wait for app to be ready
-sleep 3
+sleep 5
 
 echo "🔄 Redémarrage du bot WhatsApp (Sessions préservées)..."
 pm2 restart whatsai-bot --update-env 2>/dev/null
