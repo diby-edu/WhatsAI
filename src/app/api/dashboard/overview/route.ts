@@ -129,8 +129,16 @@ export async function GET(request: NextRequest) {
 // Helper to format phone number for display
 function formatPhoneNumber(phone: string): string {
     if (!phone) return 'Inconnu'
+
     // Clean WhatsApp suffixes
     const clean = phone.replace(/@s\.whatsapp\.net|@lid|@g\.us/g, '')
+
+    // Check if it's a LID (Long ID, usually 15+ digits)
+    // Standard E.164 numbers are max 15 digits, but usually 10-13.
+    // LIDs are typically 15 digits or more and don't match standard country codes exactly.
+    if (clean.length > 14) {
+        return `ID: ${clean.substring(0, 6)}...`
+    }
 
     // Format with proper spacing for readability
     if (clean.length >= 11) {
