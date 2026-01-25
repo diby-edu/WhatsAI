@@ -535,17 +535,16 @@ export default function OrdersPage() {
                                         </span>
 
                                         <span style={{
-                                        < span style={{
-                                                padding: '4px 10px',
-                                                borderRadius: 100,
-                                                fontSize: 12,
-                                                fontWeight: 600,
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: 6,
-                                                background: `${getStatusColor(order.status)}20`,
-                                                color: getStatusColor(order.status)
-                                            }}>
+                                            padding: '4px 10px',
+                                            borderRadius: 100,
+                                            fontSize: 12,
+                                            fontWeight: 600,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 6,
+                                            background: `${getStatusColor(order.status)}20`,
+                                            color: getStatusColor(order.status)
+                                        }}>
                                             {getStatusIcon(order.status)}
                                             {getStatusLabel(order.status)}
                                         </span>
