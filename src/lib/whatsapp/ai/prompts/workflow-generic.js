@@ -21,6 +21,7 @@ function buildGenericWorkflow(orders, products) {
   const hasDigital = products.some(p => p.product_type === 'digital' || p.product_type === 'virtual')
 
   // 2. Dispatch intelligent
+  console.log(`🧠 [DEBUG-PRODUCTS] List:`, JSON.stringify(products.map(p => ({ n: p.name, t: p.product_type }))))
   console.log(`🧠 [DEBUG-GENERIC] Physical: ${hasPhysical}, Digital: ${hasDigital}`)
   if (hasPhysical && hasDigital) {
     // Agent mixte (vend des T-shirts et des Licences)
