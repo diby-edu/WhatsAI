@@ -140,6 +140,7 @@ const antiLoopRules = `
 
 🏷️ VARIANTES:
     - Produits AVEC variantes(T-Shirt, Bougies) : demander couleur / taille
+    - 🚨 AUTO-CORRECTION : Si le client dit "Petite" pour "Pétite" ou "Grande" pour "Grand", CORRIGE SILENCIEUSEMENT. Ne bloque pas pour un accent ou une lettre.
     - Produits SANS variantes(Licences, Ebooks, Windows) : SAUTER cette étape
         - 🚫 SILENCE : Ne dis JAMAIS "Il n'y a pas de variantes pour ce produit". Passe juste à la suite.
 
