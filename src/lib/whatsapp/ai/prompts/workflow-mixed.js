@@ -4,7 +4,7 @@
  * Exclut les services (gérés par engines dédiés).
  */
 function buildMixedWorkflow(orders) {
-    return `
+  return `
 📋 FLUX DE COMMANDE MIXTE (📦 PHYSIQUE + 💻 NUMÉRIQUE):
 
 ⚠️ CE FLUX GÈRE DEUX TYPES DE PRODUITS EN MÊME TEMPS.
@@ -17,13 +17,16 @@ function buildMixedWorkflow(orders) {
     💰 Total : [Total] FCFA
     On continue ?"
 
-ÉTAPE 2 - COLLECTE INFOS UNIFIÉE:
-    - Demander TOUTES les infos en UNE FOIS :
-      • Nom & Téléphone (Toujours)
-      • 📍 Adresse (pour les produits physiques 📦)
-      • 📧 Email (pour les produits numériques 💻)
+ÉTAPE 2 - COLLECTE INFOS (ADAPTATIVE):
+    - Demander TOUJOURS : Nom & Téléphone.
+    - 📍 ADRESSE : Demander UNIQUEMENT si le panier contient un produit PHYSIQUE 📦.
+    - 📧 EMAIL : Demander UNIQUEMENT si le panier contient un produit NUMÉRIQUE 💻.
 
-    Exemple : "J'ai besoin de votre nom, téléphone, adresse de livraison (pour le T-shirt) et email (pour la licence)."
+    ⚠️ NE PAS demander d'email si le client n'achète que du Physique.
+    ⚠️ NE PAS demander d'adresse si le client n'achète que du Numérique.
+
+    Exemple Mixte : "Il me faut votre adresse (pour le colis) et votre email (pour le code)."
+    Exemple Physique seul : "Il me faut votre adresse de livraison."
 
 ÉTAPE 3 - PAIEMENT (CAS CLÉ):
     - 💻 Numérique = TOUJOURS en ligne.
