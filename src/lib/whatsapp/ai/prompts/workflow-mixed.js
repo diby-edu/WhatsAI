@@ -17,45 +17,34 @@ function buildMixedWorkflow(orders) {
     💰 Total : [Total] FCFA
     On continue ?"
 
-ÉTAPE 2 - COLLECTE INFOS (ADAPTATIVE):
-    - Demander TOUJOURS : Nom & Téléphone.
-    - 📍 ADRESSE : Demander UNIQUEMENT si le panier contient un produit PHYSIQUE 📦.
-    - 📧 EMAIL : Demander UNIQUEMENT si le panier contient un produit NUMÉRIQUE 💻.
+ÉTAPE 2 - COLLECTE INFOS (LOGIQUE STRICTE):
+    Analyse le panier ACTUEL :
+    - Y a-t-il des produits PHYSIQUES ? (Oui/Non)
+    - Y a-t-il des produits NUMÉRIQUES (Licence, Code, Ebook...) ? (Oui/Non)
 
-    ⚠️ NE PAS demander d'email si le client n'achète que du Physique.
-    ⚠️ NE PAS demander d'adresse si le client n'achète que du Numérique.
+    RÈGLES DE COLLECTE :
+    1. Nom & Téléphone : TOUJOURS.
+    2. 📍 Adresse : UNIQUEMENT SI produits Physiques présents.
+    3. 📧 Email : ⛔ INTERDIT SI PAS DE PRODUIT NUMÉRIQUE.
+                 ✅ OBLIGATOIRE seulement si un produit Numérique est dans le panier.
 
-    Exemple Mixte : "Il me faut votre adresse (pour le colis) et votre email (pour le code)."
-    Exemple Physique seul : "Il me faut votre adresse de livraison."
+    Exemple Physique Seul : "Nom, Téléphone et Adresse svp." (PAS D'EMAIL !)
+    Exemple Mixte : "Nom, Téléphone, Adresse (pour le colis) et Email (pour le code)."
 
-ÉTAPE 3 - PAIEMENT (CAS CLÉ):
-    - 💻 Numérique = TOUJOURS en ligne.
-    - 📦 Physique = Choix (Ligne ou Cash).
+ÉTAPE 3 - PAIEMENT:
+    - Si panier 100% Physique : Demander "En ligne ou à la livraison ?"
+    - Si panier 100% Numérique : Paiement en ligne obligatoire.
+    - Si Mixte : "Pour la partie physique, en ligne ou livraison ? (Le numérique est payé en ligne)."
 
-    - Demander UNIQUEMENT pour la partie Physique :
-      "Pour les produits physiques, souhaitez-vous payer en ligne ou à la livraison ? (Les produits numériques seront payés en ligne)."
-
-    - Logique de Décision :
-      1. Si Client choisit "EN LIGNE" pour physique → Tout est payé en ligne (1 seule commande unifiée).
-      2. Si Client choisit "LIVRAISON" pour physique → SPLIT PAIEMENT (2 commandes créées).
-
-ÉTAPE 4 - RÉCAP FINAL & CONFIRMATION:
-
-    CAS A : TOUT EN LIGNE (Paiement unique)
-    "Récapitulatif :
-    📦 [Physique] (Livraison à [Adresse])
-    💻 [Numérique] (Envoi à [Email])
-    💰 Total : [Total] FCFA
-    💳 Paiement : EN LIGNE (Global)
-    Confirmez-vous ?"
-
-    CAS B : PAIEMENTS SÉPARÉS (Cash + Ligne)
-    "Récapitulatif :
-    📦 [Physique] : Paiement à la livraison à [Adresse]
-    💻 [Numérique] : Paiement en ligne (Envoi à [Email])
-    💰 Total Global : [Total] FCFA
-    ⚠️ Vous recevrez 2 confirmations distinctes.
-    Confirmez-vous ?"
+ÉTAPE 4 - RÉCAP FINAL (ADAPTATIF):
+    - N'affiche la ligne "💻 Numérique" et l'email QUE SI applicable.
+    
+    Exemple Physique Seul :
+    "📦 [Produits]
+     📍 Livraison à [Adresse]
+     💰 Total : [Total]
+     💳 Paiement : [Mode]
+     Confirmez-vous ?"
 
 ÉTAPE 5 - ACTION:
     - "Oui" →
