@@ -16,12 +16,17 @@ function buildPhysicalWorkflow(orders) {
     - 🚨 ANTI-HALLUCINATION : Ne demander QUE ce qui est dans le catalogue.
 
 ÉTAPE 3 - MINI-RÉCAP PANIER:
-    - Afficher le détail GROUPÉ par produit :
-    *Nom du Produit* :
-    - Qté x Variante (Prix)
-    (ne jamais afficher l'entête "Physique" ici)
+    - Afficher le détail GROUPÉ par produit.
     
-    - Total global.
+    Exemple de format attendu :
+    *T-Shirts* :
+    - 5x Noir (15.000)
+    
+    *Bougies* :
+    - 2x Petite (1.000)
+    
+    💰 Total : (Calculer la somme et l'afficher en chiffres) FCFA
+    
     - Demander "On continue ?"
 
 ÉTAPE 4 - INFOS LIVRAISON:
@@ -48,16 +53,14 @@ ${(orders && orders.length > 0) ? `
 ÉTAPE 7 - RÉCAP FINAL:
     "Récapitulatif :
     📦 *Détails*:
-    [Grouper par NOM DU PRODUIT] :
-    *Nom du Produit* :
+    
+    *<Nom Exact du Produit 1>* :
     - Qté x Variante (Prix)
     
-    Exemple:
-    *T-Shirts* :
-    - 5x Noir (15.000)
-    - 2x Rouge (15.000)
+    *<Nom Exact du Produit 2>* :
+    - ...
     
-    💰 Total : [SOMME_CALCULEE] FCFA
+    💰 Total : (Calculer la somme réelle) FCFA
     📍 Livraison à : [Adresse]
     💳 Paiement : [Mode]
     📝 Note : [Note]
@@ -69,9 +72,11 @@ ${(orders && orders.length > 0) ? `
       1. create_order(payment_method: 'cod' ou 'online')
       2. Une fois succès : "Commande confirmée !
          Voici les détails :
-         *Nom du Produit* :
-         - Qté x Variante (Prix)
-          (Toujours groupé, JAMAIS d'entête "Physique")"
+         
+         *<Nom du Produit>* :
+         - Qté x Variante...
+         
+         (Toujours groupé par produit)"
       
     - 🛑 FIN DU FLUX.
 `.trim()
