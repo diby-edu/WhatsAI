@@ -36,6 +36,12 @@ pm2 reload whatsai-web --update-env 2>/dev/null || pm2 restart whatsai-web 2>/de
 # Wait for app to be ready
 sleep 3
 
+echo "🔄 Redémarrage du bot WhatsApp (Sessions préservées)..."
+pm2 restart whatsai-bot --update-env 2>/dev/null
+
+# Wait for restart
+sleep 2
+
 # Get PM2 info
 WEB_UPTIME=$(pm2 show whatsai-web 2>/dev/null | grep "uptime" | head -1 | awk '{print $4, $5}' || echo "N/A")
 WEB_RESTARTS=$(pm2 show whatsai-web 2>/dev/null | grep "restarts" | head -1 | awk '{print $4}' || echo "0")
@@ -50,25 +56,21 @@ DISK_USAGE=$(df -h / | tail -1 | awk '{print $5}')
 MEM_USAGE=$(free | grep Mem | awk '{printf("%.0f%%", $3/$2 * 100)}')
 
 echo ""
-echo "🔄 Redémarrage du bot WhatsApp (Sessions préservées)..."
-pm2 restart whatsai-bot --update-env 2>/dev/null
-
-echo ""
 echo "╔═══════════════════════════════════════════════════════════════════════════════════╗"
 echo "║                       ✅ DÉPLOIEMENT TERMINÉ                          ║"
 echo "╠═══════════════════════════════════════════════════════════════════════════════════╣"
-echo "║  📌 Commit précédent : %-46s ║\n" "$OLD_COMMIT"
-echo "║  📌 Commit actuel    : %-46s ║\n" "$NEW_COMMIT"
+printf "║  📌 Commit précédent : %-46s ║\n" "$OLD_COMMIT"
+printf "║  📌 Commit actuel    : %-46s ║\n" "$NEW_COMMIT"
 echo "╠═══════════════════════════════════════════════════════════════════════════════════╣"
 echo "║  SERVICE           │ PORT   │ STATUT   │ UPTIME          │ RESTARTS           ║"
 echo "╠═══════════════════════════════════════════════════════════════════════════════════╣"
-echo "║  🌐 WhatsAI Web    │ %-6s │ %-8s │ %-15s │ %-18s ║\n" "3000" "$WEB_STATUS" "$WEB_UPTIME" "$WEB_RESTARTS fois"
-echo "║  🤖 WhatsApp Bot   │ %-6s │ %-8s │ %-15s │ %-18s ║\n" "Worker" "$BOT_STATUS" "$BOT_UPTIME" "$BOT_RESTARTS fois"
+printf "║  🌐 WhatsAI Web    │ %-6s │ %-8s │ %-15s │ %-18s ║\n" "3000" "$WEB_STATUS" "$WEB_UPTIME" "$WEB_RESTARTS fois"
+printf "║  🤖 WhatsApp Bot   │ %-6s │ %-8s │ %-15s │ %-18s ║\n" "Worker" "$BOT_STATUS" "$BOT_UPTIME" "$BOT_RESTARTS fois"
 echo "╠═══════════════════════════════════════════════════════════════════════════════════╣"
 echo "║  RESSOURCES                  │ UTILISATION                            ║"
 echo "╠═══════════════════════════════════════════════════════════════════════════════════╣"
-echo "║  💾 Espace Disque            │ %-53s ║\n" "$DISK_USAGE utilisé"
-echo "║  🧠 Mémoire RAM              │ %-53s ║\n" "$MEM_USAGE utilisée"
+printf "║  💾 Espace Disque            │ %-53s ║\n" "$DISK_USAGE utilisé"
+printf "║  🧠 Mémoire RAM              │ %-53s ║\n" "$MEM_USAGE utilisée"
 echo "╚═══════════════════════════════════════════════════════════════════════════════════╝"
 echo ""
 echo "✅ Le bot a été redémarré (Reconnexion auto active)"
