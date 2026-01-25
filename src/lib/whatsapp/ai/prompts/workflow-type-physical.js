@@ -43,7 +43,17 @@ ${(orders && orders.length > 0) ? `
 
 ÉTAPE 7 - RÉCAP FINAL:
     "Récapitulatif :
-    📦 *[Produits]* (Total: [SOMME_CALCULEE] FCFA)
+    📦 *Détails*:
+    [Grouper par NOM DU PRODUIT] :
+    *Nom du Produit* :
+    - Qté x Variante (Prix)
+    
+    Exemple:
+    *T-Shirts* :
+    - 5x Noir (15.000)
+    - 2x Rouge (15.000)
+    
+    💰 Total : [SOMME_CALCULEE] FCFA
     📍 Livraison à : [Adresse]
     💳 Paiement : [Mode]
     📝 Note : [Note]

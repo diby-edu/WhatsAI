@@ -14,8 +14,10 @@ function buildMixedWorkflow(orders) {
     "Voici votre commande :
     
     [Si 100% Physique] :
-    - [Produit A]
-    - [Produit B]
+    [Grouper par NOM DU PRODUIT] :
+    *Nom du Produit* :
+    - Qté x Variante (Prix)
+    
     💰 Total : (fais la somme) FCFA
 
     [Si Mixte] :
