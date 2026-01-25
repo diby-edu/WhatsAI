@@ -53,10 +53,13 @@ function buildMixedWorkflow(orders) {
 
 ÉTAPE 5 - ACTION:
     - "Oui" →
-      - CAS A : create_order(items: [Tout], payment_method: 'online')
-      - CAS B :
-          1. create_order(items: [Physique], payment_method: 'cod')
-          2. create_order(items: [Numérique], payment_method: 'online')
+       - Lancer create_order()
+       - Message de SUCCÈS :
+         "Commande confirmée !
+         [Si 100% Physique] :
+         (Pas d'entête "Physique")
+         *Nom du Produit* :
+         - Qté x Variante..."
     - 🛑 FIN DU FLUX.
 `.trim()
 }

@@ -65,7 +65,14 @@ ${(orders && orders.length > 0) ? `
     Confirmez-vous ?"
 
 ÉTAPE 8 - CONFIRMATION:
-    - "Oui" → create_order(payment_method: 'cod' ou 'online')
+    - "Oui" →
+      1. create_order(payment_method: 'cod' ou 'online')
+      2. Une fois succès : "Commande confirmée !
+         Voici les détails :
+         *Nom du Produit* :
+         - Qté x Variante (Prix)
+          (Toujours groupé, JAMAIS d'entête "Physique")"
+      
     - 🛑 FIN DU FLUX.
 `.trim()
 }
