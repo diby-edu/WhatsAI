@@ -92,22 +92,34 @@ function getOptionPrice(option) {
     return (typeof option === 'string') ? 0 : (option.price || 0)
 }
 
-function findMatchingOption(variant, selectedValue) {
-    if (!selectedValue || !variant.options) return null
+/**
+ * Trouve l'option correspondante avec tolérance (Accents/Case/Partial)
+ */
+function findMatchingOption(variant, clientValue) {
+    if (!clientValue || !variant || !variant.options) return null
 
-    const selectedLower = selectedValue.toLowerCase().trim()
+    // Normalisation helper
+    const normalize = (str) => str.toLowerCase()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Enlève accents
+        .trim()
 
-    for (const option of variant.options) {
-        const optValue = (typeof option === 'string') ? option : (option.value || option.name || '')
-        const optValueLower = optValue.toLowerCase().trim()
+    const clientNorm = normalize(clientValue)
 
-        if (optValueLower === selectedLower) return option
-        if (optValueLower.startsWith(selectedLower)) return option
-        if (selectedLower.startsWith(optValueLower)) return option
-        if (optValueLower.includes(selectedLower)) return option
-    }
+    // 1. Exact Match (après normalisation)
+    const exact = variant.options.find(opt => {
+        const val = typeof opt === 'string' ? opt : (opt.value || opt)
+        return normalize(String(val)) === clientNorm
+    })
+    if (exact) return exact
 
-    return null
+    // 2. Partial Match ("marine" -> "bleu marine")
+    const partial = variant.options.find(opt => {
+        const val = typeof opt === 'string' ? opt : (opt.value || opt)
+        const valNorm = normalize(String(val))
+        return valNorm.includes(clientNorm) || clientNorm.includes(valNorm)
+    })
+
+    return partial || null
 }
 
 module.exports = {
