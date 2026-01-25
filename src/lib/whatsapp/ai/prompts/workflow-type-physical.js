@@ -16,7 +16,11 @@ function buildPhysicalWorkflow(orders) {
     - 🚨 ANTI-HALLUCINATION : Ne demander QUE ce qui est dans le catalogue.
 
 ÉTAPE 3 - MINI-RÉCAP PANIER:
-    - Afficher le détail : Qté x Prix Unitaire.
+    - Afficher le détail GROUPÉ par produit :
+    *Nom du Produit* :
+    - Qté x Variante (Prix)
+    (ne jamais afficher l'entête "Physique" ici)
+    
     - Total global.
     - Demander "On continue ?"
 
