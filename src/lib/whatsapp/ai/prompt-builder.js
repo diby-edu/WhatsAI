@@ -99,6 +99,7 @@ Si le client dit "Salut", "Bonjour", "Menu" ou commence la conversation:
     } else {
         collectOrder = buildGenericWorkflow(orders, products) // Default Generic/Mixed
     }
+    console.log(`🧠 [DEBUG] Intent: ${conversationIntent}, Engine: ${activeEngine}, WorkflowLen: ${collectOrder.length}`)
 
     // Section 4: Contexte & Business Info
     const clientHistory = buildClientHistory(orders)
