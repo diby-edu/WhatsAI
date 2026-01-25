@@ -23,6 +23,7 @@ export default function DashboardPage() {
     const [agents, setAgents] = useState<any[]>([])
     const [recentConversations, setRecentConversations] = useState<any[]>([])
     const [userName, setUserName] = useState<string>('')
+    const [showEscalationAlert, setShowEscalationAlert] = useState(false)
     const [loading, setLoading] = useState(true)
 
     // Base stats config - rebuilt inside component to access safe t function or at least keys
@@ -102,6 +103,10 @@ export default function DashboardPage() {
             }
 
             if (data.data?.agents) {
+                // Check for missing escalation phone on active agents
+                const missingPhone = data.data.agents.some((a: any) => a.is_active && !a.escalation_phone)
+                setShowEscalationAlert(missingPhone)
+
                 const mappedAgents = data.data.agents.slice(0, 3).map((a: any) => ({
                     id: a.id,
                     name: a.name,
@@ -160,6 +165,62 @@ export default function DashboardPage() {
                     }} />
                 </button>
             </div>
+
+            {/* ESCALATION ALERT CARD */}
+            {showEscalationAlert && (
+                <motion.div
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    style={{
+                        padding: 24,
+                        borderRadius: 16,
+                        background: 'rgba(245, 158, 11, 0.1)', // Orange tint
+                        border: '1px solid rgba(245, 158, 11, 0.3)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 24
+                    }}
+                >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                        <div style={{
+                            width: 48,
+                            height: 48,
+                            borderRadius: 12,
+                            background: 'rgba(245, 158, 11, 0.2)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0
+                        }}>
+                            <Bell style={{ width: 24, height: 24, color: '#fbbf24' }} />
+                        </div>
+                        <div>
+                            <h3 style={{ fontSize: 18, fontWeight: 600, color: '#fbbf24', marginBottom: 4 }}>
+                                Configuration SAV manquante
+                            </h3>
+                            <p style={{ fontSize: 14, color: '#d1d5db', margin: 0 }}>
+                                Configurez votre numéro de service client (Escalation Phone) pour rassurer vos clients en cas de besoin.
+                            </p>
+                        </div>
+                    </div>
+                    <Link
+                        href="/dashboard/agents"
+                        style={{
+                            padding: '10px 20px',
+                            background: '#fbbf24',
+                            color: '#1e293b',
+                            borderRadius: 8,
+                            fontWeight: 600,
+                            textDecoration: 'none',
+                            whiteSpace: 'nowrap',
+                            transition: 'opacity 0.2s'
+                        }}
+                    >
+                        Configurer maintenant →
+                    </Link>
+                </motion.div>
+            )}
 
             {/* Stats Grid - 5 columns on desktop */}
             <div style={{

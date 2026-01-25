@@ -253,7 +253,7 @@ async function handleCheckPaymentStatus(args, supabase) {
 // ═══════════════════════════════════════════════════════════
 // FIND ORDER
 // ═══════════════════════════════════════════════════════════
-async function handleFindOrder(args, supabase) {
+async function handleFindOrder(args, agentId, supabase) {
     try {
         console.log('🛠️ Executing tool: find_order')
         const { phone_number } = args
@@ -261,6 +261,7 @@ async function handleFindOrder(args, supabase) {
 
         if (!normalizedPhone) return JSON.stringify({ success: false, error: 'Numéro invalide' })
 
+        // 1. Récupérer les 3 dernières commandes
         const { data: orders } = await supabase
             .from('orders')
             .select('id, total_fcfa, status, created_at, items:order_items(product_name, quantity)')
@@ -270,13 +271,32 @@ async function handleFindOrder(args, supabase) {
 
         if (!orders || orders.length === 0) return JSON.stringify({ success: true, message: 'Aucune commande trouvée pour ce numéro.' })
 
+        // 2. Formater la liste
         const ordersList = orders.map(o => {
             const date = new Date(o.created_at).toLocaleDateString('fr-FR')
             const items = o.items.map(i => `${i.quantity}x ${i.product_name}`).join(', ')
             return `- Commande #${o.id.substring(0, 8)} du ${date} (${o.total_fcfa} FCFA) : ${o.status}\n  Articles: ${items}`
         }).join('\n\n')
 
-        return JSON.stringify({ success: true, message: `Voici les dernières commandes trouvées :\n${ordersList}` })
+        // 3. Récupérer le numéro d'escalade de l'agent
+        const { data: agent } = await supabase
+            .from('agents')
+            .select('escalation_phone')
+            .eq('id', agentId)
+            .single()
+
+        // 4. Construire le message final avec la mention SAV
+        let finalMessage = `Voici les dernières commandes trouvées :\n${ordersList}`
+
+        finalMessage += `\n\nℹ️ Ceci sont vos 3 dernières commandes.`
+
+        if (agent && agent.escalation_phone) {
+            finalMessage += ` Pour tout historique plus ancien, veuillez contacter le service client au ${agent.escalation_phone}.`
+        } else {
+            finalMessage += ` Pour tout historique plus ancien, veuillez contacter le service client.`
+        }
+
+        return JSON.stringify({ success: true, message: finalMessage })
     } catch (error) {
         console.error('❌ Find Order Error:', error)
         return JSON.stringify({ success: false, error: 'Erreur lors de la recherche.' })
