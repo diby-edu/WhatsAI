@@ -44,7 +44,7 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
             return await handleCheckPaymentStatus(args, supabase)
 
         case 'find_order':
-            return await handleFindOrder(args, supabase)
+            return await handleFindOrder(args, agentId, supabase)
 
         case 'create_booking':
             return await handleCreateBooking(args, agentId, products, conversationId, supabase)

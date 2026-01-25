@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
         // Fetch Agents with real data
         const { data: agents, error: agentsError } = await supabase
             .from('agents')
-            .select('id, name, is_active, total_messages')
+            .select('id, name, is_active, total_messages, escalation_phone')
             .eq('user_id', user.id)
 
         if (agentsError) throw agentsError
