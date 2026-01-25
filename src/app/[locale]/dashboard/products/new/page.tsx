@@ -202,6 +202,12 @@ export default function NewProductPage() {
             if (products && products.length > 0) {
                 const types = [...new Set(products.map((p: { product_type: string }) => p.product_type))]
                 setExistingProductTypes(types)
+
+                // Auto-switch selection if current default is invalid
+                const hasService = types.includes('service')
+                if (hasService) {
+                    setFormData(prev => ({ ...prev, product_type: 'service' }))
+                }
             }
         } catch (e) {
             console.error('Error checking existing products:', e)

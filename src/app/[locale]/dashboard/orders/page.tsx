@@ -7,7 +7,8 @@ import {
     ShoppingBag, Search, Filter, Eye,
     CheckCircle, XCircle, Clock, Truck, Package,
     Loader2, Image as ImageIcon, Check, X,
-    CalendarCheck, ChevronDown, Users, MapPin
+    CalendarCheck, ChevronDown, Users, MapPin,
+    FileText, Layers
 } from 'lucide-react'
 import { useTranslations, useFormatter } from 'next-intl'
 
@@ -24,6 +25,11 @@ interface Order {
     payment_screenshot_url: string | null
     created_at: string
     items_count: number
+    items?: {
+        product?: {
+            product_type: string
+        }
+    }[]
 }
 
 interface Booking {
@@ -218,6 +224,51 @@ export default function OrdersPage() {
             return tStatus(status as any)
         } catch {
             return status
+        }
+    }
+
+    // Helper to determine order type
+    const getOrderType = (order: Order): 'physical' | 'digital' | 'mixed' | 'unknown' => {
+        if (!order.items || order.items.length === 0) return 'unknown'
+
+        let hasPhysical = false
+        let hasDigital = false
+
+        order.items.forEach(item => {
+            const type = item.product?.product_type
+            if (type === 'digital') hasDigital = true
+            else hasPhysical = true // Default to physical if unknown or explicit
+        })
+
+        if (hasPhysical && hasDigital) return 'mixed'
+        if (hasDigital) return 'digital'
+        return 'physical'
+    }
+
+    const getTypeIcon = (type: string) => {
+        switch (type) {
+            case 'physical': return <Package size={24} />
+            case 'digital': return <FileText size={24} />
+            case 'mixed': return <Layers size={24} />
+            default: return <ShoppingBag size={24} />
+        }
+    }
+
+    const getTypeLabel = (type: string) => {
+        switch (type) {
+            case 'physical': return 'Physique'
+            case 'digital': return 'Numérique'
+            case 'mixed': return 'Mixte'
+            default: return ''
+        }
+    }
+
+    const getTypeColor = (type: string) => {
+        switch (type) {
+            case 'physical': return '#f59e0b' // Orange
+            case 'digital': return '#3b82f6' // Blue
+            case 'mixed': return '#8b5cf6' // Purple
+            default: return '#64748b'
         }
     }
 
@@ -456,30 +507,45 @@ export default function OrdersPage() {
                                     width: 48,
                                     height: 48,
                                     borderRadius: 12,
-                                    background: 'rgba(59, 130, 246, 0.1)',
+                                    background: `${getTypeColor(getOrderType(order))}20`,
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    color: '#60a5fa'
+                                    color: getTypeColor(getOrderType(order))
                                 }}>
-                                    <ShoppingBag size={24} />
+                                    {getTypeIcon(getOrderType(order))}
                                 </div>
                                 <div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
                                         <h3 style={{ color: 'white', fontWeight: 600, fontSize: 16 }}>
                                             #{order.order_number}
                                         </h3>
+                                        {/* TYPE BADGE */}
                                         <span style={{
-                                            padding: '4px 10px',
-                                            borderRadius: 100,
-                                            fontSize: 12,
-                                            fontWeight: 600,
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: 6,
-                                            background: `${getStatusColor(order.status)}20`,
-                                            color: getStatusColor(order.status)
+                                            padding: '4px 8px',
+                                            borderRadius: 6,
+                                            fontSize: 10,
+                                            fontWeight: 700,
+                                            textTransform: 'uppercase',
+                                            background: `${getTypeColor(getOrderType(order))}20`,
+                                            color: getTypeColor(getOrderType(order)),
+                                            border: `1px solid ${getTypeColor(getOrderType(order))}40`
                                         }}>
+                                            {getTypeLabel(getOrderType(order))}
+                                        </span>
+
+                                        <span style={{
+                                        < span style={{
+                                                padding: '4px 10px',
+                                                borderRadius: 100,
+                                                fontSize: 12,
+                                                fontWeight: 600,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 6,
+                                                background: `${getStatusColor(order.status)}20`,
+                                                color: getStatusColor(order.status)
+                                            }}>
                                             {getStatusIcon(order.status)}
                                             {getStatusLabel(order.status)}
                                         </span>

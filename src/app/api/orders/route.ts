@@ -16,10 +16,12 @@ export async function GET(request: NextRequest) {
 
         let query = supabase
             .from('orders')
-            .select(`
-                *,
-                items:order_items(*)
-            `)
+            *,
+            items: order_items(
+                    *,
+                product: products(product_type)
+                )
+        `)
             .eq('user_id', user.id)
             .order('created_at', { ascending: false })
 

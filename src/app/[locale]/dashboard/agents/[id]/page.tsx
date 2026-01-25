@@ -242,6 +242,17 @@ export default function AgentWizardPage({
     }
 
     const handleSave = async (silent = false) => {
+        if (!agentId) return
+
+        // Validation Rule: Escalation Phone is mandatory
+        if (!silent && (!formData.escalation_phone || formData.escalation_phone.trim() === '')) {
+            alert("⚠️ Le Numéro d'Escalade / SAV est obligatoire pour garantir le support client.")
+            setCurrentStep(0) // Go to Identity tab
+            setHighlightEscalation(true)
+            setTimeout(() => setHighlightEscalation(false), 5000)
+            return
+        }
+
         if (!silent) setSaving(true)
         try {
             const res = await fetch(`/api/agents/${agentId}`, {
