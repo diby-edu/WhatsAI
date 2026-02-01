@@ -140,7 +140,7 @@ export default function DashboardPage() {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
             {/* Header with user name and notification bell */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="dashboard-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
                 <div>
                     <h1 style={{ fontSize: 28, fontWeight: 700, color: 'white', marginBottom: 8 }}>{t('title')}</h1>
                     <p style={{ fontSize: 16, color: '#94a3b8' }}>
@@ -229,7 +229,7 @@ export default function DashboardPage() {
             )}
 
             {/* Stats Grid - 5 columns on desktop */}
-            <div style={{
+            <div className="dashboard-stats-grid" style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(5, 1fr)',
                 gap: 16
@@ -282,7 +282,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Main Content Grid */}
-            <div style={{
+            <div className="dashboard-main-grid" style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
                 gap: 24
@@ -430,7 +430,7 @@ export default function DashboardPage() {
                 padding: 24
             }}>
                 <h2 style={{ fontSize: 18, fontWeight: 600, color: 'white', marginBottom: 16 }}>{t('quickActions')}</h2>
-                <div style={{
+                <div className="dashboard-quick-actions" style={{
                     display: 'grid',
                     gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
                     gap: 16
@@ -460,5 +460,54 @@ export default function DashboardPage() {
                 </div>
             </div>
         </div>
+
+            {/* Responsive styles */ }
+    <style jsx global>{`
+                @media (max-width: 1200px) {
+                    .dashboard-stats-grid {
+                        grid-template-columns: repeat(3, 1fr) !important;
+                    }
+                }
+                @media (max-width: 900px) {
+                    .dashboard-stats-grid {
+                        grid-template-columns: repeat(2, 1fr) !important;
+                    }
+                    .dashboard-main-grid {
+                        grid-template-columns: 1fr !important;
+                    }
+                    .dashboard-main-grid > div:first-child {
+                        grid-column: span 1 !important;
+                    }
+                }
+                @media (max-width: 640px) {
+                    .dashboard-stats-grid {
+                        grid-template-columns: 1fr !important;
+                        gap: 12px !important;
+                    }
+                    .dashboard-stats-grid > div {
+                        padding: 16px !important;
+                    }
+                    .dashboard-stats-grid > div > div:last-child {
+                        font-size: 24px !important;
+                    }
+                    .dashboard-header h1 {
+                        font-size: 22px !important;
+                    }
+                    .dashboard-header p {
+                        font-size: 14px !important;
+                    }
+                    .dashboard-alert {
+                        flex-direction: column !important;
+                        text-align: center;
+                    }
+                    .dashboard-alert > div:first-child {
+                        flex-direction: column !important;
+                    }
+                    .dashboard-quick-actions {
+                        grid-template-columns: repeat(2, 1fr) !important;
+                    }
+                }
+            `}</style>
+        </div >
     )
 }
