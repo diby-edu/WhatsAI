@@ -49,8 +49,7 @@ export default function Features() {
         <section id="features" style={{
             padding: '120px 24px',
             background: 'linear-gradient(180deg, #0f172a 0%, #020617 100%)',
-            position: 'relative',
-            overflow: 'hidden'
+            position: 'relative'
         }}>
             {/* Background decoration */}
             <div style={{

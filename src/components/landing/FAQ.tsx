@@ -162,7 +162,6 @@ export default function FAQ() {
         <section id="faq" style={{
             padding: '80px 0',
             position: 'relative',
-            overflow: 'hidden',
             background: 'linear-gradient(180deg, transparent 0%, rgba(16, 185, 129, 0.02) 50%, transparent 100%)'
         }}>
             {/* Background elements */}
