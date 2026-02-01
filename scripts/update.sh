@@ -75,5 +75,5 @@ printf "║  🧠 Mémoire RAM              │ %-53s ║\n" "$MEM_USAGE utilis�
 echo "╚═══════════════════════════════════════════════════════════════════════════════════╝"
 echo ""
 echo "✅ Le bot a été redémarré (Reconnexion auto active)"
-echo "🔗 Site: https://whatsai.duckdns.org"
+echo "🔗 Site: https://wazzapai.com"
 echo ""

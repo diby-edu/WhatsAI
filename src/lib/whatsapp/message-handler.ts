@@ -289,7 +289,7 @@ export function initializeMessageHandler() {
                             await supabase.from('order_items').insert(orderItems)
                         }
 
-                        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://whatsai.duckdns.org'
+                        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://wazzapai.com'
                         const paymentLink = order ? `${baseUrl}/fr/pay/${order.id}` : ''
 
                         const toolOutput = orderError

@@ -7,6 +7,6 @@ export default function robots(): MetadataRoute.Robots {
             allow: '/',
             disallow: ['/admin', '/dashboard', '/api'],
         },
-        sitemap: 'https://whatsai.app/sitemap.xml',
+        sitemap: 'https://wazzapai.com/sitemap.xml',
     }
 }

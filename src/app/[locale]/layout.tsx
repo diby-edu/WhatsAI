@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "WhatsAI - The Ultimate WhatsApp Automation Platform",
     description: "Automate your sales and support on WhatsApp. No coding required. Try it for free.",
-    url: "https://whatsai.app",
+    url: "https://wazzapai.com",
     siteName: "WhatsAI",
     type: "website",
   },
