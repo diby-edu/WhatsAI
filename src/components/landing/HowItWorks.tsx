@@ -35,8 +35,7 @@ export default function HowItWorks() {
         <section id="how-it-works" style={{
             padding: '100px 24px',
             background: '#020617',
-            position: 'relative',
-            overflow: 'hidden'
+            position: 'relative'
         }}>
             {/* Background effects */}
             <div style={{

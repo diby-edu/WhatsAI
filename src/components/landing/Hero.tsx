@@ -48,7 +48,7 @@ export default function Hero() {
             alignItems: 'center',
             paddingTop: 100,
             paddingBottom: 60,
-            overflow: 'hidden',
+            overflow: 'visible',
             background: 'linear-gradient(180deg, #020617 0%, #0f172a 50%, #020617 100%)'
         }}>
             {/* Animated Background Effects */}

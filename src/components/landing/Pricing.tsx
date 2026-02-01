@@ -126,8 +126,7 @@ export default function Pricing() {
         <section id="pricing" style={{
             padding: '100px 24px 60px',
             background: 'linear-gradient(180deg, #020617 0%, #0f172a 100%)',
-            position: 'relative',
-            overflow: 'hidden'
+            position: 'relative'
         }}>
             <div style={{ maxWidth: 1400, margin: '0 auto', position: 'relative', zIndex: 1 }}>
                 {/* Header */}
