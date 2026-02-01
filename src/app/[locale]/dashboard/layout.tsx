@@ -361,9 +361,16 @@ export default function DashboardLayout({
                 marginLeft: isMobile ? 0 : sidebarWidth,
                 paddingTop: isMobile ? 64 : 0,
                 transition: 'margin-left 0.3s ease',
-                backgroundColor: '#0f172a'
+                backgroundColor: '#0f172a',
+                overflowX: 'hidden'
             }}>
-                <div style={{ padding: 24 }}>
+                <div style={{
+                    padding: isMobile ? '16px' : '24px',
+                    maxWidth: '1400px',
+                    margin: '0 auto',
+                    width: '100%',
+                    boxSizing: 'border-box'
+                }}>
                     {children}
                 </div>
             </main>
