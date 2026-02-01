@@ -1,7 +1,7 @@
 import { MetadataRoute } from 'next'
 
 export default function sitemap(): MetadataRoute.Sitemap {
-    const baseUrl = 'https://whatsai.app'
+    const baseUrl = 'https://wazzapai.com'
 
     // Pages statiques principales
     const routes = [

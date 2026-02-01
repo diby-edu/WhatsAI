@@ -4,7 +4,7 @@ import https from 'https'
 import http from 'http'
 
 export async function GET(request: NextRequest) {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://whatsai.ci'
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://wazzapai.com'
 
     const results: any = {
         ssl: { status: 'unknown', message: '' },

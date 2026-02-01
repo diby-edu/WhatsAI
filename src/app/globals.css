@@ -88,6 +88,8 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-y: scroll !important;
+  height: auto !important;
 }
 
 body {
@@ -96,11 +98,14 @@ body {
   color: #f1f5f9;
   line-height: 1.6;
   overflow-x: hidden;
+  overflow-y: auto !important;
+  min-height: 100vh;
+  height: auto !important;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   /* Touch scrolling optimizations */
   -webkit-overflow-scrolling: touch;
-  touch-action: pan-y;
+  touch-action: pan-y pan-x pinch-zoom;
   overscroll-behavior-y: contain;
 }
 

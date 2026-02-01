@@ -51,7 +51,7 @@ export async function POST(
         const transactionId = `ORD_${orderId.substring(0, 8)}_${Date.now()}`
 
         // Get app URL for callbacks
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://whatsai.duckdns.org'
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://wazzapai.com'
 
         // Prepare CinetPay payload
         const payload = {

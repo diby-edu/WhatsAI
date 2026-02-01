@@ -178,7 +178,7 @@ async function handleCreateOrder(args, agentId, products, conversationId, supaba
         const itemsSummary = Object.entries(groupedSummary).map(([name, data]) => {
             return `*${name}* :\n${data.lines.join('\n')}\nSous-total = ${data.subTotal.toLocaleString('fr-FR')} FCFA`
         }).join('\n\n')
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://whatsai.duckdns.org'
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://wazzapai.com'
 
         if (payment_method === 'cod') {
             let msg = `✅ Commande confirmée ! Nous préparons la livraison. 🚚\nPaiement de ${total} FCFA à prévoir à la livraison.`
