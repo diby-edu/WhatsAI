@@ -459,10 +459,9 @@ export default function DashboardPage() {
                     ))}
                 </div>
             </div>
-        </div>
 
-            {/* Responsive styles */ }
-    <style jsx global>{`
+            {/* Responsive styles */}
+            <style jsx global>{`
                 @media (max-width: 1200px) {
                     .dashboard-stats-grid {
                         grid-template-columns: repeat(3, 1fr) !important;
@@ -508,6 +507,6 @@ export default function DashboardPage() {
                     }
                 }
             `}</style>
-        </div >
+        </div>
     )
 }
