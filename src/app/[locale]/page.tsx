@@ -9,7 +9,7 @@ export default function Home() {
           __html: JSON.stringify({
             "@context": "https://schema.org",
             "@type": "SoftwareApplication",
-            "name": "WhatsAI",
+            "name": "WazzapAI",
             "applicationCategory": "BusinessApplication",
             "operatingSystem": "Web, cloud-based",
             "offers": {
@@ -26,7 +26,7 @@ export default function Home() {
             "description": "The Ultimate WhatsApp Automation Platform powered by AI. Transform your WhatsApp into a 24/7 Sales Machine.",
             "author": {
               "@type": "Organization",
-              "name": "WhatsAI Global"
+              "name": "WazzapAI Global"
             }
           })
         }}

@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.whatsai.app',
-  appName: 'WhatsAI',
+  appId: 'com.wazzapai.app',
+  appName: 'WazzapAI',
   webDir: 'out',
   server: {
     url: 'https://wazzapai.com',

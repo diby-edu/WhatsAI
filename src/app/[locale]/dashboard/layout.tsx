@@ -99,7 +99,7 @@ export default function DashboardLayout({
                         }}>
                             <MessageCircle style={{ width: 20, height: 20, color: 'white' }} />
                         </div>
-                        <span style={{ fontWeight: 700, color: 'white', fontSize: 18 }}>WhatsAI</span>
+                        <span style={{ fontWeight: 700, color: 'white', fontSize: 18 }}>WazzapAI</span>
                     </Link>
                     <button
                         onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -168,7 +168,7 @@ export default function DashboardLayout({
                                     }}>
                                         <MessageCircle style={{ width: 22, height: 22, color: 'white' }} />
                                     </div>
-                                    <span style={{ fontWeight: 700, color: 'white', fontSize: 20 }}>WhatsAI</span>
+                                    <span style={{ fontWeight: 700, color: 'white', fontSize: 20 }}>WazzapAI</span>
                                 </Link>
                             </div>
                             <nav style={{ flex: 1, padding: 16, display: 'flex', flexDirection: 'column', gap: 4, overflowY: 'auto' }}>
@@ -261,7 +261,7 @@ export default function DashboardLayout({
                                 <MessageCircle style={{ width: 22, height: 22, color: 'white' }} />
                             </div>
                             {!collapsed && (
-                                <span style={{ fontWeight: 700, color: 'white', fontSize: 20 }}>WhatsAI</span>
+                                <span style={{ fontWeight: 700, color: 'white', fontSize: 20 }}>WazzapAI</span>
                             )}
                         </Link>
                         <button

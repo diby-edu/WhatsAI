@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
             }
 
             amount = plan.price_fcfa
-            description = `Abonnement WhatsAI - ${plan.name}`
+            description = `Abonnement WazzapAI - ${plan.name}`
             metadata = {
                 type: 'subscription',
                 plan_id: planId,
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
                     return errorResponse('Pack de crédits invalide', 400)
                 }
                 amount = fallbackPack.price
-                description = `Pack de ${fallbackPack.credits} crédits WhatsAI`
+                description = `Pack de ${fallbackPack.credits} crédits WazzapAI`
                 metadata = {
                     type: 'credits',
                     pack_id: packId,
@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
                 }
             } else {
                 amount = pack.price
-                description = `Pack de ${pack.credits} crédits WhatsAI`
+                description = `Pack de ${pack.credits} crédits WazzapAI`
                 metadata = {
                     type: 'credits',
                     pack_id: packId,

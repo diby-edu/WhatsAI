@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
             transaction_id: transactionId,
             amount: amount < 100 ? Math.ceil(amount * 655) : amount, // Auto-convert low amounts (likely USD) to FCFA
             currency: 'XOF',
-            description: description || 'Achat de crédits WhatsAI',
+            description: description || 'Achat de crédits WazzapAI',
             notify_url: `${baseUrl}/api/payments/cinetpay/webhook`,
             return_url: `${baseUrl}/payment/success?transaction_id=${transactionId}`,
             cancel_url: `${baseUrl}/payment/success?payment=cancelled`,

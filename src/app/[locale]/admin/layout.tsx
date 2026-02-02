@@ -75,7 +75,7 @@ export default function AdminLayout({
     const [collapsed, setCollapsed] = useState(false)
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
     const [isMobile, setIsMobile] = useState(false)
-    const [adminEmail, setAdminEmail] = useState('admin@whatsai.com')
+    const [adminEmail, setAdminEmail] = useState('admin@wazzapai.com')
     const [showNotifications, setShowNotifications] = useState(false)
     const [notifications, setNotifications] = useState<Notification[]>([])
     const [unreadCount, setUnreadCount] = useState(0)
@@ -359,7 +359,7 @@ export default function AdminLayout({
                                         <Shield style={{ width: 20, height: 20, color: 'white' }} />
                                     </div>
                                     <div>
-                                        <div style={{ fontWeight: 700, color: 'white' }}>WhatsAI</div>
+                                        <div style={{ fontWeight: 700, color: 'white' }}>WazzapAI</div>
                                         <div style={{ fontSize: 12, color: '#ef4444', fontWeight: 500 }}>SUPER ADMIN</div>
                                     </div>
                                 </Link>
@@ -436,7 +436,7 @@ export default function AdminLayout({
                             </div>
                             {!collapsed && (
                                 <div>
-                                    <div style={{ fontWeight: 700, color: 'white' }}>WhatsAI</div>
+                                    <div style={{ fontWeight: 700, color: 'white' }}>WazzapAI</div>
                                     <div style={{ fontSize: 12, color: '#ef4444', fontWeight: 500 }}>SUPER ADMIN</div>
                                 </div>
                             )}

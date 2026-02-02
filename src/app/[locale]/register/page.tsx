@@ -257,7 +257,7 @@ function RegisterForm() {
                             <MessageCircle style={{ width: 24, height: 24, color: 'white' }} />
                         </div>
                         <div>
-                            <span style={{ fontSize: 22, fontWeight: 700, color: 'white' }}>WhatsAI</span>
+                            <span style={{ fontSize: 22, fontWeight: 700, color: 'white' }}>WazzapAI</span>
                             <div style={{ fontSize: 11, color: '#34d399', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Automation</div>
                         </div>
                     </Link>
@@ -678,7 +678,7 @@ function RegisterForm() {
                             ))}
                         </div>
                         <p style={{ fontSize: 16, color: '#e2e8f0', lineHeight: 1.6, marginBottom: 20, fontStyle: 'italic' }}>
-                            "WhatsAI a transformé notre service client. Nous répondons maintenant 24/7 et nos conversions ont augmenté de 280%."
+                            "WazzapAI a transformé notre service client. Nous répondons maintenant 24/7 et nos conversions ont augmenté de 280%."
                         </p>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                             <div style={{
