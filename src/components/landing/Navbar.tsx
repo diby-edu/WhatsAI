@@ -132,7 +132,7 @@ export default function Navbar() {
                                 }} />
                             </motion.div>
                             <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                <span style={{ fontSize: 20, fontWeight: 700, color: 'white', letterSpacing: '-0.025em' }}>WhatsAI</span>
+                                <span style={{ fontSize: 20, fontWeight: 700, color: 'white', letterSpacing: '-0.025em' }}>WazzapAI</span>
                                 <span style={{ fontSize: 10, color: '#34d399', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Automation</span>
                             </div>
                         </Link>
@@ -383,7 +383,7 @@ export default function Navbar() {
                                         }}>
                                             <MessageCircle style={{ width: 20, height: 20, color: 'white' }} />
                                         </div>
-                                        <span style={{ fontSize: 20, fontWeight: 700, color: 'white' }}>WhatsAI</span>
+                                        <span style={{ fontSize: 20, fontWeight: 700, color: 'white' }}>WazzapAI</span>
                                     </Link>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                         <button

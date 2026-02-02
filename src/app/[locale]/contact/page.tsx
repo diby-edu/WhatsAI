@@ -2,8 +2,8 @@ import { Metadata } from 'next'
 import { Mail, MapPin, MessageCircle } from 'lucide-react'
 
 export const metadata: Metadata = {
-    title: 'Contact - WhatsAI',
-    description: 'Contactez l\'équipe WhatsAI pour toute question ou demande.',
+    title: 'Contact - WazzapAI',
+    description: 'Contactez l\'équipe WazzapAI pour toute question ou demande.',
 }
 
 export default function ContactPage() {
@@ -34,7 +34,7 @@ export default function ContactPage() {
                 <div style={{ display: 'grid', gap: 24 }}>
                     {/* WhatsApp */}
                     <a
-                        href="https://wa.me/2250554585927?text=Bonjour%20!%20Je%20souhaite%20en%20savoir%20plus%20sur%20WhatsAI."
+                        href="https://wa.me/2250554585927?text=Bonjour%20!%20Je%20souhaite%20en%20savoir%20plus%20sur%20WazzapAI."
                         target="_blank"
                         rel="noopener noreferrer"
                         style={{
@@ -69,7 +69,7 @@ export default function ContactPage() {
 
                     {/* Email */}
                     <a
-                        href="mailto:contact@whatsai.com"
+                        href="mailto:support@wazzapai.com"
                         style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -96,7 +96,7 @@ export default function ContactPage() {
                         </div>
                         <div>
                             <h3 style={{ fontSize: 18, fontWeight: 600, color: 'white', marginBottom: 4 }}>Email</h3>
-                            <p style={{ fontSize: 14, color: '#94a3b8' }}>contact@whatsai.com</p>
+                            <p style={{ fontSize: 14, color: '#94a3b8' }}>support@wazzapai.com</p>
                         </div>
                     </a>
 

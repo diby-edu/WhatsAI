@@ -111,7 +111,7 @@ export default function HelpPage() {
                 </motion.a>
 
                 <motion.a
-                    href="mailto:support@whatsai.com"
+                    href="mailto:support@wazzapai.com"
                     whileHover={{ scale: 1.02, borderColor: '#3b82f6' }}
                     style={{
                         background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(59, 130, 246, 0.05))',
@@ -134,7 +134,7 @@ export default function HelpPage() {
                     </div>
                     <div>
                         <h3 style={{ color: 'white', fontWeight: 600, marginBottom: 4 }}>Email Support</h3>
-                        <p style={{ color: '#94a3b8', fontSize: 13 }}>support@whatsai.com</p>
+                        <p style={{ color: '#94a3b8', fontSize: 13 }}>support@wazzapai.com</p>
                     </div>
                 </motion.a>
             </div>

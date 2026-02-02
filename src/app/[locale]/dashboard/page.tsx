@@ -459,54 +459,7 @@ export default function DashboardPage() {
                     ))}
                 </div>
             </div>
-
-            {/* Responsive styles */}
-            <style jsx global>{`
-                @media (max-width: 1200px) {
-                    .dashboard-stats-grid {
-                        grid-template-columns: repeat(3, 1fr) !important;
-                    }
-                }
-                @media (max-width: 900px) {
-                    .dashboard-stats-grid {
-                        grid-template-columns: repeat(2, 1fr) !important;
-                    }
-                    .dashboard-main-grid {
-                        grid-template-columns: 1fr !important;
-                    }
-                    .dashboard-main-grid > div:first-child {
-                        grid-column: span 1 !important;
-                    }
-                }
-                @media (max-width: 640px) {
-                    .dashboard-stats-grid {
-                        grid-template-columns: 1fr !important;
-                        gap: 12px !important;
-                    }
-                    .dashboard-stats-grid > div {
-                        padding: 16px !important;
-                    }
-                    .dashboard-stats-grid > div > div:last-child {
-                        font-size: 24px !important;
-                    }
-                    .dashboard-header h1 {
-                        font-size: 22px !important;
-                    }
-                    .dashboard-header p {
-                        font-size: 14px !important;
-                    }
-                    .dashboard-alert {
-                        flex-direction: column !important;
-                        text-align: center;
-                    }
-                    .dashboard-alert > div:first-child {
-                        flex-direction: column !important;
-                    }
-                    .dashboard-quick-actions {
-                        grid-template-columns: repeat(2, 1fr) !important;
-                    }
-                }
-            `}</style>
         </div>
     )
 }
+

@@ -192,7 +192,7 @@ export function verifyWebhookSignature(
 /**
  * Generate a unique transaction ID
  */
-export function generateTransactionId(prefix: string = 'WHATSAI'): string {
+export function generateTransactionId(prefix: string = 'WAZZAPAI'): string {
     const timestamp = Date.now().toString(36)
     const random = Math.random().toString(36).substring(2, 8)
     return `${prefix}_${timestamp}_${random}`.toUpperCase()

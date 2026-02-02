@@ -3,7 +3,7 @@ export async function register() {
     // This file no longer initializes WhatsApp to avoid conflicts
 
     if (process.env.NEXT_RUNTIME === 'nodejs') {
-        console.log('📱 WhatsApp is handled by standalone service (whatsai-bot)')
+        console.log('📱 WhatsApp is handled by standalone service (wazzapai-bot)')
         console.log('✅ Next.js app ready')
     }
 }

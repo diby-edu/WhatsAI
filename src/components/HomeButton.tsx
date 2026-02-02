@@ -54,7 +54,7 @@ export default function HomeButton() {
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent'
             }}>
-                WhatsAI
+                WazzapAI
             </span>
         </Link>
     )

@@ -1,8 +1,8 @@
 import { Metadata } from 'next'
 
 export const metadata: Metadata = {
-    title: 'Conditions Générales d\'Utilisation - WhatsAI',
-    description: 'Conditions générales d\'utilisation du service WhatsAI.',
+    title: 'Conditions Générales d\'Utilisation - WazzapAI',
+    description: 'Conditions générales d\'utilisation du service WazzapAI.',
 }
 
 export default function TermsPage() {
@@ -33,7 +33,7 @@ export default function TermsPage() {
                         1. Acceptation des conditions
                     </h2>
                     <p style={{ fontSize: 15, lineHeight: 1.8, color: '#94a3b8' }}>
-                        En utilisant WhatsAI, vous acceptez ces conditions générales d'utilisation.
+                        En utilisant WazzapAI, vous acceptez ces conditions générales d'utilisation.
                         Si vous n'acceptez pas ces conditions, veuillez ne pas utiliser notre service.
                     </p>
                 </section>
@@ -43,7 +43,7 @@ export default function TermsPage() {
                         2. Description du service
                     </h2>
                     <p style={{ fontSize: 15, lineHeight: 1.8, color: '#94a3b8' }}>
-                        WhatsAI est une plateforme d'automatisation qui permet de gérer vos conversations
+                        WazzapAI est une plateforme d'automatisation qui permet de gérer vos conversations
                         WhatsApp à l'aide de l'intelligence artificielle. Le service inclut la création
                         d'agents IA, la gestion des conversations et des outils d'analytics.
                     </p>
@@ -64,7 +64,7 @@ export default function TermsPage() {
                         4. Utilisation acceptable
                     </h2>
                     <p style={{ fontSize: 15, lineHeight: 1.8, color: '#94a3b8' }}>
-                        Vous vous engagez à ne pas utiliser WhatsAI pour :<br />
+                        Vous vous engagez à ne pas utiliser WazzapAI pour :<br />
                         • Envoyer du spam ou des messages non sollicités<br />
                         • Harceler ou menacer d'autres utilisateurs<br />
                         • Violer les conditions d'utilisation de WhatsApp<br />
@@ -88,7 +88,7 @@ export default function TermsPage() {
                         6. Limitation de responsabilité
                     </h2>
                     <p style={{ fontSize: 15, lineHeight: 1.8, color: '#94a3b8' }}>
-                        WhatsAI est fourni "tel quel". Nous ne garantissons pas que le service sera
+                        WazzapAI est fourni "tel quel". Nous ne garantissons pas que le service sera
                         ininterrompu ou exempt d'erreurs. Nous ne sommes pas responsables des pertes
                         indirectes résultant de l'utilisation de notre service.
                     </p>
@@ -104,7 +104,7 @@ export default function TermsPage() {
                         Contact
                     </h2>
                     <p style={{ fontSize: 15, color: '#94a3b8' }}>
-                        Pour toute question concernant ces conditions : legal@whatsai.com
+                        Pour toute question concernant ces conditions : support@wazzapai.com
                     </p>
                 </section>
             </div>

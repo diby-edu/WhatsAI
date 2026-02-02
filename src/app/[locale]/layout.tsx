@@ -10,20 +10,20 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "WhatsAI - The Ultimate WhatsApp Automation Platform powered by AI",
+  title: "WazzapAI - The Ultimate WhatsApp Automation Platform powered by AI",
   description: "Transform your WhatsApp into a 24/7 Sales Machine. Automate conversations, qualify leads, and close deals globally with our advanced AI Agents. Works in any country.",
   keywords: ["WhatsApp Automation", "AI Chatbot", "WhatsApp CRM", "Sales Automation", "Lead Generation", "Customer Service AI", "Business WhatsApp"],
-  authors: [{ name: "WhatsAI" }],
+  authors: [{ name: "WazzapAI" }],
   openGraph: {
-    title: "WhatsAI - The Ultimate WhatsApp Automation Platform",
+    title: "WazzapAI - The Ultimate WhatsApp Automation Platform",
     description: "Automate your sales and support on WhatsApp. No coding required. Try it for free.",
     url: "https://wazzapai.com",
-    siteName: "WhatsAI",
+    siteName: "WazzapAI",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "WhatsAI - WhatsApp Automation Platform",
+    title: "WazzapAI - WhatsApp Automation Platform",
     description: "Automate your sales and support on WhatsApp. AI-powered agents for your business.",
   },
 };

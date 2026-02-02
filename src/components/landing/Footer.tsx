@@ -79,7 +79,7 @@ export default function Footer() {
                                 background: 'linear-gradient(135deg, #10b981, #34d399)',
                                 WebkitBackgroundClip: 'text',
                                 WebkitTextFillColor: 'transparent'
-                            }}>WhatsAI</span>
+                            }}>WazzapAI</span>
                         </Link>
                         <p style={{ color: '#64748b', fontSize: 13, lineHeight: 1.6, marginBottom: 16 }}>
                             {t('brandDescription')}
@@ -183,7 +183,7 @@ export default function Footer() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#475569', fontSize: 13 }}>
                             <Mail style={{ width: 14, height: 14 }} />
-                            contact@whatsai.com
+                            support@wazzapai.com
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#475569', fontSize: 13 }}>
                             <MapPin style={{ width: 14, height: 14 }} />

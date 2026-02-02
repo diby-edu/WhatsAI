@@ -32,7 +32,7 @@ export default function AdminSettingsPage() {
 
     const [settings, setSettings] = useState({
         // General
-        appName: 'WhatsAI',
+        appName: 'WazzapAI',
         appDescription: 'Plateforme d\'automatisation WhatsApp avec IA',
         maintenanceMode: false,
         allowRegistrations: true,
@@ -56,7 +56,7 @@ export default function AdminSettingsPage() {
         emailNotifications: true,
         smtpHost: 'smtp.example.com',
         smtpPort: 587,
-        smtpUser: 'noreply@whatsai.com',
+        smtpUser: 'noreply@wazzapai.com',
         smtpSecure: true,
 
         // Security

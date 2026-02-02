@@ -1,8 +1,8 @@
 import { Metadata } from 'next'
 
 export const metadata: Metadata = {
-    title: 'Politique de Confidentialité - WhatsAI',
-    description: 'Découvrez comment WhatsAI protège vos données personnelles.',
+    title: 'Politique de Confidentialité - WazzapAI',
+    description: 'Découvrez comment WazzapAI protège vos données personnelles.',
 }
 
 export default function PrivacyPage() {
@@ -69,7 +69,7 @@ export default function PrivacyPage() {
                     </h2>
                     <p style={{ fontSize: 15, lineHeight: 1.8, color: '#94a3b8' }}>
                         Conformément au RGPD, vous avez le droit d'accéder, de modifier ou de supprimer
-                        vos données personnelles. Contactez-nous à privacy@whatsai.com pour exercer ces droits.
+                        vos données personnelles. Contactez-nous à support@wazzapai.com pour exercer ces droits.
                     </p>
                 </section>
 
@@ -93,7 +93,7 @@ export default function PrivacyPage() {
                         Questions ?
                     </h2>
                     <p style={{ fontSize: 15, color: '#94a3b8' }}>
-                        Pour toute question concernant cette politique, contactez-nous à : privacy@whatsai.com
+                        Pour toute question concernant cette politique, contactez-nous à : support@wazzapai.com
                     </p>
                 </section>
             </div>

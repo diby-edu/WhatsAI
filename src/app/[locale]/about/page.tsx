@@ -1,8 +1,8 @@
 import { Metadata } from 'next'
 
 export const metadata: Metadata = {
-    title: 'À propos - WhatsAI',
-    description: 'Découvrez WhatsAI, la solution d\'automatisation WhatsApp propulsée par l\'intelligence artificielle.',
+    title: 'À propos - WazzapAI',
+    description: 'Découvrez WazzapAI, la solution d\'automatisation WhatsApp propulsée par l\'intelligence artificielle.',
 }
 
 export default function AboutPage() {
@@ -22,7 +22,7 @@ export default function AboutPage() {
                     WebkitBackgroundClip: 'text',
                     WebkitTextFillColor: 'transparent'
                 }}>
-                    À propos de WhatsAI
+                    À propos de WazzapAI
                 </h1>
 
                 <section style={{ marginBottom: 40 }}>
@@ -30,7 +30,7 @@ export default function AboutPage() {
                         Notre Mission
                     </h2>
                     <p style={{ fontSize: 16, lineHeight: 1.8, color: '#94a3b8', marginBottom: 16 }}>
-                        WhatsAI est né d'une vision simple : permettre aux entreprises africaines de répondre
+                        WazzapAI est né d'une vision simple : permettre aux entreprises africaines de répondre
                         à leurs clients 24h/24, 7j/7, sans sacrifier la qualité du service ni mobiliser
                         des ressources humaines considérables.
                     </p>
@@ -42,7 +42,7 @@ export default function AboutPage() {
 
                 <section style={{ marginBottom: 40 }}>
                     <h2 style={{ fontSize: 24, fontWeight: 600, marginBottom: 16, color: '#e2e8f0' }}>
-                        Pourquoi WhatsAI ?
+                        Pourquoi WazzapAI ?
                     </h2>
                     <ul style={{ fontSize: 16, lineHeight: 2, color: '#94a3b8', paddingLeft: 24 }}>
                         <li>✅ <strong style={{ color: 'white' }}>Réponses instantanées</strong> - Vos clients n'attendent plus</li>
@@ -73,7 +73,7 @@ export default function AboutPage() {
                     </h2>
                     <p style={{ fontSize: 16, color: '#94a3b8' }}>
                         📍 Abidjan, Côte d'Ivoire<br />
-                        📧 contact@whatsai.com<br />
+                        📧 support@wazzapai.com<br />
                         📱 +225 05 54 58 59 27
                     </p>
                 </section>

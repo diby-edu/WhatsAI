@@ -199,7 +199,7 @@ export default function LoginPage() {
                         {[
                             { icon: Zap, title: 'Réponses instantanées', desc: 'IA répond en moins de 10 secondes' },
                             { icon: Shield, title: 'Sécurisé', desc: 'Vos données sont cryptées' },
-                            { icon: Users, title: '+5000 entreprises', desc: 'Font confiance à WhatsAI' },
+                            { icon: Users, title: '+5000 entreprises', desc: 'Font confiance à WazzapAI' },
                         ].map((feature, i) => (
                             <motion.div
                                 key={feature.title}
@@ -276,7 +276,7 @@ export default function LoginPage() {
                             <MessageCircle style={{ width: 24, height: 24, color: 'white' }} />
                         </div>
                         <div>
-                            <span style={{ fontSize: 22, fontWeight: 700, color: 'white' }}>WhatsAI</span>
+                            <span style={{ fontSize: 22, fontWeight: 700, color: 'white' }}>WazzapAI</span>
                             <div style={{ fontSize: 11, color: '#34d399', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Automation</div>
                         </div>
                     </Link>

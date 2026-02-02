@@ -115,7 +115,7 @@ export default function AdminDashboard() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                     <h1 style={{ fontSize: 22, fontWeight: 700, color: 'white', marginBottom: 4 }}>Vue d'ensemble</h1>
-                    <p style={{ color: '#64748b', fontSize: 13 }}>Dashboard WhatsAI</p>
+                    <p style={{ color: '#64748b', fontSize: 13 }}>Dashboard WazzapAI</p>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     {/* System Status Quick View */}

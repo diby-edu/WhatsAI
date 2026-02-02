@@ -1,8 +1,8 @@
 import { Metadata } from 'next'
 
 export const metadata: Metadata = {
-    title: 'RGPD - WhatsAI',
-    description: 'Informations sur la conformité RGPD de WhatsAI.',
+    title: 'RGPD - WazzapAI',
+    description: 'Informations sur la conformité RGPD de WazzapAI.',
 }
 
 export default function GDPRPage() {
@@ -33,7 +33,7 @@ export default function GDPRPage() {
                         Notre engagement
                     </h2>
                     <p style={{ fontSize: 15, lineHeight: 1.8, color: '#94a3b8' }}>
-                        WhatsAI s'engage à respecter le Règlement Général sur la Protection des Données (RGPD)
+                        WazzapAI s'engage à respecter le Règlement Général sur la Protection des Données (RGPD)
                         de l'Union Européenne. Nous prenons la protection de vos données personnelles très au sérieux.
                     </p>
                 </section>
@@ -88,7 +88,7 @@ export default function GDPRPage() {
                     </h2>
                     <p style={{ fontSize: 15, color: '#94a3b8' }}>
                         Pour exercer vos droits RGPD, contactez notre Délégué à la Protection des Données :<br />
-                        📧 dpo@whatsai.com
+                        📧 support@wazzapai.com
                     </p>
                 </section>
             </div>

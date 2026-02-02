@@ -187,7 +187,7 @@ export default function ForgotPasswordPage() {
                         <MessageCircle style={{ width: 24, height: 24, color: 'white' }} />
                     </div>
                     <div>
-                        <span style={{ fontSize: 22, fontWeight: 700, color: 'white' }}>WhatsAI</span>
+                        <span style={{ fontSize: 22, fontWeight: 700, color: 'white' }}>WazzapAI</span>
                         <div style={{ fontSize: 11, color: '#34d399', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Automation</div>
                     </div>
                 </Link>

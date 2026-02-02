@@ -1,4 +1,4 @@
-package com.whatsai.app;
+package com.wazzapai.app;
 
 import com.getcapacitor.BridgeActivity;
 

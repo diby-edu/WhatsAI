@@ -5,7 +5,7 @@ import * as Sentry from "@sentry/nextjs"
 export async function GET(request: NextRequest) {
     try {
         // 1. Capture a message
-        Sentry.captureMessage("Test Diagnostic Message from WhatsAI Admin")
+        Sentry.captureMessage("Test Diagnostic Message from WazzapAI Admin")
 
         // 2. Capture an exception
         try {

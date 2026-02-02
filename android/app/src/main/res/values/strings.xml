@@ -1,7 +1,8 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">WhatsAI</string>
-    <string name="title_activity_main">WhatsAI</string>
-    <string name="package_name">com.whatsai.app</string>
-    <string name="custom_url_scheme">com.whatsai.app</string>
+    <string name="app_name">WazzapAI</string>
+    <string name="title_activity_main">WazzapAI</string>
+    <string name="package_name">com.wazzapai.app</string>
+    <string name="custom_url_scheme">com.wazzapai.app</string>
 </resources>
+
