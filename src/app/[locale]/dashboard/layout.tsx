@@ -68,8 +68,11 @@ export default function DashboardLayout({
     return (
         <div style={{
             minHeight: '100vh',
+            height: '100%',
             backgroundColor: '#0f172a',
-            display: 'flex'
+            display: 'flex',
+            position: 'relative',
+            overflow: 'hidden'
         }}>
             {/* Mobile header */}
             {isMobile && (
@@ -358,18 +361,22 @@ export default function DashboardLayout({
             <main style={{
                 flex: 1,
                 minHeight: '100vh',
+                height: '100vh',
                 marginLeft: isMobile ? 0 : sidebarWidth,
                 paddingTop: isMobile ? 64 : 0,
                 transition: 'margin-left 0.3s ease',
                 backgroundColor: '#0f172a',
-                overflowX: 'hidden'
+                overflowX: 'hidden',
+                overflowY: 'auto',
+                WebkitOverflowScrolling: 'touch'
             }}>
                 <div style={{
                     padding: isMobile ? '16px' : '24px',
                     maxWidth: '1400px',
                     margin: '0 auto',
                     width: '100%',
-                    boxSizing: 'border-box'
+                    boxSizing: 'border-box',
+                    paddingBottom: isMobile ? '100px' : '40px'
                 }}>
                     {children}
                 </div>

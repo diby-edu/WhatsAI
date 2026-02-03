@@ -125,7 +125,9 @@ export default function DashboardConversationsPage() {
                             border: '1px solid rgba(148, 163, 184, 0.1)',
                             borderRadius: 14,
                             color: 'white',
-                            width: 280
+                            width: '100%',
+                            maxWidth: 280,
+                            minWidth: 150
                         }}
                     />
                 </div>
@@ -257,7 +259,7 @@ export default function DashboardConversationsPage() {
                                             )}
                                             {conv.status === 'escalated' && <span style={{ color: '#ef4444', fontSize: 11, fontWeight: 700, border: '1px solid #ef4444', padding: '1px 4px', borderRadius: 4 }}>URGENT</span>}
                                         </div>
-                                        <p style={{ color: '#94a3b8', fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 400 }}>
+                                        <p style={{ color: '#94a3b8', fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>
                                             {conv.last_message || t('empty.description')}
                                         </p>
                                     </div>
