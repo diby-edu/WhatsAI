@@ -1,14 +1,46 @@
 package com.wazzapai.app;
 
+import android.os.Build;
 import android.os.Bundle;
+import android.view.View;
+import android.view.Window;
+import android.view.WindowManager;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // Configure status bar for dark app (light icons/text)
+        Window window = getWindow();
+
+        // Make status bar transparent
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
+            window.setStatusBarColor(android.graphics.Color.TRANSPARENT);
+        }
+
+        // Set light status bar icons (white icons on dark background)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            View decorView = window.getDecorView();
+            // Clear the light status bar flag to get white/light icons
+            decorView.setSystemUiVisibility(
+                    decorView.getSystemUiVisibility() & ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
+        }
+
+        // For API 30+ use WindowInsetsController
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            WindowInsetsControllerCompat insetsController = WindowCompat.getInsetsController(window,
+                    window.getDecorView());
+            if (insetsController != null) {
+                insetsController.setAppearanceLightStatusBars(false); // false = white icons
+            }
+        }
     }
 
     @Override
