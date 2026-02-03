@@ -331,10 +331,10 @@ export default function DashboardPage() {
                                 }}>
                                     <MessageSquare style={{ width: 20, height: 20, color: '#64748b' }} />
                                 </div>
-                                <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                                        <span style={{ fontWeight: 500, color: 'white' }}>{conv.contact}</span>
-                                        <span style={{ fontSize: 12, color: '#64748b' }}>{conv.time}</span>
+                                <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+                                    <div className="dashboard-conversation-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4, gap: 8, flexWrap: 'wrap' }}>
+                                        <span style={{ fontWeight: 500, color: 'white', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: '1 1 auto', minWidth: 0 }}>{conv.contact}</span>
+                                        <span className="dashboard-conversation-date" style={{ fontSize: 12, color: '#64748b', flexShrink: 0, whiteSpace: 'nowrap' }}>{conv.time}</span>
                                     </div>
                                     <p style={{ fontSize: 14, color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>
                                         {conv.lastMessage}

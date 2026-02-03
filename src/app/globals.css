@@ -1002,21 +1002,68 @@ h6 {
   }
 }
 
-/* Conversations page mobile fixes */
+/* Dashboard conversation cards - prevent text truncation */
 @media (max-width: 640px) {
-  /* Conversation card layout */
-  [style*="display: flex"][style*="alignItems: center"][style*="gap: 16px"] {
-    flex-wrap: wrap;
+
+  /* Conversation card - stack date below message */
+  .dashboard-conversation-item {
+    flex-wrap: wrap !important;
   }
 
-  /* Make conversation item text truncate properly */
-  [style*="flex: 1"] p {
-    max-width: calc(100vw - 140px) !important;
+  /* Date display - ensure it's visible */
+  .dashboard-conversation-date,
+  [style*="fontSize: 12"][style*="color: #64748b"] {
+    min-width: auto !important;
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+  }
+
+  /* Make conversation message truncate with ellipsis */
+  .dashboard-conversation-message {
+    max-width: 100% !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  /* Recent conversations header */
+  .dashboard-conversations h2 {
+    font-size: 16px !important;
+  }
+
+  /* Agent cards */
+  .dashboard-agent-card {
+    padding: 12px !important;
+  }
+
+  /* Quick actions smaller */
+  .dashboard-quick-actions>div {
+    padding: 14px 10px !important;
+  }
+
+  .dashboard-quick-actions span {
+    font-size: 12px !important;
+  }
+}
+
+/* Very small screens - stack all elements */
+@media (max-width: 400px) {
+
+  /* Reduce padding globally */
+  .dashboard-container>div {
+    padding: 12px !important;
+  }
+
+  /* Stack conversation info vertically */
+  .dashboard-conversations [style*="display: flex"][style*="justifyContent: space-between"] {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 4px !important;
   }
 }
 
 /* APK/WebView scroll fixes */
 @supports (-webkit-touch-callout: none) {
+
   /* iOS specific */
   body {
     -webkit-overflow-scrolling: touch !important;
@@ -1024,7 +1071,8 @@ h6 {
 }
 
 /* Android WebView specific fixes */
-html, body {
+html,
+body {
   overscroll-behavior: none;
   overscroll-behavior-y: auto;
 }
@@ -1034,4 +1082,11 @@ html, body {
 [style*="overflow"] {
   -webkit-overflow-scrolling: touch;
   overflow-y: auto;
+}
+
+/* Safe area for status bar - APK */
+@supports (padding-top: env(safe-area-inset-top)) {
+  .dashboard-container {
+    padding-top: env(safe-area-inset-top, 0) !important;
+  }
 }
