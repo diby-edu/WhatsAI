@@ -138,7 +138,7 @@ export default function DashboardPage() {
         }
     }
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+        <div className="dashboard-container" style={{ display: 'flex', flexDirection: 'column', gap: 32, maxWidth: '100%', overflow: 'hidden' }}>
             {/* Header with user name and notification bell */}
             <div className="dashboard-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
                 <div>
@@ -175,6 +175,7 @@ export default function DashboardPage() {
             {/* ESCALATION ALERT CARD */}
             {showEscalationAlert && (
                 <motion.div
+                    className="dashboard-alert"
                     initial={{ opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}
                     style={{
@@ -185,7 +186,8 @@ export default function DashboardPage() {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        gap: 24
+                        gap: 24,
+                        flexWrap: 'wrap'
                     }}
                 >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
