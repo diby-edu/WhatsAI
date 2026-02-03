@@ -1090,3 +1090,108 @@ body {
     padding-top: env(safe-area-inset-top, 0) !important;
   }
 }
+
+/* =============================================
+   ORDERS PAGE MOBILE FIXES
+   ============================================= */
+@media (max-width: 640px) {
+
+  /* Order cards - stack content vertically */
+  [style*="justifyContent: 'space-between'"][style*="flexWrap: 'wrap'"] {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+  }
+
+  /* Badges - wrap properly */
+  [style*="display: 'flex'"][style*="gap: 12"] {
+    flex-wrap: wrap !important;
+  }
+
+  /* Status badges - smaller on mobile */
+  [style*="borderRadius: 100"][style*="fontSize: 12"] {
+    font-size: 10px !important;
+    padding: 3px 8px !important;
+    white-space: nowrap !important;
+  }
+
+  /* Order info text - prevent truncation */
+  [style*="color: '#94a3b8'"][style*="fontSize: 14"] {
+    font-size: 12px !important;
+    word-break: break-word !important;
+    white-space: normal !important;
+  }
+
+  /* Price display */
+  [style*="textAlign: 'right'"] {
+    text-align: left !important;
+    width: 100% !important;
+    margin-top: 8px !important;
+  }
+
+  /* Action buttons - stack on mobile */
+  [style*="display: 'flex'"][style*="gap: 16"] {
+    flex-wrap: wrap !important;
+    width: 100% !important;
+  }
+
+  /* Details button - full width on mobile */
+  button[style*="borderRadius: 10"][style*="gap: 8"] {
+    flex: 1 1 auto !important;
+    justify-content: center !important;
+  }
+}
+
+/* Very small screens - extra compact */
+@media (max-width: 400px) {
+
+  /* Tabs - horizontal scroll */
+  [style*="borderBottom: '1px solid rgba(148, 163, 184, 0.1)'"][style*="paddingBottom: 16"] {
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    gap: 4px !important;
+    padding-bottom: 12px !important;
+  }
+
+  /* Tab buttons - smaller */
+  [style*="padding: '12px 20px'"] {
+    padding: 8px 12px !important;
+    font-size: 12px !important;
+  }
+
+  /* Order type icon - smaller */
+  [style*="width: 48"][style*="height: 48"][style*="borderRadius: 12"] {
+    width: 40px !important;
+    height: 40px !important;
+  }
+}
+
+/* =============================================
+   GENERAL MOBILE TEXT FIXES
+   ============================================= */
+@media (max-width: 768px) {
+
+  /* Prevent any text from being cut off */
+  h1,
+  h2,
+  h3,
+  p,
+  span,
+  div {
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+  }
+
+  /* Flex containers - allow wrapping */
+  [style*="display: flex"] {
+    flex-wrap: wrap;
+  }
+
+  /* Headers - responsive font size */
+  h1[style*="fontSize: 28"] {
+    font-size: 22px !important;
+  }
+
+  h2[style*="fontSize: 18"] {
+    font-size: 16px !important;
+  }
+}
