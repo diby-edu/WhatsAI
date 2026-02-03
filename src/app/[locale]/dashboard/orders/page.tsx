@@ -355,7 +355,9 @@ export default function OrdersPage() {
                                 background: 'rgba(30, 41, 59, 0.5)',
                                 border: '1px solid rgba(148, 163, 184, 0.1)',
                                 color: 'white',
-                                width: 200
+                                width: '100%',
+                                maxWidth: 200,
+                                minWidth: 120
                             }}
                         />
                     </div>
@@ -370,7 +372,9 @@ export default function OrdersPage() {
                                 background: 'rgba(30, 41, 59, 0.5)',
                                 border: '1px solid rgba(148, 163, 184, 0.1)',
                                 color: 'white',
-                                width: 180,
+                                width: '100%',
+                                maxWidth: 180,
+                                minWidth: 140,
                                 appearance: 'none',
                                 cursor: 'pointer'
                             }}

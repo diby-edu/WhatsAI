@@ -985,3 +985,53 @@ h6 {
     font-size: 20px !important;
   }
 }
+
+/* =============================================
+   MOBILE RESPONSIVE FIXES - Dashboard Pages
+   ============================================= */
+
+/* Settings page mobile */
+@media (max-width: 768px) {
+  .settings-sidebar {
+    width: 100% !important;
+    flex-shrink: 1 !important;
+  }
+
+  .settings-sidebar button {
+    padding: 12px 14px !important;
+  }
+}
+
+/* Conversations page mobile fixes */
+@media (max-width: 640px) {
+  /* Conversation card layout */
+  [style*="display: flex"][style*="alignItems: center"][style*="gap: 16px"] {
+    flex-wrap: wrap;
+  }
+
+  /* Make conversation item text truncate properly */
+  [style*="flex: 1"] p {
+    max-width: calc(100vw - 140px) !important;
+  }
+}
+
+/* APK/WebView scroll fixes */
+@supports (-webkit-touch-callout: none) {
+  /* iOS specific */
+  body {
+    -webkit-overflow-scrolling: touch !important;
+  }
+}
+
+/* Android WebView specific fixes */
+html, body {
+  overscroll-behavior: none;
+  overscroll-behavior-y: auto;
+}
+
+/* Ensure all scrollable containers work in WebView */
+.dashboard-container,
+[style*="overflow"] {
+  -webkit-overflow-scrolling: touch;
+  overflow-y: auto;
+}

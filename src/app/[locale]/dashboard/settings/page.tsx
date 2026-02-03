@@ -166,7 +166,7 @@ export default function SettingsPage() {
 
             <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
                 {/* Sidebar Tabs */}
-                <div style={{
+                <div className="settings-sidebar" style={{
                     width: 220,
                     background: 'rgba(15, 23, 42, 0.6)',
                     backdropFilter: 'blur(20px)',
@@ -210,12 +210,12 @@ export default function SettingsPage() {
                 {/* Content */}
                 <div style={{
                     flex: 1,
-                    minWidth: 300,
+                    minWidth: 0,
                     background: 'rgba(15, 23, 42, 0.6)',
                     backdropFilter: 'blur(20px)',
                     border: '1px solid rgba(148, 163, 184, 0.1)',
                     borderRadius: 16,
-                    padding: 28
+                    padding: 'clamp(16px, 4vw, 28px)'
                 }}>
                     <AnimatePresence mode="wait">
                         {/* Profile Tab */}
@@ -229,7 +229,7 @@ export default function SettingsPage() {
                                 <h2 style={{ fontSize: 20, fontWeight: 600, color: 'white', marginBottom: 24 }}>
                                     {t('Profile.title')}
                                 </h2>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 20 }}>
                                     <InputField
                                         label={t('Profile.form.fullName')}
                                         icon={User}
