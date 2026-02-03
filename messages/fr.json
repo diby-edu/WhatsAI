@@ -15,7 +15,7 @@
     "faq": "FAQ"
   },
   "WhatsApp": {
-    "message": "Bonjour ! Je souhaite en savoir plus sur WhatsAI."
+    "message": "Bonjour ! Je souhaite en savoir plus sur WazzapAI."
   },
   "Hero": {
     "poweredBy": "Propulsé par l'IA",
@@ -45,10 +45,10 @@
       }
     },
     "chat": {
-      "botName": "Assistant WhatsAI",
+      "botName": "Assistant WazzapAI",
       "status": "En ligne",
       "message1": "Bonjour ! Je cherche un appartement 3 pièces en centre-ville 🏠",
-      "response1": "Bonjour ! 👋 Je suis votre assistant WhatsAI. J'ai trouvé 5 appartements correspondant à vos critères.",
+      "response1": "Bonjour ! 👋 Je suis votre assistant WazzapAI. J'ai trouvé 5 appartements correspondant à vos critères.",
       "response2": "📍 Quartier Nord - 3 pièces - 1 200 $/mois\n📍 Quartier Sud - 3 pièces - 950 $/mois\n📍 Centre - 3 pièces - 1 500 $/mois",
       "message2": "Super ! Je peux visiter celui du Quartier Nord demain ?",
       "response3": "Parfait ! ✅ J'ai planifié une visite pour demain à 14h. Vous recevrez un SMS de confirmation.",
@@ -174,11 +174,11 @@
   "FAQ": {
     "badge": "FAQ",
     "title": "Questions <green>fréquentes</green>",
-    "subtitle": "Tout ce que vous devez savoir sur WhatsAI",
+    "subtitle": "Tout ce que vous devez savoir sur WazzapAI",
     "items": {
       "howItWorks": {
-        "question": "Comment fonctionne WhatsAI ?",
-        "answer": "WhatsAI se connecte à votre WhatsApp via un QR code (comme WhatsApp Web). Une fois connecté, notre IA analyse les messages entrants et génère des réponses personnalisées basées sur vos instructions. Tout est automatique et en temps réel.",
+        "question": "Comment fonctionne WazzapAI ?",
+        "answer": "WazzapAI se connecte à votre WhatsApp via un QR code (comme WhatsApp Web). Une fois connecté, notre IA analyse les messages entrants et génère des réponses personnalisées basées sur vos instructions. Tout est automatique et en temps réel.",
         "category": "Général"
       },
       "banRisk": {
@@ -221,7 +221,7 @@
   "Footer": {
     "cta": {
       "title": "Prêt à automatiser votre WhatsApp ?",
-      "subtitle": "Rejoignez des milliers d'entreprises qui utilisent WhatsAI 24h/24.",
+      "subtitle": "Rejoignez des milliers d'entreprises qui utilisent WazzapAI 24h/24.",
       "start": "Commencer gratuitement",
       "demo": "Voir la démo"
     },
@@ -248,7 +248,7 @@
       "terms": "Conditions",
       "gdpr": "RGPD"
     },
-    "rights": "© 2025 WhatsAI. Tous droits réservés."
+    "rights": "© 2025 WazzapAI. Tous droits réservés."
   },
   "Auth": {
     "login": {
