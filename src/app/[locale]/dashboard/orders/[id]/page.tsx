@@ -140,7 +140,7 @@ export default function OrderDetailsPage() {
                 </Link>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', flexWrap: 'wrap', gap: 16 }}>
                     <div>
-                        <h1 style={{ fontSize: 28, fontWeight: 700, color: 'white', marginBottom: 8 }}>
+                        <h1 style={{ fontSize: 'clamp(20px, 5vw, 28px)', fontWeight: 700, color: 'white', marginBottom: 8 }}>
                             {t('title', { number: order.order_number })}
                         </h1>
                         <p style={{ color: '#64748b' }}>
@@ -168,7 +168,7 @@ export default function OrderDetailsPage() {
                 </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 24 }}>
+            <div className="order-detail-grid" style={{ display: 'grid', gap: 24 }}>
                 {/* Main Content */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                     {/* Items */}
