@@ -108,7 +108,7 @@ export default function DashboardConversationsPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24, padding: "0 0 100px 0" }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
                 <div>
-                    <h1 style={{ fontSize: 28, fontWeight: 700, color: 'white', marginBottom: 8 }}>Centre de Contrôle 🚨</h1>
+                    <h1 style={{ fontSize: 'clamp(20px, 5vw, 28px)', fontWeight: 700, color: 'white', marginBottom: 8 }}>Centre de Contrôle 🚨</h1>
                     <p style={{ color: '#94a3b8' }}>Gérez les interventions humaines et surveillez l'IA.</p>
                 </div>
 

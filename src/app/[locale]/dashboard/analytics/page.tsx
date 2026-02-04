@@ -80,8 +80,8 @@ export default function AnalyticsPage() {
     }
 
     return (
-        <div style={{ padding: 40, background: '#0f172a', minHeight: '100vh', paddingBottom: 100 }}>
-            <h1 style={{ fontSize: 32, fontWeight: 700, color: 'white', marginBottom: 8 }}>
+        <div style={{ padding: 'clamp(16px, 5vw, 40px)', background: '#0f172a', minHeight: '100vh', paddingBottom: 100 }}>
+            <h1 style={{ fontSize: 'clamp(22px, 5vw, 32px)', fontWeight: 700, color: 'white', marginBottom: 8 }}>
                 Pilotage & Analytics 📈
             </h1>
             <p style={{ color: '#94a3b8', marginBottom: 40 }}>
@@ -130,7 +130,7 @@ export default function AnalyticsPage() {
             </div>
 
             {/* Charts */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr)', gap: 24 }}>
+            <div className="analytics-charts-grid" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 24 }}>
                 <motion.div
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
