@@ -1195,3 +1195,18 @@ body {
     font-size: 16px !important;
   }
 }
+
+/* =============================================
+   ANALYTICS PAGE RESPONSIVE
+   ============================================= */
+
+/* Analytics charts grid - stacked on mobile, 2:1 on desktop */
+.analytics-charts-grid {
+  grid-template-columns: 1fr !important;
+}
+
+@media (min-width: 1024px) {
+  .analytics-charts-grid {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) !important;
+  }
+}

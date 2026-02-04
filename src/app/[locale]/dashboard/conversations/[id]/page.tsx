@@ -187,7 +187,7 @@ export default function ConversationDetailPage({ params }: { params: Promise<{ i
     const isEscalated = conversation.status === 'escalated'
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 100px)', maxHeight: 800 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 100px)', maxHeight: '90vh' }}>
             {/* Status Banner */}
             {isEscalated && (
                 <div style={{

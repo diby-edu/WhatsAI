@@ -149,7 +149,7 @@ export default function DashboardLayout({
                                 left: 0,
                                 top: 0,
                                 bottom: 0,
-                                width: 280,
+                                width: 'min(280px, 85vw)',
                                 zIndex: 50,
                                 backgroundColor: 'rgba(15, 23, 42, 0.98)',
                                 backdropFilter: 'blur(40px)',

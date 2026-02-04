@@ -138,11 +138,11 @@ export default function DashboardPage() {
         }
     }
     return (
-        <div className="dashboard-container" style={{ display: 'flex', flexDirection: 'column', gap: 32, maxWidth: '100%', overflow: 'hidden' }}>
+        <div className="dashboard-container" style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(16px, 4vw, 32px)', maxWidth: '100%', overflow: 'hidden' }}>
             {/* Header with user name and notification bell */}
             <div className="dashboard-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
                 <div>
-                    <h1 style={{ fontSize: 28, fontWeight: 700, color: 'white', marginBottom: 8 }}>{t('title')}</h1>
+                    <h1 style={{ fontSize: 'clamp(20px, 5vw, 28px)', fontWeight: 700, color: 'white', marginBottom: 8 }}>{t('title')}</h1>
                     <p style={{ fontSize: 16, color: '#94a3b8' }}>
                         {userName ? `Bonjour ${userName} ! Voici un aperçu de votre activité.` : t('subtitle')}
                     </p>
@@ -230,10 +230,10 @@ export default function DashboardPage() {
                 </motion.div>
             )}
 
-            {/* Stats Grid - 5 columns on desktop */}
+            {/* Stats Grid - 5 columns on desktop, responsive on mobile */}
             <div className="dashboard-stats-grid" style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(5, 1fr)',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
                 gap: 16
             }}>
                 {stats.map((stat, index) => (

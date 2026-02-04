@@ -69,7 +69,7 @@ export default function HelpPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
             {/* Header */}
             <div>
-                <h1 style={{ fontSize: 28, fontWeight: 700, color: 'white', marginBottom: 8 }}>Centre d'aide</h1>
+                <h1 style={{ fontSize: 'clamp(20px, 5vw, 28px)', fontWeight: 700, color: 'white', marginBottom: 8 }}>Centre d'aide</h1>
                 <p style={{ color: '#94a3b8' }}>Trouvez des réponses à vos questions</p>
             </div>
 
