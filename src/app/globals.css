@@ -1232,3 +1232,86 @@ body {
   }
 }
 
+/* =============================================
+   BILLING PAGE RESPONSIVE
+   ============================================= */
+
+/* Billing stats grid - 1 col mobile, 3 cols desktop */
+.billing-stats-grid {
+  grid-template-columns: 1fr !important;
+}
+
+@media (min-width: 640px) {
+  .billing-stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .billing-stats-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+}
+
+/* Billing credit packs grid */
+.billing-packs-grid {
+  grid-template-columns: repeat(2, 1fr) !important;
+}
+
+@media (min-width: 768px) {
+  .billing-packs-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+  }
+}
+
+/* =============================================
+   CONVERSATION CARDS RESPONSIVE
+   ============================================= */
+
+@media (max-width: 640px) {
+  /* Conversation card - stack on mobile */
+  .conversation-card-content {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+  }
+
+  .conversation-card-content > div:last-child {
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    text-align: left !important;
+  }
+}
+
+/* =============================================
+   DASHBOARD PAGE CARDS RESPONSIVE
+   ============================================= */
+
+/* Dashboard conversations section - span 2 on desktop only */
+.dashboard-conversations-section {
+  grid-column: span 1;
+}
+
+@media (min-width: 768px) {
+  .dashboard-conversations-section {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 640px) {
+  /* Recent conversations list items */
+  .dashboard-recent-item {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  .dashboard-recent-item > div:last-child {
+    width: 100% !important;
+    text-align: left !important;
+    margin-top: 4px !important;
+  }
+}
+

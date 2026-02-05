@@ -290,8 +290,7 @@ export default function DashboardPage() {
                 gap: 24
             }}>
                 {/* Recent Conversations */}
-                <div style={{
-                    gridColumn: 'span 2',
+                <div className="dashboard-conversations-section" style={{
                     background: 'rgba(15, 23, 42, 0.6)',
                     backdropFilter: 'blur(20px)',
                     border: '1px solid rgba(148, 163, 184, 0.1)',

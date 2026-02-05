@@ -354,7 +354,7 @@ function BillingContent() {
             )}
 
             {/* Current Plan Overview */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+            <div className="billing-stats-grid" style={{ display: 'grid', gap: 16 }}>
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} style={cardStyle}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                         <div style={{
@@ -554,7 +554,7 @@ function BillingContent() {
                     <Package style={{ width: 18, height: 18, color: '#34d399' }} />
                     {t('Credits.title')}
                 </h2>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+                <div className="billing-packs-grid" style={{ display: 'grid', gap: 12 }}>
                     {creditPacks.map((pack, index) => (
                         <motion.div
                             key={pack.id}
