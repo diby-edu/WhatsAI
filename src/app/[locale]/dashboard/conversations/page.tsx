@@ -223,7 +223,7 @@ export default function DashboardConversationsPage() {
                                     }} />
                                 )}
 
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 16, paddingLeft: (conv.status === 'escalated' || conv.bot_paused) ? 8 : 0 }}>
+                                <div className="conversation-card-content" style={{ display: 'flex', alignItems: 'center', gap: 16, paddingLeft: (conv.status === 'escalated' || conv.bot_paused) ? 8 : 0 }}>
                                     <div style={{
                                         width: 50,
                                         height: 50,
