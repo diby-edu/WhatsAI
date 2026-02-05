@@ -1339,5 +1339,37 @@ body {
   div[style*="repeat(4, 1fr)"] {
     grid-template-columns: repeat(2, 1fr) !important;
   }
+
+  /* Force all 2-column grids (1fr 1fr) to 1 column on mobile */
+  div[style*="1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Force repeat(2, 1fr) to 1 column on mobile */
+  div[style*="repeat(2, 1fr)"] {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* =============================================
+   MOBILE GRID ADJUSTMENTS (< 480px)
+   ============================================= */
+
+@media (max-width: 480px) {
+  /* Reduce gaps on very small screens */
+  div[style*="gap: 24"] {
+    gap: 16px !important;
+  }
+
+  div[style*="gap: 20"] {
+    gap: 12px !important;
+  }
+
+  /* Force auto-fit grids with large minmax to single column */
+  div[style*="minmax(280px"],
+  div[style*="minmax(300px"],
+  div[style*="minmax(320px"] {
+    grid-template-columns: 1fr !important;
+  }
 }
 
