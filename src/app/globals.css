@@ -1269,20 +1269,36 @@ body {
    ============================================= */
 
 @media (max-width: 640px) {
-  /* Conversation card - stack on mobile */
+  /* Conversation card - keep horizontal but adjust spacing */
   .conversation-card-content {
-    flex-direction: column !important;
-    align-items: flex-start !important;
     gap: 12px !important;
   }
 
+  /* Avatar - smaller on mobile */
+  .conversation-card-content > div:first-child {
+    width: 40px !important;
+    height: 40px !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Content section - allow text to wrap properly */
+  .conversation-card-content > div:nth-child(2) {
+    flex: 1 !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+  }
+
+  /* Date section - keep compact */
   .conversation-card-content > div:last-child {
-    width: 100% !important;
-    display: flex !important;
-    flex-direction: row !important;
-    justify-content: space-between !important;
-    align-items: center !important;
-    text-align: left !important;
+    flex-shrink: 0 !important;
+    min-width: 70px !important;
+    text-align: right !important;
+  }
+
+  /* Make date text smaller */
+  .conversation-card-content > div:last-child > div:first-child {
+    font-size: 10px !important;
+    white-space: nowrap !important;
   }
 }
 
@@ -1312,6 +1328,16 @@ body {
     width: 100% !important;
     text-align: left !important;
     margin-top: 4px !important;
+  }
+
+  /* Force all 3-column grids to 1 column on mobile */
+  div[style*="repeat(3, 1fr)"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Force all 4-column grids to 2 columns on mobile */
+  div[style*="repeat(4, 1fr)"] {
+    grid-template-columns: repeat(2, 1fr) !important;
   }
 }
 

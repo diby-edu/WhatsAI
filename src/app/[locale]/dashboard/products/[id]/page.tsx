@@ -254,7 +254,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                         {/* Product Type Selection */}
                         <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
                             <label className="block text-slate-300 font-medium mb-3">Type de produit</label>
-                            <div className="grid grid-cols-3 gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                 {[
                                     { id: 'product', label: '📦 Physique', desc: 'Produit livrable' },
                                     { id: 'digital', label: '💻 Numérique', desc: 'Téléchargement' },
