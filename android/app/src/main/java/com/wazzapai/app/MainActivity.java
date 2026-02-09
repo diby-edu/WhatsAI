@@ -16,21 +16,21 @@ public class MainActivity extends BridgeActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Configure status bar for dark app (light icons/text)
+        // Configure status bar with LIGHT background and DARK icons (like browser)
         Window window = getWindow();
 
-        // Make status bar transparent
+        // Set status bar color to light gray (matching styles.xml)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
-            window.setStatusBarColor(android.graphics.Color.TRANSPARENT);
+            window.setStatusBarColor(android.graphics.Color.parseColor("#F8FAFC"));
         }
 
-        // Set light status bar icons (white icons on dark background)
+        // Set DARK status bar icons (on light background)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             View decorView = window.getDecorView();
-            // Clear the light status bar flag to get white/light icons
+            // Set the light status bar flag to get dark icons
             decorView.setSystemUiVisibility(
-                    decorView.getSystemUiVisibility() & ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
+                    decorView.getSystemUiVisibility() | View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
         }
 
         // For API 30+ use WindowInsetsController
@@ -38,7 +38,7 @@ public class MainActivity extends BridgeActivity {
             WindowInsetsControllerCompat insetsController = WindowCompat.getInsetsController(window,
                     window.getDecorView());
             if (insetsController != null) {
-                insetsController.setAppearanceLightStatusBars(false); // false = white icons
+                insetsController.setAppearanceLightStatusBars(true); // true = dark icons
             }
         }
     }
