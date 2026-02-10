@@ -16,15 +16,22 @@ const config: CapacitorConfig = {
     webContentsDebuggingEnabled: false,
     // Better scroll behavior
     overrideUserAgent: 'WazzapAI Android App',
-    backgroundColor: '#020617'
+    backgroundColor: '#0f172a'
   },
   plugins: {
     // Keyboard plugin to handle soft keyboard better
     Keyboard: {
       resize: 'body',
       resizeOnFullScreen: true
+    },
+    // Status bar: dark background with white icons (same as mobile browser)
+    StatusBar: {
+      backgroundColor: '#0f172a',
+      style: 'LIGHT',
+      overlaysWebView: false
     }
   }
 };
 
 export default config;
+
