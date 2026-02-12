@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "../globals.css";
 import { NextIntlClientProvider } from 'next-intl';
@@ -8,6 +8,14 @@ const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
 });
+
+// Viewport with viewport-fit=cover for safe-area-insets (APK status bar)
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  viewportFit: 'cover',
+};
 
 export const metadata: Metadata = {
   title: "WazzapAI - The Ultimate WhatsApp Automation Platform powered by AI",

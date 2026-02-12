@@ -107,6 +107,10 @@ body {
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y pan-x pinch-zoom;
   overscroll-behavior-y: contain;
+  /* Safe area for APK status bar - pushes content below status bar */
+  padding-top: env(safe-area-inset-top, 0);
+  padding-left: env(safe-area-inset-left, 0);
+  padding-right: env(safe-area-inset-right, 0);
 }
 
 /* Improve touch scrolling performance */
@@ -1084,12 +1088,7 @@ body {
   overflow-y: auto;
 }
 
-/* Safe area for status bar - APK */
-@supports (padding-top: env(safe-area-inset-top)) {
-  .dashboard-container {
-    padding-top: env(safe-area-inset-top, 0) !important;
-  }
-}
+/* Safe area for status bar is now applied globally on body */
 
 /* =============================================
    ORDERS PAGE MOBILE FIXES
