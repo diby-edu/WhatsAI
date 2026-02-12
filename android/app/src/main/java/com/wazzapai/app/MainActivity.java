@@ -89,6 +89,10 @@ public class MainActivity extends BridgeActivity {
         if (webView != null) {
             WebSettings settings = webView.getSettings();
 
+            // CRITICAL: Add padding to push content below status bar
+            int statusBarHeight = getStatusBarHeight();
+            webView.setPadding(0, statusBarHeight, 0, 0);
+
             // Enable smooth scrolling
             webView.setOverScrollMode(WebView.OVER_SCROLL_ALWAYS);
             webView.setVerticalScrollBarEnabled(true);
@@ -111,5 +115,14 @@ public class MainActivity extends BridgeActivity {
             // Cache settings
             settings.setCacheMode(WebSettings.LOAD_DEFAULT);
         }
+    }
+
+    private int getStatusBarHeight() {
+        int result = 0;
+        int resourceId = getResources().getIdentifier("status_bar_height", "dimen", "android");
+        if (resourceId > 0) {
+            result = getResources().getDimensionPixelSize(resourceId);
+        }
+        return result;
     }
 }
