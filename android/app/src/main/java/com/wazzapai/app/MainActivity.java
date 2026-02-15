@@ -1,7 +1,9 @@
 package com.wazzapai.app;
 
+import android.Manifest;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
@@ -14,17 +16,48 @@ import android.view.WindowManager;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.widget.FrameLayout;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.core.content.ContextCompat;
+import androidx.core.splashscreen.SplashScreen;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import com.getcapacitor.BridgeActivity;
+import com.google.firebase.messaging.FirebaseMessaging;
 
 public class MainActivity extends BridgeActivity {
 
     // Dark background to match the app theme
     private static final int STATUS_BAR_COLOR = Color.parseColor("#0f172a");
 
+    // Track when app is ready (WebView loaded)
+    private boolean isAppReady = false;
+
+    // Permission request launcher for notifications (Android 13+)
+    private final ActivityResultLauncher<String> requestPermissionLauncher =
+        registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
+            if (isGranted) {
+                // Permission granted - notifications will work
+                android.util.Log.d("WazzapAI", "Notification permission granted");
+            } else {
+                // Permission denied - user won't receive notifications
+                android.util.Log.d("WazzapAI", "Notification permission denied");
+            }
+        });
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        // Install splash screen BEFORE super.onCreate()
+        SplashScreen splashScreen = SplashScreen.installSplashScreen(this);
+
+        // Keep splash screen visible until app is ready (max 3 seconds)
+        splashScreen.setKeepOnScreenCondition(() -> !isAppReady);
+
+        // Auto-dismiss after 3 seconds max
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+            isAppReady = true;
+        }, 3000);
+
         super.onCreate(savedInstanceState);
 
         // Set window background color to match status bar (prevents white line)
@@ -39,10 +72,73 @@ public class MainActivity extends BridgeActivity {
         // Create notification channel for push notifications
         createNotificationChannel();
 
+        // Request notification permission (Android 13+)
+        requestNotificationPermission();
+
+        // Get and send FCM token
+        getFcmToken();
+
         // Re-apply after a delay to override any Capacitor/WebView changes
         new Handler(Looper.getMainLooper()).postDelayed(this::configureStatusBar, 100);
         new Handler(Looper.getMainLooper()).postDelayed(this::configureStatusBar, 500);
         new Handler(Looper.getMainLooper()).postDelayed(this::configureStatusBar, 1000);
+    }
+
+    private void requestNotificationPermission() {
+        // Request notification permission for Android 13+ (API 33+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                    != PackageManager.PERMISSION_GRANTED) {
+                // Request permission
+                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
+            }
+        }
+    }
+
+    private void getFcmToken() {
+        FirebaseMessaging.getInstance().getToken()
+            .addOnCompleteListener(task -> {
+                if (!task.isSuccessful()) {
+                    android.util.Log.w("WazzapAI", "Fetching FCM token failed", task.getException());
+                    return;
+                }
+
+                // Get new FCM registration token
+                String token = task.getResult();
+                android.util.Log.d("WazzapAI", "FCM Token: " + token);
+
+                // Token will be sent to backend via WazzapFirebaseMessagingService
+                // But we also trigger it here to ensure it's sent on app start
+                sendFcmTokenToBackend(token);
+            });
+    }
+
+    private void sendFcmTokenToBackend(String token) {
+        new Thread(() -> {
+            try {
+                java.net.URL url = new java.net.URL("https://wazzapai.com/api/notifications/register-device-native");
+                java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setDoOutput(true);
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(10000);
+
+                String jsonPayload = "{\"token\":\"" + token + "\",\"platform\":\"android\"}";
+
+                try (java.io.OutputStream os = conn.getOutputStream()) {
+                    byte[] input = jsonPayload.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                    os.write(input, 0, input.length);
+                }
+
+                int responseCode = conn.getResponseCode();
+                android.util.Log.d("WazzapAI", "FCM token sent to backend. Response: " + responseCode);
+
+                conn.disconnect();
+            } catch (Exception e) {
+                android.util.Log.e("WazzapAI", "Error sending FCM token: " + e.getMessage());
+            }
+        }).start();
     }
 
     private void createNotificationChannel() {

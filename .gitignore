@@ -44,5 +44,9 @@ next-env.d.ts
 .whatsapp-sessions
 .whatsapp-sessions/
 
+# Firebase credentials (sensitive)
+google-services.json
+android/app/google-services.json
+
 
 Package Complet Fourni 6 FICHIERS/
