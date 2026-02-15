@@ -310,7 +310,7 @@ export async function POST(request: NextRequest) {
                                         .single()
 
                                     // Numéro par défaut ou celui du profil
-                                    const merchantPhone = profile?.phone || '+2250504315545'
+                                    const merchantPhone = profile?.phone || '+2250554585927'
 
                                     const itemsList = await getSupabase()
                                         .from('order_items')

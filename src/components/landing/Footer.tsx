@@ -180,14 +180,18 @@ export default function Footer() {
                     <p style={{ color: '#475569', fontSize: 13 }}>
                         {t('rights')}
                     </p>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#475569', fontSize: 13 }}>
                             <Mail style={{ width: 14, height: 14 }} />
                             support@wazzapai.com
                         </div>
+                        <a href="tel:+2250554585927" style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#475569', fontSize: 13, textDecoration: 'none' }}>
+                            <MessageCircle style={{ width: 14, height: 14 }} />
+                            +225 05 54 58 59 27
+                        </a>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#475569', fontSize: 13 }}>
                             <MapPin style={{ width: 14, height: 14 }} />
-                            City, Country
+                            Abidjan, Côte d'Ivoire
                         </div>
                     </div>
                 </div>
