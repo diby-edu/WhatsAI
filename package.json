@@ -21,6 +21,7 @@
     "@capacitor/core": "^8.0.1",
     "@capacitor/ios": "^8.0.1",
     "@capacitor/push-notifications": "^8.0.1",
+    "@capacitor/splash-screen": "^8.0.1",
     "@capacitor/status-bar": "^8.0.0",
     "@sentry/nextjs": "^10.32.1",
     "@supabase/ssr": "^0.8.0",

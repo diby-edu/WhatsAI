@@ -13,7 +13,7 @@ const config: CapacitorConfig = {
     // Enable hardware acceleration for smooth scrolling
     allowMixedContent: true,
     captureInput: true,
-    webContentsDebuggingEnabled: false,
+    webContentsDebuggingEnabled: true, // Enable for debugging - set to false in production
     // Better scroll behavior
     overrideUserAgent: 'WazzapAI Android App',
     backgroundColor: '#0f172a'
@@ -29,6 +29,15 @@ const config: CapacitorConfig = {
       backgroundColor: '#0f172a',
       style: 'LIGHT',
       overlaysWebView: false
+    },
+    // Splash screen: Use native Android 12+ splash (disable Capacitor's)
+    SplashScreen: {
+      launchShowDuration: 0,
+      launchAutoHide: true
+    },
+    // Push Notifications
+    PushNotifications: {
+      presentationOptions: ['badge', 'sound', 'alert']
     }
   }
 };
