@@ -13,8 +13,8 @@ export async function middleware(request: NextRequest) {
     // 1. Run next-intl middleware
     let response = handleI18n(request);
 
-    // If API route, bypass intl logic
-    if (pathname.startsWith('/api')) {
+    // If API route or auth callback, bypass intl logic
+    if (pathname.startsWith('/api') || pathname.startsWith('/auth/callback')) {
         response = NextResponse.next({ request });
     }
 
@@ -80,11 +80,11 @@ export async function middleware(request: NextRequest) {
     // ⭐ FIX #1 : Vérifier le rôle de l'utilisateur connecté
     // ═══════════════════════════════════════════════════════════════
     let userRole: string | null = null;
-    
+
     if (user) {
         // Vérifier métadonnées (rapide)
         userRole = user.user_metadata?.role;
-        
+
         // Si pas dans metadata, vérifier DB
         if (!userRole) {
             const { data: profile } = await supabase
@@ -92,13 +92,13 @@ export async function middleware(request: NextRequest) {
                 .select('role')
                 .eq('id', user.id)
                 .single();
-            
+
             userRole = profile?.role || null;
         }
-        
+
         console.log(`🔐 Middleware - User: ${user.email}, Role: ${userRole}, Path: ${pathnameWithoutLocale}`);
     }
-    
+
     const isAdmin = userRole === 'admin' || userRole === 'superadmin';
 
     // ═══════════════════════════════════════════════════════════════
@@ -124,12 +124,12 @@ export async function middleware(request: NextRequest) {
     // ═══════════════════════════════════════════════════════════════
     if (user && (pathnameWithoutLocale === '/login' || pathnameWithoutLocale === '/register')) {
         const locale = pathname.match(/^\/(fr|en)/)?.[1] || 'fr';
-        
+
         if (isAdmin) {
             console.log(`🔄 Redirecting admin from login to /admin`);
             return NextResponse.redirect(new URL(`/${locale}/admin`, request.url));
         }
-        
+
         return NextResponse.redirect(new URL(`/${locale}/dashboard`, request.url));
     }
 
