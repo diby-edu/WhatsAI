@@ -88,7 +88,7 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                 try {
                     const { data: agent } = await supabase.from('agents').select('user_id').eq('id', agentId).single()
                     if (agent?.user_id) {
-                        const { notify } = require('../../../notifications/notification.service')
+                        const { notify } = require('../../../notifications/notify')
                         notify(agent.user_id, 'agent_status_change', { agentName, agentStatus: 'connected' })
                     }
                 } catch (notifError) {
@@ -149,7 +149,7 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                     try {
                         const { data: agent } = await supabase.from('agents').select('user_id').eq('id', agentId).single()
                         if (agent?.user_id) {
-                            const { notify } = require('../../../notifications/notification.service')
+                            const { notify } = require('../../../notifications/notify')
                             notify(agent.user_id, 'agent_status_change', { agentName, agentStatus: 'disconnected' })
                         }
                     } catch (notifError) {

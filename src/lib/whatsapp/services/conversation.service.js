@@ -65,7 +65,7 @@ class ConversationService {
 
             // 🔔 NOTIFICATION: Nouvelle conversation
             try {
-                const { notify } = require('../../notifications/notification.service')
+                const { notify } = require('../../notifications/notify')
                 notify(userId, 'new_conversation', {
                     contactPhone,
                     contactName: metadata?.wa_name || contactPhone
@@ -147,7 +147,7 @@ class ConversationService {
             // 🔔 NOTIFICATION: Escalade
             if (conv?.user_id) {
                 try {
-                    const { notify } = require('../../notifications/notification.service')
+                    const { notify } = require('../../notifications/notify')
                     notify(conv.user_id, 'escalation', {
                         contactPhone: conv.contact_phone,
                         contactName: conv.metadata?.wa_name || conv.contact_phone
