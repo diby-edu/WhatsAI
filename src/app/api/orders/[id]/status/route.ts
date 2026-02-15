@@ -56,6 +56,18 @@ export async function PATCH(
             return errorResponse('Erreur lors de la mise à jour du statut')
         }
 
+        // 🔔 NOTIFICATION: Commande annulée
+        if (status === 'cancelled') {
+            try {
+                const { notify } = await import('@/lib/notifications/notification.service')
+                notify(user.id, 'order_cancelled', {
+                    orderNumber: orderId.slice(-8)
+                })
+            } catch (notifError) {
+                console.error('🔔 Notification error (non-blocking):', notifError)
+            }
+        }
+
         return successResponse({ message: `Statut mis à jour: ${status}` })
     } catch (err) {
         console.error('Status update error:', err)

@@ -83,6 +83,17 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                     whatsapp_qr_code: null,
                     whatsapp_status: 'connected'
                 }).eq('id', agentId)
+
+                // 🔔 NOTIFICATION: Agent connecté
+                try {
+                    const { data: agent } = await supabase.from('agents').select('user_id').eq('id', agentId).single()
+                    if (agent?.user_id) {
+                        const { notify } = require('../../../notifications/notification.service')
+                        notify(agent.user_id, 'agent_status_change', { agentName, agentStatus: 'connected' })
+                    }
+                } catch (notifError) {
+                    console.error('🔔 Notification error (non-blocking):', notifError)
+                }
             }
 
             if (connection === 'close') {
@@ -133,6 +144,17 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                         whatsapp_qr_code: null,
                         whatsapp_status: 'disconnected'
                     }).eq('id', agentId)
+
+                    // 🔔 NOTIFICATION: Agent déconnecté
+                    try {
+                        const { data: agent } = await supabase.from('agents').select('user_id').eq('id', agentId).single()
+                        if (agent?.user_id) {
+                            const { notify } = require('../../../notifications/notification.service')
+                            notify(agent.user_id, 'agent_status_change', { agentName, agentStatus: 'disconnected' })
+                        }
+                    } catch (notifError) {
+                        console.error('🔔 Notification error (non-blocking):', notifError)
+                    }
                 }
             }
         })

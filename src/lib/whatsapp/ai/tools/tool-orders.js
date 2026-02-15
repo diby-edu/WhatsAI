@@ -145,6 +145,39 @@ async function handleCreateOrder(args, agentId, products, conversationId, supaba
             )
         }
 
+        // 🔔 NOTIFICATION: Nouvelle commande
+        try {
+            const { notify } = require('../../../notifications/notification.service')
+            notify(agent.user_id, 'new_order', {
+                orderNumber: order.id?.toString().slice(-8) || '',
+                customerName: customer_name || 'Client',
+                totalAmount: total
+            })
+
+            // Vérifier et notifier si stock épuisé après commande
+            for (const item of args.items || []) {
+                if (item.product_id) {
+                    const { data: prod } = await supabase
+                        .from('products')
+                        .select('stock_quantity, name')
+                        .eq('id', item.product_id)
+                        .single()
+
+                    if (prod && prod.stock_quantity !== -1 && prod.stock_quantity !== null) {
+                        const newStock = prod.stock_quantity - (item.quantity || 1)
+                        // Update stock
+                        await supabase.from('products').update({ stock_quantity: Math.max(0, newStock) }).eq('id', item.product_id)
+                        // Notify if stock out
+                        if (newStock <= 0) {
+                            notify(agent.user_id, 'stock_out', { productName: prod.name })
+                        }
+                    }
+                }
+            }
+        } catch (notifError) {
+            console.error('🔔 Notification error (non-blocking):', notifError)
+        }
+
         // Génération du résumé GROUPÉ (pour l'affichage Clean)
         // Génération du résumé GROUPÉ et DÉTAILLÉ (Format v5: Qty X Unit = Total)
         const groupedSummary = {}

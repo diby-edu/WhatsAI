@@ -62,6 +62,18 @@ class ConversationService {
             }
 
             console.log(`✅ Conversation created: ${newConv.id}`)
+
+            // 🔔 NOTIFICATION: Nouvelle conversation
+            try {
+                const { notify } = require('../../notifications/notification.service')
+                notify(userId, 'new_conversation', {
+                    contactPhone,
+                    contactName: metadata?.wa_name || contactPhone
+                })
+            } catch (notifError) {
+                console.error('🔔 Notification error (non-blocking):', notifError)
+            }
+
             return new Conversation(newConv, supabase)
 
         } catch (error) {
@@ -111,6 +123,13 @@ class ConversationService {
      */
     static async escalate(supabase, conversationId, reason) {
         try {
+            // Get conversation details for notification
+            const { data: conv } = await supabase
+                .from('conversations')
+                .select('user_id, contact_phone, metadata')
+                .eq('id', conversationId)
+                .single()
+
             const { error } = await supabase
                 .from('conversations')
                 .update({
@@ -124,6 +143,19 @@ class ConversationService {
             if (error) throw error
 
             console.log(`🚨 Conversation ${conversationId} escalated: ${reason}`)
+
+            // 🔔 NOTIFICATION: Escalade
+            if (conv?.user_id) {
+                try {
+                    const { notify } = require('../../notifications/notification.service')
+                    notify(conv.user_id, 'escalation', {
+                        contactPhone: conv.contact_phone,
+                        contactName: conv.metadata?.wa_name || conv.contact_phone
+                    })
+                } catch (notifError) {
+                    console.error('🔔 Notification error (non-blocking):', notifError)
+                }
+            }
         } catch (error) {
             throw new AppError('Failed to escalate conversation', {
                 code: 'CONVERSATION_ESCALATE_FAILED',

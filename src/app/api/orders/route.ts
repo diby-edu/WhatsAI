@@ -99,6 +99,18 @@ export async function POST(request: NextRequest) {
             if (itemsError) throw itemsError
         }
 
+        // 🔔 NOTIFICATION: Nouvelle commande
+        try {
+            const { notify } = await import('@/lib/notifications/notification.service')
+            notify(user.id, 'new_order', {
+                orderNumber: order.id?.toString().slice(-8) || '',
+                customerName: body.customer_name || 'Client',
+                totalAmount: total
+            })
+        } catch (notifError) {
+            console.error('🔔 Notification error (non-blocking):', notifError)
+        }
+
         return successResponse({ order }, 201)
     } catch (err) {
         console.error('Error creating order:', err)
