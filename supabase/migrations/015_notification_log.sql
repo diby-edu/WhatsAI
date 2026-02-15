@@ -17,9 +17,10 @@ CREATE INDEX IF NOT EXISTS idx_notification_log_user_type
 -- RLS
 ALTER TABLE notification_log ENABLE ROW LEVEL SECURITY;
 
--- Only service role can insert/read
+-- Only service role can insert/read (restricted for security)
+DROP POLICY IF EXISTS "Service role full access on notification_log" ON notification_log;
 CREATE POLICY "Service role full access on notification_log"
     ON notification_log
     FOR ALL
-    USING (true)
-    WITH CHECK (true);
+    USING (auth.jwt()->>'role' = 'service_role')
+    WITH CHECK (auth.jwt()->>'role' = 'service_role');
