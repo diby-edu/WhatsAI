@@ -20,7 +20,7 @@ export default withSentryConfig(withNextIntl(nextConfig), {
   // https://github.com/getsentry/sentry-webpack-plugin#options
 
   org: "numerik-n7",
-  project: "whatsai",
+  project: "wazzapai",
 
   // Only print logs for uploading source maps in CI
   silent: !process.env.CI,
