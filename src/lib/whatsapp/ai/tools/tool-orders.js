@@ -147,7 +147,7 @@ async function handleCreateOrder(args, agentId, products, conversationId, supaba
 
         // 🔔 NOTIFICATION: Nouvelle commande
         try {
-            const { notify } = require('../../../notifications/notification.service')
+            const { notify } = require('../../../notifications/notify')
             notify(agent.user_id, 'new_order', {
                 orderNumber: order.id?.toString().slice(-8) || '',
                 customerName: customer_name || 'Client',

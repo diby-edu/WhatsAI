@@ -138,7 +138,7 @@ class CreditsService {
             // 🔔 NOTIFICATIONS: Crédits faibles / épuisés
             // ═══════════════════════════════════════════════════════════
             try {
-                const { notify, LOW_CREDITS_THRESHOLD } = require('../../notifications/notification.service')
+                const { notify, LOW_CREDITS_THRESHOLD } = require('../../notifications/notify')
                 if (newBalance === 0) {
                     notify(userId, 'credits_depleted', { balance: 0 })
                 } else if (newBalance <= LOW_CREDITS_THRESHOLD && newBalance + amount > LOW_CREDITS_THRESHOLD) {
