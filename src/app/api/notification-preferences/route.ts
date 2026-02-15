@@ -51,16 +51,30 @@ export async function PATCH(request: NextRequest) {
 
         // Only allow specific fields to be updated
         const allowedFields = [
+            // Email - Existing
             'email_new_conversation',
             'email_daily_summary',
             'email_low_credits',
             'email_new_order',
             'email_agent_status_change',
+            // Email - Extended
+            'email_order_cancelled',
+            'email_escalation',
+            'email_credits_depleted',
+            'email_subscription_expiring',
+            'email_stock_out',
+            // Push - Existing
             'push_enabled',
             'push_new_conversation',
             'push_new_order',
             'push_low_credits',
-            'push_agent_status_change'
+            'push_agent_status_change',
+            // Push - Extended
+            'push_order_cancelled',
+            'push_escalation',
+            'push_credits_depleted',
+            'push_subscription_expiring',
+            'push_stock_out'
         ]
 
         const updates: Record<string, any> = {}
