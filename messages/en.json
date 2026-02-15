@@ -600,6 +600,46 @@
             "pushAgentStatus": {
                 "label": "Agent status",
                 "description": "Notification when your agent changes status"
+            },
+            "orderCancelled": {
+                "label": "Order cancelled",
+                "description": "Notification when an order is cancelled"
+            },
+            "escalation": {
+                "label": "Escalation requested",
+                "description": "Customer wants to speak to a human"
+            },
+            "creditsDepleted": {
+                "label": "Credits depleted",
+                "description": "Alert when your credits reach zero"
+            },
+            "subscriptionExpiring": {
+                "label": "Subscription expiring soon",
+                "description": "Reminder 7 days before expiration"
+            },
+            "stockOut": {
+                "label": "Out of stock",
+                "description": "Alert when a product is out of stock"
+            },
+            "pushOrderCancelled": {
+                "label": "Order cancelled",
+                "description": "Notification when an order is cancelled"
+            },
+            "pushEscalation": {
+                "label": "Escalation requested",
+                "description": "Customer wants to speak to a human"
+            },
+            "pushCreditsDepleted": {
+                "label": "Credits depleted",
+                "description": "Critical alert when credits = 0"
+            },
+            "pushSubscriptionExpiring": {
+                "label": "Subscription expiring",
+                "description": "Reminder before expiration"
+            },
+            "pushStockOut": {
+                "label": "Out of stock",
+                "description": "Stock out alert"
             }
         },
         "Security": {

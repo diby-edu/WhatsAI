@@ -627,6 +627,46 @@
       "pushAgentStatus": {
         "label": "Statut de l'agent",
         "description": "Notification quand votre agent change de statut"
+      },
+      "orderCancelled": {
+        "label": "Commande annulée",
+        "description": "Notification quand une commande est annulée"
+      },
+      "escalation": {
+        "label": "Escalade demandée",
+        "description": "Le client veut parler à un humain"
+      },
+      "creditsDepleted": {
+        "label": "Crédits épuisés",
+        "description": "Alerte quand vos crédits atteignent zéro"
+      },
+      "subscriptionExpiring": {
+        "label": "Abonnement expire bientôt",
+        "description": "Rappel 7 jours avant expiration"
+      },
+      "stockOut": {
+        "label": "Stock épuisé",
+        "description": "Alerte quand un produit est en rupture"
+      },
+      "pushOrderCancelled": {
+        "label": "Commande annulée",
+        "description": "Notification quand une commande est annulée"
+      },
+      "pushEscalation": {
+        "label": "Escalade demandée",
+        "description": "Le client veut parler à un humain"
+      },
+      "pushCreditsDepleted": {
+        "label": "Crédits épuisés",
+        "description": "Alerte critique quand crédits = 0"
+      },
+      "pushSubscriptionExpiring": {
+        "label": "Abonnement expire",
+        "description": "Rappel avant expiration"
+      },
+      "pushStockOut": {
+        "label": "Stock épuisé",
+        "description": "Alerte rupture de stock"
       }
     },
     "Security": {

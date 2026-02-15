@@ -5,10 +5,10 @@ import { motion } from 'framer-motion'
 import {
     Save, Globe, Shield, CreditCard, Mail, AlertTriangle,
     Database, Key, Server, Bell, Palette, Lock, RefreshCw,
-    CheckCircle, Loader2
+    CheckCircle, Loader2, Users, Bot, Activity, Zap
 } from 'lucide-react'
 
-type TabId = 'general' | 'ai' | 'payment' | 'email' | 'security' | 'advanced'
+type TabId = 'general' | 'ai' | 'payment' | 'email' | 'security' | 'advanced' | 'notifications'
 
 interface Tab {
     id: TabId
@@ -21,14 +21,96 @@ const tabs: Tab[] = [
     { id: 'ai', label: 'Intelligence Artificielle', icon: Shield },
     { id: 'payment', label: 'Paiements', icon: CreditCard },
     { id: 'email', label: 'Emails', icon: Mail },
+    { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'security', label: 'Sécurité', icon: Lock },
     { id: 'advanced', label: 'Avancé', icon: Server },
 ]
+
+interface AdminNotificationSettings {
+    // Users & Revenue
+    notif_new_user: boolean
+    notif_plan_upgrade: boolean
+    notif_plan_downgrade: boolean
+    notif_payment_received: boolean
+    notif_payment_failed: boolean
+    notif_subscription_cancelled: boolean
+    // Agents
+    notif_agent_created: boolean
+    notif_agent_connected: boolean
+    notif_agent_disconnected: boolean
+    notif_agent_quota_exceeded: boolean
+    // System
+    notif_openai_error: boolean
+    notif_whatsapp_down: boolean
+    notif_high_error_rate: boolean
+    // Activity
+    notif_new_conversation: boolean
+    notif_new_order: boolean
+    notif_escalation: boolean
+}
 
 export default function AdminSettingsPage() {
     const [activeTab, setActiveTab] = useState<TabId>('general')
     const [saving, setSaving] = useState(false)
     const [saved, setSaved] = useState(false)
+
+    const [notificationSettings, setNotificationSettings] = useState<AdminNotificationSettings>({
+        // Users & Revenue
+        notif_new_user: true,
+        notif_plan_upgrade: true,
+        notif_plan_downgrade: true,
+        notif_payment_received: true,
+        notif_payment_failed: true,
+        notif_subscription_cancelled: true,
+        // Agents
+        notif_agent_created: true,
+        notif_agent_connected: true,
+        notif_agent_disconnected: true,
+        notif_agent_quota_exceeded: true,
+        // System
+        notif_openai_error: true,
+        notif_whatsapp_down: true,
+        notif_high_error_rate: true,
+        // Activity
+        notif_new_conversation: false,
+        notif_new_order: true,
+        notif_escalation: true
+    })
+
+    useEffect(() => {
+        fetchNotificationPreferences()
+    }, [])
+
+    const fetchNotificationPreferences = async () => {
+        try {
+            const res = await fetch('/api/admin/notification-preferences')
+            const data = await res.json()
+            if (data.data?.preferences) {
+                setNotificationSettings(data.data.preferences)
+            }
+        } catch (err) {
+            console.error('Error fetching admin notification preferences:', err)
+        }
+    }
+
+    const handleSaveNotifications = async () => {
+        setSaving(true)
+        try {
+            const res = await fetch('/api/admin/notification-preferences', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(notificationSettings)
+            })
+            if (res.ok) {
+                setSaved(true)
+                setTimeout(() => setSaved(false), 3000)
+            }
+        } catch (err) {
+            console.error('Error saving admin notification preferences:', err)
+        } finally {
+            setSaving(false)
+        }
+    }
 
     const [settings, setSettings] = useState({
         // General
@@ -668,6 +750,138 @@ export default function AdminSettingsPage() {
                                 Purger
                             </button>
                         </SettingRow>
+                    </div>
+                )
+
+            case 'notifications':
+                return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                        {/* Users & Revenue */}
+                        <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                                <Users style={{ width: 20, height: 20, color: '#3b82f6' }} />
+                                <h3 style={{ color: '#94a3b8', fontSize: 14, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>
+                                    Utilisateurs & Revenus
+                                </h3>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                <SettingRow label="Nouvel utilisateur inscrit" description="Alerte quand un nouveau compte est créé">
+                                    <ToggleSwitch value={notificationSettings.notif_new_user} onChange={() => setNotificationSettings(s => ({ ...s, notif_new_user: !s.notif_new_user }))} />
+                                </SettingRow>
+                                <SettingRow label="Upgrade de plan" description="Un utilisateur passe à un plan supérieur">
+                                    <ToggleSwitch value={notificationSettings.notif_plan_upgrade} onChange={() => setNotificationSettings(s => ({ ...s, notif_plan_upgrade: !s.notif_plan_upgrade }))} />
+                                </SettingRow>
+                                <SettingRow label="Downgrade de plan" description="Un utilisateur passe à un plan inférieur">
+                                    <ToggleSwitch value={notificationSettings.notif_plan_downgrade} onChange={() => setNotificationSettings(s => ({ ...s, notif_plan_downgrade: !s.notif_plan_downgrade }))} />
+                                </SettingRow>
+                                <SettingRow label="Paiement reçu" description="Confirmation de paiement CinetPay">
+                                    <ToggleSwitch value={notificationSettings.notif_payment_received} onChange={() => setNotificationSettings(s => ({ ...s, notif_payment_received: !s.notif_payment_received }))} />
+                                </SettingRow>
+                                <SettingRow label="Paiement échoué" description="Échec d'un paiement (critique)">
+                                    <ToggleSwitch value={notificationSettings.notif_payment_failed} onChange={() => setNotificationSettings(s => ({ ...s, notif_payment_failed: !s.notif_payment_failed }))} color="#ef4444" />
+                                </SettingRow>
+                                <SettingRow label="Abonnement annulé" description="Un utilisateur annule son abonnement">
+                                    <ToggleSwitch value={notificationSettings.notif_subscription_cancelled} onChange={() => setNotificationSettings(s => ({ ...s, notif_subscription_cancelled: !s.notif_subscription_cancelled }))} />
+                                </SettingRow>
+                            </div>
+                        </div>
+
+                        {/* Agents */}
+                        <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                                <Bot style={{ width: 20, height: 20, color: '#10b981' }} />
+                                <h3 style={{ color: '#94a3b8', fontSize: 14, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>
+                                    Agents IA
+                                </h3>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                <SettingRow label="Nouvel agent créé" description="Un utilisateur crée un nouvel agent">
+                                    <ToggleSwitch value={notificationSettings.notif_agent_created} onChange={() => setNotificationSettings(s => ({ ...s, notif_agent_created: !s.notif_agent_created }))} />
+                                </SettingRow>
+                                <SettingRow label="Agent connecté WhatsApp" description="Un agent se connecte avec succès">
+                                    <ToggleSwitch value={notificationSettings.notif_agent_connected} onChange={() => setNotificationSettings(s => ({ ...s, notif_agent_connected: !s.notif_agent_connected }))} />
+                                </SettingRow>
+                                <SettingRow label="Agent déconnecté WhatsApp" description="Perte de connexion WhatsApp (critique)">
+                                    <ToggleSwitch value={notificationSettings.notif_agent_disconnected} onChange={() => setNotificationSettings(s => ({ ...s, notif_agent_disconnected: !s.notif_agent_disconnected }))} color="#ef4444" />
+                                </SettingRow>
+                                <SettingRow label="Quota agents dépassé" description="Tentative de créer plus d'agents que permis">
+                                    <ToggleSwitch value={notificationSettings.notif_agent_quota_exceeded} onChange={() => setNotificationSettings(s => ({ ...s, notif_agent_quota_exceeded: !s.notif_agent_quota_exceeded }))} />
+                                </SettingRow>
+                            </div>
+                        </div>
+
+                        {/* System & Health */}
+                        <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                                <Zap style={{ width: 20, height: 20, color: '#f59e0b' }} />
+                                <h3 style={{ color: '#94a3b8', fontSize: 14, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>
+                                    Système & Santé
+                                </h3>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                <SettingRow label="Erreur API OpenAI" description="Problème avec l'API IA (critique)">
+                                    <ToggleSwitch value={notificationSettings.notif_openai_error} onChange={() => setNotificationSettings(s => ({ ...s, notif_openai_error: !s.notif_openai_error }))} color="#ef4444" />
+                                </SettingRow>
+                                <SettingRow label="Service WhatsApp down" description="Le bot ne répond plus (critique)">
+                                    <ToggleSwitch value={notificationSettings.notif_whatsapp_down} onChange={() => setNotificationSettings(s => ({ ...s, notif_whatsapp_down: !s.notif_whatsapp_down }))} color="#ef4444" />
+                                </SettingRow>
+                                <SettingRow label="Taux d'erreur élevé" description="> 5% de messages échoués">
+                                    <ToggleSwitch value={notificationSettings.notif_high_error_rate} onChange={() => setNotificationSettings(s => ({ ...s, notif_high_error_rate: !s.notif_high_error_rate }))} color="#f59e0b" />
+                                </SettingRow>
+                            </div>
+                        </div>
+
+                        {/* Activity */}
+                        <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                                <Activity style={{ width: 20, height: 20, color: '#8b5cf6' }} />
+                                <h3 style={{ color: '#94a3b8', fontSize: 14, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>
+                                    Activité
+                                </h3>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                <SettingRow label="Nouvelle conversation" description="Un client contacte un agent (volume élevé)">
+                                    <ToggleSwitch value={notificationSettings.notif_new_conversation} onChange={() => setNotificationSettings(s => ({ ...s, notif_new_conversation: !s.notif_new_conversation }))} />
+                                </SettingRow>
+                                <SettingRow label="Nouvelle commande" description="Une commande est passée">
+                                    <ToggleSwitch value={notificationSettings.notif_new_order} onChange={() => setNotificationSettings(s => ({ ...s, notif_new_order: !s.notif_new_order }))} />
+                                </SettingRow>
+                                <SettingRow label="Escalade conversation" description="Conversation transférée à humain">
+                                    <ToggleSwitch value={notificationSettings.notif_escalation} onChange={() => setNotificationSettings(s => ({ ...s, notif_escalation: !s.notif_escalation }))} color="#f59e0b" />
+                                </SettingRow>
+                            </div>
+                        </div>
+
+                        {/* Save Button */}
+                        <motion.button
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            onClick={handleSaveNotifications}
+                            disabled={saving}
+                            style={{
+                                padding: '14px 24px',
+                                borderRadius: 12,
+                                background: saved ? '#22c55e' : 'linear-gradient(135deg, #10b981, #059669)',
+                                border: 'none',
+                                color: 'white',
+                                fontWeight: 600,
+                                cursor: saving ? 'wait' : 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: 8,
+                                marginTop: 8
+                            }}
+                        >
+                            {saving ? (
+                                <Loader2 style={{ width: 18, height: 18, animation: 'spin 1s linear infinite' }} />
+                            ) : saved ? (
+                                <CheckCircle style={{ width: 18, height: 18 }} />
+                            ) : (
+                                <Save style={{ width: 18, height: 18 }} />
+                            )}
+                            {saved ? 'Sauvegardé !' : 'Sauvegarder les notifications'}
+                        </motion.button>
                     </div>
                 )
         }
