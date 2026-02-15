@@ -559,6 +559,8 @@
         },
         "Notifications": {
             "title": "Notification Preferences",
+            "emailSection": "Email Notifications",
+            "pushSection": "Push Notifications (Mobile)",
             "newConversation": {
                 "label": "New Conversation",
                 "description": "Receive an email when a customer starts a conversation"
@@ -570,6 +572,34 @@
             "lowCredits": {
                 "label": "Low Credits Alert",
                 "description": "Get notified when your credits are running low"
+            },
+            "newOrder": {
+                "label": "New Order",
+                "description": "Receive an email when a new order is placed"
+            },
+            "agentStatus": {
+                "label": "Agent Status",
+                "description": "Notification when agent is activated/deactivated"
+            },
+            "pushEnabled": {
+                "label": "Enable push notifications",
+                "description": "Receive notifications on your phone"
+            },
+            "pushNewConversation": {
+                "label": "New conversation",
+                "description": "Notification when a new customer contacts you"
+            },
+            "pushNewOrder": {
+                "label": "New order",
+                "description": "Notification when an order is placed"
+            },
+            "pushLowCredits": {
+                "label": "Low credits",
+                "description": "Alert when your credits are low"
+            },
+            "pushAgentStatus": {
+                "label": "Agent status",
+                "description": "Notification when your agent changes status"
             }
         },
         "Security": {

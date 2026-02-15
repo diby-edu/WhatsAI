@@ -586,6 +586,8 @@
     },
     "Notifications": {
       "title": "Préférences de notification",
+      "emailSection": "Notifications Email",
+      "pushSection": "Notifications Push (Mobile)",
       "newConversation": {
         "label": "Nouvelle conversation",
         "description": "Recevoir un email quand un client démarre une conversation"
@@ -605,6 +607,26 @@
       "agentStatus": {
         "label": "Statut de l'agent",
         "description": "Notification lors de l'activation/désactivation"
+      },
+      "pushEnabled": {
+        "label": "Activer les notifications push",
+        "description": "Recevoir des notifications sur votre téléphone"
+      },
+      "pushNewConversation": {
+        "label": "Nouvelle conversation",
+        "description": "Notification quand un nouveau client vous contacte"
+      },
+      "pushNewOrder": {
+        "label": "Nouvelle commande",
+        "description": "Notification quand une commande est passée"
+      },
+      "pushLowCredits": {
+        "label": "Crédits faibles",
+        "description": "Alerte quand vos crédits sont bas"
+      },
+      "pushAgentStatus": {
+        "label": "Statut de l'agent",
+        "description": "Notification quand votre agent change de statut"
       }
     },
     "Security": {

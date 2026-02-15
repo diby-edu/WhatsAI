@@ -16,7 +16,8 @@ import {
     Lock,
     Eye,
     EyeOff,
-    Trash2
+    Trash2,
+    Smartphone
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
@@ -36,6 +37,10 @@ interface NotificationSettings {
     email_new_order: boolean
     email_agent_status_change: boolean
     push_enabled: boolean
+    push_new_conversation: boolean
+    push_new_order: boolean
+    push_low_credits: boolean
+    push_agent_status_change: boolean
 }
 
 export default function SettingsPage() {
@@ -71,7 +76,11 @@ export default function SettingsPage() {
         email_low_credits: true,
         email_new_order: true,
         email_agent_status_change: true,
-        push_enabled: false
+        push_enabled: true,
+        push_new_conversation: true,
+        push_new_order: true,
+        push_low_credits: true,
+        push_agent_status_change: true
     })
 
     // Password state
@@ -83,6 +92,7 @@ export default function SettingsPage() {
 
     useEffect(() => {
         fetchProfile()
+        fetchNotificationPreferences()
     }, [])
 
     const fetchProfile = async () => {
@@ -96,6 +106,18 @@ export default function SettingsPage() {
             console.error('Error:', err)
         } finally {
             setLoading(false)
+        }
+    }
+
+    const fetchNotificationPreferences = async () => {
+        try {
+            const res = await fetch('/api/notification-preferences')
+            const data = await res.json()
+            if (data.data?.preferences) {
+                setNotifications(data.data.preferences)
+            }
+        } catch (err) {
+            console.error('Error fetching notification preferences:', err)
         }
     }
 
@@ -125,12 +147,21 @@ export default function SettingsPage() {
 
     const handleSaveNotifications = async () => {
         setSaving(true)
-        // Simulate save - implement actual API later
-        setTimeout(() => {
+        try {
+            const res = await fetch('/api/notification-preferences', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(notifications)
+            })
+            if (res.ok) {
+                setSaved(true)
+                setTimeout(() => setSaved(false), 3000)
+            }
+        } catch (err) {
+            console.error('Error saving notification preferences:', err)
+        } finally {
             setSaving(false)
-            setSaved(true)
-            setTimeout(() => setSaved(false), 3000)
-        }, 500)
+        }
     }
 
     const handleChangePassword = async () => {
@@ -304,38 +335,95 @@ export default function SettingsPage() {
                                 <h2 style={{ fontSize: 20, fontWeight: 600, color: 'white', marginBottom: 24 }}>
                                     {t('Notifications.title')}
                                 </h2>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                                    <ToggleOption
-                                        label={t('Notifications.newConversation.label')}
-                                        description={t('Notifications.newConversation.description')}
-                                        checked={notifications.email_new_conversation}
-                                        onChange={(v) => setNotifications({ ...notifications, email_new_conversation: v })}
-                                    />
-                                    <ToggleOption
-                                        label={t('Notifications.dailySummary.label')}
-                                        description={t('Notifications.dailySummary.description')}
-                                        checked={notifications.email_daily_summary}
-                                        onChange={(v) => setNotifications({ ...notifications, email_daily_summary: v })}
-                                    />
-                                    <ToggleOption
-                                        label={t('Notifications.lowCredits.label')}
-                                        description={t('Notifications.lowCredits.description')}
-                                        checked={notifications.email_low_credits}
-                                        onChange={(v) => setNotifications({ ...notifications, email_low_credits: v })}
-                                    />
-                                    <ToggleOption
-                                        label={t('Notifications.newOrder.label')}
-                                        description={t('Notifications.newOrder.description')}
-                                        checked={notifications.email_new_order}
-                                        onChange={(v) => setNotifications({ ...notifications, email_new_order: v })}
-                                    />
-                                    <ToggleOption
-                                        label={t('Notifications.agentStatus.label')}
-                                        description={t('Notifications.agentStatus.description')}
-                                        checked={notifications.email_agent_status_change}
-                                        onChange={(v) => setNotifications({ ...notifications, email_agent_status_change: v })}
-                                    />
+
+                                {/* Email Notifications Section */}
+                                <div style={{ marginBottom: 32 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                                        <Mail style={{ width: 20, height: 20, color: '#3b82f6' }} />
+                                        <h3 style={{ color: '#94a3b8', fontSize: 14, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>
+                                            {t('Notifications.emailSection') || 'Notifications Email'}
+                                        </h3>
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                        <ToggleOption
+                                            label={t('Notifications.newConversation.label')}
+                                            description={t('Notifications.newConversation.description')}
+                                            checked={notifications.email_new_conversation}
+                                            onChange={(v) => setNotifications({ ...notifications, email_new_conversation: v })}
+                                        />
+                                        <ToggleOption
+                                            label={t('Notifications.dailySummary.label')}
+                                            description={t('Notifications.dailySummary.description')}
+                                            checked={notifications.email_daily_summary}
+                                            onChange={(v) => setNotifications({ ...notifications, email_daily_summary: v })}
+                                        />
+                                        <ToggleOption
+                                            label={t('Notifications.lowCredits.label')}
+                                            description={t('Notifications.lowCredits.description')}
+                                            checked={notifications.email_low_credits}
+                                            onChange={(v) => setNotifications({ ...notifications, email_low_credits: v })}
+                                        />
+                                        <ToggleOption
+                                            label={t('Notifications.newOrder.label')}
+                                            description={t('Notifications.newOrder.description')}
+                                            checked={notifications.email_new_order}
+                                            onChange={(v) => setNotifications({ ...notifications, email_new_order: v })}
+                                        />
+                                        <ToggleOption
+                                            label={t('Notifications.agentStatus.label')}
+                                            description={t('Notifications.agentStatus.description')}
+                                            checked={notifications.email_agent_status_change}
+                                            onChange={(v) => setNotifications({ ...notifications, email_agent_status_change: v })}
+                                        />
+                                    </div>
                                 </div>
+
+                                {/* Push Notifications Section */}
+                                <div style={{ marginBottom: 24 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                                        <Smartphone style={{ width: 20, height: 20, color: '#10b981' }} />
+                                        <h3 style={{ color: '#94a3b8', fontSize: 14, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>
+                                            {t('Notifications.pushSection') || 'Notifications Push (Mobile)'}
+                                        </h3>
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                        <ToggleOption
+                                            label={t('Notifications.pushEnabled.label') || 'Activer les notifications push'}
+                                            description={t('Notifications.pushEnabled.description') || 'Recevoir des notifications sur votre téléphone'}
+                                            checked={notifications.push_enabled}
+                                            onChange={(v) => setNotifications({ ...notifications, push_enabled: v })}
+                                        />
+                                        {notifications.push_enabled && (
+                                            <>
+                                                <ToggleOption
+                                                    label={t('Notifications.pushNewConversation.label') || 'Nouvelle conversation'}
+                                                    description={t('Notifications.pushNewConversation.description') || 'Notification quand un nouveau client vous contacte'}
+                                                    checked={notifications.push_new_conversation}
+                                                    onChange={(v) => setNotifications({ ...notifications, push_new_conversation: v })}
+                                                />
+                                                <ToggleOption
+                                                    label={t('Notifications.pushNewOrder.label') || 'Nouvelle commande'}
+                                                    description={t('Notifications.pushNewOrder.description') || 'Notification quand une commande est passée'}
+                                                    checked={notifications.push_new_order}
+                                                    onChange={(v) => setNotifications({ ...notifications, push_new_order: v })}
+                                                />
+                                                <ToggleOption
+                                                    label={t('Notifications.pushLowCredits.label') || 'Crédits faibles'}
+                                                    description={t('Notifications.pushLowCredits.description') || 'Alerte quand vos crédits sont bas'}
+                                                    checked={notifications.push_low_credits}
+                                                    onChange={(v) => setNotifications({ ...notifications, push_low_credits: v })}
+                                                />
+                                                <ToggleOption
+                                                    label={t('Notifications.pushAgentStatus.label') || "Statut de l'agent"}
+                                                    description={t('Notifications.pushAgentStatus.description') || "Notification quand votre agent change de statut"}
+                                                    checked={notifications.push_agent_status_change}
+                                                    onChange={(v) => setNotifications({ ...notifications, push_agent_status_change: v })}
+                                                />
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+
                                 <SaveButton
                                     saving={saving}
                                     saved={saved}
