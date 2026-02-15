@@ -134,6 +134,21 @@ class CreditsService {
             const newBalance = data[0]?.new_balance || 0
             console.log(`💰 Credits deducted: ${amount} (new balance: ${newBalance})`)
 
+            // ═══════════════════════════════════════════════════════════
+            // 🔔 NOTIFICATIONS: Crédits faibles / épuisés
+            // ═══════════════════════════════════════════════════════════
+            try {
+                const { notify, LOW_CREDITS_THRESHOLD } = require('../../notifications/notification.service')
+                if (newBalance === 0) {
+                    notify(userId, 'credits_depleted', { balance: 0 })
+                } else if (newBalance <= LOW_CREDITS_THRESHOLD && newBalance + amount > LOW_CREDITS_THRESHOLD) {
+                    // Only notify when crossing the threshold (not on every deduction below it)
+                    notify(userId, 'low_credits', { balance: newBalance })
+                }
+            } catch (notifError) {
+                console.error('🔔 Notification error (non-blocking):', notifError)
+            }
+
             return newBalance
 
         } catch (error) {
