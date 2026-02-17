@@ -147,88 +147,68 @@ export default function DashboardPage() {
                         {userName ? `Bonjour ${userName} ! Voici un aperçu de votre activité.` : t('subtitle')}
                     </p>
                 </div>
-                <button style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 12,
-                    background: 'rgba(15, 23, 42, 0.6)',
-                    border: '1px solid rgba(148, 163, 184, 0.1)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    position: 'relative'
-                }}>
-                    <Bell style={{ width: 20, height: 20, color: '#94a3b8' }} />
-                    <span style={{
-                        position: 'absolute',
-                        top: 8,
-                        right: 8,
-                        width: 8,
-                        height: 8,
-                        borderRadius: '50%',
-                        background: '#10b981'
-                    }} />
-                </button>
+
             </div>
 
             {/* ESCALATION ALERT CARD */}
-            {showEscalationAlert && (
-                <motion.div
-                    className="dashboard-alert"
-                    initial={{ opacity: 0, y: -20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    style={{
-                        padding: 24,
-                        borderRadius: 16,
-                        background: 'rgba(245, 158, 11, 0.1)', // Orange tint
-                        border: '1px solid rgba(245, 158, 11, 0.3)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: 24,
-                        flexWrap: 'wrap'
-                    }}
-                >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                        <div style={{
-                            width: 48,
-                            height: 48,
-                            borderRadius: 12,
-                            background: 'rgba(245, 158, 11, 0.2)',
+            {
+                showEscalationAlert && (
+                    <motion.div
+                        className="dashboard-alert"
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        style={{
+                            padding: 24,
+                            borderRadius: 16,
+                            background: 'rgba(245, 158, 11, 0.1)', // Orange tint
+                            border: '1px solid rgba(245, 158, 11, 0.3)',
                             display: 'flex',
                             alignItems: 'center',
-                            justifyContent: 'center',
-                            flexShrink: 0
-                        }}>
-                            <Bell style={{ width: 24, height: 24, color: '#fbbf24' }} />
-                        </div>
-                        <div>
-                            <h3 style={{ fontSize: 18, fontWeight: 600, color: '#fbbf24', marginBottom: 4 }}>
-                                Configuration SAV manquante
-                            </h3>
-                            <p style={{ fontSize: 14, color: '#d1d5db', margin: 0 }}>
-                                Configurez votre numéro de service client (Escalation Phone) pour rassurer vos clients en cas de besoin.
-                            </p>
-                        </div>
-                    </div>
-                    <Link
-                        href={agentToFixId ? `/dashboard/agents/${agentToFixId}?focus=escalation` : '/dashboard/agents'}
-                        style={{
-                            padding: '10px 20px',
-                            background: '#fbbf24',
-                            color: '#1e293b',
-                            borderRadius: 8,
-                            fontWeight: 600,
-                            textDecoration: 'none',
-                            whiteSpace: 'nowrap',
-                            transition: 'opacity 0.2s'
+                            justifyContent: 'space-between',
+                            gap: 24,
+                            flexWrap: 'wrap'
                         }}
                     >
-                        Configurer maintenant →
-                    </Link>
-                </motion.div>
-            )}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                            <div style={{
+                                width: 48,
+                                height: 48,
+                                borderRadius: 12,
+                                background: 'rgba(245, 158, 11, 0.2)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0
+                            }}>
+                                <Bell style={{ width: 24, height: 24, color: '#fbbf24' }} />
+                            </div>
+                            <div>
+                                <h3 style={{ fontSize: 18, fontWeight: 600, color: '#fbbf24', marginBottom: 4 }}>
+                                    Configuration SAV manquante
+                                </h3>
+                                <p style={{ fontSize: 14, color: '#d1d5db', margin: 0 }}>
+                                    Configurez votre numéro de service client (Escalation Phone) pour rassurer vos clients en cas de besoin.
+                                </p>
+                            </div>
+                        </div>
+                        <Link
+                            href={agentToFixId ? `/dashboard/agents/${agentToFixId}?focus=escalation` : '/dashboard/agents'}
+                            style={{
+                                padding: '10px 20px',
+                                background: '#fbbf24',
+                                color: '#1e293b',
+                                borderRadius: 8,
+                                fontWeight: 600,
+                                textDecoration: 'none',
+                                whiteSpace: 'nowrap',
+                                transition: 'opacity 0.2s'
+                            }}
+                        >
+                            Configurer maintenant →
+                        </Link>
+                    </motion.div>
+                )
+            }
 
             {/* Stats Grid - 5 columns on desktop, responsive on mobile */}
             <div className="dashboard-stats-grid" style={{
@@ -460,7 +440,7 @@ export default function DashboardPage() {
                     ))}
                 </div>
             </div>
-        </div>
+        </div >
     )
 }
 

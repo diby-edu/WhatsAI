@@ -178,8 +178,9 @@ certbot --nginx -d votre-domaine.com
 
 ### Mise à jour (Avec reconnexion auto WhatsApp)
 ```bash
-# UTILISER LE SCRIPT DE MISE À JOUR
-~/WhatsAI/scripts/update.sh
+# UTILISER LE SCRIPT DE DÉPLOIEMENT INTELLIGENT
+chmod +x ~/WhatsAI/deploy.sh
+~/WhatsAI/deploy.sh
 
 # OU manuellement :
 cd ~/WhatsAI
@@ -250,8 +251,9 @@ pm2 restart all
 │  │   whatsai-web   │  │   whatsai-bot    │  │
 │  │   (Next.js)     │  │   (WhatsApp)     │  │
 │  │                 │  │                  │  │
-│  │  Peut restart   │  │  NE RESTART PAS  │  │
-│  │  librement      │  │  pendant deploy  │  │
+│  │  Restart: ✅    │  │  Restart: ✅     │  │
+│  │  à chaque       │  │  à chaque deploy │  │
+│  │  deploy         │  │  (sessions auto) │  │
 │  └─────────────────┘  └──────────────────┘  │
 │           │                    │            │
 │           └──────┬─────────────┘            │
@@ -263,4 +265,4 @@ pm2 restart all
 └─────────────────────────────────────────────┘
 ```
 
-**Le bot WhatsApp reste connecté 24/7, même pendant les déploiements !** 🎉
+**Les deux services redémarrent à chaque déploiement. Les sessions WhatsApp sont préservées automatiquement !** 🎉

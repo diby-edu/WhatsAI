@@ -9,13 +9,13 @@ const supabaseAdmin = createClient(
 
 export async function POST(request: NextRequest) {
     try {
-        const { token, platform } = await request.json();
+        const { token, platform, userId } = await request.json();
 
         if (!token) {
             return NextResponse.json({ error: 'Token required' }, { status: 400 });
         }
 
-        console.log(`[Native FCM] Registering token: ${token.substring(0, 20)}... platform: ${platform}`);
+        console.log(`[Native FCM] Registering token: ${token.substring(0, 20)}... platform: ${platform} userId: ${userId || 'none'}`);
 
         // Check if token already exists
         const { data: existing } = await supabaseAdmin
@@ -25,13 +25,21 @@ export async function POST(request: NextRequest) {
             .single();
 
         if (existing) {
-            // Token already exists, just update the timestamp
+            // Token exists — update timestamp, and claim it if userId is provided and not yet set
+            const updateData: Record<string, unknown> = {
+                platform: platform || 'android',
+                updated_at: new Date().toISOString()
+            };
+
+            // If a userId is provided and the token is unclaimed, claim it
+            if (userId && !existing.user_id) {
+                updateData.user_id = userId;
+                console.log(`[Native FCM] Claiming unclaimed token for user ${userId}`);
+            }
+
             const { error } = await supabaseAdmin
                 .from('device_tokens')
-                .update({
-                    platform: platform || 'android',
-                    updated_at: new Date().toISOString()
-                })
+                .update(updateData)
                 .eq('token', token);
 
             if (error) {
@@ -43,13 +51,13 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ success: true, action: 'updated' });
         }
 
-        // Insert new token without user_id (will be claimed later when user logs in)
+        // Insert new token — with userId if provided
         const { error } = await supabaseAdmin
             .from('device_tokens')
             .insert({
                 token,
                 platform: platform || 'android',
-                user_id: null, // Will be associated with user later
+                user_id: userId || null,
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
             });
@@ -57,7 +65,6 @@ export async function POST(request: NextRequest) {
         if (error) {
             console.error('[Native FCM] Error saving token:', error);
 
-            // If it's a unique constraint error, the token was already inserted
             if (error.code === '23505') {
                 return NextResponse.json({ success: true, action: 'already_exists' });
             }
