@@ -5,18 +5,17 @@ module.exports = {
             name: 'whatsai-web',
             script: 'npm',
             args: 'start',
-            cwd: '/root/WhatsAI', // A ajuster au chemin réel si besoin
+            cwd: '/root/WhatsAI',
             env: {
                 NODE_ENV: 'production',
                 PORT: 3000
             },
-            // ⭐ CLUSTER MODE (Scaling) : Utilise tous les CPU disponibles
-            instances: 'max',
-            exec_mode: 'cluster',
+            // Fork mode — plus stable avec npm start
+            instances: 1,
+            exec_mode: 'fork',
             autorestart: true,
             max_memory_restart: '1G',
-            wait_ready: true,
-            listen_timeout: 10000,
+            // PAS de wait_ready — Next.js ne signale pas PM2
             error_file: '/root/.pm2/logs/whatsai-web-error.log',
             out_file: '/root/.pm2/logs/whatsai-web-out.log',
             combine_logs: true,

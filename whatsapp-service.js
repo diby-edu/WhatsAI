@@ -1,7 +1,7 @@
 /**
  * WhatsApp Service - Standalone Process
  * This runs independently from the Next.js app
- * It should NEVER be restarted during deployments
+ * ✅ Safe to restart — sessions are preserved via .whatsapp-sessions/ (no QR re-scan)
  */
 
 const { createClient } = require('@supabase/supabase-js')
@@ -161,7 +161,7 @@ async function main() {
     console.log('   📊 Checking history messages every 2 seconds')
     console.log('   📨 Checking outbound messages every 5 seconds')
     console.log(`   🏥 Healthcheck: http://localhost:${HEALTH_PORT}/health`)
-    console.log('⚠️  DO NOT restart this service during deployments!')
+    console.log('✅ Sessions WhatsApp préservées — restart safe (pas de re-scan QR)')
 }
 
 main()

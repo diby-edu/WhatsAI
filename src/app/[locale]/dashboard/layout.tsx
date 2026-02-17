@@ -181,6 +181,26 @@ export default function DashboardLayout({
         return () => clearInterval(interval)
     }, [])
 
+    // Claim unclaimed device tokens on login (for Android WebView)
+    useEffect(() => {
+        const claimTokens = async () => {
+            try {
+                const supabase = createClient()
+                const { data: { user } } = await supabase.auth.getUser()
+                if (!user) return
+
+                await fetch('/api/notifications/claim-token', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: user.id })
+                })
+            } catch (err) {
+                // Silent fail — non-critical
+            }
+        }
+        claimTokens()
+    }, [])
+
     // Close notifications when clicking outside
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
