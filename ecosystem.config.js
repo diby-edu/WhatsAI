@@ -35,6 +35,7 @@ module.exports = {
             watch: false,
             // Limite mémoire stricte pour éviter les fuites Node.js
             max_memory_restart: '800M',
+            kill_timeout: 5000,  // Laisser 5s au gracefulShutdown pour sauvegarder les sessions
             error_file: '/root/.pm2/logs/whatsai-bot-error.log',
             out_file: '/root/.pm2/logs/whatsai-bot-out.log',
             log_date_format: 'YYYY-MM-DD HH:mm:ss Z',

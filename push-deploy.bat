@@ -1,29 +1,38 @@
 @echo off
-REM WhatsAI — Deploy automatique (0 interaction)
+chcp 65001 >nul
+REM WhatsAI — Deploy VPS (Push + Build + Restart)
+REM Le commit est fait AVANT par toi ou par l'IA
 
 cd /d h:\WHATSAPP\wazzap-clone
 
 echo.
-echo 🚀 WhatsAI — Deploy automatique
-echo ================================
+echo 🚀 WhatsAI — Deploiement VPS
+echo =============================
 echo.
 
-git add -A
-git commit -m "deploy %date% %time:~0,5%" 2>nul
+echo 📤 Push vers GitHub...
 git push origin master
 
 if %ERRORLEVEL% NEQ 0 (
-    echo ❌ Erreur push. Verifie ta connexion.
+    echo ❌ Erreur push ! Verifie que tu as fait un commit avant.
     pause
     exit /b 1
 )
 
 echo ✅ Push OK
+echo.
 echo 🖥️  Deploiement sur le VPS...
 echo.
 
-ssh root@72.62.148.170 "cd ~/WhatsAI && git fetch origin && git reset --hard origin/master && chmod +x deploy.sh && ./deploy.sh"
+ssh -o ConnectTimeout=30 -o ServerAliveInterval=10 root@72.62.148.170 "cd ~/WhatsAI && git fetch origin && git reset --hard origin/master && chmod +x deploy.sh && ./deploy.sh"
+
+if %ERRORLEVEL% NEQ 0 (
+    echo.
+    echo ❌ Erreur deploiement sur le VPS !
+    pause
+    exit /b 1
+)
 
 echo.
-echo ✅ Termine ! https://wazzapai.com
+echo ✅ Deploy termine ! https://wazzapai.com
 pause
