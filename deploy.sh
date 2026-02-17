@@ -26,13 +26,27 @@ echo ""
 echo "📦 Installation des dépendances..."
 npm install --silent
 
-# 3. Build — avec auto-rollback si ça échoue
+# 3. Arrêter les services AVANT le build pour libérer la RAM
+echo ""
+echo "🛑 Arrêt des services pour libérer la RAM..."
+pm2 stop whatsai-web 2>/dev/null || true
+pm2 stop whatsai-bot 2>/dev/null || true
+sleep 3  # Laisser le temps au gracefulShutdown de sauvegarder les sessions
+
+# Nettoyage des anciens processus fantômes
+pm2 delete wazzapai-web 2>/dev/null || true
+pm2 delete whatsai-web 2>/dev/null || true
+pm2 delete whatsai-bot 2>/dev/null || true
+
+# 4. Build
 echo ""
 echo "🔨 Compilation en cours..."
 rm -f .next/lock
 npm run build
 
-if [ $? -ne 0 ]; then
+# Vérifier si le build a réussi (même si le process crash avec core dump)
+# Le fichier .next/BUILD_ID n'existe que si la compilation a réussi
+if [ ! -f .next/BUILD_ID ]; then
     echo ""
     echo "╔═══════════════════════════════════════════════════════════════╗"
     echo "║              ❌ BUILD ÉCHOUÉ — AUTO-ROLLBACK                 ║"
@@ -41,24 +55,16 @@ if [ $? -ne 0 ]; then
     echo "╚═══════════════════════════════════════════════════════════════╝"
     echo ""
     git reset --hard $OLD_COMMIT
-    echo "⏪ Restauré à $OLD_SHORT"
-    echo "🔗 Le site reste sur l'ancienne version fonctionnelle."
+    npm run build  # Recompiler l'ancienne version
+    pm2 start ecosystem.config.js
+    pm2 save 2>/dev/null || true
+    echo "⏪ Restauré à $OLD_SHORT — services redémarrés"
     exit 1
 fi
 
-# 4. Arrêt gracieux des services
-echo ""
-echo "🛑 Arrêt gracieux des services..."
-pm2 stop whatsai-bot 2>/dev/null || true
-sleep 3  # Laisser le temps au gracefulShutdown de sauvegarder les sessions
-pm2 stop whatsai-web 2>/dev/null || true
+echo "✅ Build réussi"
 
-# Nettoyage — supprimer les anciens processus
-pm2 delete wazzapai-web 2>/dev/null || true
-pm2 delete whatsai-web 2>/dev/null || true
-pm2 delete whatsai-bot 2>/dev/null || true
-
-# 5. Démarrer proprement depuis ecosystem.config.js
+# 5. Démarrer les services
 echo ""
 echo "🔄 Démarrage des services..."
 pm2 start ecosystem.config.js
