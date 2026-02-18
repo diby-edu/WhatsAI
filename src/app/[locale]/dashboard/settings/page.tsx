@@ -43,6 +43,7 @@ interface NotificationSettings {
     email_credits_depleted: boolean
     email_subscription_expiring: boolean
     email_stock_out: boolean
+    email_payment_received: boolean
     // Push - Existing
     push_enabled: boolean
     push_new_conversation: boolean
@@ -55,6 +56,8 @@ interface NotificationSettings {
     push_credits_depleted: boolean
     push_subscription_expiring: boolean
     push_stock_out: boolean
+    push_payment_received: boolean
+    push_new_booking: boolean
 }
 
 export default function SettingsPage() {
@@ -97,6 +100,7 @@ export default function SettingsPage() {
         email_credits_depleted: true,
         email_subscription_expiring: true,
         email_stock_out: true,
+        email_payment_received: true,
         // Push - Existing
         push_enabled: true,
         push_new_conversation: true,
@@ -108,7 +112,9 @@ export default function SettingsPage() {
         push_escalation: true,
         push_credits_depleted: true,
         push_subscription_expiring: true,
-        push_stock_out: true
+        push_stock_out: true,
+        push_payment_received: true,
+        push_new_booking: true
     })
 
     // Password state
@@ -388,6 +394,12 @@ export default function SettingsPage() {
                                             checked={notifications.email_order_cancelled}
                                             onChange={(v) => setNotifications({ ...notifications, email_order_cancelled: v })}
                                         />
+                                        <ToggleOption
+                                            label={'Paiement reçu'}
+                                            description={'Email quand un client paie une commande'}
+                                            checked={notifications.email_payment_received}
+                                            onChange={(v) => setNotifications({ ...notifications, email_payment_received: v })}
+                                        />
                                     </div>
 
                                     {/* Conversations */}
@@ -495,6 +507,12 @@ export default function SettingsPage() {
                                                     checked={notifications.push_order_cancelled}
                                                     onChange={(v) => setNotifications({ ...notifications, push_order_cancelled: v })}
                                                 />
+                                                <ToggleOption
+                                                    label={'Paiement reçu'}
+                                                    description={'Notification quand un client paie une commande'}
+                                                    checked={notifications.push_payment_received}
+                                                    onChange={(v) => setNotifications({ ...notifications, push_payment_received: v })}
+                                                />
 
                                                 {/* Conversations */}
                                                 <p style={{ color: '#64748b', fontSize: 12, marginBottom: 4, marginTop: 12 }}>Conversations</p>
@@ -548,6 +566,15 @@ export default function SettingsPage() {
                                                     description={t('Notifications.pushStockOut.description') || 'Alerte rupture de stock'}
                                                     checked={notifications.push_stock_out}
                                                     onChange={(v) => setNotifications({ ...notifications, push_stock_out: v })}
+                                                />
+
+                                                {/* Réservations */}
+                                                <p style={{ color: '#64748b', fontSize: 12, marginBottom: 4, marginTop: 12 }}>Réservations</p>
+                                                <ToggleOption
+                                                    label={'Nouvelle réservation'}
+                                                    description={'Notification quand un client réserve un service'}
+                                                    checked={notifications.push_new_booking}
+                                                    onChange={(v) => setNotifications({ ...notifications, push_new_booking: v })}
                                                 />
                                             </>
                                         )}
