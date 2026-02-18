@@ -1,5 +1,6 @@
 
 const { normalizePhoneNumber, findMatchingOption } = require('./tool-helpers')
+const { notify } = require('../../notifications/notify')
 
 async function handleCreateBooking(args, agentId, products, conversationId, supabase) {
     try {
@@ -124,6 +125,18 @@ async function handleCreateBooking(args, agentId, products, conversationId, supa
 
         if (agent.escalation_phone) {
             confirmMsg += `\n\n📞 En cas de besoin, contactez le service client au ${agent.escalation_phone}.`
+        }
+
+        // Notify business owner (push notification)
+        try {
+            await notify(agent.user_id, 'new_booking', {
+                customerName: customer_name || customer_phone,
+                serviceName: service.name,
+                bookingDate: preferred_date,
+                bookingTime: preferred_time
+            })
+        } catch (notifyErr) {
+            console.error('⚠️ Booking push notification failed:', notifyErr)
         }
 
         return JSON.stringify({

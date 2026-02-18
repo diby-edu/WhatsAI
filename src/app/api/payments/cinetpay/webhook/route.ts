@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { checkPaymentStatus } from '@/lib/payments/cinetpay'
 import { CreditsService } from '@/lib/whatsapp/services/credits.service'
+import { notify } from '@/lib/notifications/notification.service'
 import crypto from 'crypto'
 
 // Use service role for webhook (no user auth)
@@ -326,6 +327,15 @@ export async function POST(request: NextRequest) {
                                         status: 'pending'
                                     })
                                     console.log('📤 Merchant notification queued for:', merchantPhone)
+
+                                    // 5. Send push + email notification to business owner
+                                    await notify(agentData.user_id, 'payment_received', {
+                                        orderNumber: order.id,
+                                        customerName: order.customer_name || order.customer_phone,
+                                        paymentAmount: Number(order.total_fcfa),
+                                        paymentMethod: 'CinetPay'
+                                    })
+                                    console.log('📱 Push/email notification sent for payment')
                                 }
                             } catch (notifyError) {
                                 console.error('Failed to notify merchant:', notifyError)
