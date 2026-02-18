@@ -3,12 +3,7 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import { DollarSign, ShoppingBag, MessageSquare, TrendingUp, Loader2 } from 'lucide-react'
-
-// Mock data for initial render or fallback
-const mockData = [
-    { date: '01/01', sales: 0 },
-]
+import { DollarSign, ShoppingBag, MessageSquare, TrendingUp, Loader2, Package } from 'lucide-react'
 
 export default function AnalyticsPage() {
     const [data, setData] = useState({
@@ -18,7 +13,8 @@ export default function AnalyticsPage() {
             averageOrderValue: 0,
             totalMessages: 0
         },
-        chartData: mockData
+        chartData: [] as { date: string; sales: number }[],
+        topProducts: [] as { name: string; quantity: number; revenue: number }[]
     })
     const [loading, setLoading] = useState(true)
 
@@ -31,7 +27,11 @@ export default function AnalyticsPage() {
             const res = await fetch('/api/analytics')
             const result = await res.json()
             if (result.data) {
-                setData(result.data)
+                setData({
+                    kpi: result.data.kpi || data.kpi,
+                    chartData: result.data.chartData || [],
+                    topProducts: result.data.topProducts || []
+                })
             }
         } catch (e) {
             console.error(e)
@@ -40,10 +40,14 @@ export default function AnalyticsPage() {
         }
     }
 
+    const formatFCFA = (value: number) => {
+        return `${value.toLocaleString('fr-FR')} FCFA`
+    }
+
     const cards = [
         {
             title: 'Chiffre d\'Affaires',
-            value: `$${data.kpi.totalSales.toLocaleString()}`,
+            value: formatFCFA(data.kpi.totalSales),
             icon: DollarSign,
             color: '#10b981',
             bg: 'rgba(16, 185, 129, 0.1)'
@@ -57,7 +61,7 @@ export default function AnalyticsPage() {
         },
         {
             title: 'Panier Moyen',
-            value: `$${data.kpi.averageOrderValue.toLocaleString()}`,
+            value: formatFCFA(data.kpi.averageOrderValue),
             icon: TrendingUp,
             color: '#f59e0b',
             bg: 'rgba(245, 158, 11, 0.1)'
@@ -112,16 +116,6 @@ export default function AnalyticsPage() {
                             }}>
                                 <card.icon size={24} color={card.color} />
                             </div>
-                            <span style={{
-                                color: '#10b981',
-                                background: 'rgba(16, 185, 129, 0.1)',
-                                padding: '4px 8px',
-                                borderRadius: 100,
-                                fontSize: 12,
-                                fontWeight: 500
-                            }}>
-                                +12%
-                            </span>
                         </div>
                         <p style={{ color: '#94a3b8', fontSize: 14, marginBottom: 4 }}>{card.title}</p>
                         <h3 style={{ color: 'white', fontSize: 24, fontWeight: 700 }}>{card.value}</h3>
@@ -130,7 +124,7 @@ export default function AnalyticsPage() {
             </div>
 
             {/* Charts */}
-            <div className="analytics-charts-grid" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 24 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 24 }}>
                 <motion.div
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -143,23 +137,30 @@ export default function AnalyticsPage() {
                     }}
                 >
                     <h3 style={{ color: 'white', fontSize: 18, fontWeight: 600, marginBottom: 24 }}>Évolution des Ventes (30 jours)</h3>
-                    <div style={{ height: 300, width: '100%' }}>
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={data.chartData}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
-                                <XAxis dataKey="date" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                                <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value / 1000}k`} />
-                                <Tooltip
-                                    contentStyle={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 12 }}
-                                    itemStyle={{ color: 'white' }}
-                                />
-                                <Bar dataKey="sales" fill="#10b981" radius={[4, 4, 0, 0]} />
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
+                    {data.chartData.length > 0 ? (
+                        <div style={{ height: 300, width: '100%' }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={data.chartData}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+                                    <XAxis dataKey="date" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+                                    <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`} />
+                                    <Tooltip
+                                        contentStyle={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 12 }}
+                                        itemStyle={{ color: 'white' }}
+                                        formatter={(value: number) => [formatFCFA(value), 'Ventes']}
+                                    />
+                                    <Bar dataKey="sales" fill="#10b981" radius={[4, 4, 0, 0]} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    ) : (
+                        <div style={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontStyle: 'italic' }}>
+                            Aucune vente sur les 30 derniers jours
+                        </div>
+                    )}
                 </motion.div>
 
-                {/* Top Products (Placeholder) */}
+                {/* Top Products */}
                 <motion.div
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -172,8 +173,48 @@ export default function AnalyticsPage() {
                     }}
                 >
                     <h3 style={{ color: 'white', fontSize: 18, fontWeight: 600, marginBottom: 24 }}>Top Produits</h3>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                        <p style={{ color: '#64748b', fontStyle: 'italic' }}>Données indisponibles (Nécessite Vue SQL)</p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        {data.topProducts.length > 0 ? (
+                            data.topProducts.map((product, i) => (
+                                <div
+                                    key={i}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        padding: '12px 16px',
+                                        background: 'rgba(51, 65, 85, 0.3)',
+                                        borderRadius: 12,
+                                        border: '1px solid rgba(148, 163, 184, 0.05)'
+                                    }}
+                                >
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                        <div style={{
+                                            width: 32, height: 32,
+                                            borderRadius: 8,
+                                            background: i === 0 ? 'rgba(245, 158, 11, 0.15)' : i === 1 ? 'rgba(148, 163, 184, 0.15)' : 'rgba(180, 83, 9, 0.15)',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            fontSize: 14, fontWeight: 700,
+                                            color: i === 0 ? '#f59e0b' : i === 1 ? '#94a3b8' : '#b45309'
+                                        }}>
+                                            #{i + 1}
+                                        </div>
+                                        <div>
+                                            <p style={{ color: 'white', fontWeight: 600, fontSize: 14, margin: 0 }}>{product.name}</p>
+                                            <p style={{ color: '#64748b', fontSize: 12, margin: 0 }}>{product.quantity} vendu{product.quantity > 1 ? 's' : ''}</p>
+                                        </div>
+                                    </div>
+                                    <span style={{ color: '#10b981', fontWeight: 700, fontSize: 14 }}>
+                                        {formatFCFA(product.revenue)}
+                                    </span>
+                                </div>
+                            ))
+                        ) : (
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40, color: '#64748b' }}>
+                                <Package style={{ width: 20, height: 20, marginRight: 8, opacity: 0.5 }} />
+                                <span style={{ fontStyle: 'italic' }}>Aucune vente de produit pour le moment</span>
+                            </div>
+                        )}
                     </div>
                 </motion.div>
             </div>

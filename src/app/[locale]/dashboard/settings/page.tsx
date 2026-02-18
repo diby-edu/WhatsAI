@@ -203,14 +203,30 @@ export default function SettingsPage() {
             alert(t('Security.errorMatch'))
             return
         }
+        if (passwords.new.length < 6) {
+            alert('Le mot de passe doit contenir au moins 6 caractères')
+            return
+        }
         setSaving(true)
-        // Implement password change API
-        setTimeout(() => {
+        try {
+            const { createClient } = await import('@/lib/supabase/client')
+            const supabase = createClient()
+            const { error } = await supabase.auth.updateUser({
+                password: passwords.new
+            })
+            if (error) {
+                alert(error.message || 'Erreur lors du changement de mot de passe')
+            } else {
+                setSaved(true)
+                setPasswords({ current: '', new: '', confirm: '' })
+                setTimeout(() => setSaved(false), 3000)
+            }
+        } catch (err) {
+            console.error('Password change error:', err)
+            alert('Erreur inattendue')
+        } finally {
             setSaving(false)
-            setSaved(true)
-            setPasswords({ current: '', new: '', confirm: '' })
-            setTimeout(() => setSaved(false), 3000)
-        }, 500)
+        }
     }
 
     if (loading) {
