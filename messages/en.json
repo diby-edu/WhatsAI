@@ -291,6 +291,7 @@
             "conversations": "Conversations",
             "products": "Products",
             "orders": "Orders",
+            "analytics": "Analytics",
             "playground": "Playground",
             "billing": "Billing",
             "settings": "Settings",

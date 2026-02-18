@@ -26,7 +26,8 @@ import {
     AlertCircle,
     ShoppingCart,
     Users,
-    Coins
+    Coins,
+    TrendingUp
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useTranslations } from 'next-intl'
@@ -63,9 +64,11 @@ export default function DashboardLayout({
         { href: '/dashboard/conversations', label: t('conversations'), icon: MessagesSquare },
         { href: '/dashboard/products', label: t('products'), icon: Package },
         { href: '/dashboard/orders', label: t('orders'), icon: ShoppingBag },
+        { href: '/dashboard/analytics', label: t('analytics'), icon: TrendingUp },
         { href: '/dashboard/playground', label: t('playground'), icon: Zap },
         { href: '/dashboard/billing', label: t('billing'), icon: CreditCard },
         { href: '/dashboard/settings', label: t('settings'), icon: Settings },
+        { href: '/dashboard/help', label: t('help'), icon: HelpCircle },
     ]
 
     useEffect(() => {
