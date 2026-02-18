@@ -63,6 +63,7 @@ export async function PATCH(request: NextRequest) {
             'email_credits_depleted',
             'email_subscription_expiring',
             'email_stock_out',
+            'email_payment_received',
             // Push - Existing
             'push_enabled',
             'push_new_conversation',
@@ -74,7 +75,9 @@ export async function PATCH(request: NextRequest) {
             'push_escalation',
             'push_credits_depleted',
             'push_subscription_expiring',
-            'push_stock_out'
+            'push_stock_out',
+            'push_payment_received',
+            'push_new_booking'
         ]
 
         const updates: Record<string, any> = {}

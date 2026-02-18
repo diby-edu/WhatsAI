@@ -132,6 +132,16 @@ function getPushContent(type, data) {
                 title: data.agentStatus === 'connected' ? '✅ Agent connecté' : '❌ Agent déconnecté',
                 body: `L'agent "${data.agentName}" est maintenant ${data.agentStatus === 'connected' ? 'en ligne' : 'hors ligne'}.`
             }
+        case 'payment_received':
+            return {
+                title: '💰 Paiement reçu !',
+                body: `${data.customerName || 'Un client'} a payé ${data.paymentAmount?.toLocaleString('fr-FR') || 0} FCFA — Commande #${data.orderNumber?.substring(0, 8) || ''}`
+            }
+        case 'new_booking':
+            return {
+                title: '📅 Nouvelle réservation !',
+                body: `${data.customerName || 'Un client'} a réservé ${data.serviceName || 'un service'} le ${data.bookingDate || ''}${data.bookingTime ? ' à ' + data.bookingTime : ''}`
+            }
         case 'stock_out':
             return {
                 title: '📦 Stock épuisé',
@@ -201,6 +211,20 @@ function getEmailContent(type, userName, data) {
                     <a href="${APP_URL}/dashboard/billing" style="display: inline-block; background: linear-gradient(135deg, #ef4444, #dc2626); color: white; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px;">Recharger maintenant</a>
                 `)
             }
+        case 'payment_received':
+            return {
+                subject: `💰 Paiement reçu — ${data.paymentAmount?.toLocaleString('fr-FR') || 0} FCFA`,
+                html: baseEmailTemplate(`
+                    <h2 style="color: #10b981; margin: 0 0 16px 0; font-size: 22px;">💰 Paiement reçu !</h2>
+                    <p style="margin: 0 0 12px 0; font-size: 16px;">Bonjour <strong>${userName}</strong>,</p>
+                    <p style="margin: 0 0 20px 0; color: #94a3b8;">Un client vient de payer une commande.</p>
+                    <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 12px; padding: 20px; text-align: center; margin-bottom: 24px;">
+                        <div style="font-size: 36px; font-weight: 700; color: #10b981;">${data.paymentAmount?.toLocaleString('fr-FR') || 0} FCFA</div>
+                        <div style="color: #94a3b8; font-size: 14px;">Commande #${data.orderNumber?.substring(0, 8) || ''} — ${data.customerName || 'Client'}</div>
+                    </div>
+                    <a href="${APP_URL}/dashboard/orders" style="display: inline-block; background: linear-gradient(135deg, #10b981, #059669); color: white; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px;">Voir la commande</a>
+                `)
+            }
         default:
             return null
     }
@@ -213,6 +237,8 @@ const PREF_MAP = {
     subscription_expiring: { push: 'push_subscription_expiring', email: 'email_subscription_expiring' },
     new_order: { push: 'push_new_order' },
     order_cancelled: { push: 'push_order_cancelled' },
+    payment_received: { push: 'push_payment_received', email: 'email_payment_received' },
+    new_booking: { push: 'push_new_booking' },
     new_conversation: { push: 'push_new_conversation' },
     escalation: { push: 'push_escalation' },
     agent_status_change: { push: 'push_agent_status_change' },
@@ -220,7 +246,7 @@ const PREF_MAP = {
 }
 
 // Email-eligible types (only these types send emails from bot)
-const EMAIL_TYPES = ['low_credits', 'credits_depleted']
+const EMAIL_TYPES = ['low_credits', 'credits_depleted', 'payment_received']
 
 // =============================================
 // Main Notify Function

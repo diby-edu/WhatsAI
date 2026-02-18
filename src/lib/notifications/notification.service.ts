@@ -26,9 +26,12 @@ export type NotificationType =
     | 'low_credits'
     | 'credits_depleted'
     | 'subscription_expiring'
-    // Orders (push only)
+    // Orders & Payments (push + email)
     | 'new_order'
     | 'order_cancelled'
+    | 'payment_received'
+    // Bookings (push only)
+    | 'new_booking'
     // Conversations (push only)
     | 'new_conversation'
     | 'escalation'
@@ -51,6 +54,13 @@ export interface NotificationData {
     // For conversations
     contactPhone?: string
     contactName?: string
+    // For payments
+    paymentAmount?: number
+    paymentMethod?: string
+    // For bookings
+    serviceName?: string
+    bookingDate?: string
+    bookingTime?: string
     // For agent
     agentName?: string
     agentStatus?: 'connected' | 'disconnected'
@@ -65,6 +75,8 @@ const PREF_MAP: Record<NotificationType, { push?: string; email?: string }> = {
     subscription_expiring: { push: 'push_subscription_expiring', email: 'email_subscription_expiring' },
     new_order: { push: 'push_new_order' },
     order_cancelled: { push: 'push_order_cancelled' },
+    payment_received: { push: 'push_payment_received', email: 'email_payment_received' },
+    new_booking: { push: 'push_new_booking' },
     new_conversation: { push: 'push_new_conversation' },
     escalation: { push: 'push_escalation' },
     agent_status_change: { push: 'push_agent_status_change' },
@@ -124,6 +136,18 @@ function getPushContent(type: NotificationType, data: NotificationData): PushNot
                 title: data.agentStatus === 'connected' ? '✅ Agent connecté' : '❌ Agent déconnecté',
                 body: `L'agent "${data.agentName}" est maintenant ${data.agentStatus === 'connected' ? 'en ligne' : 'hors ligne'}.`,
                 data: { type: 'agent_status', route: '/dashboard/agents' }
+            }
+        case 'payment_received':
+            return {
+                title: '💰 Paiement reçu !',
+                body: `${data.customerName || 'Un client'} a payé ${data.paymentAmount?.toLocaleString('fr-FR') || 0} FCFA — Commande #${data.orderNumber?.substring(0, 8) || ''}`,
+                data: { type: 'payment_received', route: '/dashboard/orders' }
+            }
+        case 'new_booking':
+            return {
+                title: '📅 Nouvelle réservation !',
+                body: `${data.customerName || 'Un client'} a réservé ${data.serviceName || 'un service'} le ${data.bookingDate || ''}${data.bookingTime ? ' à ' + data.bookingTime : ''}`,
+                data: { type: 'new_booking', route: '/dashboard/bookings' }
             }
         case 'stock_out':
             return {
