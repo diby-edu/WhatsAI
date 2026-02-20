@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
-import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
+import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse, getPagination, paginatedResponse } from '@/lib/api-utils'
 
-// GET /api/admin/users - Get all users (Admin only)
+// GET /api/admin/users - Get all users (Admin only) with pagination
 export async function GET(request: NextRequest) {
     const supabase = await createApiClient()
     const { user, error: authError } = await getAuthUser(supabase)
@@ -22,20 +22,26 @@ export async function GET(request: NextRequest) {
         return errorResponse('Accès refusé', 403)
     }
 
+    const { searchParams } = new URL(request.url)
+    const page = parseInt(searchParams.get('page') || '1')
+    const pageSize = parseInt(searchParams.get('pageSize') || '20')
+    const { from, to } = getPagination(page, pageSize)
+
     try {
-        // Fetch profiles
-        const { data: profiles, error } = await adminSupabase
+        // Fetch profiles with count
+        const { data: profiles, error, count } = await adminSupabase
             .from('profiles')
-            .select('*')
+            .select('*', { count: 'exact' })
             .order('created_at', { ascending: false })
+            .range(from, to)
 
         if (error) {
             console.error('Error fetching profiles:', error)
             return errorResponse('Erreur lors de la récupération des utilisateurs', 500)
         }
 
-        // Return real data
-        return successResponse({ users: profiles })
+        // Return paginated response
+        return paginatedResponse(profiles, count || 0, page, pageSize)
     } catch (err) {
         console.error('Admin users API error:', err)
         return errorResponse('Erreur serveur', 500)

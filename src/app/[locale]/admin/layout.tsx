@@ -35,7 +35,8 @@ import {
     Calendar,
     ToggleRight,
     Send,
-    Wallet
+    Wallet,
+    Download
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -55,7 +56,8 @@ const adminLinks = [
     { href: '/admin/broadcasts', label: 'Broadcasts', icon: Send },
     { href: '/admin/diagnostics', label: 'Diagnostic', icon: Activity },
     { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
-    { href: '/admin/logs', label: 'Logs', icon: FileText },
+    { href: '/admin/audit-logs', label: 'Audit Trail', icon: FileText },
+    { href: '/admin/exports', label: 'Exports & Rapports', icon: Download },
     { href: '/admin/settings', label: 'Paramètres', icon: Settings },
 ]
 
@@ -123,82 +125,28 @@ export default function AdminLayout({
     useEffect(() => {
         const fetchNotifications = async () => {
             try {
-                const supabase = createClient()
+                const res = await fetch('/api/admin/alerts')
+                const json = await res.json()
 
-                // Get recent activities as notifications
-                const now = new Date()
-                const notifs: Notification[] = []
-
-                // Check for new users (last 24h)
-                const { data: newUsers } = await supabase
-                    .from('profiles')
-                    .select('id, email, created_at')
-                    .gte('created_at', new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString())
-                    .order('created_at', { ascending: false })
-                    .limit(5)
-
-                newUsers?.forEach(user => {
-                    notifs.push({
-                        id: `user-${user.id}`,
-                        type: 'info',
-                        title: 'Nouvel utilisateur',
-                        message: user.email || 'Utilisateur inscrit',
-                        time: formatTimeAgo(new Date(user.created_at)),
+                if (json.success && json.data) {
+                    const mappedNotifs: Notification[] = json.data.map((alert: any) => ({
+                        id: alert.id || Math.random().toString(),
+                        type: alert.severity === 'critical' ? 'error' : 'warning',
+                        title: alert.label,
+                        message: alert.message,
+                        time: `${alert.days_since_active}j`,
                         read: false
-                    })
-                })
-
-                // Check for new agents
-                const { data: newAgents } = await supabase
-                    .from('agents')
-                    .select('id, name, created_at')
-                    .gte('created_at', new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString())
-                    .order('created_at', { ascending: false })
-                    .limit(3)
-
-                newAgents?.forEach(agent => {
-                    notifs.push({
-                        id: `agent-${agent.id}`,
-                        type: 'success',
-                        title: 'Nouvel agent créé',
-                        message: agent.name,
-                        time: formatTimeAgo(new Date(agent.created_at)),
-                        read: false
-                    })
-                })
-
-                // Check for new conversations
-                const { data: newConvos } = await supabase
-                    .from('conversations')
-                    .select('id, contact_name, created_at')
-                    .gte('created_at', new Date(now.getTime() - 12 * 60 * 60 * 1000).toISOString())
-                    .order('created_at', { ascending: false })
-                    .limit(3)
-
-                newConvos?.forEach(convo => {
-                    notifs.push({
-                        id: `convo-${convo.id}`,
-                        type: 'info',
-                        title: 'Nouvelle conversation',
-                        message: convo.contact_name || 'Contact WhatsApp',
-                        time: formatTimeAgo(new Date(convo.created_at)),
-                        read: false
-                    })
-                })
-
-                // Sort by time and limit
-                notifs.sort((a, b) => a.time.localeCompare(b.time))
-                setNotifications(notifs.slice(0, 10))
-                setUnreadCount(notifs.filter(n => !n.read).length)
-
+                    }))
+                    setNotifications(mappedNotifs)
+                    setUnreadCount(mappedNotifs.length)
+                }
             } catch (err) {
-                console.error('Error fetching notifications:', err)
+                console.error('Error fetching alerts:', err)
             }
         }
 
         fetchNotifications()
-        // Refresh every 30 seconds
-        const interval = setInterval(fetchNotifications, 30000)
+        const interval = setInterval(fetchNotifications, 60000) // Every minute
         return () => clearInterval(interval)
     }, [])
 

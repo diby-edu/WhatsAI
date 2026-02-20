@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
+import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse, logAdminAction } from '@/lib/api-utils'
 
 // PATCH /api/admin/subscriptions/[id] — Update user subscription (plan, credits, cancel)
 export async function PATCH(
@@ -40,6 +40,7 @@ export async function PATCH(
                 .eq('id', id)
 
             if (error) throw error
+            await logAdminAction(user.id, 'change_subscription_plan', id, 'profile', { plan })
             return successResponse({ message: `Plan changé en ${plan}` })
         }
 
@@ -50,6 +51,7 @@ export async function PATCH(
                 .eq('id', id)
 
             if (error) throw error
+            await logAdminAction(user.id, 'cancel_subscription', id, 'profile')
             return successResponse({ message: 'Abonnement annulé (rétrogradé en Free)' })
         }
 
@@ -61,6 +63,7 @@ export async function PATCH(
                 .eq('id', id)
 
             if (error) throw error
+            await logAdminAction(user.id, 'set_subscription_credits', id, 'profile', { credits })
             return successResponse({ message: `Crédits définis à ${credits}` })
         }
 

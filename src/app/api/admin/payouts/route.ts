@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
+import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse, logAdminAction } from '@/lib/api-utils'
 
 // GET /api/admin/payouts — Get merchant balances + payout history
 export async function GET(request: NextRequest) {
@@ -166,6 +166,8 @@ export async function POST(request: NextRequest) {
             .single()
 
         if (error) throw error
+
+        await logAdminAction(user.id, 'create_payout', payout.id, 'payout', { user_id, gross_amount, net_amount })
 
         return successResponse({ payout }, 201)
     } catch (err) {

@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
+import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse, logAdminAction } from '@/lib/api-utils'
 
 // PATCH /api/admin/payouts/[id] — Update payout status
 export async function PATCH(
@@ -51,6 +51,8 @@ export async function PATCH(
             .single()
 
         if (error) throw error
+
+        await logAdminAction(user.id, 'process_payout', id, 'payout', { status, payment_reference })
 
         return successResponse({ payout })
     } catch (err) {
