@@ -248,98 +248,112 @@ export async function POST(request: NextRequest) {
                             let messageInsertedSuccessfully = false
 
                             if (conversation) {
-                                // CASE 1: Conversation exists -> Insert into history (Smart)
-                                console.log('📝 Inserting message into messages table...')
-                                const { data: insertedMsg, error: insertErr } = await getSupabase().from('messages').insert({
-                                    conversation_id: conversation.id,
-                                    agent_id: order.agent_id,
-                                    role: 'assistant',
-                                    content: confirmationMessage,
-                                    status: 'pending' // Will be picked up by checkPendingMessages
-                                }).select().single()
-
-                                if (insertErr) {
-                                    console.error('❌ Failed to insert message:', insertErr)
-                                } else {
-                                    console.log('✅ Message inserted with ID:', insertedMsg?.id)
-                                    messageInsertedSuccessfully = true
-
-                                    // Update conversation header
-                                    await getSupabase().from('conversations').update({
-                                        last_message_text: confirmationMessage.substring(0, 200),
-                                        last_message_at: new Date().toISOString(),
-                                        last_message_role: 'assistant'
-                                    }).eq('id', conversation.id)
-
-                                    console.log('💬 Payment confirmation added to conversation history for:', order.customer_phone)
+                                // Resolve agent_id: order.agent_id is nullable, conversation.agent_id is NOT NULL
+                                let resolvedAgentId = order.agent_id
+                                if (!resolvedAgentId) {
+                                    // Fallback: get agent_id from conversation
+                                    const { data: convData } = await getSupabase()
+                                        .from('conversations')
+                                        .select('agent_id')
+                                        .eq('id', conversation.id)
+                                        .single()
+                                    resolvedAgentId = convData?.agent_id || null
                                 }
-                            }
 
-                            // FALLBACK: Always queue to outbound_messages if message insertion failed or no conversation
-                            // This ensures the message is sent even if the bot is offline when webhook is received
-                            if (!messageInsertedSuccessfully) {
-                                console.log('📝 Inserting message into outbound_messages table (fallback)...')
-                                const { data: outboundMsg, error: outboundErr } = await getSupabase().from('outbound_messages').insert({
-                                    agent_id: order.agent_id,
-                                    recipient_phone: order.customer_phone,
-                                    message_content: confirmationMessage,
-                                    status: 'pending'
-                                }).select().single()
+                                if (resolvedAgentId) {
+                                    // CASE 1: Conversation exists -> Insert into history (Smart)
+                                    console.log('📝 Inserting message into messages table...')
+                                    const { data: insertedMsg, error: insertErr } = await getSupabase().from('messages').insert({
+                                        conversation_id: conversation.id,
+                                        agent_id: resolvedAgentId,
+                                        role: 'assistant',
+                                        content: confirmationMessage,
+                                        status: 'pending' // Will be picked up by checkPendingMessages
+                                    }).select().single()
 
-                                if (outboundErr) {
-                                    console.error('❌ Failed to insert outbound message:', outboundErr)
-                                } else {
-                                    console.log('✅ Outbound message inserted with ID:', outboundMsg?.id)
+                                    if (insertErr) {
+                                        console.error('❌ Failed to insert message:', insertErr)
+                                    } else {
+                                        console.log('✅ Message inserted with ID:', insertedMsg?.id)
+                                        messageInsertedSuccessfully = true
+
+                                        // Update conversation header
+                                        await getSupabase().from('conversations').update({
+                                            last_message_text: confirmationMessage.substring(0, 200),
+                                            last_message_at: new Date().toISOString(),
+                                            last_message_role: 'assistant'
+                                        }).eq('id', conversation.id)
+
+                                        console.log('💬 Payment confirmation added to conversation history for:', order.customer_phone)
+                                    }
                                 }
-                                console.log('📱 Payment confirmation queued via outbound_messages for:', order.customer_phone)
-                            }
 
-                            // 4. (Bonus) Notifier le merchant
-                            try {
-                                // Récupérer le numéro du merchant depuis la table profiles
-                                const { data: agentData } = await getSupabase()
-                                    .from('agents')
-                                    .select('user_id')
-                                    .eq('id', order.agent_id)
-                                    .single()
+                                // FALLBACK: Always queue to outbound_messages if message insertion failed or no conversation
+                                // This ensures the message is sent even if the bot is offline when webhook is received
+                                if (!messageInsertedSuccessfully && resolvedAgentId) {
+                                    console.log('📝 Inserting message into outbound_messages table (fallback)...')
+                                    const { data: outboundMsg, error: outboundErr } = await getSupabase().from('outbound_messages').insert({
+                                        agent_id: resolvedAgentId,
+                                        recipient_phone: order.customer_phone,
+                                        message_content: confirmationMessage,
+                                        status: 'pending'
+                                    }).select().single()
 
-                                if (agentData) {
-                                    const { data: profile } = await getSupabase()
-                                        .from('profiles')
-                                        .select('phone')
-                                        .eq('id', agentData.user_id)
+                                    if (outboundErr) {
+                                        console.error('❌ Failed to insert outbound message:', outboundErr)
+                                    } else {
+                                        console.log('✅ Outbound message inserted with ID:', outboundMsg?.id)
+                                    }
+                                    console.log('📱 Payment confirmation queued via outbound_messages for:', order.customer_phone)
+                                }
+
+                                // 4. (Bonus) Notifier le merchant
+                                try {
+                                    // Récupérer le numéro du merchant depuis la table profiles
+                                    const { data: agentData } = await getSupabase()
+                                        .from('agents')
+                                        .select('user_id')
+                                        .eq('id', order.agent_id)
                                         .single()
 
-                                    // Numéro par défaut ou celui du profil
-                                    const merchantPhone = profile?.phone || '+2250554585927'
+                                    if (agentData) {
+                                        const { data: profile } = await getSupabase()
+                                            .from('profiles')
+                                            .select('phone')
+                                            .eq('id', agentData.user_id)
+                                            .single()
 
-                                    const itemsList = await getSupabase()
-                                        .from('order_items')
-                                        .select('product_name, quantity, unit_price_fcfa')
-                                        .eq('order_id', order.id)
+                                        // Numéro par défaut ou celui du profil
+                                        const merchantPhone = profile?.phone || '+2250554585927'
 
-                                    const itemsSummary = itemsList.data?.map((i: any) => `• ${i.quantity}x ${i.product_name}`).join('\n') || 'Articles divers'
+                                        const itemsList = await getSupabase()
+                                            .from('order_items')
+                                            .select('product_name, quantity, unit_price_fcfa')
+                                            .eq('order_id', order.id)
 
-                                    await getSupabase().from('outbound_messages').insert({
-                                        agent_id: order.agent_id,
-                                        recipient_phone: merchantPhone,
-                                        message_content: `🔔 *NOUVEAU PAIEMENT !*\n\n💰 Montant: ${Number(order.total_fcfa).toLocaleString()} FCFA\n📦 Commande: #${order.id.substring(0, 8)}\n👤 Client: ${order.customer_phone}\n\n🛒 Articles:\n${itemsSummary}\n\n💳 Mode: CinetPay`,
-                                        status: 'pending'
-                                    })
-                                    console.log('📤 Merchant notification queued for:', merchantPhone)
+                                        const itemsSummary = itemsList.data?.map((i: any) => `• ${i.quantity}x ${i.product_name}`).join('\n') || 'Articles divers'
 
-                                    // 5. Send push + email notification to business owner
-                                    await notify(agentData.user_id, 'payment_received', {
-                                        orderNumber: order.id,
-                                        customerName: order.customer_name || order.customer_phone,
-                                        paymentAmount: Number(order.total_fcfa),
-                                        paymentMethod: 'CinetPay'
-                                    })
-                                    console.log('📱 Push/email notification sent for payment')
+                                        await getSupabase().from('outbound_messages').insert({
+                                            agent_id: resolvedAgentId || order.agent_id,
+                                            recipient_phone: merchantPhone,
+                                            message_content: `🔔 *NOUVEAU PAIEMENT !*\n\n💰 Montant: ${Number(order.total_fcfa).toLocaleString()} FCFA\n📦 Commande: #${order.id.substring(0, 8)}\n👤 Client: ${order.customer_phone}\n\n🛒 Articles:\n${itemsSummary}\n\n💳 Mode: CinetPay`,
+                                            status: 'pending'
+                                        })
+                                        console.log('📤 Merchant notification queued for:', merchantPhone)
+
+                                        // 5. Send push + email notification to business owner
+                                        await notify(agentData.user_id, 'payment_received', {
+                                            orderNumber: order.id,
+                                            customerName: order.customer_name || order.customer_phone,
+                                            paymentAmount: Number(order.total_fcfa),
+                                            paymentMethod: 'CinetPay'
+                                        })
+                                        console.log('📱 Push/email notification sent for payment')
+                                    }
+                                } catch (notifyError) {
+                                    console.error('Failed to notify merchant:', notifyError)
                                 }
-                            } catch (notifyError) {
-                                console.error('Failed to notify merchant:', notifyError)
-                            }
+                            } // close if (conversation)
                         } catch (notifyErr) {
                             console.error('⚠️ Failed to send WhatsApp notification:', notifyErr)
                         }
