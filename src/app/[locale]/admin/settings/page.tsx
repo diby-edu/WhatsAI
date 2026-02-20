@@ -133,6 +133,7 @@ export default function AdminSettingsPage() {
         cinetpayMode: 'sandbox',
         cinetpaySiteId: '********',
         currency: 'XOF',
+        defaultCommissionRate: 10,
 
         // Email
         emailNotifications: true,
@@ -153,17 +154,43 @@ export default function AdminSettingsPage() {
         apiRateLimit: 100,
     })
 
+    useEffect(() => {
+        fetchSettings()
+    }, [])
+
+    const fetchSettings = async () => {
+        try {
+            const res = await fetch('/api/admin/settings')
+            const data = await res.json()
+            if (data.data?.settings) {
+                setSettings(prev => ({ ...prev, ...data.data.settings }))
+            }
+        } catch (err) {
+            console.error('Error fetching admin settings:', err)
+        }
+    }
+
     const handleToggle = (key: keyof typeof settings) => {
         setSettings(prev => ({ ...prev, [key]: !prev[key] }))
     }
 
     const handleSave = async () => {
         setSaving(true)
-        // Simulate save
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        setSaving(false)
-        setSaved(true)
-        setTimeout(() => setSaved(false), 3000)
+        try {
+            const res = await fetch('/api/admin/settings', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(settings)
+            })
+            if (res.ok) {
+                setSaved(true)
+                setTimeout(() => setSaved(false), 3000)
+            }
+        } catch (err) {
+            console.error('Error saving settings:', err)
+        } finally {
+            setSaving(false)
+        }
     }
 
     const ToggleSwitch = ({ value, onChange, color = '#10b981' }: { value: boolean, onChange: () => void, color?: string }) => (
@@ -495,6 +522,28 @@ export default function AdminSettingsPage() {
                                     <option value="EUR">Euro (EUR)</option>
                                 </select>
                             </div>
+                        </div>
+
+                        <div>
+                            <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
+                                Taux de commission par défaut (%)
+                            </label>
+                            <input
+                                type="number"
+                                value={settings.defaultCommissionRate}
+                                onChange={(e) => setSettings({ ...settings, defaultCommissionRate: parseInt(e.target.value) })}
+                                style={{
+                                    width: 150,
+                                    padding: 14,
+                                    borderRadius: 10,
+                                    background: 'rgba(15, 23, 42, 0.5)',
+                                    border: '1px solid rgba(148, 163, 184, 0.1)',
+                                    color: 'white'
+                                }}
+                            />
+                            <p style={{ fontSize: 13, color: '#64748b', marginTop: 6 }}>
+                                Utilisé pour calculer le montant net lors de la création d'un reversement.
+                            </p>
                         </div>
                     </div>
                 )

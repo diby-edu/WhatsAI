@@ -31,7 +31,35 @@ SELECT
     'warning' as severity,
     0 as days_since_active
 FROM profiles
-WHERE credits_balance < 10;
+WHERE credits_balance < 10
+
+UNION ALL
+
+SELECT
+    'high_merchant_balance' as type,
+    id as resource_id,
+    full_name as label,
+    'Solde à reverser élevé (> 50k)' as message,
+    'warning' as severity,
+    0 as days_since_active
+FROM profiles
+-- Logic: amount from one_time payments - payouts
+WHERE id IN (
+    SELECT user_id 
+    FROM (
+        SELECT user_id, SUM(amount_fcfa) as total_collected
+        FROM payments 
+        WHERE status = 'completed' AND payment_type = 'one_time'
+        GROUP BY user_id
+    ) p
+    LEFT JOIN (
+        SELECT user_id, SUM(net_amount + commission_amount) as total_paid
+        FROM payouts
+        WHERE status = 'completed'
+        GROUP BY user_id
+    ) pay USING (user_id)
+    WHERE (COALESCE(p.total_collected, 0) - COALESCE(pay.total_paid, 0)) > 50000
+);
 
 -- 4. Vue Analytics des Paiements (Global)
 CREATE OR REPLACE VIEW view_analytics_payments AS

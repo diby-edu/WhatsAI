@@ -62,3 +62,53 @@ export async function getAuthUser(supabase: Awaited<ReturnType<typeof createApiC
 
     return { user, error: null }
 }
+
+/**
+ * Helper to get pagination range for Supabase
+ */
+export function getPagination(page: number, size: number) {
+    const limit = size ? +size : 10
+    const from = page ? (page - 1) * limit : 0
+    const to = page ? from + limit - 1 : limit - 1
+
+    return { from, to, limit }
+}
+
+/**
+ * Standard paginated response structure
+ */
+export function paginatedResponse(data: any, count: number, page: number, size: number) {
+    return NextResponse.json({
+        data,
+        meta: {
+            total: count || 0,
+            page: Number(page) || 1,
+            size: Number(size) || data.length,
+            last_page: Math.ceil((count || 0) / (size || 10))
+        }
+    })
+}
+
+/**
+ * Log an admin action to the audit trail
+ */
+export async function logAdminAction(
+    adminId: string,
+    actionType: string,
+    targetId?: string,
+    targetType?: string,
+    metadata: any = {}
+) {
+    const adminSupabase = createAdminClient()
+    try {
+        await adminSupabase.from('admin_audit_logs').insert({
+            admin_id: adminId,
+            action_type: actionType,
+            target_id: targetId,
+            target_type: targetType,
+            metadata
+        })
+    } catch (err) {
+        console.error('Failed to log admin action:', err)
+    }
+}

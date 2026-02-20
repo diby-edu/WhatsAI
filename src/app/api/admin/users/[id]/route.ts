@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
+import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse, logAdminAction } from '@/lib/api-utils'
 
 // PATCH /api/admin/users/[id] — Update user profile, plan, status, credits
 export async function PATCH(
@@ -36,6 +36,7 @@ export async function PATCH(
                 .update({ is_active: false })
                 .eq('id', id)
             if (error) throw error
+            await logAdminAction(user.id, 'ban_user', id, 'profile')
             return successResponse({ message: 'Utilisateur suspendu' })
         }
 
@@ -45,6 +46,7 @@ export async function PATCH(
                 .update({ is_active: true })
                 .eq('id', id)
             if (error) throw error
+            await logAdminAction(user.id, 'unban_user', id, 'profile')
             return successResponse({ message: 'Utilisateur réactivé' })
         }
 
@@ -54,6 +56,7 @@ export async function PATCH(
                 .update({ credits: 0 })
                 .eq('id', id)
             if (error) throw error
+            await logAdminAction(user.id, 'reset_credits', id, 'profile')
             return successResponse({ message: 'Crédits réinitialisés' })
         }
 
@@ -65,6 +68,7 @@ export async function PATCH(
                 .update({ credits: Number(credits) })
                 .eq('id', id)
             if (error) throw error
+            await logAdminAction(user.id, 'set_credits', id, 'profile', { credits })
             return successResponse({ message: `Crédits mis à ${credits}` })
         }
 
@@ -76,6 +80,7 @@ export async function PATCH(
                 .update({ role })
                 .eq('id', id)
             if (error) throw error
+            await logAdminAction(user.id, 'change_role', id, 'profile', { role })
             return successResponse({ message: `Rôle changé en ${role}` })
         }
 
@@ -98,6 +103,8 @@ export async function PATCH(
             .eq('id', id)
 
         if (error) throw error
+
+        await logAdminAction(user.id, 'update_user_profile', id, 'profile', cleanUpdate)
 
         return successResponse({ message: 'Profil mis à jour' })
     } catch (err) {
@@ -144,6 +151,8 @@ export async function DELETE(
             .eq('id', id)
 
         if (error) throw error
+
+        await logAdminAction(user.id, 'delete_user', id, 'profile')
 
         return successResponse({ message: 'Utilisateur supprimé' })
     } catch (err) {

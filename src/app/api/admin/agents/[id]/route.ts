@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
+import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse, logAdminAction } from '@/lib/api-utils'
 
 // PATCH /api/admin/agents/[id] — Toggle, update agent
 export async function PATCH(
@@ -45,6 +45,7 @@ export async function PATCH(
                 .eq('id', id)
 
             if (error) throw error
+            await logAdminAction(user.id, 'toggle_agent', id, 'agent', { is_active: !agent.is_active })
             return successResponse({ message: `Agent ${agent.is_active ? 'désactivé' : 'activé'}`, is_active: !agent.is_active })
         }
 
@@ -67,6 +68,8 @@ export async function PATCH(
             .eq('id', id)
 
         if (error) throw error
+
+        await logAdminAction(user.id, 'update_agent', id, 'agent', cleanUpdate)
 
         return successResponse({ message: 'Agent mis à jour' })
     } catch (err) {
@@ -107,6 +110,8 @@ export async function DELETE(
             .eq('id', id)
 
         if (error) throw error
+
+        await logAdminAction(user.id, 'delete_agent', id, 'agent')
 
         return successResponse({ message: 'Agent supprimé' })
     } catch (err) {
