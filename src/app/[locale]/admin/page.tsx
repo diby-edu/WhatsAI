@@ -22,6 +22,8 @@ interface DashboardStats {
     conversationsToday: number
     totalCreditsUsed: number
     revenue: number
+    platformRevenue: number
+    merchantRevenue: number
     pendingOrders: number
     totalOrders: number
 }
@@ -106,7 +108,7 @@ export default function AdminDashboard() {
     const s = stats || {
         totalUsers: 0, activeUsers: 0, newUsersToday: 0, totalAgents: 0, activeAgents: 0, connectedAgents: 0,
         totalMessages: 0, messagesToday: 0, totalConversations: 0, conversationsToday: 0,
-        totalCreditsUsed: 0, revenue: 0, pendingOrders: 0, totalOrders: 0
+        totalCreditsUsed: 0, revenue: 0, platformRevenue: 0, merchantRevenue: 0, pendingOrders: 0, totalOrders: 0
     }
 
     return (
@@ -156,11 +158,12 @@ export default function AdminDashboard() {
                 <KPICard icon={Users} label="Utilisateurs" value={s.totalUsers} subValue={`+${s.newUsersToday || 0} aujourd'hui`} color="#3b82f6" />
                 <KPICard icon={Bot} label="Agents IA" value={s.totalAgents} subValue={`${s.connectedAgents || 0} connectés`} color="#8b5cf6" />
                 <KPICard icon={MessageSquare} label="Messages" value={s.totalMessages} subValue={`+${s.messagesToday || 0} aujourd'hui`} color="#10b981" />
-                <KPICard icon={DollarSign} label="Revenus" value={s.revenue || 0} subValue="$ ce mois" color="#f59e0b" isCurrency />
+                <KPICard icon={DollarSign} label="Revenus Plateforme" value={s.platformRevenue || 0} subValue="FCFA abonnements + crédits" color="#f59e0b" isCurrency />
 
                 <KPICard icon={Phone} label="Conversations" value={s.totalConversations || 0} subValue={`+${s.conversationsToday || 0} aujourd'hui`} color="#06b6d4" />
                 <KPICard icon={Zap} label="Crédits" value={s.totalCreditsUsed || 0} subValue="utilisés ce mois" color="#ec4899" />
                 <KPICard icon={ShoppingCart} label="Commandes" value={s.totalOrders || 0} subValue={`${s.pendingOrders || 0} en attente`} color="#14b8a6" />
+                <KPICard icon={Wallet} label="À Reverser" value={s.merchantRevenue || 0} subValue="FCFA argent marchands" color="#ef4444" isCurrency />
                 <KPICard icon={UserPlus} label="Actifs (30j)" value={s.activeUsers || 0} subValue={`${s.totalUsers > 0 ? Math.round((s.activeUsers / s.totalUsers) * 100) : 0}% du total`} color="#6366f1" />
             </div>
 

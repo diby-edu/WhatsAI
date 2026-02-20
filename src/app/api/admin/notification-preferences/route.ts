@@ -10,12 +10,17 @@ export async function GET(request: NextRequest) {
         return errorResponse('Non autorisé', 401)
     }
 
-    // Verify admin role
-    if (user.user_metadata?.role !== 'admin') {
+    // Verify admin role via DB (secure)
+    const adminSupabase = createAdminClient()
+    const { data: profile } = await adminSupabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
+
+    if (profile?.role !== 'admin') {
         return errorResponse('Accès refusé', 403)
     }
-
-    const adminSupabase = createAdminClient()
 
     try {
         const { data, error } = await adminSupabase
@@ -69,15 +74,20 @@ export async function PATCH(request: NextRequest) {
         return errorResponse('Non autorisé', 401)
     }
 
-    // Verify admin role
-    if (user.user_metadata?.role !== 'admin') {
+    // Verify admin role via DB (secure)
+    const adminSupabase = createAdminClient()
+    const { data: profile } = await adminSupabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
+
+    if (profile?.role !== 'admin') {
         return errorResponse('Accès refusé', 403)
     }
 
     try {
         const body = await request.json()
-
-        const adminSupabase = createAdminClient()
 
         // Upsert preferences
         const { data, error } = await adminSupabase

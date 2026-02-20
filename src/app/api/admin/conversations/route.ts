@@ -1,16 +1,28 @@
 import { NextRequest } from 'next/server'
-import { createAdminClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
+import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
 
 export async function GET(request: NextRequest) {
-    const supabase = createAdminClient()
+    const supabase = await createApiClient()
     const { user, error: authError } = await getAuthUser(supabase)
 
-    if (authError || user?.user_metadata?.role !== 'admin') {
-        return errorResponse('Unauthorized', 401)
+    if (authError || !user) {
+        return errorResponse('Non autorisé', 401)
+    }
+
+    // Verify admin role via DB (secure)
+    const adminSupabase = createAdminClient()
+    const { data: profile } = await adminSupabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
+
+    if (profile?.role !== 'admin') {
+        return errorResponse('Accès refusé', 403)
     }
 
     try {
-        const { data: conversations, error } = await supabase
+        const { data: conversations, error } = await adminSupabase
             .from('conversations')
             .select(`
                 id,
