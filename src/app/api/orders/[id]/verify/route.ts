@@ -25,13 +25,27 @@ export async function POST(
         // Get order with conversation
         const { data: order, error: orderError } = await supabase
             .from('orders')
-            .select('id, user_id, customer_phone, total_fcfa, conversation_id, payment_verification_status')
+            .select('id, user_id, customer_phone, total_fcfa, conversation_id, payment_verification_status, conversation:conversations(agent_id)')
             .eq('id', orderId)
             .eq('user_id', user!.id)
             .single()
 
         if (orderError || !order) {
             return errorResponse('Commande non trouvée', 404)
+        }
+
+        // Extract agent_id from conversation (needed for message inserts)
+        const agentId = (order.conversation as any)?.agent_id || null
+        let resolvedAgentId = agentId
+        if (!resolvedAgentId) {
+            // Fallback: get the first agent of this user
+            const { data: fallbackAgent } = await supabase
+                .from('agents')
+                .select('id')
+                .eq('user_id', user!.id)
+                .limit(1)
+                .single()
+            resolvedAgentId = fallbackAgent?.id || null
         }
 
         if (order.payment_verification_status !== 'awaiting_verification') {
@@ -56,13 +70,15 @@ export async function POST(
 
             // Send confirmation message to customer via bot
             if (order.conversation_id) {
-                await supabase.from('messages').insert({
-                    conversation_id: order.conversation_id,
-                    agent_id: null, // Will be filled by a trigger or we can query it
-                    role: 'assistant',
-                    content: `🎉 *Paiement confirmé !*\n\nVotre paiement de ${order.total_fcfa.toLocaleString('fr-FR')} FCFA pour la commande #${orderId.substring(0, 8)} a été vérifié avec succès.\n\n✅ Votre commande sera traitée sous peu. Merci pour votre confiance !`,
-                    status: 'pending'
-                })
+                if (resolvedAgentId) {
+                    await supabase.from('messages').insert({
+                        conversation_id: order.conversation_id,
+                        agent_id: resolvedAgentId,
+                        role: 'assistant',
+                        content: `🎉 *Paiement confirmé !*\n\nVotre paiement de ${order.total_fcfa.toLocaleString('fr-FR')} FCFA pour la commande #${orderId.substring(0, 8)} a été vérifié avec succès.\n\n✅ Votre commande sera traitée sous peu. Merci pour votre confiance !`,
+                        status: 'pending'
+                    })
+                }
             }
 
             return successResponse({
@@ -88,13 +104,15 @@ export async function POST(
 
             // Send rejection message to customer
             if (order.conversation_id) {
-                await supabase.from('messages').insert({
-                    conversation_id: order.conversation_id,
-                    agent_id: null,
-                    role: 'assistant',
-                    content: `❌ *Paiement non validé*\n\nNous n'avons pas pu valider votre paiement pour la commande #${orderId.substring(0, 8)} (${order.total_fcfa.toLocaleString('fr-FR')} FCFA).\n\n📞 Si vous pensez qu'il s'agit d'une erreur, veuillez renvoyer une capture d'écran plus claire ou contacter notre support.`,
-                    status: 'pending'
-                })
+                if (resolvedAgentId) {
+                    await supabase.from('messages').insert({
+                        conversation_id: order.conversation_id,
+                        agent_id: resolvedAgentId,
+                        role: 'assistant',
+                        content: `❌ *Paiement non validé*\n\nNous n'avons pas pu valider votre paiement pour la commande #${orderId.substring(0, 8)} (${order.total_fcfa.toLocaleString('fr-FR')} FCFA).\n\n📞 Si vous pensez qu'il s'agit d'une erreur, veuillez renvoyer une capture d'écran plus claire ou contacter notre support.`,
+                        status: 'pending'
+                    })
+                }
             }
 
             return successResponse({
