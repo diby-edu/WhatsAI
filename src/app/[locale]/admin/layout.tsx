@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
     LayoutDashboard,
@@ -34,7 +34,8 @@ import {
     ShoppingCart,
     Calendar,
     ToggleRight,
-    Send
+    Send,
+    Wallet
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -49,6 +50,7 @@ const adminLinks = [
     { href: '/admin/credit-packs', label: 'Packs de Crédits', icon: Package },
     { href: '/admin/subscriptions', label: 'Abonnements', icon: CreditCard },
     { href: '/admin/payments', label: 'Test Paiement', icon: TestTube2 },
+    { href: '/admin/payouts', label: 'Reversements', icon: Wallet },
     { href: '/admin/features', label: 'Feature Flags', icon: ToggleRight },
     { href: '/admin/broadcasts', label: 'Broadcasts', icon: Send },
     { href: '/admin/diagnostics', label: 'Diagnostic', icon: Activity },
@@ -72,6 +74,7 @@ export default function AdminLayout({
     children: React.ReactNode
 }) {
     const pathname = usePathname()
+    const router = useRouter()
     const [collapsed, setCollapsed] = useState(false)
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
     const [isMobile, setIsMobile] = useState(false)
@@ -79,7 +82,10 @@ export default function AdminLayout({
     const [showNotifications, setShowNotifications] = useState(false)
     const [notifications, setNotifications] = useState<Notification[]>([])
     const [unreadCount, setUnreadCount] = useState(0)
+    const [searchQuery, setSearchQuery] = useState('')
+    const [showSearchResults, setShowSearchResults] = useState(false)
     const notifRef = useRef<HTMLDivElement>(null)
+    const searchRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
         const checkMobile = () => setIsMobile(window.innerWidth < 1024)
@@ -533,7 +539,7 @@ export default function AdminLayout({
                         alignItems: 'center',
                         justifyContent: 'space-between'
                     }}>
-                        <div style={{ position: 'relative' }}>
+                        <div style={{ position: 'relative' }} ref={searchRef}>
                             <Search style={{
                                 position: 'absolute',
                                 left: 12,
@@ -541,11 +547,19 @@ export default function AdminLayout({
                                 transform: 'translateY(-50%)',
                                 width: 20,
                                 height: 20,
-                                color: '#64748b'
+                                color: '#64748b',
+                                zIndex: 1
                             }} />
                             <input
                                 type="text"
-                                placeholder="Rechercher..."
+                                placeholder="Rechercher une page..."
+                                value={searchQuery}
+                                onChange={(e) => {
+                                    setSearchQuery(e.target.value)
+                                    setShowSearchResults(e.target.value.length > 0)
+                                }}
+                                onFocus={() => searchQuery.length > 0 && setShowSearchResults(true)}
+                                onBlur={() => setTimeout(() => setShowSearchResults(false), 200)}
                                 style={{
                                     width: 320,
                                     padding: '12px 12px 12px 44px',
@@ -557,6 +571,58 @@ export default function AdminLayout({
                                     outline: 'none'
                                 }}
                             />
+                            {showSearchResults && (
+                                <div style={{
+                                    position: 'absolute',
+                                    top: '100%',
+                                    left: 0,
+                                    right: 0,
+                                    marginTop: 4,
+                                    backgroundColor: '#1e293b',
+                                    border: '1px solid rgba(148, 163, 184, 0.15)',
+                                    borderRadius: 12,
+                                    boxShadow: '0 10px 30px rgba(0,0,0,0.4)',
+                                    overflow: 'hidden',
+                                    zIndex: 100
+                                }}>
+                                    {adminLinks
+                                        .filter(link => link.label.toLowerCase().includes(searchQuery.toLowerCase()))
+                                        .map((link, i) => (
+                                            <button
+                                                key={i}
+                                                onClick={() => {
+                                                    router.push(link.href)
+                                                    setSearchQuery('')
+                                                    setShowSearchResults(false)
+                                                }}
+                                                style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: 10,
+                                                    width: '100%',
+                                                    padding: '10px 14px',
+                                                    background: 'none',
+                                                    border: 'none',
+                                                    borderBottom: '1px solid rgba(148, 163, 184, 0.05)',
+                                                    color: 'white',
+                                                    fontSize: 13,
+                                                    cursor: 'pointer',
+                                                    textAlign: 'left'
+                                                }}
+                                                onMouseOver={(e) => (e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.1)')}
+                                                onMouseOut={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                                            >
+                                                <link.icon style={{ width: 16, height: 16, color: '#34d399' }} />
+                                                {link.label}
+                                            </button>
+                                        ))}
+                                    {adminLinks.filter(link => link.label.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
+                                        <div style={{ padding: '16px', textAlign: 'center', color: '#64748b', fontSize: 13 }}>
+                                            Aucun résultat
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>

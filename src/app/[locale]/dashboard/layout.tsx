@@ -31,6 +31,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useTranslations } from 'next-intl'
+import { GlobalSearch } from '@/components/dashboard/GlobalSearch'
 
 interface Notification {
     id: string
@@ -688,8 +689,12 @@ export default function DashboardLayout({
                         padding: '12px 24px',
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'flex-end'
+                        justifyContent: 'space-between',
+                        gap: 16
                     }}>
+                        {/* Global Search */}
+                        <GlobalSearch />
+
                         {/* Notifications Bell */}
                         <div ref={notifRef} style={{ position: 'relative' }}>
                             <button

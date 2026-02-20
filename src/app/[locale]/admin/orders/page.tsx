@@ -1,10 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
     ShoppingCart, Search, Filter, Eye, CheckCircle, XCircle, Clock,
-    Loader2, RefreshCw, Package, Truck, CreditCard, ArrowLeft
+    Loader2, RefreshCw, Package, Truck, CreditCard, ArrowLeft, Download, X
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -26,6 +26,29 @@ export default function AdminOrdersPage() {
     const [loading, setLoading] = useState(true)
     const [statusFilter, setStatusFilter] = useState<string>('all')
     const [searchTerm, setSearchTerm] = useState('')
+    const [viewOrder, setViewOrder] = useState<any>(null)
+    const [viewLoading, setViewLoading] = useState(false)
+
+    const viewOrderDetail = async (orderId: string) => {
+        setViewLoading(true)
+        try {
+            const res = await fetch(`/api/admin/orders/${orderId}`)
+            const data = await res.json()
+            if (data.data?.order) setViewOrder(data.data.order)
+        } catch { } finally { setViewLoading(false) }
+    }
+
+    const exportCSV = () => {
+        const header = 'ID,Client,Téléphone,Total,Statut,Date\n'
+        const rows = filteredOrders.map(o =>
+            `"${o.id}","${o.customer_name || ''}","${o.customer_phone}",${o.total_fcfa},"${o.status}","${new Date(o.created_at).toLocaleDateString('fr-FR')}"`
+        ).join('\n')
+        const blob = new Blob(['\ufeff' + header + rows], { type: 'text/csv;charset=utf-8;' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url; a.download = 'commandes.csv'; a.click()
+        URL.revokeObjectURL(url)
+    }
 
     useEffect(() => {
         fetchOrders()
@@ -107,18 +130,22 @@ export default function AdminOrdersPage() {
                         </p>
                     </div>
                 </div>
-                <button
-                    onClick={fetchOrders}
-                    style={{
-                        display: 'flex', alignItems: 'center', gap: 8,
-                        padding: '10px 16px', background: 'rgba(52, 211, 153, 0.1)',
-                        border: '1px solid rgba(52, 211, 153, 0.3)', borderRadius: 10,
-                        color: '#34d399', cursor: 'pointer', fontSize: 13, fontWeight: 500
-                    }}
-                >
-                    <RefreshCw size={16} />
-                    Rafraîchir
-                </button>
+                <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={exportCSV} style={{
+                        display: 'flex', alignItems: 'center', gap: 6, padding: '10px 16px',
+                        background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(148, 163, 184, 0.1)',
+                        borderRadius: 10, color: '#94a3b8', cursor: 'pointer', fontSize: 13
+                    }}>
+                        <Download size={14} /> CSV
+                    </button>
+                    <button onClick={fetchOrders} style={{
+                        display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px',
+                        background: 'rgba(52, 211, 153, 0.1)', border: '1px solid rgba(52, 211, 153, 0.3)',
+                        borderRadius: 10, color: '#34d399', cursor: 'pointer', fontSize: 13, fontWeight: 500
+                    }}>
+                        <RefreshCw size={16} /> Rafraîchir
+                    </button>
+                </div>
             </div>
 
             {/* Quick Stats */}
@@ -242,47 +269,27 @@ export default function AdminOrdersPage() {
                                             {new Date(order.created_at).toLocaleDateString('fr-FR')}
                                         </td>
                                         <td style={{ padding: '14px 16px' }}>
-                                            <div style={{ display: 'flex', gap: 8 }}>
+                                            <div style={{ display: 'flex', gap: 6 }}>
+                                                <button onClick={() => viewOrderDetail(order.id)} title="Voir détails"
+                                                    style={{ width: 30, height: 30, borderRadius: 8, background: 'rgba(168, 85, 247, 0.1)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                    <Eye size={14} style={{ color: '#a855f7' }} />
+                                                </button>
                                                 {order.status === 'pending' && (
-                                                    <button
-                                                        onClick={() => updateOrderStatus(order.id, 'cancelled')}
-                                                        title="Annuler"
-                                                        style={{
-                                                            width: 32, height: 32, borderRadius: 8,
-                                                            background: 'rgba(239, 68, 68, 0.1)',
-                                                            border: 'none', cursor: 'pointer',
-                                                            display: 'flex', alignItems: 'center', justifyContent: 'center'
-                                                        }}
-                                                    >
-                                                        <XCircle size={16} style={{ color: '#f87171' }} />
+                                                    <button onClick={() => updateOrderStatus(order.id, 'cancelled')} title="Annuler"
+                                                        style={{ width: 30, height: 30, borderRadius: 8, background: 'rgba(239, 68, 68, 0.1)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                        <XCircle size={14} style={{ color: '#f87171' }} />
                                                     </button>
                                                 )}
                                                 {order.status === 'paid' && (
-                                                    <button
-                                                        onClick={() => updateOrderStatus(order.id, 'shipped')}
-                                                        title="Marquer expédiée"
-                                                        style={{
-                                                            width: 32, height: 32, borderRadius: 8,
-                                                            background: 'rgba(59, 130, 246, 0.1)',
-                                                            border: 'none', cursor: 'pointer',
-                                                            display: 'flex', alignItems: 'center', justifyContent: 'center'
-                                                        }}
-                                                    >
-                                                        <Truck size={16} style={{ color: '#60a5fa' }} />
+                                                    <button onClick={() => updateOrderStatus(order.id, 'shipped')} title="Marquer expédiée"
+                                                        style={{ width: 30, height: 30, borderRadius: 8, background: 'rgba(59, 130, 246, 0.1)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                        <Truck size={14} style={{ color: '#60a5fa' }} />
                                                     </button>
                                                 )}
                                                 {order.status === 'shipped' && (
-                                                    <button
-                                                        onClick={() => updateOrderStatus(order.id, 'delivered')}
-                                                        title="Marquer livrée"
-                                                        style={{
-                                                            width: 32, height: 32, borderRadius: 8,
-                                                            background: 'rgba(16, 185, 129, 0.1)',
-                                                            border: 'none', cursor: 'pointer',
-                                                            display: 'flex', alignItems: 'center', justifyContent: 'center'
-                                                        }}
-                                                    >
-                                                        <CheckCircle size={16} style={{ color: '#34d399' }} />
+                                                    <button onClick={() => updateOrderStatus(order.id, 'delivered')} title="Marquer livrée"
+                                                        style={{ width: 30, height: 30, borderRadius: 8, background: 'rgba(16, 185, 129, 0.1)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                        <CheckCircle size={14} style={{ color: '#34d399' }} />
                                                     </button>
                                                 )}
                                             </div>
@@ -295,12 +302,75 @@ export default function AdminOrdersPage() {
                 )}
             </div>
 
+            {/* Order Detail Modal */}
+            <AnimatePresence>
+                {viewOrder && (
+                    <>
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            onClick={() => setViewOrder(null)}
+                            style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
+                        <motion.div
+                            initial={{ opacity: 0, y: 20, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.95 }}
+                            style={{
+                                position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                                zIndex: 101, width: 520, maxHeight: '85vh', overflowY: 'auto',
+                                background: '#1e293b', border: '1px solid rgba(148, 163, 184, 0.15)',
+                                borderRadius: 16, padding: 24, boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
+                            }}>
+                            <button onClick={() => setViewOrder(null)} style={{ position: 'absolute', top: 12, right: 12, background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}>
+                                <X size={18} />
+                            </button>
+                            <h2 style={{ fontSize: 18, fontWeight: 700, color: 'white', marginBottom: 16 }}>Commande #{viewOrder.id?.substring(0, 8)}</h2>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+                                <Row label="Client" value={viewOrder.customer_name || 'N/A'} />
+                                <Row label="Téléphone" value={viewOrder.customer_phone} />
+                                <Row label="Total" value={`${viewOrder.total_fcfa?.toLocaleString('fr-FR')} FCFA`} />
+                                <Row label="Statut" value={viewOrder.status?.toUpperCase()} />
+                                <Row label="Adresse" value={viewOrder.delivery_address || 'N/A'} />
+                                <Row label="Date" value={new Date(viewOrder.created_at).toLocaleString('fr-FR')} />
+                            </div>
+                            {viewOrder.items && viewOrder.items.length > 0 && (
+                                <div>
+                                    <h3 style={{ fontSize: 14, fontWeight: 600, color: '#94a3b8', marginBottom: 10 }}>Articles ({viewOrder.items.length})</h3>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                        {viewOrder.items.map((item: any, i: number) => (
+                                            <div key={i} style={{
+                                                padding: 12, borderRadius: 10,
+                                                background: 'rgba(15,23,42,0.5)', border: '1px solid rgba(148,163,184,0.08)',
+                                                display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                                            }}>
+                                                <div>
+                                                    <div style={{ color: 'white', fontSize: 13, fontWeight: 500 }}>{item.product_name || `Produit #${item.product_id?.substring(0, 8)}`}</div>
+                                                    <div style={{ color: '#64748b', fontSize: 11 }}>Qté: {item.quantity}</div>
+                                                </div>
+                                                <span style={{ color: '#4ade80', fontWeight: 600, fontSize: 13 }}>
+                                                    {((item.unit_price || 0) * (item.quantity || 1)).toLocaleString('fr-FR')} F
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
+
             <style jsx global>{`
                 @keyframes spin {
                     from { transform: rotate(0deg); }
                     to { transform: rotate(360deg); }
                 }
             `}</style>
+        </div>
+    )
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+    return (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ color: '#64748b', fontSize: 13 }}>{label}</span>
+            <span style={{ color: '#e2e8f0', fontSize: 13, fontWeight: 500 }}>{value}</span>
         </div>
     )
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
     User,
@@ -17,7 +17,8 @@ import {
     Eye,
     EyeOff,
     Trash2,
-    Smartphone
+    Smartphone,
+    Camera
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
@@ -28,6 +29,7 @@ interface Profile {
     phone: string
     company: string
     currency?: string
+    avatar_url?: string
 }
 
 interface NotificationSettings {
@@ -76,6 +78,8 @@ export default function SettingsPage() {
     const [saving, setSaving] = useState(false)
     const [saved, setSaved] = useState(false)
     const [showPassword, setShowPassword] = useState(false)
+    const [uploadingAvatar, setUploadingAvatar] = useState(false)
+    const avatarInputRef = useRef<HTMLInputElement>(null)
 
     // Profile state
     const [profile, setProfile] = useState<Profile>({
@@ -229,6 +233,55 @@ export default function SettingsPage() {
         }
     }
 
+    const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+        if (file.size > 2 * 1024 * 1024) {
+            alert('Image trop volumineuse. Maximum 2MB')
+            return
+        }
+
+        setUploadingAvatar(true)
+        try {
+            const { createClient } = await import('@/lib/supabase/client')
+            const supabase = createClient()
+            const fileExt = file.name.split('.').pop()
+            const filePath = `${profile.id}/avatar.${fileExt}`
+
+            // Upload to avatars bucket
+            const { error: uploadError } = await supabase.storage
+                .from('avatars')
+                .upload(filePath, file, { upsert: true })
+
+            if (uploadError) {
+                console.error('Upload error:', uploadError)
+                alert('Erreur lors de l\'upload')
+                setUploadingAvatar(false)
+                return
+            }
+
+            // Get public URL
+            const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath)
+            const avatarUrl = urlData.publicUrl
+
+            // Update profile via API
+            const res = await fetch('/api/profile', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ avatar_url: avatarUrl })
+            })
+
+            if (res.ok) {
+                setProfile(prev => ({ ...prev, avatar_url: avatarUrl }))
+            }
+        } catch (err) {
+            console.error('Avatar upload error:', err)
+            alert('Erreur inattendue')
+        } finally {
+            setUploadingAvatar(false)
+        }
+    }
+
     if (loading) {
         return (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 300 }}>
@@ -310,6 +363,64 @@ export default function SettingsPage() {
                                 <h2 style={{ fontSize: 20, fontWeight: 600, color: 'white', marginBottom: 24 }}>
                                     {t('Profile.title')}
                                 </h2>
+
+                                {/* Avatar Upload */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 28 }}>
+                                    <div style={{
+                                        width: 80,
+                                        height: 80,
+                                        borderRadius: '50%',
+                                        background: profile.avatar_url
+                                            ? `url(${profile.avatar_url})`
+                                            : 'linear-gradient(135deg, #10b981, #059669)',
+                                        backgroundSize: 'cover',
+                                        backgroundPosition: 'center',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        color: 'white',
+                                        fontSize: 28,
+                                        fontWeight: 600,
+                                        flexShrink: 0,
+                                        border: '3px solid rgba(16, 185, 129, 0.3)'
+                                    }}>
+                                        {!profile.avatar_url && profile.full_name?.charAt(0)?.toUpperCase()}
+                                    </div>
+                                    <input
+                                        type="file"
+                                        ref={avatarInputRef}
+                                        accept="image/*"
+                                        hidden
+                                        onChange={handleAvatarUpload}
+                                    />
+                                    <div>
+                                        <button
+                                            onClick={() => avatarInputRef.current?.click()}
+                                            disabled={uploadingAvatar}
+                                            style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 8,
+                                                padding: '10px 16px',
+                                                background: 'rgba(30, 41, 59, 0.8)',
+                                                border: '1px solid rgba(148, 163, 184, 0.2)',
+                                                borderRadius: 10,
+                                                color: 'white',
+                                                cursor: uploadingAvatar ? 'wait' : 'pointer',
+                                                transition: 'all 0.2s'
+                                            }}
+                                        >
+                                            {uploadingAvatar ? (
+                                                <Loader2 style={{ width: 18, height: 18, animation: 'spin 1s linear infinite' }} />
+                                            ) : (
+                                                <Camera style={{ width: 18, height: 18 }} />
+                                            )}
+                                            {uploadingAvatar ? 'Upload...' : 'Changer photo'}
+                                        </button>
+                                        <p style={{ color: '#64748b', fontSize: 12, marginTop: 6 }}>JPG, PNG. Max 2MB</p>
+                                    </div>
+                                </div>
+
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 20 }}>
                                     <InputField
                                         label={t('Profile.form.fullName')}

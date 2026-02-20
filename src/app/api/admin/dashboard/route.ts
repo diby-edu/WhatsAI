@@ -97,15 +97,29 @@ export async function GET(request: NextRequest) {
             totalCreditsUsed = profiles?.reduce((sum, p) => sum + (p.credits_used_this_month || 0), 0) || 0
         } catch { }
 
-        // Revenue from payments
-        let revenue = 0
+        // Revenue from payments — separated platform vs merchant
+        let platformRevenue = 0
+        let merchantRevenue = 0
         try {
-            const { data: payments } = await adminSupabase
+            const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString()
+
+            // Platform revenue (subscriptions + credits)
+            const { data: platformPayments } = await adminSupabase
                 .from('payments')
-                .select('amount')
+                .select('amount_fcfa')
                 .eq('status', 'completed')
-                .gte('created_at', new Date(today.getFullYear(), today.getMonth(), 1).toISOString())
-            revenue = payments?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0
+                .in('payment_type', ['subscription', 'credits'])
+                .gte('created_at', monthStart)
+            platformRevenue = platformPayments?.reduce((sum, p) => sum + (p.amount_fcfa || 0), 0) || 0
+
+            // Merchant revenue (order payments to reverse)
+            const { data: orderPayments } = await adminSupabase
+                .from('payments')
+                .select('amount_fcfa')
+                .eq('status', 'completed')
+                .eq('payment_type', 'one_time')
+                .gte('created_at', monthStart)
+            merchantRevenue = orderPayments?.reduce((sum, p) => sum + (p.amount_fcfa || 0), 0) || 0
         } catch { }
 
         // Orders
@@ -124,6 +138,19 @@ export async function GET(request: NextRequest) {
             pendingOrders = pendCount || 0
         } catch { }
 
+        // Active Agents (with messages in last 7 days)
+        let activeAgents = 0
+        try {
+            const sevenDaysAgo = new Date()
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+            const { data: activeAgentIds } = await adminSupabase
+                .from('messages')
+                .select('agent_id')
+                .gte('created_at', sevenDaysAgo.toISOString())
+            const uniqueAgents = new Set(activeAgentIds?.map(m => m.agent_id) || [])
+            activeAgents = uniqueAgents.size
+        } catch { }
+
         // Recent Users
         const { data: recentUsers } = await adminSupabase
             .from('profiles')
@@ -137,14 +164,16 @@ export async function GET(request: NextRequest) {
                 activeUsers: activeUsers || 0,
                 newUsersToday: newUsersToday || 0,
                 totalAgents: totalAgents || 0,
-                activeAgents: totalAgents || 0,
+                activeAgents,
                 connectedAgents: connectedAgents || 0,
                 totalMessages,
                 messagesToday,
                 totalConversations,
                 conversationsToday,
                 totalCreditsUsed,
-                revenue,
+                platformRevenue,
+                merchantRevenue,
+                revenue: platformRevenue + merchantRevenue,
                 totalOrders,
                 pendingOrders
             },

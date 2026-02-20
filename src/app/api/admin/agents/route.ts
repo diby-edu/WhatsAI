@@ -10,11 +10,17 @@ export async function GET(request: NextRequest) {
         return errorResponse('Non autorisé', 401)
     }
 
-    if (user.user_metadata?.role !== 'admin') {
+    // Verify admin role via DB (secure)
+    const adminSupabase = createAdminClient()
+    const { data: profile } = await adminSupabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
+
+    if (profile?.role !== 'admin') {
         return errorResponse('Accès refusé', 403)
     }
-
-    const adminSupabase = createAdminClient()
 
     try {
         // Try to fetch with profile info

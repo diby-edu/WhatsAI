@@ -41,7 +41,10 @@ export async function GET(request: NextRequest) {
                 delivery_address,
                 notes,
                 agent_id,
-                user_id
+                user_id,
+                agent:agents(name),
+                profile:profiles!orders_user_id_fkey(email),
+                order_items(id)
             `)
             .order('created_at', { ascending: false })
             .limit(100)
@@ -54,44 +57,16 @@ export async function GET(request: NextRequest) {
 
         if (error) throw error
 
-        // Get agent names for each order
-        const ordersWithDetails = await Promise.all(
-            (orders || []).map(async (order: any) => {
-                let agentName = null
-                let userEmail = null
-
-                if (order.agent_id) {
-                    const { data: agent } = await adminSupabase
-                        .from('agents')
-                        .select('name')
-                        .eq('id', order.agent_id)
-                        .single()
-                    agentName = agent?.name
-                }
-
-                if (order.user_id) {
-                    const { data: userProfile } = await adminSupabase
-                        .from('profiles')
-                        .select('email')
-                        .eq('id', order.user_id)
-                        .single()
-                    userEmail = userProfile?.email
-                }
-
-                // Get items count
-                const { count } = await adminSupabase
-                    .from('order_items')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('order_id', order.id)
-
-                return {
-                    ...order,
-                    agent_name: agentName,
-                    user_email: userEmail,
-                    items_count: count || 0
-                }
-            })
-        )
+        // Format response — single query, no N+1
+        const ordersWithDetails = (orders || []).map((order: any) => ({
+            ...order,
+            agent_name: order.agent?.name || null,
+            user_email: order.profile?.email || null,
+            items_count: order.order_items?.length || 0,
+            agent: undefined,
+            profile: undefined,
+            order_items: undefined
+        }))
 
         return successResponse({ orders: ordersWithDetails })
     } catch (err) {
