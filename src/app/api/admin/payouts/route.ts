@@ -138,7 +138,18 @@ export async function POST(request: NextRequest) {
 
     try {
         const body = await request.json()
-        const { user_id, gross_amount, commission_rate = 10, payment_method, notes, period_start, period_end } = body
+        let { user_id, gross_amount, commission_rate, payment_method, notes, period_start, period_end } = body
+
+        // If no rate provided, fetch global default
+        if (!commission_rate) {
+            const { data: setting } = await adminSupabase
+                .from('app_settings')
+                .select('value')
+                .eq('key', 'default_commission_rate')
+                .single()
+
+            commission_rate = setting ? parseInt(setting.value) : 10
+        }
 
         if (!user_id || !gross_amount || !period_start || !period_end) {
             return errorResponse('Champs requis: user_id, gross_amount, period_start, period_end', 400)
