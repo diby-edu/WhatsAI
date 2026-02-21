@@ -27,26 +27,57 @@ const tabs: Tab[] = [
 ]
 
 interface AdminNotificationSettings {
-    // Users & Revenue
+    // Legacy fields (for backwards compatibility)
     notif_new_user: boolean
     notif_plan_upgrade: boolean
     notif_plan_downgrade: boolean
     notif_payment_received: boolean
     notif_payment_failed: boolean
     notif_subscription_cancelled: boolean
-    // Agents
     notif_agent_created: boolean
     notif_agent_connected: boolean
     notif_agent_disconnected: boolean
     notif_agent_quota_exceeded: boolean
-    // System
     notif_openai_error: boolean
     notif_whatsapp_down: boolean
     notif_high_error_rate: boolean
-    // Activity
     notif_new_conversation: boolean
     notif_new_order: boolean
     notif_escalation: boolean
+    // Email notifications
+    email_new_user: boolean
+    email_plan_upgrade: boolean
+    email_plan_downgrade: boolean
+    email_payment_received: boolean
+    email_payment_failed: boolean
+    email_subscription_cancelled: boolean
+    email_agent_created: boolean
+    email_agent_connected: boolean
+    email_agent_disconnected: boolean
+    email_agent_quota_exceeded: boolean
+    email_openai_error: boolean
+    email_whatsapp_down: boolean
+    email_high_error_rate: boolean
+    email_new_conversation: boolean
+    email_new_order: boolean
+    email_escalation: boolean
+    // Push notifications (in-app)
+    push_new_user: boolean
+    push_plan_upgrade: boolean
+    push_plan_downgrade: boolean
+    push_payment_received: boolean
+    push_payment_failed: boolean
+    push_subscription_cancelled: boolean
+    push_agent_created: boolean
+    push_agent_connected: boolean
+    push_agent_disconnected: boolean
+    push_agent_quota_exceeded: boolean
+    push_openai_error: boolean
+    push_whatsapp_down: boolean
+    push_high_error_rate: boolean
+    push_new_conversation: boolean
+    push_new_order: boolean
+    push_escalation: boolean
 }
 
 export default function AdminSettingsPage() {
@@ -55,26 +86,57 @@ export default function AdminSettingsPage() {
     const [saved, setSaved] = useState(false)
 
     const [notificationSettings, setNotificationSettings] = useState<AdminNotificationSettings>({
-        // Users & Revenue
+        // Legacy fields
         notif_new_user: true,
         notif_plan_upgrade: true,
         notif_plan_downgrade: true,
         notif_payment_received: true,
         notif_payment_failed: true,
         notif_subscription_cancelled: true,
-        // Agents
         notif_agent_created: true,
         notif_agent_connected: true,
         notif_agent_disconnected: true,
         notif_agent_quota_exceeded: true,
-        // System
         notif_openai_error: true,
         notif_whatsapp_down: true,
         notif_high_error_rate: true,
-        // Activity
         notif_new_conversation: false,
         notif_new_order: true,
-        notif_escalation: true
+        notif_escalation: true,
+        // Email notifications
+        email_new_user: true,
+        email_plan_upgrade: true,
+        email_plan_downgrade: true,
+        email_payment_received: true,
+        email_payment_failed: true,
+        email_subscription_cancelled: true,
+        email_agent_created: false,
+        email_agent_connected: false,
+        email_agent_disconnected: true,
+        email_agent_quota_exceeded: true,
+        email_openai_error: true,
+        email_whatsapp_down: true,
+        email_high_error_rate: true,
+        email_new_conversation: false,
+        email_new_order: true,
+        email_escalation: true,
+        // Push notifications (in-app)
+        push_new_user: true,
+        push_plan_upgrade: true,
+        push_plan_downgrade: true,
+        push_payment_received: true,
+        push_payment_failed: true,
+        push_subscription_cancelled: true,
+        push_agent_created: true,
+        push_agent_connected: true,
+        push_agent_disconnected: true,
+        push_agent_quota_exceeded: true,
+        push_openai_error: true,
+        push_whatsapp_down: true,
+        push_high_error_rate: true,
+        push_new_conversation: false,
+        push_new_order: true,
+        push_escalation: true
     })
 
     useEffect(() => {
@@ -803,101 +865,119 @@ export default function AdminSettingsPage() {
                 )
 
             case 'notifications':
+                const NotificationItem = ({ label, description, emailKey, pushKey, critical }: {
+                    label: string,
+                    description: string,
+                    emailKey: keyof AdminNotificationSettings,
+                    pushKey: keyof AdminNotificationSettings,
+                    critical?: boolean
+                }) => (
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr auto auto',
+                        alignItems: 'center',
+                        padding: '14px 16px',
+                        borderRadius: 10,
+                        background: 'rgba(15, 23, 42, 0.3)',
+                        gap: 16
+                    }}>
+                        <div>
+                            <div style={{ fontWeight: 500, color: 'white', fontSize: 14 }}>{label}</div>
+                            <div style={{ fontSize: 12, color: '#64748b' }}>{description}</div>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                            <span style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase' }}>Email</span>
+                            <ToggleSwitch
+                                value={notificationSettings[emailKey] as boolean}
+                                onChange={() => setNotificationSettings(s => ({ ...s, [emailKey]: !s[emailKey] }))}
+                                color={critical ? '#ef4444' : '#10b981'}
+                            />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                            <span style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase' }}>Push</span>
+                            <ToggleSwitch
+                                value={notificationSettings[pushKey] as boolean}
+                                onChange={() => setNotificationSettings(s => ({ ...s, [pushKey]: !s[pushKey] }))}
+                                color={critical ? '#ef4444' : '#3b82f6'}
+                            />
+                        </div>
+                    </div>
+                )
+
                 return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                        {/* Info Banner */}
+                        <div style={{
+                            padding: 16,
+                            borderRadius: 12,
+                            background: 'rgba(59, 130, 246, 0.1)',
+                            border: '1px solid rgba(59, 130, 246, 0.2)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 12
+                        }}>
+                            <Bell style={{ width: 20, height: 20, color: '#60a5fa' }} />
+                            <div>
+                                <div style={{ fontWeight: 600, color: '#60a5fa' }}>Canaux de notification</div>
+                                <div style={{ fontSize: 13, color: '#94a3b8' }}>
+                                    Configurez séparément les notifications par <strong>Email</strong> et par <strong>Push</strong> (in-app).
+                                </div>
+                            </div>
+                        </div>
+
                         {/* Users & Revenue */}
                         <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                                <Users style={{ width: 20, height: 20, color: '#3b82f6' }} />
-                                <h3 style={{ color: '#94a3b8', fontSize: 14, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>
-                                    Utilisateurs & Revenus
-                                </h3>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                                <Users style={{ width: 18, height: 18, color: '#3b82f6' }} />
+                                <h3 style={{ color: '#e2e8f0', fontSize: 14, fontWeight: 600 }}>Utilisateurs & Revenus</h3>
                             </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                <SettingRow label="Nouvel utilisateur inscrit" description="Alerte quand un nouveau compte est créé">
-                                    <ToggleSwitch value={notificationSettings.notif_new_user} onChange={() => setNotificationSettings(s => ({ ...s, notif_new_user: !s.notif_new_user }))} />
-                                </SettingRow>
-                                <SettingRow label="Upgrade de plan" description="Un utilisateur passe à un plan supérieur">
-                                    <ToggleSwitch value={notificationSettings.notif_plan_upgrade} onChange={() => setNotificationSettings(s => ({ ...s, notif_plan_upgrade: !s.notif_plan_upgrade }))} />
-                                </SettingRow>
-                                <SettingRow label="Downgrade de plan" description="Un utilisateur passe à un plan inférieur">
-                                    <ToggleSwitch value={notificationSettings.notif_plan_downgrade} onChange={() => setNotificationSettings(s => ({ ...s, notif_plan_downgrade: !s.notif_plan_downgrade }))} />
-                                </SettingRow>
-                                <SettingRow label="Paiement reçu" description="Confirmation de paiement CinetPay">
-                                    <ToggleSwitch value={notificationSettings.notif_payment_received} onChange={() => setNotificationSettings(s => ({ ...s, notif_payment_received: !s.notif_payment_received }))} />
-                                </SettingRow>
-                                <SettingRow label="Paiement échoué" description="Échec d'un paiement (critique)">
-                                    <ToggleSwitch value={notificationSettings.notif_payment_failed} onChange={() => setNotificationSettings(s => ({ ...s, notif_payment_failed: !s.notif_payment_failed }))} color="#ef4444" />
-                                </SettingRow>
-                                <SettingRow label="Abonnement annulé" description="Un utilisateur annule son abonnement">
-                                    <ToggleSwitch value={notificationSettings.notif_subscription_cancelled} onChange={() => setNotificationSettings(s => ({ ...s, notif_subscription_cancelled: !s.notif_subscription_cancelled }))} />
-                                </SettingRow>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                <NotificationItem label="Nouvel utilisateur inscrit" description="Alerte quand un nouveau compte est créé" emailKey="email_new_user" pushKey="push_new_user" />
+                                <NotificationItem label="Upgrade de plan" description="Un utilisateur passe à un plan supérieur" emailKey="email_plan_upgrade" pushKey="push_plan_upgrade" />
+                                <NotificationItem label="Downgrade de plan" description="Un utilisateur passe à un plan inférieur" emailKey="email_plan_downgrade" pushKey="push_plan_downgrade" />
+                                <NotificationItem label="Paiement reçu" description="Confirmation de paiement CinetPay" emailKey="email_payment_received" pushKey="push_payment_received" />
+                                <NotificationItem label="Paiement échoué" description="Échec d'un paiement" emailKey="email_payment_failed" pushKey="push_payment_failed" critical />
+                                <NotificationItem label="Abonnement annulé" description="Un utilisateur annule son abonnement" emailKey="email_subscription_cancelled" pushKey="push_subscription_cancelled" />
                             </div>
                         </div>
 
                         {/* Agents */}
                         <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                                <Bot style={{ width: 20, height: 20, color: '#10b981' }} />
-                                <h3 style={{ color: '#94a3b8', fontSize: 14, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>
-                                    Agents IA
-                                </h3>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                                <Bot style={{ width: 18, height: 18, color: '#10b981' }} />
+                                <h3 style={{ color: '#e2e8f0', fontSize: 14, fontWeight: 600 }}>Agents IA</h3>
                             </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                <SettingRow label="Nouvel agent créé" description="Un utilisateur crée un nouvel agent">
-                                    <ToggleSwitch value={notificationSettings.notif_agent_created} onChange={() => setNotificationSettings(s => ({ ...s, notif_agent_created: !s.notif_agent_created }))} />
-                                </SettingRow>
-                                <SettingRow label="Agent connecté WhatsApp" description="Un agent se connecte avec succès">
-                                    <ToggleSwitch value={notificationSettings.notif_agent_connected} onChange={() => setNotificationSettings(s => ({ ...s, notif_agent_connected: !s.notif_agent_connected }))} />
-                                </SettingRow>
-                                <SettingRow label="Agent déconnecté WhatsApp" description="Perte de connexion WhatsApp (critique)">
-                                    <ToggleSwitch value={notificationSettings.notif_agent_disconnected} onChange={() => setNotificationSettings(s => ({ ...s, notif_agent_disconnected: !s.notif_agent_disconnected }))} color="#ef4444" />
-                                </SettingRow>
-                                <SettingRow label="Quota agents dépassé" description="Tentative de créer plus d'agents que permis">
-                                    <ToggleSwitch value={notificationSettings.notif_agent_quota_exceeded} onChange={() => setNotificationSettings(s => ({ ...s, notif_agent_quota_exceeded: !s.notif_agent_quota_exceeded }))} />
-                                </SettingRow>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                <NotificationItem label="Nouvel agent créé" description="Un utilisateur crée un nouvel agent" emailKey="email_agent_created" pushKey="push_agent_created" />
+                                <NotificationItem label="Agent connecté WhatsApp" description="Un agent se connecte avec succès" emailKey="email_agent_connected" pushKey="push_agent_connected" />
+                                <NotificationItem label="Agent déconnecté WhatsApp" description="Perte de connexion WhatsApp" emailKey="email_agent_disconnected" pushKey="push_agent_disconnected" critical />
+                                <NotificationItem label="Quota agents dépassé" description="Tentative de créer plus d'agents que permis" emailKey="email_agent_quota_exceeded" pushKey="push_agent_quota_exceeded" />
                             </div>
                         </div>
 
                         {/* System & Health */}
                         <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                                <Zap style={{ width: 20, height: 20, color: '#f59e0b' }} />
-                                <h3 style={{ color: '#94a3b8', fontSize: 14, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>
-                                    Système & Santé
-                                </h3>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                                <Zap style={{ width: 18, height: 18, color: '#f59e0b' }} />
+                                <h3 style={{ color: '#e2e8f0', fontSize: 14, fontWeight: 600 }}>Système & Santé</h3>
                             </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                <SettingRow label="Erreur API OpenAI" description="Problème avec l'API IA (critique)">
-                                    <ToggleSwitch value={notificationSettings.notif_openai_error} onChange={() => setNotificationSettings(s => ({ ...s, notif_openai_error: !s.notif_openai_error }))} color="#ef4444" />
-                                </SettingRow>
-                                <SettingRow label="Service WhatsApp down" description="Le bot ne répond plus (critique)">
-                                    <ToggleSwitch value={notificationSettings.notif_whatsapp_down} onChange={() => setNotificationSettings(s => ({ ...s, notif_whatsapp_down: !s.notif_whatsapp_down }))} color="#ef4444" />
-                                </SettingRow>
-                                <SettingRow label="Taux d'erreur élevé" description="> 5% de messages échoués">
-                                    <ToggleSwitch value={notificationSettings.notif_high_error_rate} onChange={() => setNotificationSettings(s => ({ ...s, notif_high_error_rate: !s.notif_high_error_rate }))} color="#f59e0b" />
-                                </SettingRow>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                <NotificationItem label="Erreur API OpenAI" description="Problème avec l'API IA" emailKey="email_openai_error" pushKey="push_openai_error" critical />
+                                <NotificationItem label="Service WhatsApp down" description="Le bot ne répond plus" emailKey="email_whatsapp_down" pushKey="push_whatsapp_down" critical />
+                                <NotificationItem label="Taux d'erreur élevé" description="> 5% de messages échoués" emailKey="email_high_error_rate" pushKey="push_high_error_rate" critical />
                             </div>
                         </div>
 
                         {/* Activity */}
                         <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                                <Activity style={{ width: 20, height: 20, color: '#8b5cf6' }} />
-                                <h3 style={{ color: '#94a3b8', fontSize: 14, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>
-                                    Activité
-                                </h3>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                                <Activity style={{ width: 18, height: 18, color: '#8b5cf6' }} />
+                                <h3 style={{ color: '#e2e8f0', fontSize: 14, fontWeight: 600 }}>Activité</h3>
                             </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                <SettingRow label="Nouvelle conversation" description="Un client contacte un agent (volume élevé)">
-                                    <ToggleSwitch value={notificationSettings.notif_new_conversation} onChange={() => setNotificationSettings(s => ({ ...s, notif_new_conversation: !s.notif_new_conversation }))} />
-                                </SettingRow>
-                                <SettingRow label="Nouvelle commande" description="Une commande est passée">
-                                    <ToggleSwitch value={notificationSettings.notif_new_order} onChange={() => setNotificationSettings(s => ({ ...s, notif_new_order: !s.notif_new_order }))} />
-                                </SettingRow>
-                                <SettingRow label="Escalade conversation" description="Conversation transférée à humain">
-                                    <ToggleSwitch value={notificationSettings.notif_escalation} onChange={() => setNotificationSettings(s => ({ ...s, notif_escalation: !s.notif_escalation }))} color="#f59e0b" />
-                                </SettingRow>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                <NotificationItem label="Nouvelle conversation" description="Un client contacte un agent (volume élevé)" emailKey="email_new_conversation" pushKey="push_new_conversation" />
+                                <NotificationItem label="Nouvelle commande" description="Une commande est passée" emailKey="email_new_order" pushKey="push_new_order" />
+                                <NotificationItem label="Escalade conversation" description="Conversation transférée à humain" emailKey="email_escalation" pushKey="push_escalation" />
                             </div>
                         </div>
 

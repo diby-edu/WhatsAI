@@ -62,11 +62,25 @@ export async function POST(request: NextRequest) {
         if (status === 'ACCEPTED') {
             // Check if already processed
             const supabase = await createApiClient()
-            const { data: existingPayment } = await supabase
+            // Try provider_transaction_id first (new format), fallback to transaction_id (legacy)
+            let existingPayment = null
+            const { data: paymentByProvider } = await supabase
                 .from('payments')
                 .select('id, user_id, credits_purchased, status')
-                .eq('transaction_id', transactionId)
+                .eq('provider_transaction_id', transactionId)
                 .single()
+
+            if (paymentByProvider) {
+                existingPayment = paymentByProvider
+            } else {
+                // Fallback for legacy payments
+                const { data: paymentByLegacy } = await supabase
+                    .from('payments')
+                    .select('id, user_id, credits_purchased, status')
+                    .eq('transaction_id', transactionId)
+                    .single()
+                existingPayment = paymentByLegacy
+            }
 
             if (existingPayment) {
                 if (existingPayment.status === 'completed') {

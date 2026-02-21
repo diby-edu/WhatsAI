@@ -13,6 +13,8 @@ interface DashboardStats {
     totalUsers: number
     activeUsers: number
     newUsersToday: number
+    newUsersYesterday: number
+    paidUsers: number
     totalAgents: number
     activeAgents: number
     connectedAgents: number
@@ -26,6 +28,12 @@ interface DashboardStats {
     merchantRevenue: number
     pendingOrders: number
     totalOrders: number
+    // Computed KPIs
+    conversionRate: number
+    avgMessagesPerAgent: number
+    avgCreditsPerUser: number
+    arpu: number
+    userGrowth: number
 }
 
 interface SystemService {
@@ -106,9 +114,11 @@ export default function AdminDashboard() {
     }
 
     const s = stats || {
-        totalUsers: 0, activeUsers: 0, newUsersToday: 0, totalAgents: 0, activeAgents: 0, connectedAgents: 0,
+        totalUsers: 0, activeUsers: 0, newUsersToday: 0, newUsersYesterday: 0, paidUsers: 0,
+        totalAgents: 0, activeAgents: 0, connectedAgents: 0,
         totalMessages: 0, messagesToday: 0, totalConversations: 0, conversationsToday: 0,
-        totalCreditsUsed: 0, revenue: 0, platformRevenue: 0, merchantRevenue: 0, pendingOrders: 0, totalOrders: 0
+        totalCreditsUsed: 0, revenue: 0, platformRevenue: 0, merchantRevenue: 0, pendingOrders: 0, totalOrders: 0,
+        conversionRate: 0, avgMessagesPerAgent: 0, avgCreditsPerUser: 0, arpu: 0, userGrowth: 0
     }
 
     return (
@@ -153,18 +163,28 @@ export default function AdminDashboard() {
                 </div>
             </div>
 
-            {/* Main KPIs - 8 cards in 2 rows */}
+            {/* Primary KPIs - 4 cards */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
-                <KPICard icon={Users} label="Utilisateurs" value={s.totalUsers} subValue={`+${s.newUsersToday || 0} aujourd'hui`} color="#3b82f6" />
-                <KPICard icon={Bot} label="Agents IA" value={s.totalAgents} subValue={`${s.connectedAgents || 0} connectés`} color="#8b5cf6" />
-                <KPICard icon={MessageSquare} label="Messages" value={s.totalMessages} subValue={`+${s.messagesToday || 0} aujourd'hui`} color="#10b981" />
-                <KPICard icon={DollarSign} label="Revenus Plateforme" value={s.platformRevenue || 0} subValue="FCFA abonnements + crédits" color="#f59e0b" isCurrency />
+                <KPICard icon={Users} label="Utilisateurs" value={s.totalUsers} subValue={`+${s.newUsersToday || 0} aujourd'hui`} color="#3b82f6" trend={s.userGrowth} />
+                <KPICard icon={DollarSign} label="Revenus Plateforme" value={s.platformRevenue || 0} subValue="FCFA ce mois" color="#10b981" isCurrency />
+                <KPICard icon={TrendingUp} label="Taux Conversion" value={s.conversionRate || 0} subValue={`${s.paidUsers || 0} utilisateurs payants`} color="#f59e0b" isPercent />
+                <KPICard icon={Wallet} label="À Reverser" value={s.merchantRevenue || 0} subValue="FCFA aux marchands" color="#ef4444" isCurrency />
+            </div>
 
-                <KPICard icon={Phone} label="Conversations" value={s.totalConversations || 0} subValue={`+${s.conversationsToday || 0} aujourd'hui`} color="#06b6d4" />
-                <KPICard icon={Zap} label="Crédits" value={s.totalCreditsUsed || 0} subValue="utilisés ce mois" color="#ec4899" />
+            {/* Secondary KPIs - 4 cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+                <KPICard icon={Bot} label="Agents IA" value={s.totalAgents} subValue={`${s.connectedAgents || 0} connectés`} color="#8b5cf6" />
+                <KPICard icon={MessageSquare} label="Messages" value={s.totalMessages} subValue={`+${s.messagesToday || 0} aujourd'hui`} color="#06b6d4" />
                 <KPICard icon={ShoppingCart} label="Commandes" value={s.totalOrders || 0} subValue={`${s.pendingOrders || 0} en attente`} color="#14b8a6" />
-                <KPICard icon={Wallet} label="À Reverser" value={s.merchantRevenue || 0} subValue="FCFA argent marchands" color="#ef4444" isCurrency />
+                <KPICard icon={BarChart3} label="ARPU" value={s.arpu || 0} subValue="FCFA/utilisateur payant" color="#ec4899" isCurrency />
+            </div>
+
+            {/* Tertiary KPIs - 4 cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
                 <KPICard icon={UserPlus} label="Actifs (30j)" value={s.activeUsers || 0} subValue={`${s.totalUsers > 0 ? Math.round((s.activeUsers / s.totalUsers) * 100) : 0}% du total`} color="#6366f1" />
+                <KPICard icon={Phone} label="Conversations" value={s.totalConversations || 0} subValue={`+${s.conversationsToday || 0} aujourd'hui`} color="#0ea5e9" />
+                <KPICard icon={Zap} label="Crédits Utilisés" value={s.totalCreditsUsed || 0} subValue={`~${s.avgCreditsPerUser || 0}/user`} color="#f43f5e" />
+                <KPICard icon={Activity} label="Msg/Agent" value={s.avgMessagesPerAgent || 0} subValue="moyenne" color="#84cc16" />
             </div>
 
             {/* Two Columns Layout */}
@@ -223,9 +243,10 @@ export default function AdminDashboard() {
                                             <td style={{ padding: '10px 12px' }}>
                                                 <span style={{
                                                     padding: '4px 10px', fontSize: 10, fontWeight: 600, borderRadius: 100,
-                                                    background: 'rgba(51, 65, 85, 0.5)', color: '#cbd5e1'
+                                                    background: user.plan && user.plan !== 'free' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(51, 65, 85, 0.5)',
+                                                    color: user.plan && user.plan !== 'free' ? '#34d399' : '#cbd5e1'
                                                 }}>
-                                                    {user.subscription_plan || 'Free'}
+                                                    {user.plan ? user.plan.charAt(0).toUpperCase() + user.plan.slice(1) : 'Free'}
                                                 </span>
                                             </td>
                                             <td style={{ padding: '10px 12px', color: '#94a3b8', fontSize: 12 }}>
@@ -322,8 +343,8 @@ export default function AdminDashboard() {
     )
 }
 
-function KPICard({ icon: Icon, label, value, subValue, color, isCurrency = false }: {
-    icon: any, label: string, value: number, subValue?: string, color: string, isCurrency?: boolean
+function KPICard({ icon: Icon, label, value, subValue, color, isCurrency = false, isPercent = false, trend }: {
+    icon: any, label: string, value: number, subValue?: string, color: string, isCurrency?: boolean, isPercent?: boolean, trend?: number
 }) {
     return (
         <motion.div
@@ -336,18 +357,32 @@ function KPICard({ icon: Icon, label, value, subValue, color, isCurrency = false
                 borderRadius: 12
             }}
         >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                <div style={{
-                    width: 32, height: 32, borderRadius: 8,
-                    background: `${color}20`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center'
-                }}>
-                    <Icon size={16} style={{ color }} />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{
+                        width: 32, height: 32, borderRadius: 8,
+                        background: `${color}20`,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}>
+                        <Icon size={16} style={{ color }} />
+                    </div>
+                    <span style={{ color: '#94a3b8', fontSize: 12, fontWeight: 500 }}>{label}</span>
                 </div>
-                <span style={{ color: '#94a3b8', fontSize: 12, fontWeight: 500 }}>{label}</span>
+                {trend !== undefined && trend !== 0 && (
+                    <span style={{
+                        fontSize: 10,
+                        fontWeight: 600,
+                        padding: '2px 6px',
+                        borderRadius: 4,
+                        background: trend > 0 ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                        color: trend > 0 ? '#4ade80' : '#f87171'
+                    }}>
+                        {trend > 0 ? '+' : ''}{trend}%
+                    </span>
+                )}
             </div>
             <div style={{ fontSize: 22, fontWeight: 700, color: 'white' }}>
-                {isCurrency ? value.toLocaleString('fr-FR') : value.toLocaleString('fr-FR')}
+                {isPercent ? `${value}%` : value.toLocaleString('fr-FR')}
             </div>
             {subValue && (
                 <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{subValue}</div>

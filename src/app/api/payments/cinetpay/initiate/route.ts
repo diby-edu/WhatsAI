@@ -33,7 +33,6 @@ export async function POST(request: NextRequest) {
             apikey: CINETPAY_API_KEY,
             site_id: CINETPAY_SITE_ID,
             transaction_id: transactionId,
-            transaction_id: transactionId,
             amount: amount < 100 ? Math.ceil(amount * 655) : amount, // Auto-convert low amounts (likely USD) to FCFA
             currency: 'XOF',
             description: description || 'Achat de crédits WazzapAI',
@@ -65,14 +64,15 @@ export async function POST(request: NextRequest) {
 
         if (result.code === '201') {
             // Save pending payment to database
+            // Note: provider_transaction_id is what webhook uses to find payments
             await supabase.from('payments').insert({
                 user_id: user.id,
                 amount_fcfa: amount,
                 credits_purchased: credits_to_add || Math.floor(amount / 10),
-                payment_method: 'cinetpay',
+                payment_provider: 'cinetpay',
                 status: 'pending',
-                transaction_id: transactionId,
-                metadata: payload.metadata
+                provider_transaction_id: transactionId,
+                payment_type: 'one_time'
             })
 
             return successResponse({

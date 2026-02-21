@@ -36,26 +36,57 @@ export async function GET(request: NextRequest) {
 
         // Return defaults if no preferences exist
         const preferences = data || {
-            // Users & Revenue
+            // Legacy fields (for backwards compatibility)
             notif_new_user: true,
             notif_plan_upgrade: true,
             notif_plan_downgrade: true,
             notif_payment_received: true,
             notif_payment_failed: true,
             notif_subscription_cancelled: true,
-            // Agents
             notif_agent_created: true,
             notif_agent_connected: true,
             notif_agent_disconnected: true,
             notif_agent_quota_exceeded: true,
-            // System
             notif_openai_error: true,
             notif_whatsapp_down: true,
             notif_high_error_rate: true,
-            // Activity
             notif_new_conversation: false,
             notif_new_order: true,
-            notif_escalation: true
+            notif_escalation: true,
+            // Email notifications
+            email_new_user: true,
+            email_plan_upgrade: true,
+            email_plan_downgrade: true,
+            email_payment_received: true,
+            email_payment_failed: true,
+            email_subscription_cancelled: true,
+            email_agent_created: false,
+            email_agent_connected: false,
+            email_agent_disconnected: true,
+            email_agent_quota_exceeded: true,
+            email_openai_error: true,
+            email_whatsapp_down: true,
+            email_high_error_rate: true,
+            email_new_conversation: false,
+            email_new_order: true,
+            email_escalation: true,
+            // Push notifications (in-app)
+            push_new_user: true,
+            push_plan_upgrade: true,
+            push_plan_downgrade: true,
+            push_payment_received: true,
+            push_payment_failed: true,
+            push_subscription_cancelled: true,
+            push_agent_created: true,
+            push_agent_connected: true,
+            push_agent_disconnected: true,
+            push_agent_quota_exceeded: true,
+            push_openai_error: true,
+            push_whatsapp_down: true,
+            push_high_error_rate: true,
+            push_new_conversation: false,
+            push_new_order: true,
+            push_escalation: true
         }
 
         return successResponse({ preferences })

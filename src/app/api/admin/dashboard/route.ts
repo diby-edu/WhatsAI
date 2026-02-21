@@ -151,18 +151,45 @@ export async function GET(request: NextRequest) {
             activeAgents = uniqueAgents.size
         } catch { }
 
-        // Recent Users
+        // Recent Users (use plan field, not subscription_plan)
         const { data: recentUsers } = await adminSupabase
             .from('profiles')
-            .select('id, full_name, email, created_at, subscription_plan')
+            .select('id, full_name, email, created_at, plan')
             .order('created_at', { ascending: false })
             .limit(5)
+
+        // Compute additional KPIs
+        const paidUsers = await adminSupabase
+            .from('profiles')
+            .select('*', { count: 'exact', head: true })
+            .neq('plan', 'free')
+            .not('plan', 'is', null)
+        const paidUsersCount = paidUsers.count || 0
+
+        // Yesterday's users for growth comparison
+        const yesterday = new Date()
+        yesterday.setDate(yesterday.getDate() - 1)
+        yesterday.setHours(0, 0, 0, 0)
+        const { count: newUsersYesterday } = await adminSupabase
+            .from('profiles')
+            .select('*', { count: 'exact', head: true })
+            .gte('created_at', yesterday.toISOString())
+            .lt('created_at', today.toISOString())
+
+        // Compute derived metrics
+        const conversionRate = (totalUsers || 0) > 0 ? Math.round((paidUsersCount / (totalUsers || 1)) * 100) : 0
+        const avgMessagesPerAgent = (totalAgents || 0) > 0 ? Math.round((totalMessages || 0) / (totalAgents || 1)) : 0
+        const avgCreditsPerUser = (totalUsers || 0) > 0 ? Math.round(totalCreditsUsed / (totalUsers || 1)) : 0
+        const arpu = paidUsersCount > 0 ? Math.round(platformRevenue / paidUsersCount) : 0
+        const userGrowth = (newUsersYesterday || 0) > 0 ? Math.round((((newUsersToday || 0) - (newUsersYesterday || 0)) / (newUsersYesterday || 1)) * 100) : 0
 
         return successResponse({
             stats: {
                 totalUsers: totalUsers || 0,
                 activeUsers: activeUsers || 0,
                 newUsersToday: newUsersToday || 0,
+                newUsersYesterday: newUsersYesterday || 0,
+                paidUsers: paidUsersCount,
                 totalAgents: totalAgents || 0,
                 activeAgents,
                 connectedAgents: connectedAgents || 0,
@@ -175,7 +202,13 @@ export async function GET(request: NextRequest) {
                 merchantRevenue,
                 revenue: platformRevenue + merchantRevenue,
                 totalOrders,
-                pendingOrders
+                pendingOrders,
+                // Computed KPIs
+                conversionRate,
+                avgMessagesPerAgent,
+                avgCreditsPerUser,
+                arpu,
+                userGrowth
             },
             recentUsers: recentUsers || []
         })
