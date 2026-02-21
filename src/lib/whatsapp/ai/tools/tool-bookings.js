@@ -1,6 +1,6 @@
 
 const { normalizePhoneNumber, findMatchingOption } = require('./tool-helpers')
-const { notify } = require('../../notifications/notify')
+const { notify } = require('../../../notifications/notify')
 
 async function handleCreateBooking(args, agentId, products, conversationId, supabase) {
     try {
