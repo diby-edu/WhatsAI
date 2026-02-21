@@ -85,12 +85,16 @@ export async function PATCH(
         }
 
         // Generic profile update
-        const allowedFields = ['full_name', 'phone', 'subscription_plan', 'is_active']
+        const allowedFields = ['full_name', 'phone', 'plan', 'is_active']
         const cleanUpdate: Record<string, any> = {}
         for (const key of allowedFields) {
             if (updateData[key] !== undefined) {
                 cleanUpdate[key] = updateData[key]
             }
+        }
+        // Handle legacy subscription_plan field (map to plan)
+        if (updateData.subscription_plan !== undefined && !cleanUpdate.plan) {
+            cleanUpdate.plan = updateData.subscription_plan.toLowerCase()
         }
 
         if (Object.keys(cleanUpdate).length === 0) {

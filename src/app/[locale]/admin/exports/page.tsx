@@ -23,19 +23,47 @@ export default function AdminExportsPage() {
     const handleExport = async (id: string, format: 'csv' | 'json') => {
         setExporting(id)
         try {
-            // Mapping collections to API endpoints
+            // Mapping collections to API endpoints with high page sizes for full export
             const apiMap: Record<string, string> = {
-                'users': '/api/admin/users',
-                'payments': '/api/admin/analytics', // We might want a more specific one for full payments
+                'users': '/api/admin/users?pageSize=10000',
+                'payments': '/api/admin/payments',
                 'payouts': '/api/admin/payouts?view=history',
                 'agents': '/api/admin/agents',
-                'audit-logs': '/api/admin/audit-logs',
+                'audit-logs': '/api/admin/audit-logs?pageSize=10000',
                 'orders': '/api/admin/orders'
             }
 
             const res = await fetch(apiMap[id] || apiMap['users'])
             const json = await res.json()
-            const data = json.data?.users || json.data?.payouts || json.data || []
+
+            // Extract data based on endpoint structure
+            let data: any[] = []
+            switch (id) {
+                case 'users':
+                case 'audit-logs':
+                    data = json.data || [] // Paginated response returns data array directly
+                    break
+                case 'agents':
+                    data = json.data?.agents || []
+                    break
+                case 'orders':
+                    data = json.data?.orders || []
+                    break
+                case 'payouts':
+                    data = json.data?.payouts || []
+                    break
+                case 'payments':
+                    data = json.data?.payments || []
+                    break
+                default:
+                    data = Array.isArray(json.data) ? json.data : []
+            }
+
+            if (!data || data.length === 0) {
+                alert('Aucune donnée à exporter')
+                setExporting(null)
+                return
+            }
 
             if (format === 'json') {
                 const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
@@ -44,30 +72,34 @@ export default function AdminExportsPage() {
                 a.href = url
                 a.download = `export-${id}-${new Date().toISOString().split('T')[0]}.json`
                 a.click()
+                URL.revokeObjectURL(url)
             } else {
-                // Simple CSV conversion
-                if (data.length > 0) {
-                    const headers = Object.keys(data[0])
-                    const csvRows = [
-                        headers.join(','),
-                        ...data.map((row: any) => headers.map(header => {
-                            const val = row[header]
-                            return typeof val === 'string' ? `"${val.replace(/"/g, '""')}"` : val
-                        }).join(','))
-                    ]
-                    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' })
-                    const url = URL.createObjectURL(blob)
-                    const a = document.createElement('a')
-                    a.href = url
-                    a.download = `export-${id}-${new Date().toISOString().split('T')[0]}.csv`
-                    a.click()
-                }
+                // CSV conversion with proper handling of nested objects and null values
+                const headers = Object.keys(data[0]).filter(h => typeof data[0][h] !== 'object' || data[0][h] === null)
+                const csvRows = [
+                    headers.join(','),
+                    ...data.map((row: any) => headers.map(header => {
+                        const val = row[header]
+                        if (val === null || val === undefined) return ''
+                        if (typeof val === 'object') return `"${JSON.stringify(val).replace(/"/g, '""')}"`
+                        if (typeof val === 'string') return `"${val.replace(/"/g, '""')}"`
+                        return val
+                    }).join(','))
+                ]
+                const blob = new Blob(['\ufeff' + csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' })
+                const url = URL.createObjectURL(blob)
+                const a = document.createElement('a')
+                a.href = url
+                a.download = `export-${id}-${new Date().toISOString().split('T')[0]}.csv`
+                a.click()
+                URL.revokeObjectURL(url)
             }
 
             setDone(id)
             setTimeout(() => setDone(null), 3000)
         } catch (err) {
             console.error('Export failed:', err)
+            alert('Erreur lors de l\'export')
         } finally {
             setExporting(null)
         }

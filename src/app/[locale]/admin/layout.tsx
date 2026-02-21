@@ -36,7 +36,8 @@ import {
     ToggleRight,
     Send,
     Wallet,
-    Download
+    Download,
+    Clock
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -57,6 +58,7 @@ const adminLinks = [
     { href: '/admin/diagnostics', label: 'Diagnostic', icon: Activity },
     { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
     { href: '/admin/audit-logs', label: 'Audit Trail', icon: FileText },
+    { href: '/admin/logs', label: 'Logs Activité', icon: Clock },
     { href: '/admin/exports', label: 'Exports & Rapports', icon: Download },
     { href: '/admin/settings', label: 'Paramètres', icon: Settings },
 ]
