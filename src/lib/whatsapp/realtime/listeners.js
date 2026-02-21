@@ -10,6 +10,11 @@
 const processingMessages = new Set()
 const processingOutbound = new Set()
 
+// Stockage pour reconnexion
+let reconnectAttempts = 0
+const MAX_RECONNECT_ATTEMPTS = 5
+const RECONNECT_DELAY_MS = 5000
+
 /**
  * Configure les listeners Realtime pour les 3 tables critiques
  * @param {Object} context - Context avec supabase, activeSessions, etc.
@@ -52,8 +57,16 @@ function setupRealtimeListeners(context) {
                 await handlePendingMessage(context, payload.new)
             }
         )
-        .subscribe((status) => {
+        .subscribe((status, err) => {
             console.log(`📡 Messages channel status: ${status}`)
+            if (err) console.error('📡 Messages channel error:', err)
+            if (status === 'TIMED_OUT' || status === 'CHANNEL_ERROR') {
+                console.log('⚠️ Messages channel failed, will retry via backup polling')
+            }
+            if (status === 'SUBSCRIBED') {
+                reconnectAttempts = 0
+                console.log('✅ Messages channel connected successfully')
+            }
         })
 
     // ═══════════════════════════════════════════════════════════
@@ -73,8 +86,12 @@ function setupRealtimeListeners(context) {
                 await handleOutboundMessage(context, payload.new)
             }
         )
-        .subscribe((status) => {
+        .subscribe((status, err) => {
             console.log(`📡 Outbound channel status: ${status}`)
+            if (err) console.error('📡 Outbound channel error:', err)
+            if (status === 'SUBSCRIBED') {
+                console.log('✅ Outbound channel connected successfully')
+            }
         })
 
     // ═══════════════════════════════════════════════════════════
@@ -98,8 +115,12 @@ function setupRealtimeListeners(context) {
                 }
             }
         )
-        .subscribe((status) => {
+        .subscribe((status, err) => {
             console.log(`📡 Agents channel status: ${status}`)
+            if (err) console.error('📡 Agents channel error:', err)
+            if (status === 'SUBSCRIBED') {
+                console.log('✅ Agents channel connected successfully')
+            }
         })
 
     console.log('✅ Realtime listeners initialized')
