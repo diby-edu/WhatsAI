@@ -22,16 +22,42 @@ export async function GET(request: NextRequest) {
 
     const adminSupabase = createAdminClient()
 
+    // Parse period parameter
+    const { searchParams } = new URL(request.url)
+    const period = searchParams.get('period') || '30d'
+
+    // Calculate date range based on period
+    const now = new Date()
+    let startDate: Date
+    switch (period) {
+        case '7d':
+            startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+            break
+        case '90d':
+            startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
+            break
+        case '12m':
+            startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000)
+            break
+        default: // 30d
+            startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+    }
+    const startDateStr = startDate.toISOString().split('T')[0]
+
     try {
-        // 1. Get Payment Analytics from View (Time Series)
-        const { data: revenueSeries } = await adminSupabase
+        // 1. Get Payment Analytics from View (Time Series) - Filter by period
+        const { data: revenueSeriesRaw } = await adminSupabase
             .from('view_analytics_revenue_time_series')
             .select('*')
+            .gte('date', startDateStr)
+            .order('date', { ascending: true })
 
-        // 2. Get User Growth Analytics (Time Series)
-        const { data: userSeries } = await adminSupabase
+        // 2. Get User Growth Analytics (Time Series) - Filter by period
+        const { data: userSeriesRaw } = await adminSupabase
             .from('view_analytics_user_growth')
             .select('*')
+            .gte('date', startDateStr)
+            .order('date', { ascending: true })
 
         // 3. Get Admin Alerts from View
         const { data: adminAlerts } = await adminSupabase
@@ -39,15 +65,36 @@ export async function GET(request: NextRequest) {
             .select('*')
             .order('days_since_active', { ascending: false })
 
-        // 4. Get Recent Messages Stats (Last 7 days)
-        const { data: messageSeries } = await adminSupabase
-            .rpc('get_message_stats_last_7_days')
+        // 4. Get Recent Messages Stats - Use period-aware query
+        let messageSeries
+        if (period === '7d') {
+            const { data } = await adminSupabase.rpc('get_message_stats_last_7_days')
+            messageSeries = data
+        } else {
+            // For longer periods, try to get more message data
+            const { data } = await adminSupabase
+                .from('messages')
+                .select('created_at')
+                .gte('created_at', startDateStr)
+
+            // Aggregate by day
+            const messagesByDay: Record<string, number> = {}
+            data?.forEach((m: any) => {
+                const day = new Date(m.created_at).toLocaleDateString('fr-FR', { weekday: 'short' })
+                messagesByDay[day] = (messagesByDay[day] || 0) + 1
+            })
+            messageSeries = Object.entries(messagesByDay).map(([day, count]) => ({
+                day,
+                total_messages: count
+            }))
+        }
 
         return successResponse({
-            revenueSeries: revenueSeries || [],
-            userSeries: userSeries || [],
+            revenueSeries: revenueSeriesRaw || [],
+            userSeries: userSeriesRaw || [],
             alerts: adminAlerts || [],
-            messageSeries: messageSeries || []
+            messageSeries: messageSeries || [],
+            period
         })
 
     } catch (err) {

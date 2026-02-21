@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
     Wallet, Users, DollarSign, ArrowUpRight, Check, Clock, X,
-    Loader2, RefreshCw, ChevronDown, FileText, Download
+    Loader2, RefreshCw, ChevronDown, FileText, Download, Percent
 } from 'lucide-react'
 
 interface MerchantBalance {
@@ -121,6 +121,7 @@ export default function PayoutsPage() {
     const totalDue = balances.reduce((sum, b) => sum + b.balance_due, 0)
     const totalCollected = balances.reduce((sum, b) => sum + b.total_collected, 0)
     const totalPaid = balances.reduce((sum, b) => sum + b.total_paid_out, 0)
+    const totalCommission = balances.reduce((sum, b) => sum + (b.total_commission || 0), 0)
 
     const exportCSV = () => {
         if (view === 'balances') {
@@ -178,10 +179,11 @@ export default function PayoutsPage() {
             </div>
 
             {/* KPI Summary */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
                 <KPIBox icon={DollarSign} label="Total collecté" value={`${fmt(totalCollected)} FCFA`} color="#3b82f6" />
                 <KPIBox icon={Check} label="Déjà reversé" value={`${fmt(totalPaid)} FCFA`} color="#10b981" />
                 <KPIBox icon={Wallet} label="À reverser" value={`${fmt(totalDue)} FCFA`} color="#ef4444" />
+                <KPIBox icon={Percent} label="Commission plateforme" value={`${fmt(totalCommission)} FCFA`} color="#f59e0b" />
             </div>
 
             {/* Tab Toggle */}

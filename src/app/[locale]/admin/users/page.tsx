@@ -40,7 +40,7 @@ export default function AdminUsersPage() {
                     ...u,
                     name: u.full_name || u.email?.split('@')[0] || 'Utilisateur',
                     phone: u.phone || 'N/A',
-                    plan: u.subscription_plan || 'Free',
+                    plan: u.plan ? (u.plan.charAt(0).toUpperCase() + u.plan.slice(1)) : 'Free',
                     status: u.is_active !== false ? 'active' : 'suspended',
                     agents: u.agents_count || 0,
                     messages: u.messages_count || 0,
@@ -410,7 +410,7 @@ function EditUserModal({ user, onClose, onSave, onSetCredits, onChangeRole }: {
 }) {
     const [name, setName] = useState(user.full_name || user.name || '')
     const [phone, setPhone] = useState(user.phone || '')
-    const [plan, setPlan] = useState(user.subscription_plan || user.plan || 'Free')
+    const [plan, setPlan] = useState(user.plan || 'Free')
     const [credits, setCredits] = useState(user.credits || 0)
 
     const inputStyle = {
@@ -456,7 +456,7 @@ function EditUserModal({ user, onClose, onSave, onSetCredits, onChangeRole }: {
                         </select>
                     </div>
 
-                    <button onClick={() => onSave({ full_name: name, phone, subscription_plan: plan })}
+                    <button onClick={() => onSave({ full_name: name, phone, plan: plan.toLowerCase() })}
                         style={{
                             width: '100%', padding: 12, borderRadius: 10,
                             background: 'linear-gradient(135deg, #10b981, #059669)',

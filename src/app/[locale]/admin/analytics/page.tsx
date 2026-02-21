@@ -12,17 +12,21 @@ import {
 } from 'recharts'
 import { CardSkeleton, ChartSkeleton } from '@/components/admin/AdminSkeletons'
 
+type PeriodType = '7d' | '30d' | '90d' | '12m'
+
 export default function AdminAnalyticsPage() {
     const [data, setData] = useState<any>(null)
     const [loading, setLoading] = useState(true)
+    const [period, setPeriod] = useState<PeriodType>('30d')
 
     useEffect(() => {
         fetchAnalytics()
-    }, [])
+    }, [period])
 
     const fetchAnalytics = async () => {
+        setLoading(true)
         try {
-            const res = await fetch('/api/admin/analytics')
+            const res = await fetch(`/api/admin/analytics?period=${period}`)
             const json = await res.json()
             if (json.success) {
                 setData(json.data)
@@ -32,6 +36,13 @@ export default function AdminAnalyticsPage() {
         } finally {
             setLoading(false)
         }
+    }
+
+    const periodLabels: Record<PeriodType, string> = {
+        '7d': '7 jours',
+        '30d': '30 jours',
+        '90d': '90 jours',
+        '12m': '12 mois'
     }
 
     if (loading) {
@@ -71,22 +82,22 @@ export default function AdminAnalyticsPage() {
 
     const stats = [
         {
-            label: 'Revenu Plateforme (30j)',
+            label: `Revenu Plateforme (${periodLabels[period]})`,
             value: `${revenueData.reduce((sum: number, d: any) => sum + d.Plateforme, 0).toLocaleString()} FCFA`,
             icon: DollarSign, color: '#34d399'
         },
         {
-            label: 'Volume Marchands (30j)',
+            label: `Volume Marchands (${periodLabels[period]})`,
             value: `${revenueData.reduce((sum: number, d: any) => sum + d.Marchands, 0).toLocaleString()} FCFA`,
             icon: TrendingUp, color: '#60a5fa'
         },
         {
-            label: 'Nouv. Utilisateurs (30j)',
+            label: `Nouv. Utilisateurs (${periodLabels[period]})`,
             value: userData.reduce((sum: number, d: any) => sum + d.Utilisateurs, 0),
             icon: Users, color: '#a78bfa'
         },
         {
-            label: 'Messages (7j)',
+            label: `Messages (${periodLabels[period]})`,
             value: messageData.reduce((sum: number, d: any) => sum + d.Messages, 0),
             icon: MessageCircle, color: '#fb7185'
         },
@@ -109,7 +120,29 @@ export default function AdminAnalyticsPage() {
                     </h1>
                     <p style={{ color: '#94a3b8', fontSize: 16 }}>Suivez la croissance et la santé financière de WhatsAI en temps réel.</p>
                 </div>
-                <div style={{ display: 'flex', gap: 12 }}>
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                    {/* Period Selector */}
+                    <div style={{ display: 'flex', gap: 4, padding: 4, background: 'rgba(30, 41, 59, 0.5)', borderRadius: 10 }}>
+                        {(['7d', '30d', '90d', '12m'] as const).map((p) => (
+                            <button
+                                key={p}
+                                onClick={() => setPeriod(p)}
+                                style={{
+                                    padding: '8px 14px',
+                                    borderRadius: 8,
+                                    border: 'none',
+                                    background: period === p ? '#10b981' : 'transparent',
+                                    color: period === p ? 'white' : '#94a3b8',
+                                    cursor: 'pointer',
+                                    fontWeight: 600,
+                                    fontSize: 13,
+                                    transition: 'all 0.2s'
+                                }}
+                            >
+                                {periodLabels[p]}
+                            </button>
+                        ))}
+                    </div>
                     <button
                         onClick={() => window.print()}
                         style={{
