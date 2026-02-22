@@ -60,7 +60,9 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
     realtime: {
         WebSocket: WebSocket, // Correct injection point for supabase-js v2
         params: {
-            eventsPerSecond: 10
+            eventsPerSecond: 10,
+            apikey: SUPABASE_SERVICE_KEY,
+            vsn: '1.0.0'
         },
         timeout: 90000,
         heartbeatIntervalMs: 15000
