@@ -53,21 +53,13 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
         detectSessionInUrl: false
     },
     global: {
-        // Injecte le dispatcher personnalisé dans toutes les requêtes HTTP Supabase
+        // Injecte le dispatcher personnalisé uniquement pour les requêtes REST
         fetch: (url, opts = {}) => undiciFetch(url, { ...opts, dispatcher })
     },
     realtime: {
+        WebSocket: WebSocket, // Correct injection point for supabase-js v2
         params: {
             eventsPerSecond: 10
-        },
-        // Force l'usage de 'ws' (Validé par le test de Kodee)
-        // et injecte les headers d'authentification pour le handshake WebSocket
-        headers: {
-            apikey: SUPABASE_SERVICE_KEY,
-            Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`
-        },
-        config: {
-            WebSocket: WebSocket
         },
         timeout: 90000,
         heartbeatIntervalMs: 15000
