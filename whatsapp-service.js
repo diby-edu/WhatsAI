@@ -5,6 +5,7 @@
  */
 
 const { createClient } = require('@supabase/supabase-js')
+const { Agent, fetch } = require('undici')
 const pino = require('pino')
 const OpenAI = require('openai')
 const CinetPay = require('./src/lib/whatsapp/utils/cinetpay')
