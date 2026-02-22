@@ -36,7 +36,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
         persistSession: false
     },
     realtime: {
-        timeout: 60000,      // Temps généreux pour le handshake
+        timeout: 90000,      // Augmenté à 90s pour les réseaux VPS lents (Hostinger)
         heartbeatIntervalMs: 3000, // Signal toutes les 3s (très agressif) pour garder le tunnel ouvert
         params: {
             eventsPerSecond: 20
