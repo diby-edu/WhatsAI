@@ -16,21 +16,34 @@ function setupRealtimeListeners(context) {
 
     // Initialiser l'état de connexion dans le contexte
     context.realtimeConnected = false
+    let reconnectAttempts = 0 // Initialize reconnectAttempts
 
     console.log(`📡 [REALTIME] Establishing consolidated channel 'whatsapp-updates'...`)
 
     // ═══════════════════════════════════════════════════════════
     // CANAL UNIQUE : Réduit la charge de handshake sur le VPS
     // ═══════════════════════════════════════════════════════════
-    const mainChannel = supabase
-        .channel('whatsapp-updates')
-        // 1. Messages (IA responses)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, async (payload) => {
-            if (payload.new.role !== 'assistant' || payload.new.status !== 'pending') return
-            if (processingMessages.has(payload.new.id)) return
-            console.log('⚡ [REALTIME] Message change detected:', payload.new.id)
-            await handlePendingMessage(context, payload.new)
+    const messagesChannel = supabase
+        .channel('whatsapp-updates', {
+            config: {
+                presence: { key: 'bot' },
+                broadcast: { ack: true }
+            }
         })
+        // 1. Messages (IA responses)
+        .on('postgres_changes',
+            {
+                event: 'INSERT',
+                schema: 'public',
+                table: 'messages',
+                filter: 'role=eq.assistant'
+            },
+            async (payload) => {
+                if (payload.new.status !== 'pending') return
+                console.log('⚡ [REALTIME] Status: Processing new message', payload.new.id)
+                await handlePendingMessage(context, payload.new)
+            }
+        )
         // 2. Outbound (Standalone notifications)
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'outbound_messages' }, async (payload) => {
             if (payload.new.status !== 'pending') return
@@ -48,15 +61,21 @@ function setupRealtimeListeners(context) {
             }
         })
         .subscribe((status, err) => {
-            console.log(`📡 [REALTIME] Status: ${status}`)
-            if (err) console.error('📡 [REALTIME] Error:', err)
-
-            if (status === 'SUBSCRIBED') {
-                context.realtimeConnected = true
-                console.log('✅ [REALTIME] Connected! Message delivery will be instant.')
-            } else if (status === 'TIMED_OUT' || status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+            console.log(`📡 [REALTIME] Attempting subscription... Status: ${status}`)
+            if (err) {
+                console.error('📡 [REALTIME] Handshake Error:', err.message)
                 context.realtimeConnected = false
-                console.log('⚠️ [REALTIME] Connection failed/timed out. Adaptive polling activated (15s).')
+            }
+            if (status === 'SUBSCRIBED') {
+                console.log('✅ [REALTIME] Connection established and authenticated!')
+                context.realtimeConnected = true
+                reconnectAttempts = 0
+            } else if (status === 'TIMED_OUT') {
+                console.error('⚠️ [REALTIME] Handshake timed out - Network is likely blocking long-lived SSL tunnels.')
+                context.realtimeConnected = false
+            } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+                context.realtimeConnected = false
+                console.log('⚠️ [REALTIME] Connection failed/closed. Adaptive polling activated (15s).')
             }
         }, 60000)
 
