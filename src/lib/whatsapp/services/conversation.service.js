@@ -13,7 +13,7 @@
  * - updateMetadata() : Met à jour les métadonnées
  */
 
-const { AppError } = require('./errors')
+const { AppError } = require('./errors') // Fix: Ensure local path is used, not ../utils/errors
 
 class ConversationService {
     /**

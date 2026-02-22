@@ -22,8 +22,8 @@ const RECONNECT_DELAY_MS = 5000
  */
 function setupRealtimeListeners(context) {
     const { supabase, activeSessions, pendingConnections } = context
-
-    console.log('📡 Initializing Supabase Realtime listeners...')
+    const supabaseUrl = supabase.supabaseUrl
+    console.log(`📡 Initializing Supabase Realtime listeners for: ${supabaseUrl}`)
 
     // ═══════════════════════════════════════════════════════════
     // CHANNEL 1: Messages pending (réponses IA)
