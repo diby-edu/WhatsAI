@@ -629,7 +629,8 @@ export default function AdminLayout({
                                                 border: '1px solid rgba(148, 163, 184, 0.1)',
                                                 borderRadius: 16,
                                                 boxShadow: '0 20px 40px rgba(0,0,0,0.3)',
-                                                overflow: 'hidden'
+                                                overflow: 'hidden',
+                                                zIndex: 9999
                                             }}
                                         >
                                             <div style={{
