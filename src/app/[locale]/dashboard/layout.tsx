@@ -61,6 +61,7 @@ export default function DashboardLayout({
     // Defined inside component to use hooks
     const sidebarLinks = [
         { href: '/dashboard', label: t('dashboard'), icon: LayoutDashboard },
+        { href: '/dashboard/notifications', label: 'Notifications', icon: Bell },
         { href: '/dashboard/agents', label: t('agents'), icon: Bot },
         { href: '/dashboard/conversations', label: t('conversations'), icon: MessagesSquare },
         { href: '/dashboard/products', label: t('products'), icon: Package },
@@ -748,7 +749,8 @@ export default function DashboardLayout({
                                             border: '1px solid rgba(148, 163, 184, 0.1)',
                                             borderRadius: 16,
                                             boxShadow: '0 20px 40px rgba(0,0,0,0.3)',
-                                            overflow: 'hidden'
+                                            overflow: 'hidden',
+                                            zIndex: 9999
                                         }}
                                     >
                                         <div style={{
@@ -841,6 +843,23 @@ export default function DashboardLayout({
                                                 ))
                                             )}
                                         </div>
+                                        {/* Footer link */}
+                                        <Link
+                                            href="/dashboard/notifications"
+                                            onClick={() => setShowNotifications(false)}
+                                            style={{
+                                                display: 'block',
+                                                padding: '14px 20px',
+                                                borderTop: '1px solid rgba(148, 163, 184, 0.1)',
+                                                textAlign: 'center',
+                                                color: '#10b981',
+                                                fontSize: 13,
+                                                fontWeight: 500,
+                                                textDecoration: 'none'
+                                            }}
+                                        >
+                                            Voir toutes les notifications
+                                        </Link>
                                     </motion.div>
                                 )}
                             </AnimatePresence>
