@@ -5,7 +5,7 @@
  */
 
 const { createClient } = require('@supabase/supabase-js')
-const { Agent, fetch } = require('undici')
+const { Agent, fetch: undiciFetch } = require('undici')
 const pino = require('pino')
 const OpenAI = require('openai')
 const CinetPay = require('./src/lib/whatsapp/utils/cinetpay')
@@ -46,7 +46,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
     },
     global: {
         // Injecte le dispatcher personnalisé dans toutes les requêtes Supabase
-        fetch: (url, opts = {}) => fetch(url, { ...opts, dispatcher })
+        fetch: (url, opts = {}) => undiciFetch(url, { ...opts, dispatcher })
     },
     realtime: {
         timeout: 90000,      // Augmenté à 90s pour les réseaux VPS lents (Hostinger)
