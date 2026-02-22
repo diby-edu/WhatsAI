@@ -23,6 +23,25 @@ function setupRealtimeListeners(context) {
     context.realtimeConnected = false
     let reconnectAttempts = 0
 
+    // ═══════════════════════════════════════════════════════════
+    // 🔍 DEBUG: Diagnostic complet Realtime
+    // ═══════════════════════════════════════════════════════════
+    console.log(`\n${'═'.repeat(60)}`)
+    console.log(`🔍 [DEBUG] REALTIME DIAGNOSTIC`)
+    console.log(`${'═'.repeat(60)}`)
+    console.log(`📡 Client type: ${typeof supabaseRealtime}`)
+    console.log(`📡 Realtime object exists: ${!!supabaseRealtime?.realtime}`)
+    console.log(`📡 Channel method exists: ${typeof supabaseRealtime?.channel}`)
+
+    // Test connexion Realtime
+    const realtimeClient = supabaseRealtime?.realtime
+    if (realtimeClient) {
+        console.log(`📡 Realtime URL: ${realtimeClient.endPoint || 'N/A'}`)
+        console.log(`📡 Realtime params: ${JSON.stringify(realtimeClient.params || {})}`)
+        console.log(`📡 Realtime transport: ${realtimeClient.transport?.name || typeof realtimeClient.transport}`)
+    }
+    console.log(`${'═'.repeat(60)}\n`)
+
     console.log(`📡 [REALTIME] Establishing channel with anon_key (required for postgres_changes)...`)
 
     // ═══════════════════════════════════════════════════════════
@@ -67,22 +86,36 @@ function setupRealtimeListeners(context) {
             }
         })
         .subscribe((status, err) => {
-            console.log(`📡 [REALTIME] Attempting subscription... Status: ${status}`)
+            console.log(`\n${'─'.repeat(50)}`)
+            console.log(`📡 [REALTIME] Status: ${status}`)
+            console.log(`📡 [REALTIME] Timestamp: ${new Date().toISOString()}`)
+
             if (err) {
-                console.error('📡 [REALTIME] Handshake Error:', err.message)
+                console.error('📡 [REALTIME] Error object:', JSON.stringify(err, null, 2))
+                console.error('📡 [REALTIME] Error message:', err.message || err)
+                console.error('📡 [REALTIME] Error type:', err.constructor?.name)
                 context.realtimeConnected = false
             }
+
             if (status === 'SUBSCRIBED') {
                 console.log('✅ [REALTIME] Connection established and authenticated!')
                 context.realtimeConnected = true
                 reconnectAttempts = 0
             } else if (status === 'TIMED_OUT') {
-                console.error('⚠️ [REALTIME] Handshake timed out - Network is likely blocking long-lived SSL tunnels (IPv6/MTU issues).')
+                console.error('⚠️ [REALTIME] TIMED_OUT - Diagnostic:')
+                console.error('   1. Check Supabase Dashboard > Database > Replication')
+                console.error('   2. Tables messages, outbound_messages, agents must be enabled')
+                console.error('   3. Check RLS policies allow SELECT for anon role')
                 context.realtimeConnected = false
             } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
                 context.realtimeConnected = false
-                console.log('⚠️ [REALTIME] Connection failed/closed. Adaptive polling activated (15s).')
+                console.log('⚠️ [REALTIME] Connection failed/closed.')
+                console.log('   Possible causes:')
+                console.log('   - anon_key invalid or expired')
+                console.log('   - Realtime not enabled on project')
+                console.log('   - RLS blocking subscriptions')
             }
+            console.log(`${'─'.repeat(50)}\n`)
         }, 90000)
 
     console.log('✅ [REALTIME] Master listener registered')
