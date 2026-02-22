@@ -6,7 +6,7 @@
  * Latence: 0-2s (polling) -> ~100ms (push)
  */
 
-// Set pour éviter les doublons (idempotency)console.log(`[FILE_VERSION] listeners.js v1.0.1 - ${new Date().toISOString()}`)
+console.log(`[FILE_VERSION] listeners.js v1.0.2 - ${new Date().toISOString()}`)
 const processingMessages = new Set()
 const processingOutbound = new Set()
 
@@ -24,9 +24,6 @@ function setupRealtimeListeners(context) {
     const { supabase, activeSessions, pendingConnections } = context
     const supabaseUrl = supabase.supabaseUrl
     console.log(`📡 Initializing Supabase Realtime listeners for: ${supabaseUrl}`)
-
-    // Force setAuth to ensure token is available for the handshake
-    supabase.realtime.setAuth(process.env.SUPABASE_SERVICE_ROLE_KEY)
 
     // ═══════════════════════════════════════════════════════════
     // CHANNEL 1: Messages (IA responses)
@@ -254,14 +251,16 @@ async function handleOutboundMessage(context, msg) {
  */
 async function cleanupRealtimeListeners(channels, supabase) {
     console.log('📴 Cleaning up Realtime listeners...')
-    if (channels.messagesChannel) {
-        await supabase.removeChannel(channels.messagesChannel)
-    }
-    if (channels.outboundChannel) {
-        await supabase.removeChannel(channels.outboundChannel)
-    }
-    if (channels.agentsChannel) {
-        await supabase.removeChannel(channels.agentsChannel)
+    if (channels && typeof channels === 'object') {
+        if (channels.messagesChannel) {
+            await supabase.removeChannel(channels.messagesChannel)
+        }
+        if (channels.outboundChannel) {
+            await supabase.removeChannel(channels.outboundChannel)
+        }
+        if (channels.agentsChannel) {
+            await supabase.removeChannel(channels.agentsChannel)
+        }
     }
     console.log('✅ Realtime listeners cleaned up')
 }
