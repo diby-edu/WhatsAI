@@ -13,6 +13,7 @@
  * - updateMetadata() : Met à jour les métadonnées
  */
 
+console.log(`[FILE_VERSION] conversation.service.js v1.0.1 - ${new Date().toISOString()}`)
 const { AppError } = require('./errors')
 
 class ConversationService {
