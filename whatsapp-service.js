@@ -54,8 +54,14 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
         detectSessionInUrl: false
     },
     global: {
-        // Injecte le dispatcher personnalisé uniquement pour les requêtes REST
-        fetch: (url, opts = {}) => undiciFetch(url, { ...opts, dispatcher })
+        // Injecte le dispatcher personnalisé uniquement pour les requêtes REST NON-Realtime
+        // pour éviter de casser le handshake/sync de Realtime (Recommandation Kodee)
+        fetch: (url, opts = {}) => {
+            if (url.toString().includes('/realtime/v1/')) {
+                return fetch(url, opts) // Utilise le fetch natif de Node
+            }
+            return undiciFetch(url, { ...opts, dispatcher })
+        }
     },
     realtime: {
         WebSocket: WebSocket, // Correct injection point for supabase-js v2
