@@ -80,7 +80,7 @@ function setupRealtimeListeners(context) {
         }, 90000)
 
     console.log('✅ [REALTIME] Master listener registered')
-    return mainChannel
+    return messagesChannel
 }
 
 // ═══════════════════════════════════════════════════════════
