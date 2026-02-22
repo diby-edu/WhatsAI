@@ -84,6 +84,7 @@ const supabaseRealtime = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
         detectSessionInUrl: false
     },
     realtime: {
+        transport: WebSocket,
         params: {
             eventsPerSecond: 10
         }
