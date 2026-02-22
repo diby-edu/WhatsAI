@@ -28,10 +28,7 @@ function setupRealtimeListeners(context) {
     // Force setAuth to ensure token is available for the handshake
     supabase.realtime.setAuth(process.env.SUPABASE_SERVICE_ROLE_KEY)
 
-    // Socket Event Helpers (Extreme Debugging)
-    supabase.realtime.onOpen(() => console.log('🟢 [REALTIME] Connection opened (WebSocket established)'))
-    supabase.realtime.onClose(() => console.log('🔴 [REALTIME] Connection closed'))
-    supabase.realtime.onError((e) => console.log('❌ [REALTIME] Socket error:', e))
+
 
     // ═══════════════════════════════════════════════════════════
     // CHANNEL 1: Messages pending (réponses IA)
