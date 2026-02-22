@@ -40,6 +40,10 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
     }
 })
 
+console.log(`🔑 Supabase Config Debug:`)
+console.log(`   URL: ${SUPABASE_URL}`)
+console.log(`   Service Key: ${SUPABASE_SERVICE_KEY.substring(0, 10)}...${SUPABASE_SERVICE_KEY.substring(SUPABASE_SERVICE_KEY.length - 5)}`)
+
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY })
 
 // Store active sessions

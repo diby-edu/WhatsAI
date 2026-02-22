@@ -13,7 +13,7 @@
  * - updateMetadata() : Met à jour les métadonnées
  */
 
-const { AppError } = require('./errors') // Fix: Ensure local path is used, not ../utils/errors
+const { AppError } = require('./errors')
 
 class ConversationService {
     /**
@@ -62,18 +62,6 @@ class ConversationService {
             }
 
             console.log(`✅ Conversation created: ${newConv.id}`)
-
-            // 🔔 NOTIFICATION: Nouvelle conversation
-            try {
-                const { notify } = require('../../notifications/notify')
-                notify(userId, 'new_conversation', {
-                    contactPhone,
-                    contactName: metadata?.wa_name || contactPhone
-                })
-            } catch (notifError) {
-                console.error('🔔 Notification error (non-blocking):', notifError)
-            }
-
             return new Conversation(newConv, supabase)
 
         } catch (error) {
@@ -123,13 +111,6 @@ class ConversationService {
      */
     static async escalate(supabase, conversationId, reason) {
         try {
-            // Get conversation details for notification
-            const { data: conv } = await supabase
-                .from('conversations')
-                .select('user_id, contact_phone, metadata')
-                .eq('id', conversationId)
-                .single()
-
             const { error } = await supabase
                 .from('conversations')
                 .update({
@@ -143,19 +124,6 @@ class ConversationService {
             if (error) throw error
 
             console.log(`🚨 Conversation ${conversationId} escalated: ${reason}`)
-
-            // 🔔 NOTIFICATION: Escalade
-            if (conv?.user_id) {
-                try {
-                    const { notify } = require('../../notifications/notify')
-                    notify(conv.user_id, 'escalation', {
-                        contactPhone: conv.contact_phone,
-                        contactName: conv.metadata?.wa_name || conv.contact_phone
-                    })
-                } catch (notifError) {
-                    console.error('🔔 Notification error (non-blocking):', notifError)
-                }
-            }
         } catch (error) {
             throw new AppError('Failed to escalate conversation', {
                 code: 'CONVERSATION_ESCALATE_FAILED',
@@ -172,21 +140,18 @@ class ConversationService {
      * @param {number} limit - Nombre de messages max (défaut: 20)
      * @returns {Promise<Array>} Messages de la conversation
      */
-    static async getHistory(supabase, conversationId, limit = 50) {
+    static async getHistory(supabase, conversationId, limit = 20) {
         try {
-            // IMPORTANT: Charger les messages les plus RÉCENTS d'abord
-            // puis les inverser pour avoir l'ordre chronologique
             const { data, error } = await supabase
                 .from('messages')
                 .select('role, content, created_at')
                 .eq('conversation_id', conversationId)
-                .order('created_at', { ascending: false }) // Plus récents d'abord
+                .order('created_at', { ascending: true })
                 .limit(limit)
 
             if (error) throw error
 
-            // Inverser pour avoir l'ordre chronologique (ancien → récent)
-            return (data || []).reverse()
+            return data || []
         } catch (error) {
             console.error('Failed to load conversation history:', error)
             return [] // Dégradation gracieuse
