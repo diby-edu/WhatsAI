@@ -47,6 +47,16 @@ const dispatcher = new Agent({
     bodyTimeout: 0
 })
 
+// Driver WebSocket avec compression désactivée (pour éviter les blocages de sync sur Hostinger)
+const WSWrapper = class extends WebSocket {
+    constructor(address, protocols, options) {
+        super(address, protocols, {
+            ...(options || {}),
+            perMessageDeflate: false
+        })
+    }
+}
+
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
     auth: {
         persistSession: false,
@@ -64,7 +74,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
         }
     },
     realtime: {
-        WebSocket: WebSocket, // Correct injection point for supabase-js v2
+        WebSocket: WSWrapper, // Injecte le driver optimisé sans compression
         params: {
             eventsPerSecond: 10,
             apikey: SUPABASE_SERVICE_KEY,
