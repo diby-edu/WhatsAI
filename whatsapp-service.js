@@ -132,29 +132,40 @@ async function main() {
     const context = { supabase, activeSessions, pendingConnections, openai, CinetPay }
 
     // ═══════════════════════════════════════════════════════════
-    // ⚡ REALTIME: Écoute instantanée (remplace polling 2s/5s)
+    // ⚡ REALTIME & ADAPTIVE POLLING
     // ═══════════════════════════════════════════════════════════
-    setupRealtimeListeners(context)
+    context.realtimeConnected = false
+    const realtimeChannel = setupRealtimeListeners(context)
 
-    // ═══════════════════════════════════════════════════════════
-    // 🛡️ BACKUP: Polling basse fréquence (filet de sécurité)
-    // ═══════════════════════════════════════════════════════════
-    // ✅ Periodic check for new agents
-    setInterval(checkAgents, CHECK_INTERVAL) // 5 seconds (agents seulement)
+    // ✅ Polling Adaptatif (Filet de sécurité intelligent)
+    async function adaptivePollingLoop() {
+        try {
+            // 1. Toujours vérifier les agents (critique pour les nouvelles connexions)
+            await checkAgents()
 
-    // ✅ Backup check for pending messages (si Realtime échoue)
-    setInterval(() => checkPendingHistoryMessages(context), 5 * 60 * 1000) // 5 min backup
+            // 2. Vérifier les messages (IA & Outbound)
+            // Si Realtime est OK -> Polling lent (5 min)
+            // Si Realtime est KO -> Polling rapide (15 sec)
+            await checkPendingHistoryMessages(context)
+            await checkOutboundMessages(context)
 
-    // ✅ Backup check for outbound messages (si Realtime échoue)
-    setInterval(() => checkOutboundMessages(context), 5 * 60 * 1000) // 5 min backup
+            const nextCheck = context.realtimeConnected ? 5 * 60 * 1000 : 15 * 1000
+            if (!context.realtimeConnected) {
+                console.log(`🛡️ [BACKUP] Realtime offline, next check in 15s...`)
+            }
+            setTimeout(adaptivePollingLoop, nextCheck)
+        } catch (err) {
+            console.error('❌ [ADAPTIVE] Loop error:', err)
+            setTimeout(adaptivePollingLoop, 30000) // Retry in 30s
+        }
+    }
 
-    // ✅ Payment reminders (10 min)
+    // Lancer la boucle adaptative
+    adaptivePollingLoop()
+
+    // ✅ Jobs de maintenance (longue durée)
     setInterval(() => checkPendingPayments(supabase), 10 * 60 * 1000)
-
-    // ✅ Cancel expired orders (30 min)
     setInterval(() => cancelExpiredOrders(supabase), 30 * 60 * 1000)
-
-    // ✅ Request feedback (24h)
     setInterval(() => requestFeedback(supabase), 24 * 60 * 60 * 1000)
 
     // ═══════════════════════════════════════════════════════════
