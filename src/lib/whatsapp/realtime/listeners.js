@@ -28,11 +28,11 @@ function setupRealtimeListeners(context) {
     // Force setAuth to ensure token is available for the handshake
     supabase.realtime.setAuth(process.env.SUPABASE_SERVICE_ROLE_KEY)
 
-
-
-        // ═══════════════════════════════════════════════════════════
-        // CHANNEL 1: Messages pending (réponses IA)
-        // ═══════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════
+    // CHANNEL 1: Messages (IA responses)
+    // ═══════════════════════════════════════════════════════════
+    const messagesChannel = supabase
+        .channel('pending-messages')
         .on('postgres_changes',
             {
                 event: 'INSERT',
@@ -41,7 +41,7 @@ function setupRealtimeListeners(context) {
             },
             async (payload) => {
                 if (payload.new.role !== 'assistant' || payload.new.status !== 'pending') return
-                console.log('⚡ [REALTIME] New pending message detected:', payload.new.id)
+                console.log('⚡ [REALTIME] New pending message:', payload.new.id)
                 await handlePendingMessage(context, payload.new)
             }
         )
@@ -58,22 +58,19 @@ function setupRealtimeListeners(context) {
             }
         )
         .subscribe((status, err) => {
-            console.log(`📡 [${new Date().toISOString()}] Messages channel status: ${status}`)
-            if (err) {
-                console.error('📡 Messages channel error:', err)
-            }
-            if (status === 'TIMED_OUT' || status === 'CHANNEL_ERROR') {
-                console.log('⚠️ Messages channel failed, will retry via backup polling')
-            }
+            console.log(`📡 [${new Date().toISOString()}] Messages channel: ${status}`)
+            if (err) console.error('📡 Messages error:', err)
             if (status === 'SUBSCRIBED') {
                 reconnectAttempts = 0
-                console.log('✅ Messages channel connected successfully')
+                console.log('✅ Messages channel connected')
             }
         }, 60000)
 
-        // ═══════════════════════════════════════════════════════════
-        // CHANNEL 2: Outbound messages (notifications standalone)
-        // ═══════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════
+    // CHANNEL 2: Outbound (standalone notifications)
+    // ═══════════════════════════════════════════════════════════
+    const outboundChannel = supabase
+        .channel('outbound-messages')
         .on('postgres_changes',
             {
                 event: 'INSERT',
@@ -87,16 +84,18 @@ function setupRealtimeListeners(context) {
             }
         )
         .subscribe((status, err) => {
-            console.log(`📡 [${new Date().toISOString()}] Outbound channel status: ${status}`)
-            if (err) console.error('📡 Outbound channel error:', err)
+            console.log(`📡 [${new Date().toISOString()}] Outbound channel: ${status}`)
+            if (err) console.error('📡 Outbound error:', err)
             if (status === 'SUBSCRIBED') {
-                console.log('✅ Outbound channel connected successfully')
+                console.log('✅ Outbound channel connected')
             }
         }, 60000)
 
-        // ═══════════════════════════════════════════════════════════
-        // CHANNEL 3: Agents (connexion demandée)
-        // ═══════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════
+    // CHANNEL 3: Agents (connection requests)
+    // ═══════════════════════════════════════════════════════════
+    const agentsChannel = supabase
+        .channel('agent-status')
         .on('postgres_changes',
             {
                 event: 'UPDATE',
@@ -104,24 +103,24 @@ function setupRealtimeListeners(context) {
                 table: 'agents'
             },
             async (payload) => {
-                if (payload.new.whatsapp_status !== 'connecting') return
-                console.log('⚡ [REALTIME] Agent requesting connection:', payload.new.name)
-                // Déclencher initSession si pas déjà actif
+                const { whatsapp_status, name, id } = payload.new
+                if (whatsapp_status !== 'connecting') return
+                console.log('⚡ [REALTIME] Agent connecting:', name)
                 const { initSession } = require('../handlers/session')
-                if (!activeSessions.has(payload.new.id) && !pendingConnections.has(payload.new.id)) {
-                    initSession(context, payload.new.id, payload.new.name)
+                if (!activeSessions.has(id) && !pendingConnections.has(id)) {
+                    initSession(context, id, name)
                 }
             }
         )
         .subscribe((status, err) => {
-            console.log(`📡 [${new Date().toISOString()}] Agents channel status: ${status}`)
-            if (err) console.error('📡 Agents channel error:', err)
+            console.log(`📡 [${new Date().toISOString()}] Agents channel: ${status}`)
+            if (err) console.error('📡 Agents error:', err)
             if (status === 'SUBSCRIBED') {
-                console.log('✅ Agents channel connected successfully')
+                console.log('✅ Agents channel connected')
             }
         }, 60000)
 
-    console.log('✅ Realtime listeners initialized')
+    console.log('✅ All Realtime listeners registered')
     return { messagesChannel, outboundChannel, agentsChannel }
 }
 
