@@ -20,10 +20,14 @@ const { setupRealtimeListeners, cleanupRealtimeListeners } = require('./src/lib/
 // Configuration from environment
 require('dotenv').config({ path: '.env.local' })
 
+// Configuration des logs
+const logger = pino({ level: process.env.LOG_LEVEL || 'info' })
+
+// Configuration des constantes
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY // Modified
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY
-const SESSION_BASE_DIR = process.env.WHATSAPP_SESSION_PATH || './.whatsapp-sessions'
+const SESSION_BASE_DIR = process.env.WHATSAPP_SESSION_PATH || './.whatsapp-sessions' // Original line, kept for consistency
 const CHECK_INTERVAL = 5000 // Check every 5 seconds
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
@@ -31,29 +35,42 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
     process.exit(1)
 }
 
-// ⭐ DISPATCHER EXPERT (Recommandation Support)
-// Gère le keep-alive TCP au niveau du système pour éviter les coupures réseau
+// ═══════════════════════════════════════════════════════════
+// 🛠️ CONFIGURATION SUPABASE (Mode Expert Hostinger)
+// ═══════════════════════════════════════════════════════════
 const dispatcher = new Agent({
-    connect: { timeout: 30000 },
-    keepAliveTimeout: 60000,
-    keepAliveMaxTimeout: 120000,
+    keepAliveTimeout: 10,
+    keepAliveMaxTimeout: 10,
+    scheduling: 'fifo',
+    headersTimeout: 0,
+    bodyTimeout: 0
 })
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
     auth: {
+        persistSession: false,
         autoRefreshToken: true,
-        persistSession: false
+        detectSessionInUrl: false
     },
     global: {
-        // Injecte le dispatcher personnalisé dans toutes les requêtes Supabase
+        // Injecte le dispatcher personnalisé dans toutes les requêtes HTTP Supabase
         fetch: (url, opts = {}) => undiciFetch(url, { ...opts, dispatcher })
     },
     realtime: {
-        timeout: 90000,      // Augmenté à 90s pour les réseaux VPS lents (Hostinger)
-        heartbeatIntervalMs: 15000, // Signal toutes les 15s (optimisé selon support)
         params: {
-            eventsPerSecond: 20
-        }
+            eventsPerSecond: 10
+        },
+        // Force l'usage de 'ws' (Validé par le test de Kodee)
+        // et injecte les headers d'authentification pour le handshake WebSocket
+        headers: {
+            apikey: SUPABASE_SERVICE_KEY,
+            Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`
+        },
+        config: {
+            WebSocket: WebSocket
+        },
+        timeout: 90000,
+        heartbeatIntervalMs: 15000
     }
 })
 
