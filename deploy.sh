@@ -1,81 +1,94 @@
 #!/bin/bash
-# WhatsAI Deploy Script v2
-# Redémarre TOUJOURS les deux services
-# Auto-rollback si le build échoue
+# WhatsAI Deploy Script v3 - Zero-Downtime
+# Build PENDANT que les services tournent
 
 clear
 echo "╔═══════════════════════════════════════════════════════════════╗"
-echo "║              🚀 WhatsAI - Déploiement v2                     ║"
+echo "║         🚀 WhatsAI - Déploiement v3 (Zero-Downtime)          ║"
 echo "╚═══════════════════════════════════════════════════════════════╝"
-echo ""
 
 cd ~/WhatsAI
+START_TIME=$(date +%s)
 
-# Sauvegarder le commit actuel (pour rollback si build échoue)
-OLD_COMMIT=$(git rev-parse HEAD 2>/dev/null)
-OLD_SHORT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+# Sauvegarder commit actuel pour rollback
+OLD_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 
-# 1. Récupérer le code
-echo "📥 Téléchargement des modifications..."
+# ═══════════════════════════════════════════════════════════
+# 1. GIT PULL (services TOUJOURS UP)
+# ═══════════════════════════════════════════════════════════
+echo ""
+echo "📥 [1/4] Récupération du code..."
 git fetch origin
 git reset --hard origin/master
-NEW_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+NEW_COMMIT=$(git rev-parse --short HEAD)
 
-# 2. Installer les dépendances
+if [ "$OLD_COMMIT" = "$NEW_COMMIT" ]; then
+    echo "✅ Déjà à jour ($NEW_COMMIT) - Rien à faire"
+    exit 0
+fi
+
+echo "    $OLD_COMMIT → $NEW_COMMIT"
+
+# ═══════════════════════════════════════════════════════════
+# 2. NPM INSTALL RAPIDE (services TOUJOURS UP)
+# ═══════════════════════════════════════════════════════════
 echo ""
-echo "📦 Installation des dépendances..."
-npm install --silent
+echo "📦 [2/4] Installation des dépendances..."
+# npm ci est plus rapide que npm install (pas de résolution)
+# --prefer-offline utilise le cache local
+npm ci --prefer-offline --silent 2>/dev/null || npm install --silent
 
-# 3. Arrêter les services AVANT le build pour libérer la RAM
+# ═══════════════════════════════════════════════════════════
+# 3. BUILD NEXT.JS (services TOUJOURS UP - ZERO DOWNTIME)
+# ═══════════════════════════════════════════════════════════
 echo ""
-echo "🛑 Arrêt des services pour libérer la RAM..."
-pm2 stop whatsai-web 2>/dev/null || true
-pm2 stop whatsai-bot 2>/dev/null || true
-sleep 3  # Laisser le temps au gracefulShutdown de sauvegarder les sessions
-
-# Nettoyage des anciens processus fantômes
-pm2 delete wazzapai-web 2>/dev/null || true
-pm2 delete whatsai-web 2>/dev/null || true
-pm2 delete whatsai-bot 2>/dev/null || true
-
-# 4. Build
-echo ""
-echo "🔨 Compilation en cours..."
+echo "🔨 [3/4] Compilation (services toujours actifs)..."
 rm -f .next/lock
 npm run build
 
-# Vérifier si le build a réussi (même si le process crash avec core dump)
-# Le fichier .next/BUILD_ID n'existe que si la compilation a réussi
+# Vérifier si build réussi
 if [ ! -f .next/BUILD_ID ]; then
     echo ""
-    echo "╔═══════════════════════════════════════════════════════════════╗"
-    echo "║              ❌ BUILD ÉCHOUÉ — AUTO-ROLLBACK                 ║"
-    echo "╠═══════════════════════════════════════════════════════════════╣"
-    echo "║  Le build a échoué. Restauration du commit précédent...      ║"
-    echo "╚═══════════════════════════════════════════════════════════════╝"
-    echo ""
+    echo "❌ BUILD ÉCHOUÉ - Auto-rollback..."
     git reset --hard $OLD_COMMIT
-    npm run build  # Recompiler l'ancienne version
-    pm2 start ecosystem.config.js
-    pm2 save 2>/dev/null || true
-    echo "⏪ Restauré à $OLD_SHORT — services redémarrés"
+    echo "⏪ Restauré à $OLD_COMMIT"
     exit 1
 fi
 
 echo "✅ Build réussi"
 
-# 5. Démarrer les services
+# ═══════════════════════════════════════════════════════════
+# 4. RESTART RAPIDE (~10 secondes de micro-downtime)
+# ═══════════════════════════════════════════════════════════
 echo ""
-echo "🔄 Démarrage des services..."
-pm2 start ecosystem.config.js
+echo "🔄 [4/4] Redémarrage des services..."
+
+# Nettoyer les vieux processus fantômes
+pm2 delete wazzapai-web 2>/dev/null || true
+
+# Reload graceful pour le web (si supporte wait_ready)
+# Restart pour le bot (sessions Baileys doivent être préservées)
+pm2 reload whatsai-web --update-env 2>/dev/null || pm2 restart whatsai-web 2>/dev/null || pm2 start ecosystem.config.js --only whatsai-web
+pm2 restart whatsai-bot 2>/dev/null || pm2 start ecosystem.config.js --only whatsai-bot
+
 pm2 save 2>/dev/null || true
 
-# Wait for services to be ready
-sleep 3
+# ═══════════════════════════════════════════════════════════
+# 5. HEALTHCHECK
+# ═══════════════════════════════════════════════════════════
+echo ""
+echo "🏥 Vérification des services..."
+sleep 5
 
-# Get PM2 info
 WEB_STATUS=$(pm2 show whatsai-web 2>/dev/null | grep "status" | head -1 | awk '{print $4}' || echo "unknown")
 BOT_STATUS=$(pm2 show whatsai-bot 2>/dev/null | grep "status" | head -1 | awk '{print $4}' || echo "unknown")
+
+# HTTP healthcheck
+WEB_HTTP=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 http://localhost:3000 2>/dev/null || echo "000")
+BOT_HTTP=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 http://localhost:3001/health 2>/dev/null || echo "000")
+
+END_TIME=$(date +%s)
+DURATION=$((END_TIME - START_TIME))
 DISK_USAGE=$(df -h / | tail -1 | awk '{print $5}')
 MEM_USAGE=$(free | grep Mem | awk '{printf("%.0f%%", $3/$2 * 100)}')
 
@@ -83,14 +96,14 @@ echo ""
 echo "╔═══════════════════════════════════════════════════════════════╗"
 echo "║              ✅ DÉPLOIEMENT TERMINÉ                           ║"
 echo "╠═══════════════════════════════════════════════════════════════╣"
-printf "║  📌 Ancien commit  : %-38s ║\n" "$OLD_SHORT"
-printf "║  📌 Nouveau commit : %-38s ║\n" "$NEW_COMMIT"
+printf "║  📌 Commit     : %-10s → %-27s ║\n" "$OLD_COMMIT" "$NEW_COMMIT"
+printf "║  ⏱️  Durée      : %-42s ║\n" "${DURATION} secondes"
 echo "╠═══════════════════════════════════════════════════════════════╣"
-printf "║  🌐 Web    : %-45s ║\n" "$WEB_STATUS"
-printf "║  🤖 Bot    : %-45s ║\n" "$BOT_STATUS"
+printf "║  🌐 Web        : %-8s (HTTP: %-3s)                       ║\n" "$WEB_STATUS" "$WEB_HTTP"
+printf "║  🤖 Bot        : %-8s (HTTP: %-3s)                       ║\n" "$BOT_STATUS" "$BOT_HTTP"
 echo "╠═══════════════════════════════════════════════════════════════╣"
-printf "║  💾 Disque : %-45s ║\n" "$DISK_USAGE"
-printf "║  🧠 RAM    : %-45s ║\n" "$MEM_USAGE"
+printf "║  💾 Disque     : %-42s ║\n" "$DISK_USAGE"
+printf "║  🧠 RAM        : %-42s ║\n" "$MEM_USAGE"
 echo "╚═══════════════════════════════════════════════════════════════╝"
 echo ""
 echo "🔗 Site: https://wazzapai.com"
