@@ -25,6 +25,9 @@ function setupRealtimeListeners(context) {
     const supabaseUrl = supabase.supabaseUrl
     console.log(`📡 Initializing Supabase Realtime listeners for: ${supabaseUrl}`)
 
+    // Force setAuth to ensure token is available for the handshake
+    supabase.realtime.setAuth(process.env.SUPABASE_SERVICE_ROLE_KEY)
+
     // ═══════════════════════════════════════════════════════════
     // CHANNEL 1: Messages pending (réponses IA)
     // ═══════════════════════════════════════════════════════════
@@ -52,16 +55,14 @@ function setupRealtimeListeners(context) {
             },
             async (payload) => {
                 if (payload.new.role !== 'assistant') return
-                // Évite de retraiter un message déjà en cours
                 if (processingMessages.has(payload.new.id)) return
                 await handlePendingMessage(context, payload.new)
             }
         )
         .subscribe((status, err) => {
-            console.log(`📡 Messages channel status: ${status}`)
+            console.log(`📡 [${new Date().toISOString()}] Messages channel status: ${status}`)
             if (err) {
                 console.error('📡 Messages channel error:', err)
-                console.error('📡 Error details:', JSON.stringify(err, null, 2))
             }
             if (status === 'TIMED_OUT' || status === 'CHANNEL_ERROR') {
                 console.log('⚠️ Messages channel failed, will retry via backup polling')

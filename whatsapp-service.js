@@ -36,7 +36,10 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
         persistSession: false
     },
     realtime: {
-        timeout: 30000 // 30 seconds to avoid TIMED_OUT on slower connections
+        timeout: 40000,      // Increased to 40s
+        params: {
+            eventsPerSecond: 10
+        }
     }
 })
 
