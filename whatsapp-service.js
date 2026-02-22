@@ -84,11 +84,9 @@ const supabaseRealtime = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
         detectSessionInUrl: false
     },
     realtime: {
-        WebSocket: WSWrapper,
-        // Forcer l'apikey en query param (contourne filtrage headers Nginx/firewall)
-        realtimeUrl: `${SUPABASE_URL.replace('https://', 'wss://')}/realtime/v1/websocket?apikey=${encodeURIComponent(SUPABASE_ANON_KEY)}&vsn=1.0.0`,
-        timeout: 120000,
-        heartbeatIntervalMs: 30000
+        params: {
+            eventsPerSecond: 10
+        }
     }
 })
 
