@@ -57,6 +57,8 @@ export default function DashboardLayout({
     const [notifications, setNotifications] = useState<Notification[]>([])
     const [unreadCount, setUnreadCount] = useState(0)
     const notifRef = useRef<HTMLDivElement>(null)
+    const mobileNotifBtnRef = useRef<HTMLDivElement>(null)
+    const mobileNotifDropdownRef = useRef<HTMLDivElement>(null)
 
     // Defined inside component to use hooks
     const sidebarLinks = [
@@ -209,13 +211,25 @@ export default function DashboardLayout({
     // Close notifications when clicking outside
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
-            if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
-                setShowNotifications(false)
+            const target = event.target as Node
+
+            if (isMobile) {
+                // On mobile, check both the button and the dropdown
+                const isInsideBtn = mobileNotifBtnRef.current?.contains(target)
+                const isInsideDropdown = mobileNotifDropdownRef.current?.contains(target)
+                if (!isInsideBtn && !isInsideDropdown) {
+                    setShowNotifications(false)
+                }
+            } else {
+                // On desktop, check the desktop container
+                if (notifRef.current && !notifRef.current.contains(target)) {
+                    setShowNotifications(false)
+                }
             }
         }
         document.addEventListener('mousedown', handleClickOutside)
         return () => document.removeEventListener('mousedown', handleClickOutside)
-    }, [])
+    }, [isMobile])
 
     const markAllAsRead = () => {
         setNotifications(prev => prev.map(n => ({ ...n, read: true })))
@@ -291,30 +305,32 @@ export default function DashboardLayout({
                         <span style={{ fontWeight: 700, color: 'white', fontSize: 18 }}>WazzapAI</span>
                     </Link>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <button
-                            onClick={() => setShowNotifications(!showNotifications)}
-                            style={{
-                                padding: 8,
-                                borderRadius: 10,
-                                backgroundColor: 'rgba(51, 65, 85, 0.5)',
-                                border: 'none',
-                                cursor: 'pointer',
-                                position: 'relative'
-                            }}
-                        >
-                            <Bell style={{ width: 20, height: 20, color: '#94a3b8' }} />
-                            {unreadCount > 0 && (
-                                <span style={{
-                                    position: 'absolute',
-                                    top: 4,
-                                    right: 4,
-                                    width: 8,
-                                    height: 8,
-                                    borderRadius: '50%',
-                                    backgroundColor: '#ef4444'
-                                }} />
-                            )}
-                        </button>
+                        <div ref={mobileNotifBtnRef} style={{ position: 'relative' }}>
+                            <button
+                                onClick={() => setShowNotifications(!showNotifications)}
+                                style={{
+                                    padding: 8,
+                                    borderRadius: 10,
+                                    backgroundColor: showNotifications ? 'rgba(16, 185, 129, 0.15)' : 'rgba(51, 65, 85, 0.5)',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    position: 'relative'
+                                }}
+                            >
+                                <Bell style={{ width: 20, height: 20, color: showNotifications ? '#34d399' : '#94a3b8' }} />
+                                {unreadCount > 0 && (
+                                    <span style={{
+                                        position: 'absolute',
+                                        top: 4,
+                                        right: 4,
+                                        width: 8,
+                                        height: 8,
+                                        borderRadius: '50%',
+                                        backgroundColor: '#ef4444'
+                                    }} />
+                                )}
+                            </button>
+                        </div>
                         <button
                             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                             style={{
@@ -338,7 +354,7 @@ export default function DashboardLayout({
             <AnimatePresence>
                 {showNotifications && isMobile && (
                     <motion.div
-                        ref={notifRef}
+                        ref={mobileNotifDropdownRef}
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
@@ -426,6 +442,23 @@ export default function DashboardLayout({
                                 ))
                             )}
                         </div>
+                        {/* Footer link */}
+                        <Link
+                            href="/dashboard/notifications"
+                            onClick={() => setShowNotifications(false)}
+                            style={{
+                                display: 'block',
+                                padding: '12px 16px',
+                                borderTop: '1px solid rgba(148, 163, 184, 0.1)',
+                                textAlign: 'center',
+                                color: '#10b981',
+                                fontSize: 13,
+                                fontWeight: 500,
+                                textDecoration: 'none'
+                            }}
+                        >
+                            Voir toutes les notifications
+                        </Link>
                     </motion.div>
                 )}
             </AnimatePresence>
