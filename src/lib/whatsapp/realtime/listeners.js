@@ -71,13 +71,13 @@ function setupRealtimeListeners(context) {
                 context.realtimeConnected = true
                 reconnectAttempts = 0
             } else if (status === 'TIMED_OUT') {
-                console.error('⚠️ [REALTIME] Handshake timed out - Network is likely blocking long-lived SSL tunnels.')
+                console.error('⚠️ [REALTIME] Handshake timed out - Network is likely blocking long-lived SSL tunnels (IPv6/MTU issues).')
                 context.realtimeConnected = false
             } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
                 context.realtimeConnected = false
                 console.log('⚠️ [REALTIME] Connection failed/closed. Adaptive polling activated (15s).')
             }
-        }, 60000)
+        }, 90000)
 
     console.log('✅ [REALTIME] Master listener registered')
     return mainChannel
