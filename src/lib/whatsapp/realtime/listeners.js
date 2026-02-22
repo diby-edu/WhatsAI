@@ -1,195 +1,112 @@
 /**
  * Supabase Realtime Listeners
- * Remplace le polling agressif par des WebSockets
- *
- * CPU: 55% constant -> ~5% au repos
- * Latence: 0-2s (polling) -> ~100ms (push)
+ * Version 1.0.3 - Consolidated Adaptive Solution
  */
 
-console.log(`[FILE_VERSION] listeners.js v1.0.2 - ${new Date().toISOString()}`)
 const processingMessages = new Set()
 const processingOutbound = new Set()
 
-// Stockage pour reconnexion
-let reconnectAttempts = 0
-const MAX_RECONNECT_ATTEMPTS = 5
-const RECONNECT_DELAY_MS = 5000
-
 /**
- * Configure les listeners Realtime pour les 3 tables critiques
+ * Configure les listeners Realtime pour toutes les tables critiques via un CANAL UNIQUE
  * @param {Object} context - Context avec supabase, activeSessions, etc.
- * @returns {Object} Channels créés pour cleanup éventuel
+ * @returns {Object} Channel unique créé
  */
 function setupRealtimeListeners(context) {
     const { supabase, activeSessions, pendingConnections } = context
-    const supabaseUrl = supabase.supabaseUrl
-    console.log(`📡 Initializing Supabase Realtime listeners for: ${supabaseUrl}`)
+
+    // Initialiser l'état de connexion dans le contexte
+    context.realtimeConnected = false
+
+    console.log(`📡 [REALTIME] Establishing consolidated channel 'whatsapp-updates'...`)
 
     // ═══════════════════════════════════════════════════════════
-    // CHANNEL 1: Messages (IA responses)
+    // CANAL UNIQUE : Réduit la charge de handshake sur le VPS
     // ═══════════════════════════════════════════════════════════
-    const messagesChannel = supabase
-        .channel('pending-messages')
-        .on('postgres_changes',
-            {
-                event: 'INSERT',
-                schema: 'public',
-                table: 'messages'
-            },
-            async (payload) => {
-                if (payload.new.role !== 'assistant' || payload.new.status !== 'pending') return
-                console.log('⚡ [REALTIME] New pending message:', payload.new.id)
-                await handlePendingMessage(context, payload.new)
+    const mainChannel = supabase
+        .channel('whatsapp-updates')
+        // 1. Messages (IA responses)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, async (payload) => {
+            if (payload.new.role !== 'assistant' || payload.new.status !== 'pending') return
+            if (processingMessages.has(payload.new.id)) return
+            console.log('⚡ [REALTIME] Message change detected:', payload.new.id)
+            await handlePendingMessage(context, payload.new)
+        })
+        // 2. Outbound (Standalone notifications)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'outbound_messages' }, async (payload) => {
+            if (payload.new.status !== 'pending') return
+            console.log('⚡ [REALTIME] Outbound message detected:', payload.new.id)
+            await handleOutboundMessage(context, payload.new)
+        })
+        // 3. Agents (Connection requests)
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'agents' }, async (payload) => {
+            const { whatsapp_status, name, id } = payload.new
+            if (whatsapp_status !== 'connecting') return
+            console.log('⚡ [REALTIME] Agent connection requested:', name)
+            const { initSession } = require('../handlers/session')
+            if (!activeSessions.has(id) && !pendingConnections.has(id)) {
+                initSession(context, id, name)
             }
-        )
-        .on('postgres_changes',
-            {
-                event: 'UPDATE',
-                schema: 'public',
-                table: 'messages'
-            },
-            async (payload) => {
-                if (payload.new.role !== 'assistant' || payload.new.status !== 'pending') return
-                if (processingMessages.has(payload.new.id)) return
-                await handlePendingMessage(context, payload.new)
-            }
-        )
+        })
         .subscribe((status, err) => {
-            console.log(`📡 [${new Date().toISOString()}] Messages channel: ${status}`)
-            if (err) console.error('📡 Messages error:', err)
+            console.log(`📡 [REALTIME] Status: ${status}`)
+            if (err) console.error('📡 [REALTIME] Error:', err)
+
             if (status === 'SUBSCRIBED') {
-                reconnectAttempts = 0
-                console.log('✅ Messages channel connected')
+                context.realtimeConnected = true
+                console.log('✅ [REALTIME] Connected! Message delivery will be instant.')
+            } else if (status === 'TIMED_OUT' || status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+                context.realtimeConnected = false
+                console.log('⚠️ [REALTIME] Connection failed/timed out. Adaptive polling activated (15s).')
             }
         }, 60000)
 
-    // ═══════════════════════════════════════════════════════════
-    // CHANNEL 2: Outbound (standalone notifications)
-    // ═══════════════════════════════════════════════════════════
-    const outboundChannel = supabase
-        .channel('outbound-messages')
-        .on('postgres_changes',
-            {
-                event: 'INSERT',
-                schema: 'public',
-                table: 'outbound_messages'
-            },
-            async (payload) => {
-                if (payload.new.status !== 'pending') return
-                console.log('⚡ [REALTIME] New outbound message:', payload.new.id)
-                await handleOutboundMessage(context, payload.new)
-            }
-        )
-        .subscribe((status, err) => {
-            console.log(`📡 [${new Date().toISOString()}] Outbound channel: ${status}`)
-            if (err) console.error('📡 Outbound error:', err)
-            if (status === 'SUBSCRIBED') {
-                console.log('✅ Outbound channel connected')
-            }
-        }, 60000)
-
-    // ═══════════════════════════════════════════════════════════
-    // CHANNEL 3: Agents (connection requests)
-    // ═══════════════════════════════════════════════════════════
-    const agentsChannel = supabase
-        .channel('agent-status')
-        .on('postgres_changes',
-            {
-                event: 'UPDATE',
-                schema: 'public',
-                table: 'agents'
-            },
-            async (payload) => {
-                const { whatsapp_status, name, id } = payload.new
-                if (whatsapp_status !== 'connecting') return
-                console.log('⚡ [REALTIME] Agent connecting:', name)
-                const { initSession } = require('../handlers/session')
-                if (!activeSessions.has(id) && !pendingConnections.has(id)) {
-                    initSession(context, id, name)
-                }
-            }
-        )
-        .subscribe((status, err) => {
-            console.log(`📡 [${new Date().toISOString()}] Agents channel: ${status}`)
-            if (err) console.error('📡 Agents error:', err)
-            if (status === 'SUBSCRIBED') {
-                console.log('✅ Agents channel connected')
-            }
-        }, 60000)
-
-    console.log('✅ All Realtime listeners registered')
-    return { messagesChannel, outboundChannel, agentsChannel }
+    console.log('✅ [REALTIME] Master listener registered')
+    return mainChannel
 }
 
 // ═══════════════════════════════════════════════════════════
-// HANDLER: Message pending
+// HANDLERS (Idempotent)
 // ═══════════════════════════════════════════════════════════
+
 async function handlePendingMessage(context, message) {
     const { supabase, activeSessions } = context
-
-    // Idempotency check
-    if (processingMessages.has(message.id)) {
-        console.log(`⏭️ [REALTIME] Message ${message.id} already processing, skipping`)
-        return
-    }
+    if (processingMessages.has(message.id)) return
     processingMessages.add(message.id)
 
     try {
-        // Récupérer la conversation
         const { data: conv } = await supabase
             .from('conversations')
             .select('contact_phone, contact_jid, agent_id, bot_paused')
             .eq('id', message.conversation_id)
             .single()
 
-        if (!conv) {
-            console.log(`⚠️ [REALTIME] Conversation not found for message ${message.id}`)
-            return
-        }
-
-        if (conv.bot_paused) {
-            console.log(`⏸️ [REALTIME] Bot paused for conversation, skipping`)
-            return
-        }
+        if (!conv || conv.bot_paused) return
 
         const session = activeSessions.get(conv.agent_id)
-        if (!session?.socket) {
-            console.log(`⚠️ [REALTIME] Agent ${conv.agent_id} offline, backup polling will handle`)
-            return
-        }
+        if (!session?.socket) return
 
-        // Construire le JID
         let jid = conv.contact_jid || conv.contact_phone
         if (!jid.includes('@')) {
             const isLid = conv.contact_phone.length > 15 || !/^\d{10,13}$/.test(conv.contact_phone)
             jid = conv.contact_phone + (isLid ? '@lid' : '@s.whatsapp.net')
         }
 
-        console.log(`   📍 Phone: ${conv.contact_phone}`)
-        console.log(`   📍 JID: ${jid}`)
-
-        // Envoyer le message
         const result = await session.socket.sendMessage(jid, { text: message.content })
 
-        // Marquer comme envoyé
         await supabase.from('messages')
-            .update({
-                status: 'sent',
-                whatsapp_message_id: result.key.id
-            })
+            .update({ status: 'sent', whatsapp_message_id: result.key.id })
             .eq('id', message.id)
 
-        // Mettre à jour conversation
         await supabase.from('conversations').update({
             last_message_text: message.content.substring(0, 200),
             last_message_at: new Date().toISOString(),
             last_message_role: 'assistant'
         }).eq('id', message.conversation_id)
 
-        console.log(`✅ [REALTIME] Message sent to ${conv.contact_phone}`)
+        console.log(`✅ [REALTIME] Message delivered to ${conv.contact_phone}`)
 
     } catch (error) {
-        console.error('❌ [REALTIME] Error sending message:', error)
+        console.error('❌ [REALTIME] Send error:', error.message)
         await supabase.from('messages')
             .update({ status: 'failed', error_message: error.message })
             .eq('id', message.id)
@@ -198,33 +115,17 @@ async function handlePendingMessage(context, message) {
     }
 }
 
-// ═══════════════════════════════════════════════════════════
-// HANDLER: Outbound message
-// ═══════════════════════════════════════════════════════════
 async function handleOutboundMessage(context, msg) {
     const { supabase, activeSessions } = context
-
-    // Idempotency check
-    if (processingOutbound.has(msg.id)) {
-        console.log(`⏭️ [REALTIME] Outbound ${msg.id} already processing, skipping`)
-        return
-    }
+    if (processingOutbound.has(msg.id)) return
     processingOutbound.add(msg.id)
 
     try {
         const session = activeSessions.get(msg.agent_id)
-        if (!session?.socket) {
-            console.log(`⚠️ [REALTIME] Agent ${msg.agent_id} offline for outbound`)
-            return
-        }
+        if (!session?.socket) return
 
         let jid = msg.recipient_phone
-        if (!jid.includes('@')) {
-            jid = jid.replace(/\D/g, '') + '@s.whatsapp.net'
-        }
-
-        console.log(`   📨 [OUTBOUND] Processing message for ${msg.recipient_phone}`)
-        console.log(`   📍 JID: ${jid}`)
+        if (!jid.includes('@')) jid = jid.replace(/\D/g, '') + '@s.whatsapp.net'
 
         await session.socket.sendMessage(jid, { text: msg.message_content })
 
@@ -232,10 +133,10 @@ async function handleOutboundMessage(context, msg) {
             .update({ status: 'sent', sent_at: new Date().toISOString() })
             .eq('id', msg.id)
 
-        console.log(`✅ [REALTIME] Outbound sent to ${msg.recipient_phone}`)
+        console.log(`✅ [REALTIME] Outbound delivered to ${msg.recipient_phone}`)
 
     } catch (error) {
-        console.error('❌ [REALTIME] Outbound error:', error)
+        console.error('❌ [REALTIME] Outbound error:', error.message)
         await supabase.from('outbound_messages')
             .update({ status: 'failed', error_log: error.message })
             .eq('id', msg.id)
@@ -244,25 +145,12 @@ async function handleOutboundMessage(context, msg) {
     }
 }
 
-/**
- * Nettoie les channels Realtime (pour graceful shutdown)
- * @param {Object} channels - Channels retournés par setupRealtimeListeners
- * @param {Object} supabase - Client Supabase
- */
-async function cleanupRealtimeListeners(channels, supabase) {
-    console.log('📴 Cleaning up Realtime listeners...')
-    if (channels && typeof channels === 'object') {
-        if (channels.messagesChannel) {
-            await supabase.removeChannel(channels.messagesChannel)
-        }
-        if (channels.outboundChannel) {
-            await supabase.removeChannel(channels.outboundChannel)
-        }
-        if (channels.agentsChannel) {
-            await supabase.removeChannel(channels.agentsChannel)
-        }
+async function cleanupRealtimeListeners(channel, supabase) {
+    console.log('📴 [REALTIME] Cleaning up...')
+    if (channel) {
+        await supabase.removeChannel(channel)
     }
-    console.log('✅ Realtime listeners cleaned up')
+    console.log('✅ [REALTIME] Done')
 }
 
 module.exports = { setupRealtimeListeners, cleanupRealtimeListeners }
