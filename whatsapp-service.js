@@ -26,13 +26,14 @@ const logger = pino({ level: process.env.LOG_LEVEL || 'info' })
 
 // Configuration des constantes
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY // Modified
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY  // Pour Realtime
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY
-const SESSION_BASE_DIR = process.env.WHATSAPP_SESSION_PATH || './.whatsapp-sessions' // Original line, kept for consistency
+const SESSION_BASE_DIR = process.env.WHATSAPP_SESSION_PATH || './.whatsapp-sessions'
 const CHECK_INTERVAL = 5000 // Check every 5 seconds
 
-if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-    console.error('❌ Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY')
+if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY || !SUPABASE_ANON_KEY) {
+    console.error('❌ Missing SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY')
     process.exit(1)
 }
 
@@ -57,38 +58,45 @@ const WSWrapper = class extends WebSocket {
     }
 }
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
+// ═══════════════════════════════════════════════════════════
+// CLIENT 1: supabaseAdmin - Pour opérations REST/RPC (service_role_key)
+// ═══════════════════════════════════════════════════════════
+const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
     auth: {
         persistSession: false,
-        autoRefreshToken: true,
+        autoRefreshToken: false,
         detectSessionInUrl: false
     },
     global: {
-        // Injecte le dispatcher personnalisé uniquement pour les requêtes REST NON-Realtime
-        // pour éviter de casser le handshake/sync de Realtime (Recommandation Kodee)
-        fetch: (url, opts = {}) => {
-            if (url.toString().includes('/realtime/v1/')) {
-                return fetch(url, opts) // Utilise le fetch natif de Node
-            }
-            return undiciFetch(url, { ...opts, dispatcher })
-        }
+        fetch: (url, opts = {}) => undiciFetch(url, { ...opts, dispatcher })
+    }
+    // PAS de config realtime ici
+})
+
+// ═══════════════════════════════════════════════════════════
+// CLIENT 2: supabaseRealtime - Pour subscriptions (anon_key)
+// ⚠️ service_role_key est REJETÉE par Realtime postgres_changes
+// ═══════════════════════════════════════════════════════════
+const supabaseRealtime = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false
     },
     realtime: {
-        WebSocket: WSWrapper, // Injecte le driver optimisé sans compression
-        // Forcer l'URL complète avec apikey en query param (Méthode Kodee-Direct)
-        // pour contourner les blocages d'en-têtes HTTP sur le VPS
-        realtimeUrl: `${SUPABASE_URL.replace('https://', 'wss://')}/realtime/v1/websocket?apikey=${encodeURIComponent(SUPABASE_SERVICE_KEY)}&vsn=1.0.0`,
-        params: {
-            eventsPerSecond: 10
-        },
-        timeout: 90000,
-        heartbeatIntervalMs: 15000
+        WebSocket: WSWrapper,
+        timeout: 120000,        // 120s (augmenté de 90s)
+        heartbeatIntervalMs: 30000  // 30s (augmenté de 15s)
     }
 })
 
-console.log(`🔑 Supabase Config Debug:`)
+// Alias pour compatibilité (code existant utilise 'supabase')
+const supabase = supabaseAdmin
+
+console.log(`🔑 Supabase Dual-Client Config:`)
 console.log(`   URL: ${SUPABASE_URL}`)
-console.log(`   Service Key: ${SUPABASE_SERVICE_KEY.substring(0, 10)}...${SUPABASE_SERVICE_KEY.substring(SUPABASE_SERVICE_KEY.length - 5)}`)
+console.log(`   Admin (REST): service_role_key (...${SUPABASE_SERVICE_KEY.slice(-8)})`)
+console.log(`   Realtime: anon_key (...${SUPABASE_ANON_KEY.slice(-8)})`)
 
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY })
 
@@ -111,7 +119,7 @@ async function checkAgents() {
             console.log(`🚀 Found ${connectingAgents.length} agents wanting to connect!`)
         }
 
-        const context = { supabase, activeSessions, pendingConnections, openai, CinetPay }
+        const context = { supabase, supabaseRealtime, activeSessions, pendingConnections, openai, CinetPay }
 
         for (const agent of connectingAgents || []) {
             if (!activeSessions.has(agent.id) && !pendingConnections.has(agent.id)) {
@@ -171,7 +179,9 @@ async function main() {
     await checkAgents()
 
     // Context for cron jobs and Realtime
-    const context = { supabase, activeSessions, pendingConnections, openai, CinetPay }
+    // - supabase (alias supabaseAdmin): pour les opérations DB
+    // - supabaseRealtime: pour les subscriptions Realtime
+    const context = { supabase, supabaseRealtime, activeSessions, pendingConnections, openai, CinetPay }
 
     // ═══════════════════════════════════════════════════════════
     // ⚡ REALTIME & ADAPTIVE POLLING

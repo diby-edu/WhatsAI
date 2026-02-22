@@ -1,6 +1,9 @@
 /**
  * Supabase Realtime Listeners
- * Version 1.0.3 - Consolidated Adaptive Solution
+ * Version 1.1.0 - Dual-Client Architecture (anon_key for Realtime)
+ *
+ * FIX CRITIQUE: Supabase Realtime REJETTE service_role_key pour postgres_changes
+ * Solution: Utiliser anon_key via supabaseRealtime, garder service_role pour DB ops
  */
 
 const processingMessages = new Set()
@@ -8,22 +11,25 @@ const processingOutbound = new Set()
 
 /**
  * Configure les listeners Realtime pour toutes les tables critiques via un CANAL UNIQUE
- * @param {Object} context - Context avec supabase, activeSessions, etc.
+ * @param {Object} context - Context avec supabase (admin), supabaseRealtime, activeSessions, etc.
  * @returns {Object} Channel unique créé
  */
 function setupRealtimeListeners(context) {
-    const { supabase, activeSessions, pendingConnections } = context
+    // supabaseRealtime = client avec anon_key (pour subscriptions)
+    // supabase = client avec service_role_key (pour DB operations)
+    const { supabaseRealtime, supabase, activeSessions, pendingConnections } = context
 
     // Initialiser l'état de connexion dans le contexte
     context.realtimeConnected = false
-    let reconnectAttempts = 0 // Initialize reconnectAttempts
+    let reconnectAttempts = 0
 
-    console.log(`📡 [REALTIME] Establishing consolidated channel 'whatsapp-updates'...`)
+    console.log(`📡 [REALTIME] Establishing channel with anon_key (required for postgres_changes)...`)
 
     // ═══════════════════════════════════════════════════════════
-    // CANAL UNIQUE : Réduit la charge de handshake sur le VPS
+    // CANAL UNIQUE avec supabaseRealtime (anon_key)
+    // ⚠️ service_role_key cause TIMED_OUT sur postgres_changes
     // ═══════════════════════════════════════════════════════════
-    const messagesChannel = supabase
+    const messagesChannel = supabaseRealtime
         .channel('whatsapp-updates', {
             config: {
                 presence: { key: 'bot' },
@@ -164,10 +170,10 @@ async function handleOutboundMessage(context, msg) {
     }
 }
 
-async function cleanupRealtimeListeners(channel, supabase) {
+async function cleanupRealtimeListeners(channel, supabaseRealtime) {
     console.log('📴 [REALTIME] Cleaning up...')
-    if (channel) {
-        await supabase.removeChannel(channel)
+    if (channel && supabaseRealtime) {
+        await supabaseRealtime.removeChannel(channel)
     }
     console.log('✅ [REALTIME] Done')
 }
