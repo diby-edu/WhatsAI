@@ -30,14 +30,26 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
     process.exit(1)
 }
 
+// ⭐ DISPATCHER EXPERT (Recommandation Support)
+// Gère le keep-alive TCP au niveau du système pour éviter les coupures réseau
+const dispatcher = new Agent({
+    connect: { timeout: 30000 },
+    keepAliveTimeout: 60000,
+    keepAliveMaxTimeout: 120000,
+})
+
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
     auth: {
         autoRefreshToken: true,
         persistSession: false
     },
+    global: {
+        // Injecte le dispatcher personnalisé dans toutes les requêtes Supabase
+        fetch: (url, opts = {}) => fetch(url, { ...opts, dispatcher })
+    },
     realtime: {
         timeout: 90000,      // Augmenté à 90s pour les réseaux VPS lents (Hostinger)
-        heartbeatIntervalMs: 3000, // Signal toutes les 3s (très agressif) pour garder le tunnel ouvert
+        heartbeatIntervalMs: 15000, // Signal toutes les 15s (optimisé selon support)
         params: {
             eventsPerSecond: 20
         }
