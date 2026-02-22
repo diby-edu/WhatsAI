@@ -75,10 +75,11 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
     },
     realtime: {
         WebSocket: WSWrapper, // Injecte le driver optimisé sans compression
+        // Forcer l'URL complète avec apikey en query param (Méthode Kodee-Direct)
+        // pour contourner les blocages d'en-têtes HTTP sur le VPS
+        realtimeUrl: `${SUPABASE_URL.replace('https://', 'wss://')}/realtime/v1/websocket?apikey=${encodeURIComponent(SUPABASE_SERVICE_KEY)}&vsn=1.0.0`,
         params: {
-            eventsPerSecond: 10,
-            apikey: SUPABASE_SERVICE_KEY,
-            vsn: '1.0.0'
+            eventsPerSecond: 10
         },
         timeout: 90000,
         heartbeatIntervalMs: 15000
