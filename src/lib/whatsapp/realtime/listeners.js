@@ -59,7 +59,10 @@ function setupRealtimeListeners(context) {
         )
         .subscribe((status, err) => {
             console.log(`📡 Messages channel status: ${status}`)
-            if (err) console.error('📡 Messages channel error:', err)
+            if (err) {
+                console.error('📡 Messages channel error:', err)
+                console.error('📡 Error details:', JSON.stringify(err, null, 2))
+            }
             if (status === 'TIMED_OUT' || status === 'CHANNEL_ERROR') {
                 console.log('⚠️ Messages channel failed, will retry via backup polling')
             }

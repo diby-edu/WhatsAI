@@ -30,7 +30,16 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
     process.exit(1)
 }
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
+    auth: {
+        autoRefreshToken: true,
+        persistSession: false
+    },
+    realtime: {
+        timeout: 30000 // 30 seconds to avoid TIMED_OUT on slower connections
+    }
+})
+
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY })
 
 // Store active sessions
