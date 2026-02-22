@@ -43,6 +43,7 @@ import { createClient } from '@/lib/supabase/client'
 
 const adminLinks = [
     { href: '/admin', label: 'Vue d\'ensemble', icon: Gauge },
+    { href: '/admin/notifications', label: 'Notifications', icon: Bell },
     { href: '/admin/users', label: 'Utilisateurs', icon: Users },
     { href: '/admin/agents', label: 'Agents IA', icon: Bot },
     { href: '/admin/conversations', label: 'Conversations', icon: MessagesSquare },
@@ -723,6 +724,23 @@ export default function AdminLayout({
                                                     ))
                                                 )}
                                             </div>
+                                            {/* Footer link */}
+                                            <Link
+                                                href="/admin/notifications"
+                                                onClick={() => setShowNotifications(false)}
+                                                style={{
+                                                    display: 'block',
+                                                    padding: '14px 20px',
+                                                    borderTop: '1px solid rgba(148, 163, 184, 0.1)',
+                                                    textAlign: 'center',
+                                                    color: '#10b981',
+                                                    fontSize: 13,
+                                                    fontWeight: 500,
+                                                    textDecoration: 'none'
+                                                }}
+                                            >
+                                                Voir toutes les notifications
+                                            </Link>
                                         </motion.div>
                                     )}
                                 </AnimatePresence>
