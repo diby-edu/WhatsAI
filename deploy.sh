@@ -89,21 +89,25 @@ BOT_HTTP=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 http://localhost:
 
 END_TIME=$(date +%s)
 DURATION=$((END_TIME - START_TIME))
+DURATION_MIN=$((DURATION / 60))
+DURATION_SEC=$((DURATION % 60))
 DISK_USAGE=$(df -h / | tail -1 | awk '{print $5}')
 MEM_USAGE=$(free | grep Mem | awk '{printf("%.0f%%", $3/$2 * 100)}')
+CPU_USAGE=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | cut -d'%' -f1)%
 
 echo ""
 echo "╔═══════════════════════════════════════════════════════════════╗"
 echo "║              ✅ DÉPLOIEMENT TERMINÉ                           ║"
 echo "╠═══════════════════════════════════════════════════════════════╣"
 printf "║  📌 Commit     : %-10s → %-27s ║\n" "$OLD_COMMIT" "$NEW_COMMIT"
-printf "║  ⏱️  Durée      : %-42s ║\n" "${DURATION} secondes"
+printf "║  ⏱️  Durée      : %dm %ds %-35s ║\n" "$DURATION_MIN" "$DURATION_SEC" ""
 echo "╠═══════════════════════════════════════════════════════════════╣"
 printf "║  🌐 Web        : %-8s (HTTP: %-3s)                       ║\n" "$WEB_STATUS" "$WEB_HTTP"
 printf "║  🤖 Bot        : %-8s (HTTP: %-3s)                       ║\n" "$BOT_STATUS" "$BOT_HTTP"
 echo "╠═══════════════════════════════════════════════════════════════╣"
 printf "║  💾 Disque     : %-42s ║\n" "$DISK_USAGE"
 printf "║  🧠 RAM        : %-42s ║\n" "$MEM_USAGE"
+printf "║  🔥 CPU        : %-42s ║\n" "$CPU_USAGE"
 echo "╚═══════════════════════════════════════════════════════════════╝"
 echo ""
 echo "🔗 Site: https://wazzapai.com"
