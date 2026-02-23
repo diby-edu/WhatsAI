@@ -1,40 +1,41 @@
 name: WhatsAI CI
 
 on:
-    push:
-        branches: ["master"]
-    pull_request:
-        branches: ["master"]
+  push:
+    branches: ["master"]
+  pull_request:
+    branches: ["master"]
 
 jobs:
-    build:
-        runs-on: ubuntu-latest
+  build:
+    runs-on: ubuntu-latest
 
-        steps:
-            - uses: actions/checkout@v4
+    steps:
+      - uses: actions/checkout@v4
 
-            - name: Use Node.js 20
-              uses: actions/setup-node@v4
-              with:
-                  node-version: 20
-                  cache: "npm"
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
 
-            - name: Install Dependencies
-              run: npm ci
+      - name: Install Dependencies
+        run: npm install --legacy-peer-deps
 
-            - name: Run Linter
-              run: npm run lint || true
-              # Allow lint warnings for now - legacy code has many warnings
-              # TODO: Fix lint warnings incrementally
+      - name: Run Linter
+        run: npm run lint || true
+        # Allow lint warnings for now - legacy code has many warnings
+        # TODO: Fix lint warnings incrementally
 
-            - name: Run Tests
-              # We only run the unit tests for now
-              run: npm test __tests__/unit/whatsapp/utils.test.js
+      - name: Run Tests
+        # We only run the unit tests for now
+        run: npm test __tests__/unit/whatsapp/utils.test.js
 
-            - name: Build Check
-              run: npm run build
-              env:
-                  # Dummy values for CI build - real values are on production server
-                  NEXT_PUBLIC_SUPABASE_URL: "https://placeholder.supabase.co"
-                  SUPABASE_SERVICE_ROLE_KEY: "placeholder-key-for-ci-build"
-                  OPENAI_API_KEY: "sk-placeholder"
+      - name: Build Check
+        run: npm run build
+        env:
+          # Dummy values for CI build - real values are on production server
+          NEXT_PUBLIC_SUPABASE_URL: "https://placeholder.supabase.co"
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: "placeholder-anon-key-for-ci-build"
+          SUPABASE_SERVICE_ROLE_KEY: "placeholder-key-for-ci-build"
+          OPENAI_API_KEY: "sk-placeholder"
