@@ -77,12 +77,47 @@ export default function LoginPage() {
 
     const handleGoogleLogin = async () => {
         const supabase = createClient()
-        await supabase.auth.signInWithOAuth({
-            provider: 'google',
-            options: {
-                redirectTo: `${window.location.origin}/auth/callback`,
-            },
-        })
+
+        // Détecter si on est sur mobile (Capacitor)
+        const isCapacitor = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform()
+
+        if (isCapacitor) {
+            try {
+                // Importation dynamique du plugin pour éviter les erreurs SSR/Web
+                const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth')
+
+                // 1. Authentification Google Native
+                const googleUser = await GoogleAuth.signIn()
+
+                if (googleUser?.authentication?.idToken) {
+                    setLoading(true)
+                    // 2. Transmettre le token ID à Supabase
+                    const { error } = await supabase.auth.signInWithIdToken({
+                        provider: 'google',
+                        token: googleUser.authentication.idToken,
+                    })
+
+                    if (error) throw error
+
+                    // Redirection après succès
+                    router.push('/dashboard')
+                    router.refresh()
+                }
+            } catch (err: any) {
+                console.error('Google Auth Native Error:', err)
+                setError('Erreur lors de la connexion Google sur mobile. Assurez-vous d\'être connecté à internet.')
+            } finally {
+                setLoading(false)
+            }
+        } else {
+            // Mode Web Classique
+            await supabase.auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                    redirectTo: `${window.location.origin}/auth/callback`,
+                },
+            })
+        }
     }
 
     return (

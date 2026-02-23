@@ -44,7 +44,8 @@ export default function AdminUsersPage() {
                     status: u.is_active !== false ? 'active' : 'suspended',
                     agents: u.agents_count || 0,
                     messages: u.messages_count || 0,
-                    created: u.created_at
+                    created: u.created_at,
+                    credits: u.credits_balance || 0
                 }))
                 setUsers(mappedUsers)
                 setMeta(data.meta)

@@ -38,6 +38,12 @@ const config: CapacitorConfig = {
     // Push Notifications
     PushNotifications: {
       presentationOptions: ['badge', 'sound', 'alert']
+    },
+    // Google Auth Natif
+    GoogleAuth: {
+      scopes: ['profile', 'email'],
+      serverClientId: '251013816130-dlngg2fmgeu8v3vjn53ngk6ptmb2up3t.apps.googleusercontent.com',
+      forceCodeForRefreshToken: true
     }
   }
 };

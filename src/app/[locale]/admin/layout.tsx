@@ -153,6 +153,13 @@ export default function AdminLayout({
         return () => clearInterval(interval)
     }, [])
 
+    const handleLogout = async () => {
+        const supabase = createClient()
+        await supabase.auth.signOut()
+        router.push('/login')
+        router.refresh()
+    }
+
     // Close notifications when clicking outside
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -228,15 +235,18 @@ export default function AdminLayout({
                         <span style={{ fontWeight: 700, color: 'white' }}>Admin</span>
                     </Link>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <button style={{
-                            padding: 8,
-                            borderRadius: 12,
-                            backgroundColor: '#1e293b',
-                            border: 'none',
-                            cursor: 'pointer',
-                            position: 'relative'
-                        }}>
-                            <Bell style={{ width: 20, height: 20, color: '#94a3b8' }} />
+                        <button
+                            onClick={() => setShowNotifications(!showNotifications)}
+                            style={{
+                                padding: 8,
+                                borderRadius: 12,
+                                backgroundColor: showNotifications ? 'rgba(16, 185, 129, 0.15)' : '#1e293b',
+                                border: 'none',
+                                cursor: 'pointer',
+                                position: 'relative'
+                            }}
+                        >
+                            <Bell style={{ width: 20, height: 20, color: showNotifications ? '#34d399' : '#94a3b8' }} />
                             {unreadCount > 0 && (
                                 <span style={{
                                     position: 'absolute',
@@ -346,6 +356,26 @@ export default function AdminLayout({
                                             </Link>
                                         )
                                     })}
+                                    <button
+                                        onClick={handleLogout}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 12,
+                                            padding: '14px 16px',
+                                            borderRadius: 12,
+                                            color: '#f87171',
+                                            fontWeight: 500,
+                                            backgroundColor: 'transparent',
+                                            border: 'none',
+                                            cursor: 'pointer',
+                                            marginTop: 12,
+                                            transition: 'all 0.2s ease'
+                                        }}
+                                    >
+                                        <LogOut style={{ width: 20, height: 20 }} />
+                                        <span>Déconnexion</span>
+                                    </button>
                                 </nav>
                             </div>
                         </motion.div>
@@ -444,26 +474,29 @@ export default function AdminLayout({
                         })}
                     </nav>
 
-                    {/* Footer */}
+                    {/* Footer - Logout Button */}
                     <div style={{ padding: 16, borderTop: '1px solid rgba(148, 163, 184, 0.1)' }}>
-                        <Link
-                            href="/"
+                        <button
+                            onClick={handleLogout}
                             style={{
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: 12,
+                                width: '100%',
                                 padding: collapsed ? '14px' : '14px 16px',
                                 borderRadius: 12,
                                 color: '#f87171',
                                 fontWeight: 500,
-                                textDecoration: 'none',
+                                backgroundColor: 'transparent',
+                                border: 'none',
+                                cursor: 'pointer',
                                 justifyContent: collapsed ? 'center' : 'flex-start',
                                 transition: 'all 0.2s ease'
                             }}
                         >
                             <LogOut style={{ width: 20, height: 20, flexShrink: 0 }} />
-                            {!collapsed && <span>Retour au site</span>}
-                        </Link>
+                            {!collapsed && <span>Déconnexion</span>}
+                        </button>
                     </div>
                 </aside>
             )}
