@@ -4,5 +4,6 @@
     <string name="title_activity_main">WazzapAI</string>
     <string name="package_name">com.wazzapai.app</string>
     <string name="custom_url_scheme">com.wazzapai.app</string>
+    <string name="server_client_id">519109526767-1rfcfigbutf9217uuc69fosqjp6mis05.apps.googleusercontent.com</string>
 </resources>
 
