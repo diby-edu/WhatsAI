@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Animated Splash Icon for WhatsAI
+    - Dots bounce sequentially (typing indicator effect)
+    - Purple AI dot pulses
+    - Only used on Android 12+ (values-v31 theme)
+-->
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt">
+
+    <!-- Base vector drawable -->
+    <aapt:attr name="android:drawable">
+        <vector
+            android:width="108dp"
+            android:height="108dp"
+            android:viewportWidth="108"
+            android:viewportHeight="108">
+
+            <!-- Chat bubble (static) -->
+            <path
+                android:name="bubble"
+                android:fillColor="#FFFFFF"
+                android:pathData="M54,24 C38.5,24 26,35.2 26,49 C26,55.2 28.8,60.8 33.5,65 L33.5,80 L47.5,72.4 C49.6,72.8 51.8,73 54,73 C69.5,73 82,61.8 82,48 C82,34.2 69.5,24 54,24 Z"/>
+
+            <!-- Dot 1 (left) - animated bounce -->
+            <group android:name="dot1_group"
+                android:pivotX="42"
+                android:pivotY="48">
+                <path
+                    android:fillColor="#10b981"
+                    android:pathData="M42,44 a4,4 0 1,0 0,8 a4,4 0 1,0 0,-8"/>
+            </group>
+
+            <!-- Dot 2 (center) - animated bounce -->
+            <group android:name="dot2_group"
+                android:pivotX="54"
+                android:pivotY="48">
+                <path
+                    android:fillColor="#10b981"
+                    android:pathData="M54,44 a4,4 0 1,0 0,8 a4,4 0 1,0 0,-8"/>
+            </group>
+
+            <!-- Dot 3 (right) - animated bounce -->
+            <group android:name="dot3_group"
+                android:pivotX="66"
+                android:pivotY="48">
+                <path
+                    android:fillColor="#10b981"
+                    android:pathData="M66,44 a4,4 0 1,0 0,8 a4,4 0 1,0 0,-8"/>
+            </group>
+
+            <!-- AI purple dot - animated pulse -->
+            <group android:name="ai_dot_group"
+                android:pivotX="78"
+                android:pivotY="28">
+                <path
+                    android:fillColor="#a855f7"
+                    android:pathData="M78,20 a8,8 0 1,0 0,16 a8,8 0 1,0 0,-16"/>
+            </group>
+
+        </vector>
+    </aapt:attr>
+
+    <!-- ═══ Dot 1: Bounce up (no delay) ═══ -->
+    <target android:name="dot1_group">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="translateY"
+                android:valueFrom="0"
+                android:valueTo="-4"
+                android:valueType="floatType"
+                android:duration="350"
+                android:startOffset="0"
+                android:repeatCount="-1"
+                android:repeatMode="reverse"
+                android:interpolator="@android:interpolator/accelerate_decelerate"/>
+        </aapt:attr>
+    </target>
+
+    <!-- ═══ Dot 2: Bounce up (150ms delay) ═══ -->
+    <target android:name="dot2_group">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="translateY"
+                android:valueFrom="0"
+                android:valueTo="-4"
+                android:valueType="floatType"
+                android:duration="350"
+                android:startOffset="150"
+                android:repeatCount="-1"
+                android:repeatMode="reverse"
+                android:interpolator="@android:interpolator/accelerate_decelerate"/>
+        </aapt:attr>
+    </target>
+
+    <!-- ═══ Dot 3: Bounce up (300ms delay) ═══ -->
+    <target android:name="dot3_group">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="translateY"
+                android:valueFrom="0"
+                android:valueTo="-4"
+                android:valueType="floatType"
+                android:duration="350"
+                android:startOffset="300"
+                android:repeatCount="-1"
+                android:repeatMode="reverse"
+                android:interpolator="@android:interpolator/accelerate_decelerate"/>
+        </aapt:attr>
+    </target>
+
+    <!-- ═══ AI Dot: Pulse (scale) ═══ -->
+    <target android:name="ai_dot_group">
+        <aapt:attr name="android:animation">
+            <set>
+                <objectAnimator
+                    android:propertyName="scaleX"
+                    android:valueFrom="1"
+                    android:valueTo="1.3"
+                    android:valueType="floatType"
+                    android:duration="600"
+                    android:repeatCount="-1"
+                    android:repeatMode="reverse"
+                    android:interpolator="@android:interpolator/accelerate_decelerate"/>
+                <objectAnimator
+                    android:propertyName="scaleY"
+                    android:valueFrom="1"
+                    android:valueTo="1.3"
+                    android:valueType="floatType"
+                    android:duration="600"
+                    android:repeatCount="-1"
+                    android:repeatMode="reverse"
+                    android:interpolator="@android:interpolator/accelerate_decelerate"/>
+            </set>
+        </aapt:attr>
+    </target>
+
+</animated-vector>
