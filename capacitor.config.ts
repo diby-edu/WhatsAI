@@ -42,7 +42,7 @@ const config: CapacitorConfig = {
     // Google Auth Natif
     GoogleAuth: {
       scopes: ['profile', 'email'],
-      serverClientId: '251013816130-dlngg2fmgeu8v3vjn53ngk6ptmb2up3t.apps.googleusercontent.com',
+      serverClientId: '519109526767-1rfcfigbutf9217uuc69fosqjp6mis05.apps.googleusercontent.com',
       forceCodeForRefreshToken: true
     }
   }

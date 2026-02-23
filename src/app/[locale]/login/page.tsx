@@ -86,7 +86,14 @@ export default function LoginPage() {
                 // Importation dynamique du plugin pour éviter les erreurs SSR/Web
                 const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth')
 
-                // 1. Authentification Google Native
+                // 1. INITIALISER le plugin (OBLIGATOIRE avant signIn)
+                await GoogleAuth.initialize({
+                    clientId: '519109526767-1rfcfigbutf9217uuc69fosqjp6mis05.apps.googleusercontent.com',
+                    scopes: ['profile', 'email'],
+                    grantOfflineAccess: true
+                })
+
+                // 2. Authentification Google Native
                 const googleUser = await GoogleAuth.signIn()
 
                 if (googleUser?.authentication?.idToken) {
