@@ -56,7 +56,6 @@ export default function NewAgentPage() {
         voiceId: 'alloy',
         // NEW FIELDS
         business_address: '',
-        business_address: '',
         // contact_phone removed
         escalation_phone: '',
         site_url: '',
@@ -354,7 +353,7 @@ Règles:
                     structured_data: {
                         address: formData.business_address,
                         hours: formData.business_hours,
-                        phone: formData.contact_phone,
+                        phone: formData.escalation_phone,
                         location: (formData.latitude && formData.longitude)
                             ? `${formData.latitude}, ${formData.longitude}`
                             : 'Non défini'
@@ -403,7 +402,6 @@ Règles:
                     voice_id: formData.voiceId,
                     // New Fields
                     business_address: formData.business_address,
-                    business_address: formData.business_address,
                     // contact_phone removed
                     escalation_phone: formData.escalation_phone,
                     site_url: formData.site_url,
@@ -421,9 +419,6 @@ Règles:
             })
 
             const data = await response.json()
-
-            // DEBUG: Log the full response to understand structure
-            console.log('[DEBUG] Agent creation response:', JSON.stringify(data, null, 2))
 
             if (!response.ok) {
                 throw new Error(data.error || 'Erreur lors de la création')
@@ -444,8 +439,6 @@ Règles:
                 // In case the agent is returned at root level
                 agent = data
             }
-
-            console.log('[DEBUG] Extracted agent:', agent)
 
             if (!agent || !agent.id) {
                 console.error('[ERROR] Agent extraction failed. Full response:', data)
@@ -523,8 +516,6 @@ Règles:
     useEffect(() => {
         if (whatsappStatus !== 'qr_ready' || !createdAgent) return
 
-        console.log('[DEBUG] Starting connection polling...')
-
         const interval = setInterval(async () => {
             try {
                 const response = await fetch(`/api/whatsapp/connect?agentId=${createdAgent.id}`)
@@ -535,15 +526,11 @@ Règles:
                 const newQrCode = data.data?.qrCode || data.qrCode
                 const phoneNumber = data.data?.phoneNumber || data.phoneNumber
 
-                console.log('[DEBUG] Poll result - status:', status, 'hasQR:', !!newQrCode)
-
                 if (status === 'connected') {
-                    console.log('[DEBUG] Connected! Phone:', phoneNumber)
                     setWhatsappStatus('connected')
                     setConnectedPhone(phoneNumber || '')
                     clearInterval(interval)
                 } else if (newQrCode && newQrCode !== qrCode) {
-                    console.log('[DEBUG] New QR code received')
                     setQrCode(newQrCode)
                 }
             } catch (err) {

@@ -28,27 +28,31 @@ export function BiometricLock({ children }: { children: React.ReactNode }) {
         const isCapacitor = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform()
         if (!isCapacitor || !isEnabled) return
 
+        let listenerHandle: any = null
+
         const setupAppResumeListener = async () => {
             try {
                 const { App } = await import('@capacitor/app')
 
-                const listener = App.addListener('appStateChange', async ({ isActive }) => {
+                listenerHandle = await App.addListener('appStateChange', async ({ isActive }) => {
                     if (isActive && isEnabled) {
                         // App came back to foreground, re-authenticate
                         setShowLock(true)
                         handleAuthenticate()
                     }
                 })
-
-                return () => {
-                    listener.remove()
-                }
-            } catch (error) {
-                console.log('App state listener not available')
+            } catch {
+                // App state listener not available in web
             }
         }
 
         setupAppResumeListener()
+
+        return () => {
+            if (listenerHandle) {
+                listenerHandle.remove()
+            }
+        }
     }, [isEnabled])
 
     const handleAuthenticate = async () => {

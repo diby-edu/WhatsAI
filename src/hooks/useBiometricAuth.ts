@@ -12,6 +12,8 @@ interface BiometricState {
 }
 
 const BIOMETRIC_ENABLED_KEY = 'wazzapai_biometric_enabled'
+const AUTH_SESSION_KEY = 'wazzapai_biometric_session'
+const SESSION_TIMEOUT = 30 * 60 * 1000 // 30 minutes
 
 export function useBiometricAuth() {
     const [state, setState] = useState<BiometricState>({
@@ -41,33 +43,39 @@ export function useBiometricAuth() {
                 // Get saved preference
                 const enabled = localStorage.getItem(BIOMETRIC_ENABLED_KEY) === 'true'
 
-                // Determine biometric type
+                // Check for existing valid session
+                let isAlreadyAuthenticated = false
+                const sessionData = localStorage.getItem(AUTH_SESSION_KEY)
+                if (sessionData) {
+                    try {
+                        const { timestamp } = JSON.parse(sessionData)
+                        if (Date.now() - timestamp < SESSION_TIMEOUT) {
+                            isAlreadyAuthenticated = true
+                        } else {
+                            // Session expired, remove it
+                            localStorage.removeItem(AUTH_SESSION_KEY)
+                        }
+                    } catch {
+                        localStorage.removeItem(AUTH_SESSION_KEY)
+                    }
+                }
+
+                // Determine biometric type - use generic for better UX
                 let biometricType: BiometricType = 'none'
                 if (result.isAvailable) {
                     // BiometryType: 1 = Touch ID/Fingerprint, 2 = Face ID, 3 = Iris
-                    switch (result.biometryType) {
-                        case 1:
-                            biometricType = 'fingerprint'
-                            break
-                        case 2:
-                            biometricType = 'face'
-                            break
-                        case 3:
-                            biometricType = 'iris'
-                            break
-                        default:
-                            biometricType = 'fingerprint' // Default to fingerprint
-                    }
+                    // Default to fingerprint for better label display
+                    biometricType = 'fingerprint'
                 }
 
                 setState({
                     isAvailable: result.isAvailable,
                     isEnabled: enabled && result.isAvailable,
                     biometricType,
-                    isAuthenticated: false
+                    isAuthenticated: isAlreadyAuthenticated
                 })
             } catch (error) {
-                console.log('Biometric not available:', error)
+                // Silent fail for biometric
             } finally {
                 setLoading(false)
             }
@@ -90,11 +98,13 @@ export function useBiometricAuth() {
             await NativeBiometric.verifyIdentity({
                 reason: 'Déverrouillez WazzapAI',
                 title: 'Authentification',
-                subtitle: 'Utilisez votre empreinte digitale',
-                description: 'Placez votre doigt sur le capteur',
+                subtitle: 'Authentification biométrique',
+                description: 'Utilisez votre empreinte ou reconnaissance faciale',
                 negativeButtonText: 'Annuler'
             })
 
+            // Save session to localStorage
+            localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify({ timestamp: Date.now() }))
             setState(prev => ({ ...prev, isAuthenticated: true }))
             return true
         } catch (error: any) {
@@ -120,21 +130,14 @@ export function useBiometricAuth() {
     // Disable biometric authentication
     const disableBiometric = useCallback(() => {
         localStorage.removeItem(BIOMETRIC_ENABLED_KEY)
-        setState(prev => ({ ...prev, isEnabled: false }))
+        localStorage.removeItem(AUTH_SESSION_KEY)
+        setState(prev => ({ ...prev, isEnabled: false, isAuthenticated: false }))
     }, [])
 
-    // Get biometric type label in French
+    // Get biometric type label in French - use generic label for better UX
     const getBiometricLabel = useCallback((): string => {
-        switch (state.biometricType) {
-            case 'fingerprint':
-                return 'Empreinte digitale'
-            case 'face':
-                return 'Reconnaissance faciale'
-            case 'iris':
-                return 'Scanner d\'iris'
-            default:
-                return 'Biométrie'
-        }
+        if (state.biometricType === 'none') return 'Biométrie'
+        return 'Authentification biométrique'
     }, [state.biometricType])
 
     return {

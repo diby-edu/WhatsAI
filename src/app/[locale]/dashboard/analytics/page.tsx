@@ -147,7 +147,7 @@ export default function AnalyticsPage() {
                                     <Tooltip
                                         contentStyle={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 12 }}
                                         itemStyle={{ color: 'white' }}
-                                        formatter={(value: number) => [formatFCFA(value), 'Ventes']}
+                                        formatter={(value) => [formatFCFA(value as number || 0), 'Ventes']}
                                     />
                                     <Bar dataKey="sales" fill="#10b981" radius={[4, 4, 0, 0]} />
                                 </BarChart>

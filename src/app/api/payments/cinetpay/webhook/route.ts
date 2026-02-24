@@ -41,16 +41,7 @@ function verifySignature(payload: string, signature: string): boolean {
 }
 
 export async function POST(request: NextRequest) {
-    // ═══════════════════════════════════════════════════════════════
-    // 🔍 DEBUG: Log EVERYTHING at the start to diagnose webhook issues
-    // ═══════════════════════════════════════════════════════════════
-    console.log('═══════════════════════════════════════════════════════')
-    console.log('📩 CinetPay Webhook called at:', new Date().toISOString())
-    console.log('📍 Request URL:', request.url)
-    console.log('📋 Headers:', JSON.stringify(Object.fromEntries(request.headers.entries())))
-
     try {
-        console.log('📩 Processing webhook...')
 
         // CinetPay webhook fields (per official documentation)
         let cpm_site_id = ''
@@ -130,18 +121,13 @@ export async function POST(request: NextRequest) {
             cpm_error_message = params.get('cpm_error_message') || ''
         }
 
-        console.log('📋 Webhook data - trans_id:', cpm_trans_id, 'site_id:', cpm_site_id, 'amount:', cpm_amount)
-
         if (!cpm_trans_id) {
             console.error('❌ No transaction ID received')
             return new Response('Missing cpm_trans_id', { status: 400 })
         }
 
-        // SECURITY: Verify HMAC signature from x-token header (Official CinetPay format)
-        // Payload = ALL 16 fields concatenated in order per documentation
+        // SECURITY: Verify HMAC signature from x-token header
         const xToken = request.headers.get('x-token')
-        console.log('🔐 x-token present:', !!xToken)
-        console.log('🔐 CINETPAY_SECRET_KEY configured:', !!process.env.CINETPAY_SECRET_KEY)
 
         if (xToken && process.env.CINETPAY_SECRET_KEY) {
             // Official CinetPay HMAC format: concatenate all 16 fields
@@ -151,33 +137,21 @@ export async function POST(request: NextRequest) {
                 cpm_custom + cpm_designation + cpm_error_message
 
             if (!verifySignature(signaturePayload, xToken)) {
-                console.error('❌ SECURITY: Invalid HMAC signature! Rejecting webhook.')
-                console.error('   x-token received:', xToken.substring(0, 20) + '...')
-                console.error('   payload used:', signaturePayload.substring(0, 50) + '...')
                 return new Response('Invalid signature', { status: 403 })
             }
-            console.log('✅ HMAC Signature verified successfully')
         } else if (!xToken) {
-            // 🔴 SECURITY: Reject webhooks without signature
-            console.error('❌ SECURITY: Missing x-token header - rejecting webhook')
-            console.error('   All CinetPay webhooks MUST include x-token for HMAC verification')
             return new Response('Missing x-token', { status: 403 })
         } else if (xToken && !process.env.CINETPAY_SECRET_KEY) {
-            // 🔴 SECURITY: Reject if we can't verify
-            console.error('❌ SECURITY: x-token received but CINETPAY_SECRET_KEY not configured')
-            console.error('   Configure CINETPAY_SECRET_KEY in .env.local to verify webhooks')
             return new Response('Server not configured for signature verification', { status: 500 })
         }
 
         // Verify site_id matches our configuration
         if (cpm_site_id && cpm_site_id !== process.env.CINETPAY_SITE_ID) {
-            console.error('❌ Invalid site_id:', cpm_site_id, 'expected:', process.env.CINETPAY_SITE_ID)
             return new Response('Invalid site_id', { status: 400 })
         }
 
         // First, check if this is an ORDER payment (transaction_id starts with ORD_)
         if (cpm_trans_id.startsWith('ORD_')) {
-            console.log('📦 This is an ORDER payment, checking orders table...')
 
             const { data: order, error: _orderError } = await getSupabase()
                 .from('orders')
@@ -186,17 +160,13 @@ export async function POST(request: NextRequest) {
                 .single()
 
             if (order) {
-                console.log('✅ Found order:', order.id, 'status:', order.status)
-
                 // IDEMPOTENCY CHECK: If already paid, stop here
                 if (order.status === 'paid' || order.status === 'completed') {
-                    console.log('🛑 Order already paid/completed. Ignoring duplicate webhook.')
                     return new Response('OK', { status: 200 })
                 }
 
                 // Verify with CinetPay API
                 const cinetpayStatus = await checkPaymentStatus(cpm_trans_id)
-                console.log('📡 CinetPay API response:', JSON.stringify(cinetpayStatus))
 
                 if (cinetpayStatus.status === 'ACCEPTED') {
                     // Update order status to paid
@@ -204,10 +174,7 @@ export async function POST(request: NextRequest) {
                         status: 'paid'
                     }).eq('id', order.id)
 
-                    if (updateError) {
-                        console.error('❌ Failed to update order:', updateError)
-                    } else {
-                        console.log('✅ Order marked as PAID!')
+                    if (!updateError) {
 
                         // Send WhatsApp notification to client
                         try {
@@ -240,11 +207,6 @@ export async function POST(request: NextRequest) {
                                 conversation = softConv
                             }
 
-                            console.log('🔍 Conversation lookup result:', conversation ? 'FOUND' : 'NOT FOUND')
-                            console.log('   order.conversation_id:', conversationId)
-                            console.log('   order.agent_id:', order.agent_id)
-                            console.log('   order.customer_phone:', order.customer_phone)
-
                             let messageInsertedSuccessfully = false
 
                             if (conversation) {
@@ -261,8 +223,7 @@ export async function POST(request: NextRequest) {
                                 }
 
                                 if (resolvedAgentId) {
-                                    // CASE 1: Conversation exists -> Insert into history (Smart)
-                                    console.log('📝 Inserting message into messages table...')
+                                    // CASE 1: Conversation exists -> Insert into history
                                     const { data: insertedMsg, error: insertErr } = await getSupabase().from('messages').insert({
                                         conversation_id: conversation.id,
                                         agent_id: resolvedAgentId,

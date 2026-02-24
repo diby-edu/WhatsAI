@@ -13,7 +13,7 @@ const config: CapacitorConfig = {
     // Enable hardware acceleration for smooth scrolling
     allowMixedContent: true,
     captureInput: true,
-    webContentsDebuggingEnabled: true, // Enable for debugging - set to false in production
+    webContentsDebuggingEnabled: false, // DISABLED for production security
     // Better scroll behavior
     overrideUserAgent: 'WazzapAI Android App',
     backgroundColor: '#0f172a'

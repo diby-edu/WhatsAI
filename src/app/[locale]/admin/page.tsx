@@ -48,6 +48,15 @@ export default function AdminDashboard() {
     const [systemStatus, setSystemStatus] = useState<SystemService[]>([])
     const [loading, setLoading] = useState(true)
     const [checkingSystem, setCheckingSystem] = useState(false)
+    const [isMobile, setIsMobile] = useState(false)
+
+    // Detect mobile for responsive layout
+    useEffect(() => {
+        const checkMobile = () => setIsMobile(window.innerWidth < 768)
+        checkMobile()
+        window.addEventListener('resize', checkMobile)
+        return () => window.removeEventListener('resize', checkMobile)
+    }, [])
 
     useEffect(() => {
         fetchDashboardData()
@@ -164,7 +173,7 @@ export default function AdminDashboard() {
             </div>
 
             {/* Primary KPIs - 4 cards (responsive) */}
-            <div className="kpi-grid">
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)', gap: 12 }}>
                 <KPICard icon={Users} label="Utilisateurs" value={s.totalUsers} subValue={`+${s.newUsersToday || 0} aujourd'hui`} color="#3b82f6" trend={s.userGrowth} />
                 <KPICard icon={DollarSign} label="Revenus Plateforme" value={s.platformRevenue || 0} subValue="FCFA ce mois" color="#10b981" isCurrency />
                 <KPICard icon={TrendingUp} label="Taux Conversion" value={s.conversionRate || 0} subValue={`${s.paidUsers || 0} utilisateurs payants`} color="#f59e0b" isPercent />
@@ -172,7 +181,7 @@ export default function AdminDashboard() {
             </div>
 
             {/* Secondary KPIs - 4 cards (responsive) */}
-            <div className="kpi-grid">
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)', gap: 12 }}>
                 <KPICard icon={Bot} label="Agents IA" value={s.totalAgents} subValue={`${s.connectedAgents || 0} connectés`} color="#8b5cf6" />
                 <KPICard icon={MessageSquare} label="Messages" value={s.totalMessages} subValue={`+${s.messagesToday || 0} aujourd'hui`} color="#06b6d4" />
                 <KPICard icon={ShoppingCart} label="Commandes" value={s.totalOrders || 0} subValue={`${s.pendingOrders || 0} en attente`} color="#14b8a6" />
@@ -180,7 +189,7 @@ export default function AdminDashboard() {
             </div>
 
             {/* Tertiary KPIs - 4 cards (responsive) */}
-            <div className="kpi-grid">
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)', gap: 12 }}>
                 <KPICard icon={UserPlus} label="Actifs (30j)" value={s.activeUsers || 0} subValue={`${s.totalUsers > 0 ? Math.round((s.activeUsers / s.totalUsers) * 100) : 0}% du total`} color="#6366f1" />
                 <KPICard icon={Phone} label="Conversations" value={s.totalConversations || 0} subValue={`+${s.conversationsToday || 0} aujourd'hui`} color="#0ea5e9" />
                 <KPICard icon={Zap} label="Crédits Utilisés" value={s.totalCreditsUsed || 0} subValue={`~${s.avgCreditsPerUser || 0}/user`} color="#f43f5e" />
@@ -188,7 +197,7 @@ export default function AdminDashboard() {
             </div>
 
             {/* Two Columns Layout (responsive) */}
-            <div className="two-col-grid">
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr', gap: 16 }}>
                 {/* Recent Users */}
                 <div style={{
                     background: 'rgba(30, 41, 59, 0.5)',
