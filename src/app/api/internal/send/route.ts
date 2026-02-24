@@ -20,11 +20,10 @@ export async function POST(request: NextRequest) {
         const body = await request.json()
         const { agentId, to, message, secretKey } = body
 
-        // Verify internal secret
-        const expectedSecret = process.env.INTERNAL_API_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY?.substring(0, 20)
-        if (secretKey !== expectedSecret) {
-            // Try without secret for backward compatibility
-            console.log('⚠️ Internal send called without secret, proceeding anyway')
+        // Verify internal secret - MANDATORY
+        const expectedSecret = process.env.INTERNAL_API_SECRET
+        if (!expectedSecret || secretKey !== expectedSecret) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
         if (!agentId || !to || !message) {

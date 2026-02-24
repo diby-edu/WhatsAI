@@ -62,10 +62,12 @@ function isRateLimited(contactId) {
 
     rateLimitMap.set(contactId, record)
 
-    // 🔒 SECURITÉ DOS MEMOIRE : Max 5000 entrées
+    // 🔒 SECURITÉ DOS MEMOIRE : Max 5000 entrées - supprimer les plus anciennes
     if (rateLimitMap.size > 5000) {
-        console.warn('⚠️ Rate limit map full, clearing to prevent DoS')
-        rateLimitMap.clear()
+        const entries = Array.from(rateLimitMap.entries())
+        entries.sort((a, b) => a[1].windowStart - b[1].windowStart)
+        // Remove oldest 1000 entries
+        entries.slice(0, 1000).forEach(([key]) => rateLimitMap.delete(key))
     }
 
     if (record.count > RATE_LIMIT.maxMessages) {

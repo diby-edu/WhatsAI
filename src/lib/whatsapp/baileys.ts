@@ -33,8 +33,9 @@ export interface WhatsAppMessage {
     rawMessage?: any
 }
 
-// Store active sessions
+// Store active sessions with a maximum limit to prevent memory leaks
 const activeSessions: Map<string, WhatsAppSession> = new Map()
+const MAX_ACTIVE_SESSIONS = 100 // Limit to prevent memory exhaustion
 
 // Logger configuration
 const logger = pino({
@@ -81,6 +82,16 @@ export async function initWhatsAppSession(
 ): Promise<{ qrCode?: string; linkingCode?: string; status: string }> {
     // Close existing session if any
     await closeWhatsAppSession(agentId)
+
+    // Enforce session limit to prevent memory exhaustion
+    if (activeSessions.size >= MAX_ACTIVE_SESSIONS) {
+        // Close oldest sessions to make room
+        const sessionsToClose = activeSessions.size - MAX_ACTIVE_SESSIONS + 1
+        const oldestAgentIds = Array.from(activeSessions.keys()).slice(0, sessionsToClose)
+        for (const oldAgentId of oldestAgentIds) {
+            await closeWhatsAppSession(oldAgentId)
+        }
+    }
 
     const sessionDir = ensureSessionDir(agentId)
     const { state, saveCreds } = await useMultiFileAuthState(sessionDir)

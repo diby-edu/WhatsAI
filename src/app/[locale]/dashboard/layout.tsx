@@ -270,11 +270,20 @@ export default function DashboardLayout({
         if (isCapacitor) {
             try {
                 const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth')
+                // IMPORTANT: Initialize before signOut to ensure plugin is ready
+                await GoogleAuth.initialize({
+                    clientId: '519109526767-1rfcfigbutf9217uuc69fosqjp6mis05.apps.googleusercontent.com',
+                    scopes: ['profile', 'email'],
+                    grantOfflineAccess: true
+                })
                 await GoogleAuth.signOut()
             } catch (e) {
                 // Ignorer si pas de session Google
             }
         }
+
+        // Clear biometric session
+        localStorage.removeItem('wazzapai_biometric_session')
 
         await supabase.auth.signOut()
         router.push('/login')

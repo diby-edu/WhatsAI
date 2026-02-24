@@ -167,7 +167,10 @@ export function verifyWebhookSignature(
     payload: string,
     signature: string
 ): boolean {
-    if (!CINETPAY_SECRET_KEY) return true // Skip verification in development
+    if (!CINETPAY_SECRET_KEY) {
+        console.error('CINETPAY_SECRET_KEY missing - rejecting webhook for security')
+        return false // REJECT unsigned webhooks
+    }
 
     const expectedSignature = crypto
         .createHmac('sha256', CINETPAY_SECRET_KEY)

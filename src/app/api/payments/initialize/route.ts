@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
 
     // Rate limiting for payment endpoints (strict: 5 req/min)
     const identifier = getClientIdentifier(request, user!.id)
-    const rateLimit = checkRateLimit(identifier, RATE_LIMITS.payment)
+    const rateLimit = await checkRateLimit(identifier, RATE_LIMITS.payment)
 
     if (!rateLimit.success) {
         return rateLimitResponse(rateLimit.resetTime)

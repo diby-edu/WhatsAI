@@ -26,6 +26,7 @@ interface Order {
     created_at: string
     items_count: number
     items?: {
+        product_name?: string
         product?: {
             product_type: string
         }

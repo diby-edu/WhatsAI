@@ -7,9 +7,9 @@ const nextConfig: NextConfig = {
   reactCompiler: true,
   // Baileys requires Node.js specific features - server only
   serverExternalPackages: ['@whiskeysockets/baileys', 'pino', 'pino-pretty'],
-  // Skip TypeScript errors during build
+  // TypeScript checking enabled for security
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
 };
 

@@ -23,15 +23,21 @@ export function useAndroidBackButton() {
                 const { App } = await import('@capacitor/app')
 
                 backButtonHandler = App.addListener('backButton', ({ canGoBack }) => {
-                    // Root pages - ask to exit or go to dashboard
-                    const rootPages = ['/login', '/register', '/dashboard', '/admin']
-                    const isRootPage = rootPages.some(p => pathname === p || pathname.endsWith(p))
+                    // EXACT root pages only (with locale support)
+                    const exactRootPages = [
+                        '/login', '/register', '/dashboard', '/admin',
+                        '/fr/login', '/fr/register', '/fr/dashboard', '/fr/admin',
+                        '/en/login', '/en/register', '/en/dashboard', '/en/admin'
+                    ]
 
-                    if (isRootPage) {
+                    // Check EXACT match only
+                    const isExactRootPage = exactRootPages.includes(pathname)
+
+                    if (isExactRootPage) {
                         // On root dashboard/admin, minimize app
-                        if (pathname.includes('/dashboard') || pathname.includes('/admin')) {
+                        if (pathname.endsWith('/dashboard') || pathname.endsWith('/admin')) {
                             App.minimizeApp()
-                        } else if (pathname.includes('/login') || pathname.includes('/register')) {
+                        } else {
                             // On login/register, exit app
                             App.exitApp()
                         }
@@ -39,8 +45,9 @@ export function useAndroidBackButton() {
                         // Can go back in browser history
                         router.back()
                     } else {
-                        // Go to dashboard as fallback
-                        router.push('/dashboard')
+                        // Go to dashboard as fallback (with locale)
+                        const locale = pathname.startsWith('/en') ? 'en' : 'fr'
+                        router.push(`/${locale}/dashboard`)
                     }
                 })
             } catch (error) {

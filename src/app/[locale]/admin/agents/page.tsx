@@ -13,6 +13,7 @@ export default function AdminAgentsPage() {
     const [searchQuery, setSearchQuery] = useState('')
     const [actionLoading, setActionLoading] = useState<string | null>(null)
     const [viewAgent, setViewAgent] = useState<any>(null)
+    const [error, setError] = useState<string | null>(null)
 
     useEffect(() => { fetchAgents() }, [])
 
@@ -39,6 +40,7 @@ export default function AdminAgentsPage() {
 
     const toggleAgent = async (id: string) => {
         setActionLoading(id)
+        setError(null)
         try {
             const res = await fetch(`/api/admin/agents/${id}`, {
                 method: 'PATCH',
@@ -46,16 +48,21 @@ export default function AdminAgentsPage() {
                 body: JSON.stringify({ action: 'toggle' })
             })
             if ((await res.json()).success) await fetchAgents()
-        } catch { } finally { setActionLoading(null) }
+        } catch {
+            setError('Erreur lors de la modification de l\'agent')
+        } finally { setActionLoading(null) }
     }
 
     const deleteAgent = async (id: string, name: string) => {
         if (!confirm(`Supprimer définitivement l'agent "${name}" ?`)) return
         setActionLoading(id)
+        setError(null)
         try {
             const res = await fetch(`/api/admin/agents/${id}`, { method: 'DELETE' })
             if ((await res.json()).success) await fetchAgents()
-        } catch { } finally { setActionLoading(null) }
+        } catch {
+            setError('Erreur lors de la suppression de l\'agent')
+        } finally { setActionLoading(null) }
     }
 
     const filtered = agents.filter(a =>
@@ -85,6 +92,26 @@ export default function AdminAgentsPage() {
                     <RefreshCw size={16} />
                 </button>
             </div>
+
+            {/* Error message */}
+            {error && (
+                <div style={{
+                    padding: '12px 16px',
+                    background: 'rgba(239, 68, 68, 0.1)',
+                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                    borderRadius: 10,
+                    color: '#f87171',
+                    fontSize: 14,
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                }}>
+                    {error}
+                    <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#f87171' }}>
+                        <X size={16} />
+                    </button>
+                </div>
+            )}
 
             {/* Search */}
             <div style={{ position: 'relative', maxWidth: 400 }}>
