@@ -32,6 +32,8 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { useTranslations } from 'next-intl'
 import { GlobalSearch } from '@/components/dashboard/GlobalSearch'
+import { useAndroidBackButton } from '@/hooks/useAndroidBackButton'
+import { BiometricLock } from '@/components/BiometricLock'
 
 interface Notification {
     id: string
@@ -50,6 +52,10 @@ export default function DashboardLayout({
     const t = useTranslations('Dashboard.sidebar')
     const pathname = usePathname()
     const router = useRouter()
+
+    // Handle Android hardware back button
+    useAndroidBackButton()
+
     const [collapsed, setCollapsed] = useState(false)
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
     const [isMobile, setIsMobile] = useState(false)
@@ -258,6 +264,18 @@ export default function DashboardLayout({
 
     const handleLogout = async () => {
         const supabase = createClient()
+
+        // Déconnecter Google Auth sur mobile (Capacitor)
+        const isCapacitor = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform()
+        if (isCapacitor) {
+            try {
+                const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth')
+                await GoogleAuth.signOut()
+            } catch (e) {
+                // Ignorer si pas de session Google
+            }
+        }
+
         await supabase.auth.signOut()
         router.push('/login')
         router.refresh()
@@ -908,7 +926,9 @@ export default function DashboardLayout({
                     boxSizing: 'border-box',
                     paddingBottom: isMobile ? '100px' : '40px'
                 }}>
-                    {children}
+                    <BiometricLock>
+                        {children}
+                    </BiometricLock>
                 </div>
             </main>
         </div>
