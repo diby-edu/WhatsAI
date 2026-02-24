@@ -40,6 +40,7 @@ import {
     Clock
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useAndroidBackButton } from '@/hooks/useAndroidBackButton'
 
 const adminLinks = [
     { href: '/admin', label: 'Vue d\'ensemble', icon: Gauge },
@@ -80,6 +81,10 @@ export default function AdminLayout({
 }) {
     const pathname = usePathname()
     const router = useRouter()
+
+    // Handle Android hardware back button
+    useAndroidBackButton()
+
     const [collapsed, setCollapsed] = useState(false)
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
     const [isMobile, setIsMobile] = useState(false)

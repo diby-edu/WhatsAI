@@ -18,8 +18,10 @@ import {
     EyeOff,
     Trash2,
     Smartphone,
-    Camera
+    Camera,
+    Fingerprint
 } from 'lucide-react'
+import { useBiometricAuth } from '@/hooks/useBiometricAuth'
 import { useTranslations } from 'next-intl'
 
 interface Profile {
@@ -80,6 +82,18 @@ export default function SettingsPage() {
     const [showPassword, setShowPassword] = useState(false)
     const [uploadingAvatar, setUploadingAvatar] = useState(false)
     const avatarInputRef = useRef<HTMLInputElement>(null)
+
+    // Biometric authentication
+    const {
+        isAvailable: biometricAvailable,
+        isEnabled: biometricEnabled,
+        biometricType,
+        enableBiometric,
+        disableBiometric,
+        getBiometricLabel,
+        loading: biometricLoading
+    } = useBiometricAuth()
+    const [enablingBiometric, setEnablingBiometric] = useState(false)
 
     // Profile state
     const [profile, setProfile] = useState<Profile>({
@@ -773,6 +787,103 @@ export default function SettingsPage() {
                                     label={t('Security.update')}
                                     messages={{ save: t('Profile.save'), saving: t('Profile.saving'), saved: t('Profile.saved') }}
                                 />
+
+                                {/* Biometric Authentication - Only show on mobile */}
+                                {biometricAvailable && (
+                                    <div style={{ marginTop: 32 }}>
+                                        <h3 style={{ color: '#94a3b8', fontSize: 14, fontWeight: 500, marginBottom: 16 }}>
+                                            Authentification biométrique
+                                        </h3>
+                                        <div style={{
+                                            background: 'rgba(30, 41, 59, 0.5)',
+                                            border: '1px solid rgba(148, 163, 184, 0.1)',
+                                            borderRadius: 12,
+                                            padding: 20
+                                        }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                                    <div style={{
+                                                        width: 44,
+                                                        height: 44,
+                                                        borderRadius: 12,
+                                                        background: biometricEnabled ? 'rgba(16, 185, 129, 0.15)' : 'rgba(148, 163, 184, 0.1)',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center'
+                                                    }}>
+                                                        <Fingerprint style={{
+                                                            width: 24,
+                                                            height: 24,
+                                                            color: biometricEnabled ? '#10b981' : '#64748b'
+                                                        }} />
+                                                    </div>
+                                                    <div>
+                                                        <div style={{ fontWeight: 600, color: 'white', marginBottom: 2 }}>
+                                                            {getBiometricLabel()}
+                                                        </div>
+                                                        <div style={{ fontSize: 13, color: '#64748b' }}>
+                                                            {biometricEnabled
+                                                                ? 'Activé - Déverrouillage rapide'
+                                                                : 'Désactivé - Activer pour plus de sécurité'}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={async () => {
+                                                        if (biometricEnabled) {
+                                                            disableBiometric()
+                                                        } else {
+                                                            setEnablingBiometric(true)
+                                                            await enableBiometric()
+                                                            setEnablingBiometric(false)
+                                                        }
+                                                    }}
+                                                    disabled={enablingBiometric || biometricLoading}
+                                                    style={{
+                                                        width: 52,
+                                                        height: 28,
+                                                        borderRadius: 14,
+                                                        border: 'none',
+                                                        cursor: 'pointer',
+                                                        position: 'relative',
+                                                        background: biometricEnabled
+                                                            ? 'linear-gradient(135deg, #10b981, #059669)'
+                                                            : 'rgba(100, 116, 139, 0.3)',
+                                                        transition: 'all 0.3s ease'
+                                                    }}
+                                                >
+                                                    <div style={{
+                                                        position: 'absolute',
+                                                        top: 2,
+                                                        left: biometricEnabled ? 26 : 2,
+                                                        width: 24,
+                                                        height: 24,
+                                                        borderRadius: 12,
+                                                        background: 'white',
+                                                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                                                        transition: 'left 0.3s ease'
+                                                    }} />
+                                                </button>
+                                            </div>
+                                            {biometricEnabled && (
+                                                <div style={{
+                                                    marginTop: 16,
+                                                    padding: '12px 16px',
+                                                    background: 'rgba(16, 185, 129, 0.1)',
+                                                    borderRadius: 8,
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: 10
+                                                }}>
+                                                    <Check style={{ width: 16, height: 16, color: '#10b981' }} />
+                                                    <span style={{ fontSize: 13, color: '#10b981' }}>
+                                                        L'app sera verrouillée à chaque ouverture
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
                             </motion.div>
                         )}
 
