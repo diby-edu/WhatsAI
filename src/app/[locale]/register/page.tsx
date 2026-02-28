@@ -60,6 +60,7 @@ function RegisterForm() {
                     data: {
                         full_name: fullName,
                         selected_plan: selectedPlan,
+                        onboarding_completed: false,
                     },
                     emailRedirectTo: `${window.location.origin}/auth/callback`,
                 },

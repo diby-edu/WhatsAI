@@ -147,6 +147,14 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             return
         }
 
+        // 1.2b Récupérer la devise du compte (pour l'affichage des prix dans l'IA)
+        const { data: userProfile } = await supabase
+            .from('profiles')
+            .select('currency')
+            .eq('id', agent.user_id)
+            .single()
+        const agentCurrency = userProfile?.currency || 'XOF'
+
         // 1.3 Récupérer ou créer la conversation
         const conversation = await ConversationService.getOrCreate(
             supabase,
@@ -275,7 +283,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                 history: conversationHistory,
                 products: products || [],
                 orders: orders || [],
-                currency: 'XOF',
+                currency: agentCurrency,
                 supabase,
                 activeSessions,
                 CinetPay

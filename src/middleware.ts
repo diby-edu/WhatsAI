@@ -69,7 +69,7 @@ export async function middleware(request: NextRequest) {
     )
 
     // Auth checks
-    if (!user && !isPublicRoute && (pathnameWithoutLocale.startsWith('/dashboard') || pathnameWithoutLocale.startsWith('/admin'))) {
+    if (!user && !isPublicRoute && (pathnameWithoutLocale.startsWith('/dashboard') || pathnameWithoutLocale.startsWith('/admin') || pathnameWithoutLocale.startsWith('/onboarding'))) {
         const locale = pathname.match(/^\/(fr|en)/)?.[1] || 'fr';
         const redirectUrl = new URL(`/${locale}/login`, request.url);
         redirectUrl.searchParams.set('redirect', pathname)
@@ -130,6 +130,25 @@ export async function middleware(request: NextRequest) {
             return NextResponse.redirect(new URL(`/${locale}/admin`, request.url));
         }
 
+        // Check onboarding before redirecting to dashboard
+        if (user.user_metadata?.onboarding_completed === false) {
+            return NextResponse.redirect(new URL(`/${locale}/onboarding`, request.url));
+        }
+
+        return NextResponse.redirect(new URL(`/${locale}/dashboard`, request.url));
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // ⭐ FIX #5 : Rediriger vers /onboarding si non complété
+    // ═══════════════════════════════════════════════════════════════
+    if (user && !isAdmin && user.user_metadata?.onboarding_completed === false && !pathnameWithoutLocale.startsWith('/onboarding')) {
+        const locale = pathname.match(/^\/(fr|en)/)?.[1] || 'fr';
+        return NextResponse.redirect(new URL(`/${locale}/onboarding`, request.url));
+    }
+
+    // Si onboarding déjà complété et user tente d'accéder à /onboarding → dashboard
+    if (user && user.user_metadata?.onboarding_completed !== false && pathnameWithoutLocale.startsWith('/onboarding')) {
+        const locale = pathname.match(/^\/(fr|en)/)?.[1] || 'fr';
         return NextResponse.redirect(new URL(`/${locale}/dashboard`, request.url));
     }
 
