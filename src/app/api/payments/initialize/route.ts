@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
         // Check user currency preference just for metadata, but calculations are based on Plan currency
         // Assumption: Plan prices in DB are USD.
 
-        const rateUSD = 655
+        const rateUSD = 700
         const amountFCFA = Math.ceil(amount * rateUSD)
 
         // Initialize payment with CinetPay

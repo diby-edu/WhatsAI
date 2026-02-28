@@ -117,8 +117,8 @@ function BillingContent() {
 
     const formatPrice = (price: number) => {
         let convertedPrice = price
-        if (currency === 'XOF') convertedPrice = price * 655
-        else if (currency === 'EUR') convertedPrice = price * 0.92
+        if (currency === 'XOF') convertedPrice = price * 700
+        else if (currency === 'EUR') convertedPrice = price * 1
 
         return new Intl.NumberFormat('fr-FR', {
             style: 'currency',
@@ -133,6 +133,7 @@ function BillingContent() {
         fetchPlans()
         fetchCreditPacks()
         fetchPayments()
+        fetchProfileCurrency()
     }, [])
 
     const fetchPlans = async () => {
@@ -156,22 +157,22 @@ function BillingContent() {
             if (data.packs && data.packs.length > 0) {
                 setCreditPacks(data.packs)
             } else {
-                // Fallback to defaults
+                // Fallback to defaults (prices in USD — formatPrice() converts to user currency)
                 setCreditPacks([
-                    { id: 'pack_500', credits: 500, price: 5000, savings: 0 },
-                    { id: 'pack_1000', credits: 1000, price: 9000, savings: 10 },
-                    { id: 'pack_2500', credits: 2500, price: 20000, savings: 20 },
-                    { id: 'pack_5000', credits: 5000, price: 35000, savings: 30 },
+                    { id: 'pack_500', credits: 500, price: 9, savings: 0 },
+                    { id: 'pack_1000', credits: 1000, price: 15, savings: 10 },
+                    { id: 'pack_2500', credits: 2500, price: 35, savings: 20 },
+                    { id: 'pack_5000', credits: 5000, price: 59, savings: 30 },
                 ])
             }
         } catch (err) {
             console.error('Error fetching credit packs:', err)
-            // Fallback to defaults
+            // Fallback to defaults (prices in USD — formatPrice() converts to user currency)
             setCreditPacks([
-                { id: 'pack_500', credits: 500, price: 5000, savings: 0 },
-                { id: 'pack_1000', credits: 1000, price: 9000, savings: 10 },
-                { id: 'pack_2500', credits: 2500, price: 20000, savings: 20 },
-                { id: 'pack_5000', credits: 5000, price: 35000, savings: 30 },
+                { id: 'pack_500', credits: 500, price: 9, savings: 0 },
+                { id: 'pack_1000', credits: 1000, price: 15, savings: 10 },
+                { id: 'pack_2500', credits: 2500, price: 35, savings: 20 },
+                { id: 'pack_5000', credits: 5000, price: 59, savings: 30 },
             ])
         }
     }

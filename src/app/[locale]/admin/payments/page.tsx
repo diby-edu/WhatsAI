@@ -224,9 +224,9 @@ export default function AdminPaymentPage() {
                     border: '1px solid rgba(16, 185, 129, 0.2)'
                 }}>
                     <div style={{ fontSize: 22, fontWeight: 700, color: '#34d399' }}>
-                        {totalRevenue.toLocaleString()}
+                        {totalRevenue.toLocaleString('fr-FR')} FCFA
                     </div>
-                    <div style={{ color: '#64748b', fontSize: 12 }}>Revenus (USD)</div>
+                    <div style={{ color: '#64748b', fontSize: 12 }}>Revenus (FCFA)</div>
                 </div>
                 <div style={{
                     padding: 16,

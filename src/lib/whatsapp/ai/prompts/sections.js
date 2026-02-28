@@ -1,5 +1,17 @@
 
 /**
+ * Convertit un prix stocké en FCFA vers la devise d'affichage.
+ * Les prix en DB sont TOUJOURS en FCFA (price_fcfa).
+ * Taux : 1 USD = 655 FCFA, 1 EUR ≈ 656 FCFA
+ */
+function convertFromFcfa(priceFcfa, currency) {
+    if (!priceFcfa || priceFcfa === 0) return 0
+    if (currency === 'USD') return Math.round(priceFcfa / 700)
+    if (currency === 'EUR') return Math.round(priceFcfa / 700)
+    return priceFcfa // XOF : pas de conversion
+}
+
+/**
  * ═══════════════════════════════════════════════════════════════
  * CATALOGUE - Numéroté avec gras et prix intelligents
  * ═══════════════════════════════════════════════════════════════
@@ -23,17 +35,18 @@ function buildCatalogueSection(products, currency) {
         const additiveVariants = hasVariants ? p.variants.filter(v => v.type === 'additive') : []
 
         // 1. Calculer la fourchette de Prix de Base (uniquement variantes fixed)
-        let minBase = p.price_fcfa || 0
-        let maxBase = p.price_fcfa || 0
+        // Les prix sont en FCFA dans la DB → conversion selon currency
+        let minBase = convertFromFcfa(p.price_fcfa, currency)
+        let maxBase = convertFromFcfa(p.price_fcfa, currency)
         let hasFixedPrices = false
 
         if (fixedVariants.length > 0) {
             let fixedPrices = []
             for (const variant of fixedVariants) {
                 for (const opt of variant.options) {
-                    const optPrice = (typeof opt === 'object') ? (opt.price || 0) : 0
-                    if (optPrice > 0) {
-                        fixedPrices.push(optPrice)
+                    const optPriceFcfa = (typeof opt === 'object') ? (opt.price || 0) : 0
+                    if (optPriceFcfa > 0) {
+                        fixedPrices.push(convertFromFcfa(optPriceFcfa, currency))
                     }
                 }
             }
@@ -53,7 +66,8 @@ function buildCatalogueSection(products, currency) {
                 priceDisplay = `${minBase.toLocaleString()} ${currencySymbol}`
             }
         } else {
-            priceDisplay = p.price_fcfa > 0 ? `${(p.price_fcfa || 0).toLocaleString()} ${currencySymbol}` : 'Gratuit'
+            const convertedBase = convertFromFcfa(p.price_fcfa, currency)
+            priceDisplay = p.price_fcfa > 0 ? `${convertedBase.toLocaleString()} ${currencySymbol}` : 'Gratuit'
         }
 
         // 2. Construire l'affichage des variantes FIXED (options principales)
@@ -64,8 +78,9 @@ function buildCatalogueSection(products, currency) {
                 const optLines = v.options.map(o => {
                     if (typeof o === 'string') return `      🔸 ${o}`
                     const val = o.value || o.name || ''
-                    const optPrice = (typeof o === 'object') ? (o.price || 0) : 0
-                    if (optPrice > 0) {
+                    const optPriceFcfa = (typeof o === 'object') ? (o.price || 0) : 0
+                    if (optPriceFcfa > 0) {
+                        const optPrice = convertFromFcfa(optPriceFcfa, currency)
                         return `      🔸 ${val}: ${optPrice.toLocaleString()} ${currencySymbol}`
                     }
                     return `      🔸 ${val}`
@@ -83,8 +98,9 @@ function buildCatalogueSection(products, currency) {
                 const optLines = v.options.map(o => {
                     if (typeof o === 'string') return `      ➕ ${o}`
                     const val = o.value || o.name || ''
-                    const optPrice = (typeof o === 'object') ? (o.price || 0) : 0
-                    if (optPrice > 0) {
+                    const optPriceFcfa = (typeof o === 'object') ? (o.price || 0) : 0
+                    if (optPriceFcfa > 0) {
+                        const optPrice = convertFromFcfa(optPriceFcfa, currency)
                         return `      ➕ ${val}: +${optPrice.toLocaleString()} ${currencySymbol}`
                     }
                     return `      ➕ ${val} (inclus)`
