@@ -22,6 +22,7 @@ import Link from 'next/link'
 import { createBrowserClient } from '@supabase/ssr'
 import { useTranslations } from 'next-intl'
 import ProductVariantsEditor, { VariantGroup } from '@/components/dashboard/ProductVariantsEditor'
+import { convertToFcfa } from '@/lib/currency'
 
 export default function NewProductPage() {
     const t = useTranslations('Products.Wizard')
@@ -347,10 +348,18 @@ export default function NewProductPage() {
 
         setLoading(true)
         try {
-            // Prepare data with proper types
+            // Convertir les prix de la devise utilisateur vers FCFA avant d'envoyer
+            const variantsInFcfa = formData.variants.map((v: any) => ({
+                ...v,
+                options: (v.options || []).map((o: any) => ({
+                    ...o,
+                    price: o.price ? convertToFcfa(Number(o.price), currency) : 0
+                }))
+            }))
             const dataToSend = {
                 ...formData,
-                price_fcfa: parseFloat(String(formData.price_fcfa)) || 0 // Convert to number
+                price_fcfa: convertToFcfa(parseFloat(String(formData.price_fcfa)) || 0, currency),
+                variants: variantsInFcfa
             }
 
             const res = await fetch('/api/products', {
@@ -627,7 +636,7 @@ export default function NewProductPage() {
 
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                             <div>
-                                <label style={labelStyle}>Prix (FCFA)</label>
+                                <label style={labelStyle}>Prix ({currency === 'XOF' ? 'FCFA' : currency})</label>
                                 <div style={{ position: 'relative' }}>
                                     <input
                                         type="text"

@@ -23,6 +23,7 @@ import {
 } from 'lucide-react'
 import { useBiometricAuth } from '@/hooks/useBiometricAuth'
 import { useTranslations } from 'next-intl'
+import { useCurrency } from '@/contexts/CurrencyContext'
 
 interface Profile {
     id: string
@@ -66,6 +67,7 @@ interface NotificationSettings {
 
 export default function SettingsPage() {
     const t = useTranslations('Settings')
+    const { setCurrency } = useCurrency()
 
     // Note: The tabs configuration depends on translations, so it's defined inside the component or using a memo
     const tabs = [
@@ -189,6 +191,8 @@ export default function SettingsPage() {
             if (res.ok) {
                 setSaved(true)
                 setTimeout(() => setSaved(false), 3000)
+                // Sync la devise dans le contexte global pour mise à jour immédiate
+                if (profile.currency) setCurrency(profile.currency)
             }
         } catch (err) {
             console.error('Error:', err)

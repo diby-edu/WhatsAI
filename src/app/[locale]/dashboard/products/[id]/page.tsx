@@ -26,6 +26,7 @@ import Link from 'next/link'
 import { createBrowserClient } from '@supabase/ssr'
 import { useTranslations } from 'next-intl'
 import ProductVariantsEditor, { VariantGroup } from '@/components/dashboard/ProductVariantsEditor'
+import { convertFromFcfa, convertToFcfa } from '@/lib/currency'
 
 const STEPS = [
     { id: 'basics', title: 'Identité & Prix', icon: Package },
@@ -102,16 +103,26 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
             const profileData = await profileRes.json()
 
             if (agentsData.data?.agents) setAgents(agentsData.data.agents)
-            if (profileData.data?.profile?.currency) setCurrency(profileData.data.profile.currency)
+            const userCurrency = profileData.data?.profile?.currency || 'USD'
+            if (profileData.data?.profile?.currency) setCurrency(userCurrency)
 
             if (productData.data?.product) {
                 const p = productData.data.product
                 // Handle images - could be array or single image_url
                 const images = Array.isArray(p.images) ? p.images : (p.image_url ? [p.image_url] : [])
+                // Variants: convert prices from FCFA to user's currency for display
+                const rawVariants = typeof p.variants === 'string' ? JSON.parse(p.variants) : (p.variants || [])
+                const convertedVariants = rawVariants.map((v: any) => ({
+                    ...v,
+                    options: (v.options || []).map((o: any) => ({
+                        ...o,
+                        price: o.price ? convertFromFcfa(o.price, userCurrency) : 0
+                    }))
+                }))
 
                 setFormData({
                     name: p.name || '',
-                    price_fcfa: p.price_fcfa || '',
+                    price_fcfa: p.price_fcfa ? convertFromFcfa(p.price_fcfa, userCurrency) : '',
                     images: images,
                     image_url: p.image_url || images[0] || '',
                     category: p.category || '',
@@ -121,7 +132,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                     description: p.description || p.short_pitch || '',
                     content_included: Array.isArray(p.content_included) ? p.content_included : [],
                     features: Array.isArray(p.features) ? p.features : typeof p.features === 'string' ? JSON.parse(p.features) : [],
-                    variants: typeof p.variants === 'string' ? JSON.parse(p.variants) : (p.variants || []),
+                    variants: convertedVariants,
                     marketing_tags: Array.isArray(p.marketing_tags) ? p.marketing_tags : [],
                     related_product_ids: p.related_product_ids || [],
 
@@ -217,9 +228,18 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     const handleSave = async (silent = false) => {
         if (!silent) setSaving(true)
         try {
+            // Convertir les prix de la devise utilisateur vers FCFA avant d'envoyer
+            const variantsInFcfa = formData.variants.map((v: any) => ({
+                ...v,
+                options: (v.options || []).map((o: any) => ({
+                    ...o,
+                    price: o.price ? convertToFcfa(Number(o.price), currency) : 0
+                }))
+            }))
             const dataToSend = {
                 ...formData,
-                price_fcfa: parseFloat(String(formData.price_fcfa)) || 0
+                price_fcfa: convertToFcfa(parseFloat(String(formData.price_fcfa)) || 0, currency),
+                variants: variantsInFcfa
             }
             const res = await fetch(`/api/products/${productId}`, {
                 method: 'PUT',
@@ -326,7 +346,9 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-slate-300 font-medium mb-1">Prix (FCFA)</label>
+                                    <label className="block text-slate-300 font-medium mb-1">
+                                        Prix ({currency === 'XOF' ? 'FCFA' : currency})
+                                    </label>
                                     <div className="relative">
                                         <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
                                         <input

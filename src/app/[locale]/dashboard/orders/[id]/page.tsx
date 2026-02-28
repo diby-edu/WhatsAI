@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { useTranslations, useFormatter } from 'next-intl'
-import { convertFromFcfa } from '@/lib/currency'
+import { useCurrency } from '@/contexts/CurrencyContext'
 
 interface OrderItem {
     id: string
@@ -44,22 +44,11 @@ export default function OrderDetailsPage() {
     const [order, setOrder] = useState<Order | null>(null)
     const [loading, setLoading] = useState(true)
     const [updating, setUpdating] = useState(false)
-    const [currency, setCurrency] = useState('XOF')
+    const { formatFromFcfa } = useCurrency()
 
     useEffect(() => {
         fetchOrder()
-        fetchProfile()
     }, [params.id])
-
-    const fetchProfile = async () => {
-        try {
-            const res = await fetch('/api/profile')
-            const data = await res.json()
-            if (data.data?.profile?.currency) setCurrency(data.data.profile.currency)
-        } catch (e) {
-            console.error('Error fetching profile currency', e)
-        }
-    }
 
     const fetchOrder = async () => {
         try {
@@ -130,17 +119,7 @@ export default function OrderDetailsPage() {
         )
     }
 
-    const formatPrice = (priceFcfa: number) => {
-        const converted = convertFromFcfa(priceFcfa, currency)
-        if (currency === 'XOF' || currency === 'FCFA') {
-            return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(converted) + ' FCFA'
-        }
-        return new Intl.NumberFormat('fr-FR', {
-            style: 'currency',
-            currency: currency,
-            maximumFractionDigits: 2
-        }).format(converted)
-    }
+    const formatPrice = formatFromFcfa
 
     return (
         <div style={{ maxWidth: 1000, margin: '0 auto' }}>

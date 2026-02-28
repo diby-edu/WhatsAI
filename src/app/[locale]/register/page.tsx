@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { MessageCircle, Mail, Lock, User, Loader2, Eye, EyeOff, Check, Sparkles, ArrowRight, Star } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { resolvePostAuthPath } from '@/lib/auth/post-auth'
 import { useTranslations } from 'next-intl'
 
 function RegisterForm() {
@@ -81,12 +82,74 @@ function RegisterForm() {
 
     const handleGoogleSignup = async () => {
         const supabase = createClient()
-        await supabase.auth.signInWithOAuth({
-            provider: 'google',
-            options: {
-                redirectTo: `${window.location.origin}/auth/callback`,
-            },
-        })
+        setError(null)
+        setLoading(true)
+
+        const isCapacitor = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform()
+
+        try {
+            if (isCapacitor) {
+                const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth')
+
+                await GoogleAuth.initialize({
+                    clientId: '519109526767-1rfcfigbutf9217uuc69fosqjp6mis05.apps.googleusercontent.com',
+                    scopes: ['profile', 'email'],
+                    grantOfflineAccess: true
+                })
+
+                try {
+                    await GoogleAuth.signOut()
+                } catch {
+                    // No active Google session, continue
+                }
+
+                const googleUser = await GoogleAuth.signIn()
+
+                if (!googleUser?.authentication?.idToken) {
+                    setError('Impossible de recuperer le token Google.')
+                    return
+                }
+
+                const { error: idTokenError } = await supabase.auth.signInWithIdToken({
+                    provider: 'google',
+                    token: googleUser.authentication.idToken,
+                })
+
+                if (idTokenError) {
+                    setError(idTokenError.message)
+                    return
+                }
+
+                // Preserve selected plan hint for OAuth signups when metadata is still empty.
+                const { data: { user } } = await supabase.auth.getUser()
+                if (user && !user.user_metadata?.selected_plan) {
+                    await supabase.auth.updateUser({
+                        data: { selected_plan: selectedPlan },
+                    })
+                }
+
+                const nextPath = await resolvePostAuthPath(supabase)
+                router.push(nextPath)
+                router.refresh()
+                return
+            }
+
+            const { error } = await supabase.auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                    redirectTo: `${window.location.origin}/auth/callback`,
+                },
+            })
+
+            if (error) {
+                setError(error.message)
+            }
+        } catch (err) {
+            console.error('Google signup error:', err)
+            setError('Erreur lors de l inscription avec Google. Veuillez reessayer.')
+        } finally {
+            setLoading(false)
+        }
     }
 
     if (success) {

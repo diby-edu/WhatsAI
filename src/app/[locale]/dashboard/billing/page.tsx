@@ -18,6 +18,7 @@ import {
     Star
 } from 'lucide-react'
 import { useTranslations, useFormatter } from 'next-intl'
+import { useCurrency } from '@/contexts/CurrencyContext'
 
 interface Plan {
     id: string
@@ -67,6 +68,7 @@ function BillingContent() {
     const t = useTranslations('Billing')
     const format = useFormatter()
     const searchParams = useSearchParams()
+    const { formatFromUsd } = useCurrency()
 
     const [isLoading, setIsLoading] = useState<string | null>(null)
     const [userData, setUserData] = useState<UserData | null>(null)
@@ -75,8 +77,6 @@ function BillingContent() {
     const [creditPacks, setCreditPacks] = useState<CreditPack[]>([])
     const [loading, setLoading] = useState(true)
     const [paymentStatus, setPaymentStatus] = useState<'success' | 'failed' | null>(null)
-
-    const [currency, setCurrency] = useState('USD')
 
     // Check for payment return
     useEffect(() => {
@@ -105,35 +105,12 @@ function BillingContent() {
         }
     }, [searchParams])
 
-    const fetchProfileCurrency = async () => {
-        try {
-            const res = await fetch('/api/profile')
-            const data = await res.json()
-            if (data.data?.profile?.currency) {
-                setCurrency(data.data.profile.currency)
-            }
-        } catch (e) { }
-    }
-
-    const formatPrice = (price: number) => {
-        let convertedPrice = price
-        if (currency === 'XOF') convertedPrice = price * 700
-        else if (currency === 'EUR') convertedPrice = price * 1
-
-        return new Intl.NumberFormat('fr-FR', {
-            style: 'currency',
-            currency: currency,
-            maximumFractionDigits: currency === 'XOF' ? 0 : 2
-        }).format(convertedPrice)
-    }
-
     // Fetch user data, plans, payments and credit packs
     useEffect(() => {
         fetchData()
         fetchPlans()
         fetchCreditPacks()
         fetchPayments()
-        fetchProfileCurrency()
     }, [])
 
     const fetchPlans = async () => {
@@ -498,7 +475,7 @@ function BillingContent() {
 
                                     <div style={{ marginBottom: 16 }}>
                                         <span style={{ fontSize: 26, fontWeight: 700, color: 'white' }}>
-                                            {formatPrice(plan.price)}
+                                            {formatFromUsd(plan.price)}
                                         </span>
                                         <span style={{ color: '#64748b', fontSize: 13 }}> / {t('Plans.period')}</span>
                                     </div>
@@ -583,7 +560,7 @@ function BillingContent() {
                             </div>
                             <div style={{ fontSize: 12, color: '#64748b', marginBottom: 12 }}>{t('Credits.unit')}</div>
                             <div style={{ fontSize: 15, fontWeight: 600, color: '#34d399', marginBottom: 12 }}>
-                                {formatPrice(pack.price)}
+                                {formatFromUsd(pack.price)}
                             </div>
                             <motion.button
                                 whileHover={{ scale: 1.02 }}

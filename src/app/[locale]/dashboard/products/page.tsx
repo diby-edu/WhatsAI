@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { useTranslations, useFormatter } from 'next-intl'
-import { convertFromFcfa } from '@/lib/currency'
+import { useCurrency } from '@/contexts/CurrencyContext'
 
 interface Variant {
     id: string
@@ -41,6 +41,7 @@ export default function ProductsPage() {
     const t = useTranslations('Products.List')
     const format = useFormatter()
     const router = useRouter()
+    const { formatFromFcfa } = useCurrency()
     const [products, setProducts] = useState<Product[]>([])
     const [agents, setAgents] = useState<Agent[]>([])
     const [loading, setLoading] = useState(true)
@@ -49,13 +50,6 @@ export default function ProductsPage() {
 
     useEffect(() => {
         fetchProducts()
-    }, [])
-
-    const [currency, setCurrency] = useState('USD')
-
-    useEffect(() => {
-        fetchProducts()
-        fetchProfile()
         fetchAgents()
     }, [])
 
@@ -68,18 +62,6 @@ export default function ProductsPage() {
             }
         } catch (e) {
             console.error('Error fetching agents', e)
-        }
-    }
-
-    const fetchProfile = async () => {
-        try {
-            const res = await fetch('/api/profile')
-            const data = await res.json()
-            if (data.data?.profile?.currency) {
-                setCurrency(data.data.profile.currency)
-            }
-        } catch (e) {
-            console.error('Error fetching profile currency', e)
         }
     }
 
@@ -119,17 +101,7 @@ export default function ProductsPage() {
         return matchesSearch && matchesAgent
     })
 
-    const formatPrice = (priceFcfa: number) => {
-        const converted = convertFromFcfa(priceFcfa, currency)
-        if (currency === 'XOF' || currency === 'FCFA') {
-            return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(converted) + ' FCFA'
-        }
-        return new Intl.NumberFormat('fr-FR', {
-            style: 'currency',
-            currency: currency,
-            maximumFractionDigits: 2
-        }).format(converted)
-    }
+    const formatPrice = formatFromFcfa
 
     // Calculate display price range based on variants (prices in FCFA)
     const getDisplayPrice = (product: Product): { minPrice: number; maxPrice: number; hasVariants: boolean } => {
