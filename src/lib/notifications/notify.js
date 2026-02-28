@@ -264,7 +264,9 @@ async function notify(userId, type, data = {}) {
         }
 
         let prefs = null
-        const selectCols = [prefMapping.push, prefMapping.email].filter(Boolean).join(', ')
+        // Always include push_enabled (master switch) in the SELECT query
+        const selectColsArr = [...new Set(['push_enabled', prefMapping.push, prefMapping.email].filter(Boolean))]
+        const selectCols = selectColsArr.join(', ')
         if (selectCols) {
             const { data: p } = await supabase
                 .from('notification_preferences')
@@ -275,7 +277,9 @@ async function notify(userId, type, data = {}) {
         }
 
         // Default: all notifications ON if no preferences saved
-        const pushEnabled = prefMapping.push ? (prefs?.[prefMapping.push] !== false) : false
+        // push_enabled is the master switch — if false, no push notifications sent regardless of type
+        const masterPushEnabled = prefs?.push_enabled !== false
+        const pushEnabled = masterPushEnabled && (prefMapping.push ? (prefs?.[prefMapping.push] !== false) : false)
         const emailEnabled = prefMapping.email ? (prefs?.[prefMapping.email] !== false) : false
 
         // 2. Send PUSH if enabled

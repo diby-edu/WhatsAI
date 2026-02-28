@@ -55,6 +55,10 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
         }
         activeSessions.set(agentId, session)
 
+        // 💓 KEEPALIVE: Envoie un ping toutes les 14 minutes pour éviter la déconnexion
+        // WhatsApp ferme les connexions inactives après ~30 minutes sans activité
+        let keepAliveInterval = null
+
         // Handle connection updates
         socket.ev.on('connection.update', async (update) => {
             const { connection, lastDisconnect, qr } = update
@@ -84,15 +88,32 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                     whatsapp_status: 'connected'
                 }).eq('id', agentId)
 
-                // 🔔 NOTIFICATION: Agent connecté
-                try {
-                    const { data: agent } = await supabase.from('agents').select('user_id').eq('id', agentId).single()
-                    if (agent?.user_id) {
-                        const { notify } = require('../../notifications/notify')
-                        notify(agent.user_id, 'agent_status_change', { agentName, agentStatus: 'connected' })
+                // 💓 Démarrer le keepalive (ping toutes les 14 min)
+                if (keepAliveInterval) clearInterval(keepAliveInterval)
+                keepAliveInterval = setInterval(async () => {
+                    if (session.status === 'connected') {
+                        try {
+                            await socket.sendPresenceUpdate('available')
+                            console.log(`💓 Keepalive [${agentName}]`)
+                        } catch (e) { /* Ignorer les erreurs keepalive */ }
                     }
-                } catch (notifError) {
-                    console.error('🔔 Notification error (non-blocking):', notifError)
+                }, 14 * 60 * 1000)
+
+                // 🔔 NOTIFICATION: Uniquement à la première connexion (pas sur reconnexion auto)
+                // reconnectAttempt === 0 = première connexion réelle (scan QR ou démarrage initial)
+                // reconnectAttempt > 0  = reconnexion automatique après coupure → pas de notification
+                if (reconnectAttempt === 0) {
+                    try {
+                        const { data: agent } = await supabase.from('agents').select('user_id').eq('id', agentId).single()
+                        if (agent?.user_id) {
+                            const { notify } = require('../../notifications/notify')
+                            notify(agent.user_id, 'agent_status_change', { agentName, agentStatus: 'connected' })
+                        }
+                    } catch (notifError) {
+                        console.error('🔔 Notification error (non-blocking):', notifError)
+                    }
+                } else {
+                    console.log(`🔄 Reconnexion silencieuse [${agentName}] (tentative ${reconnectAttempt}) — pas de notification`)
                 }
             }
 
@@ -102,6 +123,12 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
 
                 console.log(`❌ ${agentName} disconnected, code: ${statusCode}, reconnect: ${shouldReconnect}`)
                 pendingConnections.delete(agentId)
+
+                // Arrêter le keepalive lors de la déconnexion
+                if (keepAliveInterval) {
+                    clearInterval(keepAliveInterval)
+                    keepAliveInterval = null
+                }
 
                 if (shouldReconnect) {
                     activeSessions.delete(agentId)

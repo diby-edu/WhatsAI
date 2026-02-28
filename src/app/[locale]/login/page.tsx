@@ -93,7 +93,15 @@ export default function LoginPage() {
                     grantOfflineAccess: true
                 })
 
-                // 2. Authentification Google Native
+                // 2. Se déconnecter d'abord pour forcer l'affichage du sélecteur de compte
+                // Sans ça, Google re-sélectionne automatiquement le dernier compte utilisé
+                try {
+                    await GoogleAuth.signOut()
+                } catch (e) {
+                    // Normal si aucune session Google active - on continue
+                }
+
+                // 3. Authentification Google Native → affiche TOUS les comptes disponibles
                 const googleUser = await GoogleAuth.signIn()
 
                 if (googleUser?.authentication?.idToken) {

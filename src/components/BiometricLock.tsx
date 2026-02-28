@@ -1,29 +1,46 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Fingerprint, Smartphone, RefreshCw } from 'lucide-react'
+import { Fingerprint, Smartphone, RefreshCw, KeyRound } from 'lucide-react'
 import { useBiometricAuth } from '@/hooks/useBiometricAuth'
 
 export function BiometricLock({ children }: { children: React.ReactNode }) {
-    const { isEnabled, isAuthenticated, authenticate, getBiometricLabel, loading, biometricType } = useBiometricAuth()
+    const { isEnabled, isAuthenticated, authenticate, getBiometricLabel, loading } = useBiometricAuth()
     const [showLock, setShowLock] = useState(false)
     const [authenticating, setAuthenticating] = useState(false)
+    const [authFailed, setAuthFailed] = useState(false) // true après un annuler/échec
+    // Ref pour éviter l'auto-prompt en boucle
+    const hasAutoPrompted = useRef(false)
 
+    // Vérification initiale au chargement
+    // IMPORTANT: isAuthenticated est intentionnellement ABSENT des deps
+    // pour éviter la boucle infinie (cancel → isAuthenticated=false → re-trigger → cancel → ...)
     useEffect(() => {
-        // Only check on mobile
         const isCapacitor = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform()
         if (!isCapacitor) return
+        if (loading) return
 
-        // If biometric is enabled but not authenticated, show lock
-        if (!loading && isEnabled && !isAuthenticated) {
+        if (isEnabled && !isAuthenticated) {
             setShowLock(true)
-            // Auto-prompt for authentication
-            handleAuthenticate()
+            // Auto-prompt une seule fois au démarrage
+            if (!hasAutoPrompted.current) {
+                hasAutoPrompted.current = true
+                handleAuthenticate()
+            }
         }
-    }, [loading, isEnabled, isAuthenticated])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [loading, isEnabled])
 
-    // Handle app resume - re-authenticate
+    // Quand l'auth réussit depuis ailleurs (ex: premier `isAuthenticated` depuis localStorage)
+    useEffect(() => {
+        if (isAuthenticated && showLock) {
+            setShowLock(false)
+            setAuthFailed(false)
+        }
+    }, [isAuthenticated, showLock])
+
+    // Handle app resume - re-verrouiller seulement si session expirée
     useEffect(() => {
         const isCapacitor = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform()
         if (!isCapacitor || !isEnabled) return
@@ -36,43 +53,76 @@ export function BiometricLock({ children }: { children: React.ReactNode }) {
 
                 listenerHandle = await App.addListener('appStateChange', async ({ isActive }) => {
                     if (isActive && isEnabled) {
-                        // App came back to foreground, re-authenticate
+                        const SESSION_TIMEOUT = 30 * 60 * 1000
+                        const AUTH_SESSION_KEY = 'wazzapai_biometric_session'
+                        const sessionData = localStorage.getItem(AUTH_SESSION_KEY)
+
+                        if (sessionData) {
+                            try {
+                                const { timestamp } = JSON.parse(sessionData)
+                                if (Date.now() - timestamp < SESSION_TIMEOUT) {
+                                    // Session encore valide → ne pas re-verrouiller
+                                    return
+                                }
+                            } catch {
+                                // JSON invalide → continuer vers re-auth
+                            }
+                        }
+
+                        // Session expirée → verrouiller et auto-prompt
+                        hasAutoPrompted.current = false
+                        setAuthFailed(false)
                         setShowLock(true)
                         handleAuthenticate()
                     }
                 })
             } catch {
-                // App state listener not available in web
+                // Pas disponible en web
             }
         }
 
         setupAppResumeListener()
 
         return () => {
-            if (listenerHandle) {
-                listenerHandle.remove()
-            }
+            if (listenerHandle) listenerHandle.remove()
         }
     }, [isEnabled])
 
     const handleAuthenticate = async () => {
         setAuthenticating(true)
+        setAuthFailed(false)
         const success = await authenticate()
         setAuthenticating(false)
 
         if (success) {
             setShowLock(false)
+            setAuthFailed(false)
+        } else {
+            // Echec ou annulation → montrer le bouton "mot de passe"
+            setAuthFailed(true)
         }
     }
 
-    // Not on mobile or biometric not enabled - show children directly
+    const handleUsePassword = async () => {
+        try {
+            const { createClient } = await import('@/lib/supabase/client')
+            const supabase = createClient()
+            await supabase.auth.signOut()
+            // Supprimer la session biométrique
+            localStorage.removeItem('wazzapai_biometric_session')
+            window.location.href = '/login'
+        } catch {
+            window.location.href = '/login'
+        }
+    }
+
+    // Pas sur mobile ou biométrie non activée → afficher directement
     if (!showLock) {
         return <>{children}</>
     }
 
     return (
         <>
-            {/* Lock Screen Overlay */}
             <AnimatePresence>
                 {showLock && (
                     <motion.div
@@ -114,12 +164,7 @@ export function BiometricLock({ children }: { children: React.ReactNode }) {
                             initial={{ y: 20, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
                             transition={{ delay: 0.2 }}
-                            style={{
-                                fontSize: 24,
-                                fontWeight: 700,
-                                color: 'white',
-                                marginBottom: 8
-                            }}
+                            style={{ fontSize: 24, fontWeight: 700, color: 'white', marginBottom: 8 }}
                         >
                             WazzapAI
                         </motion.h1>
@@ -128,17 +173,15 @@ export function BiometricLock({ children }: { children: React.ReactNode }) {
                             initial={{ y: 20, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
                             transition={{ delay: 0.3 }}
-                            style={{
-                                fontSize: 14,
-                                color: '#94a3b8',
-                                marginBottom: 48,
-                                textAlign: 'center'
-                            }}
+                            style={{ fontSize: 14, color: '#94a3b8', marginBottom: 48, textAlign: 'center' }}
                         >
-                            Utilisez {getBiometricLabel().toLowerCase()} pour déverrouiller
+                            {authFailed
+                                ? 'Authentification annulée ou échouée'
+                                : `Utilisez ${getBiometricLabel().toLowerCase()} pour déverrouiller`
+                            }
                         </motion.p>
 
-                        {/* Fingerprint Button */}
+                        {/* Bouton empreinte */}
                         <motion.button
                             initial={{ y: 20, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
@@ -151,32 +194,21 @@ export function BiometricLock({ children }: { children: React.ReactNode }) {
                                 borderRadius: '50%',
                                 background: authenticating
                                     ? 'rgba(16, 185, 129, 0.3)'
-                                    : 'rgba(16, 185, 129, 0.15)',
-                                border: '2px solid rgba(16, 185, 129, 0.5)',
+                                    : authFailed
+                                        ? 'rgba(239, 68, 68, 0.15)'
+                                        : 'rgba(16, 185, 129, 0.15)',
+                                border: `2px solid ${authFailed ? 'rgba(239, 68, 68, 0.5)' : 'rgba(16, 185, 129, 0.5)'}`,
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                cursor: 'pointer',
+                                cursor: authenticating ? 'not-allowed' : 'pointer',
                                 transition: 'all 0.3s ease'
                             }}
                         >
                             {authenticating ? (
-                                <RefreshCw
-                                    style={{
-                                        width: 48,
-                                        height: 48,
-                                        color: '#10b981',
-                                        animation: 'spin 1s linear infinite'
-                                    }}
-                                />
+                                <RefreshCw style={{ width: 48, height: 48, color: '#10b981', animation: 'spin 1s linear infinite' }} />
                             ) : (
-                                <Fingerprint
-                                    style={{
-                                        width: 48,
-                                        height: 48,
-                                        color: '#10b981'
-                                    }}
-                                />
+                                <Fingerprint style={{ width: 48, height: 48, color: authFailed ? '#ef4444' : '#10b981' }} />
                             )}
                         </motion.button>
 
@@ -184,19 +216,40 @@ export function BiometricLock({ children }: { children: React.ReactNode }) {
                             initial={{ y: 20, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
                             transition={{ delay: 0.5 }}
-                            style={{
-                                fontSize: 12,
-                                color: '#64748b',
-                                marginTop: 24
-                            }}
+                            style={{ fontSize: 12, color: '#64748b', marginTop: 24 }}
                         >
-                            {authenticating ? 'Vérification en cours...' : 'Appuyez pour déverrouiller'}
+                            {authenticating ? 'Vérification en cours...' : 'Appuyez pour réessayer'}
                         </motion.p>
+
+                        {/* Bouton mot de passe — visible seulement après un échec/annulation */}
+                        {authFailed && (
+                            <motion.button
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.2 }}
+                                onClick={handleUsePassword}
+                                style={{
+                                    marginTop: 32,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 8,
+                                    backgroundColor: 'transparent',
+                                    border: '1px solid rgba(148, 163, 184, 0.3)',
+                                    borderRadius: 12,
+                                    padding: '12px 24px',
+                                    color: '#94a3b8',
+                                    fontSize: 14,
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                <KeyRound style={{ width: 16, height: 16 }} />
+                                Utiliser mon mot de passe
+                            </motion.button>
+                        )}
                     </motion.div>
                 )}
             </AnimatePresence>
 
-            {/* Children always rendered but hidden when locked */}
             <div style={{ visibility: showLock ? 'hidden' : 'visible' }}>
                 {children}
             </div>
