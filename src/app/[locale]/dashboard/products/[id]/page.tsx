@@ -326,7 +326,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-slate-300 font-medium mb-1">Prix ({currency})</label>
+                                    <label className="block text-slate-300 font-medium mb-1">Prix (FCFA)</label>
                                     <div className="relative">
                                         <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
                                         <input
