@@ -62,7 +62,7 @@ export async function checkRateLimit(
                 prefix: "@upstash/ratelimit",
             })
 
-            const { success, limit, remaining, reset } = await limiter.limit(identifier)
+            const { success, remaining, reset } = await limiter.limit(identifier)
 
             return {
                 success,
@@ -73,11 +73,18 @@ export async function checkRateLimit(
             console.error('🔥 Redis RateLimit Error:', error)
             // Fallback to allow if Redis fails? Or block?
             // Let's fallback to allow to not break uptime, but log big error
-            return { success: true, remaining: 1, resetTime: Date.now() }
+            return checkInMemoryRateLimit(identifier, config)
         }
     }
 
     // 2. Memory Strategy (Fallback / Local)
+    return checkInMemoryRateLimit(identifier, config)
+}
+
+function checkInMemoryRateLimit(
+    identifier: string,
+    config: RateLimitConfig
+): RateLimitResult {
     const now = Date.now()
     let entry = cache.get(identifier)
 

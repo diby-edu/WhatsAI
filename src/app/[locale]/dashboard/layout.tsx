@@ -109,6 +109,8 @@ export default function DashboardLayout({
                 const supabase = createClient()
                 const { data: { user } } = await supabase.auth.getUser()
                 if (!user) return
+                const token = typeof window !== 'undefined' ? localStorage.getItem('fcm_token') : null
+                if (!token) return
 
                 const now = new Date()
                 const notifs: Notification[] = []
@@ -166,16 +168,16 @@ export default function DashboardLayout({
                 // Check credits
                 const { data: profile } = await supabase
                     .from('profiles')
-                    .select('credits')
+                    .select('credits_balance')
                     .eq('id', user.id)
                     .single()
 
-                if (profile && profile.credits < 50) {
+                if (profile && profile.credits_balance < 50) {
                     notifs.push({
                         id: 'low-credits',
                         type: 'credits',
                         title: 'Crédits faibles',
-                        message: `Il vous reste ${profile.credits} crédits`,
+                        message: `Il vous reste ${profile.credits_balance} crédits`,
                         time: 'Maintenant',
                         read: false
                     })
@@ -205,7 +207,7 @@ export default function DashboardLayout({
                 await fetch('/api/notifications/claim-token', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId: user.id })
+                    body: JSON.stringify({ token })
                 })
             } catch (err) {
                 // Silent fail — non-critical

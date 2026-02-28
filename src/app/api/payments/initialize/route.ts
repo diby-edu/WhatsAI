@@ -8,6 +8,7 @@ import {
 } from '@/lib/payments/cinetpay'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+const BASE_TO_XOF_RATE = 700
 
 // POST /api/payments/initialize - Initialize a payment
 export async function POST(request: NextRequest) {
@@ -118,6 +119,7 @@ export async function POST(request: NextRequest) {
         }
 
         const transactionId = generateTransactionId()
+        const amountFCFA = Math.ceil(amount * BASE_TO_XOF_RATE)
 
         // Create payment record in database
         const adminSupabase = createAdminClient()
@@ -125,7 +127,7 @@ export async function POST(request: NextRequest) {
             .from('payments')
             .insert({
                 user_id: user!.id,
-                amount_fcfa: Math.ceil(amount * 655), // Store XOF amount
+                amount_fcfa: amountFCFA,
                 payment_type: type,
                 description,
                 status: 'pending',
@@ -144,16 +146,12 @@ export async function POST(request: NextRequest) {
             return errorResponse('Erreur de création du paiement', 500)
         }
 
-        // CURRENCY CONVERSION (USD/EUR -> XOF)
-        // CinetPay only processes XOF. We assume 'amount' is in USD (base currency).
-        // 1 USD = 655 XOF
-        // 1 EUR = 655.957 XOF (approx 0.92 USD but here we convert from plan price)
+        // CURRENCY CONVERSION (base amount -> XOF)
+        // CinetPay only processes XOF. Keep one single conversion rate
+        // for payment amount and database recording to avoid drift.
 
         // Check user currency preference just for metadata, but calculations are based on Plan currency
         // Assumption: Plan prices in DB are USD.
-
-        const rateUSD = 700
-        const amountFCFA = Math.ceil(amount * rateUSD)
 
         // Initialize payment with CinetPay
         const paymentData: PaymentInitData = {
@@ -170,7 +168,7 @@ export async function POST(request: NextRequest) {
                 ...metadata,
                 payment_id: payment.id,
                 original_amount_usd: amount,
-                conversion_rate: rateUSD
+                conversion_rate: BASE_TO_XOF_RATE
             },
         }
 

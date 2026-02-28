@@ -19,7 +19,10 @@ OLD_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 echo ""
 echo "📥 [1/4] Récupération du code..."
 git fetch origin
-git reset --hard origin/master
+if ! git merge --ff-only origin/master; then
+    echo "Fast-forward merge impossible (working tree not clean or divergent)."
+    exit 1
+fi
 NEW_COMMIT=$(git rev-parse --short HEAD)
 
 if [ "$OLD_COMMIT" = "$NEW_COMMIT" ]; then
@@ -50,7 +53,10 @@ npm run build
 if [ ! -f .next/BUILD_ID ]; then
     echo ""
     echo "❌ BUILD ÉCHOUÉ - Auto-rollback..."
-    git reset --hard $OLD_COMMIT
+    if ! git checkout "$OLD_COMMIT"; then
+        echo "Rollback automatique impossible: working tree non propre."
+        exit 1
+    fi
     echo "⏪ Restauré à $OLD_COMMIT"
     exit 1
 fi

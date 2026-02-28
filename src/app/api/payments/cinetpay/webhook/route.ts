@@ -1,9 +1,8 @@
 import { NextRequest } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { checkPaymentStatus } from '@/lib/payments/cinetpay'
-import { CreditsService } from '@/lib/whatsapp/services/credits.service'
+import { checkPaymentStatus, verifyWebhookSignature } from '@/lib/payments/cinetpay'
 import { notify } from '@/lib/notifications/notification.service'
-import crypto from 'crypto'
+import { finalizePaymentByTransaction } from '@/lib/payments/finalization'
 
 // Use service role for webhook (no user auth)
 // Helper for lazy init
@@ -14,30 +13,7 @@ const getSupabase = () => createClient(
 
 // HMAC Signature Verification for CinetPay
 function verifySignature(payload: string, signature: string): boolean {
-    const secretKey = process.env.CINETPAY_SECRET_KEY
-    if (!secretKey) {
-        console.error('❌ [CRITICAL SECURITY] CINETPAY_SECRET_KEY not configured!')
-        console.error('   Webhook rejected. You MUST configure this variable in .env.local')
-        // Throwing/returning false here relies on the caller handling it, but the caller (POST) 
-        // will get false and should reject.
-        // Actually, verifySignature returns boolean.
-        return false
-    }
-
-    const expectedSignature = crypto
-        .createHmac('sha256', secretKey)
-        .update(payload, 'utf8')
-        .digest('hex')
-
-    // Timing-safe comparison to prevent timing attacks
-    try {
-        return crypto.timingSafeEqual(
-            Buffer.from(signature),
-            Buffer.from(expectedSignature)
-        )
-    } catch {
-        return false
-    }
+    return verifyWebhookSignature(payload, signature)
 }
 
 export async function POST(request: NextRequest) {
@@ -122,7 +98,7 @@ export async function POST(request: NextRequest) {
         }
 
         if (!cpm_trans_id) {
-            console.error('❌ No transaction ID received')
+            console.error('[Webhook] No transaction ID received')
             return new Response('Missing cpm_trans_id', { status: 400 })
         }
 
@@ -178,10 +154,9 @@ export async function POST(request: NextRequest) {
 
                         // Send WhatsApp notification to client
                         try {
+                            const confirmationMessage = `*Paiement recu !*\n\nMerci ! Votre paiement de ${order.total_fcfa?.toLocaleString('fr-FR')} FCFA pour la commande #${order.id.substring(0, 8)} a ete confirme.\n\nVotre commande est maintenant en cours de traitement.\n\nMerci pour votre confiance !`
 
-                            const confirmationMessage = `✅ *Paiement reçu !*\n\nMerci ! Votre paiement de ${order.total_fcfa?.toLocaleString('fr-FR')} FCFA pour la commande #${order.id.substring(0, 8)} a été confirmé.\n\n📦 Votre commande est maintenant en cours de traitement.\n\nMerci pour votre confiance ! 🙏`
-
-                            // 🎯 HYBRID ROUTING: Check for active conversation
+                            // HYBRID ROUTING: Check for active conversation
                             // STRATEGY: 1. Try Hard Link (conversation_id) -> 2. Try Soft Link (agent + phone)
                             const conversationId = order.conversation_id
                             let conversation = null
@@ -233,9 +208,9 @@ export async function POST(request: NextRequest) {
                                     }).select().single()
 
                                     if (insertErr) {
-                                        console.error('❌ Failed to insert message:', insertErr)
+                                        console.error('[Webhook] Failed to insert message:', insertErr)
                                     } else {
-                                        console.log('✅ Message inserted with ID:', insertedMsg?.id)
+                                        console.log('[Webhook] Message inserted with ID:', insertedMsg?.id)
                                         messageInsertedSuccessfully = true
 
                                         // Update conversation header
@@ -245,14 +220,14 @@ export async function POST(request: NextRequest) {
                                             last_message_role: 'assistant'
                                         }).eq('id', conversation.id)
 
-                                        console.log('💬 Payment confirmation added to conversation history for:', order.customer_phone)
+                                        console.log('[Webhook] Payment confirmation added to conversation history for:', order.customer_phone)
                                     }
                                 }
 
                                 // FALLBACK: Always queue to outbound_messages if message insertion failed or no conversation
                                 // This ensures the message is sent even if the bot is offline when webhook is received
                                 if (!messageInsertedSuccessfully && resolvedAgentId) {
-                                    console.log('📝 Inserting message into outbound_messages table (fallback)...')
+                                    console.log('[Webhook] Inserting message into outbound_messages table (fallback)...')
                                     const { data: outboundMsg, error: outboundErr } = await getSupabase().from('outbound_messages').insert({
                                         agent_id: resolvedAgentId,
                                         recipient_phone: order.customer_phone,
@@ -261,16 +236,16 @@ export async function POST(request: NextRequest) {
                                     }).select().single()
 
                                     if (outboundErr) {
-                                        console.error('❌ Failed to insert outbound message:', outboundErr)
+                                        console.error('[Webhook] Failed to insert outbound message:', outboundErr)
                                     } else {
-                                        console.log('✅ Outbound message inserted with ID:', outboundMsg?.id)
+                                        console.log('[Webhook] Outbound message inserted with ID:', outboundMsg?.id)
                                     }
-                                    console.log('📱 Payment confirmation queued via outbound_messages for:', order.customer_phone)
+                                    console.log('[Webhook] Payment confirmation queued via outbound_messages for:', order.customer_phone)
                                 }
 
                                 // 4. (Bonus) Notifier le merchant
                                 try {
-                                    // Récupérer le numéro du merchant depuis la table profiles
+                                    // Retrieve merchant phone from profiles table
                                     const { data: agentData } = await getSupabase()
                                         .from('agents')
                                         .select('user_id')
@@ -284,23 +259,22 @@ export async function POST(request: NextRequest) {
                                             .eq('id', agentData.user_id)
                                             .single()
 
-                                        // Numéro par défaut ou celui du profil
+                                        // Default phone if missing on profile
                                         const merchantPhone = profile?.phone || '+2250554585927'
 
                                         const itemsList = await getSupabase()
                                             .from('order_items')
                                             .select('product_name, quantity, unit_price_fcfa')
                                             .eq('order_id', order.id)
-
-                                        const itemsSummary = itemsList.data?.map((i: any) => `• ${i.quantity}x ${i.product_name}`).join('\n') || 'Articles divers'
+                                        const itemsSummary = itemsList.data?.map((i: any) => `- ${i.quantity}x ${i.product_name}`).join('\n') || 'Articles divers'
 
                                         await getSupabase().from('outbound_messages').insert({
                                             agent_id: resolvedAgentId || order.agent_id,
                                             recipient_phone: merchantPhone,
-                                            message_content: `🔔 *NOUVEAU PAIEMENT !*\n\n💰 Montant: ${Number(order.total_fcfa).toLocaleString()} FCFA\n📦 Commande: #${order.id.substring(0, 8)}\n👤 Client: ${order.customer_phone}\n\n🛒 Articles:\n${itemsSummary}\n\n💳 Mode: CinetPay`,
+                                            message_content: `*NOUVEAU PAIEMENT !*\n\nMontant: ${Number(order.total_fcfa).toLocaleString()} FCFA\nCommande: #${order.id.substring(0, 8)}\nClient: ${order.customer_phone}\n\nArticles:\n${itemsSummary}\n\nMode: CinetPay`,
                                             status: 'pending'
                                         })
-                                        console.log('📤 Merchant notification queued for:', merchantPhone)
+                                        console.log('[Webhook] Merchant notification queued for:', merchantPhone)
 
                                         // 5. Send push + email notification to business owner
                                         await notify(agentData.user_id, 'payment_received', {
@@ -309,142 +283,72 @@ export async function POST(request: NextRequest) {
                                             paymentAmount: Number(order.total_fcfa),
                                             paymentMethod: 'CinetPay'
                                         })
-                                        console.log('📱 Push/email notification sent for payment')
+                                        console.log('[Webhook] Push/email notification sent for payment')
                                     }
                                 } catch (notifyError) {
                                     console.error('Failed to notify merchant:', notifyError)
                                 }
                             } // close if (conversation)
                         } catch (notifyErr) {
-                            console.error('⚠️ Failed to send WhatsApp notification:', notifyErr)
+                            console.error('[Webhook] Failed to send WhatsApp notification:', notifyErr)
                         }
                     }
                 } else if (cinetpayStatus.status === 'REFUSED' || cinetpayStatus.status === 'CANCELLED') {
                     await getSupabase().from('orders').update({
                         status: 'cancelled'
                     }).eq('id', order.id)
-                    console.log('❌ Order payment REFUSED/CANCELLED')
+                    console.log('[Webhook] Order payment REFUSED/CANCELLED')
                 } else {
-                    console.log('⏳ Order payment status pending:', cinetpayStatus.status)
+                    console.log('[Webhook] Order payment status pending:', cinetpayStatus.status)
                 }
 
                 return new Response('OK', { status: 200 })
             } else {
-                console.error('❌ ORDER NOT FOUND! transaction_id:', cpm_trans_id)
+                console.error('[Webhook] ORDER NOT FOUND! transaction_id:', cpm_trans_id)
                 console.error('   This means the order was not saved with this transaction_id.')
                 console.error('   Check if /api/public/orders/[orderId]/pay saved the transaction_id correctly.')
             }
         }
-
-        // Find payment by transaction ID (for credits/subscriptions)
-        const { data: payment, error: paymentError } = await getSupabase()
-            .from('payments')
-            .select('*')
-            .eq('provider_transaction_id', cpm_trans_id)
-            .single()
-
-        if (paymentError || !payment) {
-            console.error('❌ Payment not found for transaction:', cpm_trans_id)
-            return new Response('Payment not found', { status: 404 })
-        }
-
-        console.log('✅ Found payment:', payment.id, 'status:', payment.status)
-
-        // IMPORTANT: Always call CinetPay API to verify the real status (as per documentation)
-        console.log('🔍 Verifying payment status with CinetPay API...')
+        // Credits/subscriptions finalization goes through shared pipeline.
         const cinetpayStatus = await checkPaymentStatus(cpm_trans_id)
-        console.log('📡 CinetPay API response:', JSON.stringify(cinetpayStatus))
 
         if (!cinetpayStatus.success) {
-            console.error('❌ Failed to verify with CinetPay:', cinetpayStatus.message)
+            console.error('[Webhook] Failed to verify with CinetPay:', cinetpayStatus.message)
             return new Response('OK', { status: 200 }) // Return OK to stop retries
         }
 
-        // If already completed, don't process again
-        if (payment.status === 'completed') {
-            console.log('⏭️ Payment already completed, skipping')
-            return new Response('OK', { status: 200 })
+        const finalized = await finalizePaymentByTransaction(
+            getSupabase(),
+            cpm_trans_id,
+            cinetpayStatus.status,
+            {
+                cpm_site_id,
+                cpm_trans_id,
+                cpm_trans_date,
+                cpm_amount,
+                cpm_currency,
+                signature,
+                payment_method,
+                cel_phone_num,
+                cpm_phone_prefixe,
+                cpm_language,
+                cpm_version,
+                cpm_payment_config,
+                cpm_page_action,
+                cpm_custom,
+                cpm_designation,
+                cpm_error_message,
+            }
+        )
+
+        if (!finalized.ok && finalized.state !== 'not_found') {
+            console.error('[Webhook] Finalization failed:', finalized.message)
         }
 
-        // Process based on CinetPay status
-        if (cinetpayStatus.status === 'ACCEPTED') {
-            console.log('✅ Payment ACCEPTED, crediting user:', payment.user_id)
+        return new Response('OK', { status: 200 }) // Return OK to stop retries
 
-            // Get credits to add
-            let creditsToAdd = payment.credits_purchased || 0
-
-            if (!creditsToAdd) {
-                // Try from provider_response (metadata)
-                const metadata = payment.provider_response
-                creditsToAdd = metadata?.credits || 0
-            }
-
-            if (!creditsToAdd) {
-                // Fallback: calculate from amount
-                creditsToAdd = Math.floor(payment.amount_fcfa / 10)
-            }
-
-            console.log('💰 Credits to add:', creditsToAdd)
-
-            if (creditsToAdd > 0) {
-                // ═══════════════════════════════════════════════════════════
-                // ⭐ FIX SECURITY: ATOMIC UPDATE (v2.10)
-                // ═══════════════════════════════════════════════════════════
-                // Use the atomic service method (RPC) instead of select/update
-
-                try {
-                    const newBalance = await CreditsService.add(getSupabase(), payment.user_id, creditsToAdd)
-
-                    // Update plan based on credits added (Business Logic)
-                    // Note: This part is still non-atomic regarding plan switch, 
-                    // but credit balance is safe.
-                    const updateData: { plan?: string } = {}
-
-                    if (payment.payment_type === 'subscription') {
-                        if (creditsToAdd >= 5000) updateData.plan = 'business'
-                        else if (creditsToAdd >= 3000) updateData.plan = 'pro'
-                        else if (creditsToAdd >= 1000) updateData.plan = 'starter'
-
-                        if (Object.keys(updateData).length > 0) {
-                            await getSupabase()
-                                .from('profiles')
-                                .update(updateData)
-                                .eq('id', payment.user_id)
-                        }
-                    }
-
-                    console.log(`✅ SUCCESS! Added ${creditsToAdd} credits. New Balance: ${newBalance}`)
-
-                } catch (creditError) {
-                    console.error('❌ Failed to add credits atomicaly:', creditError)
-                    // We don't fail the webhook response, but we log critically
-                }
-            }
-
-            // Mark payment as completed
-            await getSupabase()
-                .from('payments')
-                .update({
-                    status: 'completed',
-                    credits_purchased: creditsToAdd,
-                    completed_at: new Date().toISOString()
-                })
-                .eq('id', payment.id)
-
-        } else if (cinetpayStatus.status === 'REFUSED' || cinetpayStatus.status === 'CANCELLED') {
-            // Mark as failed
-            await getSupabase()
-                .from('payments')
-                .update({ status: 'failed' })
-                .eq('id', payment.id)
-            console.log('❌ Payment REFUSED/CANCELLED')
-        } else {
-            console.log('⏳ Payment status:', cinetpayStatus.status, '- waiting...')
-        }
-
-        return new Response('OK', { status: 200 })
     } catch (err) {
-        console.error('❌ Webhook error:', err)
+        console.error('[Webhook] Webhook error:', err)
         return new Response('OK', { status: 200 }) // Return OK to stop retries
     }
 }

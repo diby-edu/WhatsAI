@@ -20,7 +20,7 @@ export async function PATCH(
         .eq('id', user.id)
         .single()
 
-    if (profile?.role !== 'admin') {
+    if (profile?.role !== 'admin' && profile?.role !== 'superadmin') {
         return errorResponse('Accès refusé', 403)
     }
 
@@ -97,7 +97,7 @@ export async function DELETE(
         .eq('id', user.id)
         .single()
 
-    if (profile?.role !== 'admin') {
+    if (profile?.role !== 'admin' && profile?.role !== 'superadmin') {
         return errorResponse('Accès refusé', 403)
     }
 

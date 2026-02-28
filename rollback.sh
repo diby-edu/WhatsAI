@@ -11,7 +11,10 @@ echo ""
 CURRENT=$(git rev-parse --short HEAD)
 echo "📌 Commit actuel: $CURRENT"
 
-git reset --hard HEAD~1
+if ! git checkout HEAD~1; then
+    echo "Rollback impossible: working tree non propre."
+    exit 1
+fi
 NEW=$(git rev-parse --short HEAD)
 echo "📌 Retour à: $NEW"
 

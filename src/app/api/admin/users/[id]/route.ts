@@ -20,7 +20,7 @@ export async function PATCH(
         .eq('id', user.id)
         .single()
 
-    if (profile?.role !== 'admin') {
+    if (profile?.role !== 'admin' && profile?.role !== 'superadmin') {
         return errorResponse('Accès refusé', 403)
     }
 
@@ -53,7 +53,7 @@ export async function PATCH(
         if (action === 'reset_credits') {
             const { error } = await adminSupabase
                 .from('profiles')
-                .update({ credits: 0 })
+                .update({ credits_balance: 0 })
                 .eq('id', id)
             if (error) throw error
             await logAdminAction(user.id, 'reset_credits', id, 'profile')
@@ -65,7 +65,7 @@ export async function PATCH(
             if (credits === undefined) return errorResponse('Credits requis', 400)
             const { error } = await adminSupabase
                 .from('profiles')
-                .update({ credits: Number(credits) })
+                .update({ credits_balance: Number(credits) })
                 .eq('id', id)
             if (error) throw error
             await logAdminAction(user.id, 'set_credits', id, 'profile', { credits })
@@ -74,7 +74,7 @@ export async function PATCH(
 
         if (action === 'change_role') {
             const { role } = updateData
-            if (!['user', 'admin'].includes(role)) return errorResponse('Rôle invalide', 400)
+            if (!['user', 'admin', 'superadmin'].includes(role)) return errorResponse('Rôle invalide', 400)
             const { error } = await adminSupabase
                 .from('profiles')
                 .update({ role })
@@ -136,7 +136,7 @@ export async function DELETE(
         .eq('id', user.id)
         .single()
 
-    if (profile?.role !== 'admin') {
+    if (profile?.role !== 'admin' && profile?.role !== 'superadmin') {
         return errorResponse('Accès refusé', 403)
     }
 

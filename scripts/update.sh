@@ -15,7 +15,10 @@ OLD_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 
 echo "📥 Téléchargement des modifications..."
 git fetch origin
-git reset --hard origin/master
+if ! git merge --ff-only origin/master; then
+    echo "Fast-forward merge impossible (working tree not clean or divergent)."
+    exit 1
+fi
 
 # Get new commit after pull  
 NEW_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")

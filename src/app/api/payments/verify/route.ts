@@ -1,198 +1,120 @@
-import { NextRequest } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { NextRequest, NextResponse } from 'next/server'
 import { checkPaymentStatus } from '@/lib/payments/cinetpay'
+import { createAdminClient, createApiClient, getAuthUser, isAdminRole } from '@/lib/api-utils'
+import {
+    canAccessPayment,
+    findPaymentByIdentifiers,
+    finalizePaymentRecord,
+    getPaymentTransactionId,
+    getUserRole,
+} from '@/lib/payments/finalization'
 
-// Helper to get lazy Supabase client
-function getSupabase() {
-    return createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
-}
-
-// POST - Check and update payment status from CinetPay
+// POST - Verify one payment and finalize through central pipeline
 export async function POST(request: NextRequest) {
+    const supabase = await createApiClient()
+    const { user, error: authError } = await getAuthUser(supabase)
+
+    if (authError || !user) {
+        return NextResponse.json({ error: 'Non autorise' }, { status: 401 })
+    }
+
     try {
         const body = await request.json()
-        const { paymentId } = body
+        const paymentId = String(body?.paymentId || '').trim()
+        const transactionId = String(body?.transactionId || '').trim()
 
-        console.log('🔍 Manual payment verification requested:', paymentId)
-
-        // Get the payment record
-        // Get the payment record
-        const { data: payment, error: paymentError } = await getSupabase()
-            .from('payments')
-            .select('*')
-            .eq('id', paymentId)
-            .single()
-
-        if (paymentError || !payment) {
-            console.error('❌ Payment not found:', paymentId)
-            return Response.json({ error: 'Payment not found' }, { status: 404 })
+        if (!paymentId && !transactionId) {
+            return NextResponse.json({ error: 'paymentId ou transactionId requis' }, { status: 400 })
         }
 
-        console.log('📋 Found payment:', payment.provider_transaction_id, 'status:', payment.status)
+        const adminSupabase = createAdminClient()
+        const payment = await findPaymentByIdentifiers(adminSupabase, [paymentId, transactionId], '*')
 
-        // Check status with CinetPay API
-        const transactionId = payment.provider_transaction_id
-        const cinetpayStatus = await checkPaymentStatus(transactionId)
+        if (!payment) {
+            return NextResponse.json({ error: 'Payment not found' }, { status: 404 })
+        }
 
-        console.log('📡 CinetPay response:', JSON.stringify(cinetpayStatus))
+        const hasAccess = await canAccessPayment(adminSupabase, user.id, payment)
+        if (!hasAccess) {
+            return NextResponse.json({ error: 'Acces refuse' }, { status: 403 })
+        }
 
+        const txToCheck = getPaymentTransactionId(payment, [transactionId, paymentId])
+        if (!txToCheck) {
+            return NextResponse.json({ error: 'Transaction ID introuvable' }, { status: 400 })
+        }
+
+        const cinetpayStatus = await checkPaymentStatus(txToCheck)
         if (!cinetpayStatus.success) {
-            return Response.json({
-                error: 'Failed to check payment status',
-                cinetpay_response: cinetpayStatus
-            }, { status: 400 })
+            return NextResponse.json(
+                {
+                    error: 'Failed to check payment status',
+                    cinetpay_response: cinetpayStatus,
+                },
+                { status: 400 }
+            )
         }
 
-        // If payment is accepted, credit the user
-        if (cinetpayStatus.status === 'ACCEPTED' && payment.status !== 'completed') {
-            console.log('✅ Payment ACCEPTED by CinetPay, crediting user:', payment.user_id)
+        const finalized = await finalizePaymentRecord(
+            adminSupabase,
+            payment,
+            cinetpayStatus.status
+        )
 
-            // Calculate credits from plan or amount
-            let creditsToAdd = payment.credits_purchased || 0
-
-            if (!creditsToAdd) {
-                // Try to get from metadata
-                try {
-                    const metadata = typeof payment.metadata === 'string'
-                        ? JSON.parse(payment.metadata)
-                        : payment.metadata
-                    creditsToAdd = metadata?.credits || 0
-                } catch (e) {
-                    // Fallback: 1 credit per 10 FCFA
-                    creditsToAdd = Math.floor(payment.amount_fcfa / 10)
-                }
-            }
-
-            if (!creditsToAdd) {
-                creditsToAdd = Math.floor(payment.amount_fcfa / 10)
-            }
-
-            console.log('💰 Credits to add:', creditsToAdd)
-
-            // Get current user balance
-            // Get current user balance
-            const { data: profile } = await getSupabase()
-                .from('profiles')
-                .select('credits_balance')
-                .eq('id', payment.user_id)
-                .single()
-
-            const currentBalance = profile?.credits_balance || 0
-            const newBalance = currentBalance + creditsToAdd
-
-            // Update user credits
-            // Update user credits
-            const { error: creditError } = await getSupabase()
-                .from('profiles')
-                .update({ credits_balance: newBalance })
-                .eq('id', payment.user_id)
-
-            if (creditError) {
-                console.error('❌ Failed to update credits:', creditError)
-                return Response.json({ error: 'Failed to update credits' }, { status: 500 })
-            }
-
-            // Update payment status
-            // Update payment status
-            await getSupabase()
-                .from('payments')
-                .update({
-                    status: 'completed',
-                    credits_purchased: creditsToAdd,
-                    completed_at: new Date().toISOString()
-                })
-                .eq('id', payment.id)
-
-            // Update user plan if this is a subscription payment
-            let planUpdated = false
-            if (payment.payment_type === 'subscription') {
-                // Get plan info from provider_response (metadata)
-                const planData = payment.provider_response
-                const planId = planData?.plan_id
-
-                if (planId) {
-                    // Map plan ID to plan name
-                    let planName = 'free'
-                    if (planId.includes('starter') || planData?.type === 'subscription' && creditsToAdd <= 1000) {
-                        planName = 'starter'
-                    } else if (planId.includes('pro') || creditsToAdd <= 3000) {
-                        planName = 'pro'
-                    } else if (planId.includes('business') || creditsToAdd >= 5000) {
-                        planName = 'business'
-                    }
-
-                    // Update user's plan
-                    // Update user's plan
-                    await getSupabase()
-                        .from('profiles')
-                        .update({ plan: planName })
-                        .eq('id', payment.user_id)
-
-                    console.log(`📋 Updated plan to: ${planName}`)
-                    planUpdated = true
-                }
-            }
-
-            console.log(`✅ SUCCESS! Added ${creditsToAdd} credits. Balance: ${currentBalance} → ${newBalance}`)
-
-            return Response.json({
-                success: true,
-                message: 'Payment verified and credits added',
-                credits_added: creditsToAdd,
-                old_balance: currentBalance,
-                new_balance: newBalance,
-                plan_updated: planUpdated,
-                cinetpay_status: cinetpayStatus.status
-            })
+        if (!finalized.ok) {
+            return NextResponse.json({ error: finalized.message }, { status: 500 })
         }
 
-        // If payment is still pending or refused
-        let newStatus = payment.status
-        if (cinetpayStatus.status === 'REFUSED' || cinetpayStatus.status === 'CANCELLED') {
-            newStatus = 'failed'
-            await getSupabase()
-                .from('payments')
-                .update({ status: newStatus })
-                .eq('id', payment.id)
-        }
-
-        return Response.json({
+        return NextResponse.json({
             success: true,
-            message: 'Payment status checked',
-            current_status: newStatus,
-            cinetpay_status: cinetpayStatus.status
+            message: finalized.message,
+            credits_added: finalized.creditsAdded,
+            new_balance: finalized.newBalance,
+            plan_updated: finalized.planUpdated,
+            current_status: finalized.payment?.status || payment.status,
+            cinetpay_status: finalized.providerStatus,
+            finalization_state: finalized.state,
         })
-
     } catch (error) {
-        console.error('❌ Error:', error)
-        return Response.json({ error: 'Internal error' }, { status: 500 })
+        console.error('Payment verify error:', error)
+        return NextResponse.json({ error: 'Internal error' }, { status: 500 })
     }
 }
 
-// GET - Check all pending payments
-export async function GET(request: NextRequest) {
+// GET - Check pending/processing payments (admin only)
+export async function GET() {
+    const supabase = await createApiClient()
+    const { user, error: authError } = await getAuthUser(supabase)
+
+    if (authError || !user) {
+        return NextResponse.json({ error: 'Non autorise' }, { status: 401 })
+    }
+
+    const adminSupabase = createAdminClient()
+    const role = await getUserRole(adminSupabase, user.id)
+    if (!isAdminRole(role)) {
+        return NextResponse.json({ error: 'Acces refuse' }, { status: 403 })
+    }
+
     try {
-        // Get all pending/processing payments
-        const { data: payments, error } = await getSupabase()
+        const { data: payments, error } = await adminSupabase
             .from('payments')
-            .select('id, user_id, amount_fcfa, status, provider_transaction_id, created_at')
+            .select('id, user_id, amount_fcfa, status, provider_transaction_id, transaction_id, created_at')
             .in('status', ['pending', 'processing'])
             .order('created_at', { ascending: false })
             .limit(20)
 
         if (error) {
-            return Response.json({ error: error.message }, { status: 500 })
+            return NextResponse.json({ error: error.message }, { status: 500 })
         }
 
-        return Response.json({
-            pending_payments: payments,
-            count: payments?.length || 0
+        return NextResponse.json({
+            success: true,
+            pending_payments: payments || [],
+            count: payments?.length || 0,
         })
     } catch (error) {
-        console.error('Error:', error)
-        return Response.json({ error: 'Internal error' }, { status: 500 })
+        console.error('Payments verify GET error:', error)
+        return NextResponse.json({ error: 'Internal error' }, { status: 500 })
     }
 }

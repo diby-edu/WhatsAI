@@ -5,6 +5,7 @@ import { createApiClient, getAuthUser, errorResponse, successResponse } from '@/
 const CINETPAY_API_KEY = process.env.CINETPAY_API_KEY
 const CINETPAY_SITE_ID = process.env.CINETPAY_SITE_ID
 const CINETPAY_BASE_URL = 'https://api-checkout.cinetpay.com/v2/payment'
+const BASE_TO_XOF_RATE = 700
 
 export async function POST(request: NextRequest) {
     const supabase = await createApiClient()
@@ -24,6 +25,7 @@ export async function POST(request: NextRequest) {
 
         // Generate unique transaction ID
         const transactionId = `TXN_${Date.now()}_${Math.random().toString(36).substring(7)}`
+        const amountFCFA = amount < 100 ? Math.ceil(amount * BASE_TO_XOF_RATE) : amount
 
         // Get app URL for callbacks
         const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
@@ -33,7 +35,7 @@ export async function POST(request: NextRequest) {
             apikey: CINETPAY_API_KEY,
             site_id: CINETPAY_SITE_ID,
             transaction_id: transactionId,
-            amount: amount < 100 ? Math.ceil(amount * 655) : amount, // Auto-convert low amounts (likely USD) to FCFA
+            amount: amountFCFA, // Auto-convert low amounts (likely USD/EUR) to FCFA
             currency: 'XOF',
             description: description || 'Achat de crédits WazzapAI',
             notify_url: `${baseUrl}/api/payments/cinetpay/webhook`,
@@ -67,7 +69,7 @@ export async function POST(request: NextRequest) {
             // Note: provider_transaction_id is what webhook uses to find payments
             await supabase.from('payments').insert({
                 user_id: user.id,
-                amount_fcfa: amount,
+                amount_fcfa: amountFCFA,
                 credits_purchased: credits_to_add || Math.floor(amount / 10),
                 payment_provider: 'cinetpay',
                 status: 'pending',

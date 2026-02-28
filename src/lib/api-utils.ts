@@ -49,7 +49,11 @@ export function errorResponse(message: string, status: number = 400) {
 
 // Standard success response
 export function successResponse(data: any, status: number = 200) {
-    return NextResponse.json({ data }, { status })
+    return NextResponse.json({ success: true, data }, { status })
+}
+
+export function isAdminRole(role?: string | null): boolean {
+    return role === 'admin' || role === 'superadmin'
 }
 
 // Get authenticated user or return error
