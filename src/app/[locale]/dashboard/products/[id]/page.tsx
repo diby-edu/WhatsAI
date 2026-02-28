@@ -57,7 +57,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     // Form Data
     const [formData, setFormData] = useState({
         name: '',
-        price_fcfa: '' as string | number,
+        price: '' as string | number,
         images: [] as string[], // Multi-images support (up to 10)
         image_url: '', // Legacy support
         category: '',
@@ -122,7 +122,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
 
                 setFormData({
                     name: p.name || '',
-                    price_fcfa: p.price_fcfa ? convertFromFcfa(p.price_fcfa, userCurrency) : '',
+                    price: p.price_fcfa ? convertFromFcfa(p.price_fcfa, userCurrency) : '',
                     images: images,
                     image_url: p.image_url || images[0] || '',
                     category: p.category || '',
@@ -228,7 +228,6 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     const handleSave = async (silent = false) => {
         if (!silent) setSaving(true)
         try {
-            // Convertir les prix de la devise utilisateur vers FCFA avant d'envoyer
             const variantsInFcfa = formData.variants.map((v: any) => ({
                 ...v,
                 options: (v.options || []).map((o: any) => ({
@@ -236,9 +235,10 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                     price: o.price ? convertToFcfa(Number(o.price), currency) : 0
                 }))
             }))
+            const { price, ...restFormData } = formData as any
             const dataToSend = {
-                ...formData,
-                price_fcfa: convertToFcfa(parseFloat(String(formData.price_fcfa)) || 0, currency),
+                ...restFormData,
+                price_fcfa: convertToFcfa(parseFloat(String(price)) || 0, currency),
                 variants: variantsInFcfa
             }
             const res = await fetch(`/api/products/${productId}`, {
@@ -354,11 +354,11 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                                         <input
                                             type="text"
                                             inputMode="numeric"
-                                            value={formData.price_fcfa}
+                                            value={formData.price}
                                             onChange={e => {
                                                 const val = e.target.value
                                                 if (val === '' || /^\d*\.?\d*$/.test(val)) {
-                                                    setFormData({ ...formData, price_fcfa: val === '' ? '' : val })
+                                                    setFormData({ ...formData, price: val === '' ? '' : val })
                                                 }
                                             }}
                                             placeholder="0"
@@ -429,10 +429,16 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                                                 body: JSON.stringify({
                                                     description: formData.description,
                                                     existingData: {
-                                                        price: formData.price_fcfa,
+                                                        price: convertToFcfa(Number(formData.price) || 0, currency),
                                                         features: formData.features,
                                                         content_included: formData.content_included,
-                                                        variants: formData.variants
+                                                        variants: formData.variants.map((v: any) => ({
+                                                            ...v,
+                                                            options: (v.options || []).map((o: any) => ({
+                                                                ...o,
+                                                                price: o.price ? convertToFcfa(Number(o.price), currency) : 0
+                                                            }))
+                                                        }))
                                                     }
                                                 })
                                             })
@@ -440,12 +446,23 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                                             if (data.success) {
                                                 setAnalysisResult(data.data)
                                                 const extracted = data.data.extracted
+
+                                                const receivedVariants = extracted.variants?.length ? extracted.variants : formData.variants;
+                                                const variantsInLocal = receivedVariants.map((v: any) => ({
+                                                    ...v,
+                                                    options: (v.options || []).map((o: any) => ({
+                                                        ...o,
+                                                        price: o.price ? convertFromFcfa(Number(o.price), currency) : 0
+                                                    }))
+                                                }))
+
                                                 setFormData(prev => ({
                                                     ...prev,
                                                     description: data.data.cleaned_description || prev.description,
-                                                    price_fcfa: extracted.price || prev.price_fcfa,
+                                                    price: extracted.price ? convertFromFcfa(extracted.price, currency) : prev.price,
                                                     content_included: [...new Set([...prev.content_included, ...(extracted.content_included || [])])],
-                                                    features: [...new Set([...prev.features, ...(extracted.tags || [])])]
+                                                    features: [...new Set([...prev.features, ...(extracted.tags || [])])],
+                                                    variants: variantsInLocal
                                                 }))
                                             } else {
                                                 alert(data.error || 'Erreur d\'analyse')
