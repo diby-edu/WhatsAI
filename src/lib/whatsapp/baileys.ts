@@ -158,7 +158,7 @@ export async function initWhatsAppSession(
                     .from('agents')
                     .update({
                         whatsapp_connected: true,
-                        whatsapp_phone_number: phoneNumber
+                        whatsapp_phone: phoneNumber
                     })
                     .eq('id', agentId)
                 console.log(`✅ Database updated: agent ${agentId} marked as connected`)
@@ -193,7 +193,7 @@ export async function initWhatsAppSession(
                             .from('agents')
                             .update({
                                 whatsapp_connected: false,
-                                whatsapp_phone_number: null
+                                whatsapp_phone: null
                             })
                             .eq('id', agentId)
                         console.log(`✅ Database updated: agent ${agentId} marked as disconnected`)

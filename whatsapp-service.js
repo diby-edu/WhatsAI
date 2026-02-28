@@ -105,6 +105,9 @@ const openai = new OpenAI({ apiKey: OPENAI_API_KEY })
 const activeSessions = new Map()
 const pendingConnections = new Set()
 
+// Référence au channel Realtime pour cleanup au shutdown
+let _realtimeChannel = null
+
 // Check for new agents that need connection
 async function checkAgents() {
     try {
@@ -141,7 +144,9 @@ async function checkAgents() {
             // Only restore if not already active
             if (!activeSessions.has(agent.id) && !pendingConnections.has(agent.id)) {
                 console.log(`🔄 Restoring session for ${agent.name} (DB Status: Connected)`)
-                initSession(context, agent.id, agent.name)
+                // Passer reconnectAttempt=99 → restauration silencieuse (pas de notification push)
+                // Une notification "connecté" au démarrage du bot serait du spam pour l'utilisateur
+                initSession(context, agent.id, agent.name, 99)
             }
         }
     } catch (error) {
@@ -158,6 +163,16 @@ const gracefulShutdown = async (signal) => {
         if (session.socket) {
             console.log(`PLEASE WAIT: Closing session for agent ${agentId}...`)
             session.socket.end(undefined) // Close connection
+        }
+    }
+
+    // Cleanup Realtime subscriptions pour éviter les connexions orphelines sur Supabase
+    if (_realtimeChannel && supabaseRealtime) {
+        try {
+            await cleanupRealtimeListeners(_realtimeChannel, supabaseRealtime)
+            console.log('✅ Realtime subscriptions cleaned up.')
+        } catch (e) {
+            console.error('⚠️ Realtime cleanup error (non-blocking):', e.message)
         }
     }
 
@@ -188,7 +203,7 @@ async function main() {
     // ⚡ REALTIME & ADAPTIVE POLLING
     // ═══════════════════════════════════════════════════════════
     context.realtimeConnected = false
-    const realtimeChannel = setupRealtimeListeners(context)
+    _realtimeChannel = setupRealtimeListeners(context)
 
     // ✅ Polling Adaptatif (Filet de sécurité intelligent)
     async function adaptivePollingLoop() {
