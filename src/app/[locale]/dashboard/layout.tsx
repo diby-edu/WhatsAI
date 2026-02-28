@@ -207,7 +207,7 @@ export default function DashboardLayout({
                 await fetch('/api/notifications/claim-token', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ token })
+                    body: JSON.stringify({ token: typeof window !== 'undefined' ? localStorage.getItem('fcm_token') : null })
                 })
             } catch (err) {
                 // Silent fail — non-critical
