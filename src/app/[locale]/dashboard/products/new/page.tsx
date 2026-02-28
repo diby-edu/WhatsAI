@@ -627,7 +627,7 @@ export default function NewProductPage() {
 
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                             <div>
-                                <label style={labelStyle}>Prix ({currency})</label>
+                                <label style={labelStyle}>Prix (FCFA)</label>
                                 <div style={{ position: 'relative' }}>
                                     <input
                                         type="text"

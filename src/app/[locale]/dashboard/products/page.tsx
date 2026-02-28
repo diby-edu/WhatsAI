@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { useTranslations, useFormatter } from 'next-intl'
+import { convertFromFcfa } from '@/lib/currency'
 
 interface Variant {
     id: string
@@ -118,15 +119,19 @@ export default function ProductsPage() {
         return matchesSearch && matchesAgent
     })
 
-    const formatPrice = (price: number) => {
+    const formatPrice = (priceFcfa: number) => {
+        const converted = convertFromFcfa(priceFcfa, currency)
+        if (currency === 'XOF' || currency === 'FCFA') {
+            return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(converted) + ' FCFA'
+        }
         return new Intl.NumberFormat('fr-FR', {
             style: 'currency',
             currency: currency,
-            maximumFractionDigits: currency === 'XOF' ? 0 : 2
-        }).format(price)
+            maximumFractionDigits: 2
+        }).format(converted)
     }
 
-    // Calculate display price range based on variants
+    // Calculate display price range based on variants (prices in FCFA)
     const getDisplayPrice = (product: Product): { minPrice: number; maxPrice: number; hasVariants: boolean } => {
         const variants = product.variants || []
         const fixedVariant = variants.find(v => v.type === 'fixed')
