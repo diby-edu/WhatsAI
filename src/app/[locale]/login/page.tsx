@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { MessageCircle, Mail, Lock, Loader2, Eye, EyeOff, Sparkles, ArrowRight, Zap, Shield, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { resolvePostAuthPath } from '@/lib/auth/post-auth'
 
 export default function LoginPage() {
     const router = useRouter()
@@ -38,37 +39,11 @@ export default function LoginPage() {
                     setError(error.message)
                 }
             } else {
-                // Check if user is admin (via Metadata OR Profile)
-                const { data: { user } } = await supabase.auth.getUser()
-
-                if (user) {
-                    let isAdmin = false
-
-                    // 1. Check Metadata (Faster, no RLS issues)
-                    if (user.user_metadata?.role === 'admin') {
-                        isAdmin = true
-                    } else {
-                        // 2. Check Profile (Fallback)
-                        const { data: profile } = await supabase
-                            .from('profiles')
-                            .select('role')
-                            .eq('id', user.id)
-                            .single()
-
-                        if (profile?.role === 'admin') {
-                            isAdmin = true
-                        }
-                    }
-
-                    if (isAdmin) {
-                        router.push('/admin')
-                    } else {
-                        router.push('/dashboard')
-                    }
-                    router.refresh()
-                }
+                const nextPath = await resolvePostAuthPath(supabase)
+                router.push(nextPath)
+                router.refresh()
             }
-        } catch (err) {
+        } catch {
             setError('Une erreur est survenue. Veuillez réessayer.')
         } finally {
             setLoading(false)
@@ -77,6 +52,8 @@ export default function LoginPage() {
 
     const handleGoogleLogin = async () => {
         const supabase = createClient()
+        setError(null)
+        setLoading(true)
 
         // Détecter si on est sur mobile (Capacitor)
         const isCapacitor = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform()
@@ -97,7 +74,7 @@ export default function LoginPage() {
                 // Sans ça, Google re-sélectionne automatiquement le dernier compte utilisé
                 try {
                     await GoogleAuth.signOut()
-                } catch (e) {
+                } catch {
                     // Normal si aucune session Google active - on continue
                 }
 
@@ -105,7 +82,6 @@ export default function LoginPage() {
                 const googleUser = await GoogleAuth.signIn()
 
                 if (googleUser?.authentication?.idToken) {
-                    setLoading(true)
                     // 2. Transmettre le token ID à Supabase
                     const { error } = await supabase.auth.signInWithIdToken({
                         provider: 'google',
@@ -115,10 +91,13 @@ export default function LoginPage() {
                     if (error) throw error
 
                     // Redirection après succès
-                    router.push('/dashboard')
+                    const nextPath = await resolvePostAuthPath(supabase)
+                    router.push(nextPath)
                     router.refresh()
+                } else {
+                    setError('Impossible de recuperer le token Google.')
                 }
-            } catch (err: any) {
+            } catch (err: unknown) {
                 console.error('Google Auth Native Error:', err)
                 setError('Erreur lors de la connexion Google sur mobile. Assurez-vous d\'être connecté à internet.')
             } finally {
@@ -126,12 +105,18 @@ export default function LoginPage() {
             }
         } else {
             // Mode Web Classique
-            await supabase.auth.signInWithOAuth({
+            const { error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
                     redirectTo: `${window.location.origin}/auth/callback`,
                 },
             })
+
+            if (error) {
+                setError(error.message)
+            }
+
+            setLoading(false)
         }
     }
 

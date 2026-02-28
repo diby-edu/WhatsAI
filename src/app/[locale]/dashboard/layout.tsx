@@ -34,6 +34,7 @@ import { useTranslations } from 'next-intl'
 import { GlobalSearch } from '@/components/dashboard/GlobalSearch'
 import { useAndroidBackButton } from '@/hooks/useAndroidBackButton'
 import { BiometricLock } from '@/components/BiometricLock'
+import { CurrencyProvider } from '@/contexts/CurrencyContext'
 
 interface Notification {
     id: string
@@ -937,9 +938,11 @@ export default function DashboardLayout({
                     boxSizing: 'border-box',
                     paddingBottom: isMobile ? '100px' : '40px'
                 }}>
-                    <BiometricLock>
-                        {children}
-                    </BiometricLock>
+                    <CurrencyProvider>
+                        <BiometricLock>
+                            {children}
+                        </BiometricLock>
+                    </CurrencyProvider>
                 </div>
             </main>
         </div>
