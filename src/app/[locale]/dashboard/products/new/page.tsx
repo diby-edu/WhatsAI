@@ -22,7 +22,7 @@ import Link from 'next/link'
 import { createBrowserClient } from '@supabase/ssr'
 import { useTranslations } from 'next-intl'
 import ProductVariantsEditor, { VariantGroup } from '@/components/dashboard/ProductVariantsEditor'
-import { convertToFcfa } from '@/lib/currency'
+import { convertToFcfa, convertFromFcfa } from '@/lib/currency'
 
 export default function NewProductPage() {
     const t = useTranslations('Products.Wizard')
@@ -42,7 +42,7 @@ export default function NewProductPage() {
     const [formData, setFormData] = useState({
         // Basics
         name: '',
-        price_fcfa: '' as string | number,
+        price: '' as string | number,
         images: [] as string[], // Multi-images support (up to 10)
         image_url: '', // Legacy support
         category: '',
@@ -356,9 +356,11 @@ export default function NewProductPage() {
                     price: o.price ? convertToFcfa(Number(o.price), currency) : 0
                 }))
             }))
+
+            const { price, ...restFormData } = formData as any
             const dataToSend = {
-                ...formData,
-                price_fcfa: convertToFcfa(parseFloat(String(formData.price_fcfa)) || 0, currency),
+                ...restFormData,
+                price_fcfa: convertToFcfa(parseFloat(String(price)) || 0, currency),
                 variants: variantsInFcfa
             }
 
@@ -641,12 +643,12 @@ export default function NewProductPage() {
                                     <input
                                         type="text"
                                         inputMode="numeric"
-                                        value={formData.price_fcfa}
+                                        value={formData.price}
                                         onChange={e => {
                                             const val = e.target.value
                                             // Allow empty or numeric values
                                             if (val === '' || /^\d*\.?\d*$/.test(val)) {
-                                                setFormData({ ...formData, price_fcfa: val === '' ? '' : val })
+                                                setFormData({ ...formData, price: val === '' ? '' : val })
                                             }
                                         }}
                                         placeholder="0"
@@ -718,10 +720,16 @@ export default function NewProductPage() {
                                                 body: JSON.stringify({
                                                     description: formData.description,
                                                     existingData: {
-                                                        price: formData.price_fcfa,
+                                                        price: convertToFcfa(Number(formData.price) || 0, currency),
                                                         features: formData.features,
                                                         content_included: formData.content_included,
-                                                        variants: formData.variants
+                                                        variants: formData.variants.map((v: any) => ({
+                                                            ...v,
+                                                            options: (v.options || []).map((o: any) => ({
+                                                                ...o,
+                                                                price: o.price ? convertToFcfa(Number(o.price), currency) : 0
+                                                            }))
+                                                        }))
                                                     }
                                                 })
                                             })
@@ -730,13 +738,23 @@ export default function NewProductPage() {
                                                 setAnalysisResult(data.data)
                                                 // Auto-apply extracted data
                                                 const extracted = data.data.extracted
+
+                                                const receivedVariants = extracted.variants?.length ? extracted.variants : formData.variants;
+                                                const variantsInLocal = receivedVariants.map((v: any) => ({
+                                                    ...v,
+                                                    options: (v.options || []).map((o: any) => ({
+                                                        ...o,
+                                                        price: o.price ? convertFromFcfa(Number(o.price), currency) : 0
+                                                    }))
+                                                }))
+
                                                 setFormData(prev => ({
                                                     ...prev,
                                                     description: data.data.cleaned_description || prev.description,
-                                                    price_fcfa: extracted.price || prev.price_fcfa,
+                                                    price: extracted.price ? convertFromFcfa(extracted.price, currency) : prev.price,
                                                     content_included: [...new Set([...prev.content_included, ...(extracted.content_included || [])])],
                                                     features: [...new Set([...prev.features, ...(extracted.tags || [])])],
-                                                    variants: extracted.variants?.length ? extracted.variants : prev.variants
+                                                    variants: variantsInLocal
                                                 }))
                                             } else {
                                                 alert(data.error || 'Erreur d\'analyse')
