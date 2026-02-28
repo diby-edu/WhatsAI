@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
         .eq('id', user.id)
         .single()
 
-    if (profile?.role !== 'admin') {
+    if (profile?.role !== 'admin' && profile?.role !== 'superadmin') {
         return errorResponse('Accès refusé', 403)
     }
 
@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
             return errorResponse('Paramètres invalides (action, ids required)', 400)
         }
 
-        let results = { success: 0, failed: 0 }
+        const results = { success: 0, failed: 0 }
 
         switch (action) {
             case 'bulk_ban':

@@ -1,134 +1,118 @@
-import { NextRequest } from 'next/server'
-import { createApiClient, successResponse, errorResponse } from '@/lib/api-utils'
-
-const CINETPAY_API_KEY = process.env.CINETPAY_API_KEY
-const CINETPAY_SITE_ID = process.env.CINETPAY_SITE_ID
-
-async function checkPaymentStatus(transactionId: string) {
-    if (!CINETPAY_API_KEY || !CINETPAY_SITE_ID) {
-        throw new Error('CinetPay non configuré')
-    }
-
-    const response = await fetch('https://api-checkout.cinetpay.com/v2/payment/check', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            apikey: CINETPAY_API_KEY,
-            site_id: CINETPAY_SITE_ID,
-            transaction_id: transactionId
-        })
-    })
-
-    return response.json()
-}
+import { NextRequest, NextResponse } from 'next/server'
+import { checkPaymentStatus } from '@/lib/payments/cinetpay'
+import { createAdminClient, createApiClient, getAuthUser, isAdminRole } from '@/lib/api-utils'
+import {
+    canAccessPayment,
+    findPaymentByIdentifiers,
+    finalizePaymentByTransaction,
+    getUserRole,
+} from '@/lib/payments/finalization'
 
 export async function GET(request: NextRequest) {
+    const apiSupabase = await createApiClient()
+    const { user, error: authError } = await getAuthUser(apiSupabase)
+
+    if (authError || !user) {
+        return NextResponse.json({ error: 'Non autorise' }, { status: 401 })
+    }
+
     const { searchParams } = new URL(request.url)
-    const transactionId = searchParams.get('transaction_id')
+    const transactionId = String(searchParams.get('transaction_id') || '').trim()
 
     if (!transactionId) {
-        return errorResponse('transaction_id requis', 400)
+        return NextResponse.json({ error: 'transaction_id requis' }, { status: 400 })
     }
 
     try {
+        const adminSupabase = createAdminClient()
+        const payment = await findPaymentByIdentifiers(adminSupabase, [transactionId], '*')
+
+        if (payment) {
+            const allowed = await canAccessPayment(adminSupabase, user.id, payment)
+            if (!allowed) {
+                return NextResponse.json({ error: 'Acces refuse' }, { status: 403 })
+            }
+        } else {
+            const role = await getUserRole(adminSupabase, user.id)
+            if (!isAdminRole(role)) {
+                return NextResponse.json({ error: 'Acces refuse' }, { status: 403 })
+            }
+        }
+
         const result = await checkPaymentStatus(transactionId)
 
-        return successResponse({
+        return NextResponse.json({
+            success: result.status === 'ACCEPTED',
+            status: result.status || 'UNKNOWN',
             transaction_id: transactionId,
-            status: result.data?.status || 'unknown',
-            amount: result.data?.amount,
-            currency: result.data?.currency,
-            payment_method: result.data?.payment_method,
-            raw: result
+            amount: result.amount,
+            payment_method: result.message,
+            payment_record_status: payment?.status || null,
+            data: {
+                status: result.status || 'UNKNOWN',
+            },
         })
     } catch (err: any) {
-        return errorResponse(err.message || 'Erreur de vérification', 500)
+        return NextResponse.json({ error: err.message || 'Erreur de verification' }, { status: 500 })
     }
 }
 
-// POST method - also credits user on success
+// POST - Verify and finalize via centralized finalization pipeline
 export async function POST(request: NextRequest) {
+    const apiSupabase = await createApiClient()
+    const { user, error: authError } = await getAuthUser(apiSupabase)
+
+    if (authError || !user) {
+        return NextResponse.json({ error: 'Non autorise' }, { status: 401 })
+    }
+
     try {
         const body = await request.json()
-        const transactionId = body.transaction_id
+        const transactionId = String(body?.transaction_id || '').trim()
 
         if (!transactionId) {
-            return errorResponse('transaction_id requis', 400)
+            return NextResponse.json({ error: 'transaction_id requis' }, { status: 400 })
         }
 
-        const result = await checkPaymentStatus(transactionId)
-        const status = result.data?.status
+        const adminSupabase = createAdminClient()
+        const payment = await findPaymentByIdentifiers(adminSupabase, [transactionId], '*')
 
-        if (status === 'ACCEPTED') {
-            // Check if already processed
-            const supabase = await createApiClient()
-            // Try provider_transaction_id first (new format), fallback to transaction_id (legacy)
-            let existingPayment = null
-            const { data: paymentByProvider } = await supabase
-                .from('payments')
-                .select('id, user_id, credits_purchased, status')
-                .eq('provider_transaction_id', transactionId)
-                .single()
-
-            if (paymentByProvider) {
-                existingPayment = paymentByProvider
-            } else {
-                // Fallback for legacy payments
-                const { data: paymentByLegacy } = await supabase
-                    .from('payments')
-                    .select('id, user_id, credits_purchased, status')
-                    .eq('transaction_id', transactionId)
-                    .single()
-                existingPayment = paymentByLegacy
+        if (payment) {
+            const allowed = await canAccessPayment(adminSupabase, user.id, payment)
+            if (!allowed) {
+                return NextResponse.json({ error: 'Acces refuse' }, { status: 403 })
             }
-
-            if (existingPayment) {
-                if (existingPayment.status === 'completed') {
-                    // Already processed
-                    return successResponse({
-                        success: true,
-                        status: 'ACCEPTED',
-                        message: 'Paiement déjà traité',
-                        credits_added: existingPayment.credits_purchased
-                    })
-                }
-
-                // Update payment and add credits
-                const creditsToAdd = existingPayment.credits_purchased || 0
-
-                if (creditsToAdd > 0 && existingPayment.user_id) {
-                    // Add credits to user
-                    await supabase.rpc('add_credits', {
-                        p_user_id: existingPayment.user_id,
-                        p_credits: creditsToAdd
-                    })
-
-                    // Mark payment as completed
-                    await supabase
-                        .from('payments')
-                        .update({ status: 'completed', completed_at: new Date().toISOString() })
-                        .eq('id', existingPayment.id)
-                }
-
-                return successResponse({
-                    success: true,
-                    status: 'ACCEPTED',
-                    message: 'Paiement confirmé',
-                    credits_added: creditsToAdd
-                })
+        } else {
+            const role = await getUserRole(adminSupabase, user.id)
+            if (!isAdminRole(role)) {
+                return NextResponse.json({ error: 'Acces refuse' }, { status: 403 })
             }
         }
 
-        return successResponse({
-            success: status === 'ACCEPTED',
-            status: status || 'PENDING',
+        const finalized = await finalizePaymentByTransaction(adminSupabase, transactionId)
+
+        if (finalized.state === 'not_found') {
+            return NextResponse.json({ error: finalized.message }, { status: 404 })
+        }
+
+        if (!finalized.ok) {
+            return NextResponse.json({ error: finalized.message }, { status: 500 })
+        }
+
+        return NextResponse.json({
+            success: finalized.providerStatus === 'ACCEPTED',
+            status: finalized.providerStatus,
             transaction_id: transactionId,
-            message: status === 'ACCEPTED' ? 'Paiement confirmé' : 'Paiement en attente',
-            raw: result.data
+            message: finalized.message,
+            credits_added: finalized.creditsAdded,
+            new_balance: finalized.newBalance,
+            finalization_state: finalized.state,
+            data: {
+                status: finalized.providerStatus,
+            },
         })
     } catch (err: any) {
         console.error('Payment status check error:', err)
-        return errorResponse(err.message || 'Erreur de vérification', 500)
+        return NextResponse.json({ error: err.message || 'Erreur de verification' }, { status: 500 })
     }
 }
-

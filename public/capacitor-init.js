@@ -48,6 +48,9 @@
         // Listen for registration success
         PushNotifications.addListener('registration', async (token) => {
             console.log('[WazzapAI] FCM Token received:', token.value);
+            try {
+                localStorage.setItem('fcm_token', token.value);
+            } catch (_) {}
 
             // Save token to backend
             await saveTokenToBackend(token.value);

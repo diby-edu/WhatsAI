@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
         .eq('id', user.id)
         .single()
 
-    if (profile?.role !== 'admin') {
+    if (profile?.role !== 'admin' && profile?.role !== 'superadmin') {
         return errorResponse('Non autorisé', 403)
     }
 

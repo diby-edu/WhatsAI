@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
         .eq('id', user.id)
         .single()
 
-    if (profile?.role !== 'admin') {
+    if (profile?.role !== 'admin' && profile?.role !== 'superadmin') {
         return errorResponse('Accès refusé', 403)
     }
 
@@ -132,13 +132,14 @@ export async function POST(request: NextRequest) {
         .eq('id', user.id)
         .single()
 
-    if (profile?.role !== 'admin') {
+    if (profile?.role !== 'admin' && profile?.role !== 'superadmin') {
         return errorResponse('Accès refusé', 403)
     }
 
     try {
         const body = await request.json()
-        let { user_id, gross_amount, commission_rate, payment_method, notes, period_start, period_end } = body
+        const { user_id, gross_amount, payment_method, notes, period_start, period_end } = body
+        let { commission_rate } = body
 
         // If no rate provided, fetch global default
         if (!commission_rate) {

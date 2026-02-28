@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
         .eq('id', user.id)
         .single()
 
-    if (profile?.role !== 'admin') {
+    if (profile?.role !== 'admin' && profile?.role !== 'superadmin') {
         return errorResponse('Accès refusé', 403)
     }
 

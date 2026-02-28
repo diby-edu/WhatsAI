@@ -63,6 +63,9 @@ const setupPushNotificationListeners = () => {
     PushNotifications.addListener('registration', async (token: Token) => {
         console.log('Push registration success, token:', token.value);
         pushToken = token.value;
+        try {
+            localStorage.setItem('fcm_token', token.value);
+        } catch (_) {}
 
         // Save token to backend
         await saveTokenToBackend(token.value);

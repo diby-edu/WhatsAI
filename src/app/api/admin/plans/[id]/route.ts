@@ -20,7 +20,7 @@ export async function PUT(
         .eq('id', user.id)
         .single()
 
-    if (profile?.role !== 'admin') {
+    if (profile?.role !== 'admin' && profile?.role !== 'superadmin') {
         return errorResponse('Accès réservé aux administrateurs', 403)
     }
 
@@ -76,7 +76,7 @@ export async function DELETE(
         .eq('id', user.id)
         .single()
 
-    if (profile?.role !== 'admin') {
+    if (profile?.role !== 'admin' && profile?.role !== 'superadmin') {
         return errorResponse('Accès réservé aux administrateurs', 403)
     }
 

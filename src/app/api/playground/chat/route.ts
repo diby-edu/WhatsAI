@@ -2,20 +2,16 @@ import { NextRequest } from 'next/server'
 import { createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
 import { checkRateLimit, getClientIdentifier, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 import { getOpenAIClient } from '@/lib/ai/openai'
-import OpenAI from 'openai' // Still needed for type definition
-
-// Lazy Init
-
+import OpenAI from 'openai'
 
 export async function POST(request: NextRequest) {
     const supabase = await createApiClient()
     const { user, error: authError } = await getAuthUser(supabase)
 
     if (authError || !user) {
-        return errorResponse('Non autorisé', 401)
+        return errorResponse('Non autorise', 401)
     }
 
-    // Rate limiting for AI endpoints
     const identifier = getClientIdentifier(request, user.id)
     const rateLimit = await checkRateLimit(identifier, RATE_LIMITS.ai)
 
@@ -30,7 +26,6 @@ export async function POST(request: NextRequest) {
             return errorResponse('Agent et message requis', 400)
         }
 
-        // Fetch agent
         const { data: agent, error: agentError } = await supabase
             .from('agents')
             .select('id, name, system_prompt, personality, model')
@@ -39,81 +34,63 @@ export async function POST(request: NextRequest) {
             .single()
 
         if (agentError || !agent) {
-            return errorResponse('Agent non trouvé', 404)
+            return errorResponse('Agent non trouve', 404)
         }
 
-        // Atomic credit deduction using RPC function
         const { data: newBalance, error: creditError } = await supabase
             .rpc('deduct_credits', { p_user_id: user.id, p_amount: 1 })
 
         if (creditError) {
             console.error('Credit deduction error:', creditError)
-            // Fallback to regular check if RPC doesn't exist
-            const { data: profile } = await supabase
-                .from('profiles')
-                .select('credits_balance')
-                .eq('id', user.id)
-                .single()
-
-            if (!profile || profile.credits_balance < 1) {
-                return errorResponse('Crédits insuffisants', 402)
-            }
-
-            // Regular deduction (non-atomic fallback)
-            await supabase
-                .from('profiles')
-                .update({ credits_balance: profile.credits_balance - 1 })
-                .eq('id', user.id)
-        } else if (newBalance === -1) {
-            return errorResponse('Crédits insuffisants', 402)
-        } else if (newBalance === -2) {
-            return errorResponse('Profil non trouvé', 404)
+            return errorResponse('Erreur de debit de credits', 500)
         }
 
-        // Build messages for OpenAI
+        if (newBalance === -1) {
+            return errorResponse('Credits insuffisants', 402)
+        }
+
+        if (newBalance === -2) {
+            return errorResponse('Profil non trouve', 404)
+        }
+
         const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
             {
                 role: 'system',
-                content: agent.system_prompt || `Tu es ${agent.name}, un assistant IA serviable.`
-            }
+                content: agent.system_prompt || `Tu es ${agent.name}, un assistant IA serviable.`,
+            },
         ]
 
-        // Add conversation history
         if (conversationHistory && Array.isArray(conversationHistory)) {
-            for (const msg of conversationHistory.slice(-10)) { // Last 10 messages
+            for (const msg of conversationHistory.slice(-10)) {
                 if (msg.role === 'user' || msg.role === 'assistant') {
                     messages.push({
                         role: msg.role,
-                        content: msg.content
+                        content: msg.content,
                     })
                 }
             }
         }
 
-        // Add current message
         messages.push({
             role: 'user',
-            content: message
+            content: message,
         })
 
-        // Call OpenAI
         const completion = await getOpenAIClient().chat.completions.create({
             model: agent.model || 'gpt-3.5-turbo',
             messages,
             temperature: 0.7,
-            max_tokens: 500
+            max_tokens: 500,
         })
 
-        const response = completion.choices[0]?.message?.content || 'Je n\'ai pas pu générer de réponse.'
+        const response = completion.choices[0]?.message?.content || "Je n'ai pas pu generer de reponse."
 
         return successResponse({
             response,
-            credits_remaining: typeof newBalance === 'number' && newBalance >= 0 ? newBalance : undefined
+            credits_remaining: typeof newBalance === 'number' && newBalance >= 0 ? newBalance : undefined,
         })
-
     } catch (err) {
         console.error('Playground chat error:', err)
-        return errorResponse('Erreur lors de la génération de la réponse', 500)
+        return errorResponse('Erreur lors de la generation de la reponse', 500)
     }
 }
-

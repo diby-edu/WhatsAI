@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 
 // GET - List active credit packs for public
-// NOTE: credit_packs.price is stored in USD — payment code does price × 655 to get FCFA
+// NOTE: credit_packs.price is stored in USD — payment code does price × 700 to get FCFA
 export async function GET() {
     try {
         const supabase = await createClient()

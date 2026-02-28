@@ -22,7 +22,7 @@ export async function PATCH(
         .eq('id', user.id)
         .single()
 
-    if (profile?.role !== 'admin') {
+    if (profile?.role !== 'admin' && profile?.role !== 'superadmin') {
         return errorResponse('Forbidden - Admin only', 403)
     }
 
@@ -73,7 +73,7 @@ export async function GET(
         .eq('id', user.id)
         .single()
 
-    if (profile?.role !== 'admin') {
+    if (profile?.role !== 'admin' && profile?.role !== 'superadmin') {
         return errorResponse('Forbidden - Admin only', 403)
     }
 

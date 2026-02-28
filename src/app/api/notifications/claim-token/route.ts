@@ -1,50 +1,64 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { NextRequest, NextResponse } from 'next/server'
+import { createAdminClient, createApiClient, getAuthUser } from '@/lib/api-utils'
 
 /**
  * POST /api/notifications/claim-token
- * Claims all unclaimed device tokens (user_id IS NULL) by assigning
- * them to the authenticated user. This is called from the dashboard
- * when a user logs in through the WebView on the Android app.
+ * Claim a single token for the authenticated user.
  */
 export async function POST(request: NextRequest) {
     try {
-        const { userId } = await request.json();
+        const supabase = await createApiClient()
+        const { user, error: authError } = await getAuthUser(supabase)
 
-        if (!userId) {
-            return NextResponse.json({ error: 'userId required' }, { status: 400 });
+        if (authError || !user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
-        // Find all unclaimed tokens
-        const { data: unclaimed } = await supabaseAdmin
+        const { token } = await request.json()
+
+        if (!token || typeof token !== 'string') {
+            return NextResponse.json({ error: 'token required' }, { status: 400 })
+        }
+
+        const adminSupabase = createAdminClient()
+
+        const { data: existingToken, error: fetchError } = await adminSupabase
             .from('device_tokens')
-            .select('id, token')
-            .is('user_id', null);
+            .select('id, user_id')
+            .eq('token', token)
+            .maybeSingle()
 
-        if (!unclaimed || unclaimed.length === 0) {
-            return NextResponse.json({ success: true, claimed: 0 });
+        if (fetchError) {
+            console.error('[Claim Token] Fetch error:', fetchError)
+            return NextResponse.json({ error: 'Failed to claim token' }, { status: 500 })
         }
 
-        // Claim them for this user
-        const { error } = await supabaseAdmin
+        if (!existingToken) {
+            return NextResponse.json({ success: true, claimed: 0, reason: 'token_not_found' })
+        }
+
+        if (existingToken.user_id === user.id) {
+            return NextResponse.json({ success: true, claimed: 0, reason: 'already_owned' })
+        }
+
+        if (existingToken.user_id && existingToken.user_id !== user.id) {
+            return NextResponse.json({ error: 'Token already assigned to another user' }, { status: 409 })
+        }
+
+        const { error: updateError } = await adminSupabase
             .from('device_tokens')
-            .update({ user_id: userId, updated_at: new Date().toISOString() })
-            .is('user_id', null);
+            .update({ user_id: user.id, updated_at: new Date().toISOString() })
+            .eq('id', existingToken.id)
+            .is('user_id', null)
 
-        if (error) {
-            console.error('[Claim Token] Error:', error);
-            return NextResponse.json({ error: 'Failed to claim tokens' }, { status: 500 });
+        if (updateError) {
+            console.error('[Claim Token] Update error:', updateError)
+            return NextResponse.json({ error: 'Failed to claim token' }, { status: 500 })
         }
 
-        console.log(`[Claim Token] Claimed ${unclaimed.length} token(s) for user ${userId}`);
-        return NextResponse.json({ success: true, claimed: unclaimed.length });
+        return NextResponse.json({ success: true, claimed: 1 })
     } catch (error) {
-        console.error('[Claim Token] Error:', error);
-        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+        console.error('[Claim Token] Error:', error)
+        return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
     }
 }

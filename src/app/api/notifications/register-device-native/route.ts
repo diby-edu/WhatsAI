@@ -1,81 +1,93 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-// Use service role to bypass RLS for native app token registration
-const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { NextRequest, NextResponse } from 'next/server'
+import { createAdminClient, createApiClient, getAuthUser } from '@/lib/api-utils'
 
 export async function POST(request: NextRequest) {
     try {
-        const { token, platform, userId } = await request.json();
+        const { token, platform } = await request.json()
 
-        if (!token) {
-            return NextResponse.json({ error: 'Token required' }, { status: 400 });
+        if (!token || typeof token !== 'string') {
+            return NextResponse.json({ error: 'Token required' }, { status: 400 })
         }
 
-        console.log(`[Native FCM] Registering token: ${token.substring(0, 20)}... platform: ${platform} userId: ${userId || 'none'}`);
+        const sessionSupabase = await createApiClient()
+        const { user, error: authError } = await getAuthUser(sessionSupabase)
+        if (authError || !user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        }
+        const authenticatedUserId = user.id
 
-        // Check if token already exists
-        const { data: existing } = await supabaseAdmin
+        const adminSupabase = createAdminClient()
+
+        const { data: existing, error: fetchError } = await adminSupabase
             .from('device_tokens')
             .select('id, user_id')
             .eq('token', token)
-            .single();
+            .maybeSingle()
 
-        if (existing) {
-            // Token exists — update timestamp, and claim it if userId is provided and not yet set
-            const updateData: Record<string, unknown> = {
-                platform: platform || 'android',
-                updated_at: new Date().toISOString()
-            };
-
-            // If a userId is provided and the token is unclaimed, claim it
-            if (userId && !existing.user_id) {
-                updateData.user_id = userId;
-                console.log(`[Native FCM] Claiming unclaimed token for user ${userId}`);
-            }
-
-            const { error } = await supabaseAdmin
-                .from('device_tokens')
-                .update(updateData)
-                .eq('token', token);
-
-            if (error) {
-                console.error('[Native FCM] Error updating token:', error);
-                return NextResponse.json({ error: 'Failed to update token' }, { status: 500 });
-            }
-
-            console.log('[Native FCM] Token updated successfully');
-            return NextResponse.json({ success: true, action: 'updated' });
+        if (fetchError) {
+            console.error('[Native FCM] Error fetching token:', fetchError)
+            return NextResponse.json({ error: 'Failed to register token' }, { status: 500 })
         }
 
-        // Insert new token — with userId if provided
-        const { error } = await supabaseAdmin
+        if (existing) {
+            const updateData: Record<string, unknown> = {
+                platform: platform || 'android',
+                updated_at: new Date().toISOString(),
+            }
+
+            // Never trust userId from client payload.
+            // Associate only from authenticated session.
+            if (!existing.user_id || existing.user_id === authenticatedUserId) {
+                updateData.user_id = authenticatedUserId
+            } else {
+                return NextResponse.json(
+                    { error: 'Token already assigned to another user' },
+                    { status: 409 }
+                )
+            }
+
+            const { error: updateError } = await adminSupabase
+                .from('device_tokens')
+                .update(updateData)
+                .eq('id', existing.id)
+
+            if (updateError) {
+                console.error('[Native FCM] Error updating token:', updateError)
+                return NextResponse.json({ error: 'Failed to update token' }, { status: 500 })
+            }
+
+            return NextResponse.json({
+                success: true,
+                action: 'updated',
+                claimed: Boolean(!existing.user_id || existing.user_id === authenticatedUserId),
+            })
+        }
+
+        const { error: insertError } = await adminSupabase
             .from('device_tokens')
             .insert({
                 token,
                 platform: platform || 'android',
-                user_id: userId || null,
+                user_id: authenticatedUserId,
                 created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-            });
+                updated_at: new Date().toISOString(),
+            })
 
-        if (error) {
-            console.error('[Native FCM] Error saving token:', error);
-
-            if (error.code === '23505') {
-                return NextResponse.json({ success: true, action: 'already_exists' });
+        if (insertError) {
+            console.error('[Native FCM] Error saving token:', insertError)
+            if (insertError.code === '23505') {
+                return NextResponse.json({ success: true, action: 'already_exists' })
             }
-
-            return NextResponse.json({ error: 'Failed to save token' }, { status: 500 });
+            return NextResponse.json({ error: 'Failed to save token' }, { status: 500 })
         }
 
-        console.log('[Native FCM] Token saved successfully');
-        return NextResponse.json({ success: true, action: 'created' });
+        return NextResponse.json({
+            success: true,
+            action: 'created',
+            claimed: true,
+        })
     } catch (error) {
-        console.error('[Native FCM] Register device error:', error);
-        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+        console.error('[Native FCM] Register device error:', error)
+        return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
     }
 }
