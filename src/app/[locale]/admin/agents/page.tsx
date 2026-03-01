@@ -90,7 +90,7 @@ export default function AdminAgentsPage() {
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
                 <div>
                     <h1 style={{ fontSize: 28, fontWeight: 700, color: 'white', marginBottom: 8 }}>Agents IA</h1>
                     <p style={{ color: '#94a3b8' }}>{agents.length} agents — {agents.filter(a => a.status === 'active').length} actifs</p>
@@ -243,7 +243,7 @@ export default function AdminAgentsPage() {
                             initial={{ opacity: 0, y: 20, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.95 }}
                             style={{
                                 position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                                zIndex: 101, width: 500, maxHeight: '85vh', overflowY: 'auto',
+                                zIndex: 101, width: 'min(500px, 92vw)', maxHeight: '85vh', overflowY: 'auto',
                                 background: '#1e293b', border: '1px solid rgba(148, 163, 184, 0.15)',
                                 borderRadius: 16, padding: 24, boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
                             }}>

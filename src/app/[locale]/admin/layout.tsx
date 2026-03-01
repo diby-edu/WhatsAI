@@ -835,7 +835,7 @@ export default function AdminLayout({
                     </header>
                 )}
 
-                <div style={{ padding: 24 }}>
+                <div style={{ padding: isMobile ? 12 : 24 }}>
                     {children}
                 </div>
             </main>

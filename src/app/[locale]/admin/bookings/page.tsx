@@ -103,7 +103,7 @@ export default function AdminBookingsPage() {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <Link href="/admin" style={{ color: '#64748b' }}>
                         <ArrowLeft size={20} />
@@ -132,7 +132,7 @@ export default function AdminBookingsPage() {
             </div>
 
             {/* Quick Stats */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12 }}>
                 {[
                     { label: 'Total', value: stats.total, icon: Calendar, color: '#8b5cf6' },
                     { label: 'Confirmées', value: stats.confirmed, icon: CheckCircle, color: '#4ade80' },
@@ -153,7 +153,7 @@ export default function AdminBookingsPage() {
             </div>
 
             {/* Filters */}
-            <div style={{ display: 'flex', gap: 12 }}>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                 <div style={{
                     flex: 1, display: 'flex', alignItems: 'center', gap: 10,
                     padding: '10px 14px', background: 'rgba(30, 41, 59, 0.5)',
@@ -203,7 +203,8 @@ export default function AdminBookingsPage() {
                         <p>Aucune réservation trouvée</p>
                     </div>
                 ) : (
-                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 580 }}>
                         <thead>
                             <tr style={{ borderBottom: '1px solid rgba(148, 163, 184, 0.1)' }}>
                                 {['Type', 'Client', 'Date/Heure', 'Personnes', 'Statut', 'Actions'].map(h => (
@@ -303,6 +304,7 @@ export default function AdminBookingsPage() {
                             })}
                         </tbody>
                     </table>
+                    </div>
                 )}
             </div>
 

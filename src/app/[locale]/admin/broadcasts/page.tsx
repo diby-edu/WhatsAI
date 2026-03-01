@@ -118,7 +118,7 @@ export default function AdminBroadcastsPage() {
                 </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 20 }}>
                 {/* Compose Section */}
                 <div style={{
                     background: 'rgba(30, 41, 59, 0.5)',

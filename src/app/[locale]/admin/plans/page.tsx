@@ -153,7 +153,7 @@ export default function AdminPlansPage() {
     }
 
     const formatPrice = (price: number) => {
-        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(price)
+        return new Intl.NumberFormat('fr-FR').format(price) + ' FCFA'
     }
 
     const getPlanIcon = (name: string) => {
@@ -174,7 +174,7 @@ export default function AdminPlansPage() {
     return (
         <div>
             {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 32 }}>
                 <div>
                     <h1 style={{ fontSize: 28, fontWeight: 700, color: 'white', marginBottom: 8 }}>
                         Gestion des Plans
@@ -396,7 +396,7 @@ export default function AdminPlansPage() {
                         style={{
                             background: '#1e293b',
                             borderRadius: 20,
-                            padding: 32,
+                            padding: 'clamp(16px, 4vw, 32px)',
                             width: '100%',
                             maxWidth: 550,
                             maxHeight: '90vh',
@@ -454,7 +454,7 @@ export default function AdminPlansPage() {
                             {/* Price & Credits */}
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
                                 <div>
-                                    <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>Prix (USD)</label>
+                                    <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>Prix (FCFA)</label>
                                     <input
                                         type="number"
                                         required

@@ -173,9 +173,9 @@ export default function AdminCreditPacksPage() {
     }
 
     return (
-        <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
             {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: '32px' }}>
                 <div>
                     <h1 style={{ fontSize: '28px', fontWeight: 700, color: 'white', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                         <Package style={{ width: 32, height: 32, color: '#34d399' }} />
@@ -285,7 +285,8 @@ export default function AdminCreditPacksPage() {
 
             {/* Packs List */}
             <div style={cardStyle}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 500 }}>
                     <thead>
                         <tr style={{ borderBottom: '1px solid rgba(148, 163, 184, 0.1)' }}>
                             <th style={{ textAlign: 'left', padding: '12px', color: '#94a3b8', fontWeight: 500 }}>Nom</th>
@@ -393,6 +394,7 @@ export default function AdminCreditPacksPage() {
                         ))}
                     </tbody>
                 </table>
+            </div>
                 {packs.length === 0 && (
                     <div style={{ textAlign: 'center', padding: '48px', color: '#64748b' }}>
                         <Package style={{ width: 48, height: 48, marginBottom: '16px', opacity: 0.5 }} />
