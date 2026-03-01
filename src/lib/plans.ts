@@ -1,86 +1,63 @@
-// Subscription plans configuration
+// Subscription plans configuration (prices in FCFA)
 export const PLANS = {
     free: {
         id: 'free',
         name: 'Gratuit',
         price: 0,
-        credits: 100,
+        credits: 50,
         agents: 1,
         whatsapp_connections: 1,
-        features: [
-            '100 messages/mois',
-            '1 agent IA',
-            '1 numéro WhatsApp',
-            'Réponses automatiques basiques',
-            'Support email',
-        ],
         model: 'gpt-4o-mini',
     },
     starter: {
         id: 'starter',
         name: 'Starter',
-        price: 29, // USD
+        price: 6900, // FCFA
         credits: 500,
         agents: 1,
         whatsapp_connections: 1,
-        features: [
-            '500 messages/mois',
-            '1 agent IA',
-            '1 numéro WhatsApp',
-            'Qualification de leads',
-            'Historique illimité',
-            'Support prioritaire',
-        ],
         model: 'gpt-4o-mini',
         popular: false,
     },
     pro: {
         id: 'pro',
         name: 'Pro',
-        price: 59, // USD
-        credits: 2000,
-        agents: 2,
-        whatsapp_connections: 2,
-        features: [
-            '2 000 messages/mois',
-            '2 agents IA',
-            '2 numéros WhatsApp',
-            'GPT-4 disponible',
-            'Base de connaissances',
-            'Analytics avancés',
-            'Support prioritaire',
-        ],
-        model: 'gpt-4o',
+        price: 19900, // FCFA
+        credits: 2500,
+        agents: 3,
+        whatsapp_connections: 3,
+        model: 'gpt-4o-mini',
         popular: true,
     },
     business: {
         id: 'business',
         name: 'Business',
-        price: 149, // USD
-        credits: 10000,
-        agents: 4,
-        whatsapp_connections: 4,
-        features: [
-            '10 000 messages/mois',
-            '4 agents IA',
-            '4 numéros WhatsApp',
-            'GPT-4 Turbo',
-            'API personnalisée',
-            'Webhooks',
-            'Intégrations CRM',
-            'Account manager dédié',
-        ],
-        model: 'gpt-4-turbo',
+        price: 54900, // FCFA
+        credits: 8000,
+        agents: 6,
+        whatsapp_connections: 6,
+        model: 'gpt-4o-mini',
+        popular: false,
+    },
+    scale: {
+        id: 'scale',
+        name: 'Scale',
+        price: 129900, // FCFA
+        credits: 20000,
+        agents: -1, // unlimited
+        whatsapp_connections: -1, // unlimited
+        model: 'gpt-4o-mini',
         popular: false,
     },
 }
 
-// Credit packs for additional purchases
+// Credit packs for additional purchases (prices in FCFA)
 export const CREDIT_PACKS = [
-    { id: 'pack_500', credits: 500, price: 9, savings: 0 },
-    { id: 'pack_1000', credits: 1000, price: 15, savings: 10 },
-    { id: 'pack_2500', credits: 2500, price: 35, savings: 20 },
-    { id: 'pack_5000', credits: 5000, price: 59, savings: 30 },
+    { id: 'boost_mini', name: 'Boost Mini', credits: 200,   price: 3000,   savings: 0 },
+    { id: 'boost_s',    name: 'Boost S',    credits: 500,   price: 7000,   savings: 7 },
+    { id: 'boost_m',    name: 'Boost M',    credits: 2000,  price: 25000,  savings: 17 },
+    { id: 'boost_l',    name: 'Boost L',    credits: 5000,  price: 55000,  savings: 27 },
+    { id: 'boost_xl',   name: 'Boost XL',   credits: 12000, price: 110000, savings: 39 },
 ]
 
 export type PlanId = keyof typeof PLANS

@@ -31,6 +31,37 @@ export async function POST(request: NextRequest) {
             return errorResponse('Agent non trouvé', 404)
         }
 
+        // Check WhatsApp connection limit based on plan
+        if (!agent.whatsapp_connected) {
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('plan')
+                .eq('id', user!.id)
+                .single()
+
+            const { data: planData } = await supabase
+                .from('subscription_plans')
+                .select('max_whatsapp_numbers')
+                .ilike('name', profile?.plan || 'free')
+                .single()
+
+            const { PLANS } = await import('@/lib/plans')
+            const fallbackLimit = (PLANS as any)[profile?.plan || 'free']?.whatsapp_connections ?? 1
+            const limit: number = planData?.max_whatsapp_numbers ?? fallbackLimit
+
+            if (limit !== -1) {
+                const { count: activeConnections } = await supabase
+                    .from('agents')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('user_id', user!.id)
+                    .in('whatsapp_status', ['connected', 'connecting'])
+
+                if ((activeConnections || 0) >= limit) {
+                    return errorResponse(`Limite de numéros WhatsApp atteinte pour votre plan (${limit} max)`, 403)
+                }
+            }
+        }
+
         // If already connected, return status
         if (agent.whatsapp_connected) {
             return successResponse({

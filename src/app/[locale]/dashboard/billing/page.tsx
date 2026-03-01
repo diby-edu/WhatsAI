@@ -68,7 +68,7 @@ function BillingContent() {
     const t = useTranslations('Billing')
     const format = useFormatter()
     const searchParams = useSearchParams()
-    const { formatFromUsd } = useCurrency()
+    const { formatFromFcfa } = useCurrency()
 
     const [isLoading, setIsLoading] = useState<string | null>(null)
     const [userData, setUserData] = useState<UserData | null>(null)
@@ -134,22 +134,24 @@ function BillingContent() {
             if (data.packs && data.packs.length > 0) {
                 setCreditPacks(data.packs)
             } else {
-                // Fallback to defaults (prices in USD — formatPrice() converts to user currency)
+                // Fallback Boost packs (prices in FCFA)
                 setCreditPacks([
-                    { id: 'pack_500', credits: 500, price: 9, savings: 0 },
-                    { id: 'pack_1000', credits: 1000, price: 15, savings: 10 },
-                    { id: 'pack_2500', credits: 2500, price: 35, savings: 20 },
-                    { id: 'pack_5000', credits: 5000, price: 59, savings: 30 },
+                    { id: 'boost_mini', credits: 200,   price: 3000,   savings: 0 },
+                    { id: 'boost_s',    credits: 500,   price: 7000,   savings: 7 },
+                    { id: 'boost_m',    credits: 2000,  price: 25000,  savings: 17 },
+                    { id: 'boost_l',    credits: 5000,  price: 55000,  savings: 27 },
+                    { id: 'boost_xl',   credits: 12000, price: 110000, savings: 39 },
                 ])
             }
         } catch (err) {
             console.error('Error fetching credit packs:', err)
-            // Fallback to defaults (prices in USD — formatPrice() converts to user currency)
+            // Fallback Boost packs (prices in FCFA)
             setCreditPacks([
-                { id: 'pack_500', credits: 500, price: 9, savings: 0 },
-                { id: 'pack_1000', credits: 1000, price: 15, savings: 10 },
-                { id: 'pack_2500', credits: 2500, price: 35, savings: 20 },
-                { id: 'pack_5000', credits: 5000, price: 59, savings: 30 },
+                { id: 'boost_mini', credits: 200,   price: 3000,   savings: 0 },
+                { id: 'boost_s',    credits: 500,   price: 7000,   savings: 7 },
+                { id: 'boost_m',    credits: 2000,  price: 25000,  savings: 17 },
+                { id: 'boost_l',    credits: 5000,  price: 55000,  savings: 27 },
+                { id: 'boost_xl',   credits: 12000, price: 110000, savings: 39 },
             ])
         }
     }
@@ -475,7 +477,7 @@ function BillingContent() {
 
                                     <div style={{ marginBottom: 16 }}>
                                         <span style={{ fontSize: 26, fontWeight: 700, color: 'white' }}>
-                                            {formatFromUsd(plan.price)}
+                                            {formatFromFcfa(plan.price)}
                                         </span>
                                         <span style={{ color: '#64748b', fontSize: 13 }}> / {t('Plans.period')}</span>
                                     </div>
@@ -560,7 +562,7 @@ function BillingContent() {
                             </div>
                             <div style={{ fontSize: 12, color: '#64748b', marginBottom: 12 }}>{t('Credits.unit')}</div>
                             <div style={{ fontSize: 15, fontWeight: 600, color: '#34d399', marginBottom: 12 }}>
-                                {formatFromUsd(pack.price)}
+                                {formatFromFcfa(pack.price)}
                             </div>
                             <motion.button
                                 whileHover={{ scale: 1.02 }}

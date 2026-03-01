@@ -1,5 +1,42 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
+import { NextRequest } from 'next/server'
+import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
+
+async function cleanupAgentDependencies(adminSupabase: ReturnType<typeof createAdminClient>, agentId: string) {
+    // This table exists in production schema and can block agent deletion (FK restriction)
+    const { error: outboundError } = await adminSupabase
+        .from('outbound_messages')
+        .delete()
+        .eq('agent_id', agentId)
+
+    if (outboundError && outboundError.code !== '42P01') {
+        throw outboundError
+    }
+
+    // Current production schema uses session_id (key-value store)
+    const { error: bySessionIdError } = await adminSupabase
+        .from('whatsapp_sessions')
+        .delete()
+        .eq('session_id', agentId)
+
+    if (!bySessionIdError) return
+
+    // Legacy schema fallback uses agent_id
+    if (bySessionIdError.code === '42703') {
+        const { error: byAgentIdError } = await adminSupabase
+            .from('whatsapp_sessions')
+            .delete()
+            .eq('agent_id', agentId)
+
+        if (byAgentIdError && byAgentIdError.code !== '42P01' && byAgentIdError.code !== '42703') {
+            throw byAgentIdError
+        }
+        return
+    }
+
+    if (bySessionIdError.code !== '42P01') {
+        throw bySessionIdError
+    }
+}
 
 // GET /api/agents/[id] - Get a single agent
 export async function GET(
@@ -22,11 +59,10 @@ export async function GET(
         .single()
 
     if (error) {
-        // Log error without exposing sensitive user data
         if (process.env.NODE_ENV === 'development') {
             console.error('Agent fetch failed:', error.message)
         }
-        return errorResponse('Agent non trouvé', 404)
+        return errorResponse('Agent non trouve', 404)
     }
 
     return successResponse({ agent })
@@ -80,12 +116,12 @@ export async function PATCH(
             .single()
 
         if (error) {
-            return errorResponse('Mise à jour échouée', 500)
+            return errorResponse('Mise a jour echouee', 500)
         }
 
         return successResponse({ agent })
-    } catch (err) {
-        return errorResponse('Données invalides', 400)
+    } catch {
+        return errorResponse('Donnees invalides', 400)
     }
 }
 
@@ -96,26 +132,41 @@ export async function DELETE(
 ) {
     const { id } = await params
     const supabase = await createApiClient()
+    const adminSupabase = createAdminClient()
     const { user, error: authError } = await getAuthUser(supabase)
 
     if (authError) {
         return errorResponse(authError, 401)
     }
 
-    // First disconnect WhatsApp if connected
-    await supabase
-        .from('whatsapp_sessions')
-        .delete()
-        .eq('agent_id', id)
+    const { data: agent, error: fetchError } = await adminSupabase
+        .from('agents')
+        .select('id, user_id')
+        .eq('id', id)
+        .single()
 
-    const { error } = await supabase
+    if (fetchError || !agent) {
+        return errorResponse('Agent non trouve', 404)
+    }
+
+    if (agent.user_id !== user!.id) {
+        return errorResponse('Acces refuse', 403)
+    }
+
+    try {
+        await cleanupAgentDependencies(adminSupabase, id)
+    } catch (cleanupError) {
+        console.error('Agent dependency cleanup failed:', cleanupError)
+        return errorResponse('Suppression echouee', 500)
+    }
+
+    const { error } = await adminSupabase
         .from('agents')
         .delete()
         .eq('id', id)
-        .eq('user_id', user!.id)
 
     if (error) {
-        return errorResponse('Suppression échouée', 500)
+        return errorResponse('Suppression echouee', 500)
     }
 
     return successResponse({ success: true })

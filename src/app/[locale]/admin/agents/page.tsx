@@ -47,7 +47,12 @@ export default function AdminAgentsPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action: 'toggle' })
             })
-            if ((await res.json()).success) await fetchAgents()
+            const json = await res.json()
+            if (res.ok && json.success) {
+                await fetchAgents()
+            } else {
+                setError(json.error || 'Erreur lors de la modification de l\'agent')
+            }
         } catch {
             setError('Erreur lors de la modification de l\'agent')
         } finally { setActionLoading(null) }
@@ -59,7 +64,12 @@ export default function AdminAgentsPage() {
         setError(null)
         try {
             const res = await fetch(`/api/admin/agents/${id}`, { method: 'DELETE' })
-            if ((await res.json()).success) await fetchAgents()
+            const json = await res.json()
+            if (res.ok && json.success) {
+                await fetchAgents()
+            } else {
+                setError(json.error || 'Erreur lors de la suppression de l\'agent')
+            }
         } catch {
             setError('Erreur lors de la suppression de l\'agent')
         } finally { setActionLoading(null) }

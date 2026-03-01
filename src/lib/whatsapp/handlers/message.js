@@ -131,6 +131,11 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             return
         }
 
+        if (!agent.is_active) {
+            console.log(`⏸️ Agent inactive (${agentId}), skipping auto-response`)
+            return
+        }
+
         // 1.2 Vérifier les crédits
         const hasCredits = await CreditsService.check(supabase, agent.user_id)
         if (!hasCredits) {

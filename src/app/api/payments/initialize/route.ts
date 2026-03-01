@@ -8,7 +8,6 @@ import {
 } from '@/lib/payments/cinetpay'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-const BASE_TO_XOF_RATE = 700
 
 // POST /api/payments/initialize - Initialize a payment
 export async function POST(request: NextRequest) {
@@ -85,12 +84,13 @@ export async function POST(request: NextRequest) {
                 .single()
 
             if (packError || !pack) {
-                // Fallback: try to find in defaults if database table doesn't exist
+                // Fallback: try to find in defaults if database table doesn't exist (prices in FCFA)
                 const defaultPacks = [
-                    { id: 'pack_500', credits: 500, price: 5000 },
-                    { id: 'pack_1000', credits: 1000, price: 9000 },
-                    { id: 'pack_2500', credits: 2500, price: 20000 },
-                    { id: 'pack_5000', credits: 5000, price: 35000 },
+                    { id: 'boost_mini', credits: 200,   price: 3000 },
+                    { id: 'boost_s',    credits: 500,   price: 7000 },
+                    { id: 'boost_m',    credits: 2000,  price: 25000 },
+                    { id: 'boost_l',    credits: 5000,  price: 55000 },
+                    { id: 'boost_xl',   credits: 12000, price: 110000 },
                 ]
                 const fallbackPack = defaultPacks.find(p => p.id === packId)
                 if (!fallbackPack) {
@@ -119,7 +119,8 @@ export async function POST(request: NextRequest) {
         }
 
         const transactionId = generateTransactionId()
-        const amountFCFA = Math.ceil(amount * BASE_TO_XOF_RATE)
+        // Prices are stored in FCFA — use directly as XOF amount for CinetPay
+        const amountFCFA = Math.ceil(amount)
 
         // Create payment record in database
         const adminSupabase = createAdminClient()
@@ -136,7 +137,7 @@ export async function POST(request: NextRequest) {
                 customer_phone: profile.phone,
                 customer_email: profile.email,
                 credits_purchased: metadata.credits,
-                provider_response: { ...metadata, original_usd: amount },
+                provider_response: { ...metadata, amount_fcfa: amount },
             })
             .select('id')
             .single()
@@ -146,16 +147,10 @@ export async function POST(request: NextRequest) {
             return errorResponse('Erreur de création du paiement', 500)
         }
 
-        // CURRENCY CONVERSION (base amount -> XOF)
-        // CinetPay only processes XOF. Keep one single conversion rate
-        // for payment amount and database recording to avoid drift.
-
-        // Check user currency preference just for metadata, but calculations are based on Plan currency
-        // Assumption: Plan prices in DB are USD.
-
         // Initialize payment with CinetPay
+        // Prices are stored in FCFA — send directly as XOF (no conversion needed)
         const paymentData: PaymentInitData = {
-            amount: amountFCFA, // Send converted XOF amount
+            amount: amountFCFA,
             currency: 'XOF',
             transactionId,
             description,
@@ -167,8 +162,7 @@ export async function POST(request: NextRequest) {
             metadata: {
                 ...metadata,
                 payment_id: payment.id,
-                original_amount_usd: amount,
-                conversion_rate: BASE_TO_XOF_RATE
+                amount_fcfa: amount,
             },
         }
 
