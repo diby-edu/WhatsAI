@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
             return errorResponse('Le nom et les instructions sont requis', 400)
         }
 
-        // Check agent limit based on plan
+        // Check agent limit based on plan (reads from DB so admin changes take effect)
         const { data: profile } = await supabase
             .from('profiles')
             .select('plan')
@@ -60,15 +60,18 @@ export async function POST(request: NextRequest) {
             .select('*', { count: 'exact', head: true })
             .eq('user_id', user!.id)
 
-        const planLimits: Record<string, number> = {
-            free: 1,
-            starter: 1,
-            pro: 2,
-            business: 4
-        }
+        const { data: planData } = await supabase
+            .from('subscription_plans')
+            .select('max_agents')
+            .ilike('name', profile?.plan || 'free')
+            .single()
 
-        const limit = planLimits[profile?.plan || 'free'] || 1
-        if ((agentCount || 0) >= limit) {
+        // Fallback to plans.ts if DB unavailable; -1 = unlimited
+        const { PLANS } = await import('@/lib/plans')
+        const fallbackLimit = (PLANS as any)[profile?.plan || 'free']?.agents ?? 1
+        const limit: number = planData?.max_agents ?? fallbackLimit
+
+        if (limit !== -1 && (agentCount || 0) >= limit) {
             return errorResponse(`Limite d'agents atteinte pour votre plan (${limit} max)`, 403)
         }
 

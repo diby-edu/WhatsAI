@@ -1,16 +1,54 @@
 import { NextRequest } from 'next/server'
-import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse, logAdminAction } from '@/lib/api-utils'
+import {
+    createApiClient,
+    createAdminClient,
+    getAuthUser,
+    errorResponse,
+    successResponse,
+    logAdminAction,
+    isAdminRole,
+} from '@/lib/api-utils'
 
-// PATCH /api/admin/agents/[id] — Toggle, update agent
-export async function PATCH(
-    request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
-) {
+async function cleanupAgentDependencies(adminSupabase: ReturnType<typeof createAdminClient>, agentId: string) {
+    const { error: outboundError } = await adminSupabase
+        .from('outbound_messages')
+        .delete()
+        .eq('agent_id', agentId)
+
+    if (outboundError && outboundError.code !== '42P01') {
+        throw outboundError
+    }
+
+    const { error: bySessionIdError } = await adminSupabase
+        .from('whatsapp_sessions')
+        .delete()
+        .eq('session_id', agentId)
+
+    if (!bySessionIdError) return
+
+    if (bySessionIdError.code === '42703') {
+        const { error: byAgentIdError } = await adminSupabase
+            .from('whatsapp_sessions')
+            .delete()
+            .eq('agent_id', agentId)
+
+        if (byAgentIdError && byAgentIdError.code !== '42P01' && byAgentIdError.code !== '42703') {
+            throw byAgentIdError
+        }
+        return
+    }
+
+    if (bySessionIdError.code !== '42P01') {
+        throw bySessionIdError
+    }
+}
+
+async function requireAdminUser() {
     const supabase = await createApiClient()
     const { user, error: authError } = await getAuthUser(supabase)
 
     if (authError || !user) {
-        return errorResponse('Non autorisé', 401)
+        return { user: null, adminSupabase: null, response: errorResponse('Non autorise', 401) }
     }
 
     const adminSupabase = createAdminClient()
@@ -20,9 +58,24 @@ export async function PATCH(
         .eq('id', user.id)
         .single()
 
-    if (profile?.role !== 'admin' && profile?.role !== 'superadmin') {
-        return errorResponse('Accès refusé', 403)
+    if (!isAdminRole(profile?.role)) {
+        return { user: null, adminSupabase: null, response: errorResponse('Acces refuse', 403) }
     }
+
+    return { user, adminSupabase, response: null }
+}
+
+// PATCH /api/admin/agents/[id] - Toggle, update agent
+export async function PATCH(
+    request: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    const guard = await requireAdminUser()
+    if (guard.response || !guard.user || !guard.adminSupabase) {
+        return guard.response!
+    }
+
+    const { user, adminSupabase } = guard
 
     try {
         const { id } = await params
@@ -30,14 +83,13 @@ export async function PATCH(
         const { action, ...updateData } = body
 
         if (action === 'toggle') {
-            // Get current state
             const { data: agent } = await adminSupabase
                 .from('agents')
                 .select('is_active')
                 .eq('id', id)
                 .single()
 
-            if (!agent) return errorResponse('Agent non trouvé', 404)
+            if (!agent) return errorResponse('Agent non trouve', 404)
 
             const { error } = await adminSupabase
                 .from('agents')
@@ -45,11 +97,11 @@ export async function PATCH(
                 .eq('id', id)
 
             if (error) throw error
+
             await logAdminAction(user.id, 'toggle_agent', id, 'agent', { is_active: !agent.is_active })
-            return successResponse({ message: `Agent ${agent.is_active ? 'désactivé' : 'activé'}`, is_active: !agent.is_active })
+            return successResponse({ message: `Agent ${agent.is_active ? 'desactive' : 'active'}`, is_active: !agent.is_active })
         }
 
-        // Generic update
         const allowedFields = ['name', 'system_prompt', 'model', 'temperature', 'is_active']
         const cleanUpdate: Record<string, any> = {}
         for (const key of allowedFields) {
@@ -59,7 +111,7 @@ export async function PATCH(
         }
 
         if (Object.keys(cleanUpdate).length === 0) {
-            return errorResponse('Aucun champ à mettre à jour', 400)
+            return errorResponse('Aucun champ a mettre a jour', 400)
         }
 
         const { error } = await adminSupabase
@@ -71,38 +123,29 @@ export async function PATCH(
 
         await logAdminAction(user.id, 'update_agent', id, 'agent', cleanUpdate)
 
-        return successResponse({ message: 'Agent mis à jour' })
+        return successResponse({ message: 'Agent mis a jour' })
     } catch (err) {
         console.error('Update agent error:', err)
         return errorResponse('Erreur serveur', 500)
     }
 }
 
-// DELETE /api/admin/agents/[id] — Delete agent
+// DELETE /api/admin/agents/[id] - Delete agent
 export async function DELETE(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    const supabase = await createApiClient()
-    const { user, error: authError } = await getAuthUser(supabase)
-
-    if (authError || !user) {
-        return errorResponse('Non autorisé', 401)
+    const guard = await requireAdminUser()
+    if (guard.response || !guard.user || !guard.adminSupabase) {
+        return guard.response!
     }
 
-    const adminSupabase = createAdminClient()
-    const { data: profile } = await adminSupabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
-
-    if (profile?.role !== 'admin' && profile?.role !== 'superadmin') {
-        return errorResponse('Accès refusé', 403)
-    }
+    const { user, adminSupabase } = guard
 
     try {
         const { id } = await params
+
+        await cleanupAgentDependencies(adminSupabase, id)
 
         const { error } = await adminSupabase
             .from('agents')
@@ -113,7 +156,7 @@ export async function DELETE(
 
         await logAdminAction(user.id, 'delete_agent', id, 'agent')
 
-        return successResponse({ message: 'Agent supprimé' })
+        return successResponse({ message: 'Agent supprime' })
     } catch (err) {
         console.error('Delete agent error:', err)
         return errorResponse('Erreur serveur', 500)

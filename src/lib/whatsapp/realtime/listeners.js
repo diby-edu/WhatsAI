@@ -9,6 +9,21 @@
 const processingMessages = new Set()
 const processingOutbound = new Set()
 
+async function isAgentActive(supabase, agentId) {
+    const { data, error } = await supabase
+        .from('agents')
+        .select('is_active')
+        .eq('id', agentId)
+        .maybeSingle()
+
+    if (error) {
+        console.error('Failed to read agent state:', error.message)
+        return false
+    }
+
+    return !!data?.is_active
+}
+
 /**
  * Configure les listeners Realtime pour toutes les tables critiques via un CANAL UNIQUE
  * @param {Object} context - Context avec supabase (admin), supabaseRealtime, activeSessions, etc.
@@ -17,7 +32,7 @@ const processingOutbound = new Set()
 function setupRealtimeListeners(context) {
     // supabaseRealtime = client avec anon_key (pour subscriptions)
     // supabase = client avec service_role_key (pour DB operations)
-    const { supabaseRealtime, supabase, activeSessions, pendingConnections } = context
+    const { supabaseRealtime, activeSessions, pendingConnections } = context
 
     context.realtimeConnected = false
 
@@ -100,6 +115,14 @@ async function handlePendingMessage(context, message) {
 
         if (!conv || conv.bot_paused) return
 
+        const agentActive = await isAgentActive(supabase, conv.agent_id)
+        if (!agentActive) {
+            await supabase.from('messages')
+                .update({ status: 'failed', error_message: 'agent_inactive' })
+                .eq('id', message.id)
+            return
+        }
+
         const session = activeSessions.get(conv.agent_id)
         if (!session?.socket) return
 
@@ -139,6 +162,14 @@ async function handleOutboundMessage(context, msg) {
     processingOutbound.add(msg.id)
 
     try {
+        const agentActive = await isAgentActive(supabase, msg.agent_id)
+        if (!agentActive) {
+            await supabase.from('outbound_messages')
+                .update({ status: 'failed', error_log: 'agent_inactive' })
+                .eq('id', msg.id)
+            return
+        }
+
         const session = activeSessions.get(msg.agent_id)
         if (!session?.socket) return
 

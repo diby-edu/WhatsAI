@@ -28,12 +28,13 @@ export async function GET() {
         const transformedPlans = (plans || []).map(plan => ({
             id: plan.id,
             name: plan.name,
-            price: plan.price_fcfa,
+            price: plan.price_fcfa,       // kept for backward compat
+            price_fcfa: plan.price_fcfa,  // explicit FCFA field for currency conversion
             credits: plan.credits_included,
             features: plan.features || [],
             billing_cycle: plan.billing_cycle || 'monthly',
-            max_agents: plan.max_agents || 1,
-            max_whatsapp_numbers: plan.max_whatsapp_numbers || 1,
+            max_agents: plan.max_agents ?? 1,
+            max_whatsapp_numbers: plan.max_whatsapp_numbers ?? 1,
             is_popular: plan.is_popular || false,
             description: plan.description || ''
         }))

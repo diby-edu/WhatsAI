@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
+import Script from "next/script";
 import "../globals.css";
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
@@ -59,6 +60,18 @@ export default async function RootLayout({
           <WhatsAppButton />
           <HomeButton />
         </NextIntlClientProvider>
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-91PK2CR3EC"
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-91PK2CR3EC');
+          `}
+        </Script>
       </body>
     </html>
   );

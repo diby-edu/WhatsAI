@@ -1,7 +1,15 @@
 import { createClient } from '@/lib/supabase/server'
 
-// GET - List active credit packs for public
-// NOTE: credit_packs.price is stored in USD — payment code does price × 700 to get FCFA
+// Fallback packs (prices in FCFA) — used if DB table unavailable
+const FALLBACK_PACKS = [
+    { id: 'boost_mini', name: 'Boost Mini', credits: 200,   price: 3000,   savings: 0 },
+    { id: 'boost_s',    name: 'Boost S',    credits: 500,   price: 7000,   savings: 7 },
+    { id: 'boost_m',    name: 'Boost M',    credits: 2000,  price: 25000,  savings: 17 },
+    { id: 'boost_l',    name: 'Boost L',    credits: 5000,  price: 55000,  savings: 27 },
+    { id: 'boost_xl',   name: 'Boost XL',   credits: 12000, price: 110000, savings: 39 },
+]
+
+// GET - List active credit packs for public (prices in FCFA)
 export async function GET() {
     try {
         const supabase = await createClient()
@@ -13,16 +21,8 @@ export async function GET() {
             .order('display_order', { ascending: true })
 
         if (error) {
-            // If table doesn't exist, return default packs (prices in USD)
             if (error.code === '42P01') {
-                return Response.json({
-                    packs: [
-                        { id: 'pack_500', name: 'Pack 500', credits: 500, price: 9, savings: 0 },
-                        { id: 'pack_1000', name: 'Pack 1000', credits: 1000, price: 15, savings: 10 },
-                        { id: 'pack_2500', name: 'Pack 2500', credits: 2500, price: 35, savings: 20 },
-                        { id: 'pack_5000', name: 'Pack 5000', credits: 5000, price: 59, savings: 30 },
-                    ]
-                })
+                return Response.json({ packs: FALLBACK_PACKS })
             }
             throw error
         }
@@ -30,14 +30,6 @@ export async function GET() {
         return Response.json({ packs: packs || [] })
     } catch (error) {
         console.error('Error fetching credit packs:', error)
-        // Return default packs on error (prices in USD)
-        return Response.json({
-            packs: [
-                { id: 'pack_500', name: 'Pack 500', credits: 500, price: 9, savings: 0 },
-                { id: 'pack_1000', name: 'Pack 1000', credits: 1000, price: 15, savings: 10 },
-                { id: 'pack_2500', name: 'Pack 2500', credits: 2500, price: 35, savings: 20 },
-                { id: 'pack_5000', name: 'Pack 5000', credits: 5000, price: 59, savings: 30 },
-            ]
-        })
+        return Response.json({ packs: FALLBACK_PACKS })
     }
 }
