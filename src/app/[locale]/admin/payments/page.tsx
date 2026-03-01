@@ -216,7 +216,7 @@ export default function AdminPaymentPage() {
             )}
 
             {/* Stats Cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12, marginBottom: 20 }}>
                 <div style={{
                     padding: 16,
                     borderRadius: 12,
@@ -297,6 +297,7 @@ export default function AdminPaymentPage() {
                     <div style={{
                         display: 'flex',
                         gap: 12,
+                        flexWrap: 'wrap',
                         marginBottom: 20,
                         padding: 14,
                         background: 'rgba(30, 41, 59, 0.5)',
@@ -377,7 +378,7 @@ export default function AdminPaymentPage() {
                         background: 'rgba(30, 41, 59, 0.5)',
                         borderRadius: 12,
                         border: '1px solid rgba(148, 163, 184, 0.1)',
-                        overflow: 'hidden'
+                        overflowX: 'auto'
                     }}>
                         {filteredPayments.length === 0 ? (
                             <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>
@@ -385,7 +386,7 @@ export default function AdminPaymentPage() {
                                 <p style={{ fontSize: 14 }}>Aucun paiement trouvé</p>
                             </div>
                         ) : (
-                            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 550 }}>
                                 <thead>
                                     <tr style={{ background: 'rgba(15, 23, 42, 0.5)' }}>
                                         {['Transaction', 'Utilisateur', 'Montant', 'Statut', 'Date', 'Actions'].map(h => (

@@ -116,7 +116,7 @@ export default function AdminOrdersPage() {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <Link href="/admin" style={{ color: '#64748b' }}>
                         <ArrowLeft size={20} />
@@ -149,7 +149,7 @@ export default function AdminOrdersPage() {
             </div>
 
             {/* Quick Stats */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12 }}>
                 {[
                     { label: 'Total', value: stats.total, icon: ShoppingCart, color: '#3b82f6' },
                     { label: 'En attente', value: stats.pending, icon: Clock, color: '#fbbf24' },
@@ -170,7 +170,7 @@ export default function AdminOrdersPage() {
             </div>
 
             {/* Filters */}
-            <div style={{ display: 'flex', gap: 12 }}>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                 <div style={{
                     flex: 1, display: 'flex', alignItems: 'center', gap: 10,
                     padding: '10px 14px', background: 'rgba(30, 41, 59, 0.5)',
@@ -222,7 +222,8 @@ export default function AdminOrdersPage() {
                         <p>Aucune commande trouvée</p>
                     </div>
                 ) : (
-                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 600 }}>
                         <thead>
                             <tr style={{ borderBottom: '1px solid rgba(148, 163, 184, 0.1)' }}>
                                 {['ID', 'Client', 'Total', 'Statut', 'Date', 'Actions'].map(h => (
@@ -299,6 +300,7 @@ export default function AdminOrdersPage() {
                             })}
                         </tbody>
                     </table>
+                    </div>
                 )}
             </div>
 
@@ -313,7 +315,7 @@ export default function AdminOrdersPage() {
                             initial={{ opacity: 0, y: 20, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.95 }}
                             style={{
                                 position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                                zIndex: 101, width: 520, maxHeight: '85vh', overflowY: 'auto',
+                                zIndex: 101, width: 'min(520px, 92vw)', maxHeight: '85vh', overflowY: 'auto',
                                 background: '#1e293b', border: '1px solid rgba(148, 163, 184, 0.15)',
                                 borderRadius: 16, padding: 24, boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
                             }}>

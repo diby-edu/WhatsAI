@@ -46,9 +46,9 @@ export default function AdminConversationsPage() {
                 backdropFilter: 'blur(20px)',
                 border: '1px solid rgba(148, 163, 184, 0.1)',
                 borderRadius: 20,
-                overflow: 'hidden'
+                overflowX: 'auto'
             }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 550 }}>
                     <thead>
                         <tr>
                             {['Contact', 'Agent', 'Messages', 'Dernier message', 'Date'].map(h => (

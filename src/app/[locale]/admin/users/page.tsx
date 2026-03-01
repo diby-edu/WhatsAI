@@ -428,8 +428,8 @@ function EditUserModal({ user, onClose, onSave, onSetCredits, onChangeRole }: {
                 initial={{ opacity: 0, y: 20, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.95 }}
                 style={{
                     position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                    zIndex: 101, width: 460, background: '#1e293b', border: '1px solid rgba(148, 163, 184, 0.15)',
-                    borderRadius: 16, padding: 24, boxShadow: '0 20px 50px rgba(0,0,0,0.5)', maxHeight: '90vh', overflowY: 'auto'
+                    zIndex: 101, width: 'min(460px, 92vw)', background: '#1e293b', border: '1px solid rgba(148, 163, 184, 0.15)',
+                    borderRadius: 16, padding: 'clamp(16px, 4vw, 24px)', boxShadow: '0 20px 50px rgba(0,0,0,0.5)', maxHeight: '90vh', overflowY: 'auto'
                 }}
             >
                 <button onClick={onClose} style={{ position: 'absolute', top: 12, right: 12, background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}>

@@ -114,7 +114,7 @@ export default function AdminFeaturesPage() {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <Link href="/admin" style={{ color: '#64748b' }}>
                         <ArrowLeft size={20} />

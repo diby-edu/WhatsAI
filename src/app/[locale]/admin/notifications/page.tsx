@@ -143,7 +143,7 @@ export default function AdminNotificationsPage() {
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
             {/* Header */}
             <div style={{ marginBottom: 32 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 12 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                         <div style={{
                             width: 48,

@@ -154,7 +154,7 @@ export default function PayoutsPage() {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
                 <div>
                     <h1 style={{ fontSize: 22, fontWeight: 700, color: 'white', marginBottom: 4 }}>Reversements Marchands</h1>
                     <p style={{ color: '#64748b', fontSize: 13 }}>Suivi de l'argent collecté et des reversements</p>
@@ -179,7 +179,7 @@ export default function PayoutsPage() {
             </div>
 
             {/* KPI Summary */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12 }}>
                 <KPIBox icon={DollarSign} label="Total collecté" value={`${fmt(totalCollected)} FCFA`} color="#3b82f6" />
                 <KPIBox icon={Check} label="Déjà reversé" value={`${fmt(totalPaid)} FCFA`} color="#10b981" />
                 <KPIBox icon={Wallet} label="À reverser" value={`${fmt(totalDue)} FCFA`} color="#ef4444" />
@@ -215,7 +215,7 @@ export default function PayoutsPage() {
                 <div style={{
                     background: 'rgba(30, 41, 59, 0.5)',
                     border: '1px solid rgba(148, 163, 184, 0.1)',
-                    borderRadius: 14, overflow: 'hidden'
+                    borderRadius: 14, overflowX: 'auto'
                 }}>
                     {balances.length === 0 ? (
                         <div style={{ padding: 60, textAlign: 'center', color: '#64748b' }}>
@@ -223,7 +223,7 @@ export default function PayoutsPage() {
                             <p>Aucun paiement marchand trouvé</p>
                         </div>
                     ) : (
-                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 550 }}>
                             <thead>
                                 <tr>
                                     {['Marchand', 'Commandes', 'Collecté', 'Reversé', 'Commission', 'Solde dû', 'Actions'].map(h => (
@@ -294,7 +294,7 @@ export default function PayoutsPage() {
                 <div style={{
                     background: 'rgba(30, 41, 59, 0.5)',
                     border: '1px solid rgba(148, 163, 184, 0.1)',
-                    borderRadius: 14, overflow: 'hidden'
+                    borderRadius: 14, overflowX: 'auto'
                 }}>
                     {payouts.length === 0 ? (
                         <div style={{ padding: 60, textAlign: 'center', color: '#64748b' }}>
@@ -302,7 +302,7 @@ export default function PayoutsPage() {
                             <p>Aucun reversement effectué</p>
                         </div>
                     ) : (
-                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 550 }}>
                             <thead>
                                 <tr>
                                     {['Marchand', 'Brut', 'Commission', 'Net', 'Statut', 'Méthode', 'Référence', 'Date', ''].map(h => (
@@ -456,7 +456,7 @@ function ModalOverlay({ children, onClose }: { children: React.ReactNode; onClos
                 style={{
                     position: 'fixed', top: '50%', left: '50%',
                     transform: 'translate(-50%, -50%)',
-                    zIndex: 101, width: 440,
+                    zIndex: 101, width: 'min(440px, 92vw)',
                     background: '#1e293b',
                     border: '1px solid rgba(148, 163, 184, 0.15)',
                     borderRadius: 16, padding: 24,

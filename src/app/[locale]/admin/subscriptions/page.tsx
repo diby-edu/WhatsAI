@@ -111,7 +111,7 @@ export default function AdminSubscriptionsPage() {
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
                 <div>
                     <h1 style={{ fontSize: 28, fontWeight: 700, color: 'white', marginBottom: 8 }}>Abonnements</h1>
                     <p style={{ color: '#94a3b8' }}>Gestion des abonnements utilisateurs</p>
@@ -162,7 +162,8 @@ export default function AdminSubscriptionsPage() {
                 background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(148, 163, 184, 0.1)',
                 borderRadius: 16, overflow: 'hidden'
             }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
                     <thead>
                         <tr>
                             {['Utilisateur', 'Email', 'Plan', 'Crédits', 'Statut', 'Inscrit le', 'Actions'].map(h => (
@@ -224,6 +225,7 @@ export default function AdminSubscriptionsPage() {
                     </tbody>
                 </table>
             </div>
+            </div>
 
             {/* Edit Subscription Modal */}
             <AnimatePresence>
@@ -263,8 +265,8 @@ function EditSubModal({ sub, onClose, onChangePlan, onSetCredits }: {
                 initial={{ opacity: 0, y: 20, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.95 }}
                 style={{
                     position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                    zIndex: 101, width: 420, background: '#1e293b', border: '1px solid rgba(148, 163, 184, 0.15)',
-                    borderRadius: 16, padding: 24, boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
+                    zIndex: 101, width: 'min(420px, 92vw)', background: '#1e293b', border: '1px solid rgba(148, 163, 184, 0.15)',
+                    borderRadius: 16, padding: 'clamp(16px, 4vw, 24px)', boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
                 }}>
                 <button onClick={onClose} style={{ position: 'absolute', top: 12, right: 12, background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}>
                     <X size={18} />

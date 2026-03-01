@@ -530,19 +530,14 @@ export default function Pricing() {
                     to { transform: rotate(360deg); }
                 }
                 .pricing-grid {
-                    grid-template-columns: repeat(5, 1fr) !important;
+                    grid-template-columns: repeat(3, 1fr) !important;
                 }
-                @media (max-width: 1300px) {
-                    .pricing-grid {
-                        grid-template-columns: repeat(3, 1fr) !important;
-                    }
-                }
-                @media (max-width: 900px) {
+                @media (max-width: 800px) {
                     .pricing-grid {
                         grid-template-columns: repeat(2, 1fr) !important;
                     }
                 }
-                @media (max-width: 600px) {
+                @media (max-width: 520px) {
                     .pricing-grid {
                         grid-template-columns: 1fr !important;
                     }
