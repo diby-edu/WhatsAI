@@ -36,6 +36,14 @@ export default function AdminPaymentPage() {
     const [verifyResult, setVerifyResult] = useState<any>(null)
     const [verifying, setVerifying] = useState(false)
     const [cinetpayConfig, setCinetpayConfig] = useState<{ apiKey: boolean, siteId: boolean }>({ apiKey: false, siteId: false })
+    const [isMobile, setIsMobile] = useState(false)
+
+    useEffect(() => {
+        const check = () => setIsMobile(window.innerWidth < 640)
+        check()
+        window.addEventListener('resize', check)
+        return () => window.removeEventListener('resize', check)
+    }, [])
 
     useEffect(() => {
         fetchPayments()
@@ -216,7 +224,7 @@ export default function AdminPaymentPage() {
             )}
 
             {/* Stats Cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12, marginBottom: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12, marginBottom: 20 }}>
                 <div style={{
                     padding: 16,
                     borderRadius: 12,
@@ -374,7 +382,7 @@ export default function AdminPaymentPage() {
                     </div>
 
                     {/* Payments Table */}
-                    <div style={{
+                    <div className="admin-table-wrap" style={{
                         background: 'rgba(30, 41, 59, 0.5)',
                         borderRadius: 12,
                         border: '1px solid rgba(148, 163, 184, 0.1)',
@@ -386,7 +394,7 @@ export default function AdminPaymentPage() {
                                 <p style={{ fontSize: 14 }}>Aucun paiement trouvé</p>
                             </div>
                         ) : (
-                            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 550 }}>
+                            <table className="admin-table" style={{ width: '100%', borderCollapse: 'collapse', minWidth: 550 }}>
                                 <thead>
                                     <tr style={{ background: 'rgba(15, 23, 42, 0.5)' }}>
                                         {['Transaction', 'Utilisateur', 'Montant', 'Statut', 'Date', 'Actions'].map(h => (

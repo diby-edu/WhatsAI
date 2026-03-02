@@ -28,6 +28,7 @@ export default function NewAgentPage() {
     const tCommon = useTranslations('Agents.connect') // specialized namespace if needed or just access via t('connect...')
     const router = useRouter()
     const [currentStep, setCurrentStep] = useState(0)
+    const [isCompact, setIsCompact] = useState(false)
     const [loading, setLoading] = useState(false)
     const [generating, setGenerating] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -37,6 +38,13 @@ export default function NewAgentPage() {
     const [qrCode, setQrCode] = useState<string | null>(null)
     const [whatsappStatus, setWhatsappStatus] = useState<'idle' | 'connecting' | 'qr_ready' | 'connected' | 'error'>('idle')
     const [connectedPhone, setConnectedPhone] = useState<string | null>(null)
+
+    useEffect(() => {
+        const checkViewport = () => setIsCompact(window.innerWidth < 768)
+        checkViewport()
+        window.addEventListener('resize', checkViewport)
+        return () => window.removeEventListener('resize', checkViewport)
+    }, [])
 
     // Conflict Detection State
     const [conflictStatus, setConflictStatus] = useState<'idle' | 'checking' | 'safe' | 'conflict' | 'error'>('idle')
@@ -668,7 +676,7 @@ Règles:
                             </div>
                         </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                        <div className="agent-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                             <div>
                                 <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
                                     Latitude
@@ -696,7 +704,7 @@ Règles:
                             </div>
                         </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                        <div className="agent-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                             <div>
                                 <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
                                     Numéro d'Escalade / SAV *
@@ -748,7 +756,7 @@ Règles:
                 return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                         {/* 24/7 Quick Toggle */}
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 16, background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: 12, marginBottom: 8 }}>
+                        <div className="agent-hours-banner" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 16, background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: 12, marginBottom: 8 }}>
                             <div>
                                 <span style={{ fontWeight: 600, color: '#10b981' }}>🌐 Ouvert 24h/24, 7j/7</span>
                                 <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>Service disponible en permanence</p>
@@ -771,9 +779,9 @@ Règles:
                         </div>
 
                         {Object.entries(formData.business_hours).map(([day, hours]) => (
-                            <div key={day} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 12, background: 'rgba(30, 41, 59, 0.3)', borderRadius: 8 }}>
-                                <span style={{ textTransform: 'capitalize', color: 'white', width: 100 }}>{t(`WeekDays.${day}`)}</span>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <div className="agent-hours-row" key={day} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 12, background: 'rgba(30, 41, 59, 0.3)', borderRadius: 8 }}>
+                                <span className="agent-hours-day" style={{ textTransform: 'capitalize', color: 'white', width: 100 }}>{t(`WeekDays.${day}`)}</span>
+                                <div className="agent-hours-controls" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                     <input
                                         type="checkbox"
                                         checked={!hours.closed}
@@ -792,6 +800,7 @@ Règles:
                                                     ...formData,
                                                     business_hours: { ...formData.business_hours, [day]: { ...hours, open: e.target.value } }
                                                 })}
+                                                className="agent-hours-time"
                                                 style={{ ...inputStyle, padding: '4px 8px', width: 100 }}
                                             />
                                             <span style={{ color: '#94a3b8' }}>-</span>
@@ -802,11 +811,12 @@ Règles:
                                                     ...formData,
                                                     business_hours: { ...formData.business_hours, [day]: { ...hours, close: e.target.value } }
                                                 })}
+                                                className="agent-hours-time"
                                                 style={{ ...inputStyle, padding: '4px 8px', width: 100 }}
                                             />
                                         </>
                                     ) : (
-                                        <span style={{ color: '#64748b', fontStyle: 'italic', width: 216, textAlign: 'center' }}>Fermé</span>
+                                        <span className="agent-hours-closed" style={{ color: '#64748b', fontStyle: 'italic', width: 216, textAlign: 'center' }}>Fermé</span>
                                     )}
                                 </div>
                             </div>
@@ -822,7 +832,7 @@ Règles:
                             <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 16 }}>
                                 {t('Form.mission.label')}
                             </label>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+                            <div className="agent-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
                                 {missionTemplates.map((template) => (
                                     <button
                                         key={template.id}
@@ -872,7 +882,7 @@ Règles:
                             <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 16 }}>
                                 {t('Form.personality.label')}
                             </label>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
+                            <div className="agent-grid-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
                                 {personalities.map((p) => (
                                     <button
                                         key={p.id}
@@ -1088,7 +1098,7 @@ Règles:
                                     <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
                                         {t('Form.settings.voiceId')}
                                     </label>
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                                    <div className="agent-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
                                         {['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'].map(voice => (
                                             <button
                                                 key={voice}
@@ -1149,7 +1159,7 @@ Règles:
                             <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
                                 Mode de Paiement
                             </label>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                            <div className="agent-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                                 <div
                                     onClick={() => updateFormData('payment_mode', 'cinetpay')}
                                     style={{
@@ -1185,7 +1195,7 @@ Règles:
                                 <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0' }}>
                                     Vos Numéros Mobile Money
                                 </label>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                                <div className="agent-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                                     <div>
                                         <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
                                             🟠 Orange Money
@@ -1211,7 +1221,7 @@ Règles:
                                         />
                                     </div>
                                 </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                                <div className="agent-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                                     <div>
                                         <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
                                             🔵 Wave
@@ -1233,7 +1243,7 @@ Règles:
                                     </label>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                                         {formData.custom_payment_methods.map((method, index) => (
-                                            <div key={index} style={{ display: 'flex', gap: 8 }}>
+                                            <div className="agent-inline-fields" key={index} style={{ display: 'flex', gap: 8 }}>
                                                 <input
                                                     type="text"
                                                     value={method.name}
@@ -1462,7 +1472,7 @@ Règles:
     }
 
     return (
-        <div style={{ maxWidth: 700, margin: '0 auto', paddingBottom: 150 }}>
+        <div className="agent-wizard-root" style={{ maxWidth: 700, margin: '0 auto', paddingBottom: 150 }}>
             {/* Header */}
             <div style={{ marginBottom: 32 }}>
                 <Link
@@ -1488,12 +1498,12 @@ Règles:
             </div>
 
             {/* Progress steps */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 32, gap: 8 }}>
+            <div className="agent-stepper" style={{ display: 'flex', alignItems: 'center', justifyContent: isCompact ? 'flex-start' : 'center', marginBottom: 32, gap: 8 }}>
                 {steps.map((step, index) => (
                     <div key={step.id} style={{ display: 'flex', alignItems: 'center' }}>
                         <div style={{
-                            width: 40,
-                            height: 40,
+                            width: isCompact ? 34 : 40,
+                            height: isCompact ? 34 : 40,
                             borderRadius: '50%',
                             display: 'flex',
                             alignItems: 'center',
@@ -1513,7 +1523,7 @@ Règles:
                         </div>
                         {index < steps.length - 1 && (
                             <div style={{
-                                width: 40,
+                                width: isCompact ? 24 : 40,
                                 height: 4,
                                 background: index < currentStep ? '#10b981' : 'rgba(51, 65, 85, 0.5)',
                                 borderRadius: 2
@@ -1562,7 +1572,7 @@ Règles:
             </motion.div>
 
             {/* Navigation buttons */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 24 }}>
+            <div className="agent-nav" style={{ display: 'flex', justifyContent: 'space-between', marginTop: 24 }}>
                 <button
                     onClick={() => setCurrentStep(prev => Math.max(0, prev - 1))}
                     disabled={currentStep === 0}

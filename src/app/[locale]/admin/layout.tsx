@@ -306,9 +306,93 @@ export default function AdminLayout({
 
             {/* Mobile sidebar overlay */}
             <AnimatePresence>
-                {mobileMenuOpen && isMobile && (
+                {/* Mobile Notification Panel */}
+            {isMobile && showNotifications && (
+                <motion.div
+                    key="mobile-notification-panel"
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    style={{
+                        position: 'fixed',
+                        top: 64,
+                        left: 0,
+                        right: 0,
+                        zIndex: 200,
+                        background: '#1e293b',
+                        borderBottom: '1px solid rgba(148, 163, 184, 0.15)',
+                        boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+                        maxHeight: 'calc(100vh - 64px)',
+                        overflowY: 'auto'
+                    }}
+                >
+                    <div style={{
+                        padding: '14px 20px',
+                        borderBottom: '1px solid rgba(148, 163, 184, 0.1)',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                    }}>
+                        <h3 style={{ color: 'white', fontWeight: 600, margin: 0, fontSize: 16 }}>Notifications</h3>
+                        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                            {unreadCount > 0 && (
+                                <button onClick={markAllAsRead} style={{ background: 'none', border: 'none', color: '#34d399', fontSize: 13, cursor: 'pointer' }}>
+                                    Tout marquer lu
+                                </button>
+                            )}
+                            <button onClick={() => setShowNotifications(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
+                                <X style={{ width: 18, height: 18, color: '#64748b' }} />
+                            </button>
+                        </div>
+                    </div>
+                    {notifications.length === 0 ? (
+                        <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>
+                            <Bell style={{ width: 32, height: 32, marginBottom: 12, opacity: 0.5 }} />
+                            <p>Aucune notification</p>
+                        </div>
+                    ) : (
+                        notifications.map((notif) => (
+                            <div key={notif.id} style={{
+                                padding: '14px 20px',
+                                borderBottom: '1px solid rgba(148, 163, 184, 0.05)',
+                                display: 'flex',
+                                gap: 12,
+                                backgroundColor: notif.read ? 'transparent' : 'rgba(16, 185, 129, 0.05)'
+                            }}>
+                                <div style={{
+                                    width: 36, height: 36, borderRadius: 10,
+                                    backgroundColor: getNotifBg(notif.type),
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+                                }}>
+                                    {getNotifIcon(notif.type)}
+                                </div>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ fontSize: 14, fontWeight: 500, color: 'white', marginBottom: 2 }}>{notif.title}</div>
+                                    <div style={{ fontSize: 13, color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{notif.message}</div>
+                                </div>
+                                <div style={{ fontSize: 12, color: '#64748b', whiteSpace: 'nowrap' }}>{notif.time}</div>
+                            </div>
+                        ))
+                    )}
+                    <Link
+                        href="/admin/notifications"
+                        onClick={() => setShowNotifications(false)}
+                        style={{
+                            display: 'block', padding: '14px 20px',
+                            borderTop: '1px solid rgba(148, 163, 184, 0.1)',
+                            textAlign: 'center', color: '#10b981',
+                            fontSize: 13, fontWeight: 500, textDecoration: 'none'
+                        }}
+                    >
+                        Voir toutes les notifications
+                    </Link>
+                </motion.div>
+            )}
+
+            {mobileMenuOpen && isMobile && (
                     <>
                         <motion.div
+                            key="mobile-overlay"
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
@@ -322,6 +406,7 @@ export default function AdminLayout({
                             onClick={() => setMobileMenuOpen(false)}
                         />
                         <motion.div
+                            key="mobile-sidebar"
                             initial={{ x: '-100%' }}
                             animate={{ x: 0 }}
                             exit={{ x: '-100%' }}
@@ -530,10 +615,13 @@ export default function AdminLayout({
             {/* Main content */}
             <main style={{
                 flex: 1,
+                width: '100%',
+                minWidth: 0,
                 minHeight: '100vh',
                 marginLeft: isMobile ? 0 : sidebarWidth,
                 paddingTop: isMobile ? 64 : 0,
-                transition: 'margin-left 0.3s ease'
+                transition: 'margin-left 0.3s ease',
+                overflowX: 'hidden'
             }}>
                 {/* Top Bar - Desktop only */}
                 {!isMobile && (

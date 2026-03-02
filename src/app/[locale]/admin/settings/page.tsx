@@ -84,6 +84,7 @@ export default function AdminSettingsPage() {
     const [activeTab, setActiveTab] = useState<TabId>('general')
     const [saving, setSaving] = useState(false)
     const [saved, setSaved] = useState(false)
+    const [isCompact, setIsCompact] = useState(false)
 
     const [notificationSettings, setNotificationSettings] = useState<AdminNotificationSettings>({
         // Legacy fields
@@ -141,6 +142,13 @@ export default function AdminSettingsPage() {
 
     useEffect(() => {
         fetchNotificationPreferences()
+    }, [])
+
+    useEffect(() => {
+        const onResize = () => setIsCompact(window.innerWidth < 900)
+        onResize()
+        window.addEventListener('resize', onResize)
+        return () => window.removeEventListener('resize', onResize)
     }, [])
 
     const fetchNotificationPreferences = async () => {
@@ -371,6 +379,7 @@ export default function AdminSettingsPage() {
                                 Crédits par défaut (nouveaux utilisateurs)
                             </label>
                             <input
+                                className="admin-settings-small-input"
                                 type="number"
                                 value={settings.defaultCredits}
                                 onChange={(e) => setSettings({ ...settings, defaultCredits: parseInt(e.target.value) })}
@@ -413,7 +422,7 @@ export default function AdminSettingsPage() {
                             </select>
                         </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                        <div className="admin-settings-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                             <div>
                                 <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
                                     Tokens max par message
@@ -456,7 +465,7 @@ export default function AdminSettingsPage() {
                         </div>
 
                         <h3 style={{ color: '#a78bfa', fontWeight: 600, marginTop: 16 }}>Limites d'agents par plan</h3>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+                        <div className="admin-settings-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
                             {[
                                 { label: 'Free', key: 'maxAgentsFree' },
                                 { label: 'Starter', key: 'maxAgentsStarter' },
@@ -540,7 +549,7 @@ export default function AdminSettingsPage() {
                             </select>
                         </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                        <div className="admin-settings-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                             <div>
                                 <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
                                     Site ID
@@ -591,6 +600,7 @@ export default function AdminSettingsPage() {
                                 Taux de commission par défaut (%)
                             </label>
                             <input
+                                className="admin-settings-small-input"
                                 type="number"
                                 value={settings.defaultCommissionRate}
                                 onChange={(e) => setSettings({ ...settings, defaultCommissionRate: parseInt(e.target.value) })}
@@ -623,7 +633,7 @@ export default function AdminSettingsPage() {
                             />
                         </SettingRow>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
+                        <div className="admin-settings-grid-2-1" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
                             <div>
                                 <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
                                     Serveur SMTP
@@ -696,7 +706,7 @@ export default function AdminSettingsPage() {
             case 'security':
                 return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                        <div className="admin-settings-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                             <div>
                                 <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
                                     Timeout de session (heures)
@@ -821,6 +831,7 @@ export default function AdminSettingsPage() {
                                 Limite de requêtes API (par minute)
                             </label>
                             <input
+                                className="admin-settings-small-input"
                                 type="number"
                                 value={settings.apiRateLimit}
                                 onChange={(e) => setSettings({ ...settings, apiRateLimit: parseInt(e.target.value) })}
@@ -872,7 +883,7 @@ export default function AdminSettingsPage() {
                     pushKey: keyof AdminNotificationSettings,
                     critical?: boolean
                 }) => (
-                    <div style={{
+                    <div className="admin-settings-notif-item" style={{
                         display: 'grid',
                         gridTemplateColumns: '1fr auto auto',
                         alignItems: 'center',
@@ -885,7 +896,7 @@ export default function AdminSettingsPage() {
                             <div style={{ fontWeight: 500, color: 'white', fontSize: 14 }}>{label}</div>
                             <div style={{ fontSize: 12, color: '#64748b' }}>{description}</div>
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                        <div className="admin-settings-notif-channel" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
                             <span style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase' }}>Email</span>
                             <ToggleSwitch
                                 value={notificationSettings[emailKey] as boolean}
@@ -893,7 +904,7 @@ export default function AdminSettingsPage() {
                                 color={critical ? '#ef4444' : '#10b981'}
                             />
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                        <div className="admin-settings-notif-channel" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
                             <span style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase' }}>Push</span>
                             <ToggleSwitch
                                 value={notificationSettings[pushKey] as boolean}
@@ -1017,9 +1028,9 @@ export default function AdminSettingsPage() {
     }
 
     return (
-        <div style={{ maxWidth: 900 }}>
+        <div className="admin-settings-page" style={{ maxWidth: 900 }}>
             {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
+            <div className="admin-settings-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
                 <div>
                     <h1 style={{ fontSize: 28, fontWeight: 700, color: 'white', marginBottom: 8 }}>
                         Paramètres système
@@ -1027,6 +1038,7 @@ export default function AdminSettingsPage() {
                     <p style={{ color: '#94a3b8' }}>Configuration globale de l'application</p>
                 </div>
                 <motion.button
+                    className="admin-settings-save"
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={handleSave}
@@ -1056,23 +1068,25 @@ export default function AdminSettingsPage() {
             </div>
 
             {/* Tabs */}
-            <div style={{
+            <div className="admin-settings-tabs" style={{
                 display: 'flex',
+                flexWrap: isCompact ? 'wrap' : 'nowrap',
                 gap: 8,
                 marginBottom: 24,
                 padding: 6,
                 background: 'rgba(30, 41, 59, 0.5)',
                 borderRadius: 14,
-                overflowX: 'auto'
+                overflowX: isCompact ? 'visible' : 'auto'
             }}>
                 {tabs.map((tab) => {
                     const isActive = activeTab === tab.id
                     return (
                         <button
+                            className="admin-settings-tab-btn"
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
                             style={{
-                                padding: '12px 20px',
+                                padding: isCompact ? '10px 12px' : '12px 20px',
                                 borderRadius: 10,
                                 border: 'none',
                                 background: isActive ? '#10b981' : 'transparent',
@@ -1082,7 +1096,9 @@ export default function AdminSettingsPage() {
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: 8,
-                                whiteSpace: 'nowrap',
+                                whiteSpace: isCompact ? 'normal' : 'nowrap',
+                                maxWidth: isCompact ? 'none' : 'none',
+                                flex: isCompact ? '1 1 140px' : '0 0 auto',
                                 transition: 'all 0.2s'
                             }}
                         >

@@ -200,9 +200,9 @@ export default function AdminAnalyticsPage() {
                         <div style={{
                             position: 'absolute',
                             top: -20,
-                            right: -20,
-                            width: 100,
-                            height: 100,
+                            right: 0,
+                            width: 72,
+                            height: 72,
                             background: `${stat.color}10`,
                             borderRadius: '50%',
                             filter: 'blur(40px)'

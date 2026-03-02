@@ -13,6 +13,7 @@ export default function AdminAuditLogsPage() {
     const [logs, setLogs] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState('')
+    const [isCompact, setIsCompact] = useState(false)
 
     // Pagination state
     const [page, setPage] = useState(1)
@@ -22,6 +23,13 @@ export default function AdminAuditLogsPage() {
     useEffect(() => {
         fetchLogs()
     }, [page])
+
+    useEffect(() => {
+        const onResize = () => setIsCompact(window.innerWidth < 768)
+        onResize()
+        window.addEventListener('resize', onResize)
+        return () => window.removeEventListener('resize', onResize)
+    }, [])
 
     const fetchLogs = async () => {
         setLoading(true)
@@ -109,6 +117,7 @@ export default function AdminAuditLogsPage() {
 
             {/* Logs List */}
             <motion.div
+                className="admin-audit-table"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 style={{
@@ -118,13 +127,15 @@ export default function AdminAuditLogsPage() {
                     overflow: 'hidden'
                 }}
             >
-                <div style={{ padding: '20px 24px', borderBottom: '1px solid rgba(148, 163, 184, 0.1)', display: 'grid', gridTemplateColumns: '1.5fr 1.5fr 1fr 2fr 1.2fr', gap: 20 }}>
+                {!isCompact && (
+                <div className="admin-audit-grid admin-audit-head" style={{ padding: '20px 24px', borderBottom: '1px solid rgba(148, 163, 184, 0.1)', display: 'grid', gridTemplateColumns: '1.5fr 1.5fr 1fr 2fr 1.2fr', gap: 20 }}>
                     <span style={{ color: '#64748b', fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Action</span>
                     <span style={{ color: '#64748b', fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Par (Admin)</span>
                     <span style={{ color: '#64748b', fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Cible</span>
                     <span style={{ color: '#64748b', fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Détails (Metadata)</span>
                     <span style={{ color: '#64748b', fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Date</span>
                 </div>
+                )}
 
                 <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
                     {loading ? (
@@ -137,11 +148,11 @@ export default function AdminAuditLogsPage() {
                             <p>Aucun log trouvé.</p>
                         </div>
                     ) : filteredLogs.map((log, i) => (
-                        <div key={log.id} style={{
+                        <div className="admin-audit-grid admin-audit-row" key={log.id} style={{
                             padding: '16px 24px',
                             borderBottom: '1px solid rgba(148, 163, 184, 0.05)',
                             display: 'grid',
-                            gridTemplateColumns: '1.5fr 1.5fr 1fr 2fr 1.2fr',
+                            gridTemplateColumns: isCompact ? '1fr' : '1.5fr 1.5fr 1fr 2fr 1.2fr',
                             gap: 20,
                             alignItems: 'center',
                             background: i % 2 === 0 ? 'transparent' : 'rgba(148, 163, 184, 0.02)'
