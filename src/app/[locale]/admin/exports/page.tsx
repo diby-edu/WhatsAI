@@ -20,6 +20,65 @@ export default function AdminExportsPage() {
         { id: 'orders', label: 'Commandes', icon: Calendar, color: '#fb7185', description: 'Toutes les commandes produits/services.' },
     ]
 
+    const handleExportPDF = async (id: string, label: string) => {
+        setExporting(id)
+        try {
+            const apiMap: Record<string, string> = {
+                'users': '/api/admin/users?pageSize=10000',
+                'payments': '/api/admin/payments',
+                'payouts': '/api/admin/payouts?view=history',
+                'agents': '/api/admin/agents',
+                'audit-logs': '/api/admin/audit-logs?pageSize=10000',
+                'orders': '/api/admin/orders'
+            }
+            const res = await fetch(apiMap[id] || apiMap['users'])
+            const json = await res.json()
+            let data: any[] = []
+            switch (id) {
+                case 'users': case 'audit-logs': data = json.data || []; break
+                case 'agents': data = json.data?.agents || []; break
+                case 'orders': data = json.data?.orders || []; break
+                case 'payouts': data = json.data?.payouts || []; break
+                case 'payments': data = json.data?.payments || []; break
+                default: data = Array.isArray(json.data) ? json.data : []
+            }
+            if (!data || data.length === 0) { alert('Aucune donnée à exporter'); setExporting(null); return }
+
+            const headers = Object.keys(data[0]).filter(h => typeof data[0][h] !== 'object' || data[0][h] === null)
+            const rows = data.map(row => headers.map(h => {
+                const v = row[h]; if (v === null || v === undefined) return ''
+                if (typeof v === 'object') return JSON.stringify(v)
+                return String(v)
+            }))
+
+            const printWin = window.open('', '_blank')
+            if (!printWin) { alert('Autorisez les popups pour exporter en PDF'); setExporting(null); return }
+            const date = new Date().toLocaleDateString('fr-FR')
+            printWin.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
+<title>Export ${label} — ${date}</title>
+<style>
+  body { font-family: Arial, sans-serif; font-size: 11px; color: #111; padding: 20px; }
+  h1 { font-size: 16px; margin-bottom: 4px; }
+  p { color: #666; font-size: 11px; margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: #1e293b; color: white; padding: 6px 8px; text-align: left; font-size: 10px; text-transform: uppercase; }
+  td { padding: 5px 8px; border-bottom: 1px solid #e2e8f0; font-size: 10px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  tr:nth-child(even) td { background: #f8fafc; }
+  @media print { body { padding: 0; } }
+</style></head><body>
+<h1>Export — ${label}</h1>
+<p>Généré le ${date} — ${data.length} entrées</p>
+<table><thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+<tbody>${rows.map(r => `<tr>${r.map(v => `<td title="${v.replace(/"/g, '')}">${v}</td>`).join('')}</tr>`).join('')}</tbody>
+</table></body></html>`)
+            printWin.document.close()
+            printWin.onload = () => { printWin.print() }
+            setDone(id); setTimeout(() => setDone(null), 3000)
+        } catch (err) {
+            console.error('PDF export failed:', err); alert('Erreur lors de l\'export PDF')
+        } finally { setExporting(null) }
+    }
+
     const handleExport = async (id: string, format: 'csv' | 'json') => {
         setExporting(id)
         try {
@@ -154,51 +213,49 @@ export default function AdminExportsPage() {
                             </div>
                         </div>
 
-                        <div style={{ marginTop: 'auto', display: 'flex', gap: 12 }}>
+                        <div style={{ marginTop: 'auto', display: 'flex', gap: 8 }}>
                             <button
                                 onClick={() => handleExport(coll.id, 'csv')}
                                 disabled={!!exporting}
                                 style={{
-                                    flex: 1,
-                                    padding: '12px',
-                                    borderRadius: 12,
-                                    background: 'rgba(148, 163, 184, 0.1)',
-                                    color: 'white',
-                                    border: '1px solid rgba(148, 163, 184, 0.1)',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: 8,
-                                    fontSize: 14,
-                                    fontWeight: 600,
-                                    transition: 'all 0.2s'
+                                    flex: 1, padding: '11px 8px', borderRadius: 12,
+                                    background: 'rgba(148, 163, 184, 0.1)', color: 'white',
+                                    border: '1px solid rgba(148, 163, 184, 0.1)', cursor: 'pointer',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    gap: 6, fontSize: 13, fontWeight: 600
                                 }}
                             >
-                                {exporting === coll.id ? <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> : done === coll.id ? <CheckCircle2 size={18} color="#34d399" /> : <Download size={18} />}
+                                {exporting === coll.id ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : done === coll.id ? <CheckCircle2 size={16} color="#34d399" /> : <Download size={16} />}
                                 CSV
                             </button>
                             <button
                                 onClick={() => handleExport(coll.id, 'json')}
                                 disabled={!!exporting}
                                 style={{
-                                    flex: 1,
-                                    padding: '12px',
-                                    borderRadius: 12,
-                                    background: 'rgba(148, 163, 184, 0.05)',
-                                    color: '#94a3b8',
-                                    border: '1px solid rgba(148, 163, 184, 0.05)',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: 8,
-                                    fontSize: 14,
-                                    fontWeight: 600
+                                    flex: 1, padding: '11px 8px', borderRadius: 12,
+                                    background: 'rgba(148, 163, 184, 0.05)', color: '#94a3b8',
+                                    border: '1px solid rgba(148, 163, 184, 0.05)', cursor: 'pointer',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    gap: 6, fontSize: 13, fontWeight: 600
                                 }}
                             >
-                                <FileText size={18} />
+                                <FileText size={16} />
                                 JSON
+                            </button>
+                            <button
+                                onClick={() => handleExportPDF(coll.id, coll.label)}
+                                disabled={!!exporting}
+                                title="Exporter en PDF (impression)"
+                                style={{
+                                    flex: 1, padding: '11px 8px', borderRadius: 12,
+                                    background: 'rgba(239, 68, 68, 0.08)', color: '#f87171',
+                                    border: '1px solid rgba(239, 68, 68, 0.15)', cursor: 'pointer',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    gap: 6, fontSize: 13, fontWeight: 600
+                                }}
+                            >
+                                <FileText size={16} />
+                                PDF
                             </button>
                         </div>
                     </motion.div>

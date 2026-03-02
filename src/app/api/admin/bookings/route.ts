@@ -57,19 +57,30 @@ export async function GET(request: NextRequest) {
             throw error
         }
 
-        // Get agent names
+        // Get agent names + owner (vendor) info
         const bookingsWithDetails = await Promise.all(
             (bookings || []).map(async (booking: any) => {
                 let agentName = null
+                let vendorName = null
+                let vendorEmail = null
                 if (booking.agent_id) {
                     const { data: agent } = await adminSupabase
                         .from('agents')
-                        .select('name')
+                        .select('name, user_id')
                         .eq('id', booking.agent_id)
                         .single()
                     agentName = agent?.name
+                    if (agent?.user_id) {
+                        const { data: owner } = await adminSupabase
+                            .from('profiles')
+                            .select('full_name, email')
+                            .eq('id', agent.user_id)
+                            .single()
+                        vendorName = owner?.full_name || null
+                        vendorEmail = owner?.email || null
+                    }
                 }
-                return { ...booking, agent_name: agentName }
+                return { ...booking, agent_name: agentName, vendor_name: vendorName, vendor_email: vendorEmail }
             })
         )
 

@@ -102,6 +102,23 @@ export async function PATCH(
             return successResponse({ message: `Agent ${agent.is_active ? 'desactive' : 'active'}`, is_active: !agent.is_active })
         }
 
+        if (action === 'disconnect_whatsapp') {
+            const { error } = await adminSupabase
+                .from('agents')
+                .update({
+                    whatsapp_connected: false,
+                    whatsapp_phone: null,
+                    whatsapp_status: 'disconnected',
+                    whatsapp_qr_code: null
+                })
+                .eq('id', id)
+
+            if (error) throw error
+
+            await logAdminAction(user.id, 'disconnect_whatsapp', id, 'agent', {})
+            return successResponse({ message: 'Agent WhatsApp deconnecte' })
+        }
+
         const allowedFields = ['name', 'system_prompt', 'model', 'temperature', 'is_active']
         const cleanUpdate: Record<string, any> = {}
         for (const key of allowedFields) {

@@ -124,6 +124,7 @@ export default function AdminOrdersPage() {
                 case 'total_fcfa': aVal = a.total_fcfa || 0; bVal = b.total_fcfa || 0; break
                 case 'payment_method': aVal = a.payment_method || a.agent_payment_mode || ''; bVal = b.payment_method || b.agent_payment_mode || ''; break
                 case 'status': aVal = a.status || ''; bVal = b.status || ''; break
+                case 'agent_name': aVal = a.agent_name || ''; bVal = b.agent_name || ''; break
                 default: aVal = a.created_at; bVal = b.created_at
             }
             if (aVal < bVal) return sortDir === 'asc' ? -1 : 1
@@ -253,7 +254,7 @@ export default function AdminOrdersPage() {
                             <tr style={{ borderBottom: '1px solid rgba(148, 163, 184, 0.1)' }}>
                                 {[
                                     { label: 'ID', field: null },
-                                    { label: 'Vendeur', field: null },
+                                    { label: 'Vendeur', field: 'agent_name' },
                                     { label: 'Client', field: 'customer_name' },
                                     { label: 'Total', field: 'total_fcfa' },
                                     { label: 'Paiement', field: 'payment_method' },

@@ -47,46 +47,51 @@ export async function GET(request: NextRequest) {
         // Get stats
         const activeCount = subscriptions?.length || 0
 
-        // Get monthly revenue from completed payments this month
         const startOfMonth = new Date()
         startOfMonth.setDate(1)
         startOfMonth.setHours(0, 0, 0, 0)
 
+        // Monthly payments split by type
         const { data: monthlyPayments } = await adminSupabase
             .from('payments')
-            .select('amount_fcfa')
+            .select('amount_fcfa, payment_type')
             .eq('status', 'completed')
             .gte('created_at', startOfMonth.toISOString())
 
-        const monthlyRevenue = monthlyPayments?.reduce((sum, p) => sum + (p.amount_fcfa || 0), 0) || 0
+        const monthlyRevenue = monthlyPayments?.reduce((s, p) => s + (p.amount_fcfa || 0), 0) || 0
+        const monthlyRevenueSub = monthlyPayments?.filter(p => p.payment_type === 'subscription').reduce((s, p) => s + (p.amount_fcfa || 0), 0) || 0
+        const monthlyRevenueCredits = monthlyPayments?.filter(p => p.payment_type === 'credits').reduce((s, p) => s + (p.amount_fcfa || 0), 0) || 0
 
-        // Get total revenue (all time)
+        // All-time payments split by type
         const { data: allPayments } = await adminSupabase
             .from('payments')
-            .select('amount_fcfa')
+            .select('amount_fcfa, payment_type')
             .eq('status', 'completed')
 
-        const totalRevenue = allPayments?.reduce((sum, p) => sum + (p.amount_fcfa || 0), 0) || 0
+        const totalRevenue = allPayments?.reduce((s, p) => s + (p.amount_fcfa || 0), 0) || 0
+        const totalRevenueSub = allPayments?.filter(p => p.payment_type === 'subscription').reduce((s, p) => s + (p.amount_fcfa || 0), 0) || 0
+        const totalRevenueCredits = allPayments?.filter(p => p.payment_type === 'credits').reduce((s, p) => s + (p.amount_fcfa || 0), 0) || 0
+        const totalCreditPacksCount = allPayments?.filter(p => p.payment_type === 'credits').length || 0
+        const totalSubsCount = allPayments?.filter(p => p.payment_type === 'subscription').length || 0
 
         // New subscriptions this month
-        const { data: newThisMonth } = await adminSupabase
-            .from('payments')
-            .select('id')
-            .eq('status', 'completed')
-            .eq('payment_type', 'subscription')
-            .gte('created_at', startOfMonth.toISOString())
+        const newCount = monthlyPayments?.filter(p => p.payment_type === 'subscription').length || 0
 
-        const newCount = newThisMonth?.length || 0
-
-        // Total users (Total Abonnés)
+        // Total users
         const { count: totalUsers } = await adminSupabase
             .from('profiles')
             .select('*', { count: 'exact', head: true })
 
         const stats = {
             activeSubscriptions: activeCount,
-            monthlyRevenue: monthlyRevenue,
-            totalRevenue: totalRevenue,
+            monthlyRevenue,
+            monthlyRevenueSub,
+            monthlyRevenueCredits,
+            totalRevenue,
+            totalRevenueSub,
+            totalRevenueCredits,
+            totalCreditPacksCount,
+            totalSubsCount,
             newThisMonth: newCount,
             totalUsers: totalUsers || 0
         }

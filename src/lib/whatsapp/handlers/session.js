@@ -144,7 +144,24 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
 
                     console.log(`📡 Reconnecting in ${delay / 1000}s (Attempt ${attempt})...`)
 
-                    setTimeout(() => {
+                    setTimeout(async () => {
+                        // ⭐ FIX: Vérifier si l'agent veut toujours être connecté avant de reconnecter
+                        // Évite que la reconnexion auto remette whatsapp_connected=true après une déco volontaire
+                        const { data: agentCheck } = await supabase
+                            .from('agents')
+                            .select('is_active, whatsapp_connected')
+                            .eq('id', agentId)
+                            .single()
+
+                        if (!agentCheck?.is_active) {
+                            console.log(`🚫 [${agentName}] Agent inactif (is_active=false), reconnexion annulée`)
+                            return
+                        }
+                        if (agentCheck?.whatsapp_connected === false) {
+                            console.log(`🚫 [${agentName}] Déconnexion volontaire détectée (whatsapp_connected=false), reconnexion annulée`)
+                            return
+                        }
+
                         initSession(context, agentId, agentName, attempt)
                     }, delay)
                 } else {
@@ -199,6 +216,8 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
 
             for (const msg of msgs) {
                 if (msg.key.fromMe) continue
+                // Ignorer les messages de groupe — le bot ne répond qu'en 1-à-1
+                if (msg.key.remoteJid?.endsWith('@g.us')) continue
 
                 let text = ''
                 let isVoiceMessage = false
