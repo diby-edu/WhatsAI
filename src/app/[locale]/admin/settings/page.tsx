@@ -84,6 +84,7 @@ export default function AdminSettingsPage() {
     const [activeTab, setActiveTab] = useState<TabId>('general')
     const [saving, setSaving] = useState(false)
     const [saved, setSaved] = useState(false)
+    const [saveError, setSaveError] = useState<string | null>(null)
     const [isCompact, setIsCompact] = useState(false)
 
     const [notificationSettings, setNotificationSettings] = useState<AdminNotificationSettings>({
@@ -165,6 +166,7 @@ export default function AdminSettingsPage() {
 
     const handleSaveNotifications = async () => {
         setSaving(true)
+        setSaveError(null)
         try {
             const res = await fetch('/api/admin/notification-preferences', {
                 method: 'PATCH',
@@ -174,9 +176,13 @@ export default function AdminSettingsPage() {
             if (res.ok) {
                 setSaved(true)
                 setTimeout(() => setSaved(false), 3000)
+            } else {
+                const data = await res.json().catch(() => ({}))
+                setSaveError(data.error || 'Erreur lors de la sauvegarde')
             }
         } catch (err) {
             console.error('Error saving admin notification preferences:', err)
+            setSaveError('Erreur réseau — vérifiez votre connexion')
         } finally {
             setSaving(false)
         }
@@ -246,6 +252,7 @@ export default function AdminSettingsPage() {
 
     const handleSave = async () => {
         setSaving(true)
+        setSaveError(null)
         try {
             const res = await fetch('/api/admin/settings', {
                 method: 'PATCH',
@@ -255,9 +262,13 @@ export default function AdminSettingsPage() {
             if (res.ok) {
                 setSaved(true)
                 setTimeout(() => setSaved(false), 3000)
+            } else {
+                const data = await res.json().catch(() => ({}))
+                setSaveError(data.error || 'Erreur lors de la sauvegarde')
             }
         } catch (err) {
             console.error('Error saving settings:', err)
+            setSaveError('Erreur réseau — vérifiez votre connexion')
         } finally {
             setSaving(false)
         }
@@ -1037,34 +1048,39 @@ export default function AdminSettingsPage() {
                     </h1>
                     <p style={{ color: '#94a3b8' }}>Configuration globale de l'application</p>
                 </div>
-                <motion.button
-                    className="admin-settings-save"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={handleSave}
-                    disabled={saving}
-                    style={{
-                        padding: '14px 24px',
-                        borderRadius: 12,
-                        background: saved ? '#22c55e' : 'linear-gradient(135deg, #10b981, #059669)',
-                        border: 'none',
-                        color: 'white',
-                        fontWeight: 600,
-                        cursor: saving ? 'wait' : 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8
-                    }}
-                >
-                    {saving ? (
-                        <Loader2 style={{ width: 18, height: 18, animation: 'spin 1s linear infinite' }} />
-                    ) : saved ? (
-                        <CheckCircle style={{ width: 18, height: 18 }} />
-                    ) : (
-                        <Save style={{ width: 18, height: 18 }} />
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+                    <motion.button
+                        className="admin-settings-save"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={activeTab === 'notifications' ? handleSaveNotifications : handleSave}
+                        disabled={saving}
+                        style={{
+                            padding: '14px 24px',
+                            borderRadius: 12,
+                            background: saved ? '#22c55e' : saveError ? '#ef4444' : 'linear-gradient(135deg, #10b981, #059669)',
+                            border: 'none',
+                            color: 'white',
+                            fontWeight: 600,
+                            cursor: saving ? 'wait' : 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8
+                        }}
+                    >
+                        {saving ? (
+                            <Loader2 style={{ width: 18, height: 18, animation: 'spin 1s linear infinite' }} />
+                        ) : saved ? (
+                            <CheckCircle style={{ width: 18, height: 18 }} />
+                        ) : (
+                            <Save style={{ width: 18, height: 18 }} />
+                        )}
+                        {saved ? 'Sauvegardé !' : 'Sauvegarder'}
+                    </motion.button>
+                    {saveError && (
+                        <span style={{ fontSize: 12, color: '#f87171' }}>{saveError}</span>
                     )}
-                    {saved ? 'Sauvegardé !' : 'Sauvegarder'}
-                </motion.button>
+                </div>
             </div>
 
             {/* Tabs */}

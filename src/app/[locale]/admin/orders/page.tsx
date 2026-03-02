@@ -17,8 +17,11 @@ interface Order {
     created_at: string
     delivery_address: string | null
     agent_name?: string
+    agent_payment_mode?: string
     user_email?: string
     items_count?: number
+    payment_method?: string
+    notes?: string | null
 }
 
 export default function AdminOrdersPage() {
@@ -226,7 +229,7 @@ export default function AdminOrdersPage() {
                     <table className="admin-table" style={{ width: '100%', borderCollapse: 'collapse', minWidth: 600 }}>
                         <thead>
                             <tr style={{ borderBottom: '1px solid rgba(148, 163, 184, 0.1)' }}>
-                                {['ID', 'Client', 'Total', 'Statut', 'Date', 'Actions'].map(h => (
+                                {['ID', 'Client', 'Total', 'Paiement', 'Statut', 'Date', 'Actions'].map(h => (
                                     <th key={h} style={{
                                         padding: '14px 16px', textAlign: 'left', fontSize: 11,
                                         fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em',
@@ -257,6 +260,17 @@ export default function AdminOrdersPage() {
                                             <span style={{ color: '#4ade80', fontWeight: 600, fontSize: 14 }}>
                                                 {order.total_fcfa?.toLocaleString('fr-FR')} FCFA
                                             </span>
+                                        </td>
+                                        <td style={{ padding: '14px 16px' }}>
+                                            {(order.payment_method === 'cinetpay' || order.agent_payment_mode === 'cinetpay' || (!order.payment_method && !order.agent_payment_mode)) ? (
+                                                <span style={{ padding: '3px 8px', borderRadius: 100, fontSize: 11, fontWeight: 600, background: 'rgba(52, 211, 153, 0.15)', color: '#34d399' }}>
+                                                    CinetPay
+                                                </span>
+                                            ) : (
+                                                <span style={{ padding: '3px 8px', borderRadius: 100, fontSize: 11, fontWeight: 600, background: 'rgba(251, 146, 60, 0.15)', color: '#fb923c' }}>
+                                                    Direct
+                                                </span>
+                                            )}
                                         </td>
                                         <td style={{ padding: '14px 16px' }}>
                                             <span style={{
@@ -323,14 +337,33 @@ export default function AdminOrdersPage() {
                                 <X size={18} />
                             </button>
                             <h2 style={{ fontSize: 18, fontWeight: 700, color: 'white', marginBottom: 16 }}>Commande #{viewOrder.id?.substring(0, 8)}</h2>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
-                                <Row label="Client" value={viewOrder.customer_name || 'N/A'} />
-                                <Row label="Téléphone" value={viewOrder.customer_phone} />
-                                <Row label="Total" value={`${viewOrder.total_fcfa?.toLocaleString('fr-FR')} FCFA`} />
-                                <Row label="Statut" value={viewOrder.status?.toUpperCase()} />
-                                <Row label="Adresse" value={viewOrder.delivery_address || 'N/A'} />
-                                <Row label="Date" value={new Date(viewOrder.created_at).toLocaleString('fr-FR')} />
-                            </div>
+                            {(() => {
+                                const isCinetPay = viewOrder.payment_method === 'cinetpay' || viewOrder.agent_payment_mode === 'cinetpay' || (!viewOrder.payment_method && !viewOrder.agent_payment_mode)
+                                const types = (viewOrder.items || []).map((i: any) => i.product_type).filter(Boolean)
+                                const uniqueTypes = [...new Set(types)] as string[]
+                                const typeLabels: Record<string, string> = { physical: 'Physique', digital: 'Numérique', service: 'Service' }
+                                const orderType = uniqueTypes.length === 0 ? null
+                                    : uniqueTypes.length === 1 ? (typeLabels[uniqueTypes[0]] || uniqueTypes[0])
+                                    : 'Mixte'
+                                return (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+                                        <Row label="Client" value={viewOrder.customer_name || 'N/A'} />
+                                        <Row label="Téléphone" value={viewOrder.customer_phone} />
+                                        <Row label="Total" value={`${viewOrder.total_fcfa?.toLocaleString('fr-FR')} FCFA`} />
+                                        <Row label="Statut" value={viewOrder.status?.toUpperCase()} />
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <span style={{ color: '#64748b', fontSize: 13 }}>Paiement</span>
+                                            <span style={{ padding: '3px 8px', borderRadius: 100, fontSize: 11, fontWeight: 600, background: isCinetPay ? 'rgba(52, 211, 153, 0.15)' : 'rgba(251, 146, 60, 0.15)', color: isCinetPay ? '#34d399' : '#fb923c' }}>
+                                                {isCinetPay ? 'CinetPay' : 'Paiement direct'}
+                                            </span>
+                                        </div>
+                                        {orderType && <Row label="Type de commande" value={orderType} />}
+                                        <Row label="Adresse" value={viewOrder.delivery_address || 'N/A'} />
+                                        {viewOrder.notes && <Row label="Notes" value={viewOrder.notes} />}
+                                        <Row label="Date" value={new Date(viewOrder.created_at).toLocaleString('fr-FR')} />
+                                    </div>
+                                )
+                            })()}
                             {viewOrder.items && viewOrder.items.length > 0 && (
                                 <div>
                                     <h3 style={{ fontSize: 14, fontWeight: 600, color: '#94a3b8', marginBottom: 10 }}>Articles ({viewOrder.items.length})</h3>
@@ -343,10 +376,13 @@ export default function AdminOrdersPage() {
                                             }}>
                                                 <div>
                                                     <div style={{ color: 'white', fontSize: 13, fontWeight: 500 }}>{item.product_name || `Produit #${item.product_id?.substring(0, 8)}`}</div>
-                                                    <div style={{ color: '#64748b', fontSize: 11 }}>Qté: {item.quantity}</div>
+                                                    <div style={{ color: '#64748b', fontSize: 11 }}>
+                                                        Qté: {item.quantity}
+                                                        {item.product_type && <span style={{ marginLeft: 8, color: '#475569' }}>· {({ physical: 'Physique', digital: 'Numérique', service: 'Service' } as Record<string, string>)[item.product_type] || item.product_type}</span>}
+                                                    </div>
                                                 </div>
                                                 <span style={{ color: '#4ade80', fontWeight: 600, fontSize: 13 }}>
-                                                    {((item.unit_price || 0) * (item.quantity || 1)).toLocaleString('fr-FR')} F
+                                                    {((item.unit_price_fcfa || 0) * (item.quantity || 1)).toLocaleString('fr-FR')} F
                                                 </span>
                                             </div>
                                         ))}
