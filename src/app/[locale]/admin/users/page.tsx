@@ -24,6 +24,19 @@ export default function AdminUsersPage() {
     const [meta, setMeta] = useState<any>(null)
     const pageSize = 15
 
+    // Sort state
+    const [sortField, setSortField] = useState<string>('created')
+    const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+
+    const toggleSort = (field: string) => {
+        if (sortField === field) {
+            setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+        } else {
+            setSortField(field)
+            setSortDir('asc')
+        }
+    }
+
     // Selection state
     const [selectedIds, setSelectedIds] = useState<string[]>([])
     const [isBulkLoading, setIsBulkLoading] = useState(false)
@@ -132,6 +145,19 @@ export default function AdminUsersPage() {
         const matchesPlan = selectedPlan === 'all' || user.plan.toLowerCase() === selectedPlan
         const matchesStatus = selectedStatus === 'all' || user.status === selectedStatus
         return matchesSearch && matchesPlan && matchesStatus
+    }).sort((a, b) => {
+        let aVal: any, bVal: any
+        switch (sortField) {
+            case 'name': aVal = a.name.toLowerCase(); bVal = b.name.toLowerCase(); break
+            case 'email': aVal = a.email.toLowerCase(); bVal = b.email.toLowerCase(); break
+            case 'plan': aVal = a.plan.toLowerCase(); bVal = b.plan.toLowerCase(); break
+            case 'credits': aVal = a.credits || 0; bVal = b.credits || 0; break
+            case 'status': aVal = a.status; bVal = b.status; break
+            default: aVal = a.created; bVal = b.created
+        }
+        if (aVal < bVal) return sortDir === 'asc' ? -1 : 1
+        if (aVal > bVal) return sortDir === 'asc' ? 1 : -1
+        return 0
     })
 
     return (
@@ -187,8 +213,29 @@ export default function AdminUsersPage() {
                                         {selectedIds.length > 0 && selectedIds.length === filteredUsers.length ? <CheckSquare size={18} color="#34d399" /> : <Square size={18} />}
                                     </button>
                                 </th>
-                                {['Utilisateur', 'Contact', 'Plan', 'Crédits', 'Statut', 'Inscrit le', 'Actions'].map(h => (
-                                    <th key={h} style={{ padding: '16px 16px', textAlign: 'left', color: '#64748b', fontWeight: 500, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
+                                {([
+                                    { label: 'Utilisateur', field: 'name' },
+                                    { label: 'Contact', field: 'email' },
+                                    { label: 'Plan', field: 'plan' },
+                                    { label: 'Crédits', field: 'credits' },
+                                    { label: 'Statut', field: 'status' },
+                                    { label: 'Inscrit le', field: 'created' },
+                                    { label: 'Actions', field: null }
+                                ] as { label: string; field: string | null }[]).map(({ label, field }) => (
+                                    <th key={label}
+                                        onClick={field ? () => toggleSort(field) : undefined}
+                                        style={{
+                                            padding: '16px 16px', textAlign: 'left', color: field && sortField === field ? '#e2e8f0' : '#64748b',
+                                            fontWeight: 500, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em',
+                                            cursor: field ? 'pointer' : 'default', userSelect: 'none',
+                                            whiteSpace: 'nowrap'
+                                        }}
+                                    >
+                                        {label}
+                                        {field && sortField === field && (
+                                            <span style={{ marginLeft: 4 }}>{sortDir === 'asc' ? '↑' : '↓'}</span>
+                                        )}
+                                    </th>
                                 ))}
                             </tr>
                         </thead>
