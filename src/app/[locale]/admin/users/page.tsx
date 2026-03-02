@@ -247,9 +247,14 @@ export default function AdminUsersPage() {
                                             <StatusBadge status={u.status} />
                                         </td>
                                         <td style={{ padding: '12px 16px' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#94a3b8', fontSize: 12 }}>
-                                                <Calendar style={{ width: 12, height: 12 }} />
-                                                {new Date(u.created).toLocaleDateString('fr-FR')}
+                                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 4, color: '#94a3b8', fontSize: 12 }}>
+                                                <Calendar style={{ width: 12, height: 12, marginTop: 2, flexShrink: 0 }} />
+                                                <div>
+                                                    <div>{new Date(u.created).toLocaleDateString('fr-FR')}</div>
+                                                    <div style={{ fontSize: 10, color: '#64748b' }}>
+                                                        {new Date(u.created).toLocaleTimeString('fr-FR', { timeZone: 'UTC', hour: '2-digit', minute: '2-digit' })} GMT
+                                                    </div>
+                                                </div>
                                             </div>
                                         </td>
                                         <td style={{ padding: '12px 16px' }}>

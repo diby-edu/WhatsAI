@@ -31,6 +31,13 @@ export default function AdminOrdersPage() {
     const [searchTerm, setSearchTerm] = useState('')
     const [viewOrder, setViewOrder] = useState<any>(null)
     const [viewLoading, setViewLoading] = useState(false)
+    const [sortField, setSortField] = useState<string>('created_at')
+    const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+
+    const toggleSort = (field: string) => {
+        if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+        else { setSortField(field); setSortDir('asc') }
+    }
 
     const viewOrderDetail = async (orderId: string) => {
         setViewLoading(true)
@@ -99,15 +106,30 @@ export default function AdminOrdersPage() {
         }
     }
 
-    const filteredOrders = orders.filter(order => {
-        if (!searchTerm) return true
-        const search = searchTerm.toLowerCase()
-        return (
-            order.customer_phone?.toLowerCase().includes(search) ||
-            order.customer_name?.toLowerCase().includes(search) ||
-            order.id.toLowerCase().includes(search)
-        )
-    })
+    const filteredOrders = orders
+        .filter(order => {
+            if (!searchTerm) return true
+            const search = searchTerm.toLowerCase()
+            return (
+                order.customer_phone?.toLowerCase().includes(search) ||
+                order.customer_name?.toLowerCase().includes(search) ||
+                order.id.toLowerCase().includes(search) ||
+                order.agent_name?.toLowerCase().includes(search)
+            )
+        })
+        .sort((a, b) => {
+            let aVal: any, bVal: any
+            switch (sortField) {
+                case 'customer_name': aVal = a.customer_name || ''; bVal = b.customer_name || ''; break
+                case 'total_fcfa': aVal = a.total_fcfa || 0; bVal = b.total_fcfa || 0; break
+                case 'payment_method': aVal = a.payment_method || a.agent_payment_mode || ''; bVal = b.payment_method || b.agent_payment_mode || ''; break
+                case 'status': aVal = a.status || ''; bVal = b.status || ''; break
+                default: aVal = a.created_at; bVal = b.created_at
+            }
+            if (aVal < bVal) return sortDir === 'asc' ? -1 : 1
+            if (aVal > bVal) return sortDir === 'asc' ? 1 : -1
+            return 0
+        })
 
     const stats = {
         total: orders.length,
@@ -229,12 +251,29 @@ export default function AdminOrdersPage() {
                     <table className="admin-table" style={{ width: '100%', borderCollapse: 'collapse', minWidth: 600 }}>
                         <thead>
                             <tr style={{ borderBottom: '1px solid rgba(148, 163, 184, 0.1)' }}>
-                                {['ID', 'Client', 'Total', 'Paiement', 'Statut', 'Date', 'Actions'].map(h => (
-                                    <th key={h} style={{
-                                        padding: '14px 16px', textAlign: 'left', fontSize: 11,
-                                        fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em',
-                                        color: '#64748b'
-                                    }}>{h}</th>
+                                {[
+                                    { label: 'ID', field: null },
+                                    { label: 'Vendeur', field: null },
+                                    { label: 'Client', field: 'customer_name' },
+                                    { label: 'Total', field: 'total_fcfa' },
+                                    { label: 'Paiement', field: 'payment_method' },
+                                    { label: 'Statut', field: 'status' },
+                                    { label: 'Date', field: 'created_at' },
+                                    { label: 'Actions', field: null },
+                                ].map(({ label, field }) => (
+                                    <th key={label}
+                                        onClick={field ? () => toggleSort(field) : undefined}
+                                        style={{
+                                            padding: '14px 16px', textAlign: 'left', fontSize: 11,
+                                            fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em',
+                                            color: field ? '#94a3b8' : '#64748b',
+                                            cursor: field ? 'pointer' : 'default',
+                                            userSelect: 'none',
+                                            whiteSpace: 'nowrap'
+                                        }}>
+                                        {label}
+                                        {field && sortField === field && (sortDir === 'asc' ? ' ↑' : ' ↓')}
+                                    </th>
                                 ))}
                             </tr>
                         </thead>
@@ -247,6 +286,14 @@ export default function AdminOrdersPage() {
                                             <span style={{ fontFamily: 'monospace', color: '#94a3b8', fontSize: 12 }}>
                                                 #{order.id.substring(0, 8)}
                                             </span>
+                                        </td>
+                                        <td style={{ padding: '14px 16px' }}>
+                                            <div style={{ color: '#a78bfa', fontWeight: 500, fontSize: 13 }}>
+                                                {order.agent_name || '-'}
+                                            </div>
+                                            <div style={{ color: '#475569', fontSize: 11 }}>
+                                                {order.user_email || ''}
+                                            </div>
                                         </td>
                                         <td style={{ padding: '14px 16px' }}>
                                             <div style={{ color: 'white', fontWeight: 500, fontSize: 14 }}>
@@ -281,7 +328,10 @@ export default function AdminOrdersPage() {
                                             </span>
                                         </td>
                                         <td style={{ padding: '14px 16px', color: '#94a3b8', fontSize: 13 }}>
-                                            {new Date(order.created_at).toLocaleDateString('fr-FR')}
+                                            <div>{new Date(order.created_at).toLocaleDateString('fr-FR')}</div>
+                                            <div style={{ fontSize: 11, color: '#475569' }}>
+                                                {new Date(order.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                                            </div>
                                         </td>
                                         <td style={{ padding: '14px 16px' }}>
                                             <div style={{ display: 'flex', gap: 6 }}>
@@ -347,6 +397,8 @@ export default function AdminOrdersPage() {
                                     : 'Mixte'
                                 return (
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+                                        {viewOrder.agent_name && <Row label="Vendeur (Agent)" value={viewOrder.agent_name} />}
+                                        {viewOrder.user_email && <Row label="Email vendeur" value={viewOrder.user_email} />}
                                         <Row label="Client" value={viewOrder.customer_name || 'N/A'} />
                                         <Row label="Téléphone" value={viewOrder.customer_phone} />
                                         <Row label="Total" value={`${viewOrder.total_fcfa?.toLocaleString('fr-FR')} FCFA`} />

@@ -384,6 +384,11 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                                         <option value="">Tous les agents</option>
                                         {agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                                     </select>
+                                    {!formData.agent_id && agents.length > 1 && (
+                                        <p style={{ marginTop: 6, fontSize: 12, color: '#fbbf24', background: 'rgba(251, 191, 36, 0.08)', padding: '6px 10px', borderRadius: 8 }}>
+                                            ⚠️ Ce produit sera proposé par <strong>tous vos agents</strong>. Sélectionnez un agent pour le restreindre.
+                                        </p>
+                                    )}
                                 </div>
                                 <div className="pt-4 flex justify-between items-center">
                                     <button onClick={handleDelete} className="text-red-400 hover:text-red-300 text-sm flex items-center gap-2">

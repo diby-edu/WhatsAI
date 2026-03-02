@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
     CreditCard, Users, TrendingUp, FileText, Loader2, RefreshCw,
-    DollarSign, Edit, XCircle, Zap, X, Download
+    DollarSign, Edit, XCircle, Zap, X, Download, Search, Package
 } from 'lucide-react'
 
 interface Subscription {
@@ -26,13 +26,23 @@ interface Stats {
 }
 
 export default function AdminSubscriptionsPage() {
+    const [activeTab, setActiveTab] = useState<'subscriptions' | 'credits'>('subscriptions')
     const [subscriptions, setSubscriptions] = useState<Subscription[]>([])
+    const [creditPayments, setCreditPayments] = useState<any[]>([])
     const [stats, setStats] = useState<Stats>({ activeSubscriptions: 0, monthlyRevenue: 0, totalRevenue: 0, newThisMonth: 0, totalUsers: 0 })
     const [loading, setLoading] = useState(true)
     const [refreshing, setRefreshing] = useState(false)
     const [editSub, setEditSub] = useState<Subscription | null>(null)
     const [actionLoading, setActionLoading] = useState<string | null>(null)
     const [isMobile, setIsMobile] = useState(false)
+
+    // Filtres abonnements
+    const [subSearch, setSubSearch] = useState('')
+    const [subPlanFilter, setSubPlanFilter] = useState('all')
+
+    // Filtres packs de crédits
+    const [creditSearch, setCreditSearch] = useState('')
+    const [creditStatusFilter, setCreditStatusFilter] = useState('all')
 
     useEffect(() => {
         const check = () => setIsMobile(window.innerWidth < 640)
@@ -45,11 +55,19 @@ export default function AdminSubscriptionsPage() {
 
     const fetchData = async () => {
         try {
-            const res = await fetch('/api/admin/subscriptions')
-            if (res.ok) {
-                const data = await res.json()
+            const [subRes, payRes] = await Promise.all([
+                fetch('/api/admin/subscriptions'),
+                fetch('/api/admin/payments')
+            ])
+            if (subRes.ok) {
+                const data = await subRes.json()
                 setSubscriptions(data.data?.subscriptions || [])
                 setStats(data.data?.stats || stats)
+            }
+            if (payRes.ok) {
+                const data = await payRes.json()
+                const credits = (data.data?.payments || []).filter((p: any) => p.payment_type === 'credits')
+                setCreditPayments(credits)
             }
         } catch (err) {
             console.error('Error:', err)
@@ -81,13 +99,21 @@ export default function AdminSubscriptionsPage() {
     }
 
     const exportCSV = () => {
-        const header = 'Utilisateur,Email,Plan,Crédits,Statut,Date\n'
-        const rows = subscriptions.map(s => `"${s.user}","${s.email}","${s.plan}",${s.credits},"${s.status}","${s.startDate}"`).join('\n')
-        const blob = new Blob(['\ufeff' + header + rows], { type: 'text/csv;charset=utf-8;' })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url; a.download = 'abonnements.csv'; a.click()
-        URL.revokeObjectURL(url)
+        if (activeTab === 'subscriptions') {
+            const header = 'Utilisateur,Email,Plan,Crédits,Statut,Date\n'
+            const rows = filteredSubscriptions.map(s => `"${s.user}","${s.email}","${s.plan}",${s.credits},"${s.status}","${s.startDate}"`).join('\n')
+            const blob = new Blob(['\ufeff' + header + rows], { type: 'text/csv;charset=utf-8;' })
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement('a'); a.href = url; a.download = 'abonnements.csv'; a.click()
+            URL.revokeObjectURL(url)
+        } else {
+            const header = 'Utilisateur,Email,Pack,Montant,Crédits,Statut,Date\n'
+            const rows = filteredCreditPayments.map((p: any) => `"${p.user_name || ''}","${p.user_email || ''}","${p.description || ''}",${p.amount || 0},${p.credits_purchased || 0},"${p.status}","${new Date(p.created_at).toLocaleDateString('fr-FR')}"`).join('\n')
+            const blob = new Blob(['\ufeff' + header + rows], { type: 'text/csv;charset=utf-8;' })
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement('a'); a.href = url; a.download = 'packs-credits.csv'; a.click()
+            URL.revokeObjectURL(url)
+        }
     }
 
     const fmt = (n: number) => n.toLocaleString('fr-FR')
@@ -109,6 +135,31 @@ export default function AdminSubscriptionsPage() {
         }
     }
 
+    const getStatusColor = (status: string) => {
+        switch (status) {
+            case 'completed': return { bg: 'rgba(34, 197, 94, 0.15)', color: '#4ade80', label: 'Complété' }
+            case 'pending': return { bg: 'rgba(251, 191, 36, 0.15)', color: '#fbbf24', label: 'En attente' }
+            case 'failed': return { bg: 'rgba(239, 68, 68, 0.15)', color: '#f87171', label: 'Échoué' }
+            default: return { bg: 'rgba(100, 116, 139, 0.15)', color: '#94a3b8', label: status }
+        }
+    }
+
+    const filteredSubscriptions = subscriptions.filter(s => {
+        const matchSearch = !subSearch ||
+            s.user.toLowerCase().includes(subSearch.toLowerCase()) ||
+            s.email.toLowerCase().includes(subSearch.toLowerCase())
+        const matchPlan = subPlanFilter === 'all' || s.plan.toLowerCase() === subPlanFilter
+        return matchSearch && matchPlan
+    })
+
+    const filteredCreditPayments = creditPayments.filter((p: any) => {
+        const matchSearch = !creditSearch ||
+            (p.user_name || '').toLowerCase().includes(creditSearch.toLowerCase()) ||
+            (p.user_email || '').toLowerCase().includes(creditSearch.toLowerCase())
+        const matchStatus = creditStatusFilter === 'all' || p.status === creditStatusFilter
+        return matchSearch && matchStatus
+    })
+
     if (loading) {
         return (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 300 }}>
@@ -117,12 +168,21 @@ export default function AdminSubscriptionsPage() {
         )
     }
 
+    const tabStyle = (active: boolean) => ({
+        padding: '10px 20px', borderRadius: 10, fontSize: 13, fontWeight: 600,
+        cursor: 'pointer', border: 'none', transition: 'all 0.15s',
+        background: active ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
+        color: active ? '#60a5fa' : '#64748b',
+        borderBottom: active ? '2px solid #3b82f6' : '2px solid transparent',
+    })
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+            {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
                 <div>
                     <h1 style={{ fontSize: 28, fontWeight: 700, color: 'white', marginBottom: 8 }}>Abonnements</h1>
-                    <p style={{ color: '#94a3b8' }}>Gestion des abonnements utilisateurs</p>
+                    <p style={{ color: '#94a3b8' }}>Gestion des abonnements et packs de crédits</p>
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                     <button onClick={exportCSV} style={{
@@ -145,7 +205,7 @@ export default function AdminSubscriptionsPage() {
 
             {/* Stats */}
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, alignItems: 'start' }}>
-                {statCards.map((stat, i) => (
+                {statCards.map((stat) => (
                     <motion.div key={stat.label} whileHover={{ scale: 1.02, transition: { duration: 0.15 } }}
                         style={{
                             background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(148, 163, 184, 0.1)',
@@ -165,74 +225,187 @@ export default function AdminSubscriptionsPage() {
                 ))}
             </div>
 
+            {/* Tabs */}
+            <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid rgba(148, 163, 184, 0.1)', paddingBottom: 0 }}>
+                <button style={tabStyle(activeTab === 'subscriptions')} onClick={() => setActiveTab('subscriptions')}>
+                    <CreditCard size={14} style={{ display: 'inline', marginRight: 6 }} />
+                    Abonnements ({subscriptions.length})
+                </button>
+                <button style={tabStyle(activeTab === 'credits')} onClick={() => setActiveTab('credits')}>
+                    <Package size={14} style={{ display: 'inline', marginRight: 6 }} />
+                    Packs de Crédits ({creditPayments.length})
+                </button>
+            </div>
+
+            {/* Search + Filter bar */}
+            {activeTab === 'subscriptions' ? (
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                    <div style={{
+                        flex: 1, display: 'flex', alignItems: 'center', gap: 8, minWidth: 200,
+                        padding: '10px 14px', background: 'rgba(30, 41, 59, 0.5)',
+                        border: '1px solid rgba(148, 163, 184, 0.1)', borderRadius: 10
+                    }}>
+                        <Search size={14} style={{ color: '#64748b', flexShrink: 0 }} />
+                        <input
+                            type="text" placeholder="Rechercher un utilisateur..."
+                            value={subSearch} onChange={e => setSubSearch(e.target.value)}
+                            style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: 'white', fontSize: 13 }}
+                        />
+                    </div>
+                    <select value={subPlanFilter} onChange={e => setSubPlanFilter(e.target.value)}
+                        style={{ padding: '10px 14px', background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(148, 163, 184, 0.1)', borderRadius: 10, color: 'white', fontSize: 13, cursor: 'pointer' }}>
+                        <option value="all">Tous les plans</option>
+                        <option value="starter">Starter</option>
+                        <option value="pro">Pro</option>
+                        <option value="business">Business</option>
+                        <option value="scale">Scale</option>
+                    </select>
+                </div>
+            ) : (
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                    <div style={{
+                        flex: 1, display: 'flex', alignItems: 'center', gap: 8, minWidth: 200,
+                        padding: '10px 14px', background: 'rgba(30, 41, 59, 0.5)',
+                        border: '1px solid rgba(148, 163, 184, 0.1)', borderRadius: 10
+                    }}>
+                        <Search size={14} style={{ color: '#64748b', flexShrink: 0 }} />
+                        <input
+                            type="text" placeholder="Rechercher un acheteur..."
+                            value={creditSearch} onChange={e => setCreditSearch(e.target.value)}
+                            style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: 'white', fontSize: 13 }}
+                        />
+                    </div>
+                    <select value={creditStatusFilter} onChange={e => setCreditStatusFilter(e.target.value)}
+                        style={{ padding: '10px 14px', background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(148, 163, 184, 0.1)', borderRadius: 10, color: 'white', fontSize: 13, cursor: 'pointer' }}>
+                        <option value="all">Tous les statuts</option>
+                        <option value="completed">Complétés</option>
+                        <option value="pending">En attente</option>
+                        <option value="failed">Échoués</option>
+                    </select>
+                </div>
+            )}
+
             {/* Table */}
-            <div style={{
-                background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(148, 163, 184, 0.1)',
-                borderRadius: 16, overflow: 'hidden'
-            }}>
-            <div className="admin-table-wrap" style={{ overflowX: 'auto' }}>
-                <table className="admin-table" style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
-                    <thead>
-                        <tr>
-                            {['Utilisateur', 'Email', 'Plan', 'Crédits', 'Statut', 'Inscrit le', 'Actions'].map(h => (
-                                <th key={h} style={{
-                                    padding: '14px 16px', textAlign: 'left', fontSize: 10, fontWeight: 600,
-                                    textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b',
-                                    background: 'rgba(15, 23, 42, 0.5)', borderBottom: '1px solid rgba(148, 163, 184, 0.1)'
-                                }}>{h}</th>
-                            ))}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {subscriptions.length === 0 ? (
-                            <tr>
-                                <td colSpan={7} style={{ padding: 48, textAlign: 'center' }}>
-                                    <FileText style={{ width: 32, height: 32, color: '#64748b', margin: '0 auto 12px', display: 'block', opacity: 0.3 }} />
-                                    <h3 style={{ color: 'white', fontWeight: 600, marginBottom: 4 }}>Aucun abonnement payant</h3>
-                                    <p style={{ color: '#64748b', fontSize: 13 }}>Les abonnements apparaîtront ici après les paiements.</p>
-                                </td>
-                            </tr>
-                        ) : (
-                            subscriptions.map((sub) => {
-                                const pc = getPlanColors(sub.plan)
-                                return (
-                                    <tr key={sub.id} style={{ borderBottom: '1px solid rgba(148, 163, 184, 0.05)' }}>
-                                        <td style={{ padding: '12px 16px', color: 'white', fontWeight: 500, fontSize: 13 }}>{sub.user}</td>
-                                        <td style={{ padding: '12px 16px', color: '#94a3b8', fontSize: 13 }}>{sub.email}</td>
-                                        <td style={{ padding: '12px 16px' }}>
-                                            <span style={{ padding: '4px 12px', borderRadius: 100, fontSize: 11, fontWeight: 600, background: pc.bg, color: pc.color, textTransform: 'capitalize' }}>
-                                                {sub.plan}
-                                            </span>
-                                        </td>
-                                        <td style={{ padding: '12px 16px', color: '#34d399', fontWeight: 600, fontSize: 13 }}>
-                                            {sub.credits.toLocaleString()}
-                                        </td>
-                                        <td style={{ padding: '12px 16px' }}>
-                                            <span style={{ padding: '4px 10px', borderRadius: 100, fontSize: 11, fontWeight: 600, background: 'rgba(34, 197, 94, 0.15)', color: '#4ade80' }}>
-                                                Actif
-                                            </span>
-                                        </td>
-                                        <td style={{ padding: '12px 16px', color: '#94a3b8', fontSize: 13 }}>{sub.startDate}</td>
-                                        <td style={{ padding: '12px 16px' }}>
-                                            <div style={{ display: 'flex', gap: 4 }}>
-                                                <button onClick={() => setEditSub(sub)} title="Modifier plan"
-                                                    style={{ padding: 7, borderRadius: 8, background: 'rgba(59, 130, 246, 0.1)', border: 'none', cursor: 'pointer' }}>
-                                                    <Edit style={{ width: 14, height: 14, color: '#60a5fa' }} />
-                                                </button>
-                                                <button onClick={() => { if (confirm(`Annuler l'abonnement de ${sub.user} ?`)) handleAction(sub.id, 'cancel') }}
-                                                    title="Annuler abonnement" disabled={actionLoading === sub.id}
-                                                    style={{ padding: 7, borderRadius: 8, background: 'rgba(239, 68, 68, 0.1)', border: 'none', cursor: 'pointer', opacity: actionLoading === sub.id ? 0.5 : 1 }}>
-                                                    <XCircle style={{ width: 14, height: 14, color: '#f87171' }} />
-                                                </button>
-                                            </div>
+            <div style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(148, 163, 184, 0.1)', borderRadius: 16, overflow: 'hidden' }}>
+                <div className="admin-table-wrap" style={{ overflowX: 'auto' }}>
+
+                    {activeTab === 'subscriptions' ? (
+                        <table className="admin-table" style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
+                            <thead>
+                                <tr>
+                                    {['Utilisateur', 'Email', 'Plan', 'Crédits', 'Statut', 'Inscrit le', 'Actions'].map(h => (
+                                        <th key={h} style={{
+                                            padding: '14px 16px', textAlign: 'left', fontSize: 10, fontWeight: 600,
+                                            textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b',
+                                            background: 'rgba(15, 23, 42, 0.5)', borderBottom: '1px solid rgba(148, 163, 184, 0.1)'
+                                        }}>{h}</th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filteredSubscriptions.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={7} style={{ padding: 48, textAlign: 'center' }}>
+                                            <FileText style={{ width: 32, height: 32, color: '#64748b', margin: '0 auto 12px', display: 'block', opacity: 0.3 }} />
+                                            <h3 style={{ color: 'white', fontWeight: 600, marginBottom: 4 }}>Aucun abonnement trouvé</h3>
+                                            <p style={{ color: '#64748b', fontSize: 13 }}>Les abonnements payants apparaîtront ici.</p>
                                         </td>
                                     </tr>
-                                )
-                            })
-                        )}
-                    </tbody>
-                </table>
-            </div>
+                                ) : (
+                                    filteredSubscriptions.map((sub) => {
+                                        const pc = getPlanColors(sub.plan)
+                                        return (
+                                            <tr key={sub.id} style={{ borderBottom: '1px solid rgba(148, 163, 184, 0.05)' }}>
+                                                <td style={{ padding: '12px 16px', color: 'white', fontWeight: 500, fontSize: 13 }}>{sub.user}</td>
+                                                <td style={{ padding: '12px 16px', color: '#94a3b8', fontSize: 13 }}>{sub.email}</td>
+                                                <td style={{ padding: '12px 16px' }}>
+                                                    <span style={{ padding: '4px 12px', borderRadius: 100, fontSize: 11, fontWeight: 600, background: pc.bg, color: pc.color, textTransform: 'capitalize' }}>
+                                                        {sub.plan}
+                                                    </span>
+                                                </td>
+                                                <td style={{ padding: '12px 16px', color: '#34d399', fontWeight: 600, fontSize: 13 }}>
+                                                    {sub.credits.toLocaleString()}
+                                                </td>
+                                                <td style={{ padding: '12px 16px' }}>
+                                                    <span style={{ padding: '4px 10px', borderRadius: 100, fontSize: 11, fontWeight: 600, background: 'rgba(34, 197, 94, 0.15)', color: '#4ade80' }}>
+                                                        Actif
+                                                    </span>
+                                                </td>
+                                                <td style={{ padding: '12px 16px', color: '#94a3b8', fontSize: 13 }}>{sub.startDate}</td>
+                                                <td style={{ padding: '12px 16px' }}>
+                                                    <div style={{ display: 'flex', gap: 4 }}>
+                                                        <button onClick={() => setEditSub(sub)} title="Modifier plan"
+                                                            style={{ padding: 7, borderRadius: 8, background: 'rgba(59, 130, 246, 0.1)', border: 'none', cursor: 'pointer' }}>
+                                                            <Edit style={{ width: 14, height: 14, color: '#60a5fa' }} />
+                                                        </button>
+                                                        <button onClick={() => { if (confirm(`Annuler l'abonnement de ${sub.user} ?`)) handleAction(sub.id, 'cancel') }}
+                                                            title="Annuler abonnement" disabled={actionLoading === sub.id}
+                                                            style={{ padding: 7, borderRadius: 8, background: 'rgba(239, 68, 68, 0.1)', border: 'none', cursor: 'pointer', opacity: actionLoading === sub.id ? 0.5 : 1 }}>
+                                                            <XCircle style={{ width: 14, height: 14, color: '#f87171' }} />
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        )
+                                    })
+                                )}
+                            </tbody>
+                        </table>
+                    ) : (
+                        <table className="admin-table" style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
+                            <thead>
+                                <tr>
+                                    {['Utilisateur', 'Email', 'Pack', 'Montant', 'Crédits', 'Statut', 'Date'].map(h => (
+                                        <th key={h} style={{
+                                            padding: '14px 16px', textAlign: 'left', fontSize: 10, fontWeight: 600,
+                                            textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b',
+                                            background: 'rgba(15, 23, 42, 0.5)', borderBottom: '1px solid rgba(148, 163, 184, 0.1)'
+                                        }}>{h}</th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filteredCreditPayments.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={7} style={{ padding: 48, textAlign: 'center' }}>
+                                            <Package style={{ width: 32, height: 32, color: '#64748b', margin: '0 auto 12px', display: 'block', opacity: 0.3 }} />
+                                            <h3 style={{ color: 'white', fontWeight: 600, marginBottom: 4 }}>Aucun achat de pack trouvé</h3>
+                                            <p style={{ color: '#64748b', fontSize: 13 }}>Les achats de packs de crédits apparaîtront ici.</p>
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    filteredCreditPayments.map((p: any) => {
+                                        const sc = getStatusColor(p.status)
+                                        return (
+                                            <tr key={p.id} style={{ borderBottom: '1px solid rgba(148, 163, 184, 0.05)' }}>
+                                                <td style={{ padding: '12px 16px', color: 'white', fontWeight: 500, fontSize: 13 }}>{p.user_name || '-'}</td>
+                                                <td style={{ padding: '12px 16px', color: '#94a3b8', fontSize: 13 }}>{p.user_email || p.customer_email || '-'}</td>
+                                                <td style={{ padding: '12px 16px', color: '#e2e8f0', fontSize: 13 }}>{p.description || '-'}</td>
+                                                <td style={{ padding: '12px 16px', color: '#4ade80', fontWeight: 600, fontSize: 13 }}>
+                                                    {(p.amount || 0).toLocaleString('fr-FR')} F
+                                                </td>
+                                                <td style={{ padding: '12px 16px', color: '#a78bfa', fontWeight: 600, fontSize: 13 }}>
+                                                    {(p.credits_purchased || 0).toLocaleString()}
+                                                </td>
+                                                <td style={{ padding: '12px 16px' }}>
+                                                    <span style={{ padding: '4px 10px', borderRadius: 100, fontSize: 11, fontWeight: 600, background: sc.bg, color: sc.color }}>
+                                                        {sc.label}
+                                                    </span>
+                                                </td>
+                                                <td style={{ padding: '12px 16px', color: '#94a3b8', fontSize: 13 }}>
+                                                    <div>{new Date(p.created_at).toLocaleDateString('fr-FR')}</div>
+                                                    <div style={{ fontSize: 11, color: '#475569' }}>
+                                                        {new Date(p.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        )
+                                    })
+                                )}
+                            </tbody>
+                        </table>
+                    )}
+                </div>
             </div>
 
             {/* Edit Subscription Modal */}
@@ -293,6 +466,7 @@ function EditSubModal({ sub, onClose, onChangePlan, onSetCredits }: {
                                 <option value="starter">Starter</option>
                                 <option value="pro">Pro</option>
                                 <option value="business">Business</option>
+                                <option value="scale">Scale</option>
                             </select>
                             <button onClick={() => onChangePlan(plan)} style={{
                                 padding: '10px 16px', borderRadius: 10, background: 'linear-gradient(135deg, #10b981, #059669)',

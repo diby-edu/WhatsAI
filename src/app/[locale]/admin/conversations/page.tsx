@@ -4,6 +4,19 @@ import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { MessageSquare, Search, Filter, Eye, User, Bot, Loader2 } from 'lucide-react'
 
+function formatContactPhone(raw: string | null): { display: string; isLid: boolean } {
+    if (!raw) return { display: 'Inconnu', isLid: false }
+    if (raw.includes('@lid')) {
+        // LID = WhatsApp Linked ID, pas un vrai numéro — affiche l'ID brut
+        const lid = raw.replace('@lid', '')
+        return { display: lid, isLid: true }
+    }
+    if (raw.includes('@s.whatsapp.net')) {
+        return { display: raw.replace('@s.whatsapp.net', ''), isLid: false }
+    }
+    return { display: raw, isLid: false }
+}
+
 export default function AdminConversationsPage() {
     const [conversations, setConversations] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
@@ -90,8 +103,24 @@ export default function AdminConversationsPage() {
                                                 <User style={{ width: 20, height: 20, color: 'white' }} />
                                             </div>
                                             <div>
-                                                <div style={{ fontWeight: 500, color: 'white' }}>{conv.contact_phone}</div>
-                                                <div style={{ fontSize: 12, color: '#64748b' }}>{conv.contact_push_name || 'Inconnu'}</div>
+                                                {(() => {
+                                                    const { display, isLid } = formatContactPhone(conv.contact_phone)
+                                                    return (
+                                                        <>
+                                                            <div style={{ fontWeight: 500, color: 'white', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                                {display}
+                                                                {isLid && (
+                                                                    <span style={{
+                                                                        fontSize: 9, padding: '1px 5px', borderRadius: 4,
+                                                                        background: 'rgba(251, 191, 36, 0.15)', color: '#fbbf24',
+                                                                        fontWeight: 600, letterSpacing: '0.05em'
+                                                                    }}>LID</span>
+                                                                )}
+                                                            </div>
+                                                            <div style={{ fontSize: 12, color: '#64748b' }}>{conv.contact_push_name || 'Inconnu'}</div>
+                                                        </>
+                                                    )
+                                                })()}
                                             </div>
                                         </div>
                                     </td>
