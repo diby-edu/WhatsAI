@@ -3,9 +3,8 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-    Search, Mail, CheckCircle2, AlertCircle, XCircle, MoreVertical,
-    FileText, Download, Plus, Filter, LayoutGrid, List,
-    Phone, Calendar, Edit, Ban, X, Zap, Shield, UserX, Loader2, CheckCircle,
+    Search, Mail, Download,
+    Phone, Calendar, Edit, Ban, X, Zap, Shield, UserX, CheckCircle,
     ChevronLeft, ChevronRight, CheckSquare, Square
 } from 'lucide-react'
 import { TableSkeleton } from '@/components/admin/AdminSkeletons'
@@ -29,6 +28,7 @@ export default function AdminUsersPage() {
     const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
 
     const toggleSort = (field: string) => {
+        setPage(1)
         if (sortField === field) {
             setSortDir(d => d === 'asc' ? 'desc' : 'asc')
         } else {
@@ -49,12 +49,19 @@ export default function AdminUsersPage() {
         return () => window.removeEventListener('resize', onResize)
     }, [])
 
-    useEffect(() => { fetchUsers() }, [page])
+    // Map frontend field names → DB column names
+    const fieldToCol: Record<string, string> = {
+        name: 'full_name', email: 'email', plan: 'plan',
+        credits: 'credits_balance', status: 'is_active', created: 'created_at'
+    }
+
+    useEffect(() => { fetchUsers() }, [page, sortField, sortDir])
 
     const fetchUsers = async () => {
         setLoading(true)
         try {
-            const res = await fetch(`/api/admin/users?page=${page}&pageSize=${pageSize}`)
+            const col = fieldToCol[sortField] || 'created_at'
+            const res = await fetch(`/api/admin/users?page=${page}&pageSize=${pageSize}&sortBy=${col}&sortDir=${sortDir}`)
             const data = await res.json()
             if (data.data) {
                 const mappedUsers = data.data.map((u: any) => ({
@@ -75,6 +82,24 @@ export default function AdminUsersPage() {
             console.error('Error fetching users:', err)
         } finally {
             setLoading(false)
+        }
+    }
+
+    const exportEmails = async () => {
+        try {
+            const res = await fetch('/api/admin/users?export=emails')
+            const data = await res.json()
+            const emails: { email: string; name: string; plan: string; date: string }[] = data.data?.emails || []
+            const csv = ['Email,Nom,Plan,Inscrit le', ...emails.map(e => `${e.email},${e.name},${e.plan},${e.date}`)].join('\n')
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url
+            a.download = `utilisateurs_emails_${new Date().toISOString().slice(0, 10)}.csv`
+            a.click()
+            URL.revokeObjectURL(url)
+        } catch (err) {
+            console.error('Error exporting emails:', err)
         }
     }
 
@@ -170,6 +195,17 @@ export default function AdminUsersPage() {
                         {meta ? `${meta.total} utilisateurs au total` : `${users.length} utilisateurs chargés`}
                     </p>
                 </div>
+                <button
+                    onClick={exportEmails}
+                    style={{
+                        display: 'flex', alignItems: 'center', gap: 8,
+                        padding: '10px 16px', background: 'rgba(52, 211, 153, 0.1)',
+                        border: '1px solid rgba(52, 211, 153, 0.3)', borderRadius: 10,
+                        color: '#34d399', cursor: 'pointer', fontSize: 13, fontWeight: 500
+                    }}
+                >
+                    <Download size={15} /> Exporter emails CSV
+                </button>
             </div>
 
             {/* Filters */}
