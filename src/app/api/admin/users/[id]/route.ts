@@ -69,7 +69,37 @@ export async function PATCH(
                 .eq('id', id)
             if (error) throw error
             await logAdminAction(user.id, 'set_credits', id, 'profile', { credits })
-            return successResponse({ message: `Crédits mis à ${credits}` })
+            return successResponse({ message: `Crédits définis à ${credits}` })
+        }
+
+        if (action === 'add_credits') {
+            const { amount } = updateData
+            if (!amount || Number(amount) <= 0) return errorResponse('Montant invalide', 400)
+            const { data: current } = await adminSupabase
+                .from('profiles').select('credits_balance').eq('id', id).single()
+            const newBalance = (current?.credits_balance || 0) + Number(amount)
+            const { error } = await adminSupabase
+                .from('profiles')
+                .update({ credits_balance: newBalance })
+                .eq('id', id)
+            if (error) throw error
+            await logAdminAction(user.id, 'add_credits', id, 'profile', { amount, newBalance })
+            return successResponse({ message: `+${amount} crédits ajoutés (nouveau solde : ${newBalance})` })
+        }
+
+        if (action === 'subtract_credits') {
+            const { amount } = updateData
+            if (!amount || Number(amount) <= 0) return errorResponse('Montant invalide', 400)
+            const { data: current } = await adminSupabase
+                .from('profiles').select('credits_balance').eq('id', id).single()
+            const newBalance = Math.max(0, (current?.credits_balance || 0) - Number(amount))
+            const { error } = await adminSupabase
+                .from('profiles')
+                .update({ credits_balance: newBalance })
+                .eq('id', id)
+            if (error) throw error
+            await logAdminAction(user.id, 'subtract_credits', id, 'profile', { amount, newBalance })
+            return successResponse({ message: `-${amount} crédits retirés (nouveau solde : ${newBalance})` })
         }
 
         if (action === 'change_role') {
