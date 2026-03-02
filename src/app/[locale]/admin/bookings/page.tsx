@@ -207,7 +207,7 @@ export default function AdminBookingsPage() {
                     <table className="admin-table" style={{ width: '100%', borderCollapse: 'collapse', minWidth: 580 }}>
                         <thead>
                             <tr style={{ borderBottom: '1px solid rgba(148, 163, 184, 0.1)' }}>
-                                {['Type', 'Client', 'Date/Heure', 'Personnes', 'Statut', 'Actions'].map(h => (
+                                {['Type', 'Client', 'Vendeur', 'Date/Heure', 'Personnes', 'Statut', 'Actions'].map(h => (
                                     <th key={h} style={{
                                         padding: '14px 16px', textAlign: 'left', fontSize: 11,
                                         fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em',
@@ -244,6 +244,16 @@ export default function AdminBookingsPage() {
                                                 <div style={{ color: '#64748b', fontSize: 12, maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                                     {booking.notes}
                                                 </div>
+                                            )}
+                                        </td>
+                                        <td style={{ padding: '14px 16px' }}>
+                                            {(booking as any).vendor_name ? (
+                                                <>
+                                                    <div style={{ color: '#a78bfa', fontWeight: 500, fontSize: 13 }}>{(booking as any).vendor_name}</div>
+                                                    <div style={{ color: '#64748b', fontSize: 11 }}>{(booking as any).agent_name || ''}</div>
+                                                </>
+                                            ) : (
+                                                <span style={{ color: '#475569', fontSize: 12 }}>{(booking as any).agent_name || '-'}</span>
                                             )}
                                         </td>
                                         <td style={{ padding: '14px 16px' }}>

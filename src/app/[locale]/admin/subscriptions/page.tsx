@@ -20,7 +20,13 @@ interface Subscription {
 interface Stats {
     activeSubscriptions: number
     monthlyRevenue: number
+    monthlyRevenueSub: number
+    monthlyRevenueCredits: number
     totalRevenue: number
+    totalRevenueSub: number
+    totalRevenueCredits: number
+    totalCreditPacksCount: number
+    totalSubsCount: number
     newThisMonth: number
     totalUsers: number
 }
@@ -29,7 +35,7 @@ export default function AdminSubscriptionsPage() {
     const [activeTab, setActiveTab] = useState<'subscriptions' | 'credits'>('subscriptions')
     const [subscriptions, setSubscriptions] = useState<Subscription[]>([])
     const [creditPayments, setCreditPayments] = useState<any[]>([])
-    const [stats, setStats] = useState<Stats>({ activeSubscriptions: 0, monthlyRevenue: 0, totalRevenue: 0, newThisMonth: 0, totalUsers: 0 })
+    const [stats, setStats] = useState<Stats>({ activeSubscriptions: 0, monthlyRevenue: 0, monthlyRevenueSub: 0, monthlyRevenueCredits: 0, totalRevenue: 0, totalRevenueSub: 0, totalRevenueCredits: 0, totalCreditPacksCount: 0, totalSubsCount: 0, newThisMonth: 0, totalUsers: 0 })
     const [loading, setLoading] = useState(true)
     const [refreshing, setRefreshing] = useState(false)
     const [editSub, setEditSub] = useState<Subscription | null>(null)
@@ -120,10 +126,14 @@ export default function AdminSubscriptionsPage() {
 
     const statCards = [
         { label: 'Total inscrits', value: stats.totalUsers.toString(), icon: Users, color: '#3b82f6' },
-        { label: 'Abonnés payants', value: stats.activeSubscriptions.toString(), icon: CreditCard, color: '#10b981' },
-        { label: 'Revenus ce mois', value: `${fmt(stats.monthlyRevenue)} F`, icon: TrendingUp, color: '#a855f7' },
-        { label: 'Revenus totaux', value: `${fmt(stats.totalRevenue)} F`, icon: DollarSign, color: '#f59e0b' },
-        { label: 'Nouveaux ce mois', value: stats.newThisMonth.toString(), icon: CreditCard, color: '#ef4444' },
+        { label: 'Abonnés actifs', value: stats.activeSubscriptions.toString(), icon: CreditCard, color: '#10b981' },
+        { label: 'Revenus ce mois (total)', value: `${fmt(stats.monthlyRevenue)} F`, icon: TrendingUp, color: '#a855f7' },
+        { label: '↳ dont abonnements', value: `${fmt(stats.monthlyRevenueSub)} F`, icon: FileText, color: '#8b5cf6' },
+        { label: '↳ dont crédits', value: `${fmt(stats.monthlyRevenueCredits)} F`, icon: Zap, color: '#06b6d4' },
+        { label: 'Revenus totaux (all time)', value: `${fmt(stats.totalRevenue)} F`, icon: DollarSign, color: '#f59e0b' },
+        { label: 'Total abonnements vendus', value: stats.totalSubsCount.toString(), icon: FileText, color: '#34d399' },
+        { label: 'Total packs crédits vendus', value: stats.totalCreditPacksCount.toString(), icon: Package, color: '#f97316' },
+        { label: 'Nouveaux abonnements/mois', value: stats.newThisMonth.toString(), icon: TrendingUp, color: '#ef4444' },
     ]
 
     const getPlanColors = (plan: string) => {
@@ -154,8 +164,8 @@ export default function AdminSubscriptionsPage() {
 
     const filteredCreditPayments = creditPayments.filter((p: any) => {
         const matchSearch = !creditSearch ||
-            (p.user_name || '').toLowerCase().includes(creditSearch.toLowerCase()) ||
-            (p.user_email || '').toLowerCase().includes(creditSearch.toLowerCase())
+            (p.full_name || p.user_name || '').toLowerCase().includes(creditSearch.toLowerCase()) ||
+            (p.email || p.user_email || p.customer_email || '').toLowerCase().includes(creditSearch.toLowerCase())
         const matchStatus = creditStatusFilter === 'all' || p.status === creditStatusFilter
         return matchSearch && matchStatus
     })
@@ -378,8 +388,8 @@ export default function AdminSubscriptionsPage() {
                                         const sc = getStatusColor(p.status)
                                         return (
                                             <tr key={p.id} style={{ borderBottom: '1px solid rgba(148, 163, 184, 0.05)' }}>
-                                                <td style={{ padding: '12px 16px', color: 'white', fontWeight: 500, fontSize: 13 }}>{p.user_name || '-'}</td>
-                                                <td style={{ padding: '12px 16px', color: '#94a3b8', fontSize: 13 }}>{p.user_email || p.customer_email || '-'}</td>
+                                                <td style={{ padding: '12px 16px', color: 'white', fontWeight: 500, fontSize: 13 }}>{p.full_name || p.user_name || '-'}</td>
+                                                <td style={{ padding: '12px 16px', color: '#94a3b8', fontSize: 13 }}>{p.email || p.user_email || p.customer_email || '-'}</td>
                                                 <td style={{ padding: '12px 16px', color: '#e2e8f0', fontSize: 13 }}>{p.description || '-'}</td>
                                                 <td style={{ padding: '12px 16px', color: '#4ade80', fontWeight: 600, fontSize: 13 }}>
                                                     {(p.amount || 0).toLocaleString('fr-FR')} F

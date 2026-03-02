@@ -66,23 +66,37 @@ export default function AdminNotificationsPage() {
         fetchNotifications()
     }, [])
 
+    const STORAGE_KEY = 'admin_notif_read_ids'
+
+    const getReadIds = (): Set<string> => {
+        try { return new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]')) } catch { return new Set() }
+    }
+
+    const saveReadIds = (ids: Set<string>) => {
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify([...ids])) } catch { }
+    }
+
     const fetchNotifications = async () => {
         try {
             const res = await fetch('/api/admin/alerts')
             const json = await res.json()
 
             if (json.success && json.data) {
-                const mapped: Notification[] = json.data.map((alert: any, idx: number) => ({
-                    id: alert.resource_id || `notif-${idx}`,
-                    type: alert.type || 'system',
-                    severity: alert.severity || 'info',
-                    label: alert.label,
-                    message: alert.message,
-                    resource_id: alert.resource_id,
-                    days_since_active: alert.days_since_active || 0,
-                    read: false,
-                    created_at: new Date().toISOString()
-                }))
+                const readIds = getReadIds()
+                const mapped: Notification[] = json.data.map((alert: any, idx: number) => {
+                    const id = alert.resource_id || `notif-${idx}`
+                    return {
+                        id,
+                        type: alert.type || 'system',
+                        severity: alert.severity || 'info',
+                        label: alert.label,
+                        message: alert.message,
+                        resource_id: alert.resource_id,
+                        days_since_active: alert.days_since_active || 0,
+                        read: readIds.has(id), // persist lu/non-lu via localStorage
+                        created_at: new Date().toISOString()
+                    }
+                })
                 setNotifications(mapped)
             }
         } catch (err) {
@@ -99,17 +113,30 @@ export default function AdminNotificationsPage() {
     }
 
     const markAsRead = (id: string) => {
-        setNotifications(prev => prev.map(n =>
-            n.id === id ? { ...n, read: true } : n
-        ))
+        setNotifications(prev => {
+            const updated = prev.map(n => n.id === id ? { ...n, read: true } : n)
+            saveReadIds(new Set(updated.filter(n => n.read).map(n => n.id)))
+            return updated
+        })
     }
 
     const markAllAsRead = () => {
-        setNotifications(prev => prev.map(n => ({ ...n, read: true })))
+        setNotifications(prev => {
+            const updated = prev.map(n => ({ ...n, read: true }))
+            saveReadIds(new Set(updated.map(n => n.id)))
+            return updated
+        })
     }
 
     const deleteNotification = (id: string) => {
-        setNotifications(prev => prev.filter(n => n.id !== id))
+        setNotifications(prev => {
+            const updated = prev.filter(n => n.id !== id)
+            // Remove from read set too
+            const readIds = getReadIds()
+            readIds.delete(id)
+            saveReadIds(readIds)
+            return updated
+        })
     }
 
     const filteredNotifications = notifications.filter(n => {

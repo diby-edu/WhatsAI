@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
     Bot, Search, Power, MessageCircle, Activity, Trash2,
-    Loader2, X, Eye, RefreshCw
+    Loader2, X, Eye, RefreshCw, Smartphone, MessageSquare
 } from 'lucide-react'
 
 export default function AdminAgentsPage() {
@@ -36,6 +36,26 @@ export default function AdminAgentsPage() {
         } finally {
             setLoading(false)
         }
+    }
+
+    const disconnectWhatsApp = async (id: string) => {
+        setActionLoading(id)
+        setError(null)
+        try {
+            const res = await fetch(`/api/admin/agents/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'disconnect_whatsapp' })
+            })
+            const json = await res.json()
+            if (res.ok && json.success) {
+                await fetchAgents()
+            } else {
+                setError(json.error || 'Erreur lors de la déconnexion WhatsApp')
+            }
+        } catch {
+            setError('Erreur réseau')
+        } finally { setActionLoading(null) }
     }
 
     const toggleAgent = async (id: string) => {
@@ -173,6 +193,26 @@ export default function AdminAgentsPage() {
                             </span>
                         </div>
 
+                        {/* WhatsApp status */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: 'rgba(51, 65, 85, 0.3)', borderRadius: 8, marginBottom: 12 }}>
+                            {agent.whatsapp_connected ? (
+                                <>
+                                    <Smartphone style={{ width: 14, height: 14, color: '#34d399' }} />
+                                    <span style={{ fontSize: 12, color: '#34d399' }}>{agent.whatsapp_phone || 'Connecté'}</span>
+                                </>
+                            ) : (agent.whatsapp_phone || agent.whatsapp_status === 'disconnected') ? (
+                                <>
+                                    <Smartphone style={{ width: 14, height: 14, color: '#f97316' }} />
+                                    <span style={{ fontSize: 12, color: '#f97316' }}>À reconnecter</span>
+                                </>
+                            ) : (
+                                <>
+                                    <MessageSquare style={{ width: 14, height: 14, color: '#64748b' }} />
+                                    <span style={{ fontSize: 12, color: '#64748b' }}>QR à scanner</span>
+                                </>
+                            )}
+                        </div>
+
                         {/* Stats */}
                         <div style={{ display: 'flex', gap: 16, marginBottom: 14 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -204,6 +244,18 @@ export default function AdminAgentsPage() {
                                 }}>
                                 <Power size={13} /> {agent.status === 'active' ? 'Pause' : 'Activer'}
                             </button>
+                            {agent.whatsapp_connected && (
+                                <button onClick={() => disconnectWhatsApp(agent.id)} disabled={actionLoading === agent.id}
+                                    title="Déconnecter WhatsApp"
+                                    style={{
+                                        flex: 1, padding: '8px', borderRadius: 8, border: 'none', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+                                        background: 'rgba(249, 115, 22, 0.1)', color: '#f97316',
+                                        opacity: actionLoading === agent.id ? 0.5 : 1
+                                    }}>
+                                    <Smartphone size={13} /> Déco. WA
+                                </button>
+                            )}
                             <button onClick={() => setViewAgent(agent)}
                                 style={{
                                     flex: 1, padding: '8px', borderRadius: 8, border: 'none', fontSize: 12, fontWeight: 600, cursor: 'pointer',
@@ -254,6 +306,13 @@ export default function AdminAgentsPage() {
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                                 <InfoRow label="Propriétaire" value={`${viewAgent.user} (${viewAgent.userEmail})`} />
                                 <InfoRow label="Statut" value={viewAgent.status === 'active' ? '✅ Actif' : '⏸ En pause'} />
+                                <InfoRow label="WhatsApp" value={
+                                    viewAgent.whatsapp_connected
+                                        ? `✅ ${viewAgent.whatsapp_phone || 'Connecté'}`
+                                        : (viewAgent.whatsapp_phone || viewAgent.whatsapp_status === 'disconnected')
+                                            ? `🔶 À reconnecter (${viewAgent.whatsapp_phone || '—'})`
+                                            : '⬜ QR à scanner'
+                                } />
                                 <InfoRow label="Messages" value={viewAgent.messages.toLocaleString()} />
                                 <InfoRow label="Modèle" value={viewAgent.model || 'Par défaut'} />
                                 <InfoRow label="Créé le" value={viewAgent.created} />
