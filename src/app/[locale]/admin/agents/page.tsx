@@ -38,7 +38,8 @@ export default function AdminAgentsPage() {
         }
     }
 
-    const disconnectWhatsApp = async (id: string) => {
+    const disconnectWhatsApp = async (id: string, name: string) => {
+        if (!confirm(`Déconnecter WhatsApp de l'agent "${name}" ? Le bot ne répondra plus jusqu'au prochain scan QR.`)) return
         setActionLoading(id)
         setError(null)
         try {
@@ -245,7 +246,7 @@ export default function AdminAgentsPage() {
                                 <Power size={13} /> {agent.status === 'active' ? 'Pause' : 'Activer'}
                             </button>
                             {agent.whatsapp_connected && (
-                                <button onClick={() => disconnectWhatsApp(agent.id)} disabled={actionLoading === agent.id}
+                                <button onClick={() => disconnectWhatsApp(agent.id, agent.name)} disabled={actionLoading === agent.id}
                                     title="Déconnecter WhatsApp"
                                     style={{
                                         flex: 1, padding: '8px', borderRadius: 8, border: 'none', fontSize: 12, fontWeight: 600, cursor: 'pointer',
