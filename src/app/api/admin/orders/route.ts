@@ -42,7 +42,9 @@ export async function GET(request: NextRequest) {
                 notes,
                 agent_id,
                 user_id,
-                agent:agents(name),
+                payment_method,
+                transaction_id,
+                agent:agents(name, payment_mode),
                 profile:profiles!orders_user_id_fkey(email),
                 order_items(id)
             `)
@@ -61,6 +63,7 @@ export async function GET(request: NextRequest) {
         const ordersWithDetails = (orders || []).map((order: any) => ({
             ...order,
             agent_name: order.agent?.name || null,
+            agent_payment_mode: order.agent?.payment_mode || 'cinetpay',
             user_email: order.profile?.email || null,
             items_count: order.order_items?.length || 0,
             agent: undefined,
