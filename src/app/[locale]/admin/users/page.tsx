@@ -381,6 +381,8 @@ export default function AdminUsersPage() {
                         onClose={() => setEditUser(null)}
                         onSave={(data) => handleAction(editUser.id, 'update', data)}
                         onSetCredits={(credits) => handleAction(editUser.id, 'set_credits', { credits })}
+                        onAddCredits={(amount) => handleAction(editUser.id, 'add_credits', { amount })}
+                        onSubtractCredits={(amount) => handleAction(editUser.id, 'subtract_credits', { amount })}
                         onChangeRole={(role) => handleAction(editUser.id, 'change_role', { role })}
                     />
                 )}
@@ -423,17 +425,19 @@ function StatusBadge({ status }: { status: string }) {
     )
 }
 
-function EditUserModal({ user, onClose, onSave, onSetCredits, onChangeRole }: {
+function EditUserModal({ user, onClose, onSave, onSetCredits, onAddCredits, onSubtractCredits, onChangeRole }: {
     user: any,
     onClose: () => void,
     onSave: (data: any) => void,
     onSetCredits: (credits: number) => void,
+    onAddCredits: (amount: number) => void,
+    onSubtractCredits: (amount: number) => void,
     onChangeRole: (role: string) => void
 }) {
     const [name, setName] = useState(user.full_name || user.name || '')
     const [phone, setPhone] = useState(user.phone || '')
     const [plan, setPlan] = useState(user.plan || 'Free')
-    const [credits, setCredits] = useState(user.credits || 0)
+    const [credits, setCredits] = useState<number>(0)
 
     const inputStyle = {
         width: '100%', padding: '10px 14px', borderRadius: 10,
@@ -488,15 +492,29 @@ function EditUserModal({ user, onClose, onSave, onSetCredits, onChangeRole }: {
                     </button>
 
                     <div style={{ borderTop: '1px solid rgba(148, 163, 184, 0.1)', paddingTop: 14, marginTop: 4 }}>
-                        <label style={{ display: 'block', color: '#94a3b8', fontSize: 12, marginBottom: 4 }}>Crédits</label>
-                        <div style={{ display: 'flex', gap: 8 }}>
-                            <input type="number" value={credits} onChange={e => setCredits(Number(e.target.value))} style={{ ...inputStyle, flex: 1 }} />
-                            <button onClick={() => onSetCredits(credits)} style={{
-                                padding: '10px 16px', borderRadius: 10, background: 'rgba(59, 130, 246, 0.15)',
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                            <label style={{ color: '#94a3b8', fontSize: 12 }}>Crédits</label>
+                            <span style={{ fontSize: 11, color: '#64748b' }}>Solde actuel : <strong style={{ color: '#e2e8f0' }}>{(user.credits || 0).toLocaleString('fr-FR')}</strong></span>
+                        </div>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                            <input
+                                type="number" min={0} value={credits || ''}
+                                placeholder="Montant"
+                                onChange={e => setCredits(Number(e.target.value))}
+                                style={{ ...inputStyle, flex: 1 }}
+                            />
+                            <button onClick={() => { if (credits > 0) onAddCredits(credits) }} title="Ajouter au solde actuel" style={{
+                                padding: '10px 12px', borderRadius: 10, background: 'rgba(16, 185, 129, 0.15)',
+                                border: 'none', color: '#34d399', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap'
+                            }}>+ Ajouter</button>
+                            <button onClick={() => { if (credits > 0) onSubtractCredits(credits) }} title="Retirer du solde actuel" style={{
+                                padding: '10px 12px', borderRadius: 10, background: 'rgba(239, 68, 68, 0.15)',
+                                border: 'none', color: '#f87171', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap'
+                            }}>− Retirer</button>
+                            <button onClick={() => { if (confirm(`Définir le solde à ${credits} crédits ?`)) onSetCredits(credits) }} title="Remplacer le solde par cette valeur exacte" style={{
+                                padding: '10px 12px', borderRadius: 10, background: 'rgba(59, 130, 246, 0.15)',
                                 border: 'none', color: '#60a5fa', fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap'
-                            }}>
-                                <Zap size={14} style={{ display: 'inline', marginRight: 4 }} /> Définir
-                            </button>
+                            }}><Zap size={13} style={{ display: 'inline', marginRight: 3 }} />Définir</button>
                         </div>
                     </div>
 
