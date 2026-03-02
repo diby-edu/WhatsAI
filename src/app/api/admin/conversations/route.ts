@@ -41,14 +41,15 @@ export async function GET(request: NextRequest) {
         }
 
         // Add message counts for each conversation
+        // IMPORTANT: use adminSupabase (bypasses RLS) — supabase client returns 0 due to RLS policies
         const conversationsWithCounts = await Promise.all(conversations.map(async (conv) => {
-            const { count } = await supabase
+            const { count } = await adminSupabase
                 .from('messages')
                 .select('*', { count: 'exact', head: true })
                 .eq('conversation_id', conv.id)
 
             // Get last message
-            const { data: lastMsg } = await supabase
+            const { data: lastMsg } = await adminSupabase
                 .from('messages')
                 .select('content, created_at')
                 .eq('conversation_id', conv.id)

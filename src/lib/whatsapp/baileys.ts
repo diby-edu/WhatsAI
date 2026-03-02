@@ -192,8 +192,8 @@ export async function initWhatsAppSession(
                         await supabase
                             .from('agents')
                             .update({
-                                whatsapp_connected: false,
-                                whatsapp_phone: null
+                                whatsapp_connected: false
+                                // whatsapp_phone conservé pour affichage dashboard
                             })
                             .eq('id', agentId)
                         console.log(`✅ Database updated: agent ${agentId} marked as disconnected`)
@@ -232,6 +232,12 @@ export async function initWhatsAppSession(
             // Ignore status updates (broadcasts)
             if (msg.key.remoteJid === 'status@broadcast' || msg.key.remoteJid?.includes('@broadcast')) {
                 console.log('⏭️ Skipping status/broadcast message')
+                continue
+            }
+
+            // Ignore group messages — bot responds to 1-on-1 chats only
+            if (msg.key.remoteJid?.endsWith('@g.us')) {
+                console.log('⏭️ Skipping group message (not supported)')
                 continue
             }
 

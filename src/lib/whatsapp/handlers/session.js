@@ -81,12 +81,16 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                 const phoneNumber = socket.user?.id.split(':')[0] || null
                 console.log(`✅ ${agentName} connected: ${phoneNumber}`)
 
-                await supabase.from('agents').update({
+                // Ne pas écraser whatsapp_phone avec null si socket.user n'est pas encore disponible
+                // (cas du restart PM2 où socket.user peut être null à l'instant de l'événement)
+                const updateData = {
                     whatsapp_connected: true,
-                    whatsapp_phone: phoneNumber,
                     whatsapp_qr_code: null,
                     whatsapp_status: 'connected'
-                }).eq('id', agentId)
+                }
+                if (phoneNumber) updateData.whatsapp_phone = phoneNumber
+
+                await supabase.from('agents').update(updateData).eq('id', agentId)
 
                 // 💓 Démarrer le keepalive (ping toutes les 14 min)
                 if (keepAliveInterval) clearInterval(keepAliveInterval)
@@ -167,9 +171,9 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                     */
                     await supabase.from('agents').update({
                         whatsapp_connected: false,
-                        whatsapp_phone: null, // Fixed: whatsapp_phone_number -> whatsapp_phone check DB schema?
                         whatsapp_qr_code: null,
                         whatsapp_status: 'disconnected'
+                        // whatsapp_phone conservé intentionnellement pour affichage dashboard
                     }).eq('id', agentId)
 
                     // 🔔 NOTIFICATION: Agent déconnecté

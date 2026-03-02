@@ -60,9 +60,10 @@ function normalizeProviderStatus(status: unknown): ProviderStatus {
 }
 
 function inferPlanIdFromCredits(credits: number): string | null {
-    if (credits >= 10000) return 'business'
-    if (credits >= 2000) return 'pro'
-    if (credits >= 500) return 'starter'
+    if (credits >= 15000) return 'scale'
+    if (credits >= 6000)  return 'business'
+    if (credits >= 2000)  return 'pro'
+    if (credits >= 500)   return 'starter'
     return null
 }
 

@@ -26,6 +26,7 @@ interface Agent {
     personality: string
     whatsapp_connected: boolean
     whatsapp_phone: string | null
+    whatsapp_status: string | null
     is_active: boolean
     total_messages: number
     total_conversations: number
@@ -269,11 +270,18 @@ export default function AgentsPage() {
                                         {agent.whatsapp_phone || t('card.connected')}
                                     </span>
                                 </>
+                            ) : (agent.whatsapp_phone || agent.whatsapp_status === 'disconnected') ? (
+                                <>
+                                    <Smartphone style={{ width: 16, height: 16, color: '#f97316' }} />
+                                    <span style={{ fontSize: 14, color: '#f97316' }}>
+                                        À reconnecter
+                                    </span>
+                                </>
                             ) : (
                                 <>
                                     <MessageSquare style={{ width: 16, height: 16, color: '#64748b' }} />
                                     <span style={{ fontSize: 14, color: '#64748b' }}>
-                                        {t('card.whatsappNotConnected')}
+                                        QR à scanner
                                     </span>
                                 </>
                             )}

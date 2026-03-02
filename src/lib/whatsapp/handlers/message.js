@@ -225,11 +225,12 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
         // 3.1 Historique de conversation
         const conversationHistory = await conversation.getHistory(50)
 
-        // 3.2 Produits de l'agent
+        // 3.2 Produits de l'agent (double filtre user_id + agent_id = isolation garantie)
         const { data: products } = await supabase
             .from('products')
             .select('*')
-            .eq('agent_id', agentId)
+            .eq('user_id', agent.user_id)
+            .or(`agent_id.eq.${agentId},agent_id.is.null`)
             .eq('is_available', true)
             .limit(20)
 

@@ -679,6 +679,11 @@ export default function NewProductPage() {
                                 <option value="">Tous les agents</option>
                                 {agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                             </select>
+                            {!formData.agent_id && agents.length > 1 && (
+                                <p style={{ marginTop: 6, fontSize: 12, color: '#fbbf24', background: 'rgba(251, 191, 36, 0.08)', padding: '6px 10px', borderRadius: 8 }}>
+                                    ⚠️ Ce produit sera proposé par <strong>tous vos agents</strong>. Sélectionnez un agent pour le restreindre.
+                                </p>
+                            )}
                         </div>
                     </div >
                 )

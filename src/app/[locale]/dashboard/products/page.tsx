@@ -279,19 +279,36 @@ export default function ProductsPage() {
                                     </span>
                                 </div>
 
-                                {product.category && (
-                                    <span style={{
-                                        display: 'inline-block',
-                                        padding: '4px 10px',
-                                        borderRadius: 6,
-                                        fontSize: 12,
-                                        background: 'rgba(168, 85, 247, 0.15)',
-                                        color: '#c084fc',
-                                        marginBottom: 12
-                                    }}>
-                                        {product.category}
-                                    </span>
-                                )}
+                                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+                                    {product.category && (
+                                        <span style={{
+                                            display: 'inline-block',
+                                            padding: '4px 10px',
+                                            borderRadius: 6,
+                                            fontSize: 12,
+                                            background: 'rgba(168, 85, 247, 0.15)',
+                                            color: '#c084fc',
+                                        }}>
+                                            {product.category}
+                                        </span>
+                                    )}
+                                    {(() => {
+                                        const assignedAgent = agents.find(a => a.id === product.agent_id)
+                                        return (
+                                            <span style={{
+                                                display: 'inline-block',
+                                                padding: '4px 10px',
+                                                borderRadius: 6,
+                                                fontSize: 12,
+                                                background: assignedAgent ? 'rgba(59, 130, 246, 0.15)' : 'rgba(251, 191, 36, 0.15)',
+                                                color: assignedAgent ? '#93c5fd' : '#fbbf24',
+                                                fontWeight: 500
+                                            }}>
+                                                {assignedAgent ? `🤖 ${assignedAgent.name}` : '🌐 Tous les agents'}
+                                            </span>
+                                        )
+                                    })()}
+                                </div>
 
                                 <p style={{ color: '#94a3b8', fontSize: 14, marginBottom: 16, lineHeight: 1.5 }}>
                                     {product.description?.substring(0, 80) || t('no_description')}
