@@ -27,12 +27,33 @@ export async function GET(request: NextRequest) {
     const pageSize = parseInt(searchParams.get('pageSize') || '20')
     const { from, to } = getPagination(page, pageSize)
 
+    // Sort params
+    const sortByRaw = searchParams.get('sortBy') || 'created_at'
+    const sortDir = searchParams.get('sortDir') === 'asc'
+    const allowedSortCols = ['created_at', 'full_name', 'email', 'plan', 'credits_balance', 'is_active']
+    const sortBy = allowedSortCols.includes(sortByRaw) ? sortByRaw : 'created_at'
+
+    // Export all emails
+    if (searchParams.get('export') === 'emails') {
+        const { data: allProfiles } = await adminSupabase
+            .from('profiles')
+            .select('email, full_name, plan, created_at')
+            .order('created_at', { ascending: false })
+        const emails = (allProfiles || []).map(p => ({
+            email: p.email,
+            name: p.full_name || '',
+            plan: p.plan || 'free',
+            date: new Date(p.created_at).toLocaleDateString('fr-FR')
+        }))
+        return successResponse({ emails, total: emails.length })
+    }
+
     try {
         // Fetch profiles with count
         const { data: profiles, error, count } = await adminSupabase
             .from('profiles')
             .select('*', { count: 'exact' })
-            .order('created_at', { ascending: false })
+            .order(sortBy, { ascending: sortDir })
             .range(from, to)
 
         if (error) {
