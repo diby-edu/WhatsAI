@@ -101,20 +101,30 @@ export async function POST(request: NextRequest) {
     if (error || !adminSupabase) return error!
 
     try {
-        const { subject, message, targetPlan } = await request.json()
+        const { subject, message, targetPlan, targetEmails } = await request.json()
 
         if (!subject?.trim() || !message?.trim()) {
             return errorResponse('Sujet et message requis', 400)
         }
 
-        // Fetch recipients
-        let query = adminSupabase.from('profiles').select('email, full_name')
-        if (targetPlan && targetPlan !== 'all') query = query.eq('plan', targetPlan)
-        const { data: profiles, error: fetchError } = await query.not('email', 'is', null)
+        // Fetch recipients — individual list or plan segment
+        let recipients: { email: string; full_name: string | null }[] = []
+        if (Array.isArray(targetEmails) && targetEmails.length > 0) {
+            const { data: profiles, error: fetchError } = await adminSupabase
+                .from('profiles')
+                .select('email, full_name')
+                .in('email', targetEmails)
+                .not('email', 'is', null)
+            if (fetchError) throw fetchError
+            recipients = profiles || []
+        } else {
+            let query = adminSupabase.from('profiles').select('email, full_name')
+            if (targetPlan && targetPlan !== 'all') query = query.eq('plan', targetPlan)
+            const { data: profiles, error: fetchError } = await query.not('email', 'is', null)
+            if (fetchError) throw fetchError
+            recipients = profiles || []
+        }
 
-        if (fetchError) throw fetchError
-
-        const recipients = profiles || []
         if (recipients.length === 0) return errorResponse('Aucun destinataire trouvé', 400)
 
         // Build transporter from DB settings (or env fallback)
