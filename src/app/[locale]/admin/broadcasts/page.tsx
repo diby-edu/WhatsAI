@@ -1,10 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
 import {
-    Send, Users, MessageSquare, Bot, Loader2, CheckCircle,
-    ArrowLeft, AlertTriangle, Clock, Search
+    Send, Users, MessageSquare, Loader2, CheckCircle,
+    ArrowLeft, AlertTriangle, Clock, Mail
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -14,28 +13,52 @@ interface Agent {
     total_conversations: number
 }
 
+type TabId = 'whatsapp' | 'email'
+
+const PLAN_OPTIONS = [
+    { value: 'all', label: 'Tous les utilisateurs' },
+    { value: 'free', label: 'Free uniquement' },
+    { value: 'starter', label: 'Starter uniquement' },
+    { value: 'pro', label: 'Pro uniquement' },
+    { value: 'business', label: 'Business uniquement' },
+]
+
 export default function AdminBroadcastsPage() {
+    const [activeTab, setActiveTab] = useState<TabId>('whatsapp')
+
+    // WhatsApp state
     const [agents, setAgents] = useState<Agent[]>([])
     const [selectedAgent, setSelectedAgent] = useState<string>('')
-    const [message, setMessage] = useState('')
-    const [sending, setSending] = useState(false)
-    const [sent, setSent] = useState(false)
+    const [waMessage, setWaMessage] = useState('')
+    const [waSending, setWaSending] = useState(false)
+    const [waSent, setWaSent] = useState(false)
     const [recipientCount, setRecipientCount] = useState(0)
     const [history, setHistory] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
+
+    // Email state
+    const [emailSubject, setEmailSubject] = useState('')
+    const [emailMessage, setEmailMessage] = useState('')
+    const [emailPlan, setEmailPlan] = useState('all')
+    const [emailRecipients, setEmailRecipients] = useState(0)
+    const [emailSending, setEmailSending] = useState(false)
+    const [emailResult, setEmailResult] = useState<{ sent: number; failed: number; total: number } | null>(null)
+    const [emailError, setEmailError] = useState<string | null>(null)
 
     useEffect(() => {
         fetchAgents()
         fetchHistory()
     }, [])
 
+    useEffect(() => {
+        fetchEmailRecipients(emailPlan)
+    }, [emailPlan])
+
     const fetchAgents = async () => {
         try {
             const res = await fetch('/api/admin/agents')
             const data = await res.json()
-            if (data.data?.agents) {
-                setAgents(data.data.agents)
-            }
+            if (data.data?.agents) setAgents(data.data.agents)
         } catch (err) {
             console.error('Error fetching agents:', err)
         } finally {
@@ -47,58 +70,95 @@ export default function AdminBroadcastsPage() {
         try {
             const res = await fetch('/api/admin/broadcasts')
             const data = await res.json()
-            if (data.data?.broadcasts) {
-                setHistory(data.data.broadcasts)
-            }
+            if (data.data?.broadcasts) setHistory(data.data.broadcasts)
         } catch (err) {
             console.error('Error fetching history:', err)
         }
     }
 
-    const fetchRecipientCount = async (agentId: string) => {
-        if (!agentId) {
-            setRecipientCount(0)
-            return
-        }
+    const fetchWaRecipientCount = async (agentId: string) => {
+        if (!agentId) { setRecipientCount(0); return }
         try {
             const res = await fetch(`/api/admin/broadcasts/preview?agentId=${agentId}`)
             const data = await res.json()
             setRecipientCount(data.data?.count || 0)
         } catch (err) {
-            console.error('Error fetching recipient count:', err)
+            console.error('Error fetching wa recipient count:', err)
+        }
+    }
+
+    const fetchEmailRecipients = async (plan: string) => {
+        try {
+            const res = await fetch(`/api/admin/broadcasts/email?targetPlan=${plan}`)
+            const data = await res.json()
+            setEmailRecipients(data.data?.count || 0)
+        } catch (err) {
+            console.error('Error fetching email recipients:', err)
         }
     }
 
     const handleAgentChange = (agentId: string) => {
         setSelectedAgent(agentId)
-        fetchRecipientCount(agentId)
+        fetchWaRecipientCount(agentId)
     }
 
-    const sendBroadcast = async () => {
-        if (!selectedAgent || !message.trim()) return
-
-        setSending(true)
+    const sendWaBroadcast = async () => {
+        if (!selectedAgent || !waMessage.trim()) return
+        setWaSending(true)
         try {
             const res = await fetch('/api/admin/broadcasts', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    agentId: selectedAgent,
-                    message: message.trim()
-                })
+                body: JSON.stringify({ agentId: selectedAgent, message: waMessage.trim() })
             })
             const data = await res.json()
             if (data.data?.success) {
-                setSent(true)
-                setMessage('')
+                setWaSent(true)
+                setWaMessage('')
                 fetchHistory()
-                setTimeout(() => setSent(false), 5000)
+                setTimeout(() => setWaSent(false), 5000)
             }
         } catch (err) {
-            console.error('Error sending broadcast:', err)
+            console.error('Error sending wa broadcast:', err)
         } finally {
-            setSending(false)
+            setWaSending(false)
         }
+    }
+
+    const sendEmailBroadcast = async () => {
+        if (!emailSubject.trim() || !emailMessage.trim()) return
+        if (!confirm(`Envoyer "${emailSubject}" à ${emailRecipients} utilisateurs ?`)) return
+        setEmailSending(true)
+        setEmailResult(null)
+        setEmailError(null)
+        try {
+            const res = await fetch('/api/admin/broadcasts/email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ subject: emailSubject, message: emailMessage, targetPlan: emailPlan })
+            })
+            const data = await res.json()
+            if (res.ok && data.data) {
+                setEmailResult(data.data)
+                setEmailSubject('')
+                setEmailMessage('')
+                fetchHistory()
+            } else {
+                setEmailError(data.error || 'Erreur lors de l\'envoi')
+            }
+        } catch {
+            setEmailError('Erreur réseau')
+        } finally {
+            setEmailSending(false)
+        }
+    }
+
+    const inputStyle = {
+        width: '100%', padding: '12px 14px',
+        background: 'rgba(15, 23, 42, 0.5)',
+        border: '1px solid rgba(148, 163, 184, 0.2)',
+        borderRadius: 10, color: 'white', fontSize: 14,
+        outline: 'none'
     }
 
     return (
@@ -109,192 +169,220 @@ export default function AdminBroadcastsPage() {
                     <ArrowLeft size={20} />
                 </Link>
                 <div>
-                    <h1 style={{ fontSize: 22, fontWeight: 700, color: 'white', marginBottom: 4 }}>
-                        Broadcasts WhatsApp
-                    </h1>
-                    <p style={{ color: '#64748b', fontSize: 13 }}>
-                        Envoyer des messages marketing à tous les clients d'un agent
-                    </p>
+                    <h1 style={{ fontSize: 22, fontWeight: 700, color: 'white', marginBottom: 4 }}>Broadcasts</h1>
+                    <p style={{ color: '#64748b', fontSize: 13 }}>Envoi de messages en masse — WhatsApp ou Email</p>
                 </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 20 }}>
-                {/* Compose Section */}
-                <div style={{
-                    background: 'rgba(30, 41, 59, 0.5)',
-                    border: '1px solid rgba(148, 163, 184, 0.1)',
-                    borderRadius: 14, padding: 20
-                }}>
-                    <h2 style={{ fontSize: 16, fontWeight: 600, color: 'white', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <Send size={18} style={{ color: '#34d399' }} />
-                        Nouveau Broadcast
-                    </h2>
+            {/* Tabs */}
+            <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid rgba(148, 163, 184, 0.1)' }}>
+                {([
+                    { id: 'whatsapp' as TabId, label: 'WhatsApp', icon: MessageSquare, color: '#34d399' },
+                    { id: 'email' as TabId, label: 'Email', icon: Mail, color: '#60a5fa' },
+                ]).map(tab => (
+                    <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                        style={{
+                            display: 'flex', alignItems: 'center', gap: 8,
+                            padding: '10px 18px', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600,
+                            background: 'transparent', borderRadius: '8px 8px 0 0',
+                            color: activeTab === tab.id ? tab.color : '#64748b',
+                            borderBottom: activeTab === tab.id ? `2px solid ${tab.color}` : '2px solid transparent'
+                        }}>
+                        <tab.icon size={16} /> {tab.label}
+                    </button>
+                ))}
+            </div>
 
-                    {/* Agent Selection */}
-                    <div style={{ marginBottom: 16 }}>
-                        <label style={{ display: 'block', color: '#94a3b8', fontSize: 13, marginBottom: 8 }}>
-                            Sélectionner un Agent
-                        </label>
-                        <select
-                            value={selectedAgent}
-                            onChange={(e) => handleAgentChange(e.target.value)}
+            {/* WhatsApp Tab */}
+            {activeTab === 'whatsapp' && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20 }}>
+                    <div style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(148, 163, 184, 0.1)', borderRadius: 14, padding: 20 }}>
+                        <h2 style={{ fontSize: 16, fontWeight: 600, color: 'white', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <Send size={18} style={{ color: '#34d399' }} /> Nouveau Broadcast WhatsApp
+                        </h2>
+
+                        <div style={{ marginBottom: 16 }}>
+                            <label style={{ display: 'block', color: '#94a3b8', fontSize: 13, marginBottom: 8 }}>Agent</label>
+                            <select value={selectedAgent} onChange={(e) => handleAgentChange(e.target.value)} style={inputStyle}>
+                                <option value="">-- Choisir un agent --</option>
+                                {agents.map(agent => (
+                                    <option key={agent.id} value={agent.id}>
+                                        {agent.name} ({agent.total_conversations || 0} conversations)
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {selectedAgent && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', marginBottom: 16, background: 'rgba(52, 211, 153, 0.1)', border: '1px solid rgba(52, 211, 153, 0.2)', borderRadius: 10 }}>
+                                <Users size={16} style={{ color: '#34d399' }} />
+                                <span style={{ color: '#34d399', fontSize: 13 }}>{recipientCount} destinataires</span>
+                            </div>
+                        )}
+
+                        <div style={{ marginBottom: 16 }}>
+                            <label style={{ display: 'block', color: '#94a3b8', fontSize: 13, marginBottom: 8 }}>Message (max 500 car.)</label>
+                            <textarea value={waMessage} onChange={(e) => setWaMessage(e.target.value.slice(0, 500))}
+                                placeholder="Votre message WhatsApp..." rows={5} style={{ ...inputStyle, resize: 'none' }} />
+                            <div style={{ textAlign: 'right', color: '#64748b', fontSize: 12, marginTop: 4 }}>{waMessage.length}/500</div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: 8, padding: '10px 14px', marginBottom: 16, background: 'rgba(251, 191, 36, 0.1)', border: '1px solid rgba(251, 191, 36, 0.2)', borderRadius: 10 }}>
+                            <AlertTriangle size={16} style={{ color: '#fbbf24', flexShrink: 0, marginTop: 1 }} />
+                            <span style={{ color: '#fbbf24', fontSize: 12 }}>Envoi à tous les contacts de cet agent. Utilisez avec modération.</span>
+                        </div>
+
+                        <button onClick={sendWaBroadcast}
+                            disabled={!selectedAgent || !waMessage.trim() || waSending || recipientCount === 0}
                             style={{
-                                width: '100%', padding: '12px 14px',
-                                background: 'rgba(15, 23, 42, 0.5)',
-                                border: '1px solid rgba(148, 163, 184, 0.2)',
-                                borderRadius: 10, color: 'white', fontSize: 14
-                            }}
-                        >
-                            <option value="">-- Choisir un agent --</option>
-                            {agents.map(agent => (
-                                <option key={agent.id} value={agent.id}>
-                                    {agent.name} ({agent.total_conversations || 0} conversations)
-                                </option>
-                            ))}
-                        </select>
+                                width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                                padding: '13px 20px',
+                                background: waSent ? 'rgba(34, 197, 94, 0.2)' : 'linear-gradient(135deg, #10b981, #059669)',
+                                border: 'none', borderRadius: 10, color: 'white', cursor: 'pointer', fontSize: 14, fontWeight: 600,
+                                opacity: (!selectedAgent || !waMessage.trim() || waSending || recipientCount === 0) ? 0.5 : 1
+                            }}>
+                            {waSending ? <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />Envoi...</>
+                                : waSent ? <><CheckCircle size={16} />Envoyé !</>
+                                    : <><Send size={16} />Envoyer le Broadcast</>}
+                        </button>
                     </div>
 
-                    {/* Recipient Count */}
-                    {selectedAgent && (
-                        <div style={{
-                            display: 'flex', alignItems: 'center', gap: 10,
-                            padding: '12px 14px', marginBottom: 16,
-                            background: 'rgba(52, 211, 153, 0.1)',
-                            border: '1px solid rgba(52, 211, 153, 0.2)',
-                            borderRadius: 10
-                        }}>
-                            <Users size={18} style={{ color: '#34d399' }} />
-                            <span style={{ color: '#34d399', fontSize: 14 }}>
-                                {recipientCount} destinataires seront contactés
+                    <HistoryPanel history={history} />
+                </div>
+            )}
+
+            {/* Email Tab */}
+            {activeTab === 'email' && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20 }}>
+                    <div style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(148, 163, 184, 0.1)', borderRadius: 14, padding: 20 }}>
+                        <h2 style={{ fontSize: 16, fontWeight: 600, color: 'white', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <Mail size={18} style={{ color: '#60a5fa' }} /> Nouvelle Campagne Email
+                        </h2>
+
+                        {/* Segment */}
+                        <div style={{ marginBottom: 16 }}>
+                            <label style={{ display: 'block', color: '#94a3b8', fontSize: 13, marginBottom: 8 }}>Segment cible</label>
+                            <select value={emailPlan} onChange={(e) => setEmailPlan(e.target.value)} style={inputStyle}>
+                                {PLAN_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                            </select>
+                        </div>
+
+                        {/* Recipients preview */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', marginBottom: 16, background: 'rgba(96, 165, 250, 0.1)', border: '1px solid rgba(96, 165, 250, 0.2)', borderRadius: 10 }}>
+                            <Users size={16} style={{ color: '#60a5fa' }} />
+                            <span style={{ color: '#60a5fa', fontSize: 13 }}>
+                                {emailRecipients} destinataire{emailRecipients !== 1 ? 's' : ''} recevront cet email
                             </span>
                         </div>
-                    )}
 
-                    {/* Message */}
-                    <div style={{ marginBottom: 16 }}>
-                        <label style={{ display: 'block', color: '#94a3b8', fontSize: 13, marginBottom: 8 }}>
-                            Message (max 500 caractères)
-                        </label>
-                        <textarea
-                            value={message}
-                            onChange={(e) => setMessage(e.target.value.slice(0, 500))}
-                            placeholder="Écrivez votre message marketing ici..."
-                            rows={5}
-                            style={{
-                                width: '100%', padding: '12px 14px',
-                                background: 'rgba(15, 23, 42, 0.5)',
-                                border: '1px solid rgba(148, 163, 184, 0.2)',
-                                borderRadius: 10, color: 'white', fontSize: 14,
-                                resize: 'none'
-                            }}
-                        />
-                        <div style={{ textAlign: 'right', color: '#64748b', fontSize: 12, marginTop: 4 }}>
-                            {message.length}/500
+                        {/* Subject */}
+                        <div style={{ marginBottom: 16 }}>
+                            <label style={{ display: 'block', color: '#94a3b8', fontSize: 13, marginBottom: 8 }}>Sujet</label>
+                            <input type="text" value={emailSubject} onChange={(e) => setEmailSubject(e.target.value)}
+                                placeholder="Ex: Nouveauté WazzapAI — À ne pas manquer !" style={inputStyle} />
                         </div>
-                    </div>
 
-                    {/* Warning */}
-                    <div style={{
-                        display: 'flex', alignItems: 'flex-start', gap: 10,
-                        padding: '12px 14px', marginBottom: 16,
-                        background: 'rgba(251, 191, 36, 0.1)',
-                        border: '1px solid rgba(251, 191, 36, 0.2)',
-                        borderRadius: 10
-                    }}>
-                        <AlertTriangle size={18} style={{ color: '#fbbf24', flexShrink: 0, marginTop: 2 }} />
-                        <span style={{ color: '#fbbf24', fontSize: 13 }}>
-                            Attention : Cette action enverra un message WhatsApp à tous les clients.
-                            Utilisez avec modération pour éviter les signalements de spam.
-                        </span>
-                    </div>
-
-                    {/* Send Button */}
-                    <button
-                        onClick={sendBroadcast}
-                        disabled={!selectedAgent || !message.trim() || sending || recipientCount === 0}
-                        style={{
-                            width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-                            padding: '14px 20px',
-                            background: sent ? 'rgba(34, 197, 94, 0.2)' : 'linear-gradient(135deg, #10b981, #059669)',
-                            border: 'none', borderRadius: 10,
-                            color: 'white', cursor: 'pointer', fontSize: 15, fontWeight: 600,
-                            opacity: (!selectedAgent || !message.trim() || sending || recipientCount === 0) ? 0.5 : 1
-                        }}
-                    >
-                        {sending ? (
-                            <>
-                                <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} />
-                                Envoi en cours...
-                            </>
-                        ) : sent ? (
-                            <>
-                                <CheckCircle size={18} />
-                                Broadcast envoyé !
-                            </>
-                        ) : (
-                            <>
-                                <Send size={18} />
-                                Envoyer le Broadcast
-                            </>
-                        )}
-                    </button>
-                </div>
-
-                {/* History Section */}
-                <div style={{
-                    background: 'rgba(30, 41, 59, 0.5)',
-                    border: '1px solid rgba(148, 163, 184, 0.1)',
-                    borderRadius: 14, padding: 20
-                }}>
-                    <h2 style={{ fontSize: 16, fontWeight: 600, color: 'white', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <Clock size={18} style={{ color: '#60a5fa' }} />
-                        Historique des Broadcasts
-                    </h2>
-
-                    {history.length === 0 ? (
-                        <div style={{ textAlign: 'center', padding: 40, color: '#64748b' }}>
-                            <MessageSquare size={40} style={{ marginBottom: 12, opacity: 0.5 }} />
-                            <p>Aucun broadcast envoyé</p>
+                        {/* Body */}
+                        <div style={{ marginBottom: 16 }}>
+                            <label style={{ display: 'block', color: '#94a3b8', fontSize: 13, marginBottom: 8 }}>Corps du message</label>
+                            <textarea value={emailMessage} onChange={(e) => setEmailMessage(e.target.value)}
+                                placeholder={'Voici notre annonce...\n\nCordialement,\nL\'équipe WazzapAI'}
+                                rows={8} style={{ ...inputStyle, resize: 'vertical' }} />
+                            <div style={{ color: '#475569', fontSize: 11, marginTop: 4 }}>
+                                "Bonjour [Nom]" est ajouté automatiquement. Les sauts de ligne sont conservés.
+                            </div>
                         </div>
-                    ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                            {history.slice(0, 10).map((broadcast, i) => (
-                                <div key={i} style={{
-                                    padding: 14,
-                                    background: 'rgba(15, 23, 42, 0.3)',
-                                    borderRadius: 10,
-                                    border: '1px solid rgba(148, 163, 184, 0.05)'
-                                }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                                        <span style={{ color: 'white', fontWeight: 500, fontSize: 14 }}>
-                                            {broadcast.agent_name || 'Agent'}
-                                        </span>
-                                        <span style={{ color: '#64748b', fontSize: 12 }}>
-                                            {new Date(broadcast.created_at).toLocaleDateString('fr-FR')}
-                                        </span>
-                                    </div>
-                                    <p style={{ color: '#94a3b8', fontSize: 13, margin: 0, lineHeight: 1.4 }}>
-                                        {broadcast.message?.substring(0, 100)}...
-                                    </p>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
-                                        <Users size={12} style={{ color: '#64748b' }} />
-                                        <span style={{ color: '#64748b', fontSize: 12 }}>
-                                            {broadcast.recipients_count || 0} destinataires
-                                        </span>
-                                    </div>
+
+                        {/* Warning */}
+                        <div style={{ display: 'flex', gap: 8, padding: '10px 14px', marginBottom: 16, background: 'rgba(251, 191, 36, 0.1)', border: '1px solid rgba(251, 191, 36, 0.2)', borderRadius: 10 }}>
+                            <AlertTriangle size={16} style={{ color: '#fbbf24', flexShrink: 0, marginTop: 1 }} />
+                            <span style={{ color: '#fbbf24', fontSize: 12 }}>Hostinger ≈ 500 emails/h. Pour &gt;500 utilisateurs, préférez Brevo ou Mailchimp.</span>
+                        </div>
+
+                        {/* Result */}
+                        {emailResult && (
+                            <div style={{ padding: '12px 14px', marginBottom: 16, background: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.2)', borderRadius: 10 }}>
+                                <div style={{ color: '#4ade80', fontWeight: 600, fontSize: 13, marginBottom: 2 }}>✅ Campagne envoyée</div>
+                                <div style={{ color: '#94a3b8', fontSize: 12 }}>
+                                    {emailResult.sent} envoyé{emailResult.sent !== 1 ? 's' : ''}
+                                    {emailResult.failed > 0 && ` · ${emailResult.failed} échec${emailResult.failed !== 1 ? 's' : ''}`}
+                                    {' / '}{emailResult.total} total
                                 </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            </div>
+                            </div>
+                        )}
+                        {emailError && (
+                            <div style={{ padding: '10px 14px', marginBottom: 16, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: 10, color: '#f87171', fontSize: 13 }}>
+                                {emailError}
+                            </div>
+                        )}
 
-            <style jsx global>{`
-                @keyframes spin {
-                    from { transform: rotate(0deg); }
-                    to { transform: rotate(360deg); }
-                }
-            `}</style>
+                        {/* Send button */}
+                        <button onClick={sendEmailBroadcast}
+                            disabled={!emailSubject.trim() || !emailMessage.trim() || emailSending || emailRecipients === 0}
+                            style={{
+                                width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                                padding: '13px 20px', background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                                border: 'none', borderRadius: 10, color: 'white', cursor: 'pointer', fontSize: 14, fontWeight: 600,
+                                opacity: (!emailSubject.trim() || !emailMessage.trim() || emailSending || emailRecipients === 0) ? 0.5 : 1
+                            }}>
+                            {emailSending
+                                ? <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />Envoi en cours ({emailRecipients})...</>
+                                : <><Send size={16} />Envoyer la Campagne Email</>}
+                        </button>
+                    </div>
+
+                    <HistoryPanel history={history} />
+                </div>
+            )}
+
+            <style jsx global>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+        </div>
+    )
+}
+
+function HistoryPanel({ history }: { history: any[] }) {
+    return (
+        <div style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(148, 163, 184, 0.1)', borderRadius: 14, padding: 20 }}>
+            <h2 style={{ fontSize: 16, fontWeight: 600, color: 'white', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Clock size={18} style={{ color: '#60a5fa' }} /> Historique
+            </h2>
+            {history.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: 40, color: '#64748b' }}>
+                    <MessageSquare size={40} style={{ marginBottom: 12, opacity: 0.5 }} />
+                    <p>Aucun broadcast envoyé</p>
+                </div>
+            ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {history.slice(0, 15).map((b, i) => {
+                        const isEmail = b.message?.startsWith('[EMAIL]')
+                        return (
+                            <div key={i} style={{ padding: 12, background: 'rgba(15, 23, 42, 0.3)', borderRadius: 10, border: '1px solid rgba(148, 163, 184, 0.05)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        {isEmail
+                                            ? <Mail size={12} style={{ color: '#60a5fa' }} />
+                                            : <MessageSquare size={12} style={{ color: '#34d399' }} />}
+                                        <span style={{ color: 'white', fontWeight: 500, fontSize: 12 }}>
+                                            {isEmail ? b.message.replace('[EMAIL] ', '') : (b.agent_name || 'Agent')}
+                                        </span>
+                                    </div>
+                                    <span style={{ color: '#64748b', fontSize: 11 }}>
+                                        {new Date(b.created_at).toLocaleDateString('fr-FR')}
+                                    </span>
+                                </div>
+                                {!isEmail && (
+                                    <p style={{ color: '#94a3b8', fontSize: 11, margin: '0 0 6px 0', lineHeight: 1.4 }}>
+                                        {b.message?.substring(0, 70)}{b.message?.length > 70 ? '...' : ''}
+                                    </p>
+                                )}
+                                <span style={{ color: '#64748b', fontSize: 11 }}>
+                                    {b.recipients_count || 0} destinataires
+                                </span>
+                            </div>
+                        )
+                    })}
+                </div>
+            )}
         </div>
     )
 }
