@@ -4,19 +4,36 @@ import nodemailer from 'nodemailer'
 
 export const dynamic = 'force-dynamic'
 
-const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.hostinger.com',
-    port: parseInt(process.env.SMTP_PORT || '465'),
-    secure: (process.env.SMTP_PORT || '465') === '465',
-    auth: {
-        user: process.env.SMTP_USER || 'support@wazzapai.com',
-        pass: process.env.SMTP_PASSWORD || '',
-    },
-})
-
-const FROM_NAME = process.env.SMTP_FROM_NAME || 'WazzapAI'
-const FROM_EMAIL = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER || 'support@wazzapai.com'
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://wazzapai.com'
+
+// Load SMTP config: DB settings first, fallback to env vars
+async function getSmtpConfig(adminSupabase: any) {
+    try {
+        const { data } = await adminSupabase
+            .from('app_settings')
+            .select('key, value')
+            .in('key', ['smtpHost', 'smtpPort', 'smtpUser', 'smtpPassword', 'smtpSecure'])
+
+        const s: Record<string, any> = {}
+        for (const row of data || []) s[row.key] = row.value
+
+        const host = s.smtpHost || process.env.SMTP_HOST || 'smtp.hostinger.com'
+        const port = parseInt(s.smtpPort || process.env.SMTP_PORT || '465')
+        const user = s.smtpUser || process.env.SMTP_USER || 'support@wazzapai.com'
+        const pass = s.smtpPassword || process.env.SMTP_PASSWORD || ''
+        const secure = s.smtpSecure !== undefined ? s.smtpSecure === true || s.smtpSecure === 'true' : port === 465
+
+        return { host, port, user, pass, secure }
+    } catch {
+        return {
+            host: process.env.SMTP_HOST || 'smtp.hostinger.com',
+            port: parseInt(process.env.SMTP_PORT || '465'),
+            user: process.env.SMTP_USER || 'support@wazzapai.com',
+            pass: process.env.SMTP_PASSWORD || '',
+            secure: true
+        }
+    }
+}
 
 function emailCampaignTemplate(userName: string, content: string): string {
     // Convert newlines to <br> for basic formatting
@@ -99,6 +116,19 @@ export async function POST(request: NextRequest) {
 
         const recipients = profiles || []
         if (recipients.length === 0) return errorResponse('Aucun destinataire trouvé', 400)
+
+        // Build transporter from DB settings (or env fallback)
+        const smtp = await getSmtpConfig(adminSupabase)
+        if (!smtp.pass) return errorResponse('Mot de passe SMTP non configuré — allez dans Paramètres → Emails', 400)
+
+        const transporter = nodemailer.createTransport({
+            host: smtp.host,
+            port: smtp.port,
+            secure: smtp.secure,
+            auth: { user: smtp.user, pass: smtp.pass }
+        })
+        const FROM_EMAIL = smtp.user
+        const FROM_NAME = process.env.SMTP_FROM_NAME || 'WazzapAI'
 
         let sent = 0
         let failed = 0

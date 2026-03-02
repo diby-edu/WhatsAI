@@ -213,9 +213,10 @@ export default function AdminSettingsPage() {
 
         // Email
         emailNotifications: true,
-        smtpHost: 'smtp.example.com',
-        smtpPort: 587,
-        smtpUser: 'noreply@wazzapai.com',
+        smtpHost: 'smtp.hostinger.com',
+        smtpPort: 465,
+        smtpUser: 'support@wazzapai.com',
+        smtpPassword: '',
         smtpSecure: true,
 
         // Security
@@ -700,6 +701,29 @@ export default function AdminSettingsPage() {
                                     color: 'white'
                                 }}
                             />
+                        </div>
+
+                        <div>
+                            <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
+                                Mot de passe SMTP
+                            </label>
+                            <input
+                                type="password"
+                                value={settings.smtpPassword}
+                                onChange={(e) => setSettings({ ...settings, smtpPassword: e.target.value })}
+                                placeholder="Mot de passe Hostinger (email)"
+                                style={{
+                                    width: '100%',
+                                    padding: 14,
+                                    borderRadius: 10,
+                                    background: 'rgba(15, 23, 42, 0.5)',
+                                    border: '1px solid rgba(148, 163, 184, 0.1)',
+                                    color: 'white'
+                                }}
+                            />
+                            <p style={{ color: '#475569', fontSize: 12, marginTop: 6 }}>
+                                Mot de passe de votre adresse email Hostinger. Sauvegardé de façon sécurisée.
+                            </p>
                         </div>
 
                         <SettingRow
