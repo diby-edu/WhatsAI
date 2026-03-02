@@ -149,7 +149,7 @@ export default function AdminOrdersPage() {
             </div>
 
             {/* Quick Stats */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
                 {[
                     { label: 'Total', value: stats.total, icon: ShoppingCart, color: '#3b82f6' },
                     { label: 'En attente', value: stats.pending, icon: Clock, color: '#fbbf24' },
@@ -222,8 +222,8 @@ export default function AdminOrdersPage() {
                         <p>Aucune commande trouvée</p>
                     </div>
                 ) : (
-                    <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 600 }}>
+                    <div className="admin-table-wrap" style={{ overflowX: 'auto' }}>
+                    <table className="admin-table" style={{ width: '100%', borderCollapse: 'collapse', minWidth: 600 }}>
                         <thead>
                             <tr style={{ borderBottom: '1px solid rgba(148, 163, 184, 0.1)' }}>
                                 {['ID', 'Client', 'Total', 'Statut', 'Date', 'Actions'].map(h => (

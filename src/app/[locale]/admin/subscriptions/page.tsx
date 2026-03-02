@@ -32,6 +32,14 @@ export default function AdminSubscriptionsPage() {
     const [refreshing, setRefreshing] = useState(false)
     const [editSub, setEditSub] = useState<Subscription | null>(null)
     const [actionLoading, setActionLoading] = useState<string | null>(null)
+    const [isMobile, setIsMobile] = useState(false)
+
+    useEffect(() => {
+        const check = () => setIsMobile(window.innerWidth < 640)
+        check()
+        window.addEventListener('resize', check)
+        return () => window.removeEventListener('resize', check)
+    }, [])
 
     useEffect(() => { fetchData() }, [])
 
@@ -136,9 +144,9 @@ export default function AdminSubscriptionsPage() {
             </div>
 
             {/* Stats */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, alignItems: 'start' }}>
                 {statCards.map((stat, i) => (
-                    <motion.div key={stat.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
+                    <motion.div key={stat.label} whileHover={{ scale: 1.02, transition: { duration: 0.15 } }}
                         style={{
                             background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(148, 163, 184, 0.1)',
                             borderRadius: 14, padding: 16, display: 'flex', alignItems: 'center', gap: 12
@@ -162,8 +170,8 @@ export default function AdminSubscriptionsPage() {
                 background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(148, 163, 184, 0.1)',
                 borderRadius: 16, overflow: 'hidden'
             }}>
-            <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
+            <div className="admin-table-wrap" style={{ overflowX: 'auto' }}>
+                <table className="admin-table" style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
                     <thead>
                         <tr>
                             {['Utilisateur', 'Email', 'Plan', 'Crédits', 'Statut', 'Inscrit le', 'Actions'].map(h => (
@@ -239,7 +247,9 @@ export default function AdminSubscriptionsPage() {
                 )}
             </AnimatePresence>
 
-            <style jsx global>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+            <style jsx global>{`
+                @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+            `}</style>
         </div>
     )
 }

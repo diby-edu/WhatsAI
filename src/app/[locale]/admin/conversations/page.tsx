@@ -41,14 +41,14 @@ export default function AdminConversationsPage() {
                 <p style={{ color: '#94a3b8' }}>{conversations.length} conversations actives</p>
             </div>
 
-            <div style={{
+            <div className="admin-table-wrap" style={{
                 background: 'rgba(30, 41, 59, 0.5)',
                 backdropFilter: 'blur(20px)',
                 border: '1px solid rgba(148, 163, 184, 0.1)',
                 borderRadius: 20,
                 overflowX: 'auto'
             }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 550 }}>
+                <table className="admin-table" style={{ width: '100%', borderCollapse: 'collapse', minWidth: 550 }}>
                     <thead>
                         <tr>
                             {['Contact', 'Agent', 'Messages', 'Dernier message', 'Date'].map(h => (

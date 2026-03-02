@@ -801,6 +801,39 @@ h6 {
    PRICING MOBILE RESPONSIVE
    ============================================= */
 
+/* Pricing grid - always 3 columns by default */
+.pricing-grid {
+  grid-template-columns: repeat(3, 1fr) !important;
+}
+
+@media (max-width: 800px) {
+  .pricing-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (max-width: 520px) {
+  .pricing-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  section#pricing {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+
+  /* Compact cards on mobile */
+  .pricing-grid > div {
+    padding: 18px !important;
+  }
+
+  /* Smaller quotas box on mobile */
+  .quota-grid {
+    padding: 8px 4px !important;
+    margin-bottom: 10px !important;
+  }
+}
+
 @media (max-width: 768px) {
   section#pricing>div {
     padding: 0 16px !important;
@@ -813,6 +846,16 @@ h6 {
   section#pricing div[style*="gridTemplateColumns: repeat(4"] {
     grid-template-columns: 1fr !important;
     gap: 16px !important;
+  }
+}
+
+/* =============================================
+   ADMIN STATS GRID RESPONSIVE
+   ============================================= */
+
+@media (max-width: 600px) {
+  .admin-stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
   }
 }
 
@@ -1372,3 +1415,155 @@ body {
   }
 }
 
+/* =============================================
+   DASHBOARD / ADMIN RESPONSIVE HARDENING
+   ============================================= */
+
+.admin-table-wrap {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+  .admin-table {
+    min-width: 100% !important;
+    width: 100% !important;
+    table-layout: fixed !important;
+  }
+
+  .admin-table th,
+  .admin-table td {
+    padding: 10px 8px !important;
+    font-size: 12px !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+    overflow-wrap: anywhere !important;
+    vertical-align: top !important;
+  }
+
+  .admin-audit-head {
+    display: none !important;
+  }
+
+  .admin-audit-row {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+    padding: 14px !important;
+  }
+
+  .admin-settings-page {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .admin-settings-header {
+    flex-wrap: wrap !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+
+  .admin-settings-save {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  .admin-settings-tabs {
+    overflow-x: visible !important;
+  }
+
+  .admin-settings-tab-btn {
+    flex: 1 1 140px !important;
+    max-width: none !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    white-space: normal !important;
+  }
+
+  .admin-settings-grid-2,
+  .admin-settings-grid-2-1 {
+    grid-template-columns: 1fr !important;
+  }
+
+  .admin-settings-grid-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .admin-settings-small-input {
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  .admin-settings-notif-item {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  .admin-settings-notif-channel {
+    align-items: flex-start !important;
+  }
+
+  .agent-wizard-root {
+    max-width: 100% !important;
+    padding: 0 12px 150px !important;
+  }
+
+  .agent-stepper {
+    overflow-x: auto;
+    justify-content: flex-start !important;
+    padding-bottom: 8px;
+  }
+
+  .agent-grid-2 {
+    grid-template-columns: 1fr !important;
+  }
+
+  .agent-grid-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .agent-hours-banner {
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+  }
+
+  .agent-hours-row {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  .agent-hours-day {
+    width: 100% !important;
+  }
+
+  .agent-hours-controls {
+    width: 100% !important;
+    flex-wrap: wrap !important;
+  }
+
+  .agent-hours-time {
+    width: calc(50% - 12px) !important;
+  }
+
+  .agent-hours-closed {
+    width: 100% !important;
+    text-align: left !important;
+  }
+
+  .agent-inline-fields {
+    flex-direction: column !important;
+  }
+
+  .agent-nav {
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+  }
+}
+
+@media (max-width: 520px) {
+  .admin-settings-grid-4,
+  .agent-grid-3 {
+    grid-template-columns: 1fr !important;
+  }
+}

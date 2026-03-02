@@ -731,6 +731,8 @@ export default function DashboardLayout({
             {/* Main content */}
             <main style={{
                 flex: 1,
+                width: '100%',
+                minWidth: 0,
                 minHeight: '100vh',
                 height: '100vh',
                 marginLeft: isMobile ? 0 : sidebarWidth,

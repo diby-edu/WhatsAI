@@ -65,6 +65,14 @@ export default function Pricing() {
     const [isAuthenticated, setIsAuthenticated] = useState(false)
     const [loadingPlan, setLoadingPlan] = useState<string | null>(null)
     const [plans, setPlans] = useState<Plan[]>(FALLBACK_PLANS)
+    const [isMobile, setIsMobile] = useState(false)
+
+    useEffect(() => {
+        const check = () => setIsMobile(window.innerWidth < 521)
+        check()
+        window.addEventListener('resize', check)
+        return () => window.removeEventListener('resize', check)
+    }, [])
 
     useEffect(() => {
         const checkAuth = async () => {
@@ -91,12 +99,18 @@ export default function Pricing() {
                         id: p.id || 'unknown',
                         name: p.name || 'Plan',
                         price_fcfa: typeof p.price === 'number' ? p.price : (p.price_fcfa || 0),
-                        credits: p.credits || 0,
+                        credits: p.credits_included || p.credits || 0,
                         max_agents: p.max_agents ?? 1,
                         max_whatsapp_numbers: p.max_whatsapp_numbers ?? 1,
                         is_popular: p.is_popular || false,
                         description: p.description || '',
                     }))
+                    // Ensure Scale plan always shows even if not yet in DB
+                    const hasScale = formatted.some(p => p.name.toLowerCase().includes('scale'))
+                    if (!hasScale) {
+                        const fallbackScale = FALLBACK_PLANS.find(p => p.id === 'scale')
+                        if (fallbackScale) formatted.push(fallbackScale)
+                    }
                     setPlans(formatted)
                 }
             })
@@ -258,13 +272,9 @@ export default function Pricing() {
                         return (
                             <motion.div
                                 key={plan.id}
-                                initial={{ opacity: 0, y: 30 }}
-                                whileInView={{ opacity: 1, y: 0 }}
-                                viewport={{ once: true }}
-                                transition={{ duration: 0.4, delay: index * 0.08 }}
                                 whileHover={{ y: -6, transition: { duration: 0.2 } }}
                                 style={{
-                                    padding: 22,
+                                    padding: 28,
                                     borderRadius: 22,
                                     background: plan.is_popular
                                         ? 'linear-gradient(180deg, rgba(37, 211, 102, 0.12) 0%, rgba(15, 23, 42, 0.8) 100%)'
@@ -314,14 +324,14 @@ export default function Pricing() {
                                     <Icon style={{ width: 20, height: 20, color: 'white' }} />
                                 </div>
 
-                                <h3 style={{ fontSize: 17, fontWeight: 700, color: 'white', marginBottom: 8 }}>
+                                <h3 style={{ fontSize: 20, fontWeight: 700, color: 'white', marginBottom: 8 }}>
                                     {plan.name}
                                 </h3>
 
                                 {/* Price */}
                                 <div style={{ marginBottom: 14 }}>
                                     <div style={{
-                                        fontSize: plan.price_fcfa === 0 ? 20 : 24,
+                                        fontSize: plan.price_fcfa === 0 ? 22 : 30,
                                         fontWeight: 800,
                                         background: plan.is_popular
                                             ? 'linear-gradient(135deg, #25D366, #6ee7b7)'
@@ -341,40 +351,44 @@ export default function Pricing() {
                                 </div>
 
                                 {/* Quotas — the only differentiators */}
-                                <div style={{
+                                <div className="quota-grid" style={{
                                     display: 'grid',
                                     gridTemplateColumns: '1fr 1fr 1fr',
                                     gap: 6,
                                     marginBottom: 14,
-                                    padding: '10px 6px',
-                                    borderRadius: 10,
-                                    background: 'rgba(255, 255, 255, 0.03)',
-                                    border: '1px solid rgba(148, 163, 184, 0.06)'
+                                    padding: '12px 6px',
+                                    borderRadius: 12,
+                                    background: plan.is_popular
+                                        ? 'rgba(37, 211, 102, 0.06)'
+                                        : 'rgba(255, 255, 255, 0.04)',
+                                    border: plan.is_popular
+                                        ? '1px solid rgba(37, 211, 102, 0.15)'
+                                        : '1px solid rgba(148, 163, 184, 0.08)'
                                 }}>
                                     <div style={{ textAlign: 'center' }}>
-                                        <div style={{ fontSize: 14, fontWeight: 700, color: 'white' }}>
+                                        <div style={{ fontSize: 22, fontWeight: 800, color: 'white', lineHeight: 1.1 }}>
                                             {plan.credits.toLocaleString('fr-FR')}
                                         </div>
-                                        <div style={{ fontSize: 9, color: '#64748b', marginTop: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
-                                            <CreditCard size={8} />
+                                        <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+                                            <CreditCard size={9} />
                                             crédits
                                         </div>
                                     </div>
-                                    <div style={{ textAlign: 'center', borderLeft: '1px solid rgba(148,163,184,0.08)', borderRight: '1px solid rgba(148,163,184,0.08)' }}>
-                                        <div style={{ fontSize: 14, fontWeight: 700, color: 'white' }}>
+                                    <div style={{ textAlign: 'center', borderLeft: '1px solid rgba(148,163,184,0.1)', borderRight: '1px solid rgba(148,163,184,0.1)' }}>
+                                        <div style={{ fontSize: 22, fontWeight: 800, color: 'white', lineHeight: 1.1 }}>
                                             {plan.max_agents === -1 ? '∞' : plan.max_agents}
                                         </div>
-                                        <div style={{ fontSize: 9, color: '#64748b', marginTop: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
-                                            <Users size={8} />
+                                        <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+                                            <Users size={9} />
                                             agents
                                         </div>
                                     </div>
                                     <div style={{ textAlign: 'center' }}>
-                                        <div style={{ fontSize: 14, fontWeight: 700, color: 'white' }}>
+                                        <div style={{ fontSize: 22, fontWeight: 800, color: 'white', lineHeight: 1.1 }}>
                                             {plan.max_whatsapp_numbers === -1 ? '∞' : plan.max_whatsapp_numbers}
                                         </div>
-                                        <div style={{ fontSize: 9, color: '#64748b', marginTop: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
-                                            <Smartphone size={8} />
+                                        <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+                                            <Smartphone size={9} />
                                             numéros
                                         </div>
                                     </div>
@@ -382,10 +396,10 @@ export default function Pricing() {
 
                                 {/* Common features (same for all plans) */}
                                 <div style={{ flex: 1, marginBottom: 14 }}>
-                                    {COMMON_FEATURES.map((feature, i) => (
+                                    {(isMobile ? COMMON_FEATURES.slice(0, 3) : COMMON_FEATURES).map((feature, i) => (
                                         <div key={i} style={{
                                             display: 'flex',
-                                            alignItems: 'center',
+                                            alignItems: 'flex-start',
                                             gap: 8,
                                             marginBottom: 7
                                         }}>
@@ -407,9 +421,14 @@ export default function Pricing() {
                                                     color: plan.is_popular ? '#25D366' : '#94a3b8'
                                                 }} />
                                             </div>
-                                            <span style={{ fontSize: 11, color: '#94a3b8' }}>{feature}</span>
+                                            <span style={{ fontSize: 13, color: '#94a3b8' }}>{feature}</span>
                                         </div>
                                     ))}
+                                    {isMobile && (
+                                        <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
+                                            +{COMMON_FEATURES.length - 3} autres fonctionnalités incluses
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* CTA Button */}
@@ -528,22 +547,6 @@ export default function Pricing() {
                 @keyframes spin {
                     from { transform: rotate(0deg); }
                     to { transform: rotate(360deg); }
-                }
-                .pricing-grid {
-                    grid-template-columns: repeat(3, 1fr) !important;
-                }
-                @media (max-width: 800px) {
-                    .pricing-grid {
-                        grid-template-columns: repeat(2, 1fr) !important;
-                    }
-                }
-                @media (max-width: 520px) {
-                    .pricing-grid {
-                        grid-template-columns: 1fr !important;
-                    }
-                    section#pricing > div {
-                        padding: 0 16px !important;
-                    }
                 }
             `}</style>
         </section>

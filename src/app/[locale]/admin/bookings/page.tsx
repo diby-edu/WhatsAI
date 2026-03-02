@@ -132,7 +132,7 @@ export default function AdminBookingsPage() {
             </div>
 
             {/* Quick Stats */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
                 {[
                     { label: 'Total', value: stats.total, icon: Calendar, color: '#8b5cf6' },
                     { label: 'Confirmées', value: stats.confirmed, icon: CheckCircle, color: '#4ade80' },
@@ -203,8 +203,8 @@ export default function AdminBookingsPage() {
                         <p>Aucune réservation trouvée</p>
                     </div>
                 ) : (
-                    <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 580 }}>
+                    <div className="admin-table-wrap" style={{ overflowX: 'auto' }}>
+                    <table className="admin-table" style={{ width: '100%', borderCollapse: 'collapse', minWidth: 580 }}>
                         <thead>
                             <tr style={{ borderBottom: '1px solid rgba(148, 163, 184, 0.1)' }}>
                                 {['Type', 'Client', 'Date/Heure', 'Personnes', 'Statut', 'Actions'].map(h => (

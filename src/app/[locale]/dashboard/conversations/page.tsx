@@ -245,8 +245,8 @@ export default function DashboardConversationsPage() {
                                             </div>
                                         )}
                                     </div>
-                                    <div style={{ flex: 1 }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
                                             <span style={{ fontWeight: 600, color: 'white' }}>{getDisplayName(conv)}</span>
                                             {conv.agent && (
                                                 <span style={{
@@ -259,7 +259,7 @@ export default function DashboardConversationsPage() {
                                             )}
                                             {conv.status === 'escalated' && <span style={{ color: '#ef4444', fontSize: 11, fontWeight: 700, border: '1px solid #ef4444', padding: '1px 4px', borderRadius: 4 }}>URGENT</span>}
                                         </div>
-                                        <p style={{ color: '#94a3b8', fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>
+                                        <p style={{ color: '#94a3b8', fontSize: 14, whiteSpace: 'normal', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%', overflowWrap: 'anywhere' }}>
                                             {conv.last_message || t('empty.description')}
                                         </p>
                                     </div>

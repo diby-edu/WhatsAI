@@ -27,6 +27,14 @@ export default function AdminUsersPage() {
     // Selection state
     const [selectedIds, setSelectedIds] = useState<string[]>([])
     const [isBulkLoading, setIsBulkLoading] = useState(false)
+    const [isCompact, setIsCompact] = useState(false)
+
+    useEffect(() => {
+        const onResize = () => setIsCompact(window.innerWidth < 900)
+        onResize()
+        window.addEventListener('resize', onResize)
+        return () => window.removeEventListener('resize', onResize)
+    }, [])
 
     useEffect(() => { fetchUsers() }, [page])
 
@@ -162,8 +170,16 @@ export default function AdminUsersPage() {
             {/* Users Table */}
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
                 style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(148, 163, 184, 0.1)', borderRadius: 16, overflow: 'hidden' }}>
-                <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1000 }}>
+                <div className="admin-table-wrap" style={{ overflowX: 'auto' }}>
+                    <table
+                        className="admin-table"
+                        style={{
+                            width: '100%',
+                            borderCollapse: 'collapse',
+                            minWidth: isCompact ? '100%' : 1000,
+                            tableLayout: isCompact ? 'fixed' : 'auto'
+                        }}
+                    >
                         <thead>
                             <tr style={{ borderBottom: '1px solid rgba(148, 163, 184, 0.1)' }}>
                                 <th style={{ padding: '16px 16px', width: 40 }}>
