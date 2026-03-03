@@ -84,7 +84,9 @@ export default function AdminNotificationsPage() {
             if (json.success && json.data) {
                 const readIds = getReadIds()
                 const mapped: Notification[] = json.data.map((alert: any, idx: number) => {
-                    const id = alert.resource_id || `notif-${idx}`
+                    const id = alert.type && alert.resource_id
+                        ? `${alert.type}_${alert.resource_id}`
+                        : (alert.resource_id || `notif-${idx}`)
                     return {
                         id,
                         type: alert.type || 'system',

@@ -146,14 +146,20 @@ export default function AdminLayout({
 
                 if (json.success && json.data) {
                     const readIds = getReadIds()
-                    const mappedNotifs: Notification[] = json.data.map((alert: any) => ({
-                        id: alert.id || Math.random().toString(),
-                        type: alert.severity === 'critical' ? 'error' : 'warning',
-                        title: alert.label,
-                        message: alert.message,
-                        time: `${alert.days_since_active}j`,
-                        read: readIds.has(alert.id)
-                    }))
+                    const mappedNotifs: Notification[] = json.data.map((alert: any) => {
+                        // Build stable ID from type + resource_id (view has no 'id' column)
+                        const stableId = alert.type && alert.resource_id
+                            ? `${alert.type}_${alert.resource_id}`
+                            : (alert.id || `${alert.message}_${alert.label}`)
+                        return {
+                            id: stableId,
+                            type: alert.severity === 'critical' ? 'error' : 'warning',
+                            title: alert.label,
+                            message: alert.message,
+                            time: `${alert.days_since_active}j`,
+                            read: readIds.has(stableId)
+                        }
+                    })
                     setNotifications(mappedNotifs)
                     setUnreadCount(mappedNotifs.filter(n => !n.read).length)
                 }
