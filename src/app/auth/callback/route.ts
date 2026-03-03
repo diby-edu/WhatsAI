@@ -13,8 +13,11 @@ function buildRedirectUrl(origin: string, forwardedHost: string | null, path: st
 async function resolveOnboardingPath(supabase: ReturnType<typeof createServerClient>, fallback: string): Promise<string> {
     const { data: { user } } = await supabase.auth.getUser()
 
-    // Only applies to OAuth users — email users already have the flag set via signUp()
-    if (!user || user.user_metadata?.onboarding_completed !== undefined) return fallback
+    // Skip if onboarding already confirmed (=== true means user has completed it)
+    // Note: email users have onboarding_completed: false in metadata from signUp()
+    //       OAuth users have no onboarding_completed key in metadata initially
+    //       Both cases must fall through to the profile check below
+    if (!user || user.user_metadata?.onboarding_completed === true) return fallback
 
     const { data: profile } = await supabase
         .from('profiles')

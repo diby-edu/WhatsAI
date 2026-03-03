@@ -1,6 +1,7 @@
 import cron from 'node-cron'
 import { createClient } from '@supabase/supabase-js'
 import { notify } from './notification.service'
+import { notifyAdmins } from './admin-notify'
 import nodemailer from 'nodemailer'
 
 // =============================================
@@ -311,6 +312,52 @@ async function sendDailySummary(): Promise<void> {
     }
 }
 
+// =============================================
+// WhatsApp Service Monitor
+// =============================================
+
+// Track last notification time to avoid spam (30-min cooldown)
+let lastWhatsAppDownNotif = 0
+
+/**
+ * Ping the WhatsApp bot service and notify admins if it's down.
+ * Includes a 30-minute cooldown between notifications.
+ */
+export async function checkWhatsAppService(): Promise<void> {
+    try {
+        const botUrl = process.env.WHATSAPP_BOT_URL || 'http://localhost:3001'
+        const controller = new AbortController()
+        const timeout = setTimeout(() => controller.abort(), 5000)
+
+        let isDown = false
+        try {
+            const res = await fetch(`${botUrl}/health`, { signal: controller.signal })
+            if (!res.ok) isDown = true
+        } catch {
+            isDown = true
+        } finally {
+            clearTimeout(timeout)
+        }
+
+        if (isDown) {
+            const now = Date.now()
+            const cooldown = 30 * 60 * 1000 // 30 minutes
+
+            if (now - lastWhatsAppDownNotif > cooldown) {
+                lastWhatsAppDownNotif = now
+                await notifyAdmins('whatsapp_down', {
+                    errorMessage: 'Le service WhatsApp bot ne répond pas.',
+                })
+                console.warn('⚠️ [CRON] WhatsApp service down — admins notified')
+            } else {
+                console.warn('⚠️ [CRON] WhatsApp service down (notification on cooldown)')
+            }
+        }
+    } catch (error) {
+        console.error('⚠️ [CRON] WhatsApp health check error:', error)
+    }
+}
+
 /**
  * Initialize all cron jobs.
  * Should be called once at app startup.
@@ -336,8 +383,15 @@ export function initCronJobs(): void {
         timezone: 'UTC'
     })
 
+    // WhatsApp service health check: every 5 minutes
+    cron.schedule('*/5 * * * *', () => {
+        checkWhatsAppService()
+    }, {
+        timezone: 'UTC'
+    })
+
     cronInitialized = true
-    console.log('⏰ [CRON] Cron jobs initialized — subscription check + daily summary at 8:00 AM daily')
+    console.log('⏰ [CRON] Cron jobs initialized — daily tasks at 8:00 AM + WhatsApp monitor every 5 min')
 }
 
 // Also export the check function for manual testing
