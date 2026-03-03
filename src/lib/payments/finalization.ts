@@ -268,6 +268,7 @@ export async function finalizePaymentRecord(
                 .select('id')
                 .eq('user_id', payment.user_id)
                 .eq('status', 'active')
+                .gte('current_period_end', new Date().toISOString())
                 .maybeSingle()
 
             if (existingSub) {
@@ -296,11 +297,24 @@ export async function finalizePaymentRecord(
                     })
             }
 
+            // Preserve credits when upgrading an active subscription
+            // (user keeps remaining credits + receives new plan credits)
+            // If expired or first subscription → start fresh with plan credits
+            const { data: currentProfile } = await adminSupabase
+                .from('profiles')
+                .select('credits_balance')
+                .eq('id', payment.user_id)
+                .single()
+
+            const newCreditsBalance = existingSub
+                ? (Number(currentProfile?.credits_balance) || 0) + plan.credits_included
+                : plan.credits_included
+
             await adminSupabase
                 .from('profiles')
                 .update({
                     plan: plan.id,
-                    credits_balance: plan.credits_included,
+                    credits_balance: newCreditsBalance,
                     credits_used_this_month: 0,
                 })
                 .eq('id', payment.user_id)
