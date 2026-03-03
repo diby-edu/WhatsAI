@@ -115,7 +115,14 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                 }
                 if (phoneNumber) updateData.whatsapp_phone = phoneNumber
 
-                await supabase.from('agents').update(updateData).eq('id', agentId)
+                const { error: dbError } = await supabase.from('agents').update(updateData).eq('id', agentId)
+                if (dbError) {
+                    console.error(`❌ [${agentName}] Failed to mark connected in DB:`, dbError.message)
+                    session.status = 'error'
+                    if (keepAliveInterval) clearInterval(keepAliveInterval)
+                    try { socket.end() } catch (_) {}
+                    return
+                }
 
                 // 💓 Démarrer le keepalive (ping toutes les 14 min)
                 if (keepAliveInterval) clearInterval(keepAliveInterval)
@@ -200,21 +207,13 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                     // Supprime toutes les clés de session dans Supabase si déconnexion définitive
                     console.log(`🧹 Cleaning up session data for ${agentName}...`)
 
-                    supabase
-                        .from('whatsapp_sessions')
-                        .delete()
-                        .eq('session_id', agentId)
-                        .then(({ error }) => {
-                            if (error) console.error('❌ Failed to cleanup session:', error.message)
-                            else console.log('✅ Session data cleared from DB')
-                        })
-
-                    /* 
-                    // Session dir cleanup not needed with Supabase Auth
                     try {
-                        fs.rmSync(sessionDir, { recursive: true, force: true })
-                    } catch (e) { } 
-                    */
+                        await supabase.from('whatsapp_sessions').delete().eq('session_id', agentId)
+                        console.log(`✅ Session data cleared from DB for ${agentName}`)
+                    } catch (cleanupErr) {
+                        console.error(`⚠️ Failed to cleanup session for ${agentName}:`, cleanupErr.message)
+                    }
+
                     await supabase.from('agents').update({
                         whatsapp_connected: false,
                         whatsapp_qr_code: null,

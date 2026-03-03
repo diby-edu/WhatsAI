@@ -79,13 +79,17 @@ export async function POST(request: NextRequest) {
             .delete()
             .eq('session_id', agentId)
 
-        await adminClient
+        const { error: agentUpdateError } = await adminClient
             .from('agents')
             .update({
                 whatsapp_status: 'connecting',
                 whatsapp_qr_code: null
             })
             .eq('id', agentId)
+
+        if (agentUpdateError) {
+            return errorResponse('Erreur lors de l\'initiation de la connexion', 500)
+        }
 
         return successResponse({
             status: 'connecting',
@@ -163,7 +167,7 @@ export async function DELETE(request: NextRequest) {
 
     // Set status to 'disconnecting' - the standalone service will handle cleanup
     const adminClient = createAdminClient()
-    await adminClient
+    const { error: disconnectError } = await adminClient
         .from('agents')
         .update({
             whatsapp_connected: false,
@@ -172,6 +176,10 @@ export async function DELETE(request: NextRequest) {
             whatsapp_qr_code: null
         })
         .eq('id', agentId)
+
+    if (disconnectError) {
+        return errorResponse('Erreur lors de la déconnexion', 500)
+    }
 
     return successResponse({
         success: true,
