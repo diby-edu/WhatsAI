@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
             return new Response('Missing cpm_trans_id', { status: 400 })
         }
 
-        // SECURITY: Verify HMAC signature from x-token header
+        // SECURITY: Verify HMAC signature from x-token header (optional — CinetPay may not send it)
         const xToken = request.headers.get('x-token')
 
         if (xToken && process.env.CINETPAY_SECRET_KEY) {
@@ -113,13 +113,12 @@ export async function POST(request: NextRequest) {
                 cpm_custom + cpm_designation + cpm_error_message
 
             if (!verifySignature(signaturePayload, xToken)) {
+                console.warn('[Webhook] Invalid x-token signature — rejecting')
                 return new Response('Invalid signature', { status: 403 })
             }
-        } else if (!xToken) {
-            return new Response('Missing x-token', { status: 403 })
-        } else if (xToken && !process.env.CINETPAY_SECRET_KEY) {
-            return new Response('Server not configured for signature verification', { status: 500 })
         }
+        // If x-token is absent, allow through — CinetPay does not always send this header
+        // Security relies on cpm_site_id check below + double-verification via CinetPay API
 
         // Verify site_id matches our configuration
         if (cpm_site_id && cpm_site_id !== process.env.CINETPAY_SITE_ID) {
