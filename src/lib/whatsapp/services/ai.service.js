@@ -7,6 +7,7 @@
  */
 
 const { generateAIResponse } = require('../ai/generator')
+const { notifyAdmins } = require('../../notifications/admin-notify')
 
 class AIService {
     /**
@@ -54,7 +55,19 @@ class AIService {
         }
 
         // Déléguer à la fonction existante avec 2 arguments
-        return await generateAIResponse(generatorOptions, dependencies)
+        try {
+            return await generateAIResponse(generatorOptions, dependencies)
+        } catch (error) {
+            // Notify admins on OpenAI API errors (rate limit, quota, network, etc.)
+            const isOpenAIError = error?.status || error?.code || String(error?.message || '').includes('openai')
+            if (isOpenAIError) {
+                notifyAdmins('openai_error', {
+                    errorMessage: error?.message || String(error),
+                    agentName: agent?.name,
+                }).catch(() => {})
+            }
+            throw error
+        }
     }
 }
 
