@@ -89,18 +89,16 @@ export default function DashboardLayout({
         return () => window.removeEventListener('resize', checkMobile)
     }, [])
 
-    // Format time ago
+    // Format time — shows actual time for the bell (compact)
     const formatTimeAgo = (date: Date) => {
         const now = new Date()
         const diff = now.getTime() - date.getTime()
-        const minutes = Math.floor(diff / 60000)
         const hours = Math.floor(diff / 3600000)
-        const days = Math.floor(diff / 86400000)
 
-        if (minutes < 1) return 'À l\'instant'
-        if (minutes < 60) return `Il y a ${minutes}min`
-        if (hours < 24) return `Il y a ${hours}h`
-        return `Il y a ${days}j`
+        const timeStr = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+        if (hours < 24) return timeStr  // Same day: "14:35"
+        const dateStr = date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })
+        return `${dateStr} ${timeStr}`  // Older: "03/03 14:35"
     }
 
     // Fetch user notifications
@@ -267,6 +265,18 @@ export default function DashboardLayout({
 
     const handleLogout = async () => {
         const supabase = createClient()
+
+        // Unregister FCM device token so push notifications stop when logged out
+        const fcmToken = typeof window !== 'undefined' ? localStorage.getItem('fcm_token') : null
+        if (fcmToken) {
+            try {
+                await fetch('/api/notifications/unregister-device', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: fcmToken })
+                })
+            } catch (_) { /* non-critical */ }
+        }
 
         // Déconnecter Google Auth sur mobile (Capacitor)
         const isCapacitor = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform()
