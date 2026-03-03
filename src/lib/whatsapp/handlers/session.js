@@ -23,12 +23,36 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
     }
 
     if (pendingConnections.has(agentId)) {
-        console.log(`Connection already pending for ${agentName}`)
-        return
+        if (reconnectAttempt > 0) {
+            // Auto-reconnect already queued — let it finish
+            console.log(`Connection already pending for ${agentName}`)
+            return
+        }
+        // reconnectAttempt === 0: explicit user request — release the stuck state and restart fresh
+        console.log(`⚠️ [${agentName}] Releasing stuck pending connection for fresh retry`)
+        const staleSession = activeSessions.get(agentId)
+        if (staleSession?.socket) {
+            try { staleSession.socket.end() } catch (_) {}
+        }
+        pendingConnections.delete(agentId)
+        activeSessions.delete(agentId)
     }
 
     pendingConnections.add(agentId)
     console.log(`🔌 Initializing WhatsApp for ${agentName}...`)
+
+    // Safety net: if no QR/connection after 2 minutes, release the lock so retries work
+    let pendingTimeout = setTimeout(async () => {
+        if (pendingConnections.has(agentId)) {
+            console.warn(`⏰ [TIMEOUT] Session init timed out for ${agentName} — releasing lock`)
+            pendingConnections.delete(agentId)
+            activeSessions.delete(agentId)
+            await supabase.from('agents').update({
+                whatsapp_status: 'disconnected',
+                whatsapp_qr_code: null
+            }).eq('id', agentId)
+        }
+    }, 2 * 60 * 1000)
 
     try {
         // const sessionDir = ensureSessionDir(agentId) // Legacy: No longer needed
@@ -76,6 +100,7 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
             }
 
             if (connection === 'open') {
+                clearTimeout(pendingTimeout)
                 session.status = 'connected'
                 pendingConnections.delete(agentId)
                 const phoneNumber = socket.user?.id.split(':')[0] || null
@@ -125,6 +150,7 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
             }
 
             if (connection === 'close') {
+                clearTimeout(pendingTimeout)
                 const statusCode = lastDisconnect?.error?.output?.statusCode
                 const shouldReconnect = statusCode !== DisconnectReason.loggedOut
 
@@ -259,6 +285,7 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
         })
 
     } catch (error) {
+        clearTimeout(pendingTimeout)
         console.error(`Failed to initialize session for ${agentName}:`, error)
         pendingConnections.delete(agentId)
     }

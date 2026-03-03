@@ -128,6 +128,63 @@ async function checkExpiringSubscriptions(): Promise<void> {
 }
 
 /**
+ * Detect expired subscriptions and downgrade plan to Free.
+ * Runs daily at 8:00 AM alongside checkExpiringSubscriptions().
+ * Credits are preserved — the user keeps what they paid for.
+ */
+async function checkExpiredSubscriptions(): Promise<void> {
+    console.log('⏰ [CRON] Checking expired subscriptions...')
+
+    try {
+        const supabase = getAdminSupabase()
+        const now = new Date().toISOString()
+
+        // Subscriptions past their end date that are still marked 'active'
+        const { data: expired, error } = await supabase
+            .from('subscriptions')
+            .select('id, user_id, plan')
+            .eq('status', 'active')
+            .lt('current_period_end', now)
+
+        if (error) {
+            console.error('⏰ [CRON] Error fetching expired subscriptions:', error)
+            return
+        }
+
+        if (!expired || expired.length === 0) {
+            console.log('⏰ [CRON] No expired subscriptions found.')
+            return
+        }
+
+        console.log(`⏰ [CRON] Found ${expired.length} expired subscription(s)`)
+
+        for (const sub of expired) {
+            try {
+                // 1. Mark subscription as expired
+                await supabase
+                    .from('subscriptions')
+                    .update({ status: 'expired' })
+                    .eq('id', sub.id)
+
+                // 2. Downgrade profile to free (credits_balance unchanged — user keeps remaining credits)
+                await supabase
+                    .from('profiles')
+                    .update({ plan: 'free' })
+                    .eq('id', sub.user_id)
+
+                console.log(`⏰ [CRON] Expired: user ${sub.user_id} (was: ${sub.plan}) → free`)
+            } catch (subErr) {
+                console.error(`⏰ [CRON] Error processing expired sub for user ${sub.user_id}:`, subErr)
+            }
+        }
+
+        console.log('⏰ [CRON] Expired subscription check completed.')
+    } catch (error) {
+        console.error('⏰ [CRON] Fatal error in expired subscription check:', error)
+    }
+}
+
+/**
  * Send daily summary email to users who have it enabled.
  * Queries stats from the last 24 hours: conversations, orders, bookings, revenue, credits used.
  */
@@ -378,6 +435,7 @@ export function initCronJobs(): void {
     // Schedule: every day at 8:00 AM UTC (= 8:00 AM in Abidjan / UTC+0)
     cron.schedule('0 8 * * *', () => {
         checkExpiringSubscriptions()
+        checkExpiredSubscriptions()
         sendDailySummary()
     }, {
         timezone: 'UTC'
@@ -394,5 +452,5 @@ export function initCronJobs(): void {
     console.log('⏰ [CRON] Cron jobs initialized — daily tasks at 8:00 AM + WhatsApp monitor every 5 min')
 }
 
-// Also export the check function for manual testing
-export { checkExpiringSubscriptions, sendDailySummary }
+// Also export the check functions for manual testing
+export { checkExpiringSubscriptions, checkExpiredSubscriptions, sendDailySummary }

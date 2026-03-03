@@ -496,7 +496,7 @@ Règles:
 
             // Step 2: Poll for QR code
             const pollForQR = async (attempts = 0): Promise<void> => {
-                if (attempts >= 15) throw new Error('Délai d\'attente dépassé')
+                if (attempts >= 30) throw new Error('Délai d\'attente dépassé')
                 await new Promise(resolve => setTimeout(resolve, 2000))
                 const statusRes = await fetch(`/api/whatsapp/connect?agentId=${createdAgent.id}`)
                 const statusData = await statusRes.json()
@@ -1397,6 +1397,10 @@ Règles:
                                 </div>
                                 <p style={{ color: '#94a3b8', textAlign: 'center' }}>
                                     {t('connect.qrInstructions.step3')}
+                                </p>
+                                <p style={{ color: '#64748b', textAlign: 'center', fontSize: 12, maxWidth: 280 }}>
+                                    Le QR se renouvelle automatiquement toutes les ~20 s.<br />
+                                    Si votre téléphone charge sans fin, attendez le nouveau QR et rescannez.
                                 </p>
                                 <button
                                     onClick={connectWhatsApp}

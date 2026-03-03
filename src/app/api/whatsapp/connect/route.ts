@@ -70,8 +70,15 @@ export async function POST(request: NextRequest) {
             })
         }
 
-        // Set status to 'connecting' - the standalone service will detect this
+        // Clear stale session credentials to force a fresh QR-based authentication.
+        // Without this, Baileys loads partial creds from a previous failed scan
+        // and tries to restore the session silently — no QR is ever generated.
         const adminClient = createAdminClient()
+        await adminClient
+            .from('whatsapp_sessions')
+            .delete()
+            .eq('session_id', agentId)
+
         await adminClient
             .from('agents')
             .update({
