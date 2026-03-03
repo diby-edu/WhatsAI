@@ -176,6 +176,18 @@ export default function AdminLayout({
     const handleLogout = async () => {
         const supabase = createClient()
 
+        // Unregister FCM device token so push notifications stop when logged out
+        const fcmToken = typeof window !== 'undefined' ? localStorage.getItem('fcm_token') : null
+        if (fcmToken) {
+            try {
+                await fetch('/api/notifications/unregister-device', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: fcmToken })
+                })
+            } catch (_) { /* non-critical */ }
+        }
+
         // Déconnecter Google Auth sur mobile (Capacitor)
         const isCapacitor = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform()
         if (isCapacitor) {

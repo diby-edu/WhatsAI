@@ -59,7 +59,16 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
         // const sessionDir = ensureSessionDir(agentId) // Legacy: No longer needed
         // const { state, saveCreds } = await useMultiFileAuthState(sessionDir)
         const { state, saveCreds } = await useSupabaseAuthState(supabase, agentId)
-        const { version } = await fetchLatestBaileysVersion()
+
+        // Fetch latest WhatsApp version with a fallback in case the network call fails on VPS
+        let version
+        try {
+            const result = await fetchLatestBaileysVersion()
+            version = result.version
+        } catch (versionErr) {
+            version = [2, 3000, 1015901307] // Known stable fallback
+            console.warn(`[${agentName}] fetchLatestBaileysVersion failed, using fallback version`)
+        }
 
         const socket = makeWASocket({
             version,
@@ -177,6 +186,7 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                 }
 
                 if (shouldReconnect) {
+                    const sessionStatus = session.status // capture before activeSessions.delete
                     activeSessions.delete(agentId)
 
                     // ⭐ EXPONENTIAL BACKOFF (Robustesse Expert)
@@ -202,6 +212,14 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                         if (agentCheck?.whatsapp_connected === false) {
                             console.log(`🚫 [${agentName}] Déconnexion volontaire détectée (whatsapp_connected=false), reconnexion annulée`)
                             return
+                        }
+
+                        // ⭐ FIX: Si la connexion a échoué AVANT d'atteindre 'connected' (ex: QR scanné
+                        // mais handshake échoué), supprimer les credentials partiels pour forcer un
+                        // nouveau QR. Sans ça, Baileys recharge des creds corrompus → pas de QR → boucle.
+                        if (sessionStatus === 'qr_waiting' || sessionStatus === 'connecting') {
+                            console.log(`🧹 [${agentName}] Connexion échouée avant 'open' — suppression des creds partiels pour nouveau QR`)
+                            await supabase.from('whatsapp_sessions').delete().eq('session_id', agentId)
                         }
 
                         initSession(context, agentId, agentName, attempt)
