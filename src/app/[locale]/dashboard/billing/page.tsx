@@ -15,10 +15,12 @@ import {
     CheckCircle2,
     XCircle,
     ExternalLink,
-    Star
+    Star,
+    Calendar
 } from 'lucide-react'
 import { useTranslations, useFormatter } from 'next-intl'
 import { useCurrency } from '@/contexts/CurrencyContext'
+import { createClient } from '@/lib/supabase/client'
 
 interface Plan {
     id: string
@@ -72,6 +74,7 @@ function BillingContent() {
 
     const [isLoading, setIsLoading] = useState<string | null>(null)
     const [userData, setUserData] = useState<UserData | null>(null)
+    const [subscriptionEnd, setSubscriptionEnd] = useState<string | null>(null)
     const [payments, setPayments] = useState<Payment[]>([])
     const [plans, setPlans] = useState<Plan[]>([])
     const [creditPacks, setCreditPacks] = useState<CreditPack[]>([])
@@ -163,6 +166,20 @@ function BillingContent() {
             if (profileRes.ok) {
                 const data = await profileRes.json()
                 setUserData(data.data?.profile)
+            }
+
+            // Fetch active subscription to get expiry date
+            const supabase = createClient()
+            const { data: { user } } = await supabase.auth.getUser()
+            if (user) {
+                const { data: sub } = await supabase
+                    .from('subscriptions')
+                    .select('current_period_end')
+                    .eq('user_id', user.id)
+                    .eq('status', 'active')
+                    .gte('current_period_end', new Date().toISOString())
+                    .maybeSingle()
+                setSubscriptionEnd(sub?.current_period_end || null)
             }
         } catch (err) {
             console.error('Error fetching data:', err)
@@ -384,6 +401,26 @@ function BillingContent() {
                             <div style={{ fontSize: 12, color: '#64748b' }}>{t('Overview.usedThisMonth')}</div>
                             <div style={{ fontSize: 18, fontWeight: 700, color: 'white' }}>
                                 {creditsUsed.toLocaleString()}
+                            </div>
+                        </div>
+                    </div>
+                </motion.div>
+
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} style={cardStyle}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div style={{
+                            width: 40, height: 40, borderRadius: 10,
+                            background: 'rgba(245, 158, 11, 0.2)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center'
+                        }}>
+                            <Calendar style={{ width: 20, height: 20, color: '#fbbf24' }} />
+                        </div>
+                        <div>
+                            <div style={{ fontSize: 12, color: '#64748b' }}>Renouvellement</div>
+                            <div style={{ fontSize: 18, fontWeight: 700, color: subscriptionEnd ? 'white' : '#64748b' }}>
+                                {subscriptionEnd
+                                    ? new Date(subscriptionEnd).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                                    : 'Plan gratuit'}
                             </div>
                         </div>
                     </div>

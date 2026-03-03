@@ -46,6 +46,30 @@ export default function NewAgentPage() {
         return () => window.removeEventListener('resize', checkViewport)
     }, [])
 
+    // Redirect to billing if agent limit is already reached
+    useEffect(() => {
+        const checkLimit = async () => {
+            try {
+                const res = await fetch('/api/profile')
+                const data = await res.json()
+                const plan = data.data?.profile?.plan || 'free'
+                const limits: Record<string, number> = { free: 1, starter: 1, pro: 3, business: 6, scale: -1 }
+                const limit = limits[plan] ?? 1
+                if (limit === -1) return // unlimited
+
+                const agentsRes = await fetch('/api/agents')
+                const agentsData = await agentsRes.json()
+                const count = agentsData.data?.agents?.length ?? 0
+                if (count >= limit) {
+                    router.replace('/dashboard/billing')
+                }
+            } catch {
+                // Non-critical — let user proceed if check fails
+            }
+        }
+        checkLimit()
+    }, [])
+
     // Conflict Detection State
     const [conflictStatus, setConflictStatus] = useState<'idle' | 'checking' | 'safe' | 'conflict' | 'error'>('idle')
     const [conflictReason, setConflictReason] = useState('')
