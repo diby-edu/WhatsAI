@@ -79,6 +79,18 @@ function setupRealtimeListeners(context) {
                 initSession(context, id, name)
             }
         })
+        // 4. Agents (Deletion — close orphan socket immediately, no polling needed)
+        .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'agents' }, (payload) => {
+            const agentId = payload.old?.id
+            if (!agentId) return
+            const session = activeSessions.get(agentId)
+            if (session) {
+                console.log(`🗑️ [REALTIME] Agent deleted — closing orphan socket (${agentId})`)
+                try { session.socket.end() } catch (_) {}
+                activeSessions.delete(agentId)
+            }
+            pendingConnections.delete(agentId)
+        })
         .subscribe((status, err) => {
             if (err) {
                 console.error('📡 [REALTIME] Error:', err.message || err)
