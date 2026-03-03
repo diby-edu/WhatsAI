@@ -15,6 +15,7 @@
 
 console.log(`[FILE_VERSION] conversation.service.js v1.0.1 - ${new Date().toISOString()}`)
 const { AppError } = require('./errors')
+const { notifyAdmins } = require('../../notifications/admin-notify')
 
 class ConversationService {
     /**
@@ -63,6 +64,22 @@ class ConversationService {
             }
 
             console.log(`✅ Conversation created: ${newConv.id}`)
+
+            // Notify admins of new conversation (fire-and-forget)
+            try {
+                const { data: agentData } = await supabase
+                    .from('agents')
+                    .select('name')
+                    .eq('id', agentId)
+                    .single()
+                notifyAdmins('new_conversation', {
+                    agentName: agentData?.name || agentId,
+                    agentId,
+                    contactPhone,
+                    contactName: metadata?.wa_name || contactPhone,
+                }).catch(() => {})
+            } catch (e) { /* non-blocking */ }
+
             return new Conversation(newConv, supabase)
 
         } catch (error) {
@@ -125,6 +142,12 @@ class ConversationService {
             if (error) throw error
 
             console.log(`🚨 Conversation ${conversationId} escalated: ${reason}`)
+
+            // Notify admins of escalation (fire-and-forget)
+            notifyAdmins('escalation', {
+                contactPhone: conversationId,
+                errorMessage: reason,
+            }).catch(() => {})
         } catch (error) {
             throw new AppError('Failed to escalate conversation', {
                 code: 'CONVERSATION_ESCALATE_FAILED',
