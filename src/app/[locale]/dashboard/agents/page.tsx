@@ -40,9 +40,11 @@ export default function AgentsPage() {
     const [searchQuery, setSearchQuery] = useState('')
     const [menuOpen, setMenuOpen] = useState<string | null>(null)
     const [actionLoading, setActionLoading] = useState<string | null>(null)
+    const [agentLimit, setAgentLimit] = useState<number>(-1)
 
     useEffect(() => {
         fetchAgents()
+        fetchPlanLimit()
     }, [])
 
     const fetchAgents = async () => {
@@ -58,6 +60,20 @@ export default function AgentsPage() {
             setLoading(false)
         }
     }
+
+    const fetchPlanLimit = async () => {
+        try {
+            const res = await fetch('/api/profile')
+            const data = await res.json()
+            const plan = data.data?.plan || data.plan || 'free'
+            const limits: Record<string, number> = { free: 1, starter: 1, pro: 3, business: 6, scale: -1 }
+            setAgentLimit(limits[plan] ?? 1)
+        } catch {
+            // Keep default (-1 = show button as always active)
+        }
+    }
+
+    const atLimit = agentLimit !== -1 && agents.length >= agentLimit
 
     const filteredAgents = agents.filter(agent =>
         agent.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -136,23 +152,51 @@ export default function AgentsPage() {
                     <h1 style={{ fontSize: 'clamp(20px, 5vw, 28px)', fontWeight: 700, color: 'white', marginBottom: 8 }}>{t('title')}</h1>
                     <p style={{ color: '#94a3b8' }}>{t('subtitle')}</p>
                 </div>
-                <Link
-                    href="/dashboard/agents/new"
-                    style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        padding: '12px 24px',
-                        borderRadius: 12,
-                        background: 'linear-gradient(135deg, #10b981, #059669)',
-                        color: 'white',
-                        fontWeight: 600,
-                        textDecoration: 'none'
-                    }}
-                >
-                    <Plus style={{ width: 20, height: 20 }} />
-                    {t('createButton')}
-                </Link>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+                    {agentLimit !== -1 && (
+                        <span style={{ fontSize: 12, color: atLimit ? '#f87171' : '#64748b' }}>
+                            {agents.length}/{agentLimit} agent{agentLimit > 1 ? 's' : ''}
+                        </span>
+                    )}
+                    {atLimit ? (
+                        <Link
+                            href="/dashboard/billing"
+                            style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 8,
+                                padding: '12px 24px',
+                                borderRadius: 12,
+                                background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                                color: 'white',
+                                fontWeight: 600,
+                                textDecoration: 'none',
+                                fontSize: 14
+                            }}
+                        >
+                            <Plus style={{ width: 20, height: 20 }} />
+                            Passer au plan supérieur
+                        </Link>
+                    ) : (
+                        <Link
+                            href="/dashboard/agents/new"
+                            style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 8,
+                                padding: '12px 24px',
+                                borderRadius: 12,
+                                background: 'linear-gradient(135deg, #10b981, #059669)',
+                                color: 'white',
+                                fontWeight: 600,
+                                textDecoration: 'none'
+                            }}
+                        >
+                            <Plus style={{ width: 20, height: 20 }} />
+                            {t('createButton')}
+                        </Link>
+                    )}
+                </div>
             </div>
 
             {/* Search */}
