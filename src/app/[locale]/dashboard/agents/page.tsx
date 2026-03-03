@@ -14,7 +14,8 @@ import {
     CheckCircle,
     XCircle,
     Loader2,
-    Smartphone
+    Smartphone,
+    Crown
 } from 'lucide-react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
@@ -493,7 +494,7 @@ export default function AgentsPage() {
                     transition={{ delay: filteredAgents.length * 0.1 }}
                 >
                     <Link
-                        href="/dashboard/agents/new"
+                        href={atLimit ? '/dashboard/billing' : '/dashboard/agents/new'}
                         style={{
                             ...cardStyle,
                             display: 'flex',
@@ -501,7 +502,9 @@ export default function AgentsPage() {
                             alignItems: 'center',
                             justifyContent: 'center',
                             minHeight: 320,
-                            border: '2px dashed rgba(148, 163, 184, 0.2)',
+                            border: atLimit
+                                ? '2px dashed rgba(245, 158, 11, 0.4)'
+                                : '2px dashed rgba(148, 163, 184, 0.2)',
                             textDecoration: 'none'
                         }}
                     >
@@ -509,19 +512,23 @@ export default function AgentsPage() {
                             width: 64,
                             height: 64,
                             borderRadius: 16,
-                            background: 'rgba(51, 65, 85, 0.5)',
+                            background: atLimit ? 'rgba(245, 158, 11, 0.15)' : 'rgba(51, 65, 85, 0.5)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                             marginBottom: 16
                         }}>
-                            <Plus style={{ width: 32, height: 32, color: '#64748b' }} />
+                            {atLimit
+                                ? <Crown style={{ width: 32, height: 32, color: '#f59e0b' }} />
+                                : <Plus style={{ width: 32, height: 32, color: '#64748b' }} />}
                         </div>
-                        <span style={{ fontSize: 18, fontWeight: 500, color: '#94a3b8' }}>
-                            {t('emptyState.button')}
+                        <span style={{ fontSize: 18, fontWeight: 500, color: atLimit ? '#f59e0b' : '#94a3b8' }}>
+                            {atLimit ? 'Passer au plan supérieur' : t('emptyState.button')}
                         </span>
                         <span style={{ fontSize: 14, color: '#64748b', marginTop: 4 }}>
-                            {t('emptyState.description')}
+                            {atLimit
+                                ? `Limite de ${agentLimit} agent${agentLimit > 1 ? 's' : ''} atteinte`
+                                : t('emptyState.description')}
                         </span>
                     </Link>
                 </motion.div>
