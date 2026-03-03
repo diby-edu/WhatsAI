@@ -1,5 +1,6 @@
 import { checkPaymentStatus } from '@/lib/payments/cinetpay'
 import { isAdminRole } from '@/lib/api-utils'
+import { notifyAdmins } from '@/lib/notifications/admin-notify'
 
 export type PaymentRow = {
     id: string
@@ -361,6 +362,14 @@ export async function finalizePaymentRecord(
             }
         }
 
+        // Notify admins of successful payment
+        notifyAdmins('payment_received', {
+            userId: payment.user_id,
+            paymentAmount: payment.amount_fcfa || 0,
+            planName: planUpdated ? (getMetadata(payment).metadata?.plan_name || '') : undefined,
+            creditsAdded,
+        }).catch(() => {})
+
         return {
             ok: true,
             state: 'completed',
@@ -383,6 +392,12 @@ export async function finalizePaymentRecord(
                 .from('payments')
                 .update({ status: 'failed' })
                 .eq('id', payment.id)
+
+            // Notify admins of failed payment
+            notifyAdmins('payment_failed', {
+                userId: payment.user_id,
+                paymentAmount: payment.amount_fcfa || 0,
+            }).catch(() => {})
         }
 
         return {

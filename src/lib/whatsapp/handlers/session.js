@@ -112,6 +112,9 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                         if (agent?.user_id) {
                             const { notify } = require('../../notifications/notify')
                             notify(agent.user_id, 'agent_status_change', { agentName, agentStatus: 'connected' })
+                            // Notify admins too
+                            const { notifyAdmins } = require('../../notifications/admin-notify')
+                            notifyAdmins('agent_connected', { agentName, agentId })
                         }
                     } catch (notifError) {
                         console.error('🔔 Notification error (non-blocking):', notifError)
@@ -193,12 +196,15 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                         // whatsapp_phone conservé intentionnellement pour affichage dashboard
                     }).eq('id', agentId)
 
-                    // 🔔 NOTIFICATION: Agent déconnecté
+                    // 🔔 NOTIFICATION: Agent déconnecté (définitivement)
                     try {
                         const { data: agent } = await supabase.from('agents').select('user_id').eq('id', agentId).single()
                         if (agent?.user_id) {
                             const { notify } = require('../../notifications/notify')
                             notify(agent.user_id, 'agent_status_change', { agentName, agentStatus: 'disconnected' })
+                            // Notify admins too
+                            const { notifyAdmins } = require('../../notifications/admin-notify')
+                            notifyAdmins('agent_disconnected', { agentName, agentId })
                         }
                     } catch (notifError) {
                         console.error('🔔 Notification error (non-blocking):', notifError)

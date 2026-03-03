@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
+import { notifyAdmins } from '@/lib/notifications/admin-notify'
 
 // GET /api/agents - List all agents for current user
 export const dynamic = 'force-dynamic'
@@ -51,7 +52,7 @@ export async function POST(request: NextRequest) {
         // Check agent limit based on plan (reads from DB so admin changes take effect)
         const { data: profile } = await supabase
             .from('profiles')
-            .select('plan')
+            .select('plan, email')
             .eq('id', user!.id)
             .single()
 
@@ -72,6 +73,11 @@ export async function POST(request: NextRequest) {
         const limit: number = planData?.max_agents ?? fallbackLimit
 
         if (limit !== -1 && (agentCount || 0) >= limit) {
+            notifyAdmins('agent_quota_exceeded', {
+                userId: user!.id,
+                userEmail: profile?.email,
+                planName: profile?.plan || 'free',
+            }).catch(() => {})
             return errorResponse(`Limite d'agents atteinte pour votre plan (${limit} max)`, 403)
         }
 
@@ -115,6 +121,14 @@ export async function POST(request: NextRequest) {
         if (error) {
             return errorResponse(error.message, 500)
         }
+
+        // Notify admins of new agent creation
+        notifyAdmins('agent_created', {
+            userId: user!.id,
+            userEmail: profile?.email,
+            agentName: agent.name,
+            agentId: agent.id,
+        }).catch(() => {})
 
         return successResponse({ agent }, 201)
     } catch (err) {

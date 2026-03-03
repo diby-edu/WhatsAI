@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+import { notifyAdmins } from '@/lib/notifications/admin-notify'
 
 function buildRedirectUrl(origin: string, forwardedHost: string | null, path: string) {
     if (process.env.NODE_ENV !== 'development' && forwardedHost) {
@@ -24,6 +25,12 @@ async function resolveOnboardingPath(supabase: ReturnType<typeof createServerCli
     if (profile?.onboarding_completed === false) {
         // Flag metadata so the middleware stays in sync on subsequent requests
         await supabase.auth.updateUser({ data: { onboarding_completed: false } })
+        // New user — notify admins (fire-and-forget, never blocks redirect)
+        notifyAdmins('new_user', {
+            userId: user.id,
+            userEmail: user.email,
+            userName: user.user_metadata?.full_name || user.user_metadata?.name,
+        }).catch(() => {})
         return '/onboarding'
     }
 
