@@ -205,13 +205,15 @@ async function main() {
     context.realtimeConnected = false
     _realtimeChannel = setupRealtimeListeners(context)
 
-    // ✅ Polling Adaptatif (Filet de sécurité intelligent)
+    // ✅ Agent check dédié toutes les 5s
+    // Séparé du message polling pour ne pas être ralenti à 5 min quand Realtime est actif
+    // Realtime attrape les nouveaux agents immédiatement, ce loop est le filet de sécurité
+    setInterval(() => checkAgents().catch(err => console.error('❌ [checkAgents]', err)), 5000)
+
+    // ✅ Polling Adaptatif (Filet de sécurité intelligent) — messages seulement
     async function adaptivePollingLoop() {
         try {
-            // 1. Toujours vérifier les agents (critique pour les nouvelles connexions)
-            await checkAgents()
-
-            // 2. Vérifier les messages (IA & Outbound)
+            // Vérifier les messages (IA & Outbound)
             // Si Realtime est OK -> Polling lent (5 min)
             // Si Realtime est KO -> Polling rapide (15 sec)
             await checkPendingHistoryMessages(context)

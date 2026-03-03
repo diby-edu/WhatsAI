@@ -465,6 +465,9 @@ Règles:
 
     // Connect WhatsApp
     const connectWhatsApp = async () => {
+        // Prevent double-calls: block if already in progress
+        if (whatsappStatus === 'connecting' || whatsappStatus === 'qr_ready') return
+
         if (!createdAgent) {
             setError(t('connect.errors.noAgent'))
             return
