@@ -2,7 +2,8 @@ const {
     default: makeWASocket,
     DisconnectReason,
     fetchLatestBaileysVersion,
-    makeCacheableSignalKeyStore
+    makeCacheableSignalKeyStore,
+    Browsers
 } = require('@whiskeysockets/baileys')
 const QRCode = require('qrcode')
 const pino = require('pino')
@@ -64,11 +65,16 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
             version,
             logger,
             printQRInTerminal: false,
+            // Identify as Chrome on Ubuntu — without this WhatsApp may silently reject the connection
+            browser: Browsers.ubuntu('Chrome'),
+            // Increase timeouts for VPS with higher latency to WhatsApp servers
+            connectTimeoutMs: 60000,
+            defaultQueryTimeoutMs: undefined,
             auth: {
                 creds: state.creds,
                 keys: makeCacheableSignalKeyStore(state.keys, logger)
             },
-            generateHighQualityLinkPreview: true
+            generateHighQualityLinkPreview: false
         })
 
         const session = {
