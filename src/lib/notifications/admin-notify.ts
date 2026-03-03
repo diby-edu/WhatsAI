@@ -281,8 +281,9 @@ export async function notifyAdmins(
                     .maybeSingle()
 
                 // Default ON if no preferences saved
-                const pushEnabled = prefs ? prefs[pushCol] !== false : true
-                const emailEnabled = prefs ? prefs[emailCol] === true : false
+                const prefsRecord = prefs as Record<string, unknown> | null
+                const pushEnabled = prefsRecord ? prefsRecord[pushCol] !== false : true
+                const emailEnabled = prefsRecord ? prefsRecord[emailCol] === true : false
 
                 if (pushEnabled) {
                     await sendNotificationToUser(supabase, admin.id, getPushPayload(type, data))
