@@ -130,6 +130,14 @@ export default function AdminLayout({
         return `Il y a ${days}j`
     }
 
+    const NOTIF_READ_KEY = 'admin_bell_read_ids'
+    const getReadIds = (): Set<string> => {
+        try { return new Set(JSON.parse(localStorage.getItem(NOTIF_READ_KEY) || '[]')) } catch { return new Set() }
+    }
+    const saveReadIds = (ids: Set<string>) => {
+        try { localStorage.setItem(NOTIF_READ_KEY, JSON.stringify([...ids])) } catch { }
+    }
+
     useEffect(() => {
         const fetchNotifications = async () => {
             try {
@@ -137,16 +145,17 @@ export default function AdminLayout({
                 const json = await res.json()
 
                 if (json.success && json.data) {
+                    const readIds = getReadIds()
                     const mappedNotifs: Notification[] = json.data.map((alert: any) => ({
                         id: alert.id || Math.random().toString(),
                         type: alert.severity === 'critical' ? 'error' : 'warning',
                         title: alert.label,
                         message: alert.message,
                         time: `${alert.days_since_active}j`,
-                        read: false
+                        read: readIds.has(alert.id)
                     }))
                     setNotifications(mappedNotifs)
-                    setUnreadCount(mappedNotifs.length)
+                    setUnreadCount(mappedNotifs.filter(n => !n.read).length)
                 }
             } catch (err) {
                 console.error('Error fetching alerts:', err)
@@ -200,7 +209,11 @@ export default function AdminLayout({
 
 
     const markAllAsRead = () => {
-        setNotifications(prev => prev.map(n => ({ ...n, read: true })))
+        setNotifications(prev => {
+            const updated = prev.map(n => ({ ...n, read: true }))
+            saveReadIds(new Set(updated.map(n => n.id)))
+            return updated
+        })
         setUnreadCount(0)
     }
 
