@@ -108,7 +108,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                 session,
                 message.from,
                 "⏳ Vous envoyez trop de messages. Merci de patienter quelques instants avant de réessayer."
-            ).catch(() => {}) // Ignorer les erreurs d'envoi
+            ).catch(() => { }) // Ignorer les erreurs d'envoi
         }
         return
     }
@@ -147,7 +147,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                     session,
                     message.from,
                     "🔧 Notre service est temporairement indisponible. Veuillez réessayer plus tard."
-                ).catch(() => {})
+                ).catch(() => { })
             }
             return
         }
@@ -225,12 +225,11 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
         // 3.1 Historique de conversation
         const conversationHistory = await conversation.getHistory(50)
 
-        // 3.2 Produits de l'agent (double filtre user_id + agent_id = isolation garantie)
+        // 3.2 Produits de l'agent (Isolation stricte par agent_id)
         const { data: products } = await supabase
             .from('products')
             .select('*')
-            .eq('user_id', agent.user_id)
-            .or(`agent_id.eq.${agentId},agent_id.is.null`)
+            .eq('agent_id', agentId)
             .eq('is_available', true)
             .limit(20)
 

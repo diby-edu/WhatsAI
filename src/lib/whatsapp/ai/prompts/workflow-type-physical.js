@@ -18,17 +18,13 @@ function buildPhysicalWorkflow(orders) {
 ÉTAPE 3 - MINI-RÉCAP PANIER:
     - Afficher le détail GROUPÉ par produit avec calculs détaillés.
     
-    Exemple de format attendu :
-    *T-Shirts* :
-    - Rouge 2 X 15,000 = 30,000 FCFA
-    - Noir 3 X 15,000 = 45,000 FCFA
-    Sous-total = 75,000 FCFA
-    
-    *Bougies* :
-    - Petite 2 X 1,000 = 2,000 FCFA
+    Exemple de format attendu (NE PAS UTILISER CES NOMS SI NON PRÉSENTS DANS LE CATALOGUE) :
+    *Produit Ex* :
+    - Variante A 2 X 1,000 = 2,000 FCFA
     Sous-total = 2,000 FCFA
     
     (⛔ INTERDIT de mettre "(Veuillez préciser)" dans la liste.)
+    🚨 ANTI-HALLUCINATION : Si le CATALOGUE transmis en début de prompt est VIDE, dis simplement : "Désolé, aucun produit n'est configuré pour le moment."
     
     💰 Total : (Somme des sous-totaux) FCFA
     
