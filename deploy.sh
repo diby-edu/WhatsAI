@@ -45,8 +45,11 @@ npm ci --prefer-offline --silent 2>/dev/null || npm install --silent
 # 3. BUILD NEXT.JS (services TOUJOURS UP - ZERO DOWNTIME)
 # ═══════════════════════════════════════════════════════════
 echo ""
-echo "🔨 [3/4] Compilation (services toujours actifs)..."
+echo "🔨 [3/4] Compilation (optimisation RAM)..."
 rm -f .next/lock
+# Augmenter mémoire Node et désactiver Lint pour éviter OOM crash sur VPS
+export NODE_OPTIONS="--max-old-space-size=2048"
+export NEXT_DISABLE_ESLINT=1
 npm run build
 
 # Vérifier si build réussi

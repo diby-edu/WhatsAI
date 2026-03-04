@@ -28,8 +28,10 @@ echo "📦 Installation des dépendances..."
 npm install --silent
 
 echo ""
-echo "🔨 Compilation en cours..."
+echo "🔨 Compilation (optimisation RAM)..."
 rm -f .next/lock  # Évite les erreurs de lock
+export NODE_OPTIONS="--max-old-space-size=2048"
+export NEXT_DISABLE_ESLINT=1
 npm run build
 
 echo ""
