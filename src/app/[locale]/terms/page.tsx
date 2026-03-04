@@ -25,7 +25,7 @@ export default function TermsPage() {
                     Conditions Générales d'Utilisation
                 </h1>
                 <p style={{ fontSize: 14, color: '#64748b', marginBottom: 40 }}>
-                    Dernière mise à jour : Décembre 2025
+                    Dernière mise à jour : Mars 2026
                 </p>
 
                 <section style={{ marginBottom: 32 }}>
