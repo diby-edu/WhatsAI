@@ -465,8 +465,8 @@ export async function checkWhatsAppService(): Promise<void> {
 
 /**
  * Manage the lifecycle of archived agents:
- * - Send a warning 30 days before auto-deletion (at day 60)
- * - Auto-delete agents archived for 90+ days
+ * - Send a warning 30 days before auto-deletion (at day 30)
+ * - Auto-delete agents archived for 60+ days
  */
 async function handleArchivedAgentLifecycle(): Promise<void> {
     console.log('⏰ [CRON] Handling archived agent lifecycle...')
@@ -474,15 +474,15 @@ async function handleArchivedAgentLifecycle(): Promise<void> {
         const supabase = getAdminSupabase()
         const now = new Date()
 
-        // Warning: archived between 59-61 days ago (notify once at the 60-day mark)
-        const day59 = new Date(now.getTime() - 59 * 24 * 3600000)
-        const day61 = new Date(now.getTime() - 61 * 24 * 3600000)
+        // Warning: archived between 29-31 days ago (notify once at the 30-day mark)
+        const day29 = new Date(now.getTime() - 29 * 24 * 3600000)
+        const day31 = new Date(now.getTime() - 31 * 24 * 3600000)
         const { data: warningAgents } = await supabase
             .from('agents')
             .select('user_id, name')
             .not('archived_at', 'is', null)
-            .lte('archived_at', day59.toISOString())
-            .gte('archived_at', day61.toISOString())
+            .lte('archived_at', day29.toISOString())
+            .gte('archived_at', day31.toISOString())
 
         if (warningAgents && warningAgents.length > 0) {
             // Group by user_id to send one notification per user
@@ -498,13 +498,13 @@ async function handleArchivedAgentLifecycle(): Promise<void> {
             console.log(`⏰ [CRON] Sent delete warnings for ${userMap.size} user(s)`)
         }
 
-        // Auto-delete agents archived 90+ days ago
-        const day90 = new Date(now.getTime() - 90 * 24 * 3600000)
+        // Auto-delete agents archived 60+ days ago
+        const day60Delete = new Date(now.getTime() - 60 * 24 * 3600000)
         const { data: deleted, error } = await supabase
             .from('agents')
             .delete()
             .not('archived_at', 'is', null)
-            .lte('archived_at', day90.toISOString())
+            .lte('archived_at', day60Delete.toISOString())
             .select('id')
 
         if (!error && deleted && deleted.length > 0) {
