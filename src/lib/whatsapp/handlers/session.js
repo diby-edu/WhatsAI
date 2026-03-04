@@ -33,7 +33,7 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
         console.log(`⚠️ [${agentName}] Releasing stuck pending connection for fresh retry`)
         const staleSession = activeSessions.get(agentId)
         if (staleSession?.socket) {
-            try { staleSession.socket.end() } catch (_) {}
+            try { staleSession.socket.end() } catch (_) { }
         }
         pendingConnections.delete(agentId)
         activeSessions.delete(agentId)
@@ -104,14 +104,24 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
 
             if (qr) {
                 session.status = 'qr_waiting'
-                console.log(`📱 QR code ready for ${agentName}`)
+                console.log(`📱 [${agentName}] QR code generated, saving to DB...`)
 
-                // Convert QR to data URL and store in database
-                const qrDataUrl = await QRCode.toDataURL(qr)
-                await supabase.from('agents').update({
-                    whatsapp_qr_code: qrDataUrl,
-                    whatsapp_status: 'qr_ready'
-                }).eq('id', agentId)
+                try {
+                    // Convert QR to data URL and store in database
+                    const qrDataUrl = await QRCode.toDataURL(qr)
+                    const { error: qrError } = await supabase.from('agents').update({
+                        whatsapp_qr_code: qrDataUrl,
+                        whatsapp_status: 'qr_ready'
+                    }).eq('id', agentId)
+
+                    if (qrError) {
+                        console.error(`❌ [${agentName}] Failed to save QR to DB:`, qrError.message)
+                    } else {
+                        console.log(`✅ [${agentName}] QR code saved to DB and ready for scan`)
+                    }
+                } catch (qrErr) {
+                    console.error(`❌ [${agentName}] Error during QR processing:`, qrErr.message)
+                }
             }
 
             if (connection === 'open') {
@@ -135,7 +145,7 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                     console.error(`❌ [${agentName}] Failed to mark connected in DB:`, dbError.message)
                     session.status = 'error'
                     if (keepAliveInterval) clearInterval(keepAliveInterval)
-                    try { socket.end() } catch (_) {}
+                    try { socket.end() } catch (_) { }
                     return
                 }
 

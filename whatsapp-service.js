@@ -15,6 +15,17 @@ const http = require('http')
 const { initSession } = require('./src/lib/whatsapp/handlers/session')
 const { checkPendingPayments, cancelExpiredOrders, requestFeedback } = require('./src/lib/whatsapp/cron/jobs')
 const { checkPendingHistoryMessages, checkOutboundMessages } = require('./src/lib/whatsapp/cron/outgoing')
+// configuration des gestionnaires d'erreurs globaux pour debugger les crash PM2
+process.on('uncaughtException', (err) => {
+    console.error('💥 UNCAUGHT EXCEPTION:', err.message)
+    console.error(err.stack)
+    // Ne pas sortir immédiatement pour laisser pino flush si possible
+})
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('💥 UNHANDLED REJECTION at:', promise, 'reason:', reason)
+})
+
 const { setupRealtimeListeners, cleanupRealtimeListeners } = require('./src/lib/whatsapp/realtime/listeners')
 
 
@@ -24,12 +35,15 @@ require('dotenv').config({ path: '.env.local' })
 // Configuration des logs
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' })
 
+// Helper pour nettoyer les variables d'environnement (enlève les quotes si présentes)
+const cleanEnv = (val) => val ? val.replace(/^["']|["']$/g, '').trim() : val
+
 // Configuration des constantes
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY  // Pour Realtime
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY
-const SESSION_BASE_DIR = process.env.WHATSAPP_SESSION_PATH || './.whatsapp-sessions'
+const SUPABASE_URL = cleanEnv(process.env.NEXT_PUBLIC_SUPABASE_URL)
+const SUPABASE_SERVICE_KEY = cleanEnv(process.env.SUPABASE_SERVICE_ROLE_KEY)
+const SUPABASE_ANON_KEY = cleanEnv(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)  // Pour Realtime
+const OPENAI_API_KEY = cleanEnv(process.env.OPENAI_API_KEY)
+const SESSION_BASE_DIR = cleanEnv(process.env.WHATSAPP_SESSION_PATH) || './.whatsapp-sessions'
 const CHECK_INTERVAL = 5000 // Check every 5 seconds
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY || !SUPABASE_ANON_KEY) {
@@ -192,7 +206,12 @@ async function main() {
     console.log('📁 Session directory:', path.resolve(SESSION_BASE_DIR))
 
     // Initial check
-    await checkAgents()
+    try {
+        await checkAgents()
+        console.log('✅ Initial agent check complete')
+    } catch (err) {
+        console.error('❌ Failed during initial agent check:', err.message)
+    }
 
     // Context for cron jobs and Realtime
     // - supabase (alias supabaseAdmin): pour les opérations DB
@@ -272,5 +291,8 @@ async function main() {
     console.log('📉 CPU optimisé: ~55% → ~5-10% au repos')
 }
 
-main()
+main().catch(err => {
+    console.error('❌ FATAL ERROR IN MAIN LOOP:', err)
+    process.exit(1)
+})
 
