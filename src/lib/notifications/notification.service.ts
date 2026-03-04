@@ -187,7 +187,7 @@ function getPushContent(type: NotificationType, data: NotificationData): PushNot
         case 'agent_delete_warning':
             return {
                 title: '⚠️ Agents bientôt supprimés',
-                body: `Vos agents archivés seront supprimés définitivement dans 30 jours. Renouvelez pour les restaurer.`,
+                body: `Vos agents archivés seront supprimés définitivement dans 7 jours. Renouvelez pour les restaurer.`,
                 data: { type: 'agent_delete_warning', route: '/dashboard/billing' }
             }
         case 'credit_usage_high':
@@ -205,7 +205,7 @@ function getPushContent(type: NotificationType, data: NotificationData): PushNot
         case 'credits_expired':
             return {
                 title: '💸 Crédits expirés',
-                body: 'Vos crédits ont expiré (90 jours sans abonnement). Souscrivez un plan pour recharger.',
+                body: 'Vos crédits ont expiré (14 jours sans abonnement). Souscrivez un plan pour recharger.',
                 data: { type: 'credits_expired', route: '/dashboard/billing' }
             }
         case 'scale_renewal_bonus':
