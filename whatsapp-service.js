@@ -50,6 +50,7 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY || !SUPABASE_ANON_KEY) {
 // 🛠️ CONFIGURATION SUPABASE (Mode Expert Hostinger)
 // ═══════════════════════════════════════════════════════════
 const dispatcher = new Agent({
+    connectTimeout: 30000, // ⭐ AUGMENTÉ : 30s pour éviter les ConnectTimeoutError sur VPS
     keepAliveTimeout: 10,
     keepAliveMaxTimeout: 10,
     scheduling: 'fifo',
