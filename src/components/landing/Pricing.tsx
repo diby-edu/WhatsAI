@@ -40,22 +40,22 @@ const PLAN_SPECIFIC_FEATURES: Record<string, { text: string; highlight?: boolean
     starter: [
         { text: 'À l\'expiration : crédits protégés (non perdus)' },
         { text: 'Au renouvellement : anciens + nouveaux crédits cumulés' },
-        { text: '1 agent préservé, les autres archivés 90j' },
-        { text: 'Sans renouvellement après 90j : crédits supprimés' },
+        { text: '1 agent préservé, les autres archivés 14j' },
+        { text: 'Sans renouvellement après 14j : crédits supprimés' },
     ],
     pro: [
         { text: 'À l\'expiration : crédits protégés (non perdus)' },
         { text: 'Au renouvellement : anciens + nouveaux crédits cumulés' },
-        { text: 'Agents excédentaires archivés 90j (récupérables)' },
+        { text: 'Agents excédentaires archivés 14j (récupérables)' },
         { text: 'Alerte à 85% de consommation mensuelle' },
-        { text: 'Sans renouvellement après 90j : crédits supprimés' },
+        { text: 'Sans renouvellement après 14j : crédits supprimés' },
     ],
     business: [
         { text: 'À l\'expiration : crédits protégés (non perdus)' },
         { text: 'Au renouvellement : anciens + nouveaux crédits cumulés' },
-        { text: 'Agents excédentaires archivés 90j (récupérables)' },
+        { text: 'Agents excédentaires archivés 14j (récupérables)' },
         { text: 'Alerte à 85% de consommation mensuelle' },
-        { text: 'Sans renouvellement après 90j : crédits supprimés' },
+        { text: 'Sans renouvellement après 14j : crédits supprimés' },
     ],
     scale: [
         { text: 'Rollover 20% des crédits non utilisés à chaque renouvellement', highlight: true },
@@ -77,19 +77,19 @@ const planIcons: Record<string, any> = {
 
 const planGradients: Record<string, { bg: string; glow: string }> = {
     'Gratuit': { bg: 'linear-gradient(135deg, #64748b, #94a3b8)', glow: 'rgba(100, 116, 139, 0.3)' },
-    'Free':    { bg: 'linear-gradient(135deg, #64748b, #94a3b8)', glow: 'rgba(100, 116, 139, 0.3)' },
+    'Free': { bg: 'linear-gradient(135deg, #64748b, #94a3b8)', glow: 'rgba(100, 116, 139, 0.3)' },
     'Starter': { bg: 'linear-gradient(135deg, #3b82f6, #60a5fa)', glow: 'rgba(59, 130, 246, 0.3)' },
-    'Pro':     { bg: 'linear-gradient(135deg, #25D366, #10b981)', glow: 'rgba(37, 211, 102, 0.4)' },
-    'Business':{ bg: 'linear-gradient(135deg, #f59e0b, #f97316)', glow: 'rgba(245, 158, 11, 0.3)' },
-    'Scale':   { bg: 'linear-gradient(135deg, #8b5cf6, #a78bfa)', glow: 'rgba(139, 92, 246, 0.4)' },
+    'Pro': { bg: 'linear-gradient(135deg, #25D366, #10b981)', glow: 'rgba(37, 211, 102, 0.4)' },
+    'Business': { bg: 'linear-gradient(135deg, #f59e0b, #f97316)', glow: 'rgba(245, 158, 11, 0.3)' },
+    'Scale': { bg: 'linear-gradient(135deg, #8b5cf6, #a78bfa)', glow: 'rgba(139, 92, 246, 0.4)' },
 }
 
 const FALLBACK_PLANS: Plan[] = [
-    { id: 'free',     name: 'Gratuit',  price_fcfa: 0,      credits: 50,    max_agents: 1,  max_whatsapp_numbers: 1,  is_popular: false, description: 'Pour tester la plateforme' },
-    { id: 'starter',  name: 'Starter',  price_fcfa: 6900,   credits: 500,   max_agents: 1,  max_whatsapp_numbers: 1,  is_popular: false, description: '500 crédits · 1 agent · 1 numéro' },
-    { id: 'pro',      name: 'Pro',      price_fcfa: 19900,  credits: 2500,  max_agents: 3,  max_whatsapp_numbers: 3,  is_popular: true,  description: '2 500 crédits · 3 agents · 3 numéros' },
-    { id: 'business', name: 'Business', price_fcfa: 54900,  credits: 8000,  max_agents: 6,  max_whatsapp_numbers: 6,  is_popular: false, description: '8 000 crédits · 6 agents · 6 numéros' },
-    { id: 'scale',    name: 'Scale',    price_fcfa: 129900, credits: 20000, max_agents: -1, max_whatsapp_numbers: -1, is_popular: false, description: '20 000 crédits · Illimité' },
+    { id: 'free', name: 'Gratuit', price_fcfa: 0, credits: 50, max_agents: 1, max_whatsapp_numbers: 1, is_popular: false, description: 'Pour tester la plateforme' },
+    { id: 'starter', name: 'Starter', price_fcfa: 6900, credits: 500, max_agents: 1, max_whatsapp_numbers: 1, is_popular: false, description: '500 crédits · 1 agent · 1 numéro' },
+    { id: 'pro', name: 'Pro', price_fcfa: 19900, credits: 2500, max_agents: 3, max_whatsapp_numbers: 3, is_popular: true, description: '2 500 crédits · 3 agents · 3 numéros' },
+    { id: 'business', name: 'Business', price_fcfa: 54900, credits: 8000, max_agents: 6, max_whatsapp_numbers: 6, is_popular: false, description: '8 000 crédits · 6 agents · 6 numéros' },
+    { id: 'scale', name: 'Scale', price_fcfa: 129900, credits: 20000, max_agents: -1, max_whatsapp_numbers: -1, is_popular: false, description: '20 000 crédits · Illimité' },
 ]
 
 export default function Pricing() {
@@ -149,7 +149,7 @@ export default function Pricing() {
                     setPlans(formatted)
                 }
             })
-            .catch(() => {})
+            .catch(() => { })
     }, [])
 
     const displayPrice = (priceFcfa: number): string => {
@@ -429,7 +429,7 @@ export default function Pricing() {
                                         </div>
                                         {plan.id !== 'free' && (
                                             <div style={{ fontSize: 9, color: plan.id === 'scale' ? '#a78bfa' : '#64748b', marginTop: 2 }}>
-                                                {plan.id === 'scale' ? 'Rollover 20%' : 'Protégés 90j/expir.'}
+                                                {plan.id === 'scale' ? 'Rollover 20%' : 'Protégés 14j/expir.'}
                                             </div>
                                         )}
                                     </div>
@@ -644,14 +644,14 @@ export default function Pricing() {
                             border: '1px solid rgba(34, 197, 94, 0.15)'
                         }}>
                             <div style={{ fontSize: 13, fontWeight: 700, color: '#4ade80', marginBottom: 10 }}>
-                                🔄 À la souscription (dans les 90j)
+                                🔄 À la souscription (dans les 14j)
                             </div>
                             {[
                                 'Crédits gelés réactivés automatiquement',
                                 'Anciens crédits + nouveaux crédits cumulés',
                                 'Plan restauré avec les quotas du plan choisi',
                                 'Agents archivés récupérables',
-                                'Si >90j sans renouvellement : crédits définitivement supprimés',
+                                'Si >14j sans renouvellement : crédits définitivement supprimés',
                             ].map((item, i) => (
                                 <div key={i} style={{ fontSize: 12, color: '#94a3b8', marginBottom: 6, display: 'flex', gap: 6 }}>
                                     <span style={{ color: '#4ade80', flexShrink: 0 }}>•</span>

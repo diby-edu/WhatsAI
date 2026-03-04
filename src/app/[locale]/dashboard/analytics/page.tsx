@@ -136,7 +136,7 @@ export default function AnalyticsPage() {
                         minHeight: 400
                     }}
                 >
-                    <h3 style={{ color: 'white', fontSize: 18, fontWeight: 600, marginBottom: 24 }}>Évolution des Ventes (30 jours)</h3>
+                    <h3 style={{ color: 'white', fontSize: 18, fontWeight: 600, marginBottom: 24 }}>Évolution des Ventes (14 jours)</h3>
                     {data.chartData.length > 0 ? (
                         <div style={{ height: 300, width: '100%' }}>
                             <ResponsiveContainer width="100%" height="100%">
@@ -155,7 +155,7 @@ export default function AnalyticsPage() {
                         </div>
                     ) : (
                         <div style={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontStyle: 'italic' }}>
-                            Aucune vente sur les 30 derniers jours
+                            Aucune vente sur les 14 derniers jours
                         </div>
                     )}
                 </motion.div>
