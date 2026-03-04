@@ -18,7 +18,8 @@ export default function FAQ() {
         { key: 'multiNumber', icon: Smartphone },
         { key: 'appointments', icon: Calendar },
         { key: 'security', icon: Lock },
-        { key: 'cancel', icon: XCircle }
+        { key: 'cancel', icon: XCircle },
+        { key: 'retention', icon: Calendar }
     ]
 
     const faqs = faqKeys.map(item => ({
