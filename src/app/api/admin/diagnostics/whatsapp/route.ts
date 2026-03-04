@@ -1,6 +1,4 @@
-import { createApiClient, getAuthUser } from '@/lib/api-utils'
-import { createApiClient, errorResponse, successResponse } from '@/lib/api-utils'
-
+import { createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
 export async function GET() {
     const supabaseSecClient = await createApiClient()
     const { user: secUser, error: secAuthError } = await getAuthUser(supabaseSecClient)

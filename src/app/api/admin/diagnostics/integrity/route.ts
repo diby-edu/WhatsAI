@@ -1,6 +1,6 @@
-import { createApiClient, getAuthUser } from '@/lib/api-utils'
+import { createApiClient, getAuthUser, successResponse, createAdminClient } from '@/lib/api-utils'
 import { NextRequest } from 'next/server'
-import { successResponse, createAdminClient } from '@/lib/api-utils'
+
 
 export async function GET(request: NextRequest) {
     const supabaseSecClient = await createApiClient()

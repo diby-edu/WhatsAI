@@ -1,6 +1,4 @@
-import { createApiClient, getAuthUser } from '@/lib/api-utils'
-import { successResponse } from '@/lib/api-utils'
-
+import { createApiClient, getAuthUser, successResponse } from '@/lib/api-utils'
 const requiredEnvVars = [
     'NEXT_PUBLIC_SUPABASE_URL',
     'NEXT_PUBLIC_SUPABASE_ANON_KEY',
