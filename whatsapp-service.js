@@ -122,14 +122,15 @@ async function checkAgents() {
     try {
         console.log('🔄 Checking for agents...')
 
-        // 1. Check for agents requesting connection (whatsapp_status = 'connecting')
+        // 1. Check for agents requesting connection or awaiting QR scan
         const { data: connectingAgents } = await supabase
             .from('agents')
-            .select('id, name')
-            .eq('whatsapp_status', 'connecting')
+            .select('id, name, whatsapp_status')
+            .in('whatsapp_status', ['connecting', 'qr_ready'])
 
         if (connectingAgents && connectingAgents.length > 0) {
-            console.log(`🚀 Found ${connectingAgents.length} agents wanting to connect!`)
+            const names = connectingAgents.map(a => `${a.name}(${a.whatsapp_status})`).join(', ')
+            console.log(`🚀 Found ${connectingAgents.length} agents in setup phase: ${names}`)
         }
 
         const context = { supabase, supabaseRealtime, activeSessions, pendingConnections, openai, CinetPay }
