@@ -1,8 +1,15 @@
-/**
- * WhatsApp Service - Standalone Process
- * This runs independently from the Next.js app
- * ✅ Safe to restart — sessions are preserved via .whatsapp-sessions/ (no QR re-scan)
- */
+// ═══════════════════════════════════════════════════════════
+// 🚨 GESTIONNAIRES D'ERREURS GLOBAUX (DÉBUG VPS)
+// ═══════════════════════════════════════════════════════════
+process.on('uncaughtException', (err) => {
+    console.error('💥 UNCAUGHT EXCEPTION:', err.message)
+    console.error(err.stack)
+    process.exit(1) // Force exit to let PM2 restart with clean state
+})
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('💥 UNHANDLED REJECTION at:', promise, 'reason:', reason)
+})
 
 const { createClient } = require('@supabase/supabase-js')
 const { Agent, fetch: undiciFetch } = require('undici')
@@ -15,20 +22,7 @@ const http = require('http')
 const { initSession } = require('./src/lib/whatsapp/handlers/session')
 const { checkPendingPayments, cancelExpiredOrders, requestFeedback } = require('./src/lib/whatsapp/cron/jobs')
 const { checkPendingHistoryMessages, checkOutboundMessages } = require('./src/lib/whatsapp/cron/outgoing')
-// configuration des gestionnaires d'erreurs globaux pour debugger les crash PM2
-process.on('uncaughtException', (err) => {
-    console.error('💥 UNCAUGHT EXCEPTION:', err.message)
-    console.error(err.stack)
-    // Ne pas sortir immédiatement pour laisser pino flush si possible
-})
-
-process.on('unhandledRejection', (reason, promise) => {
-    console.error('💥 UNHANDLED REJECTION at:', promise, 'reason:', reason)
-})
-
 const { setupRealtimeListeners, cleanupRealtimeListeners } = require('./src/lib/whatsapp/realtime/listeners')
-
-
 // Configuration from environment
 require('dotenv').config({ path: '.env.local' })
 
