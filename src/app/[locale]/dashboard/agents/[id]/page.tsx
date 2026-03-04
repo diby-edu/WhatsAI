@@ -316,7 +316,7 @@ export default function AgentWizardPage({
                     setConnectedPhone(result.phoneNumber)
                     setQrCode(null)
                     clearInterval(interval)
-                } else if (result.status === 'error' || result.status === 'disconnected') {
+                } else if (result.status === 'error') {
                     setWhatsappStatus('error')
                     setQrCode(null)
                     clearInterval(interval)

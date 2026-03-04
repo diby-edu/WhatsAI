@@ -541,8 +541,8 @@ Règles:
                     setWhatsappStatus('connected')
                     setConnectedPhone(phoneNumber || '')
                     return
-                } else if (status === 'error' || status === 'disconnected') {
-                    throw new Error('La session WhatsApp a échoué ou a été interrompue.')
+                } else if (status === 'error') {
+                    throw new Error('La session WhatsApp a échoué.')
                 } else if (newQrCode) {
                     setQrCode(newQrCode)
                     setWhatsappStatus('qr_ready')
