@@ -219,8 +219,8 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                             console.log(`🚫 [${agentName}] Agent inactif (is_active=false), reconnexion annulée`)
                             return
                         }
-                        if (agentCheck?.whatsapp_connected === false) {
-                            console.log(`🚫 [${agentName}] Déconnexion volontaire détectée (whatsapp_connected=false), reconnexion annulée`)
+                        if (agentCheck?.whatsapp_connected === false && !['connecting', 'qr_ready'].includes(agentCheck?.whatsapp_status)) {
+                            console.log(`🚫 [${agentName}] Déconnexion volontaire détectée (offline/disconnected), reconnexion annulée`)
                             return
                         }
 
