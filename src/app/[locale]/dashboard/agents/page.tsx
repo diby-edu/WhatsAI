@@ -32,6 +32,8 @@ interface Agent {
     total_messages: number
     total_conversations: number
     created_at: string
+    archived_at: string | null
+    archived_reason: string | null
 }
 
 export default function AgentsPage() {
@@ -74,9 +76,11 @@ export default function AgentsPage() {
         }
     }
 
-    const atLimit = agentLimit !== -1 && agents.length >= agentLimit
+    const activeAgents = agents.filter(a => !a.archived_at)
+    const archivedAgents = agents.filter(a => !!a.archived_at)
+    const atLimit = agentLimit !== -1 && activeAgents.length >= agentLimit
 
-    const filteredAgents = agents.filter(agent =>
+    const filteredAgents = activeAgents.filter(agent =>
         agent.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (agent.description || '').toLowerCase().includes(searchQuery.toLowerCase())
     )
@@ -156,7 +160,7 @@ export default function AgentsPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
                     {agentLimit !== -1 && (
                         <span style={{ fontSize: 12, color: atLimit ? '#f87171' : '#64748b' }}>
-                            {agents.length}/{agentLimit} agent{agentLimit > 1 ? 's' : ''}
+                            {activeAgents.length}/{agentLimit} agent{agentLimit > 1 ? 's' : ''}
                         </span>
                     )}
                     {atLimit ? (
@@ -533,6 +537,110 @@ export default function AgentsPage() {
                     </Link>
                 </motion.div>
             </div>
+
+            {/* Archived agents section */}
+            {archivedAgents.length > 0 && (
+                <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                        <div style={{
+                            width: 20, height: 20, borderRadius: 4,
+                            background: 'rgba(100, 116, 139, 0.2)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center'
+                        }}>
+                            <Crown style={{ width: 12, height: 12, color: '#64748b' }} />
+                        </div>
+                        <h2 style={{ fontSize: 15, fontWeight: 600, color: '#64748b', margin: 0 }}>
+                            Agents archivés ({archivedAgents.length})
+                        </h2>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
+                        {archivedAgents.map((agent) => {
+                            const deleteDate = agent.archived_at
+                                ? new Date(new Date(agent.archived_at).getTime() + 90 * 24 * 3600000).toLocaleDateString('fr-FR')
+                                : null
+                            return (
+                                <div
+                                    key={agent.id}
+                                    style={{
+                                        background: 'rgba(15, 23, 42, 0.4)',
+                                        border: '1px solid rgba(100, 116, 139, 0.15)',
+                                        borderRadius: 16,
+                                        padding: 20,
+                                        opacity: 0.7,
+                                        position: 'relative'
+                                    }}
+                                >
+                                    {/* Archived badge */}
+                                    <div style={{ position: 'absolute', top: 14, right: 14 }}>
+                                        <span style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: 4,
+                                            padding: '3px 8px',
+                                            borderRadius: 100,
+                                            fontSize: 11,
+                                            fontWeight: 500,
+                                            background: 'rgba(100, 116, 139, 0.2)',
+                                            color: '#64748b'
+                                        }}>
+                                            🔒 Archivé
+                                        </span>
+                                    </div>
+
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                                        <div style={{
+                                            width: 44, height: 44, borderRadius: 12,
+                                            background: 'rgba(100, 116, 139, 0.2)',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            flexShrink: 0
+                                        }}>
+                                            <Bot style={{ width: 22, height: 22, color: '#64748b' }} />
+                                        </div>
+                                        <div>
+                                            <div style={{ fontSize: 15, fontWeight: 600, color: '#94a3b8' }}>{agent.name}</div>
+                                            {agent.description && (
+                                                <div style={{ fontSize: 12, color: '#475569', marginTop: 2 }}>
+                                                    {agent.description.substring(0, 60)}{agent.description.length > 60 ? '…' : ''}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {deleteDate && (
+                                        <div style={{
+                                            fontSize: 11, color: '#ef4444', marginBottom: 12,
+                                            display: 'flex', alignItems: 'center', gap: 4
+                                        }}>
+                                            ⚠️ Suppression définitive le {deleteDate}
+                                        </div>
+                                    )}
+
+                                    <Link
+                                        href="/dashboard/billing"
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            gap: 6,
+                                            padding: '9px 16px',
+                                            borderRadius: 10,
+                                            background: 'rgba(245, 158, 11, 0.1)',
+                                            border: '1px solid rgba(245, 158, 11, 0.25)',
+                                            color: '#f59e0b',
+                                            fontSize: 13,
+                                            fontWeight: 500,
+                                            textDecoration: 'none'
+                                        }}
+                                    >
+                                        <Crown style={{ width: 14, height: 14 }} />
+                                        Restaurer — Renouvelez votre abonnement
+                                    </Link>
+                                </div>
+                            )
+                        })}
+                    </div>
+                </div>
+            )}
 
             {/* Empty state */}
             {filteredAgents.length === 0 && searchQuery && (

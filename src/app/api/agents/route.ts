@@ -60,6 +60,7 @@ export async function POST(request: NextRequest) {
             .from('agents')
             .select('*', { count: 'exact', head: true })
             .eq('user_id', user!.id)
+            .is('archived_at', null)
 
         const { data: planData } = await supabase
             .from('subscription_plans')

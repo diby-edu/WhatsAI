@@ -37,24 +37,3 @@ export async function GET(
     }
 }
 
-// POST - Mark order as paid (public endpoint for payment flow)
-export async function POST(
-    request: NextRequest,
-    { params }: { params: Promise<{ orderId: string }> }
-) {
-    const { orderId } = await params
-
-    try {
-        const { error } = await getSupabase()
-            .from('orders')
-            .update({ status: 'paid' })
-            .eq('id', orderId)
-
-        if (error) throw error
-
-        return NextResponse.json({ success: true, message: 'Order marked as paid' })
-    } catch (err) {
-        console.error('Error updating order:', err)
-        return NextResponse.json({ error: 'Failed to update order' }, { status: 500 })
-    }
-}

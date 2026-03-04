@@ -1,7 +1,14 @@
+import { createApiClient, getAuthUser } from '@/lib/api-utils'
 import { NextResponse } from 'next/server'
 import OpenAI from 'openai'
 
 export async function GET() {
+    const supabaseSecClient = await createApiClient()
+    const { user: secUser, error: secAuthError } = await getAuthUser(supabaseSecClient)
+    if (secAuthError || secUser?.role !== 'admin') {
+        return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), { status: 403, headers: { 'Content-Type': 'application/json' } })
+    }
+
     try {
         const apiKey = process.env.OPENAI_API_KEY
 

@@ -107,6 +107,44 @@ export async function PATCH(
             }
         }
 
+        // Prevent bypassing plan limits by manually activating an agent
+        if (updates.is_active === true) {
+            const { data: currentAgent } = await supabase
+                .from('agents')
+                .select('is_active')
+                .eq('id', id)
+                .single()
+
+            if (currentAgent && !currentAgent.is_active) {
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('plan')
+                    .eq('id', user!.id)
+                    .single()
+
+                const { count: activeAgentCount } = await supabase
+                    .from('agents')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('user_id', user!.id)
+                    .is('archived_at', null)
+                    .eq('is_active', true)
+
+                const { data: planData } = await supabase
+                    .from('subscription_plans')
+                    .select('max_agents')
+                    .ilike('name', profile?.plan || 'free')
+                    .single()
+
+                const { PLANS } = await import('@/lib/plans')
+                const fallbackLimit = (PLANS as any)[profile?.plan || 'free']?.agents ?? 1
+                const limit: number = planData?.max_agents ?? fallbackLimit
+
+                if (limit !== -1 && (activeAgentCount || 0) >= limit) {
+                    return errorResponse(`Limite d'agents actifs atteinte pour votre plan (${limit} max)`, 403)
+                }
+            }
+        }
+
         const { data: agent, error } = await supabase
             .from('agents')
             .update(updates)

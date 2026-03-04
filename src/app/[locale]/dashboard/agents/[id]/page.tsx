@@ -316,6 +316,10 @@ export default function AgentWizardPage({
                     setConnectedPhone(result.phoneNumber)
                     setQrCode(null)
                     clearInterval(interval)
+                } else if (result.status === 'error' || result.status === 'disconnected') {
+                    setWhatsappStatus('error')
+                    setQrCode(null)
+                    clearInterval(interval)
                 } else if (result.qrCode && result.qrCode !== qrCode) {
                     setQrCode(result.qrCode)
                     setWhatsappStatus('qr_ready')

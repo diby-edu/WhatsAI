@@ -69,9 +69,22 @@ function setupRealtimeListeners(context) {
             console.log('⚡ [REALTIME] Outbound message detected:', payload.new.id)
             await handleOutboundMessage(context, payload.new)
         })
-        // 3. Agents (Connection requests)
+        // 3. Agents (Connection requests OR Deactivation)
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'agents' }, async (payload) => {
-            const { whatsapp_status, name, id } = payload.new
+            const { whatsapp_status, name, id, is_active } = payload.new
+
+            // Handle deactivation mapping to disconnect zombie websockets
+            if (is_active === false) {
+                const session = activeSessions.get(id)
+                if (session) {
+                    console.log(`⏸️ [REALTIME] Agent deactivated — closing orphan socket (${id})`)
+                    try { session.socket.end() } catch (_) { }
+                    activeSessions.delete(id)
+                }
+                pendingConnections.delete(id)
+                return
+            }
+
             if (whatsapp_status !== 'connecting') return
             console.log('⚡ [REALTIME] Agent connection requested:', name)
             const { initSession } = require('../handlers/session')
@@ -86,7 +99,7 @@ function setupRealtimeListeners(context) {
             const session = activeSessions.get(agentId)
             if (session) {
                 console.log(`🗑️ [REALTIME] Agent deleted — closing orphan socket (${agentId})`)
-                try { session.socket.end() } catch (_) {}
+                try { session.socket.end() } catch (_) { }
                 activeSessions.delete(agentId)
             }
             pendingConnections.delete(agentId)

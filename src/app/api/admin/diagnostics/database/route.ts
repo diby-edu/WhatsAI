@@ -1,7 +1,14 @@
+import { createApiClient, getAuthUser } from '@/lib/api-utils'
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 
 export async function GET() {
+    const supabaseSecClient = await createApiClient()
+    const { user: secUser, error: secAuthError } = await getAuthUser(supabaseSecClient)
+    if (secAuthError || secUser?.role !== 'admin') {
+        return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), { status: 403, headers: { 'Content-Type': 'application/json' } })
+    }
+
     try {
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
         const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
