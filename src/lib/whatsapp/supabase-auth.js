@@ -87,14 +87,22 @@ module.exports = async function useSupabaseAuthState(supabase, sessionId) {
                         for (const id in data[category]) {
                             const value = data[category][id]
                             const key = `${category}-${id}`
-                            if (value) {
-                                tasks.push(writeData(value, key))
-                            } else {
-                                tasks.push(removeData(key))
-                            }
+                            tasks.push({ value, key })
                         }
                     }
-                    await Promise.all(tasks)
+
+                    // ⭐ OPTIMISATION VPS : Exécution par lots pour éviter les timeouts undici/réseau
+                    // Baileys peut générer des centaines de clés à la fois (sync initial).
+                    // On limite à 20 requêtes parallèles pour ne pas saturer le pool undici.
+                    const BATCH_SIZE = 20
+                    for (let i = 0; i < tasks.length; i += BATCH_SIZE) {
+                        const batch = tasks.slice(i, i + BATCH_SIZE)
+                        await Promise.all(
+                            batch.map(task =>
+                                task.value ? writeData(task.value, task.key) : removeData(task.key)
+                            )
+                        )
+                    }
                 },
             },
         },

@@ -42,7 +42,7 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
     pendingConnections.add(agentId)
     console.log(`🔌 Initializing WhatsApp for ${agentName}...`)
 
-    // Safety net: if no QR/connection after 2 minutes, release the lock so retries work
+    // Safety net: if no QR/connection after 5 minutes, release the lock so retries work
     let pendingTimeout = setTimeout(async () => {
         if (pendingConnections.has(agentId)) {
             console.warn(`⏰ [TIMEOUT] Session init timed out for ${agentName} — releasing lock`)
@@ -53,7 +53,7 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                 whatsapp_qr_code: null
             }).eq('id', agentId)
         }
-    }, 2 * 60 * 1000)
+    }, 5 * 60 * 1000)
 
     try {
         // const sessionDir = ensureSessionDir(agentId) // Legacy: No longer needed
