@@ -521,21 +521,33 @@ Règles:
                 return
             }
 
-            // Step 2: Poll for QR code
+            // Step 2: Poll for QR code and connection
             const pollForQR = async (attempts = 0): Promise<void> => {
-                if (attempts >= 30) throw new Error('Délai d\'attente dépassé')
-                await new Promise(resolve => setTimeout(resolve, 2000))
+                // 60 tentatives * 3 secondes = 3 minutes max
+                if (attempts >= 60) throw new Error('Délai d\'attente dépassé')
+                await new Promise(resolve => setTimeout(resolve, 3000))
                 const statusRes = await fetch(`/api/whatsapp/connect?agentId=${createdAgent.id}`)
                 const statusData = await statusRes.json()
 
-                if (statusData.data?.qrCode) {
-                    setQrCode(statusData.data.qrCode)
-                    setWhatsappStatus('qr_ready')
-                    return
-                } else if (statusData.data?.status === 'connected') {
+                if (!statusRes.ok) {
+                    throw new Error(statusData.error || 'Erreur de communication')
+                }
+
+                const status = statusData.data?.status || statusData.status
+                const phoneNumber = statusData.data?.phoneNumber || statusData.phoneNumber
+                const newQrCode = statusData.data?.qrCode || statusData.qrCode
+
+                if (status === 'connected') {
                     setWhatsappStatus('connected')
-                    setConnectedPhone(statusData.data.phoneNumber || '')
+                    setConnectedPhone(phoneNumber || '')
                     return
+                } else if (status === 'error' || status === 'disconnected') {
+                    throw new Error('La session WhatsApp a échoué ou a été interrompue.')
+                } else if (newQrCode) {
+                    setQrCode(newQrCode)
+                    setWhatsappStatus('qr_ready')
+                    // Continuer le polling même si on a le QR code, pour détecter le scan
+                    return pollForQR(attempts + 1)
                 } else {
                     return pollForQR(attempts + 1)
                 }
@@ -547,34 +559,7 @@ Règles:
         }
     }
 
-    // Poll for connection status after QR is shown
-    useEffect(() => {
-        if (whatsappStatus !== 'qr_ready' || !createdAgent) return
-
-        const interval = setInterval(async () => {
-            try {
-                const response = await fetch(`/api/whatsapp/connect?agentId=${createdAgent.id}`)
-                const data = await response.json()
-
-                // FIX: API returns { data: { status, qrCode, phoneNumber } }
-                const status = data.data?.status || data.status
-                const newQrCode = data.data?.qrCode || data.qrCode
-                const phoneNumber = data.data?.phoneNumber || data.phoneNumber
-
-                if (status === 'connected') {
-                    setWhatsappStatus('connected')
-                    setConnectedPhone(phoneNumber || '')
-                    clearInterval(interval)
-                } else if (newQrCode && newQrCode !== qrCode) {
-                    setQrCode(newQrCode)
-                }
-            } catch (err) {
-                console.error('[ERROR] Polling error:', err)
-            }
-        }, 3000)
-
-        return () => clearInterval(interval)
-    }, [whatsappStatus, createdAgent, qrCode])
+    // Le polling est désormais géré entièrement par pollForQR() pour éviter les conflits d'état React
 
     const handleFinish = () => {
         router.push('/dashboard/agents')

@@ -297,18 +297,33 @@ export async function finalizePaymentRecord(
                     })
             }
 
-            // Preserve credits when upgrading an active subscription
-            // (user keeps remaining credits + receives new plan credits)
-            // If expired or first subscription → start fresh with plan credits
+            // Determine new credits balance:
+            // - Scale: rollover 20% of remaining + new credits + 2000 bonus
+            // - Others: ADD if active sub, REPLACE if expired/first
+            // Also unfreeze any frozen credits on renewal
             const { data: currentProfile } = await adminSupabase
                 .from('profiles')
-                .select('credits_balance')
+                .select('credits_balance, credits_frozen_at, credits_expire_at')
                 .eq('id', payment.user_id)
                 .single()
 
-            const newCreditsBalance = existingSub
-                ? (Number(currentProfile?.credits_balance) || 0) + plan.credits_included
-                : plan.credits_included
+            const isCreditExpired = currentProfile?.credits_expire_at &&
+                new Date(currentProfile.credits_expire_at) < new Date()
+            const currentBalance = isCreditExpired ? 0 : (Number(currentProfile?.credits_balance) || 0)
+
+            let newCreditsBalance: number
+            let rolloverAmount = 0
+            let bonusAmount = 0
+
+            if (plan.id === 'scale') {
+                rolloverAmount = Math.floor(currentBalance * 0.20)
+                bonusAmount = 2000
+                newCreditsBalance = currentBalance + rolloverAmount + plan.credits_included + bonusAmount
+            } else if (existingSub && !isCreditExpired) {
+                newCreditsBalance = currentBalance + plan.credits_included
+            } else {
+                newCreditsBalance = plan.credits_included
+            }
 
             await adminSupabase
                 .from('profiles')
@@ -316,8 +331,21 @@ export async function finalizePaymentRecord(
                     plan: plan.id,
                     credits_balance: newCreditsBalance,
                     credits_used_this_month: 0,
+                    credits_frozen_at: null,
+                    credits_expire_at: null,
+                    credits_high_usage_notified_at: null,
                 })
                 .eq('id', payment.user_id)
+
+            // Notify Scale users of their rollover bonus
+            if (plan.id === 'scale' && rolloverAmount > 0) {
+                const { notify: notifyUser } = await import('@/lib/notifications/notification.service')
+                notifyUser(payment.user_id, 'scale_renewal_bonus', {
+                    rolloverAmount,
+                    bonusAmount,
+                    balance: newCreditsBalance
+                }).catch(() => {})
+            }
 
             creditsAdded = Number(plan.credits_included || 0)
             planUpdated = true

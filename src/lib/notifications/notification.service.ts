@@ -39,6 +39,13 @@ export type NotificationType =
     | 'agent_status_change'
     // Products (push only)
     | 'stock_out'
+    // Subscription protection (push only)
+    | 'agent_archived'
+    | 'agent_delete_warning'
+    | 'credit_usage_high'
+    | 'credits_freeze_warning'
+    | 'credits_expired'
+    | 'scale_renewal_bonus'
 
 export interface NotificationData {
     // For credits
@@ -66,6 +73,16 @@ export interface NotificationData {
     agentStatus?: 'connected' | 'disconnected'
     // For stock
     productName?: string
+    // For agent archival
+    count?: number
+    deleteDate?: string
+    // For credit freeze/expiry
+    creditExpireDate?: string
+    // For credit usage high
+    usagePct?: number
+    // For Scale renewal bonus
+    rolloverAmount?: number
+    bonusAmount?: number
 }
 
 // Mapping: notification type → preference DB column names
@@ -81,6 +98,12 @@ const PREF_MAP: Record<NotificationType, { push?: string; email?: string }> = {
     escalation: { push: 'push_escalation' },
     agent_status_change: { push: 'push_agent_status_change' },
     stock_out: { push: 'push_stock_out' },
+    agent_archived: { push: 'push_agent_archived' },
+    agent_delete_warning: { push: 'push_agent_delete_warning' },
+    credit_usage_high: { push: 'push_credit_usage_high' },
+    credits_freeze_warning: { push: 'push_credits_freeze_warning' },
+    credits_expired: { push: 'push_credits_expired' },
+    scale_renewal_bonus: { push: 'push_scale_renewal_bonus' },
 }
 
 // =============================================
@@ -154,6 +177,42 @@ function getPushContent(type: NotificationType, data: NotificationData): PushNot
                 title: '📦 Stock épuisé',
                 body: `Le produit "${data.productName}" est en rupture de stock.`,
                 data: { type: 'stock_out', route: '/dashboard/products' }
+            }
+        case 'agent_archived':
+            return {
+                title: '🔒 Agents archivés',
+                body: `${data.count} agent${(data.count || 0) > 1 ? 's' : ''} archivé${(data.count || 0) > 1 ? 's' : ''} suite à l'expiration. Suppression le ${data.deleteDate}.`,
+                data: { type: 'agent_archived', route: '/dashboard/agents' }
+            }
+        case 'agent_delete_warning':
+            return {
+                title: '⚠️ Agents bientôt supprimés',
+                body: `Vos agents archivés seront supprimés définitivement dans 30 jours. Renouvelez pour les restaurer.`,
+                data: { type: 'agent_delete_warning', route: '/dashboard/billing' }
+            }
+        case 'credit_usage_high':
+            return {
+                title: '🚀 85% de vos crédits utilisés',
+                body: `Vous avez consommé ${data.usagePct}% de votre forfait ce mois. Passez au plan supérieur.`,
+                data: { type: 'credit_usage_high', route: '/dashboard/billing' }
+            }
+        case 'credits_freeze_warning':
+            return {
+                title: '❄️ Crédits gelés',
+                body: `Vos ${data.balance} crédits sont sécurisés jusqu'au ${data.creditExpireDate}. Renouvelez pour les réactiver.`,
+                data: { type: 'credits_freeze_warning', route: '/dashboard/billing' }
+            }
+        case 'credits_expired':
+            return {
+                title: '💸 Crédits expirés',
+                body: 'Vos crédits ont expiré (90 jours sans abonnement). Souscrivez un plan pour recharger.',
+                data: { type: 'credits_expired', route: '/dashboard/billing' }
+            }
+        case 'scale_renewal_bonus':
+            return {
+                title: '✨ Bonus Scale appliqué !',
+                body: `Rollover : +${data.rolloverAmount} crédits (20%). Bonus mensuel : +${data.bonusAmount} crédits. Solde : ${data.balance?.toLocaleString()}.`,
+                data: { type: 'scale_renewal_bonus', route: '/dashboard/billing' }
             }
     }
 }

@@ -31,6 +31,41 @@ const COMMON_FEATURES = [
     'Support email inclus',
 ]
 
+// Per-plan extras — expiration, renewal and bonus behaviors
+const PLAN_SPECIFIC_FEATURES: Record<string, { text: string; highlight?: boolean }[]> = {
+    free: [
+        { text: '50 crédits offerts une seule fois' },
+        { text: 'Pas de renouvellement automatique' },
+    ],
+    starter: [
+        { text: 'À l\'expiration : crédits protégés (non perdus)' },
+        { text: 'Au renouvellement : anciens + nouveaux crédits cumulés' },
+        { text: '1 agent préservé, les autres archivés 90j' },
+        { text: 'Sans renouvellement après 90j : crédits supprimés' },
+    ],
+    pro: [
+        { text: 'À l\'expiration : crédits protégés (non perdus)' },
+        { text: 'Au renouvellement : anciens + nouveaux crédits cumulés' },
+        { text: 'Agents excédentaires archivés 90j (récupérables)' },
+        { text: 'Alerte à 85% de consommation mensuelle' },
+        { text: 'Sans renouvellement après 90j : crédits supprimés' },
+    ],
+    business: [
+        { text: 'À l\'expiration : crédits protégés (non perdus)' },
+        { text: 'Au renouvellement : anciens + nouveaux crédits cumulés' },
+        { text: 'Agents excédentaires archivés 90j (récupérables)' },
+        { text: 'Alerte à 85% de consommation mensuelle' },
+        { text: 'Sans renouvellement après 90j : crédits supprimés' },
+    ],
+    scale: [
+        { text: 'Rollover 20% des crédits non utilisés à chaque renouvellement', highlight: true },
+        { text: '+2 000 crédits bonus offerts à chaque renouvellement', highlight: true },
+        { text: 'Crédits jamais gelés ni supprimés (Scale actif)', highlight: true },
+        { text: 'Agents illimités — aucun archivage possible', highlight: true },
+        { text: 'Notification détaillée de votre bonus après chaque renouvellement', highlight: false },
+    ],
+}
+
 const planIcons: Record<string, any> = {
     'Gratuit': Zap,
     'Free': Zap,
@@ -328,6 +363,25 @@ export default function Pricing() {
                                     {plan.name}
                                 </h3>
 
+                                {/* Scale gold badge */}
+                                {plan.id === 'scale' && (
+                                    <div style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: 5,
+                                        padding: '4px 10px',
+                                        borderRadius: 100,
+                                        background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.18), rgba(217, 119, 6, 0.12))',
+                                        border: '1px solid rgba(245, 158, 11, 0.35)',
+                                        marginBottom: 12,
+                                        alignSelf: 'flex-start'
+                                    }}>
+                                        <span style={{ fontSize: 11, color: '#fbbf24', fontWeight: 700 }}>
+                                            ⭐ Rollover 20% • +2 000 crédits/mois
+                                        </span>
+                                    </div>
+                                )}
+
                                 {/* Price */}
                                 <div style={{ marginBottom: 14 }}>
                                     <div style={{
@@ -373,6 +427,11 @@ export default function Pricing() {
                                             <CreditCard size={9} />
                                             crédits
                                         </div>
+                                        {plan.id !== 'free' && (
+                                            <div style={{ fontSize: 9, color: plan.id === 'scale' ? '#a78bfa' : '#64748b', marginTop: 2 }}>
+                                                {plan.id === 'scale' ? 'Rollover 20%' : 'Protégés 90j/expir.'}
+                                            </div>
+                                        )}
                                     </div>
                                     <div style={{ textAlign: 'center', borderLeft: '1px solid rgba(148,163,184,0.1)', borderRight: '1px solid rgba(148,163,184,0.1)' }}>
                                         <div style={{ fontSize: 22, fontWeight: 800, color: 'white', lineHeight: 1.1 }}>
@@ -395,7 +454,7 @@ export default function Pricing() {
                                 </div>
 
                                 {/* Common features (same for all plans) */}
-                                <div style={{ flex: 1, marginBottom: 14 }}>
+                                <div style={{ flex: 1, marginBottom: 10 }}>
                                     {(isMobile ? COMMON_FEATURES.slice(0, 3) : COMMON_FEATURES).map((feature, i) => (
                                         <div key={i} style={{
                                             display: 'flex',
@@ -430,6 +489,43 @@ export default function Pricing() {
                                         </div>
                                     )}
                                 </div>
+
+                                {/* Plan-specific features (credits policy, Scale bonuses) */}
+                                {(PLAN_SPECIFIC_FEATURES[plan.id] || []).length > 0 && (
+                                    <div style={{ marginBottom: 14, borderTop: '1px solid rgba(148,163,184,0.08)', paddingTop: 10 }}>
+                                        {(PLAN_SPECIFIC_FEATURES[plan.id] || []).map((feat, i) => (
+                                            <div key={i} style={{
+                                                display: 'flex',
+                                                alignItems: 'flex-start',
+                                                gap: 8,
+                                                marginBottom: 6
+                                            }}>
+                                                <div style={{
+                                                    width: 15,
+                                                    height: 15,
+                                                    borderRadius: '50%',
+                                                    background: plan.id === 'scale'
+                                                        ? 'rgba(139, 92, 246, 0.2)'
+                                                        : 'rgba(59, 130, 246, 0.1)',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    flexShrink: 0
+                                                }}>
+                                                    <span style={{
+                                                        fontSize: 8,
+                                                        color: plan.id === 'scale' ? '#a78bfa' : '#60a5fa'
+                                                    }}>✦</span>
+                                                </div>
+                                                <span style={{
+                                                    fontSize: 12,
+                                                    color: plan.id === 'scale' ? '#c4b5fd' : '#93c5fd',
+                                                    fontWeight: feat.highlight ? 600 : 400
+                                                }}>{feat.text}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
 
                                 {/* CTA Button */}
                                 <motion.button
@@ -493,6 +589,102 @@ export default function Pricing() {
                         )
                     })}
                 </div>
+
+                {/* Expiration & Renewal explainer */}
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    style={{
+                        marginTop: 32,
+                        marginBottom: 0,
+                        padding: '24px 28px',
+                        borderRadius: 18,
+                        background: 'rgba(15, 23, 42, 0.7)',
+                        border: '1px solid rgba(148, 163, 184, 0.1)',
+                    }}
+                >
+                    <h4 style={{ fontSize: 15, fontWeight: 700, color: 'white', marginBottom: 20, textAlign: 'center' }}>
+                        ⚡ Ce qui se passe à l'expiration &amp; au renouvellement
+                    </h4>
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                        gap: 20
+                    }}>
+                        {/* Expiration column */}
+                        <div style={{
+                            padding: '16px',
+                            borderRadius: 12,
+                            background: 'rgba(239, 68, 68, 0.06)',
+                            border: '1px solid rgba(239, 68, 68, 0.15)'
+                        }}>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: '#f87171', marginBottom: 10 }}>
+                                📉 À l'expiration
+                            </div>
+                            {[
+                                'Plan réduit au Free automatiquement',
+                                'Crédits protégés (gelés) — non perdus immédiatement',
+                                'Agents excédentaires archivés (non supprimés)',
+                                'Seul 1 agent reste actif (limite Free)',
+                                'IA en pause si crédits épuisés',
+                            ].map((item, i) => (
+                                <div key={i} style={{ fontSize: 12, color: '#94a3b8', marginBottom: 6, display: 'flex', gap: 6 }}>
+                                    <span style={{ color: '#f87171', flexShrink: 0 }}>•</span>
+                                    {item}
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Renewal column */}
+                        <div style={{
+                            padding: '16px',
+                            borderRadius: 12,
+                            background: 'rgba(34, 197, 94, 0.06)',
+                            border: '1px solid rgba(34, 197, 94, 0.15)'
+                        }}>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: '#4ade80', marginBottom: 10 }}>
+                                🔄 À la souscription (dans les 90j)
+                            </div>
+                            {[
+                                'Crédits gelés réactivés automatiquement',
+                                'Anciens crédits + nouveaux crédits cumulés',
+                                'Plan restauré avec les quotas du plan choisi',
+                                'Agents archivés récupérables',
+                                'Si >90j sans renouvellement : crédits définitivement supprimés',
+                            ].map((item, i) => (
+                                <div key={i} style={{ fontSize: 12, color: '#94a3b8', marginBottom: 6, display: 'flex', gap: 6 }}>
+                                    <span style={{ color: '#4ade80', flexShrink: 0 }}>•</span>
+                                    {item}
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Scale advantages column */}
+                        <div style={{
+                            padding: '16px',
+                            borderRadius: 12,
+                            background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.08), rgba(167, 139, 250, 0.04))',
+                            border: '1px solid rgba(139, 92, 246, 0.25)'
+                        }}>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: '#a78bfa', marginBottom: 10 }}>
+                                ⭐ Avantages exclusifs Scale
+                            </div>
+                            {[
+                                'Rollover 20% des crédits non utilisés à chaque renouvellement',
+                                '+2 000 crédits bonus offerts chaque mois',
+                                'Crédits jamais gelés tant que Scale est actif',
+                                'Agents illimités — aucun archivage possible',
+                                'Notification de votre bonus de rollover après chaque renouvellement',
+                            ].map((item, i) => (
+                                <div key={i} style={{ fontSize: 12, color: '#94a3b8', marginBottom: 6, display: 'flex', gap: 6 }}>
+                                    <span style={{ color: '#a78bfa', flexShrink: 0 }}>•</span>
+                                    {item}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </motion.div>
 
                 {/* Enterprise CTA */}
                 <motion.div

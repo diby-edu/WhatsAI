@@ -1,7 +1,14 @@
+import { createApiClient, getAuthUser } from '@/lib/api-utils'
 import { NextRequest } from 'next/server'
 import { successResponse, createAdminClient } from '@/lib/api-utils'
 
 export async function GET(request: NextRequest) {
+    const supabaseSecClient = await createApiClient()
+    const { user: secUser, error: secAuthError } = await getAuthUser(supabaseSecClient)
+    if (secAuthError || secUser?.role !== 'admin') {
+        return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), { status: 403, headers: { 'Content-Type': 'application/json' } })
+    }
+
     const supabase = createAdminClient()
 
     const results: any = {

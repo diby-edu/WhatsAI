@@ -1,9 +1,16 @@
+import { createApiClient, getAuthUser } from '@/lib/api-utils'
 import { NextRequest } from 'next/server'
 import { successResponse, errorResponse } from '@/lib/api-utils'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { Redis } from '@upstash/redis'
 
 export async function GET(request: NextRequest) {
+    const supabaseSecClient = await createApiClient()
+    const { user: secUser, error: secAuthError } = await getAuthUser(supabaseSecClient)
+    if (secAuthError || secUser?.role !== 'admin') {
+        return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), { status: 403, headers: { 'Content-Type': 'application/json' } })
+    }
+
     try {
         const results: any = {
             message: 'Diagnostic Rate Limit (Redis)',

@@ -1,3 +1,4 @@
+import { createApiClient, getAuthUser } from '@/lib/api-utils'
 import { successResponse } from '@/lib/api-utils'
 
 const requiredEnvVars = [
@@ -15,6 +16,12 @@ const optionalEnvVars = [
 ]
 
 export async function GET() {
+    const supabaseSecClient = await createApiClient()
+    const { user: secUser, error: secAuthError } = await getAuthUser(supabaseSecClient)
+    if (secAuthError || secUser?.role !== 'admin') {
+        return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), { status: 403, headers: { 'Content-Type': 'application/json' } })
+    }
+
     const missing: string[] = []
     const configured: string[] = []
 

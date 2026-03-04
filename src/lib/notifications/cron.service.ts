@@ -166,13 +166,61 @@ async function checkExpiredSubscriptions(): Promise<void> {
                     .update({ status: 'expired' })
                     .eq('id', sub.id)
 
-                // 2. Downgrade profile to free (credits_balance unchanged — user keeps remaining credits)
+                // 2. Downgrade profile to free + freeze credits
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('credits_balance')
+                    .eq('id', sub.user_id)
+                    .single()
+
+                const currentBalance = Number(profile?.credits_balance) || 0
+                const freezeDate = new Date()
+                const expireDate = new Date(freezeDate.getTime() + 60 * 24 * 3600000)
+
                 await supabase
                     .from('profiles')
-                    .update({ plan: 'free' })
+                    .update({
+                        plan: 'free',
+                        credits_frozen_at: freezeDate.toISOString(),
+                        credits_expire_at: expireDate.toISOString(),
+                    })
                     .eq('id', sub.user_id)
 
-                console.log(`⏰ [CRON] Expired: user ${sub.user_id} (was: ${sub.plan}) → free`)
+                // Notify user: credits frozen
+                if (currentBalance > 0) {
+                    await notify(sub.user_id, 'credits_freeze_warning', {
+                        balance: currentBalance,
+                        creditExpireDate: expireDate.toLocaleDateString('fr-FR')
+                    })
+                }
+
+                // 3. Archive excess agents (free plan = 1 agent max)
+                const { data: userAgents } = await supabase
+                    .from('agents')
+                    .select('id')
+                    .eq('user_id', sub.user_id)
+                    .is('archived_at', null)
+                    .order('whatsapp_connected', { ascending: false })
+                    .order('updated_at', { ascending: false })
+
+                if (userAgents && userAgents.length > 1) {
+                    const toArchive = userAgents.slice(1).map((a: any) => a.id)
+                    await supabase
+                        .from('agents')
+                        .update({
+                            archived_at: freezeDate.toISOString(),
+                            archived_reason: 'subscription_expired',
+                            is_active: false
+                        })
+                        .in('id', toArchive)
+
+                    await notify(sub.user_id, 'agent_archived', {
+                        count: toArchive.length,
+                        deleteDate: expireDate.toLocaleDateString('fr-FR')
+                    })
+                }
+
+                console.log(`⏰ [CRON] Expired: user ${sub.user_id} (was: ${sub.plan}) → free | credits frozen until ${expireDate.toLocaleDateString('fr-FR')}`)
             } catch (subErr) {
                 console.error(`⏰ [CRON] Error processing expired sub for user ${sub.user_id}:`, subErr)
             }
@@ -416,6 +464,166 @@ export async function checkWhatsAppService(): Promise<void> {
 }
 
 /**
+ * Manage the lifecycle of archived agents:
+ * - Send a warning 30 days before auto-deletion (at day 60)
+ * - Auto-delete agents archived for 90+ days
+ */
+async function handleArchivedAgentLifecycle(): Promise<void> {
+    console.log('⏰ [CRON] Handling archived agent lifecycle...')
+    try {
+        const supabase = getAdminSupabase()
+        const now = new Date()
+
+        // Warning: archived between 59-61 days ago (notify once at the 60-day mark)
+        const day59 = new Date(now.getTime() - 59 * 24 * 3600000)
+        const day61 = new Date(now.getTime() - 61 * 24 * 3600000)
+        const { data: warningAgents } = await supabase
+            .from('agents')
+            .select('user_id, name')
+            .not('archived_at', 'is', null)
+            .lte('archived_at', day59.toISOString())
+            .gte('archived_at', day61.toISOString())
+
+        if (warningAgents && warningAgents.length > 0) {
+            // Group by user_id to send one notification per user
+            const userMap = new Map<string, string[]>()
+            for (const a of warningAgents) {
+                const list = userMap.get(a.user_id) || []
+                list.push(a.name)
+                userMap.set(a.user_id, list)
+            }
+            for (const [userId] of userMap) {
+                await notify(userId, 'agent_delete_warning', {})
+            }
+            console.log(`⏰ [CRON] Sent delete warnings for ${userMap.size} user(s)`)
+        }
+
+        // Auto-delete agents archived 90+ days ago
+        const day90 = new Date(now.getTime() - 90 * 24 * 3600000)
+        const { data: deleted, error } = await supabase
+            .from('agents')
+            .delete()
+            .not('archived_at', 'is', null)
+            .lte('archived_at', day90.toISOString())
+            .select('id')
+
+        if (!error && deleted && deleted.length > 0) {
+            console.log(`⏰ [CRON] Auto-deleted ${deleted.length} archived agent(s)`)
+        }
+    } catch (error) {
+        console.error('⏰ [CRON] Error in archived agent lifecycle:', error)
+    }
+}
+
+/**
+ * Handle credit expiry:
+ * - Send a warning 30 days before credits expire
+ * - Zero out credits that have passed their expiry date
+ */
+async function handleCreditExpiry(): Promise<void> {
+    console.log('⏰ [CRON] Handling credit expiry...')
+    try {
+        const supabase = getAdminSupabase()
+        const now = new Date()
+        const in30Days = new Date(now.getTime() + 30 * 24 * 3600000)
+        const in29Days = new Date(now.getTime() + 29 * 24 * 3600000)
+
+        // Warning: credits expire in ~30 days
+        const { data: warnUsers } = await supabase
+            .from('profiles')
+            .select('id, credits_balance, credits_expire_at')
+            .not('credits_expire_at', 'is', null)
+            .lte('credits_expire_at', in30Days.toISOString())
+            .gte('credits_expire_at', in29Days.toISOString())
+            .gt('credits_balance', 0)
+
+        for (const user of warnUsers || []) {
+            const expireDate = new Date(user.credits_expire_at).toLocaleDateString('fr-FR')
+            await notify(user.id, 'credits_freeze_warning', {
+                balance: user.credits_balance,
+                creditExpireDate: expireDate
+            })
+        }
+        if ((warnUsers || []).length > 0) {
+            console.log(`⏰ [CRON] Credit expiry warnings sent to ${warnUsers!.length} user(s)`)
+        }
+
+        // Expire credits past their expiry date
+        const { data: expired } = await supabase
+            .from('profiles')
+            .select('id, credits_balance')
+            .not('credits_expire_at', 'is', null)
+            .lt('credits_expire_at', now.toISOString())
+            .gt('credits_balance', 0)
+
+        for (const user of expired || []) {
+            await supabase
+                .from('profiles')
+                .update({ credits_balance: 0, credits_frozen_at: null, credits_expire_at: null })
+                .eq('id', user.id)
+            await notify(user.id, 'credits_expired', {})
+        }
+        if ((expired || []).length > 0) {
+            console.log(`⏰ [CRON] Credits expired for ${expired!.length} user(s)`)
+        }
+    } catch (error) {
+        console.error('⏰ [CRON] Error in credit expiry:', error)
+    }
+}
+
+/**
+ * Alert users who have consumed 85%+ of their monthly credits.
+ * Sends once per billing period (tracked via credits_high_usage_notified_at).
+ */
+async function checkHighCreditUsage(): Promise<void> {
+    console.log('⏰ [CRON] Checking high credit usage...')
+    try {
+        const supabase = getAdminSupabase()
+
+        // Get active subscriptions with credits_included
+        const { data: activeSubs } = await supabase
+            .from('subscriptions')
+            .select('user_id, credits_included, current_period_start')
+            .eq('status', 'active')
+            .gte('current_period_end', new Date().toISOString())
+
+        for (const sub of activeSubs || []) {
+            if (!sub.credits_included || sub.credits_included <= 0) continue
+
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('credits_used_this_month, credits_high_usage_notified_at, plan')
+                .eq('id', sub.user_id)
+                .single()
+
+            if (!profile) continue
+
+            const pct = Math.round((profile.credits_used_this_month / sub.credits_included) * 100)
+            if (pct < 85) continue
+
+            // Only send once per billing period
+            const alreadyNotified = profile.credits_high_usage_notified_at &&
+                new Date(profile.credits_high_usage_notified_at) >= new Date(sub.current_period_start)
+
+            if (alreadyNotified) continue
+
+            // Skip Scale plan (unlimited feel — no need to push upgrade)
+            if (profile.plan === 'scale') continue
+
+            await notify(sub.user_id, 'credit_usage_high', { usagePct: pct })
+            await supabase
+                .from('profiles')
+                .update({ credits_high_usage_notified_at: new Date().toISOString() })
+                .eq('id', sub.user_id)
+
+            console.log(`⏰ [CRON] 85% alert sent to user ${sub.user_id} (${pct}%)`)
+        }
+    } catch (error) {
+        console.error('⏰ [CRON] Error in high credit usage check:', error)
+    }
+}
+
+/**
  * Initialize all cron jobs.
  * Should be called once at app startup.
  * Safe to call multiple times (idempotent).
@@ -432,11 +640,20 @@ export function initCronJobs(): void {
         return
     }
 
-    // Schedule: every day at 8:00 AM UTC (= 8:00 AM in Abidjan / UTC+0)
+    // Schedule: every day at 8:00 AM UTC
     cron.schedule('0 8 * * *', () => {
         checkExpiringSubscriptions()
         checkExpiredSubscriptions()
         sendDailySummary()
+    }, {
+        timezone: 'UTC'
+    })
+
+    // Daily at 9:00 AM UTC — agent archive lifecycle + credit expiry + 85% usage alert
+    cron.schedule('0 9 * * *', () => {
+        handleArchivedAgentLifecycle()
+        handleCreditExpiry()
+        checkHighCreditUsage()
     }, {
         timezone: 'UTC'
     })
@@ -453,4 +670,4 @@ export function initCronJobs(): void {
 }
 
 // Also export the check functions for manual testing
-export { checkExpiringSubscriptions, checkExpiredSubscriptions, sendDailySummary }
+export { checkExpiringSubscriptions, checkExpiredSubscriptions, sendDailySummary, handleArchivedAgentLifecycle, handleCreditExpiry, checkHighCreditUsage }

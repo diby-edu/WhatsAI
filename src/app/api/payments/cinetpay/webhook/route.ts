@@ -102,10 +102,15 @@ export async function POST(request: NextRequest) {
             return new Response('Missing cpm_trans_id', { status: 400 })
         }
 
-        // SECURITY: Verify HMAC signature from x-token header (optional — CinetPay may not send it)
+        // SECURITY: Verify HMAC signature from x-token header (Strict Fail-Closed)
         const xToken = request.headers.get('x-token')
 
-        if (xToken && process.env.CINETPAY_SECRET_KEY) {
+        if (!xToken) {
+            console.warn(`[Webhook] Missing x-token header from ${request.headers.get('x-forwarded-for') || 'unknown IP'} — rejecting`)
+            return new Response('Missing x-token header', { status: 401 })
+        }
+
+        if (process.env.CINETPAY_SECRET_KEY) {
             // Official CinetPay HMAC format: concatenate all 16 fields
             const signaturePayload = cpm_site_id + cpm_trans_id + cpm_trans_date + cpm_amount +
                 cpm_currency + signature + payment_method + cel_phone_num + cpm_phone_prefixe +
@@ -117,8 +122,6 @@ export async function POST(request: NextRequest) {
                 return new Response('Invalid signature', { status: 403 })
             }
         }
-        // If x-token is absent, allow through — CinetPay does not always send this header
-        // Security relies on cpm_site_id check below + double-verification via CinetPay API
 
         // Verify site_id matches our configuration
         if (cpm_site_id && cpm_site_id !== process.env.CINETPAY_SITE_ID) {
@@ -259,7 +262,7 @@ export async function POST(request: NextRequest) {
                                             .single()
 
                                         // Default phone if missing on profile
-                                        const merchantPhone = profile?.phone || '+2250554585927'
+                                        const merchantPhone = profile?.phone
 
                                         const itemsList = await getSupabase()
                                             .from('order_items')

@@ -75,6 +75,9 @@ function BillingContent() {
     const [isLoading, setIsLoading] = useState<string | null>(null)
     const [userData, setUserData] = useState<UserData | null>(null)
     const [subscriptionEnd, setSubscriptionEnd] = useState<string | null>(null)
+    const [creditsIncluded, setCreditsIncluded] = useState<number>(0)
+    const [creditsFrozenAt, setCreditsFrozenAt] = useState<string | null>(null)
+    const [creditsExpireAt, setCreditsExpireAt] = useState<string | null>(null)
     const [payments, setPayments] = useState<Payment[]>([])
     const [plans, setPlans] = useState<Plan[]>([])
     const [creditPacks, setCreditPacks] = useState<CreditPack[]>([])
@@ -174,12 +177,21 @@ function BillingContent() {
             if (user) {
                 const { data: sub } = await supabase
                     .from('subscriptions')
-                    .select('current_period_end')
+                    .select('current_period_end, credits_included')
                     .eq('user_id', user.id)
                     .eq('status', 'active')
                     .gte('current_period_end', new Date().toISOString())
                     .maybeSingle()
                 setSubscriptionEnd(sub?.current_period_end || null)
+                setCreditsIncluded(sub?.credits_included || 0)
+
+                const { data: profileExtra } = await supabase
+                    .from('profiles')
+                    .select('credits_frozen_at, credits_expire_at')
+                    .eq('id', user.id)
+                    .single()
+                setCreditsFrozenAt(profileExtra?.credits_frozen_at || null)
+                setCreditsExpireAt(profileExtra?.credits_expire_at || null)
             }
         } catch (err) {
             console.error('Error fetching data:', err)
@@ -306,6 +318,9 @@ function BillingContent() {
     const creditsBalance = userData?.credits_balance || 0
     const creditsUsed = userData?.credits_used_this_month || 0
     const currentPlan = userData?.plan || 'free'
+    const usagePct = creditsIncluded > 0 ? Math.min(Math.round((creditsUsed / creditsIncluded) * 100), 100) : 0
+    const progressColor = usagePct >= 85 ? '#ef4444' : usagePct >= 75 ? '#f59e0b' : '#34d399'
+    const isScalePlan = currentPlan === 'scale'
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -347,6 +362,35 @@ function BillingContent() {
                             </div>
                         </>
                     )}
+                </motion.div>
+            )}
+
+            {/* Frozen credits banner */}
+            {creditsFrozenAt && (
+                <motion.div
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    style={{
+                        padding: '14px 18px',
+                        borderRadius: 12,
+                        background: 'rgba(245, 158, 11, 0.08)',
+                        border: '1px solid rgba(245, 158, 11, 0.3)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 12
+                    }}
+                >
+                    <AlertCircle style={{ width: 20, height: 20, color: '#f59e0b', flexShrink: 0 }} />
+                    <div>
+                        <div style={{ fontWeight: 600, color: '#f59e0b', fontSize: 14 }}>
+                            ❄️ Crédits gelés
+                        </div>
+                        <div style={{ fontSize: 12, color: 'rgba(245, 158, 11, 0.8)', marginTop: 2 }}>
+                            Vos {creditsBalance.toLocaleString()} crédits sont sécurisés
+                            {creditsExpireAt && ` jusqu'au ${new Date(creditsExpireAt).toLocaleDateString('fr-FR')}`}.
+                            Renouvelez votre abonnement pour les réactiver.
+                        </div>
+                    </div>
                 </motion.div>
             )}
 
@@ -426,6 +470,81 @@ function BillingContent() {
                     </div>
                 </motion.div>
             </div>
+
+            {/* Credit usage progress bar */}
+            {creditsIncluded > 0 && !creditsFrozenAt && (
+                <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    style={{
+                        padding: '16px 20px',
+                        borderRadius: 14,
+                        background: 'rgba(15, 23, 42, 0.6)',
+                        border: '1px solid rgba(148, 163, 184, 0.1)'
+                    }}
+                >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                        <span style={{ fontSize: 13, color: '#94a3b8' }}>Utilisation ce mois</span>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: progressColor }}>
+                            {creditsUsed.toLocaleString()} / {creditsIncluded.toLocaleString()} crédits ({usagePct}%)
+                        </span>
+                    </div>
+                    <div style={{ height: 8, borderRadius: 4, background: 'rgba(148, 163, 184, 0.15)', overflow: 'hidden' }}>
+                        <div style={{
+                            height: '100%',
+                            width: `${usagePct}%`,
+                            borderRadius: 4,
+                            background: progressColor,
+                            transition: 'width 0.5s ease'
+                        }} />
+                    </div>
+                    {usagePct >= 85 && !isScalePlan && (
+                        <div style={{ marginTop: 10, fontSize: 12, color: '#ef4444', display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <AlertCircle style={{ width: 14, height: 14 }} />
+                            85% atteint — <a href="/dashboard/billing" style={{ color: '#ef4444', textDecoration: 'underline' }}>Passez au plan supérieur</a>
+                        </div>
+                    )}
+                </motion.div>
+            )}
+
+            {/* Scale plan advantages */}
+            {isScalePlan && subscriptionEnd && (
+                <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    style={{
+                        padding: '20px',
+                        borderRadius: 14,
+                        background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(217, 119, 6, 0.05))',
+                        border: '1px solid rgba(245, 158, 11, 0.25)'
+                    }}
+                >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                        <Crown style={{ width: 20, height: 20, color: '#f59e0b' }} />
+                        <span style={{ fontSize: 15, fontWeight: 700, color: '#f59e0b' }}>Avantages Scale</span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <Sparkles style={{ width: 16, height: 16, color: '#fbbf24', flexShrink: 0 }} />
+                            <span style={{ fontSize: 13, color: '#cbd5e1' }}>
+                                <strong style={{ color: 'white' }}>Rollover 20%</strong> — crédits non utilisés reportés au prochain cycle
+                            </span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <Zap style={{ width: 16, height: 16, color: '#fbbf24', flexShrink: 0 }} />
+                            <span style={{ fontSize: 13, color: '#cbd5e1' }}>
+                                <strong style={{ color: 'white' }}>+2 000 crédits bonus</strong> automatiques à chaque renouvellement
+                            </span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <Calendar style={{ width: 16, height: 16, color: '#fbbf24', flexShrink: 0 }} />
+                            <span style={{ fontSize: 13, color: '#cbd5e1' }}>
+                                Prochain renouvellement le <strong style={{ color: 'white' }}>{new Date(subscriptionEnd).toLocaleDateString('fr-FR')}</strong>
+                            </span>
+                        </div>
+                    </div>
+                </motion.div>
+            )}
 
             {/* Low credits warning */}
             {creditsBalance < 50 && (
