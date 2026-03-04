@@ -142,22 +142,22 @@ function BillingContent() {
             } else {
                 // Fallback Boost packs (prices in FCFA)
                 setCreditPacks([
-                    { id: 'boost_mini', credits: 200,   price: 3000,   savings: 0 },
-                    { id: 'boost_s',    credits: 500,   price: 7000,   savings: 7 },
-                    { id: 'boost_m',    credits: 2000,  price: 25000,  savings: 17 },
-                    { id: 'boost_l',    credits: 5000,  price: 55000,  savings: 27 },
-                    { id: 'boost_xl',   credits: 12000, price: 110000, savings: 39 },
+                    { id: 'boost_mini', credits: 200, price: 3000, savings: 0 },
+                    { id: 'boost_s', credits: 500, price: 7000, savings: 7 },
+                    { id: 'boost_m', credits: 2000, price: 25000, savings: 17 },
+                    { id: 'boost_l', credits: 5000, price: 55000, savings: 27 },
+                    { id: 'boost_xl', credits: 12000, price: 110000, savings: 39 },
                 ])
             }
         } catch (err) {
             console.error('Error fetching credit packs:', err)
             // Fallback Boost packs (prices in FCFA)
             setCreditPacks([
-                { id: 'boost_mini', credits: 200,   price: 3000,   savings: 0 },
-                { id: 'boost_s',    credits: 500,   price: 7000,   savings: 7 },
-                { id: 'boost_m',    credits: 2000,  price: 25000,  savings: 17 },
-                { id: 'boost_l',    credits: 5000,  price: 55000,  savings: 27 },
-                { id: 'boost_xl',   credits: 12000, price: 110000, savings: 39 },
+                { id: 'boost_mini', credits: 200, price: 3000, savings: 0 },
+                { id: 'boost_s', credits: 500, price: 7000, savings: 7 },
+                { id: 'boost_m', credits: 2000, price: 25000, savings: 17 },
+                { id: 'boost_l', credits: 5000, price: 55000, savings: 27 },
+                { id: 'boost_xl', credits: 12000, price: 110000, savings: 39 },
             ])
         }
     }
@@ -383,7 +383,7 @@ function BillingContent() {
                     <AlertCircle style={{ width: 20, height: 20, color: '#f59e0b', flexShrink: 0 }} />
                     <div>
                         <div style={{ fontWeight: 600, color: '#f59e0b', fontSize: 14 }}>
-                            ❄️ Crédits gelés
+                            🛡️ Crédits sécurisés (Sursis)
                         </div>
                         <div style={{ fontSize: 12, color: 'rgba(245, 158, 11, 0.8)', marginTop: 2 }}>
                             Vos {creditsBalance.toLocaleString()} crédits sont sécurisés
