@@ -33,6 +33,9 @@ export async function GET(request: NextRequest) {
         case '7d':
             startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
             break
+        case '14d':
+            startDate = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000)
+            break
         case '90d':
             startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
             break

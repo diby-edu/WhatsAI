@@ -893,7 +893,7 @@ export default function AdminSettingsPage() {
 
                         <SettingRow
                             label="Purger les logs"
-                            description="Supprime tous les logs de plus de 30 jours"
+                            description="Supprime tous les logs de plus de 14 jours"
                         >
                             <button style={{
                                 padding: '10px 16px',

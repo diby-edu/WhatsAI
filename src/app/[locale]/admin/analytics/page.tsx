@@ -12,7 +12,7 @@ import {
 } from 'recharts'
 import { CardSkeleton, ChartSkeleton } from '@/components/admin/AdminSkeletons'
 
-type PeriodType = '7d' | '30d' | '90d' | '12m'
+type PeriodType = '7d' | '14d' | '30d' | '90d' | '12m'
 
 export default function AdminAnalyticsPage() {
     const [data, setData] = useState<any>(null)
@@ -40,6 +40,7 @@ export default function AdminAnalyticsPage() {
 
     const periodLabels: Record<PeriodType, string> = {
         '7d': '7 jours',
+        '14d': '14 jours',
         '30d': '30 jours',
         '90d': '90 jours',
         '12m': '12 mois'
