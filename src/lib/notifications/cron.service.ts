@@ -528,7 +528,7 @@ async function handleCreditExpiry(): Promise<void> {
         const in7Days = new Date(now.getTime() + 7 * 24 * 3600000)
         const in6Days = new Date(now.getTime() + 6 * 24 * 3600000)
 
-        // Warning: credits expire in ~30 days
+        // Warning: credits expire in ~7 days
         const { data: warnUsers } = await supabase
             .from('profiles')
             .select('id, credits_balance, credits_expire_at')
