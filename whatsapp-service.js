@@ -1,3 +1,6 @@
+// Configuration from environment (MUST BE FIRST)
+require('dotenv').config({ path: '.env.local' })
+
 // ═══════════════════════════════════════════════════════════
 // 🚨 GESTIONNAIRES D'ERREURS GLOBAUX (DÉBUG VPS)
 // ═══════════════════════════════════════════════════════════
@@ -23,8 +26,6 @@ const { initSession } = require('./src/lib/whatsapp/handlers/session')
 const { checkPendingPayments, cancelExpiredOrders, requestFeedback } = require('./src/lib/whatsapp/cron/jobs')
 const { checkPendingHistoryMessages, checkOutboundMessages } = require('./src/lib/whatsapp/cron/outgoing')
 const { setupRealtimeListeners, cleanupRealtimeListeners } = require('./src/lib/whatsapp/realtime/listeners')
-// Configuration from environment
-require('dotenv').config({ path: '.env.local' })
 
 // Configuration des logs
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' })
