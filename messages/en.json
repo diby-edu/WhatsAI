@@ -193,7 +193,7 @@
             },
             "credits": {
                 "question": "How does the credit system work?",
-                "answer": "1 credit = 1 message sent by AI. Incoming messages do not consume credits. Your credits renew every month depending on your plan.",
+                "answer": "1 credit = 1 message sent by AI. When your plan expires, your remaining credits are frozen and protected for 14 days. If you don't renew within this period, they will be permanently deleted.",
                 "category": "Billing"
             },
             "multiNumber": {
@@ -213,8 +213,13 @@
             },
             "cancel": {
                 "question": "Can I cancel anytime?",
-                "answer": "Yes, no commitment! Cancel your subscription anytime from your dashboard. Your remaining credits are usable until the end of the period.",
+                "answer": "Yes, no commitment! Cancel your subscription anytime from your dashboard. Upon expiry, your credits are frozen and your agents are archived for 14 days before permanent deletion.",
                 "category": "Billing"
+            },
+            "retention": {
+                "question": "What happens after 14 days of inactivity?",
+                "answer": "To keep our database clean, we permanently delete frozen credits and archived agents after 14 days without an active subscription. An alert is sent 7 days before this deadline.",
+                "category": "Account"
             }
         }
     },
