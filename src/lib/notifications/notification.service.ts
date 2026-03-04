@@ -198,7 +198,7 @@ function getPushContent(type: NotificationType, data: NotificationData): PushNot
             }
         case 'credits_freeze_warning':
             return {
-                title: '❄️ Crédits gelés',
+                title: '🛡️ Crédits sécurisés',
                 body: `Vos ${data.balance} crédits sont sécurisés jusqu'au ${data.creditExpireDate}. Renouvelez pour les réactiver.`,
                 data: { type: 'credits_freeze_warning', route: '/dashboard/billing' }
             }

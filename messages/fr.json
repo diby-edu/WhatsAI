@@ -193,7 +193,7 @@
       },
       "credits": {
         "question": "Comment fonctionne le système de crédits ?",
-        "answer": "1 crédit = 1 message envoyé par l'IA. À l'expiration de votre forfait, vos crédits restants sont gelés et protégés pendant 14 jours. Si vous ne renouvelez pas dans ce délai, ils seront définitivement supprimés.",
+        "answer": "1 crédit = 1 message envoyé par l'IA. À l'expiration de votre forfait, vos crédits restants sont sécurisés et utilisables pendant 14 jours. Si vous ne renouvelez pas dans ce délai, ils seront définitivement supprimés.",
         "category": "Facturation"
       },
       "multiNumber": {
@@ -213,12 +213,12 @@
       },
       "cancel": {
         "question": "Puis-je annuler à tout moment ?",
-        "answer": "Oui, sans engagement ! Annulez votre abonnement à tout moment depuis votre tableau de bord. À l'expiration, vos crédits sont gelés et vos agents archivés pendant 14 jours avant suppression définitive.",
+        "answer": "Oui, sans engagement ! Annulez votre abonnement à tout moment depuis votre tableau de bord. À l'expiration, vos crédits restent sécurisés et vos agents archivés pendant 14 jours avant suppression définitive.",
         "category": "Facturation"
       },
       "retention": {
         "question": "Que se passe-t-il après 14 jours d'inactivité ?",
-        "answer": "Pour garder une base de données propre, nous supprimons définitivement les crédits gelés et les agents archivés après 14 jours sans abonnement actif. Une alerte vous est envoyée 7 jours avant cette échéance.",
+        "answer": "Pour garder une base de données propre, nous supprimons définitivement les crédits sécurisés et les agents archivés après 14 jours sans abonnement actif. Une alerte vous est envoyée 7 jours avant cette échéance.",
         "category": "Compte"
       }
     }

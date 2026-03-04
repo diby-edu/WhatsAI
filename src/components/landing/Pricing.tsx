@@ -60,7 +60,7 @@ const PLAN_SPECIFIC_FEATURES: Record<string, { text: string; highlight?: boolean
     scale: [
         { text: 'Rollover 20% des crédits non utilisés à chaque renouvellement', highlight: true },
         { text: '+2 000 crédits bonus offerts à chaque renouvellement', highlight: true },
-        { text: 'Crédits jamais gelés ni supprimés (Scale actif)', highlight: true },
+        { text: 'Crédits sécurisés et reportés (Scale actif)', highlight: true },
         { text: 'Agents illimités — aucun archivage possible', highlight: true },
         { text: 'Notification détaillée de votre bonus après chaque renouvellement', highlight: false },
     ],
@@ -624,7 +624,7 @@ export default function Pricing() {
                             </div>
                             {[
                                 'Plan réduit au Free automatiquement',
-                                'Crédits protégés (gelés) — non perdus immédiatement',
+                                'Crédits sécurisés (en sursis) — utilisables pendant 14j',
                                 'Agents excédentaires archivés (non supprimés)',
                                 'Seul 1 agent reste actif (limite Free)',
                                 'IA en pause si crédits épuisés',
@@ -647,7 +647,7 @@ export default function Pricing() {
                                 🔄 À la souscription (dans les 14j)
                             </div>
                             {[
-                                'Crédits gelés réactivés automatiquement',
+                                'Crédits sécurisés réactivés pleinement',
                                 'Anciens crédits + nouveaux crédits cumulés',
                                 'Plan restauré avec les quotas du plan choisi',
                                 'Agents archivés récupérables',
@@ -673,7 +673,7 @@ export default function Pricing() {
                             {[
                                 'Rollover 20% des crédits non utilisés à chaque renouvellement',
                                 '+2 000 crédits bonus offerts chaque mois',
-                                'Crédits jamais gelés tant que Scale est actif',
+                                'Crédits toujours sécurisés tant que Scale est actif',
                                 'Agents illimités — aucun archivage possible',
                                 'Notification de votre bonus de rollover après chaque renouvellement',
                             ].map((item, i) => (
