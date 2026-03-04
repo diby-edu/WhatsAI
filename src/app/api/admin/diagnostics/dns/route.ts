@@ -1,6 +1,6 @@
-import { createApiClient, getAuthUser } from '@/lib/api-utils'
+import { createApiClient, getAuthUser, successResponse } from '@/lib/api-utils'
 import { NextRequest } from 'next/server'
-import { successResponse } from '@/lib/api-utils'
+
 import dns from 'dns'
 import { promisify } from 'util'
 
