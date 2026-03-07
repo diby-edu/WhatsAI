@@ -21,6 +21,7 @@ export default function Footer() {
             { label: t('links.features'), href: '#features' },
             { label: t('links.pricing'), href: '#pricing' },
             { label: t('links.faq'), href: '#faq' },
+            { label: '💬 ' + t('links.community'), href: 'https://chat.whatsapp.com/E7vbXhqS0o5D4Wn2lrdDGi', external: true },
         ],
         company: [
             { label: t('links.about'), href: '/about' },
@@ -117,14 +118,25 @@ export default function Footer() {
                         <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                             {footerLinks.product.map((link) => (
                                 <li key={link.href} style={{ marginBottom: 10 }}>
-                                    <Link href={link.href} style={{
-                                        color: '#64748b',
-                                        textDecoration: 'none',
-                                        fontSize: 14,
-                                        transition: 'color 0.2s'
-                                    }}>
-                                        {link.label}
-                                    </Link>
+                                    {'external' in link && link.external ? (
+                                        <a href={link.href} target="_blank" rel="noopener noreferrer" style={{
+                                            color: '#25D366',
+                                            textDecoration: 'none',
+                                            fontSize: 14,
+                                            transition: 'color 0.2s'
+                                        }}>
+                                            {link.label}
+                                        </a>
+                                    ) : (
+                                        <Link href={link.href} style={{
+                                            color: '#64748b',
+                                            textDecoration: 'none',
+                                            fontSize: 14,
+                                            transition: 'color 0.2s'
+                                        }}>
+                                            {link.label}
+                                        </Link>
+                                    )}
                                 </li>
                             ))}
                         </ul>

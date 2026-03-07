@@ -11,7 +11,9 @@ export default function Problem() {
         { key: 'unanswered' },
         { key: 'lateReplies' },
         { key: 'tooMany' },
-        { key: 'lostClients' }
+        { key: 'lostClients' },
+        { key: 'managementStress' },
+        { key: 'missedOpportunities' },
     ]
 
     return (

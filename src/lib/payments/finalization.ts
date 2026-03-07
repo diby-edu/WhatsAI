@@ -316,13 +316,14 @@ export async function finalizePaymentRecord(
             let bonusAmount = 0
 
             if (plan.id === 'scale') {
+                // Scale : rollover 20% sur les crédits récupérés + bonus 2000
                 rolloverAmount = Math.floor(currentBalance * 0.20)
                 bonusAmount = 2000
                 newCreditsBalance = currentBalance + rolloverAmount + plan.credits_included + bonusAmount
-            } else if (existingSub && !isCreditExpired) {
-                newCreditsBalance = currentBalance + plan.credits_included
             } else {
-                newCreditsBalance = plan.credits_included
+                // Tous les autres plans : anciens crédits (si non expirés) + nouveaux crédits
+                // currentBalance est déjà 0 si isCreditExpired = true
+                newCreditsBalance = currentBalance + plan.credits_included
             }
 
             await adminSupabase
@@ -336,6 +337,31 @@ export async function finalizePaymentRecord(
                     credits_high_usage_notified_at: null,
                 })
                 .eq('id', payment.user_id)
+
+            // Réactiver les agents désactivés selon la limite du nouveau plan
+            const planAgentLimits: Record<string, number> = {
+                free: 1, starter: 1, pro: 3, business: 6, scale: -1
+            }
+            const agentLimit = planAgentLimits[plan.id] ?? 1
+
+            const { data: deactivatedAgents } = await adminSupabase
+                .from('agents')
+                .select('id')
+                .eq('user_id', payment.user_id)
+                .not('archived_at', 'is', null)
+                .order('whatsapp_connected', { ascending: false })
+                .order('updated_at', { ascending: false })
+
+            if (deactivatedAgents && deactivatedAgents.length > 0) {
+                const toReactivate = agentLimit === -1
+                    ? deactivatedAgents
+                    : deactivatedAgents.slice(0, agentLimit)
+
+                await adminSupabase
+                    .from('agents')
+                    .update({ is_active: true, archived_at: null, archived_reason: null })
+                    .in('id', toReactivate.map((a: any) => a.id))
+            }
 
             // Notify Scale users of their rollover bonus
             if (plan.id === 'scale' && rolloverAmount > 0) {

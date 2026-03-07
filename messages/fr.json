@@ -105,11 +105,14 @@
     "title": "Combien de ventes perdez-vous sur <green>WhatsApp</green> ?",
     "description": "Chaque jour, des entreprises perdent des clients simplement parce qu'elles ne peuvent pas répondre à tous les messages.",
     "situations": "Les clients écrivent à toute heure : pendant que vous travaillez, pendant que vous êtes occupé, ou même pendant que vous dormez.",
+    "badge": "ALERTE PERTES",
     "items": {
       "unanswered": "Messages non répondus",
       "lateReplies": "Réponses tardives",
       "tooMany": "Conversations impossibles à gérer",
-      "lostClients": "Clients qui partent acheter ailleurs"
+      "lostClients": "Clients qui partent acheter ailleurs",
+      "managementStress": "Stress lié à la gestion manuelle",
+      "missedOpportunities": "Opportunités de croissance manquées"
     },
     "conclusion": "Chaque message ignoré peut être une vente perdue."
   },
@@ -270,7 +273,7 @@
         "name": "Gratuit",
         "description": "Pour découvrir",
         "features": [
-          "100 crédits offerts",
+          "50 crédits offerts",
           "1 agent IA",
           "1 numéro WhatsApp",
           "Support communauté"
@@ -330,17 +333,17 @@
       },
       "freeTest": {
         "question": "Puis-je tester gratuitement ?",
-        "answer": "Absolument ! Créez un compte et recevez 100 crédits gratuits pour tester toutes les fonctionnalités. Aucune carte de crédit requise. Passez à un plan payant quand vous êtes prêt.",
+        "answer": "Absolument ! Créez un compte et recevez 50 crédits gratuits pour tester toutes les fonctionnalités. Aucune carte de crédit requise. Passez à un plan payant quand vous êtes prêt.",
         "category": "Général"
       },
       "credits": {
         "question": "Comment fonctionne le système de crédits ?",
-        "answer": "1 crédit = 1 message envoyé par l'IA. À l'expiration de votre forfait, vos crédits restants sont sécurisés et utilisables pendant 14 jours. Si vous ne renouvelez pas dans ce délai, ils seront définitivement supprimés.",
+        "answer": "1 crédit = 1 message envoyé par l'IA. À l'expiration de votre forfait, vos crédits restants sont gelés et protégés pendant 7 jours. Si vous renouvelez dans ce délai, ils sont restaurés et cumulés avec les nouveaux crédits. Passé 7 jours sans renouvellement, ils sont définitivement supprimés.",
         "category": "Facturation"
       },
       "multiNumber": {
         "question": "Puis-je utiliser plusieurs numéros WhatsApp ?",
-        "answer": "Oui ! Le nombre de numéros dépend de votre forfait. Starter : 1, Pro : 2, Business : 4. Chaque numéro peut avoir son propre agent IA avec des instructions différentes.",
+        "answer": "Oui ! Le nombre de numéros dépend de votre forfait. Starter : 1, Pro : 3, Business : 6, Scale : illimité. Chaque numéro peut avoir son propre agent IA avec des instructions différentes.",
         "category": "Fonctionnalités"
       },
       "appointments": {
@@ -355,12 +358,12 @@
       },
       "cancel": {
         "question": "Puis-je annuler à tout moment ?",
-        "answer": "Oui, sans engagement ! Annulez votre abonnement à tout moment depuis votre tableau de bord. À l'expiration, vos crédits restent sécurisés et vos agents archivés pendant 14 jours avant suppression définitive.",
+        "answer": "Oui, sans engagement ! Annulez votre abonnement à tout moment depuis votre tableau de bord. À l'expiration, vos crédits sont gelés et vos agents désactivés pendant 7 jours. Renouvelez dans ce délai pour tout récupérer.",
         "category": "Facturation"
       },
       "retention": {
-        "question": "Que se passe-t-il après 14 jours d'inactivité ?",
-        "answer": "Pour garder une base de données propre, nous supprimons définitivement les crédits sécurisés et les agents archivés après 14 jours sans abonnement actif. Une alerte vous est envoyée 7 jours avant cette échéance.",
+        "question": "Que se passe-t-il après 7 jours sans renouvellement ?",
+        "answer": "Après 7 jours sans abonnement actif, vos crédits gelés sont définitivement supprimés et vos agents désactivés sont effacés. Une alerte vous est envoyée à J+4 (3 jours avant) pour vous laisser le temps de réagir.",
         "category": "Compte"
       },
       "whatsappBusiness": {
@@ -403,7 +406,8 @@
       "templates": "Templates",
       "privacy": "Confidentialité",
       "terms": "Conditions",
-      "gdpr": "RGPD"
+      "gdpr": "RGPD",
+      "community": "Communauté WhatsApp"
     },
     "rights": "© 2025 WazzapAI. Tous droits réservés."
   },

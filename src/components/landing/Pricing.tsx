@@ -40,22 +40,22 @@ const PLAN_SPECIFIC_FEATURES: Record<string, { text: string; highlight?: boolean
     starter: [
         { text: 'À l\'expiration : crédits protégés (non perdus)' },
         { text: 'Au renouvellement : anciens + nouveaux crédits cumulés' },
-        { text: '1 agent préservé, les autres archivés 14j' },
-        { text: 'Sans renouvellement après 14j : crédits supprimés' },
+        { text: '1 agent réactivé, les autres désactivés 7j' },
+        { text: 'Sans renouvellement après 7j : crédits supprimés' },
     ],
     pro: [
         { text: 'À l\'expiration : crédits protégés (non perdus)' },
         { text: 'Au renouvellement : anciens + nouveaux crédits cumulés' },
-        { text: 'Agents excédentaires archivés 14j (récupérables)' },
+        { text: 'Agents excédentaires désactivés 7j (récupérables)' },
         { text: 'Alerte à 85% de consommation mensuelle' },
-        { text: 'Sans renouvellement après 14j : crédits supprimés' },
+        { text: 'Sans renouvellement après 7j : crédits supprimés' },
     ],
     business: [
         { text: 'À l\'expiration : crédits protégés (non perdus)' },
         { text: 'Au renouvellement : anciens + nouveaux crédits cumulés' },
-        { text: 'Agents excédentaires archivés 14j (récupérables)' },
+        { text: 'Agents excédentaires désactivés 7j (récupérables)' },
         { text: 'Alerte à 85% de consommation mensuelle' },
-        { text: 'Sans renouvellement après 14j : crédits supprimés' },
+        { text: 'Sans renouvellement après 7j : crédits supprimés' },
     ],
     scale: [
         { text: 'Rollover 20% des crédits non utilisés à chaque renouvellement', highlight: true },
@@ -444,7 +444,7 @@ export default function Pricing() {
                                         </div>
                                         {plan.id !== 'free' && (
                                             <div style={{ fontSize: 9, color: plan.id === 'scale' ? '#a78bfa' : '#64748b', marginTop: 2 }}>
-                                                {plan.id === 'scale' ? 'Rollover 20%' : 'Protégés 14j/expir.'}
+                                                {plan.id === 'scale' ? 'Rollover 20%' : 'Protégés 7j/expir.'}
                                             </div>
                                         )}
                                     </div>
@@ -639,7 +639,7 @@ export default function Pricing() {
                             </div>
                             {[
                                 'Plan réduit au Free automatiquement',
-                                'Crédits sécurisés (en sursis) — utilisables pendant 14j',
+                                'Crédits gelés (protégés) — non perdus immédiatement',
                                 'Agents excédentaires archivés (non supprimés)',
                                 'Seul 1 agent reste actif (limite Free)',
                                 'IA en pause si crédits épuisés',
@@ -659,14 +659,14 @@ export default function Pricing() {
                             border: '1px solid rgba(34, 197, 94, 0.15)'
                         }}>
                             <div style={{ fontSize: 13, fontWeight: 700, color: '#4ade80', marginBottom: 10 }}>
-                                🔄 À la souscription (dans les 14j)
+                                🔄 À la souscription (dans les 7j)
                             </div>
                             {[
                                 'Crédits sécurisés réactivés pleinement',
                                 'Anciens crédits + nouveaux crédits cumulés',
                                 'Plan restauré avec les quotas du plan choisi',
                                 'Agents archivés récupérables',
-                                'Si >14j sans renouvellement : crédits définitivement supprimés',
+                                'Si >7j sans renouvellement : crédits définitivement supprimés',
                             ].map((item, i) => (
                                 <div key={i} style={{ fontSize: 12, color: '#94a3b8', marginBottom: 6, display: 'flex', gap: 6 }}>
                                     <span style={{ color: '#4ade80', flexShrink: 0 }}>•</span>
