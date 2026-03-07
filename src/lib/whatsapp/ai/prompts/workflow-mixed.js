@@ -4,7 +4,7 @@
  * Exclut les services (gérés par engines dédiés).
  */
 function buildMixedWorkflow(orders) {
-  return `
+    return `
 📋 FLUX DE COMMANDE MIXTE (📦 PHYSIQUE + 💻 NUMÉRIQUE):
 
 ⚠️ CE FLUX GÈRE DEUX TYPES DE PRODUITS EN MÊME TEMPS.
@@ -72,7 +72,7 @@ function buildMixedWorkflow(orders) {
     📦 EXEMPLE PHYSIQUE SEUL (T-Shirt) :
     "*T-Shirt* :
     - Rouge 2 X 15,000 = 30,000 FCFA
-    Sous-total = 30,000 FCFA
+    Sous-Total = 30,000 FCFA
 
     📍 Livraison à : Abidjan, Cocody
     💰 Total : 30.000 FCFA

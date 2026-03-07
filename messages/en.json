@@ -19,24 +19,24 @@
     },
     "Hero": {
         "poweredBy": "Powered by AI",
-        "title": "Transform your <green>WhatsApp</green> into a<br></br><gold>sales machine</gold>",
-        "subtitle": "Our AI replies to your customers <white>24/7</white>, qualifies leads and <green>increases conversions by 300%</green>.",
+        "title": "Stop losing customers on <green>WhatsApp</green>",
+        "subtitle": "WazzapAI automatically replies to your customers <white>24/7</white>, qualifies your prospects and <green>helps you sell more</green> — even while you sleep.",
         "pills": {
             "response": "Response < 3 sec",
             "available": "Available 24/7",
             "noCard": "No credit card required"
         },
         "cta": {
-            "trial": "Start Free Trial",
-            "pricing": "See Pricing"
+            "trial": "Start for free",
+            "pricing": "See how it works"
         },
         "stats": {
             "companies": {
-                "value": "+5,000",
+                "value": "100+",
                 "label": "Companies"
             },
             "messages": {
-                "value": "2M+",
+                "value": "10K+",
                 "label": "Messages/mo"
             },
             "satisfaction": {
@@ -84,7 +84,7 @@
         },
         "stats": {
             "companies": {
-                "value": "5,000+",
+                "value": "100+",
                 "label": "Active Companies"
             },
             "messages": {
@@ -101,6 +101,143 @@
             }
         }
     },
+    "Problem": {
+        "title": "How many sales are you losing on <green>WhatsApp</green>?",
+        "description": "Every day, businesses lose customers simply because they can't reply to all messages.",
+        "situations": "Customers message at all hours: while you're working, while you're busy, or even while you sleep.",
+        "items": {
+            "unanswered": "Unanswered messages",
+            "lateReplies": "Late replies",
+            "tooMany": "Too many conversations to manage",
+            "lostClients": "Customers who buy elsewhere"
+        },
+        "conclusion": "Every ignored message could be a lost sale."
+    },
+    "BeforeAfter": {
+        "without": {
+            "title": "Without WazzapAI",
+            "items": [
+                "Manually replying to every message",
+                "Forgotten messages",
+                "Customers waiting too long",
+                "Too many conversations to handle",
+                "Lost sales"
+            ]
+        },
+        "with": {
+            "title": "With WazzapAI",
+            "items": [
+                "Instant replies",
+                "Automated conversations",
+                "Automatic lead qualification",
+                "Available 24/7",
+                "More sales"
+            ]
+        }
+    },
+    "HowItWorks": {
+        "badge": "Simple & Fast",
+        "title": "Automate WhatsApp in under <green>5 minutes</green>",
+        "subtitle": "No technical skills required.",
+        "steps": {
+            "step1": {
+                "title": "Create your AI agent",
+                "description": "Set up your assistant in a few clicks."
+            },
+            "step2": {
+                "title": "Connect your WhatsApp",
+                "description": "Scan the QR code to connect your account."
+            },
+            "step3": {
+                "title": "Let the AI reply to your customers",
+                "description": "Your agent automatically replies to messages."
+            }
+        },
+        "cta": "Start for free"
+    },
+    "BusinessTypes": {
+        "badge": "For all businesses",
+        "title": "WazzapAI adapts to <green>your business</green>",
+        "subtitle": "Whatever your industry, our AI adapts to your needs.",
+        "items": {
+            "restaurant": {
+                "title": "Restaurants & Catering",
+                "description": "Take orders automatically and respond instantly to customers."
+            },
+            "ecommerce": {
+                "title": "E-commerce & Stores",
+                "description": "Answer product questions and turn conversations into sales."
+            },
+            "realestate": {
+                "title": "Real Estate",
+                "description": "Automatically qualify prospects and schedule visits."
+            },
+            "services": {
+                "title": "Services & Contractors",
+                "description": "Automate responses to customer requests and quotes."
+            },
+            "health": {
+                "title": "Healthcare & Clinics",
+                "description": "Automate appointment booking and patient reminders."
+            },
+            "education": {
+                "title": "Education & Training",
+                "description": "Answer student questions and manage enrollments."
+            },
+            "beauty": {
+                "title": "Beauty & Wellness",
+                "description": "Manage bookings and service requests automatically."
+            },
+            "enterprise": {
+                "title": "Businesses & SMEs",
+                "description": "Automate customer support and request management."
+            }
+        }
+    },
+    "ROICalculator": {
+        "badge": "Calculator",
+        "title": "How much can WhatsApp <green>generate</green> for your business?",
+        "inputs": {
+            "messages": "How many customer messages do you receive per day?",
+            "conversion": "What percentage becomes a customer?",
+            "avgSale": "Average sale value (FCFA)"
+        },
+        "result": "Potential monthly revenue",
+        "currency": "FCFA",
+        "helpText": "WazzapAI helps you respond faster and increase this revenue.",
+        "cta": "Start for free"
+    },
+    "SocialProof": {
+        "badge": "Testimonials",
+        "title": "Businesses already use <green>WazzapAI</green>",
+        "subtitle": "Discover what our customers say about us.",
+        "counter": "100+ businesses trust us",
+        "testimonials": {
+            "t1": {
+                "text": "WazzapAI helps us respond to customers much faster. We don't lose a single order anymore.",
+                "name": "Amadou K.",
+                "role": "Manager",
+                "company": "Restaurant Le Sahel"
+            },
+            "t2": {
+                "text": "Since we started using WazzapAI, our sales increased by 40%. The AI even responds at night!",
+                "name": "Fatou D.",
+                "role": "Founder",
+                "company": "Boutique Élégance"
+            },
+            "t3": {
+                "text": "Our customers get a response in seconds. It's a real competitive advantage.",
+                "name": "Ibrahim M.",
+                "role": "Director",
+                "company": "Vision Real Estate Agency"
+            }
+        }
+    },
+    "FinalCTA": {
+        "title": "Start automating your <green>WhatsApp</green> conversations",
+        "subtitle": "Create your AI agent and start replying to customers automatically.",
+        "cta": "Create my agent for free"
+    },
     "Pricing": {
         "title": "<green>Transparent</green> pricing",
         "subtitle": "Choose the plan that fits your business",
@@ -110,6 +247,11 @@
         },
         "discount": "-17%",
         "popular": "Popular",
+        "recommended": "⭐ Recommended plan",
+        "roiHint": {
+            "starter": "≈ a few sales are enough to cover this subscription",
+            "pro": "Ideal for businesses that receive many messages"
+        },
         "perMonth": "month",
         "perYear": "year",
         "creditsIncluded": "{price} credits included",
@@ -220,6 +362,16 @@
                 "question": "What happens after 14 days of inactivity?",
                 "answer": "To keep our database clean, we permanently delete secured credits and archived agents after 14 days without an active subscription. An alert is sent 7 days before this deadline.",
                 "category": "Account"
+            },
+            "whatsappBusiness": {
+                "question": "Does WazzapAI work with WhatsApp Business?",
+                "answer": "Yes! WazzapAI works with both regular WhatsApp and WhatsApp Business. Just scan the QR code from your phone to connect any account.",
+                "category": "General"
+            },
+            "trainAI": {
+                "question": "Can I train the AI with my own information?",
+                "answer": "Absolutely! You can configure your agent with your products, prices, business hours and all information specific to your business. The AI uses this data to respond accurately to your customers.",
+                "category": "Features"
             }
         }
     },

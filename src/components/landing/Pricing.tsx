@@ -340,7 +340,7 @@ export default function Pricing() {
                                         letterSpacing: 0.5,
                                         whiteSpace: 'nowrap'
                                     }}>
-                                        {t('popular')}
+                                        {plan.id === 'pro' ? t('recommended') : t('popular')}
                                     </div>
                                 )}
 
@@ -400,6 +400,21 @@ export default function Pricing() {
                                     {plan.price_fcfa > 0 && (
                                         <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
                                             /{isYearly ? t('perYear') : t('perMonth')}
+                                        </div>
+                                    )}
+                                    {/* ROI Hint */}
+                                    {(plan.id === 'starter' || plan.id === 'pro') && (
+                                        <div style={{
+                                            marginTop: 10,
+                                            padding: '6px 12px',
+                                            borderRadius: 8,
+                                            background: 'rgba(37, 211, 102, 0.08)',
+                                            border: '1px solid rgba(37, 211, 102, 0.15)',
+                                            fontSize: 11,
+                                            color: '#25D366',
+                                            fontWeight: 500
+                                        }}>
+                                            {t(`roiHint.${plan.id}`)}
                                         </div>
                                     )}
                                 </div>

@@ -1,4 +1,4 @@
-import { Navbar, Hero, Features, HowItWorks, Pricing, FAQ, Footer } from '@/components/landing'
+import { Navbar, Hero, HowItWorks, Pricing, FAQ, Footer, Problem, BeforeAfter, BusinessTypes, ROICalculator, SocialProof, FinalCTA } from '@/components/landing'
 
 export default function Home() {
   return (
@@ -33,10 +33,15 @@ export default function Home() {
       />
       <Navbar />
       <Hero />
-      <Features />
+      <Problem />
+      <BeforeAfter />
       <HowItWorks />
+      <BusinessTypes />
+      <ROICalculator />
       <Pricing />
+      <SocialProof />
       <FAQ />
+      <FinalCTA />
       <Footer />
     </main>
   )

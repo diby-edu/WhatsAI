@@ -19,24 +19,24 @@
   },
   "Hero": {
     "poweredBy": "Propulsé par l'IA",
-    "title": "Transformez votre <green>WhatsApp</green> en<br></br>machine à <gold>ventes</gold>",
-    "subtitle": "Notre IA répond à vos clients <white>24h/24</white>, qualifie vos prospects et <green>augmente vos conversions de 300%</green>.",
+    "title": "Ne perdez plus de clients sur <green>WhatsApp</green>",
+    "subtitle": "WazzapAI répond automatiquement aux messages de vos clients <white>24h/24</white>, qualifie vos prospects et <green>vous aide à vendre plus</green> — même quand vous dormez.",
     "pills": {
       "response": "Réponse en < 3 sec",
       "available": "Disponible 24h/24",
       "noCard": "Sans carte bancaire"
     },
     "cta": {
-      "trial": "Essai gratuit",
-      "pricing": "Voir les tarifs"
+      "trial": "Commencer gratuitement",
+      "pricing": "Voir comment ça marche"
     },
     "stats": {
       "companies": {
-        "value": "+5,000",
+        "value": "100+",
         "label": "Entreprises"
       },
       "messages": {
-        "value": "2M+",
+        "value": "10K+",
         "label": "Messages/mois"
       },
       "satisfaction": {
@@ -84,7 +84,7 @@
     },
     "stats": {
       "companies": {
-        "value": "5,000+",
+        "value": "100+",
         "label": "Entreprises actives"
       },
       "messages": {
@@ -101,6 +101,143 @@
       }
     }
   },
+  "Problem": {
+    "title": "Combien de ventes perdez-vous sur <green>WhatsApp</green> ?",
+    "description": "Chaque jour, des entreprises perdent des clients simplement parce qu'elles ne peuvent pas répondre à tous les messages.",
+    "situations": "Les clients écrivent à toute heure : pendant que vous travaillez, pendant que vous êtes occupé, ou même pendant que vous dormez.",
+    "items": {
+      "unanswered": "Messages non répondus",
+      "lateReplies": "Réponses tardives",
+      "tooMany": "Conversations impossibles à gérer",
+      "lostClients": "Clients qui partent acheter ailleurs"
+    },
+    "conclusion": "Chaque message ignoré peut être une vente perdue."
+  },
+  "BeforeAfter": {
+    "without": {
+      "title": "Sans WazzapAI",
+      "items": [
+        "Répondre manuellement à chaque message",
+        "Messages oubliés",
+        "Clients qui attendent trop longtemps",
+        "Trop de conversations à gérer",
+        "Ventes perdues"
+      ]
+    },
+    "with": {
+      "title": "Avec WazzapAI",
+      "items": [
+        "Réponses instantanées",
+        "Conversations automatisées",
+        "Qualification automatique des prospects",
+        "Disponible 24h/24",
+        "Plus de ventes"
+      ]
+    }
+  },
+  "HowItWorks": {
+    "badge": "Simple & Rapide",
+    "title": "Automatiser WhatsApp en moins de <green>5 minutes</green>",
+    "subtitle": "Aucune compétence technique requise.",
+    "steps": {
+      "step1": {
+        "title": "Créez votre agent IA",
+        "description": "Configurez votre assistant en quelques clics."
+      },
+      "step2": {
+        "title": "Connectez votre WhatsApp",
+        "description": "Scannez le QR code pour connecter votre compte."
+      },
+      "step3": {
+        "title": "Laissez l'IA répondre à vos clients",
+        "description": "Votre agent répond automatiquement aux messages."
+      }
+    },
+    "cta": "Commencer gratuitement"
+  },
+  "BusinessTypes": {
+    "badge": "Pour tous les business",
+    "title": "WazzapAI s'adapte à <green>votre activité</green>",
+    "subtitle": "Quel que soit votre secteur, notre IA s'adapte à vos besoins.",
+    "items": {
+      "restaurant": {
+        "title": "Restaurants & Traiteurs",
+        "description": "Prenez des commandes automatiquement et répondez instantanément aux clients."
+      },
+      "ecommerce": {
+        "title": "E-commerce & Boutiques",
+        "description": "Répondez aux questions produits et transformez les conversations en ventes."
+      },
+      "realestate": {
+        "title": "Immobilier",
+        "description": "Qualifiez automatiquement les prospects et planifiez les visites."
+      },
+      "services": {
+        "title": "Services & Artisans",
+        "description": "Automatisez les réponses aux demandes clients et les devis."
+      },
+      "health": {
+        "title": "Santé & Cliniques",
+        "description": "Automatisez la prise de rendez-vous et les rappels patients."
+      },
+      "education": {
+        "title": "Éducation & Formations",
+        "description": "Répondez aux questions des étudiants et gérez les inscriptions."
+      },
+      "beauty": {
+        "title": "Beauté & Bien-être",
+        "description": "Gérez les réservations et les demandes de services automatiquement."
+      },
+      "enterprise": {
+        "title": "Entreprises & PME",
+        "description": "Automatisez votre support client et la gestion des demandes."
+      }
+    }
+  },
+  "ROICalculator": {
+    "badge": "Calculateur",
+    "title": "Combien WhatsApp peut-il <green>générer</green> pour votre business ?",
+    "inputs": {
+      "messages": "Combien de messages clients recevez-vous par jour ?",
+      "conversion": "Quel pourcentage devient client ?",
+      "avgSale": "Valeur moyenne d'une vente (FCFA)"
+    },
+    "result": "Revenu mensuel potentiel",
+    "currency": "FCFA",
+    "helpText": "WazzapAI vous aide à répondre plus vite et augmenter ce revenu.",
+    "cta": "Commencer gratuitement"
+  },
+  "SocialProof": {
+    "badge": "Témoignages",
+    "title": "Des entreprises utilisent déjà <green>WazzapAI</green>",
+    "subtitle": "Découvrez ce que nos clients disent de nous.",
+    "counter": "100+ entreprises nous font confiance",
+    "testimonials": {
+      "t1": {
+        "text": "WazzapAI nous aide à répondre aux clients beaucoup plus rapidement. On ne perd plus aucune commande.",
+        "name": "Amadou K.",
+        "role": "Gérant",
+        "company": "Restaurant Le Sahel"
+      },
+      "t2": {
+        "text": "Depuis qu'on utilise WazzapAI, nos ventes ont augmenté de 40%. L'IA répond même la nuit !",
+        "name": "Fatou D.",
+        "role": "Fondatrice",
+        "company": "Boutique Élégance"
+      },
+      "t3": {
+        "text": "Nos clients reçoivent une réponse en quelques secondes. C'est un vrai avantage concurrentiel.",
+        "name": "Ibrahim M.",
+        "role": "Directeur",
+        "company": "Agence Immobilière Vision"
+      }
+    }
+  },
+  "FinalCTA": {
+    "title": "Commencez à automatiser vos conversations <green>WhatsApp</green>",
+    "subtitle": "Créez votre agent IA et commencez à répondre automatiquement aux clients.",
+    "cta": "Créer mon agent gratuitement"
+  },
   "Pricing": {
     "title": "Des tarifs <green>transparents</green>",
     "subtitle": "Choisissez le plan adapté à votre activité",
@@ -110,6 +247,11 @@
     },
     "discount": "-17%",
     "popular": "Populaire",
+    "recommended": "⭐ Plan recommandé",
+    "roiHint": {
+      "starter": "≈ quelques ventes suffisent pour payer cet abonnement",
+      "pro": "Idéal pour les entreprises qui reçoivent beaucoup de messages"
+    },
     "perMonth": "mois",
     "perYear": "an",
     "creditsIncluded": "{price} crédits inclus",
@@ -220,6 +362,16 @@
         "question": "Que se passe-t-il après 14 jours d'inactivité ?",
         "answer": "Pour garder une base de données propre, nous supprimons définitivement les crédits sécurisés et les agents archivés après 14 jours sans abonnement actif. Une alerte vous est envoyée 7 jours avant cette échéance.",
         "category": "Compte"
+      },
+      "whatsappBusiness": {
+        "question": "Est-ce que WazzapAI fonctionne avec WhatsApp Business ?",
+        "answer": "Oui ! WazzapAI fonctionne avec WhatsApp classique et WhatsApp Business. Il suffit de scanner le QR code depuis votre téléphone pour connecter n'importe quel compte.",
+        "category": "Général"
+      },
+      "trainAI": {
+        "question": "Est-ce que je peux entraîner l'IA avec mes informations ?",
+        "answer": "Absolument ! Vous pouvez configurer votre agent avec vos produits, vos tarifs, vos horaires et toutes les informations spécifiques à votre entreprise. L'IA utilise ces données pour répondre précisément à vos clients.",
+        "category": "Fonctionnalités"
       }
     }
   },
