@@ -1,6 +1,8 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import Cropper from 'react-easy-crop'
+import 'react-easy-crop/react-easy-crop.css'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
     User,
@@ -144,6 +146,13 @@ export default function SettingsPage() {
         confirm: ''
     })
 
+    // Crop state
+    const [cropModalOpen, setCropModalOpen] = useState(false)
+    const [rawImageSrc, setRawImageSrc] = useState<string>('')
+    const [crop, setCrop] = useState({ x: 0, y: 0 })
+    const [zoom, setZoom] = useState(1)
+    const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null)
+
     useEffect(() => {
         fetchProfile()
         fetchNotificationPreferences()
@@ -251,44 +260,64 @@ export default function SettingsPage() {
         }
     }
 
-    const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleAvatarFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
         if (!file) return
-        if (file.size > 2 * 1024 * 1024) {
-            alert('Image trop volumineuse. Maximum 2MB')
+        if (file.size > 10 * 1024 * 1024) {
+            alert('Image trop volumineuse. Maximum 10MB')
             return
         }
+        const reader = new FileReader()
+        reader.onload = (event) => {
+            setRawImageSrc(event.target?.result as string)
+            setCrop({ x: 0, y: 0 })
+            setZoom(1)
+            setCropModalOpen(true)
+        }
+        reader.readAsDataURL(file)
+        e.target.value = ''
+    }
 
+    const onCropComplete = useCallback((_croppedArea: any, croppedAreaPixels: any) => {
+        setCroppedAreaPixels(croppedAreaPixels)
+    }, [])
+
+    const getCroppedImg = async (imageSrc: string, pixelCrop: any): Promise<Blob> => {
+        const image = new Image()
+        image.src = imageSrc
+        await new Promise<void>((resolve) => { image.onload = () => resolve() })
+        const canvas = document.createElement('canvas')
+        const ctx = canvas.getContext('2d')!
+        canvas.width = pixelCrop.width
+        canvas.height = pixelCrop.height
+        ctx.drawImage(image, pixelCrop.x, pixelCrop.y, pixelCrop.width, pixelCrop.height, 0, 0, pixelCrop.width, pixelCrop.height)
+        return new Promise((resolve) => { canvas.toBlob((blob) => resolve(blob!), 'image/jpeg', 0.9) })
+    }
+
+    const handleCropConfirm = async () => {
+        if (!croppedAreaPixels) return
+        setCropModalOpen(false)
         setUploadingAvatar(true)
         try {
+            const croppedBlob = await getCroppedImg(rawImageSrc, croppedAreaPixels)
             const { createClient } = await import('@/lib/supabase/client')
             const supabase = createClient()
-            const fileExt = file.name.split('.').pop()
-            const filePath = `${profile.id}/avatar.${fileExt}`
-
-            // Upload to avatars bucket
+            const filePath = `${profile.id}/avatar.jpg`
             const { error: uploadError } = await supabase.storage
                 .from('avatars')
-                .upload(filePath, file, { upsert: true })
-
+                .upload(filePath, croppedBlob, { upsert: true, contentType: 'image/jpeg' })
             if (uploadError) {
                 console.error('Upload error:', uploadError)
                 alert('Erreur lors de l\'upload')
-                setUploadingAvatar(false)
                 return
             }
-
-            // Get public URL
             const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath)
-            const avatarUrl = urlData.publicUrl
-
-            // Update profile via API
+            const avatarUrl = `${urlData.publicUrl}?t=${Date.now()}`
             const res = await fetch('/api/profile', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ avatar_url: avatarUrl })
             })
-
             if (res.ok) {
                 setProfile(prev => ({ ...prev, avatar_url: avatarUrl }))
             }
@@ -384,32 +413,59 @@ export default function SettingsPage() {
 
                                 {/* Avatar Upload */}
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 28 }}>
-                                    <div style={{
-                                        width: 80,
-                                        height: 80,
-                                        borderRadius: '50%',
-                                        background: profile.avatar_url
-                                            ? `url(${profile.avatar_url})`
-                                            : 'linear-gradient(135deg, #10b981, #059669)',
-                                        backgroundSize: 'cover',
-                                        backgroundPosition: 'center',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        color: 'white',
-                                        fontSize: 28,
-                                        fontWeight: 600,
-                                        flexShrink: 0,
-                                        border: '3px solid rgba(16, 185, 129, 0.3)'
-                                    }}>
-                                        {!profile.avatar_url && profile.full_name?.charAt(0)?.toUpperCase()}
+                                    <div
+                                        onClick={() => avatarInputRef.current?.click()}
+                                        style={{
+                                            position: 'relative',
+                                            width: 80,
+                                            height: 80,
+                                            borderRadius: '50%',
+                                            cursor: 'pointer',
+                                            flexShrink: 0
+                                        }}
+                                    >
+                                        <div style={{
+                                            width: 80,
+                                            height: 80,
+                                            borderRadius: '50%',
+                                            background: profile.avatar_url
+                                                ? `url(${profile.avatar_url})`
+                                                : 'linear-gradient(135deg, #10b981, #059669)',
+                                            backgroundSize: 'cover',
+                                            backgroundPosition: 'center',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            color: 'white',
+                                            fontSize: 28,
+                                            fontWeight: 600,
+                                            border: '3px solid rgba(16, 185, 129, 0.3)'
+                                        }}>
+                                            {!profile.avatar_url && profile.full_name?.charAt(0)?.toUpperCase()}
+                                        </div>
+                                        <div style={{
+                                            position: 'absolute',
+                                            inset: 0,
+                                            borderRadius: '50%',
+                                            background: 'rgba(0,0,0,0.4)',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            opacity: 0,
+                                            transition: 'opacity 0.2s'
+                                        }}
+                                            onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+                                            onMouseLeave={(e) => (e.currentTarget.style.opacity = '0')}
+                                        >
+                                            <Camera style={{ width: 22, height: 22, color: 'white' }} />
+                                        </div>
                                     </div>
                                     <input
                                         type="file"
                                         ref={avatarInputRef}
                                         accept="image/*"
                                         hidden
-                                        onChange={handleAvatarUpload}
+                                        onChange={handleAvatarFileSelect}
                                     />
                                     <div>
                                         <button
@@ -755,6 +811,7 @@ export default function SettingsPage() {
                                         value={passwords.current}
                                         onChange={(v) => setPasswords({ ...passwords, current: v })}
                                         placeholder="••••••••"
+                                        autoComplete="current-password"
                                         suffix={
                                             <button
                                                 onClick={() => setShowPassword(!showPassword)}
@@ -774,6 +831,7 @@ export default function SettingsPage() {
                                         value={passwords.new}
                                         onChange={(v) => setPasswords({ ...passwords, new: v })}
                                         placeholder="••••••••"
+                                        autoComplete="new-password"
                                     />
                                     <InputField
                                         label={t('Security.form.confirm')}
@@ -782,6 +840,7 @@ export default function SettingsPage() {
                                         value={passwords.confirm}
                                         onChange={(v) => setPasswords({ ...passwords, confirm: v })}
                                         placeholder="••••••••"
+                                        autoComplete="new-password"
                                     />
                                 </div>
                                 <SaveButton
@@ -950,6 +1009,86 @@ export default function SettingsPage() {
                     to { transform: rotate(360deg); }
                 }
             `}</style>
+
+            {/* Crop Modal */}
+            {cropModalOpen && (
+                <div style={{
+                    position: 'fixed',
+                    inset: 0,
+                    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 9999,
+                    padding: 24
+                }}>
+                    <div style={{
+                        backgroundColor: '#1e293b',
+                        borderRadius: 20,
+                        padding: 24,
+                        width: '100%',
+                        maxWidth: 480,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 20
+                    }}>
+                        <h3 style={{ color: 'white', fontWeight: 600, fontSize: 18, margin: 0 }}>
+                            Recadrer la photo
+                        </h3>
+                        <div style={{ position: 'relative', width: '100%', height: 320, background: '#0f172a', borderRadius: 12, overflow: 'hidden' }}>
+                            <Cropper
+                                image={rawImageSrc}
+                                crop={crop}
+                                zoom={zoom}
+                                aspect={1}
+                                cropShape="round"
+                                showGrid={false}
+                                onCropChange={setCrop}
+                                onCropComplete={onCropComplete}
+                                onZoomChange={setZoom}
+                            />
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <span style={{ color: '#94a3b8', fontSize: 13, flexShrink: 0 }}>Zoom</span>
+                            <input
+                                type="range"
+                                min={1}
+                                max={3}
+                                step={0.1}
+                                value={zoom}
+                                onChange={(e) => setZoom(Number(e.target.value))}
+                                style={{ flex: 1, accentColor: '#10b981' }}
+                            />
+                        </div>
+                        <div style={{ display: 'flex', gap: 12 }}>
+                            <button
+                                onClick={() => setCropModalOpen(false)}
+                                style={{
+                                    flex: 1, padding: '12px',
+                                    background: 'rgba(51, 65, 85, 0.5)',
+                                    border: '1px solid rgba(148, 163, 184, 0.2)',
+                                    borderRadius: 10, color: '#94a3b8',
+                                    cursor: 'pointer', fontSize: 14
+                                }}
+                            >
+                                Annuler
+                            </button>
+                            <button
+                                onClick={handleCropConfirm}
+                                style={{
+                                    flex: 1, padding: '12px',
+                                    background: 'linear-gradient(135deg, #10b981, #059669)',
+                                    border: 'none', borderRadius: 10,
+                                    color: 'white', cursor: 'pointer',
+                                    fontSize: 14, fontWeight: 600
+                                }}
+                            >
+                                Confirmer
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
@@ -963,7 +1102,8 @@ function InputField({
     placeholder,
     disabled,
     type = 'text',
-    suffix
+    suffix,
+    autoComplete
 }: {
     label: string
     icon: any
@@ -973,6 +1113,7 @@ function InputField({
     disabled?: boolean
     type?: string
     suffix?: React.ReactNode
+    autoComplete?: string
 }) {
     return (
         <div>
@@ -985,6 +1126,7 @@ function InputField({
                     onChange={(e) => onChange?.(e.target.value)}
                     placeholder={placeholder}
                     disabled={disabled}
+                    autoComplete={autoComplete}
                     style={{
                         width: '100%',
                         padding: '12px 12px 12px 44px',

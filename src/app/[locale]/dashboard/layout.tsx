@@ -63,6 +63,8 @@ export default function DashboardLayout({
     const [showNotifications, setShowNotifications] = useState(false)
     const [notifications, setNotifications] = useState<Notification[]>([])
     const [unreadCount, setUnreadCount] = useState(0)
+    const [userAvatar, setUserAvatar] = useState<string | null>(null)
+    const [userName, setUserName] = useState<string>('')
     const notifRef = useRef<HTMLDivElement>(null)
     const mobileNotifBtnRef = useRef<HTMLDivElement>(null)
     const mobileNotifDropdownRef = useRef<HTMLDivElement>(null)
@@ -167,9 +169,12 @@ export default function DashboardLayout({
                 // Check credits
                 const { data: profile } = await supabase
                     .from('profiles')
-                    .select('credits_balance')
+                    .select('credits_balance, avatar_url, full_name')
                     .eq('id', user.id)
                     .single()
+
+                if (profile?.avatar_url) setUserAvatar(profile.avatar_url)
+                if (profile?.full_name) setUserName(profile.full_name)
 
                 if (profile && profile.credits_balance < 50) {
                     notifs.push({
@@ -939,6 +944,28 @@ export default function DashboardLayout({
                                 )}
                             </AnimatePresence>
                         </div>
+
+                        {/* User Avatar → Settings */}
+                        <Link href="/dashboard/settings" style={{ textDecoration: 'none', flexShrink: 0 }}>
+                            <div style={{
+                                width: 38,
+                                height: 38,
+                                borderRadius: '50%',
+                                background: userAvatar ? `url(${userAvatar})` : 'linear-gradient(135deg, #10b981, #059669)',
+                                backgroundSize: 'cover',
+                                backgroundPosition: 'center',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: 'white',
+                                fontSize: 15,
+                                fontWeight: 600,
+                                border: '2px solid rgba(16, 185, 129, 0.3)',
+                                cursor: 'pointer'
+                            }}>
+                                {!userAvatar && (userName?.charAt(0)?.toUpperCase() || '?')}
+                            </div>
+                        </Link>
                     </div>
                 )}
 

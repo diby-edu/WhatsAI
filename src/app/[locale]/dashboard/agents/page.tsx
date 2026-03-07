@@ -550,13 +550,13 @@ export default function AgentsPage() {
                             <Crown style={{ width: 12, height: 12, color: '#64748b' }} />
                         </div>
                         <h2 style={{ fontSize: 15, fontWeight: 600, color: '#64748b', margin: 0 }}>
-                            Agents archivés ({archivedAgents.length})
+                            Agents désactivés ({archivedAgents.length})
                         </h2>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
                         {archivedAgents.map((agent) => {
                             const deleteDate = agent.archived_at
-                                ? new Date(new Date(agent.archived_at).getTime() + 90 * 24 * 3600000).toLocaleDateString('fr-FR')
+                                ? new Date(new Date(agent.archived_at).getTime() + 7 * 24 * 3600000).toLocaleDateString('fr-FR')
                                 : null
                             return (
                                 <div
@@ -583,7 +583,7 @@ export default function AgentsPage() {
                                             background: 'rgba(100, 116, 139, 0.2)',
                                             color: '#64748b'
                                         }}>
-                                            🔒 Archivé
+                                            ⏸ Désactivé
                                         </span>
                                     </div>
 
@@ -633,7 +633,7 @@ export default function AgentsPage() {
                                         }}
                                     >
                                         <Crown style={{ width: 14, height: 14 }} />
-                                        Restaurer — Renouvelez votre abonnement
+                                        Réactiver — Renouvelez votre abonnement
                                     </Link>
                                 </div>
                             )

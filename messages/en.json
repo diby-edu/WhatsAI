@@ -105,11 +105,14 @@
         "title": "How many sales are you losing on <green>WhatsApp</green>?",
         "description": "Every day, businesses lose customers simply because they can't reply to all messages.",
         "situations": "Customers message at all hours: while you're working, while you're busy, or even while you sleep.",
+        "badge": "LOSS ALERT",
         "items": {
             "unanswered": "Unanswered messages",
             "lateReplies": "Late replies",
             "tooMany": "Too many conversations to manage",
-            "lostClients": "Customers who buy elsewhere"
+            "lostClients": "Customers who buy elsewhere",
+            "managementStress": "Manual management stress",
+            "missedOpportunities": "Missed growth opportunities"
         },
         "conclusion": "Every ignored message could be a lost sale."
     },
@@ -403,7 +406,8 @@
             "templates": "Templates",
             "privacy": "Privacy",
             "terms": "Terms",
-            "gdpr": "GDPR"
+            "gdpr": "GDPR",
+            "community": "WhatsApp Community"
         },
         "rights": "© 2025 WazzapAI. All rights reserved."
     },

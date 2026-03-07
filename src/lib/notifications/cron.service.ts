@@ -175,7 +175,7 @@ async function checkExpiredSubscriptions(): Promise<void> {
 
                 const currentBalance = Number(profile?.credits_balance) || 0
                 const freezeDate = new Date()
-                const expireDate = new Date(freezeDate.getTime() + 14 * 24 * 3600000) // 14 jours (7j alerte + 7j suppression)
+                const expireDate = new Date(freezeDate.getTime() + 7 * 24 * 3600000) // 7 jours de grâce universelle
 
                 await supabase
                     .from('profiles')
@@ -194,17 +194,15 @@ async function checkExpiredSubscriptions(): Promise<void> {
                     })
                 }
 
-                // 3. Archive excess agents (free plan = 1 agent max)
+                // 3. Désactiver TOUS les agents (pas seulement l'excédent)
                 const { data: userAgents } = await supabase
                     .from('agents')
                     .select('id')
                     .eq('user_id', sub.user_id)
                     .is('archived_at', null)
-                    .order('whatsapp_connected', { ascending: false })
-                    .order('updated_at', { ascending: false })
 
-                if (userAgents && userAgents.length > 1) {
-                    const toArchive = userAgents.slice(1).map((a: any) => a.id)
+                if (userAgents && userAgents.length > 0) {
+                    const toDeactivate = userAgents.map((a: any) => a.id)
                     await supabase
                         .from('agents')
                         .update({
@@ -212,10 +210,10 @@ async function checkExpiredSubscriptions(): Promise<void> {
                             archived_reason: 'subscription_expired',
                             is_active: false
                         })
-                        .in('id', toArchive)
+                        .in('id', toDeactivate)
 
                     await notify(sub.user_id, 'agent_archived', {
-                        count: toArchive.length,
+                        count: toDeactivate.length,
                         deleteDate: expireDate.toLocaleDateString('fr-FR')
                     })
                 }
@@ -464,28 +462,27 @@ export async function checkWhatsAppService(): Promise<void> {
 }
 
 /**
- * Manage the lifecycle of archived agents:
- * - Send a warning 7 days before auto-deletion (at day 7)
- * - Auto-delete agents archived for 14+ days
+ * Manage the lifecycle of deactivated agents:
+ * - Send a warning at J+4 (3 days before deletion)
+ * - Auto-delete agents deactivated for 7+ days
  */
 async function handleArchivedAgentLifecycle(): Promise<void> {
-    console.log('⏰ [CRON] Handling archived agent lifecycle...')
+    console.log('⏰ [CRON] Handling deactivated agent lifecycle...')
     try {
         const supabase = getAdminSupabase()
         const now = new Date()
 
-        // Warning: archived between 6-8 days ago (notify once at the 7-day mark)
-        const day6 = new Date(now.getTime() - 6 * 24 * 3600000)
-        const day8 = new Date(now.getTime() - 8 * 24 * 3600000)
+        // Warning: deactivated 3-5 days ago (warn once around J+4, 3 days left)
+        const day3 = new Date(now.getTime() - 3 * 24 * 3600000)
+        const day5 = new Date(now.getTime() - 5 * 24 * 3600000)
         const { data: warningAgents } = await supabase
             .from('agents')
             .select('user_id, name')
             .not('archived_at', 'is', null)
-            .lte('archived_at', day6.toISOString())
-            .gte('archived_at', day8.toISOString())
+            .lte('archived_at', day3.toISOString())
+            .gte('archived_at', day5.toISOString())
 
         if (warningAgents && warningAgents.length > 0) {
-            // Group by user_id to send one notification per user
             const userMap = new Map<string, string[]>()
             for (const a of warningAgents) {
                 const list = userMap.get(a.user_id) || []
@@ -495,46 +492,46 @@ async function handleArchivedAgentLifecycle(): Promise<void> {
             for (const [userId] of userMap) {
                 await notify(userId, 'agent_delete_warning', {})
             }
-            console.log(`⏰ [CRON] Sent delete warnings (7 days left) for ${userMap.size} user(s)`)
+            console.log(`⏰ [CRON] Sent delete warnings (3 days left) for ${userMap.size} user(s)`)
         }
 
-        // Auto-delete agents archived 14+ days ago
-        const day14Delete = new Date(now.getTime() - 14 * 24 * 3600000)
+        // Auto-delete agents deactivated 7+ days ago
+        const day7Delete = new Date(now.getTime() - 7 * 24 * 3600000)
         const { data: deleted, error } = await supabase
             .from('agents')
             .delete()
             .not('archived_at', 'is', null)
-            .lte('archived_at', day14Delete.toISOString())
+            .lte('archived_at', day7Delete.toISOString())
             .select('id')
 
         if (!error && deleted && deleted.length > 0) {
-            console.log(`⏰ [CRON] Auto-deleted ${deleted.length} archived agent(s)`)
+            console.log(`⏰ [CRON] Auto-deleted ${deleted.length} deactivated agent(s)`)
         }
     } catch (error) {
-        console.error('⏰ [CRON] Error in archived agent lifecycle:', error)
+        console.error('⏰ [CRON] Error in deactivated agent lifecycle:', error)
     }
 }
 
 /**
  * Handle credit expiry:
- * - Send a warning 7 days before credits expire
- * - Zero out credits that have passed their expiry date (14 days total)
+ * - Send a warning at J+4 (~3 days before expiry)
+ * - Zero out credits that have passed their expiry date (7 days total)
  */
 async function handleCreditExpiry(): Promise<void> {
     console.log('⏰ [CRON] Handling credit expiry...')
     try {
         const supabase = getAdminSupabase()
         const now = new Date()
-        const in7Days = new Date(now.getTime() + 7 * 24 * 3600000)
-        const in6Days = new Date(now.getTime() + 6 * 24 * 3600000)
+        const in3Days = new Date(now.getTime() + 3 * 24 * 3600000)
+        const in2Days = new Date(now.getTime() + 2 * 24 * 3600000)
 
-        // Warning: credits expire in ~7 days
+        // Warning: credits expire in ~3 days (at J+4 of the 7-day grace period)
         const { data: warnUsers } = await supabase
             .from('profiles')
             .select('id, credits_balance, credits_expire_at')
             .not('credits_expire_at', 'is', null)
-            .lte('credits_expire_at', in7Days.toISOString())
-            .gte('credits_expire_at', in6Days.toISOString())
+            .lte('credits_expire_at', in3Days.toISOString())
+            .gte('credits_expire_at', in2Days.toISOString())
             .gt('credits_balance', 0)
 
         for (const user of warnUsers || []) {
@@ -545,7 +542,7 @@ async function handleCreditExpiry(): Promise<void> {
             })
         }
         if ((warnUsers || []).length > 0) {
-            console.log(`⏰ [CRON] Credit expiry warnings (7 days) sent to ${warnUsers!.length} user(s)`)
+            console.log(`⏰ [CRON] Credit expiry warnings (3 days left) sent to ${warnUsers!.length} user(s)`)
         }
 
         // Expire credits past their expiry date
