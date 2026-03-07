@@ -260,7 +260,7 @@ export default function Hero() {
                                     <ArrowRight style={{ width: 18, height: 18 }} />
                                 </motion.button>
                             </Link>
-                            <Link href="#pricing" style={{ textDecoration: 'none' }}>
+                            <Link href="#how-it-works" style={{ textDecoration: 'none' }}>
                                 <motion.button
                                     whileHover={{ scale: 1.03, background: 'rgba(37, 211, 102, 0.15)' }}
                                     whileTap={{ scale: 0.98 }}

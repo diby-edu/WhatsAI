@@ -19,7 +19,9 @@ export default function FAQ() {
         { key: 'appointments', icon: Calendar },
         { key: 'security', icon: Lock },
         { key: 'cancel', icon: XCircle },
-        { key: 'retention', icon: Calendar }
+        { key: 'retention', icon: Calendar },
+        { key: 'whatsappBusiness', icon: Smartphone },
+        { key: 'trainAI', icon: HelpCircle }
     ]
 
     const faqs = faqKeys.map(item => ({

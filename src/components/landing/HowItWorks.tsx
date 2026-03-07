@@ -1,36 +1,40 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Bot, QrCode, Zap, ArrowRight } from 'lucide-react'
-
-const steps = [
-    {
-        number: '01',
-        icon: Bot,
-        title: 'Créez votre agent IA',
-        description: 'Définissez la personnalité, le ton et configurez les réponses de votre assistant.',
-        gradient: 'linear-gradient(135deg, #818cf8, #6366f1)',
-        delay: 0
-    },
-    {
-        number: '02',
-        icon: QrCode,
-        title: 'Connectez WhatsApp',
-        description: 'Scannez le QR code pour lier votre numéro WhatsApp Business à votre agent.',
-        gradient: 'linear-gradient(135deg, #f472b6, #ec4899)',
-        delay: 0.2
-    },
-    {
-        number: '03',
-        icon: Zap,
-        title: 'L\'IA répond 24h/24',
-        description: 'Votre agent commence à répondre automatiquement. Suivez tout depuis le dashboard.',
-        gradient: 'linear-gradient(135deg, #34d399, #10b981)',
-        delay: 0.4
-    }
-]
+import { Bot, QrCode, Zap, ArrowRight, MessageCircle } from 'lucide-react'
+import { useTranslations } from 'next-intl'
+import Link from 'next/link'
 
 export default function HowItWorks() {
+    const t = useTranslations('HowItWorks')
+
+    const steps = [
+        {
+            number: '01',
+            icon: Bot,
+            titleKey: 'steps.step1.title',
+            descKey: 'steps.step1.description',
+            gradient: 'linear-gradient(135deg, #818cf8, #6366f1)',
+            delay: 0
+        },
+        {
+            number: '02',
+            icon: QrCode,
+            titleKey: 'steps.step2.title',
+            descKey: 'steps.step2.description',
+            gradient: 'linear-gradient(135deg, #f472b6, #ec4899)',
+            delay: 0.2
+        },
+        {
+            number: '03',
+            icon: Zap,
+            titleKey: 'steps.step3.title',
+            descKey: 'steps.step3.description',
+            gradient: 'linear-gradient(135deg, #34d399, #10b981)',
+            delay: 0.4
+        }
+    ]
+
     return (
         <section id="how-it-works" style={{
             padding: '100px 24px',
@@ -56,6 +60,19 @@ export default function HowItWorks() {
                     transition={{ duration: 0.6 }}
                     style={{ textAlign: 'center', marginBottom: 64 }}
                 >
+                    <div style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: '8px 20px',
+                        borderRadius: 100,
+                        background: 'rgba(37, 211, 102, 0.1)',
+                        border: '1px solid rgba(37, 211, 102, 0.2)',
+                        marginBottom: 24
+                    }}>
+                        <Zap style={{ width: 16, height: 16, color: '#25D366' }} />
+                        <span style={{ fontSize: 14, color: '#25D366', fontWeight: 600 }}>{t('badge')}</span>
+                    </div>
                     <h2 style={{
                         fontSize: 'clamp(32px, 5vw, 48px)',
                         fontWeight: 700,
@@ -63,16 +80,18 @@ export default function HowItWorks() {
                         marginBottom: 16,
                         lineHeight: 1.2
                     }}>
-                        3 étapes pour{' '}
-                        <span style={{
-                            background: 'linear-gradient(135deg, #25D366, #6ee7b7)',
-                            WebkitBackgroundClip: 'text',
-                            WebkitTextFillColor: 'transparent'
-                        }}>automatiser</span>
+                        {t.rich('title', {
+                            green: (chunks) => (
+                                <span style={{
+                                    background: 'linear-gradient(135deg, #25D366, #6ee7b7)',
+                                    WebkitBackgroundClip: 'text',
+                                    WebkitTextFillColor: 'transparent'
+                                }}>{chunks}</span>
+                            )
+                        })}
                     </h2>
                     <p style={{ fontSize: 18, color: '#94a3b8', maxWidth: 500, margin: '0 auto' }}>
-                        Configurez votre assistant IA en moins de 5 minutes.<br />
-                        Aucune compétence technique requise.
+                        {t('subtitle')}
                     </p>
                 </motion.div>
 
@@ -181,19 +200,53 @@ export default function HowItWorks() {
                                     color: 'white',
                                     marginBottom: 12
                                 }}>
-                                    {step.title}
+                                    {t(step.titleKey)}
                                 </h3>
                                 <p style={{
                                     fontSize: 14,
                                     color: '#94a3b8',
                                     lineHeight: 1.7
                                 }}>
-                                    {step.description}
+                                    {t(step.descKey)}
                                 </p>
                             </motion.div>
                         </motion.div>
                     ))}
                 </div>
+
+                {/* CTA Button */}
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.5, delay: 0.6 }}
+                    style={{ textAlign: 'center', marginTop: 48 }}
+                >
+                    <Link href="/register" style={{ textDecoration: 'none' }}>
+                        <motion.button
+                            whileHover={{ scale: 1.03, boxShadow: '0 20px 40px rgba(37, 211, 102, 0.3)' }}
+                            whileTap={{ scale: 0.98 }}
+                            style={{
+                                padding: '16px 32px',
+                                borderRadius: 14,
+                                border: 'none',
+                                background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
+                                color: 'white',
+                                fontWeight: 700,
+                                fontSize: 16,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 10,
+                                boxShadow: '0 10px 30px rgba(37, 211, 102, 0.2)'
+                            }}
+                        >
+                            <MessageCircle style={{ width: 20, height: 20 }} />
+                            {t('cta')}
+                            <ArrowRight style={{ width: 18, height: 18 }} />
+                        </motion.button>
+                    </Link>
+                </motion.div>
             </div>
 
             <style jsx global>{`
