@@ -34,55 +34,34 @@ const benefits = [
 
 export default function WhatsAppCommunity() {
     return (
-        <section id="community" style={{
-            padding: '100px 24px',
-            background: 'linear-gradient(180deg, #0f172a 0%, #020617 100%)',
-            position: 'relative',
-            overflow: 'hidden'
+        <section id="community" className="py-16 sm:py-[100px] px-6 relative overflow-hidden" style={{
+            background: 'linear-gradient(180deg, #0f172a 0%, #020617 100%)'
         }}>
             {/* Background glow */}
-            <div style={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                width: 700,
-                height: 700,
-                background: 'radial-gradient(circle, rgba(37, 211, 102, 0.08) 0%, transparent 70%)',
-                pointerEvents: 'none'
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none" style={{
+                width: 700, height: 700,
+                background: 'radial-gradient(circle, rgba(37, 211, 102, 0.08) 0%, transparent 70%)'
             }} />
 
-            <div style={{ maxWidth: 1100, margin: '0 auto', position: 'relative', zIndex: 1 }}>
+            <div className="max-w-[1100px] mx-auto relative z-10">
                 {/* Header */}
                 <motion.div
                     initial={{ opacity: 0, y: 30 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ duration: 0.6 }}
-                    style={{ textAlign: 'center', marginBottom: 56 }}
+                    className="text-center mb-14"
                 >
                     {/* Badge */}
-                    <div style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        padding: '8px 20px',
-                        borderRadius: 100,
+                    <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full mb-6" style={{
                         background: 'rgba(37, 211, 102, 0.1)',
-                        border: '1px solid rgba(37, 211, 102, 0.2)',
-                        marginBottom: 24
+                        border: '1px solid rgba(37, 211, 102, 0.2)'
                     }}>
                         <Users style={{ width: 16, height: 16, color: '#25D366' }} />
-                        <span style={{ color: '#25D366', fontSize: 13, fontWeight: 600, letterSpacing: '0.05em' }}>COMMUNAUTÉ</span>
+                        <span className="text-[#25D366] text-[13px] font-semibold tracking-wider">COMMUNAUTÉ</span>
                     </div>
 
-                    <h2 style={{
-                        fontSize: 'clamp(28px, 5vw, 44px)',
-                        fontWeight: 800,
-                        color: '#f1f5f9',
-                        lineHeight: 1.2,
-                        marginBottom: 16
-                    }}>
+                    <h2 className="font-extrabold text-slate-100 leading-tight mb-4" style={{ fontSize: 'clamp(28px, 5vw, 44px)' }}>
                         Rejoignez notre{' '}
                         <span style={{
                             background: 'linear-gradient(135deg, #25D366, #128C7E)',
@@ -91,35 +70,25 @@ export default function WhatsAppCommunity() {
                         }}>
                             communauté
                         </span>{' '}
-                        d'entrepreneurs
+                        d&apos;entrepreneurs
                     </h2>
 
-                    <p style={{ color: '#94a3b8', fontSize: 18, maxWidth: 520, margin: '0 auto 16px' }}>
+                    <p className="text-slate-400 text-lg max-w-[520px] mx-auto mb-4">
                         Ils automatisent, ils partagent, ils réussissent
                     </p>
 
                     {/* Member count */}
-                    <div style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        padding: '6px 16px',
-                        borderRadius: 100,
+                    <div className="inline-flex items-center gap-2 px-4 py-[6px] rounded-full" style={{
                         background: 'rgba(37, 211, 102, 0.05)',
                         border: '1px solid rgba(37, 211, 102, 0.15)'
                     }}>
-                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#25D366', animation: 'pulse 2s infinite' }} />
-                        <span style={{ color: '#64748b', fontSize: 14 }}>+200 membres actifs</span>
+                        <div className="w-2 h-2 rounded-full bg-[#25D366] animate-pulse" />
+                        <span className="text-slate-500 text-sm">+200 membres actifs</span>
                     </div>
                 </motion.div>
 
                 {/* Benefits grid */}
-                <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-                    gap: 20,
-                    marginBottom: 48
-                }}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-12">
                     {benefits.map((benefit, i) => (
                         <motion.div
                             key={benefit.title}
@@ -127,35 +96,23 @@ export default function WhatsAppCommunity() {
                             whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true }}
                             transition={{ duration: 0.5, delay: i * 0.1 }}
+                            className="p-6 rounded-2xl flex flex-col gap-3"
                             style={{
-                                padding: 24,
-                                borderRadius: 16,
                                 background: 'rgba(15, 23, 42, 0.6)',
-                                border: '1px solid rgba(148, 163, 184, 0.08)',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                gap: 12
+                                border: '1px solid rgba(148, 163, 184, 0.08)'
                             }}
                         >
                             <div style={{
-                                width: 44,
-                                height: 44,
-                                borderRadius: 12,
+                                width: 44, height: 44, borderRadius: 12,
                                 background: `${benefit.color}18`,
                                 border: `1px solid ${benefit.color}30`,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center'
+                                display: 'flex', alignItems: 'center', justifyContent: 'center'
                             }}>
                                 <benefit.icon style={{ width: 22, height: 22, color: benefit.color }} />
                             </div>
                             <div>
-                                <h3 style={{ color: '#e2e8f0', fontWeight: 700, fontSize: 16, marginBottom: 6 }}>
-                                    {benefit.title}
-                                </h3>
-                                <p style={{ color: '#64748b', fontSize: 14, lineHeight: 1.6 }}>
-                                    {benefit.desc}
-                                </p>
+                                <h3 className="text-slate-200 font-bold text-base mb-[6px]">{benefit.title}</h3>
+                                <p className="text-slate-500 text-sm leading-relaxed">{benefit.desc}</p>
                             </div>
                         </motion.div>
                     ))}
@@ -167,7 +124,7 @@ export default function WhatsAppCommunity() {
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ duration: 0.6, delay: 0.4 }}
-                    style={{ textAlign: 'center' }}
+                    className="text-center"
                 >
                     <motion.a
                         href={COMMUNITY_LINK}
@@ -175,37 +132,21 @@ export default function WhatsAppCommunity() {
                         rel="noopener noreferrer"
                         whileHover={{ scale: 1.04 }}
                         whileTap={{ scale: 0.97 }}
+                        className="inline-flex items-center gap-[10px] px-9 py-4 rounded-[14px] text-white font-bold text-[17px] no-underline cursor-pointer"
                         style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 10,
-                            padding: '16px 36px',
-                            borderRadius: 14,
                             background: 'linear-gradient(135deg, #25D366, #128C7E)',
-                            color: 'white',
-                            fontWeight: 700,
-                            fontSize: 17,
-                            textDecoration: 'none',
-                            boxShadow: '0 8px 32px rgba(37, 211, 102, 0.35)',
-                            cursor: 'pointer'
+                            boxShadow: '0 8px 32px rgba(37, 211, 102, 0.35)'
                         }}
                     >
                         <MessageCircle style={{ width: 22, height: 22 }} />
                         Rejoindre la communauté →
                     </motion.a>
 
-                    <p style={{ color: '#475569', fontSize: 13, marginTop: 16 }}>
+                    <p className="text-slate-600 text-[13px] mt-4">
                         Gratuit • Zéro spam • Quittez à tout moment
                     </p>
                 </motion.div>
             </div>
-
-            <style jsx global>{`
-                @keyframes pulse {
-                    0%, 100% { opacity: 1; }
-                    50% { opacity: 0.4; }
-                }
-            `}</style>
         </section>
     )
 }
