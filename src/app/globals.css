@@ -1682,6 +1682,12 @@ body {
   flex-wrap: nowrap !important;
 }
 
+/* Pricing — spinner animation pour le bouton de chargement */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 /* ROI Calculator — range input thumb styling */
 input[type="range"]::-webkit-slider-thumb {
   appearance: none;
