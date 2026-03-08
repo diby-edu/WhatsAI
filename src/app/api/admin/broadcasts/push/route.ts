@@ -28,6 +28,15 @@ async function getTokensForPlan(adminSupabase: any, targetPlan: string): Promise
     return (data || []).map((row: any) => row.token).filter(Boolean)
 }
 
+async function getUserIdsForPlan(adminSupabase: any, targetPlan: string): Promise<string[]> {
+    let query = adminSupabase.from('profiles').select('id')
+    if (targetPlan && targetPlan !== 'all') {
+        query = query.eq('plan', targetPlan)
+    }
+    const { data } = await query
+    return (data || []).map((row: any) => row.id).filter(Boolean)
+}
+
 // GET — preview device count for a plan segment
 export async function GET(request: NextRequest) {
     const { error, adminSupabase } = await adminCheck(request)
@@ -74,7 +83,7 @@ export async function POST(request: NextRequest) {
         const sent = result?.successCount ?? tokens.length
         const failed = result?.failureCount ?? 0
 
-        // Log to broadcasts table
+        // Log to broadcasts table (historique admin permanent — jamais supprimé)
         try {
             await adminSupabase.from('broadcasts').insert({
                 agent_id: null,
@@ -85,6 +94,26 @@ export async function POST(request: NextRequest) {
                 created_at: new Date().toISOString()
             })
         } catch { /* log failure is non-blocking */ }
+
+        // Insérer dans notification_log pour la cloche utilisateur + purge 30j
+        try {
+            // Purge des entrées > 30 jours (1 seule requête)
+            await adminSupabase
+                .from('notification_log')
+                .delete()
+                .lt('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+
+            // Batch insert pour tous les utilisateurs du segment
+            const userIds = await getUserIdsForPlan(adminSupabase, targetPlan || 'all')
+            if (userIds.length > 0) {
+                const rows = userIds.map((uid: string) => ({
+                    user_id: uid,
+                    type: 'broadcast_push',
+                    data: { title: title.trim(), body: body.trim() }
+                }))
+                await adminSupabase.from('notification_log').insert(rows)
+            }
+        } catch { /* non-bloquant */ }
 
         return successResponse({ sent, failed, total: tokens.length })
     } catch (err) {
