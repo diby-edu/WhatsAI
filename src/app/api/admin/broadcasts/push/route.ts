@@ -80,8 +80,8 @@ export async function POST(request: NextRequest) {
             data: { type: 'admin_broadcast', route: '/dashboard' }
         })
 
-        const sent = result?.successCount ?? tokens.length
-        const failed = result?.failureCount ?? 0
+        const sent = result?.success ?? tokens.length
+        const failed = result?.failure ?? 0
 
         // Log to broadcasts table (historique admin permanent — jamais supprimé)
         try {
