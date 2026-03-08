@@ -48,15 +48,10 @@ export default function FAQ() {
                     onClick={() => setIsOpen(!isOpen)}
                     whileHover={{ scale: 1.01 }}
                     whileTap={{ scale: 0.99 }}
+                    className="w-full flex items-start gap-4 text-left cursor-pointer"
                     style={{
-                        width: '100%',
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        gap: 16,
                         padding: '20px 24px',
                         borderRadius: 16,
-                        textAlign: 'left',
-                        cursor: 'pointer',
                         border: isOpen ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(148, 163, 184, 0.1)',
                         background: isOpen
                             ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0.02) 100%)'
@@ -67,14 +62,10 @@ export default function FAQ() {
                     }}
                 >
                     {/* Icon */}
-                    <div style={{
+                    <div className="flex items-center justify-center shrink-0" style={{
                         width: 48,
                         height: 48,
                         borderRadius: 12,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0,
                         background: isOpen
                             ? 'linear-gradient(135deg, #10b981, #059669)'
                             : 'rgba(51, 65, 85, 0.5)',
@@ -89,26 +80,16 @@ export default function FAQ() {
                     </div>
 
                     {/* Content */}
-                    <div style={{ flex: 1 }}>
+                    <div className="flex-1">
                         {/* Category badge */}
-                        <span style={{
-                            display: 'inline-block',
-                            fontSize: 11,
-                            fontWeight: 600,
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.5px',
-                            color: isOpen ? '#34d399' : '#64748b',
-                            marginBottom: 6
+                        <span className="inline-block text-[11px] font-semibold uppercase tracking-[0.5px] mb-[6px]" style={{
+                            color: isOpen ? '#34d399' : '#64748b'
                         }}>
                             {faq.category}
                         </span>
 
-                        <h3 style={{
-                            fontSize: 17,
-                            fontWeight: 600,
-                            color: isOpen ? 'white' : '#e2e8f0',
-                            marginBottom: 0,
-                            lineHeight: 1.4
+                        <h3 className="text-[17px] font-semibold mb-0 leading-[1.4]" style={{
+                            color: isOpen ? 'white' : '#e2e8f0'
                         }}>
                             {faq.question}
                         </h3>
@@ -122,12 +103,7 @@ export default function FAQ() {
                                     transition={{ duration: 0.3 }}
                                     style={{ overflow: 'hidden' }}
                                 >
-                                    <p style={{
-                                        marginTop: 12,
-                                        color: '#94a3b8',
-                                        lineHeight: 1.7,
-                                        fontSize: 15
-                                    }}>
+                                    <p className="mt-3 text-slate-400 leading-[1.7] text-[15px]">
                                         {faq.answer}
                                     </p>
                                 </motion.div>
@@ -139,15 +115,12 @@ export default function FAQ() {
                     <motion.div
                         animate={{ rotate: isOpen ? 180 : 0 }}
                         transition={{ duration: 0.3 }}
+                        className="flex items-center justify-center shrink-0"
                         style={{
                             width: 32,
                             height: 32,
                             borderRadius: 8,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            background: isOpen ? 'rgba(16, 185, 129, 0.2)' : 'rgba(51, 65, 85, 0.3)',
-                            flexShrink: 0
+                            background: isOpen ? 'rgba(16, 185, 129, 0.2)' : 'rgba(51, 65, 85, 0.3)'
                         }}
                     >
                         <ChevronDown style={{
@@ -162,69 +135,50 @@ export default function FAQ() {
     }
 
     return (
-        <section id="faq" style={{
-            padding: '80px 0',
-            position: 'relative',
+        <section id="faq" className="py-16 sm:py-20 relative" style={{
             background: 'linear-gradient(180deg, transparent 0%, rgba(16, 185, 129, 0.02) 50%, transparent 100%)'
         }}>
-            {/* Background elements */}
-            <div style={{
-                position: 'absolute',
-                top: '20%',
-                left: '-10%',
-                width: 400,
-                height: 400,
+            {/* Background glows */}
+            <div className="absolute pointer-events-none" style={{
+                top: '20%', left: '-10%',
+                width: 400, height: 400,
                 borderRadius: '50%',
                 background: 'radial-gradient(circle, rgba(16, 185, 129, 0.08) 0%, transparent 70%)',
                 filter: 'blur(60px)'
             }} />
-            <div style={{
-                position: 'absolute',
-                bottom: '10%',
-                right: '-5%',
-                width: 300,
-                height: 300,
+            <div className="absolute pointer-events-none" style={{
+                bottom: '10%', right: '-5%',
+                width: 300, height: 300,
                 borderRadius: '50%',
                 background: 'radial-gradient(circle, rgba(6, 182, 212, 0.06) 0%, transparent 70%)',
                 filter: 'blur(60px)'
             }} />
 
-            <div style={{ maxWidth: 900, margin: '0 auto', padding: '0 24px', position: 'relative', zIndex: 10 }}>
+            <div className="max-w-[900px] mx-auto px-6 relative z-10">
                 {/* Header */}
                 <motion.div
                     ref={headerRef}
                     initial={{ opacity: 0, y: 40 }}
                     animate={isHeaderInView ? { opacity: 1, y: 0 } : {}}
                     transition={{ duration: 0.6 }}
-                    style={{ textAlign: 'center', marginBottom: 48 }}
+                    className="text-center mb-12"
                 >
                     {/* Badge */}
                     <motion.div
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={isHeaderInView ? { opacity: 1, scale: 1 } : {}}
                         transition={{ delay: 0.2 }}
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-5"
                         style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 8,
-                            padding: '8px 16px',
-                            borderRadius: 50,
                             background: 'rgba(16, 185, 129, 0.1)',
-                            border: '1px solid rgba(16, 185, 129, 0.2)',
-                            marginBottom: 20
+                            border: '1px solid rgba(16, 185, 129, 0.2)'
                         }}
                     >
                         <HelpCircle style={{ width: 16, height: 16, color: '#34d399' }} />
-                        <span style={{ fontSize: 13, fontWeight: 600, color: '#34d399' }}>{t('badge')}</span>
+                        <span className="text-[13px] font-semibold text-[#34d399]">{t('badge')}</span>
                     </motion.div>
 
-                    <h2 style={{
-                        fontSize: 'clamp(32px, 5vw, 48px)',
-                        fontWeight: 800,
-                        marginBottom: 16,
-                        lineHeight: 1.2,
-                        color: 'white'
-                    }}>
+                    <h2 className="font-extrabold mb-4 leading-tight text-white" style={{ fontSize: 'clamp(32px, 5vw, 48px)' }}>
                         {t.rich('title', {
                             green: (chunks) => (
                                 <span style={{
@@ -236,22 +190,13 @@ export default function FAQ() {
                             )
                         })}
                     </h2>
-                    <p style={{
-                        fontSize: 18,
-                        color: '#94a3b8',
-                        maxWidth: 500,
-                        margin: '0 auto'
-                    }}>
+                    <p className="text-lg text-slate-400 max-w-[500px] mx-auto">
                         {t('subtitle')}
                     </p>
                 </motion.div>
 
-                {/* FAQ Grid - 2 columns on desktop */}
-                <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 400px), 1fr))',
-                    gap: 12
-                }}>
+                {/* FAQ Grid — 2 colonnes sur desktop */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {faqs.map((faq, index) => (
                         <FAQItem key={index} faq={faq} index={index} />
                     ))}
