@@ -111,8 +111,6 @@ export default function DashboardLayout({
                 const supabase = createClient()
                 const { data: { user } } = await supabase.auth.getUser()
                 if (!user) return
-                const token = typeof window !== 'undefined' ? localStorage.getItem('fcm_token') : null
-                if (!token) return
 
                 const now = new Date()
                 const notifs: Notification[] = []
@@ -187,6 +185,27 @@ export default function DashboardLayout({
                         read: false
                     })
                 }
+
+                // Broadcasts push reçus (visibles dans la cloche, 30 derniers jours)
+                const { data: broadcastNotifs } = await supabase
+                    .from('notification_log')
+                    .select('id, data, created_at')
+                    .eq('user_id', user.id)
+                    .eq('type', 'broadcast_push')
+                    .gte('created_at', new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString())
+                    .order('created_at', { ascending: false })
+                    .limit(5)
+
+                broadcastNotifs?.forEach(notif => {
+                    notifs.push({
+                        id: `broadcast-${notif.id}`,
+                        type: 'push',
+                        title: notif.data?.title || 'Annonce',
+                        message: notif.data?.body || '',
+                        time: formatTimeAgo(new Date(notif.created_at)),
+                        read: false
+                    })
+                })
 
                 setNotifications(notifs.slice(0, 10))
                 setUnreadCount(notifs.filter(n => !n.read).length)
