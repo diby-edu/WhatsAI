@@ -126,6 +126,18 @@ function BillingContent() {
             if (data.plans) {
                 // Filter out free plans (price = 0)
                 const paidPlans = data.plans.filter((p: Plan) => p.price > 0)
+                // Ensure Scale plan always shows even if not in DB yet
+                const hasScale = paidPlans.some((p: Plan) => p.name.toLowerCase().includes('scale'))
+                if (!hasScale) {
+                    paidPlans.push({
+                        id: 'scale',
+                        name: 'Scale',
+                        price: 129900,
+                        credits: 20000,
+                        features: [],
+                        is_popular: false
+                    })
+                }
                 setPlans(paidPlans)
             }
         } catch (err) {
@@ -287,6 +299,7 @@ function BillingContent() {
 
     const getPlanIcon = (name: string) => {
         const lower = name.toLowerCase()
+        if (lower.includes('scale')) return Star
         if (lower.includes('business') || lower.includes('enterprise')) return TrendingUp
         if (lower.includes('pro')) return Crown
         return Zap
@@ -294,7 +307,8 @@ function BillingContent() {
 
     const getPlanColor = (name: string) => {
         const lower = name.toLowerCase()
-        if (lower.includes('business') || lower.includes('enterprise')) return '#a855f7'
+        if (lower.includes('scale')) return '#a78bfa'
+        if (lower.includes('business') || lower.includes('enterprise')) return '#f59e0b'
         if (lower.includes('pro')) return '#10b981'
         return '#3b82f6'
     }
