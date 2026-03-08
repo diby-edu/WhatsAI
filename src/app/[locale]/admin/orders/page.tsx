@@ -175,7 +175,7 @@ export default function AdminOrdersPage() {
             </div>
 
             {/* Quick Stats */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+            <div className="admin-orders-stats">
                 {[
                     { label: 'Total', value: stats.total, icon: ShoppingCart, color: '#3b82f6' },
                     { label: 'En attente', value: stats.pending, icon: Clock, color: '#fbbf24' },

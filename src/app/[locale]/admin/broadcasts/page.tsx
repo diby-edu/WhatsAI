@@ -294,7 +294,7 @@ export default function AdminBroadcastsPage() {
             </div>
 
             {/* Tabs */}
-            <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid rgba(148, 163, 184, 0.1)' }}>
+            <div className="broadcasts-tabs" style={{ display: 'flex', gap: 4, borderBottom: '1px solid rgba(148, 163, 184, 0.1)' }}>
                 {([
                     { id: 'whatsapp' as TabId, label: 'WhatsApp', icon: MessageSquare, color: '#34d399' },
                     { id: 'email' as TabId, label: 'Email', icon: Mail, color: '#60a5fa' },

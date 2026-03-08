@@ -149,6 +149,7 @@ export default function HowItWorks() {
 
                             {/* Card */}
                             <motion.div
+                                className="hiw-step"
                                 whileHover={{ y: -10, transition: { duration: 0.2 } }}
                                 style={{
                                     flex: 1,
@@ -163,7 +164,7 @@ export default function HowItWorks() {
                                 }}
                             >
                                 {/* Step number background */}
-                                <div style={{
+                                <div className="hiw-number" style={{
                                     position: 'absolute',
                                     top: 16,
                                     right: 16,
