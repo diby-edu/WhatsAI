@@ -100,15 +100,6 @@ export default function Pricing() {
     const [isAuthenticated, setIsAuthenticated] = useState(false)
     const [loadingPlan, setLoadingPlan] = useState<string | null>(null)
     const [plans, setPlans] = useState<Plan[]>(FALLBACK_PLANS)
-    const [isMobile, setIsMobile] = useState(false)
-
-    useEffect(() => {
-        const check = () => setIsMobile(window.innerWidth < 521)
-        check()
-        window.addEventListener('resize', check)
-        return () => window.removeEventListener('resize', check)
-    }, [])
-
     useEffect(() => {
         const checkAuth = async () => {
             try {
@@ -470,7 +461,7 @@ export default function Pricing() {
 
                                 {/* Common features (same for all plans) */}
                                 <div style={{ flex: 1, marginBottom: 10 }}>
-                                    {(isMobile ? COMMON_FEATURES.slice(0, 3) : COMMON_FEATURES).map((feature, i) => (
+                                    {COMMON_FEATURES.map((feature, i) => (
                                         <div key={i} style={{
                                             display: 'flex',
                                             alignItems: 'flex-start',
@@ -498,11 +489,6 @@ export default function Pricing() {
                                             <span style={{ fontSize: 13, color: '#94a3b8' }}>{feature}</span>
                                         </div>
                                     ))}
-                                    {isMobile && (
-                                        <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
-                                            +{COMMON_FEATURES.length - 3} autres fonctionnalités incluses
-                                        </div>
-                                    )}
                                 </div>
 
                                 {/* Plan-specific features (credits policy, Scale bonuses) */}

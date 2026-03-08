@@ -856,6 +856,50 @@ h6 {
 }
 
 /* =============================================
+   BUSINESS TYPES GRID RESPONSIVE
+   ============================================= */
+
+/* BusinessTypes — 4 cols desktop → 2 cols tablet → 1 col mobile */
+.bt-grid {
+  grid-template-columns: repeat(4, 1fr) !important;
+}
+
+@media (max-width: 1024px) {
+  .bt-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (max-width: 600px) {
+  .bt-grid {
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+  }
+}
+
+/* =============================================
+   SOCIAL PROOF GRID RESPONSIVE
+   ============================================= */
+
+/* SocialProof testimonials — 3 cols desktop → 2 cols tablet → 1 col mobile */
+.sp-grid {
+  grid-template-columns: repeat(3, 1fr) !important;
+}
+
+@media (max-width: 900px) {
+  .sp-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (max-width: 600px) {
+  .sp-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+}
+
+/* =============================================
    ADMIN STATS GRID RESPONSIVE
    ============================================= */
 
