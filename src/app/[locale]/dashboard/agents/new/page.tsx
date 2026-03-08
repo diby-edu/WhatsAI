@@ -688,7 +688,7 @@ Règles:
                             </div>
                         </div>
 
-                        <div className="agent-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                        <div className="agent-grid-2">
                             <div>
                                 <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
                                     Latitude
@@ -716,7 +716,7 @@ Règles:
                             </div>
                         </div>
 
-                        <div className="agent-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                        <div className="agent-grid-2">
                             <div>
                                 <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
                                     Numéro d'Escalade / SAV *
@@ -844,7 +844,7 @@ Règles:
                             <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 16 }}>
                                 {t('Form.mission.label')}
                             </label>
-                            <div className="agent-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+                            <div className="agent-grid-3">
                                 {missionTemplates.map((template) => (
                                     <button
                                         key={template.id}
@@ -1171,7 +1171,7 @@ Règles:
                             <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
                                 Mode de Paiement
                             </label>
-                            <div className="agent-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                            <div className="agent-grid-2" style={{ gap: 12 }}>
                                 <div
                                     onClick={() => updateFormData('payment_mode', 'cinetpay')}
                                     style={{
@@ -1207,7 +1207,7 @@ Règles:
                                 <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0' }}>
                                     Vos Numéros Mobile Money
                                 </label>
-                                <div className="agent-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                                <div className="agent-grid-2">
                                     <div>
                                         <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
                                             🟠 Orange Money
@@ -1233,7 +1233,7 @@ Règles:
                                         />
                                     </div>
                                 </div>
-                                <div className="agent-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                                <div className="agent-grid-2">
                                     <div>
                                         <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
                                             🔵 Wave

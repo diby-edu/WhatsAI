@@ -455,7 +455,7 @@ export default function NewProductPage() {
                                     {getDisabledReason()}
                                 </p>
                             )}
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+                            <div className="agent-grid-3">
                                 {[
                                     { id: 'product', label: '📦 Physique', desc: 'Produit livrable' },
                                     { id: 'digital', label: '💻 Numérique', desc: 'Téléchargement' },
@@ -636,7 +636,7 @@ export default function NewProductPage() {
                             />
                         </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                        <div className="agent-grid-2">
                             <div>
                                 <label style={labelStyle}>Prix ({currency === 'XOF' ? 'FCFA' : currency})</label>
                                 <div style={{ position: 'relative' }}>
