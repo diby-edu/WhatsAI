@@ -39,7 +39,7 @@ import { CurrencyProvider } from '@/contexts/CurrencyContext'
 
 interface Notification {
     id: string
-    type: 'info' | 'success' | 'warning' | 'order' | 'credits'
+    type: 'info' | 'success' | 'warning' | 'order' | 'credits' | 'push'
     title: string
     message: string
     time: string
