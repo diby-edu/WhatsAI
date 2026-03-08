@@ -36,50 +36,29 @@ export default function HowItWorks() {
     ]
 
     return (
-        <section id="how-it-works" style={{
-            padding: '100px 24px',
-            background: '#020617',
-            position: 'relative'
-        }}>
+        <section id="how-it-works" className="py-16 sm:py-[100px] px-6 relative bg-[#020617]">
             {/* Background effects */}
-            <div style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                height: 1,
+            <div className="absolute top-0 left-0 right-0 h-px" style={{
                 background: 'linear-gradient(90deg, transparent, rgba(37, 211, 102, 0.3), transparent)'
             }} />
 
-            <div style={{ maxWidth: 1200, margin: '0 auto', position: 'relative', zIndex: 1 }}>
+            <div className="max-w-[1200px] mx-auto relative z-10">
                 {/* Header */}
                 <motion.div
                     initial={{ opacity: 0, y: 30 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ duration: 0.6 }}
-                    style={{ textAlign: 'center', marginBottom: 64 }}
+                    className="text-center mb-16"
                 >
-                    <div style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        padding: '8px 20px',
-                        borderRadius: 100,
+                    <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full mb-6" style={{
                         background: 'rgba(37, 211, 102, 0.1)',
-                        border: '1px solid rgba(37, 211, 102, 0.2)',
-                        marginBottom: 24
+                        border: '1px solid rgba(37, 211, 102, 0.2)'
                     }}>
                         <Zap style={{ width: 16, height: 16, color: '#25D366' }} />
-                        <span style={{ fontSize: 14, color: '#25D366', fontWeight: 600 }}>{t('badge')}</span>
+                        <span className="text-sm text-[#25D366] font-semibold">{t('badge')}</span>
                     </div>
-                    <h2 style={{
-                        fontSize: 'clamp(32px, 5vw, 48px)',
-                        fontWeight: 700,
-                        color: 'white',
-                        marginBottom: 16,
-                        lineHeight: 1.2
-                    }}>
+                    <h2 className="font-bold text-white mb-4 leading-tight" style={{ fontSize: 'clamp(32px, 5vw, 48px)' }}>
                         {t.rich('title', {
                             green: (chunks) => (
                                 <span style={{
@@ -90,19 +69,13 @@ export default function HowItWorks() {
                             )
                         })}
                     </h2>
-                    <p style={{ fontSize: 18, color: '#94a3b8', maxWidth: 500, margin: '0 auto' }}>
+                    <p className="text-lg text-slate-400 max-w-[500px] mx-auto">
                         {t('subtitle')}
                     </p>
                 </motion.div>
 
                 {/* Steps */}
-                <div style={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'stretch',
-                    gap: 24,
-                    flexWrap: 'wrap'
-                }}>
+                <div className="flex justify-center items-stretch gap-6 flex-wrap">
                     {steps.map((step, index) => (
                         <motion.div
                             key={step.number}
@@ -110,37 +83,18 @@ export default function HowItWorks() {
                             whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true }}
                             transition={{ duration: 0.6, delay: step.delay }}
-                            style={{
-                                flex: '1 1 300px',
-                                maxWidth: 360,
-                                position: 'relative',
-                                display: 'flex',
-                                alignItems: 'stretch'
-                            }}
+                            className="flex-1 basis-[300px] max-w-[360px] relative flex items-stretch"
                         >
                             {/* Arrow connector */}
                             {index < steps.length - 1 && (
-                                <div style={{
-                                    position: 'absolute',
-                                    right: -16,
-                                    top: '50%',
-                                    transform: 'translateY(-50%)',
-                                    zIndex: 10,
-                                    display: 'flex',
-                                    alignItems: 'center'
-                                }} className="step-arrow">
+                                <div className="step-arrow absolute z-10 flex items-center" style={{
+                                    right: -16, top: '50%', transform: 'translateY(-50%)'
+                                }}>
                                     <motion.div
                                         animate={{ x: [0, 5, 0] }}
                                         transition={{ duration: 1.5, repeat: Infinity }}
-                                        style={{
-                                            width: 32,
-                                            height: 32,
-                                            borderRadius: '50%',
-                                            background: 'rgba(37, 211, 102, 0.2)',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center'
-                                        }}
+                                        className="w-8 h-8 rounded-full flex items-center justify-center"
+                                        style={{ background: 'rgba(37, 211, 102, 0.2)' }}
                                     >
                                         <ArrowRight style={{ width: 16, height: 16, color: '#25D366' }} />
                                     </motion.div>
@@ -149,29 +103,19 @@ export default function HowItWorks() {
 
                             {/* Card */}
                             <motion.div
-                                className="hiw-step"
+                                className="hiw-step flex-1 rounded-[28px] text-center relative overflow-hidden"
                                 whileHover={{ y: -10, transition: { duration: 0.2 } }}
                                 style={{
-                                    flex: 1,
                                     padding: 36,
-                                    borderRadius: 28,
                                     background: 'linear-gradient(180deg, rgba(30, 41, 59, 0.5) 0%, rgba(15, 23, 42, 0.5) 100%)',
                                     backdropFilter: 'blur(20px)',
-                                    border: '1px solid rgba(148, 163, 184, 0.1)',
-                                    textAlign: 'center',
-                                    position: 'relative',
-                                    overflow: 'hidden'
+                                    border: '1px solid rgba(148, 163, 184, 0.1)'
                                 }}
                             >
                                 {/* Step number background */}
-                                <div className="hiw-number" style={{
-                                    position: 'absolute',
-                                    top: 16,
-                                    right: 16,
+                                <div className="hiw-number absolute top-4 right-4 font-black leading-none" style={{
                                     fontSize: 72,
-                                    fontWeight: 900,
-                                    color: 'rgba(148, 163, 184, 0.06)',
-                                    lineHeight: 1
+                                    color: 'rgba(148, 163, 184, 0.06)'
                                 }}>
                                     {step.number}
                                 </div>
@@ -179,37 +123,18 @@ export default function HowItWorks() {
                                 {/* Icon */}
                                 <motion.div
                                     whileHover={{ scale: 1.1, rotate: 5 }}
+                                    className="flex items-center justify-center mx-auto mb-6"
                                     style={{
-                                        width: 72,
-                                        height: 72,
-                                        borderRadius: 20,
+                                        width: 72, height: 72, borderRadius: 20,
                                         background: step.gradient,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        margin: '0 auto 24px',
-                                        boxShadow: `0 20px 40px rgba(0,0,0,0.3)`
+                                        boxShadow: '0 20px 40px rgba(0,0,0,0.3)'
                                     }}
                                 >
                                     <step.icon style={{ width: 32, height: 32, color: 'white' }} />
                                 </motion.div>
 
-                                {/* Content */}
-                                <h3 style={{
-                                    fontSize: 20,
-                                    fontWeight: 700,
-                                    color: 'white',
-                                    marginBottom: 12
-                                }}>
-                                    {t(step.titleKey)}
-                                </h3>
-                                <p style={{
-                                    fontSize: 14,
-                                    color: '#94a3b8',
-                                    lineHeight: 1.7
-                                }}>
-                                    {t(step.descKey)}
-                                </p>
+                                <h3 className="text-xl font-bold text-white mb-3">{t(step.titleKey)}</h3>
+                                <p className="text-sm text-slate-400 leading-[1.7]">{t(step.descKey)}</p>
                             </motion.div>
                         </motion.div>
                     ))}
@@ -221,24 +146,15 @@ export default function HowItWorks() {
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ duration: 0.5, delay: 0.6 }}
-                    style={{ textAlign: 'center', marginTop: 48 }}
+                    className="text-center mt-12"
                 >
-                    <Link href="/register" style={{ textDecoration: 'none' }}>
+                    <Link href="/register" className="no-underline">
                         <motion.button
                             whileHover={{ scale: 1.03, boxShadow: '0 20px 40px rgba(37, 211, 102, 0.3)' }}
                             whileTap={{ scale: 0.98 }}
+                            className="py-4 px-8 rounded-[14px] border-0 text-white font-bold text-base cursor-pointer inline-flex items-center gap-[10px]"
                             style={{
-                                padding: '16px 32px',
-                                borderRadius: 14,
-                                border: 'none',
                                 background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
-                                color: 'white',
-                                fontWeight: 700,
-                                fontSize: 16,
-                                cursor: 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 10,
                                 boxShadow: '0 10px 30px rgba(37, 211, 102, 0.2)'
                             }}
                         >
@@ -249,14 +165,6 @@ export default function HowItWorks() {
                     </Link>
                 </motion.div>
             </div>
-
-            <style jsx global>{`
-                @media (max-width: 900px) {
-                    .step-arrow {
-                        display: none !important;
-                    }
-                }
-            `}</style>
         </section>
     )
 }

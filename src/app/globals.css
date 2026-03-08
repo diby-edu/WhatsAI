@@ -1612,6 +1612,13 @@ body {
   }
 }
 
+/* Step arrows HowItWorks — masqués sur mobile */
+@media (max-width: 900px) {
+  .step-arrow {
+    display: none !important;
+  }
+}
+
 /* =============================================
    PHASE 0 — FIXES RESPONSIVES SUPPLEMENTAIRES
    ============================================= */
