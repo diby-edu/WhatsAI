@@ -1,7 +1,7 @@
 'use client'
 
 import { motion, AnimatePresence } from 'framer-motion'
-import { MessageCircle, Sparkles, Zap, ArrowRight, Star, Bot, CheckCircle, Clock, Users, Send, Shield, TrendingUp, Phone } from 'lucide-react'
+import { MessageCircle, Sparkles, Zap, ArrowRight, Star, Bot, CheckCircle, Clock, Users, Send, Shield, TrendingUp } from 'lucide-react'
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
@@ -11,7 +11,6 @@ export default function Hero() {
     const [visibleMessages, setVisibleMessages] = useState(0)
     const [isTyping, setIsTyping] = useState(false)
 
-    // WhatsApp-style chat messages for the demo
     const chatMessages = [
         { id: 1, type: 'received', text: t('chat.message1'), time: "10:30" },
         { id: 2, type: 'sent', text: t('chat.response1'), time: "10:30", isBot: true },
@@ -35,65 +34,47 @@ export default function Hero() {
             }, visibleMessages === 0 ? 1000 : 2000)
             return () => clearTimeout(timer)
         } else {
-            // Loop the animation
             setTimeout(() => setVisibleMessages(0), 4000)
         }
     }, [visibleMessages])
 
     return (
-        <section style={{
-            position: 'relative',
-            minHeight: '100vh',
-            display: 'flex',
-            alignItems: 'center',
-            paddingTop: 100,
-            paddingBottom: 60,
-            overflow: 'visible',
-            background: 'linear-gradient(180deg, #020617 0%, #0f172a 50%, #020617 100%)'
-        }}>
+        <section
+            id="hero"
+            className="relative min-h-screen flex items-center pt-[100px] pb-[60px] overflow-visible"
+            style={{ background: 'linear-gradient(180deg, #020617 0%, #0f172a 50%, #020617 100%)' }}
+        >
             {/* Animated Background Effects */}
-            <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
+            <div className="absolute inset-0 overflow-hidden">
                 {/* WhatsApp Green Glow */}
                 <motion.div
-                    animate={{
-                        scale: [1, 1.3, 1],
-                        opacity: [0.15, 0.25, 0.15]
-                    }}
+                    animate={{ scale: [1, 1.3, 1], opacity: [0.15, 0.25, 0.15] }}
                     transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
                     style={{
                         position: 'absolute',
-                        width: 900,
-                        height: 900,
+                        width: 900, height: 900,
                         borderRadius: '50%',
                         background: 'radial-gradient(circle, rgba(37, 211, 102, 0.25) 0%, transparent 60%)',
-                        top: -300,
-                        left: '50%',
+                        top: -300, left: '50%',
                         transform: 'translateX(-50%)',
                         filter: 'blur(80px)'
                     }}
                 />
                 {/* Purple accent */}
                 <motion.div
-                    animate={{
-                        scale: [1, 1.2, 1],
-                        opacity: [0.1, 0.2, 0.1]
-                    }}
+                    animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.2, 0.1] }}
                     transition={{ duration: 10, repeat: Infinity, delay: 3 }}
                     style={{
                         position: 'absolute',
-                        width: 600,
-                        height: 600,
+                        width: 600, height: 600,
                         borderRadius: '50%',
                         background: 'radial-gradient(circle, rgba(139, 92, 246, 0.2) 0%, transparent 60%)',
-                        bottom: -100,
-                        right: -100,
+                        bottom: -100, right: -100,
                         filter: 'blur(60px)'
                     }}
                 />
                 {/* Grid pattern */}
-                <div style={{
-                    position: 'absolute',
-                    inset: 0,
+                <div className="absolute inset-0" style={{
                     backgroundImage: `
                         linear-gradient(rgba(37, 211, 102, 0.03) 1px, transparent 1px),
                         linear-gradient(90deg, rgba(37, 211, 102, 0.03) 1px, transparent 1px)
@@ -102,36 +83,21 @@ export default function Hero() {
                 }} />
             </div>
 
-            <div style={{
-                width: '100%',
-                maxWidth: 1400,
-                margin: '0 auto',
-                padding: '0 24px',
-                position: 'relative',
-                zIndex: 10
-            }}>
-                <div className="hero-grid" style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(2, 1fr)',
-                    gap: 80,
-                    alignItems: 'center'
-                }}>
+            <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 relative z-10">
+                {/* 2-col grid on lg+, 1-col stacked on mobile/tablet */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-[50px] lg:gap-20 items-center text-center lg:text-left">
+
                     {/* Left Content */}
-                    <div className="hero-content">
+                    <div>
                         {/* Badge */}
                         <motion.div
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.5 }}
+                            className="inline-flex items-center gap-[10px] px-4 py-2 rounded-full mb-7"
                             style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 10,
-                                padding: '8px 16px',
-                                borderRadius: 100,
                                 background: 'rgba(37, 211, 102, 0.1)',
-                                border: '1px solid rgba(37, 211, 102, 0.3)',
-                                marginBottom: 28
+                                border: '1px solid rgba(37, 211, 102, 0.3)'
                             }}
                         >
                             <motion.div
@@ -140,25 +106,18 @@ export default function Hero() {
                             >
                                 <Sparkles style={{ width: 16, height: 16, color: '#25D366' }} />
                             </motion.div>
-                            <span style={{ fontSize: 14, color: '#25D366', fontWeight: 600 }}>
+                            <span className="text-sm text-[#25D366] font-semibold">
                                 {t('poweredBy')}
                             </span>
                         </motion.div>
 
                         {/* Main Title */}
                         <motion.h1
-                            className="hero-title"
                             initial={{ opacity: 0, y: 30 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.6, delay: 0.1 }}
-                            style={{
-                                fontSize: 'clamp(26px, 5vw, 58px)',
-                                fontWeight: 800,
-                                marginBottom: 24,
-                                lineHeight: 1.15,
-                                letterSpacing: '-0.03em',
-                                color: 'white'
-                            }}
+                            className="font-extrabold mb-6 leading-[1.15] -tracking-[0.03em] text-white"
+                            style={{ fontSize: 'clamp(26px, 5vw, 58px)' }}
                         >
                             {t.rich('title', {
                                 green: (chunks) => (
@@ -183,21 +142,15 @@ export default function Hero() {
 
                         {/* Subtitle */}
                         <motion.p
-                            className="hero-subtitle"
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.5, delay: 0.2 }}
-                            style={{
-                                fontSize: 'clamp(14px, 3vw, 18px)',
-                                color: '#94a3b8',
-                                marginBottom: 32,
-                                lineHeight: 1.7,
-                                maxWidth: '100%'
-                            }}
+                            className="text-slate-400 mb-8 leading-[1.7] w-full"
+                            style={{ fontSize: 'clamp(14px, 3vw, 18px)' }}
                         >
                             {t.rich('subtitle', {
-                                white: (chunks) => <span style={{ color: 'white', fontWeight: 500 }}>{chunks}</span>,
-                                green: (chunks) => <span style={{ color: '#25D366', fontWeight: 500 }}>{chunks}</span>
+                                white: (chunks) => <span className="text-white font-medium">{chunks}</span>,
+                                green: (chunks) => <span className="text-[#25D366] font-medium">{chunks}</span>
                             })}
                         </motion.p>
 
@@ -206,52 +159,37 @@ export default function Hero() {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.5, delay: 0.25 }}
-                            style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 36 }}
+                            className="flex flex-wrap gap-3 mb-9 justify-center lg:justify-start"
                         >
                             {[
                                 { icon: Zap, text: t('pills.response') },
                                 { icon: Clock, text: t('pills.available') },
                                 { icon: Shield, text: t('pills.noCard') }
                             ].map((item, i) => (
-                                <div key={i} style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 8,
-                                    padding: '10px 16px',
-                                    borderRadius: 10,
+                                <div key={i} className="flex items-center gap-2 px-4 py-[10px] rounded-[10px]" style={{
                                     background: 'rgba(30, 41, 59, 0.6)',
                                     border: '1px solid rgba(148, 163, 184, 0.1)'
                                 }}>
                                     <item.icon style={{ width: 16, height: 16, color: '#25D366' }} />
-                                    <span style={{ fontSize: 14, color: '#e2e8f0', fontWeight: 500 }}>{item.text}</span>
+                                    <span className="text-sm text-slate-200 font-medium">{item.text}</span>
                                 </div>
                             ))}
                         </motion.div>
 
-                        {/* CTA Buttons */}
+                        {/* CTA Buttons — stacked vertically on mobile, row on sm+ */}
                         <motion.div
-                            className="hero-buttons"
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.5, delay: 0.3 }}
-                            style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 40 }}
+                            className="flex flex-col sm:flex-row flex-wrap gap-3 mb-10"
                         >
-                            <Link href="/register" style={{ textDecoration: 'none' }}>
+                            <Link href="/register" className="w-full sm:w-auto no-underline">
                                 <motion.button
                                     whileHover={{ scale: 1.03, boxShadow: '0 20px 40px rgba(37, 211, 102, 0.3)' }}
                                     whileTap={{ scale: 0.98 }}
+                                    className="w-full sm:w-auto py-[18px] px-9 rounded-[14px] border-none text-white font-bold text-base cursor-pointer flex items-center justify-center gap-[10px]"
                                     style={{
-                                        padding: '18px 36px',
-                                        borderRadius: 14,
-                                        border: 'none',
                                         background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
-                                        color: 'white',
-                                        fontWeight: 700,
-                                        fontSize: 16,
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 10,
                                         boxShadow: '0 10px 30px rgba(37, 211, 102, 0.2)'
                                     }}
                                 >
@@ -260,19 +198,14 @@ export default function Hero() {
                                     <ArrowRight style={{ width: 18, height: 18 }} />
                                 </motion.button>
                             </Link>
-                            <Link href="#how-it-works" style={{ textDecoration: 'none' }}>
+                            <Link href="#how-it-works" className="w-full sm:w-auto no-underline">
                                 <motion.button
                                     whileHover={{ scale: 1.03, background: 'rgba(37, 211, 102, 0.15)' }}
                                     whileTap={{ scale: 0.98 }}
+                                    className="w-full sm:w-auto py-[18px] px-8 rounded-[14px] font-semibold text-base cursor-pointer text-[#25D366]"
                                     style={{
-                                        padding: '18px 32px',
-                                        borderRadius: 14,
                                         border: '2px solid rgba(37, 211, 102, 0.4)',
-                                        background: 'rgba(37, 211, 102, 0.05)',
-                                        color: '#25D366',
-                                        fontWeight: 600,
-                                        fontSize: 16,
-                                        cursor: 'pointer'
+                                        background: 'rgba(37, 211, 102, 0.05)'
                                     }}
                                 >
                                     {t('cta.pricing')}
@@ -282,56 +215,42 @@ export default function Hero() {
 
                         {/* Trust Stats */}
                         <motion.div
-                            className="hero-stats"
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.5, delay: 0.4 }}
-                            style={{ display: 'flex', flexWrap: 'wrap', gap: 24, justifyContent: 'center' }}
+                            className="flex flex-wrap gap-6 justify-center lg:justify-start"
                         >
                             {[
                                 { value: t('stats.companies.value'), label: t('stats.companies.label'), icon: Users },
                                 { value: t('stats.messages.value'), label: t('stats.messages.label'), icon: MessageCircle },
                                 { value: t('stats.satisfaction.value'), label: t('stats.satisfaction.label'), icon: Star }
                             ].map((stat, i) => (
-                                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                    <div style={{
-                                        width: 44,
-                                        height: 44,
-                                        borderRadius: 12,
-                                        background: 'rgba(37, 211, 102, 0.1)',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center'
+                                <div key={i} className="flex items-center gap-3">
+                                    <div className="w-11 h-11 rounded-[12px] flex items-center justify-center" style={{
+                                        background: 'rgba(37, 211, 102, 0.1)'
                                     }}>
                                         <stat.icon style={{ width: 20, height: 20, color: '#25D366' }} />
                                     </div>
                                     <div>
-                                        <div style={{ fontSize: 22, fontWeight: 700, color: 'white' }}>{stat.value}</div>
-                                        <div style={{ fontSize: 13, color: '#64748b' }}>{stat.label}</div>
+                                        <div className="text-[22px] font-bold text-white">{stat.value}</div>
+                                        <div className="text-[13px] text-slate-500">{stat.label}</div>
                                     </div>
                                 </div>
                             ))}
                         </motion.div>
                     </div>
 
-                    {/* Right - Phone Mockup with WhatsApp Chat */}
+                    {/* Right - Phone Mockup — caché sur mobile (< md:768px), visible md+ */}
                     <motion.div
-                        className="hero-phone"
                         initial={{ opacity: 0, x: 50 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ duration: 0.8, delay: 0.3 }}
-                        style={{
-                            display: 'flex',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            position: 'relative'
-                        }}
+                        className="hidden md:flex justify-center items-center relative"
                     >
                         {/* Glow behind phone */}
                         <div style={{
                             position: 'absolute',
-                            width: 400,
-                            height: 400,
+                            width: 400, height: 400,
                             borderRadius: '50%',
                             background: 'radial-gradient(circle, rgba(37, 211, 102, 0.2) 0%, transparent 70%)',
                             filter: 'blur(40px)'
@@ -342,8 +261,7 @@ export default function Hero() {
                             animate={{ y: [0, -10, 0] }}
                             transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
                             style={{
-                                width: 340,
-                                height: 700,
+                                width: 340, height: 700,
                                 borderRadius: 45,
                                 background: 'linear-gradient(180deg, #1e1e1e 0%, #0d0d0d 100%)',
                                 padding: 12,
@@ -353,41 +271,28 @@ export default function Hero() {
                         >
                             {/* Notch */}
                             <div style={{
-                                position: 'absolute',
-                                top: 12,
-                                left: '50%',
+                                position: 'absolute', top: 12, left: '50%',
                                 transform: 'translateX(-50%)',
-                                width: 120,
-                                height: 28,
-                                background: '#000',
-                                borderRadius: 20,
-                                zIndex: 20
+                                width: 120, height: 28,
+                                background: '#000', borderRadius: 20, zIndex: 20
                             }} />
 
                             {/* Screen */}
                             <div style={{
-                                width: '100%',
-                                height: '100%',
-                                borderRadius: 35,
-                                overflow: 'hidden',
+                                width: '100%', height: '100%',
+                                borderRadius: 35, overflow: 'hidden',
                                 background: '#111b21'
                             }}>
                                 {/* WhatsApp Header */}
                                 <div style={{
                                     background: '#1f2c34',
                                     padding: '50px 16px 12px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 12
+                                    display: 'flex', alignItems: 'center', gap: 12
                                 }}>
                                     <div style={{
-                                        width: 40,
-                                        height: 40,
-                                        borderRadius: '50%',
+                                        width: 40, height: 40, borderRadius: '50%',
                                         background: 'linear-gradient(135deg, #25D366, #128C7E)',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center'
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center'
                                     }}>
                                         <Bot style={{ width: 22, height: 22, color: 'white' }} />
                                     </div>
@@ -402,13 +307,9 @@ export default function Hero() {
 
                                 {/* Chat Area */}
                                 <div style={{
-                                    padding: 12,
-                                    height: 480,
-                                    overflowY: 'auto',
+                                    padding: 12, height: 480, overflowY: 'auto',
                                     background: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.02'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    gap: 8
+                                    display: 'flex', flexDirection: 'column', gap: 8
                                 }}>
                                     <AnimatePresence>
                                         {chatMessages.slice(0, visibleMessages).map((msg) => (
@@ -428,35 +329,20 @@ export default function Hero() {
                                             >
                                                 {msg.isBot && (
                                                     <div style={{
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: 4,
-                                                        marginBottom: 6,
-                                                        color: '#25D366',
-                                                        fontSize: 11,
-                                                        fontWeight: 600
+                                                        display: 'flex', alignItems: 'center', gap: 4,
+                                                        marginBottom: 6, color: '#25D366', fontSize: 11, fontWeight: 600
                                                     }}>
                                                         <Sparkles style={{ width: 12, height: 12 }} />
                                                         {t('chat.aiResponse')}
                                                     </div>
                                                 )}
-                                                <div style={{
-                                                    color: 'white',
-                                                    fontSize: 14,
-                                                    lineHeight: 1.5,
-                                                    whiteSpace: 'pre-line'
-                                                }}>
+                                                <div style={{ color: 'white', fontSize: 14, lineHeight: 1.5, whiteSpace: 'pre-line' }}>
                                                     {msg.text}
                                                 </div>
                                                 <div style={{
-                                                    textAlign: 'right',
-                                                    fontSize: 11,
-                                                    color: 'rgba(255,255,255,0.6)',
-                                                    marginTop: 4,
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'flex-end',
-                                                    gap: 4
+                                                    textAlign: 'right', fontSize: 11, color: 'rgba(255,255,255,0.6)',
+                                                    marginTop: 4, display: 'flex', alignItems: 'center',
+                                                    justifyContent: 'flex-end', gap: 4
                                                 }}>
                                                     {msg.time}
                                                     {msg.type === 'sent' && (
@@ -473,12 +359,9 @@ export default function Hero() {
                                             initial={{ opacity: 0 }}
                                             animate={{ opacity: 1 }}
                                             style={{
-                                                alignSelf: 'flex-end',
-                                                padding: '12px 18px',
-                                                borderRadius: 16,
-                                                background: '#005c4b',
-                                                display: 'flex',
-                                                gap: 4
+                                                alignSelf: 'flex-end', padding: '12px 18px',
+                                                borderRadius: 16, background: '#005c4b',
+                                                display: 'flex', gap: 4
                                             }}
                                         >
                                             {[0, 1, 2].map(i => (
@@ -487,9 +370,7 @@ export default function Hero() {
                                                     animate={{ y: [0, -5, 0] }}
                                                     transition={{ duration: 0.5, repeat: Infinity, delay: i * 0.15 }}
                                                     style={{
-                                                        width: 8,
-                                                        height: 8,
-                                                        borderRadius: '50%',
+                                                        width: 8, height: 8, borderRadius: '50%',
                                                         background: 'rgba(255,255,255,0.7)'
                                                     }}
                                                 />
@@ -500,28 +381,16 @@ export default function Hero() {
 
                                 {/* Input Bar */}
                                 <div style={{
-                                    position: 'absolute',
-                                    bottom: 12,
-                                    left: 12,
-                                    right: 12,
-                                    background: '#1f2c34',
-                                    borderRadius: 25,
-                                    padding: '10px 16px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 12
+                                    position: 'absolute', bottom: 12, left: 12, right: 12,
+                                    background: '#1f2c34', borderRadius: 25,
+                                    padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 12
                                 }}>
                                     <div style={{ flex: 1, color: 'rgba(255,255,255,0.4)', fontSize: 14 }}>
                                         {t('chat.inputPlaceholder')}
                                     </div>
                                     <div style={{
-                                        width: 40,
-                                        height: 40,
-                                        borderRadius: '50%',
-                                        background: '#25D366',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center'
+                                        width: 40, height: 40, borderRadius: '50%', background: '#25D366',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center'
                                     }}>
                                         <Send style={{ width: 18, height: 18, color: 'white' }} />
                                     </div>
@@ -534,17 +403,12 @@ export default function Hero() {
                             animate={{ y: [0, -15, 0], rotate: [0, 5, 0] }}
                             transition={{ duration: 5, repeat: Infinity }}
                             style={{
-                                position: 'absolute',
-                                top: 50,
-                                right: 20,
+                                position: 'absolute', top: 50, right: 20,
                                 background: 'rgba(37, 211, 102, 0.15)',
                                 backdropFilter: 'blur(10px)',
                                 border: '1px solid rgba(37, 211, 102, 0.3)',
-                                borderRadius: 16,
-                                padding: '14px 18px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 10
+                                borderRadius: 16, padding: '14px 18px',
+                                display: 'flex', alignItems: 'center', gap: 10
                             }}
                         >
                             <TrendingUp style={{ width: 20, height: 20, color: '#25D366' }} />
@@ -558,17 +422,12 @@ export default function Hero() {
                             animate={{ y: [0, 10, 0], rotate: [0, -3, 0] }}
                             transition={{ duration: 4, repeat: Infinity, delay: 1 }}
                             style={{
-                                position: 'absolute',
-                                bottom: 100,
-                                left: 0,
+                                position: 'absolute', bottom: 100, left: 0,
                                 background: 'rgba(30, 41, 59, 0.9)',
                                 backdropFilter: 'blur(10px)',
                                 border: '1px solid rgba(148, 163, 184, 0.2)',
-                                borderRadius: 16,
-                                padding: '14px 18px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 10
+                                borderRadius: 16, padding: '14px 18px',
+                                display: 'flex', alignItems: 'center', gap: 10
                             }}
                         >
                             <div style={{ display: 'flex' }}>
@@ -581,92 +440,6 @@ export default function Hero() {
                     </motion.div>
                 </div>
             </div>
-
-            {/* CSS for responsive */}
-            <style jsx global>{`
-                @media (max-width: 1024px) {
-                    section > div > div {
-                        grid-template-columns: 1fr !important;
-                        gap: 50px !important;
-                        text-align: center !important;
-                    }
-                    section > div > div > div:first-child > div:last-of-type {
-                        justify-content: center !important;
-                    }
-                    section > div > div > div:first-child > div[style*="gap: 40"] {
-                        justify-content: center !important;
-                    }
-                }
-                
-                /* Mobile responsive - Fix text overflow and buttons */
-                @media (max-width: 768px) {
-                    section {
-                        padding-top: 80px !important;
-                        padding-bottom: 40px !important;
-                    }
-                    section > div {
-                        padding: 0 16px !important;
-                    }
-                    section > div > div {
-                        gap: 30px !important;
-                    }
-                    /* Fix title overflow */
-                    section h1 {
-                        font-size: 28px !important;
-                        word-wrap: break-word !important;
-                        overflow-wrap: break-word !important;
-                        hyphens: auto !important;
-                    }
-                    /* Fix subtitle overflow */
-                    section p {
-                        font-size: 15px !important;
-                        max-width: 100% !important;
-                        padding: 0 8px !important;
-                    }
-                    /* Stack buttons vertically on mobile */
-                    section > div > div > div:first-child > div[style*="gap: 16px"][style*="marginBottom: 40"] {
-                        flex-direction: column !important;
-                        align-items: stretch !important;
-                        gap: 12px !important;
-                        width: 100% !important;
-                    }
-                    section > div > div > div:first-child > div[style*="gap: 16px"][style*="marginBottom: 40"] a {
-                        width: 100% !important;
-                    }
-                    section > div > div > div:first-child > div[style*="gap: 16px"][style*="marginBottom: 40"] button {
-                        width: 100% !important;
-                        justify-content: center !important;
-                    }
-                    /* Stack feature pills */
-                    section > div > div > div:first-child > div[style*="flexWrap: wrap"] {
-                        justify-content: center !important;
-                    }
-                    /* Stack trust stats */
-                    section > div > div > div:first-child > div[style*="gap: 40"] {
-                        flex-direction: column !important;
-                        gap: 20px !important;
-                        align-items: center !important;
-                    }
-                    /* Hide phone mockup on very small screens */
-                    section > div > div > div:last-child {
-                        display: none !important;
-                    }
-                }
-                
-                /* Small mobile (iPhone SE, etc) */
-                @media (max-width: 375px) {
-                    section h1 {
-                        font-size: 24px !important;
-                    }
-                    section p {
-                        font-size: 14px !important;
-                    }
-                    section > div > div > div:first-child > div[style*="flexWrap: wrap"] > div {
-                        padding: 8px 12px !important;
-                        font-size: 12px !important;
-                    }
-                }
-            `}</style>
         </section>
     )
 }
