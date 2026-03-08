@@ -416,7 +416,7 @@ export default function AgentWizardPage({
                         </div>
 
                         {/* Lat/Lon with Ma position link */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                        <div className="agent-grid-2">
                             <div>
                                 <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
                                     Latitude
@@ -447,7 +447,7 @@ export default function AgentWizardPage({
                         </div>
 
                         {/* Phone + Site Web */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                        <div className="agent-grid-2">
                             <div>
                                 <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
                                     Numéro d'Escalade / SAV
@@ -783,7 +783,7 @@ export default function AgentWizardPage({
                 return (
                     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                         {/* Settings - Only Temperature and Language */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                        <div className="agent-grid-2">
                             <div>
                                 <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>Température: {formData.temperature}</label>
                                 <input
@@ -816,7 +816,7 @@ export default function AgentWizardPage({
                                 <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
                                     Mode de Paiement
                                 </label>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                                <div className="agent-grid-2" style={{ gap: 12 }}>
                                     <div
                                         onClick={() => setFormData({ ...formData, payment_mode: 'cinetpay' })}
                                         style={{
@@ -851,7 +851,7 @@ export default function AgentWizardPage({
                                     <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0' }}>
                                         Vos Numéros Mobile Money
                                     </label>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                                    <div className="agent-grid-2">
                                         <div>
                                             <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
                                                 🟠 Orange Money
@@ -877,7 +877,7 @@ export default function AgentWizardPage({
                                             />
                                         </div>
                                     </div>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                                    <div className="agent-grid-2">
                                         <div>
                                             <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
                                                 🔵 Wave

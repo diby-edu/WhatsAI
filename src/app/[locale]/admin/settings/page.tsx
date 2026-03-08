@@ -434,7 +434,7 @@ export default function AdminSettingsPage() {
                             </select>
                         </div>
 
-                        <div className="admin-settings-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                        <div className="admin-settings-grid-2">
                             <div>
                                 <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
                                     Tokens max par message
@@ -561,7 +561,7 @@ export default function AdminSettingsPage() {
                             </select>
                         </div>
 
-                        <div className="admin-settings-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                        <div className="admin-settings-grid-2">
                             <div>
                                 <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
                                     Site ID
@@ -741,7 +741,7 @@ export default function AdminSettingsPage() {
             case 'security':
                 return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                        <div className="admin-settings-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                        <div className="admin-settings-grid-2">
                             <div>
                                 <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
                                     Timeout de session (heures)
@@ -1163,13 +1163,6 @@ export default function AdminSettingsPage() {
             >
                 {renderTabContent()}
             </motion.div>
-
-            <style jsx global>{`
-                @keyframes spin {
-                    from { transform: rotate(0deg); }
-                    to { transform: rotate(360deg); }
-                }
-            `}</style>
         </div>
     )
 }

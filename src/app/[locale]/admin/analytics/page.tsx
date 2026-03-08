@@ -51,7 +51,7 @@ export default function AdminAnalyticsPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
                 <div style={{ height: 80, width: 300, background: 'rgba(148, 163, 184, 0.1)', borderRadius: 12 }} />
                 <CardSkeleton count={4} />
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+                <div className="agent-grid-2" style={{ gap: 24 }}>
                     <ChartSkeleton />
                     <ChartSkeleton />
                 </div>
@@ -228,7 +228,7 @@ export default function AdminAnalyticsPage() {
             </div>
 
             {/* Charts Section */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+            <div className="agent-grid-2" style={{ gap: 24 }}>
 
                 {/* Revenue Evolution */}
                 <motion.div

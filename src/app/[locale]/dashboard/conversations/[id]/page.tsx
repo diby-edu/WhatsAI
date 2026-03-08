@@ -522,7 +522,7 @@ export default function ConversationDetailPage({ params }: { params: Promise<{ i
                         <p style={{ color: '#94a3b8', marginBottom: 24, lineHeight: 1.5 }}>
                             {t('delete.confirm')}
                         </p>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <div className="agent-grid-2" style={{ gap: 12 }}>
                             <button
                                 onClick={() => setShowDeleteConfirm(false)}
                                 style={{
@@ -556,13 +556,6 @@ export default function ConversationDetailPage({ params }: { params: Promise<{ i
                     </motion.div>
                 </div>
             )}
-
-            <style jsx global>{`
-                @keyframes spin {
-                    from { transform: rotate(0deg); }
-                    to { transform: rotate(360deg); }
-                }
-            `}</style>
         </div>
     )
 }

@@ -166,9 +166,6 @@ export default function AdminExportsPage() {
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-            <style jsx global>{`
-                @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-            `}</style>
 
             {/* Header */}
             <div>

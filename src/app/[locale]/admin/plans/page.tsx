@@ -452,7 +452,7 @@ export default function AdminPlansPage() {
                             </div>
 
                             {/* Price & Credits */}
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+                            <div className="agent-grid-2" style={{ marginBottom: 20 }}>
                                 <div>
                                     <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>Prix (FCFA)</label>
                                     <input
@@ -492,7 +492,7 @@ export default function AdminPlansPage() {
                             </div>
 
                             {/* Max Agents & WhatsApp Numbers */}
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+                            <div className="agent-grid-2" style={{ marginBottom: 20 }}>
                                 <div>
                                     <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
                                         Max agents (-1 = illimité)
@@ -674,13 +674,6 @@ export default function AdminPlansPage() {
                     </motion.div>
                 </div>
             )}
-
-            <style jsx global>{`
-                @keyframes spin {
-                    from { transform: rotate(0deg); }
-                    to { transform: rotate(360deg); }
-                }
-            `}</style>
         </div>
     )
 }

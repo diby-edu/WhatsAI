@@ -850,46 +850,106 @@ h6 {
 }
 
 /* =============================================
-   BUSINESS TYPES GRID RESPONSIVE
+   CLASSES UTILITAIRES GRIDS RESPONSIVES
+   (admin dashboard, wizard agents, settings)
    ============================================= */
 
-/* BusinessTypes — 4 cols desktop → 2 cols tablet → 1 col mobile */
-.bt-grid {
-  grid-template-columns: repeat(4, 1fr) !important;
+/* KPI stats grid : 4 cols → 2 cols (md) → 1 col (sm) */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
 }
-
 @media (max-width: 1024px) {
-  .bt-grid {
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 640px) {
+  .kpi-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Two-col asymmetric grid : 2fr/1fr → 1 col (md) */
+.two-col-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 1024px) {
+  .two-col-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Form grid 2 cols → 1 col mobile */
+.agent-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 640px) {
+  .agent-grid-2 {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Form grid 3 cols → 2 cols (md) → 1 col (sm) */
+.agent-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+@media (max-width: 768px) {
+  .agent-grid-3 {
     grid-template-columns: repeat(2, 1fr) !important;
   }
 }
-
-@media (max-width: 600px) {
-  .bt-grid {
+@media (max-width: 480px) {
+  .agent-grid-3 {
     grid-template-columns: 1fr !important;
-    gap: 14px !important;
   }
 }
 
-/* =============================================
-   SOCIAL PROOF GRID RESPONSIVE
-   ============================================= */
-
-/* SocialProof testimonials — 3 cols desktop → 2 cols tablet → 1 col mobile */
-.sp-grid {
-  grid-template-columns: repeat(3, 1fr) !important;
+/* Admin settings 2-col → 1 col mobile */
+.admin-settings-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 640px) {
+  .admin-settings-grid-2 {
+    grid-template-columns: 1fr !important;
+  }
 }
 
-@media (max-width: 900px) {
-  .sp-grid {
+/* Admin settings 2fr/1fr → 1 col mobile */
+.admin-settings-grid-2-1 {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 768px) {
+  .admin-settings-grid-2-1 {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Admin 4-col settings grid → 2 cols → 1 col mobile */
+.admin-settings-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+@media (max-width: 768px) {
+  .admin-settings-grid-4 {
     grid-template-columns: repeat(2, 1fr) !important;
   }
 }
-
-@media (max-width: 600px) {
-  .sp-grid {
+@media (max-width: 480px) {
+  .admin-settings-grid-4 {
     grid-template-columns: 1fr !important;
-    gap: 16px !important;
   }
 }
 

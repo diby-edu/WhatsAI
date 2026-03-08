@@ -453,13 +453,6 @@ export default function ResetPasswordPage() {
                     </motion.button>
                 </form>
             </motion.div>
-
-            <style jsx global>{`
-                @keyframes spin {
-                    from { transform: rotate(0deg); }
-                    to { transform: rotate(360deg); }
-                }
-            `}</style>
         </div>
     )
 }
