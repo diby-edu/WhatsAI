@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import {
     Send, Users, MessageSquare, Loader2, CheckCircle,
-    ArrowLeft, AlertTriangle, Clock, Mail, Search
+    ArrowLeft, AlertTriangle, Clock, Mail, Search, Bell
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -19,7 +19,7 @@ interface UserOption {
     plan: string
 }
 
-type TabId = 'whatsapp' | 'email'
+type TabId = 'whatsapp' | 'email' | 'push'
 
 const PLAN_OPTIONS = [
     { value: 'all', label: 'Tous les utilisateurs' },
@@ -59,6 +59,15 @@ export default function AdminBroadcastsPage() {
     const [emailResult, setEmailResult] = useState<{ sent: number; failed: number; total: number } | null>(null)
     const [emailError, setEmailError] = useState<string | null>(null)
 
+    // Push state
+    const [pushTitle, setPushTitle] = useState('')
+    const [pushBody, setPushBody] = useState('')
+    const [pushPlan, setPushPlan] = useState('all')
+    const [pushDeviceCount, setPushDeviceCount] = useState(0)
+    const [pushSending, setPushSending] = useState(false)
+    const [pushResult, setPushResult] = useState<{ sent: number; failed: number; total: number } | null>(null)
+    const [pushError, setPushError] = useState<string | null>(null)
+
     // Individual selection state
     const [allUsers, setAllUsers] = useState<UserOption[]>([])
     const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set())
@@ -69,6 +78,10 @@ export default function AdminBroadcastsPage() {
         fetchAgents()
         fetchHistory()
     }, [])
+
+    useEffect(() => {
+        fetchPushDeviceCount(pushPlan)
+    }, [pushPlan])
 
     useEffect(() => {
         if (emailPlan === 'individual') {
@@ -120,6 +133,44 @@ export default function AdminBroadcastsPage() {
             setEmailRecipients(data.data?.count || 0)
         } catch (err) {
             console.error('Error fetching email recipients:', err)
+        }
+    }
+
+    const fetchPushDeviceCount = async (plan: string) => {
+        try {
+            const res = await fetch(`/api/admin/broadcasts/push?targetPlan=${plan}`)
+            const data = await res.json()
+            setPushDeviceCount(data.data?.count || 0)
+        } catch {
+            setPushDeviceCount(0)
+        }
+    }
+
+    const sendPushBroadcast = async () => {
+        if (!pushTitle.trim() || !pushBody.trim()) return
+        if (!confirm(`Envoyer cette notification à ${pushDeviceCount} appareil${pushDeviceCount === 1 ? '' : 's'} ?`)) return
+        setPushSending(true)
+        setPushResult(null)
+        setPushError(null)
+        try {
+            const res = await fetch('/api/admin/broadcasts/push', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title: pushTitle.trim(), body: pushBody.trim(), targetPlan: pushPlan })
+            })
+            const data = await res.json()
+            if (res.ok && data.data) {
+                setPushResult(data.data)
+                setPushTitle('')
+                setPushBody('')
+                fetchHistory()
+            } else {
+                setPushError(data.error || 'Erreur lors de l\'envoi')
+            }
+        } catch {
+            setPushError('Erreur réseau')
+        } finally {
+            setPushSending(false)
         }
     }
 
@@ -247,6 +298,7 @@ export default function AdminBroadcastsPage() {
                 {([
                     { id: 'whatsapp' as TabId, label: 'WhatsApp', icon: MessageSquare, color: '#34d399' },
                     { id: 'email' as TabId, label: 'Email', icon: Mail, color: '#60a5fa' },
+                    { id: 'push' as TabId, label: 'Push', icon: Bell, color: '#f59e0b' },
                 ]).map(tab => (
                     <button key={tab.id} onClick={() => setActiveTab(tab.id)}
                         style={{
@@ -500,6 +552,95 @@ export default function AdminBroadcastsPage() {
                 </div>
             )}
 
+            {/* Push Tab */}
+            {activeTab === 'push' && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20 }}>
+                    <div style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(148, 163, 184, 0.1)', borderRadius: 14, padding: 20 }}>
+                        <h2 style={{ fontSize: 16, fontWeight: 600, color: 'white', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <Bell size={18} style={{ color: '#f59e0b' }} /> Notification Push
+                        </h2>
+
+                        {/* Segment */}
+                        <div style={{ marginBottom: 16 }}>
+                            <label style={{ display: 'block', color: '#94a3b8', fontSize: 13, marginBottom: 8 }}>Segment cible</label>
+                            <select value={pushPlan} onChange={(e) => setPushPlan(e.target.value)} style={inputStyle}>
+                                {PLAN_OPTIONS.filter(o => o.value !== 'individual').map(o => (
+                                    <option key={o.value} value={o.value}>{o.label}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Device count preview */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', marginBottom: 16, background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.2)', borderRadius: 10 }}>
+                            <Users size={16} style={{ color: '#f59e0b' }} />
+                            <span style={{ color: '#f59e0b', fontSize: 13 }}>
+                                {pushDeviceCount} appareil{pushDeviceCount === 1 ? '' : 's'} ciblé{pushDeviceCount === 1 ? '' : 's'}
+                            </span>
+                        </div>
+
+                        {/* Title */}
+                        <div style={{ marginBottom: 16 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                                <label style={{ color: '#94a3b8', fontSize: 13 }}>Titre</label>
+                                <span style={{ color: '#475569', fontSize: 11 }}>{pushTitle.length}/65</span>
+                            </div>
+                            <input type="text" value={pushTitle} onChange={(e) => setPushTitle(e.target.value.slice(0, 65))}
+                                placeholder="Ex: Nouvelle fonctionnalité disponible !" style={inputStyle} />
+                        </div>
+
+                        {/* Body */}
+                        <div style={{ marginBottom: 16 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                                <label style={{ color: '#94a3b8', fontSize: 13 }}>Message</label>
+                                <span style={{ color: '#475569', fontSize: 11 }}>{pushBody.length}/240</span>
+                            </div>
+                            <textarea value={pushBody} onChange={(e) => setPushBody(e.target.value.slice(0, 240))}
+                                placeholder="Découvrez ce qui est nouveau sur WazzapAI..." rows={4}
+                                style={{ ...inputStyle, resize: 'none' }} />
+                        </div>
+
+                        {/* Warning bypass preferences */}
+                        <div style={{ display: 'flex', gap: 8, padding: '10px 14px', marginBottom: 16, background: 'rgba(251, 191, 36, 0.1)', border: '1px solid rgba(251, 191, 36, 0.2)', borderRadius: 10 }}>
+                            <AlertTriangle size={16} style={{ color: '#fbbf24', flexShrink: 0, marginTop: 1 }} />
+                            <span style={{ color: '#fbbf24', fontSize: 12 }}>Envoyée à tous les appareils enregistrés, sans tenir compte des préférences de notification.</span>
+                        </div>
+
+                        {/* Result */}
+                        {pushResult && (
+                            <div style={{ padding: '12px 14px', marginBottom: 16, background: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.2)', borderRadius: 10 }}>
+                                <div style={{ color: '#4ade80', fontWeight: 600, fontSize: 13, marginBottom: 2 }}>✅ Notification envoyée</div>
+                                <div style={{ color: '#94a3b8', fontSize: 12 }}>
+                                    {pushResult.sent} envoyée{pushResult.sent !== 1 ? 's' : ''}
+                                    {pushResult.failed > 0 && ` · ${pushResult.failed} échec${pushResult.failed !== 1 ? 's' : ''}`}
+                                    {' / '}{pushResult.total} total
+                                </div>
+                            </div>
+                        )}
+                        {pushError && (
+                            <div style={{ padding: '10px 14px', marginBottom: 16, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: 10, color: '#f87171', fontSize: 13 }}>
+                                {pushError}
+                            </div>
+                        )}
+
+                        {/* Send button */}
+                        <button onClick={sendPushBroadcast}
+                            disabled={!pushTitle.trim() || !pushBody.trim() || pushSending || pushDeviceCount === 0}
+                            style={{
+                                width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                                padding: '13px 20px', background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                                border: 'none', borderRadius: 10, color: 'white', cursor: 'pointer', fontSize: 14, fontWeight: 600,
+                                opacity: (!pushTitle.trim() || !pushBody.trim() || pushSending || pushDeviceCount === 0) ? 0.5 : 1
+                            }}>
+                            {pushSending
+                                ? <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />Envoi en cours...</>
+                                : <><Bell size={16} />Envoyer la Notification</>}
+                        </button>
+                    </div>
+
+                    <HistoryPanel history={history} />
+                </div>
+            )}
+
             <style jsx global>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
         </div>
     )
@@ -520,22 +661,27 @@ function HistoryPanel({ history }: { history: any[] }) {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                     {history.slice(0, 15).map((b, i) => {
                         const isEmail = b.message?.startsWith('[EMAIL]')
+                        const isPush = b.message?.startsWith('[PUSH]')
                         return (
                             <div key={i} style={{ padding: 12, background: 'rgba(15, 23, 42, 0.3)', borderRadius: 10, border: '1px solid rgba(148, 163, 184, 0.05)' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                         {isEmail
                                             ? <Mail size={12} style={{ color: '#60a5fa' }} />
-                                            : <MessageSquare size={12} style={{ color: '#34d399' }} />}
+                                            : isPush
+                                                ? <Bell size={12} style={{ color: '#f59e0b' }} />
+                                                : <MessageSquare size={12} style={{ color: '#34d399' }} />}
                                         <span style={{ color: 'white', fontWeight: 500, fontSize: 12 }}>
-                                            {isEmail ? b.message.replace('[EMAIL] ', '') : (b.agent_name || 'Agent')}
+                                            {isEmail ? b.message.replace('[EMAIL] ', '')
+                                                : isPush ? b.message.replace('[PUSH] ', '')
+                                                    : (b.agent_name || 'Agent')}
                                         </span>
                                     </div>
                                     <span style={{ color: '#64748b', fontSize: 11 }}>
                                         {new Date(b.created_at).toLocaleDateString('fr-FR')}
                                     </span>
                                 </div>
-                                {!isEmail && (
+                                {!isEmail && !isPush && (
                                     <p style={{ color: '#94a3b8', fontSize: 11, margin: '0 0 6px 0', lineHeight: 1.4 }}>
                                         {b.message?.substring(0, 70)}{b.message?.length > 70 ? '...' : ''}
                                     </p>

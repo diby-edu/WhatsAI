@@ -30,6 +30,7 @@ import {
     TrendingUp
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { initWebPush } from '@/lib/notifications/web-push'
 import { useTranslations } from 'next-intl'
 import { GlobalSearch } from '@/components/dashboard/GlobalSearch'
 import { useAndroidBackButton } from '@/hooks/useAndroidBackButton'
@@ -218,6 +219,31 @@ export default function DashboardLayout({
             }
         }
         claimTokens()
+    }, [])
+
+    // Web push notifications for PC browsers
+    useEffect(() => {
+        const registerWebPush = async () => {
+            try {
+                const supabase = createClient()
+                const { data: { user } } = await supabase.auth.getUser()
+                if (!user) return
+
+                const token = await initWebPush()
+                if (!token) return
+
+                await fetch('/api/notifications/register-device', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token, platform: 'web' })
+                })
+            } catch {
+                // Silent fail — non-critical
+            }
+        }
+        // Small delay to not block initial render
+        const t = setTimeout(registerWebPush, 2000)
+        return () => clearTimeout(t)
     }, [])
 
     // Close notifications when clicking outside

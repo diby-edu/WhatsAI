@@ -801,9 +801,15 @@ h6 {
    PRICING MOBILE RESPONSIVE
    ============================================= */
 
-/* Pricing grid - always 3 columns by default */
+/* Pricing grid - 5 columns on desktop for 5 plans */
 .pricing-grid {
-  grid-template-columns: repeat(3, 1fr) !important;
+  grid-template-columns: repeat(5, 1fr) !important;
+}
+
+@media (max-width: 1200px) {
+  .pricing-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
 }
 
 @media (max-width: 800px) {
@@ -1291,7 +1297,7 @@ body {
 
 @media (min-width: 1024px) {
   .billing-stats-grid {
-    grid-template-columns: repeat(3, 1fr) !important;
+    grid-template-columns: repeat(4, 1fr) !important;
   }
 }
 
