@@ -806,19 +806,13 @@ h6 {
   grid-template-columns: repeat(5, 1fr) !important;
 }
 
-@media (max-width: 1200px) {
+@media (max-width: 1100px) {
   .pricing-grid {
     grid-template-columns: repeat(3, 1fr) !important;
   }
 }
 
-@media (max-width: 800px) {
-  .pricing-grid {
-    grid-template-columns: repeat(2, 1fr) !important;
-  }
-}
-
-@media (max-width: 520px) {
+@media (max-width: 650px) {
   .pricing-grid {
     grid-template-columns: 1fr !important;
   }
@@ -1616,4 +1610,67 @@ body {
   .agent-grid-3 {
     grid-template-columns: 1fr !important;
   }
+}
+
+/* =============================================
+   PHASE 0 — FIXES RESPONSIVES SUPPLEMENTAIRES
+   ============================================= */
+
+/* Hero — padding-top mobile (évite que le titre soit sous la top navbar) */
+@media (max-width: 768px) {
+  section#hero {
+    padding-top: 80px !important;
+    padding-bottom: 60px !important;
+  }
+}
+
+/* HowItWorks — padding et numéro de fond sur mobile */
+@media (max-width: 600px) {
+  .hiw-step {
+    padding: 20px !important;
+  }
+  .hiw-number {
+    font-size: 40px !important;
+  }
+}
+
+/* Conversation [id] — hauteur correcte sur mobile (tient compte de la top navbar + padding) */
+@media (max-width: 1023px) {
+  .conv-container {
+    height: calc(100vh - 180px) !important;
+    max-height: none !important;
+  }
+}
+
+/* Bulles de message — max-width plus large sur très petit écran */
+@media (max-width: 400px) {
+  .msg-bubble {
+    max-width: 85% !important;
+  }
+}
+
+/* Billing — packs de crédits : 1 colonne sur très petit écran */
+@media (max-width: 400px) {
+  .billing-packs-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Admin orders — stats grid : 1 colonne sur mobile */
+.admin-orders-stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+@media (max-width: 520px) {
+  .admin-orders-stats {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Admin broadcasts — onglets scrollables horizontalement */
+.broadcasts-tabs {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  flex-wrap: nowrap !important;
 }

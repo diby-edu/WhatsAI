@@ -187,7 +187,7 @@ export default function ConversationDetailPage({ params }: { params: Promise<{ i
     const isEscalated = conversation.status === 'escalated'
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 100px)', maxHeight: '90vh' }}>
+        <div className="conv-container" style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 100px)', maxHeight: '90vh' }}>
             {/* Status Banner */}
             {isEscalated && (
                 <div style={{
@@ -380,7 +380,7 @@ export default function ConversationDetailPage({ params }: { params: Promise<{ i
                                 </div>
                             )}
 
-                            <div style={{
+                            <div className="msg-bubble" style={{
                                 maxWidth: '70%',
                                 padding: '12px 16px',
                                 borderRadius: msg.role === 'user' ? '4px 16px 16px 16px' : '16px 4px 16px 16px',
