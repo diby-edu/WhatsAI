@@ -50,7 +50,7 @@ export default function Problem() {
                         <span className="text-[13px] font-semibold text-[#ef4444]">⚠️</span>
                     </motion.div>
 
-                    <h2 className="font-bold text-white mb-5 leading-tight" style={{ fontSize: 'clamp(28px, 5vw, 44px)' }}>
+                    <h2 className="font-bold text-white mb-5 leading-tight text-center" style={{ fontSize: 'clamp(28px, 5vw, 44px)' }}>
                         {t.rich('title', {
                             green: (chunks) => (
                                 <span style={{

@@ -44,7 +44,7 @@ export default function ROICalculator() {
                         <Calculator style={{ width: 16, height: 16, color: '#25D366' }} />
                         <span className="text-sm text-[#25D366] font-semibold">{t('badge')}</span>
                     </div>
-                    <h2 className="font-bold text-white mb-4 leading-tight" style={{ fontSize: 'clamp(28px, 5vw, 40px)' }}>
+                    <h2 className="font-bold text-white mb-4 leading-tight text-center" style={{ fontSize: 'clamp(28px, 5vw, 40px)' }}>
                         {t.rich('title', {
                             green: (chunks) => (
                                 <span style={{

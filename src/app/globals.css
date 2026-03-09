@@ -89,6 +89,7 @@
 html {
   scroll-behavior: smooth;
   overflow-y: scroll !important;
+  overflow-x: hidden;
   height: auto !important;
 }
 
@@ -105,7 +106,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
   /* Touch scrolling optimizations */
   -webkit-overflow-scrolling: touch;
-  touch-action: pan-y pan-x pinch-zoom;
+  touch-action: pan-y pinch-zoom;
   overscroll-behavior-y: contain;
   /* Safe area for APK status bar - pushes content below status bar */
   padding-top: env(safe-area-inset-top, 0);
@@ -712,75 +713,12 @@ h6 {
   border: 2px solid #0f172a;
 }
 
-/* =============================================
-   HERO MOBILE RESPONSIVE
-   ============================================= */
-
-@media (max-width: 1024px) {
-  .hero-grid {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 40px !important;
-  }
-
-  .hero-content {
-    text-align: center !important;
-  }
-
-  .hero-phone {
-    display: none !important;
-  }
-}
-
+/* Reduce animations on mobile for smoother scroll */
 @media (max-width: 768px) {
-  .hero-grid {
-    gap: 30px !important;
-  }
-
-  .hero-title {
-    font-size: 28px !important;
-    line-height: 1.25 !important;
-  }
-
-  .hero-subtitle {
-    font-size: 15px !important;
-  }
-
-  .hero-buttons {
-    flex-direction: column !important;
-    align-items: stretch !important;
-  }
-
-  .hero-buttons a {
-    width: 100% !important;
-  }
-
-  .hero-buttons button {
-    width: 100% !important;
-    justify-content: center !important;
-  }
-
-  .hero-stats {
-    flex-direction: column !important;
-    gap: 16px !important;
-    align-items: center !important;
-  }
-
-  /* Reduce animations on mobile for smoother scroll */
   * {
     animation-duration: 0.3s !important;
     animation-delay: 0s !important;
     transition-duration: 0.2s !important;
-  }
-}
-
-@media (max-width: 400px) {
-  .hero-title {
-    font-size: 24px !important;
-  }
-
-  .hero-subtitle {
-    font-size: 14px !important;
   }
 }
 
@@ -803,12 +741,12 @@ h6 {
 
 /* Pricing grid - 5 columns on desktop for 5 plans */
 .pricing-grid {
-  grid-template-columns: repeat(5, 1fr) !important;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
 }
 
 @media (max-width: 1100px) {
   .pricing-grid {
-    grid-template-columns: repeat(3, 1fr) !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
   }
 }
 
@@ -843,10 +781,6 @@ h6 {
     font-size: 26px !important;
   }
 
-  section#pricing div[style*="gridTemplateColumns: repeat(4"] {
-    grid-template-columns: 1fr !important;
-    gap: 16px !important;
-  }
 }
 
 /* =============================================
@@ -981,11 +915,6 @@ h6 {
     width: 100% !important;
   }
 
-  footer div[style*="gridTemplateColumns: repeat(auto-fit"] {
-    grid-template-columns: repeat(2, 1fr) !important;
-    gap: 20px !important;
-  }
-
   footer>div>div:last-child {
     flex-direction: column !important;
     align-items: center !important;
@@ -996,12 +925,6 @@ h6 {
   footer>div>div:last-child>div {
     flex-direction: column !important;
     gap: 6px !important;
-  }
-}
-
-@media (max-width: 400px) {
-  footer div[style*="gridTemplateColumns: repeat(auto-fit"] {
-    grid-template-columns: 1fr !important;
   }
 }
 
