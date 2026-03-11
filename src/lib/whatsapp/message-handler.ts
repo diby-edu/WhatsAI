@@ -166,7 +166,7 @@ export function initializeMessageHandler() {
             // Fetch products for this agent only (+ shared products without specific agent)
             const { data: products } = await supabase
                 .from('products')
-                .select('name, price_fcfa, description, product_type, ai_instructions, lead_fields, stock_quantity, short_pitch, marketing_tags, features, variants, related_product_ids')
+                .select('name, price_fcfa, description, product_type, ai_instructions, lead_fields, stock_quantity, short_pitch, marketing_tags, features, variants, combinations, related_product_ids')
                 .eq('user_id', agent.user_id)
                 .eq('is_available', true)
                 .or(`agent_id.eq.${agentId},agent_id.is.null`)
