@@ -6,7 +6,8 @@ import Link from 'next/link'
 import {
     Users, Bot, MessageSquare, CreditCard, TrendingUp, DollarSign,
     Activity, AlertTriangle, CheckCircle2, Clock, Zap, Loader2, RefreshCw,
-    ShoppingCart, UserPlus, Eye, BarChart3, Wallet, Phone, Globe, Shield
+    ShoppingCart, UserPlus, Eye, BarChart3, Wallet, Phone, Globe, Shield,
+    Wrench, Power
 } from 'lucide-react'
 
 interface DashboardStats {
@@ -48,10 +49,14 @@ export default function AdminDashboard() {
     const [systemStatus, setSystemStatus] = useState<SystemService[]>([])
     const [loading, setLoading] = useState(true)
     const [checkingSystem, setCheckingSystem] = useState(false)
+    const [maintenance, setMaintenance] = useState(false)
+    const [maintenancePausedCount, setMaintenancePausedCount] = useState(0)
+    const [maintenanceLoading, setMaintenanceLoading] = useState(false)
 
     useEffect(() => {
         fetchDashboardData()
         checkSystemStatus()
+        fetchMaintenanceStatus()
     }, [])
 
     const fetchDashboardData = async () => {
@@ -101,6 +106,45 @@ export default function AdminDashboard() {
 
         setSystemStatus(services)
         setCheckingSystem(false)
+    }
+
+    const fetchMaintenanceStatus = async () => {
+        try {
+            const res = await fetch('/api/admin/maintenance')
+            const data = await res.json()
+            if (res.ok && data.data) {
+                setMaintenance(data.data.maintenance)
+                setMaintenancePausedCount(data.data.pausedCount)
+            }
+        } catch { /* non-bloquant */ }
+    }
+
+    const toggleMaintenance = async () => {
+        const action = maintenance ? 'deactivate' : 'activate'
+        const msg = maintenance
+            ? `Désactiver la maintenance et restaurer ${maintenancePausedCount} agent(s) ?`
+            : `Activer la maintenance ? Tous les agents actifs seront mis en pause.`
+        if (!confirm(msg)) return
+        setMaintenanceLoading(true)
+        try {
+            const res = await fetch('/api/admin/maintenance', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action })
+            })
+            const data = await res.json()
+            if (res.ok && data.data) {
+                const newMaintenance = !maintenance
+                setMaintenance(newMaintenance)
+                if (newMaintenance) {
+                    setMaintenancePausedCount(data.data.pausedCount ?? 0)
+                } else {
+                    setMaintenancePausedCount(0)
+                }
+            }
+        } catch { /* erreur réseau */ } finally {
+            setMaintenanceLoading(false)
+        }
     }
 
     const operationalCount = systemStatus.filter(s => s.status === 'operational').length
@@ -161,6 +205,50 @@ export default function AdminDashboard() {
                         </button>
                     </div>
                 </div>
+            </div>
+
+            {/* Maintenance Mode Card */}
+            <div style={{
+                background: maintenance ? 'rgba(239, 68, 68, 0.08)' : 'rgba(30, 41, 59, 0.5)',
+                border: `1px solid ${maintenance ? 'rgba(239, 68, 68, 0.3)' : 'rgba(148, 163, 184, 0.1)'}`,
+                borderRadius: 14, padding: '16px 20px',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap'
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <Wrench size={20} style={{ color: maintenance ? '#ef4444' : '#64748b', flexShrink: 0 }} />
+                    <div>
+                        <div style={{ color: 'white', fontWeight: 600, fontSize: 15, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                            Mode Maintenance
+                            {maintenance && (
+                                <span style={{ background: 'rgba(239,68,68,0.2)', color: '#f87171', borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 600 }}>
+                                    ACTIF — {maintenancePausedCount} agent{maintenancePausedCount !== 1 ? 's' : ''} en pause
+                                </span>
+                            )}
+                        </div>
+                        <div style={{ color: '#64748b', fontSize: 13, marginTop: 2 }}>
+                            {maintenance
+                                ? 'Les agents mis en pause seront restaurés à la désactivation.'
+                                : 'Activez pour mettre en pause tous les agents actifs.'}
+                        </div>
+                    </div>
+                </div>
+                <button
+                    onClick={toggleMaintenance}
+                    disabled={maintenanceLoading}
+                    style={{
+                        padding: '10px 20px', borderRadius: 10, border: 'none',
+                        background: maintenance ? 'rgba(239,68,68,0.15)' : 'rgba(16,185,129,0.15)',
+                        color: maintenance ? '#f87171' : '#34d399',
+                        cursor: maintenanceLoading ? 'not-allowed' : 'pointer',
+                        fontWeight: 600, fontSize: 13,
+                        display: 'flex', alignItems: 'center', gap: 8,
+                        opacity: maintenanceLoading ? 0.6 : 1
+                    }}>
+                    {maintenanceLoading
+                        ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
+                        : <Power size={14} />}
+                    {maintenance ? 'Désactiver' : 'Activer'}
+                </button>
             </div>
 
             {/* Primary KPIs - 4 cards (responsive) */}
