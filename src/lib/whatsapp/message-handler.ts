@@ -192,6 +192,7 @@ export function initializeMessageHandler() {
                 businessHours: agent.business_hours,
                 latitude: agent.latitude,
                 longitude: agent.longitude,
+                isOnlineOnly: agent.is_online_only ?? false,
                 inputImageUrls: inputImageUrls,
                 // Currency for product pricing
                 currency: profile.currency || 'XOF',

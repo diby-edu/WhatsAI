@@ -95,6 +95,7 @@ export async function PATCH(
             'social_links', 'custom_rules', 'agent_tone', 'agent_goal',
             // GPS
             'latitude', 'longitude',
+            'is_online_only',
             // Payment settings
             'payment_mode', 'mobile_money_orange', 'mobile_money_mtn',
             'mobile_money_wave', 'custom_payment_methods', 'escalation_phone'

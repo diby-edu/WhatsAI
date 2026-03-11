@@ -15,15 +15,15 @@ async function adminCheck(request: NextRequest) {
 }
 
 async function getTokensForPlan(adminSupabase: any, targetPlan: string): Promise<string[]> {
-    let query = adminSupabase
+    // Step 1: get user IDs for the target plan
+    const userIds = await getUserIdsForPlan(adminSupabase, targetPlan)
+    if (userIds.length === 0) return []
+
+    // Step 2: get tokens for those users
+    const { data, error } = await adminSupabase
         .from('device_tokens')
-        .select('token, profiles!inner(plan)')
-
-    if (targetPlan && targetPlan !== 'all') {
-        query = query.eq('profiles.plan', targetPlan)
-    }
-
-    const { data, error } = await query
+        .select('token')
+        .in('user_id', userIds)
     if (error) throw error
     return (data || []).map((row: any) => row.token).filter(Boolean)
 }

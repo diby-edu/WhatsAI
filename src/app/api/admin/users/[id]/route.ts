@@ -138,6 +138,26 @@ export async function PATCH(
 
         if (error) throw error
 
+        // If plan changed, add the new plan's credits to the user's balance
+        if (cleanUpdate.plan) {
+            try {
+                const { data: planData } = await adminSupabase
+                    .from('subscription_plans')
+                    .select('credits_included')
+                    .eq('id', cleanUpdate.plan)
+                    .single()
+
+                if (planData && planData.credits_included > 0) {
+                    const { data: currentProfile } = await adminSupabase
+                        .from('profiles').select('credits_balance').eq('id', id).single()
+                    const newBalance = (currentProfile?.credits_balance || 0) + planData.credits_included
+                    await adminSupabase.from('profiles')
+                        .update({ credits_balance: newBalance })
+                        .eq('id', id)
+                }
+            } catch { /* non-bloquant */ }
+        }
+
         await logAdminAction(user.id, 'update_user_profile', id, 'profile', cleanUpdate)
 
         return successResponse({ message: 'Profil mis à jour' })

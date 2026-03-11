@@ -369,7 +369,7 @@ export default function AdminBroadcastsPage() {
                         </button>
                     </div>
 
-                    <HistoryPanel history={history} />
+                    <HistoryPanel history={history} activeTab="whatsapp" />
                 </div>
             )}
 
@@ -548,7 +548,7 @@ export default function AdminBroadcastsPage() {
                         </button>
                     </div>
 
-                    <HistoryPanel history={history} />
+                    <HistoryPanel history={history} activeTab="email" />
                 </div>
             )}
 
@@ -637,27 +637,33 @@ export default function AdminBroadcastsPage() {
                         </button>
                     </div>
 
-                    <HistoryPanel history={history} />
+                    <HistoryPanel history={history} activeTab="push" />
                 </div>
             )}
         </div>
     )
 }
 
-function HistoryPanel({ history }: { history: any[] }) {
+function HistoryPanel({ history, activeTab }: { history: any[]; activeTab: TabId }) {
+    const filteredHistory = history.filter(b => {
+        if (activeTab === 'whatsapp') return !b.message?.startsWith('[EMAIL]') && !b.message?.startsWith('[PUSH]')
+        if (activeTab === 'email') return b.message?.startsWith('[EMAIL]')
+        if (activeTab === 'push') return b.message?.startsWith('[PUSH]')
+        return true
+    })
     return (
         <div style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(148, 163, 184, 0.1)', borderRadius: 14, padding: 20 }}>
             <h2 style={{ fontSize: 16, fontWeight: 600, color: 'white', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Clock size={18} style={{ color: '#60a5fa' }} /> Historique
             </h2>
-            {history.length === 0 ? (
+            {filteredHistory.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: 40, color: '#64748b' }}>
                     <MessageSquare size={40} style={{ marginBottom: 12, opacity: 0.5 }} />
                     <p>Aucun broadcast envoyé</p>
                 </div>
             ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {history.slice(0, 15).map((b, i) => {
+                    {filteredHistory.slice(0, 15).map((b, i) => {
                         const isEmail = b.message?.startsWith('[EMAIL]')
                         const isPush = b.message?.startsWith('[PUSH]')
                         return (

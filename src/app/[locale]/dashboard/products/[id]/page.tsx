@@ -75,12 +75,36 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
 
         // Defaults
         product_type: 'product',
+        service_subtype: '' as string,
         stock_quantity: -1,
         lead_fields: []
     })
 
     const [featureInput, setFeatureInput] = useState('')
     const [contentInput, setContentInput] = useState('')
+
+    const getServicePlaceholders = () => {
+        const servicePlaceholders: Record<string, { name: string; category: string; descFull: string; content: string; features: string }> = {
+            hotel: { name: "Ex: Chambre Standard, Nuitée, Suite...", category: "Hébergement", descFull: "Décrivez le type de chambre : équipements (TV, wifi, minibar), vue, taille du lit, capacité max...", content: "Ex: WiFi, Petit-déjeuner, Piscine, Vue mer, Climatisation, Room service...", features: "Ex: Vue mer, Climatisation, Room service..." },
+            residence: { name: "Ex: Appartement 2 pièces, Studio meublé...", category: "Location", descFull: "Décrivez le logement : nombre de pièces, capacité, équipements, durée minimum de séjour...", content: "Ex: Cuisine équipée, Terrasse, Parking, Bord de mer, Calme, Wifi...", features: "Ex: Bord de mer, Calme, Famille..." },
+            restaurant: { name: "Ex: Table, Menu Dégustation, Brunch...", category: "Restauration", descFull: "Décrivez la formule : type de menu, nombre de plats, boissons incluses, ambiance...", content: "Ex: Terrasse, Parking, Halal, Végétarien, Live music, Climatisé...", features: "Ex: Halal, Végétarien, Terrasse, Live music..." },
+            coiffeur: { name: "Ex: Coupe Homme Tendance", category: "Beauté", descFull: "Décrivez le service : durée, technique, produits utilisés, résultat attendu...", content: "Ex: Shampoing, Coupe, Brushing, Sans RDV, Domicile, Produits bio...", features: "Ex: Sans RDV, Domicile, Produits bio..." },
+            medecin: { name: "Ex: Consultation Générale", category: "Santé", descFull: "Décrivez la consultation : durée, spécialité, préparation nécessaire, documents à apporter...", content: "Ex: Examen clinique, Ordonnance, Conseil, Téléconsultation, Urgence...", features: "Ex: Téléconsultation, Urgence, Spécialiste..." },
+            formation: { name: "Ex: Formation Excel Avancé", category: "Formation", descFull: "Décrivez la formation : durée, niveau requis, objectifs, certificat délivré, matériel fourni...", content: "Ex: Support PDF, Exercices, Certificat, En ligne, Présentiel...", features: "Ex: En ligne, Présentiel, Débutant, Avancé..." },
+            event: { name: "Ex: Concert Live Didier Awadi", category: "Événement", descFull: "Décrivez l'événement : date, heure, lieu, programme, artistes/intervenants...", content: "Ex: Entrée, Cocktail, Concert, VIP, Parking inclus, Dress code...", features: "Ex: VIP, Parking inclus, Dress code..." },
+            coaching: { name: "Ex: Session Coaching Carrière", category: "Coaching", descFull: "Décrivez la session : durée, format (visio/présentiel), objectifs, méthode...", content: "Ex: Bilan, Plan d'action, Suivi, Visio, Individuel, Groupe...", features: "Ex: Visio, Individuel, Groupe..." },
+            rental: { name: "Ex: Citadine, SUV, Camion 20m³...", category: "Location", descFull: "Décrivez le véhicule/matériel : caractéristiques, conditions de location, caution, kilométrage inclus...", content: "Ex: Assurance, Kilométrage illimité, GPS, Automatique, Diesel, Clim...", features: "Ex: Automatique, Diesel, Clim, 5 places..." },
+            other: { name: "Ex: Service Personnalisé", category: "Service", descFull: "Décrivez votre service : ce qu'il inclut, durée, conditions...", content: "Ex: Ce qui est inclus, caractéristiques...", features: "Ex: Caractéristiques du service..." }
+        }
+        const defaultPlaceholders = { name: "Ex: Bougie Vanille", category: "Ex: Maison", descFull: "Ex: Office 2021 Pro à 25000F, inclut Word, Excel, PowerPoint. Licence à vie, activation en ligne.", content: "Ex: Word, Excel, PowerPoint...", features: "Ex: Bio, Artisanal, Garantie 2 ans..." }
+        if (formData.product_type === 'service' && formData.service_subtype) {
+            return servicePlaceholders[formData.service_subtype] || defaultPlaceholders
+        }
+        if (formData.product_type === 'digital') {
+            return { name: "Ex: Ebook Marketing Digital", category: "Numérique", descFull: "Ex: E-book PDF de 150 pages sur le marketing digital. Stratégies et cas pratiques.", content: "Ex: PDF, Vidéos bonus, Templates...", features: "Ex: Téléchargement instantané, Mise à jour gratuite..." }
+        }
+        return defaultPlaceholders
+    }
 
     const supabase = createBrowserClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -139,6 +163,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                     related_product_ids: p.related_product_ids || [],
 
                     product_type: p.product_type || 'product',
+                    service_subtype: p.service_subtype || '',
                     stock_quantity: p.stock_quantity ?? -1,
                     lead_fields: p.lead_fields || []
                 })
@@ -296,6 +321,38 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                             </div>
                         </div>
 
+                        {/* Service subtype selector */}
+                        {formData.product_type === 'service' && (
+                            <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
+                                <label className="block text-slate-300 font-medium mb-1">Catégorie de Service (Important pour l'IA)</label>
+                                <p className="text-xs text-slate-400 mb-3">Permet à l'IA de poser les bonnes questions selon le type de service.</p>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+                                    {[
+                                        { id: 'restaurant', icon: '🍽️', label: 'Restaurant / Bar' },
+                                        { id: 'hotel', icon: '🏨', label: 'Hôtel / Hébergement' },
+                                        { id: 'coiffeur', icon: '💇', label: 'Coiffure / Beauté' },
+                                        { id: 'medecin', icon: '🩺', label: 'Santé / Clinique' },
+                                        { id: 'formation', icon: '🎓', label: 'Formation / Atelier' },
+                                        { id: 'event', icon: '🎟️', label: 'Événement' },
+                                        { id: 'coaching', icon: '🧠', label: 'Coaching / Conseil' },
+                                        { id: 'rental', icon: '🚗', label: 'Location (Voiture/Mat.)' },
+                                        { id: 'other', icon: '🧩', label: 'Autre Service' }
+                                    ].map(sub => (
+                                        <button key={sub.id} type="button"
+                                            onClick={() => setFormData({ ...formData, service_subtype: sub.id })}
+                                            style={{
+                                                padding: '10px', borderRadius: 8, textAlign: 'left', cursor: 'pointer',
+                                                display: 'flex', alignItems: 'center', gap: 8, color: 'white', fontSize: 13,
+                                                border: formData.service_subtype === sub.id ? '2px solid #a855f7' : '1px solid rgba(148,163,184,0.2)',
+                                                background: formData.service_subtype === sub.id ? 'rgba(168,85,247,0.1)' : 'rgba(30,41,59,0.5)'
+                                            }}>
+                                            <span style={{ fontSize: 16 }}>{sub.icon}</span>{sub.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                             {/* Multi-Image Gallery */}
                             <div className="space-y-4">
@@ -345,6 +402,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                                     <input
                                         value={formData.name}
                                         onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                        placeholder={getServicePlaceholders().name}
                                         className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
                                     />
                                 </div>
@@ -374,6 +432,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                                     <input
                                         value={formData.category}
                                         onChange={e => setFormData({ ...formData, category: e.target.value })}
+                                        placeholder={getServicePlaceholders().category}
                                         className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
                                     />
                                 </div>
@@ -417,7 +476,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                             <textarea
                                 value={formData.description}
                                 onChange={e => setFormData({ ...formData, description: e.target.value })}
-                                placeholder="Ex: Office 2021 Pro à 25000F, inclut Word, Excel, PowerPoint. Licence à vie, activation en ligne."
+                                placeholder={getServicePlaceholders().descFull}
                                 className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white outline-none min-h-[120px]"
                                 maxLength={2000}
                             />
@@ -523,7 +582,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                                         }
                                     }}
                                     className="flex-1 bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white outline-none"
-                                    placeholder="Ex: Word, Excel, PowerPoint..."
+                                    placeholder={getServicePlaceholders().content}
                                 />
                                 <button
                                     onClick={() => {
@@ -555,7 +614,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                                     onChange={e => setFeatureInput(e.target.value)}
                                     onKeyDown={e => e.key === 'Enter' && addFeature()}
                                     className="flex-1 bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white outline-none"
-                                    placeholder="Ex: Bio, Artisanal, Garantie 2 ans..."
+                                    placeholder={getServicePlaceholders().features}
                                 />
                                 <button onClick={addFeature} className="bg-slate-700 p-3 rounded-lg text-white"><Plus /></button>
                             </div>
