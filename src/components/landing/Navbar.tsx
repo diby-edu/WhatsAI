@@ -54,6 +54,7 @@ export default function Navbar() {
         window.addEventListener('scroll', handleScroll)
         window.addEventListener('resize', checkMobile)
 
+        // Check authentication status
         const checkAuth = async () => {
             try {
                 const supabase = createClient()
@@ -77,8 +78,12 @@ export default function Navbar() {
                 initial={{ y: -100 }}
                 animate={{ y: 0 }}
                 transition={{ duration: 0.6, ease: 'easeOut' }}
-                className="fixed top-0 left-0 right-0 z-50"
                 style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    zIndex: 50,
                     transition: 'all 0.3s ease',
                     backgroundColor: scrolled ? 'rgba(15, 23, 42, 0.9)' : 'transparent',
                     backdropFilter: scrolled ? 'blur(20px)' : 'none',
@@ -86,41 +91,75 @@ export default function Navbar() {
                     boxShadow: scrolled ? '0 4px 20px rgba(0, 0, 0, 0.2)' : 'none'
                 }}
             >
-                <nav className="w-full max-w-[1280px] mx-auto px-6">
-                    <div className="flex items-center justify-between h-20">
+                <nav style={{
+                    width: '100%',
+                    maxWidth: 1280,
+                    margin: '0 auto',
+                    padding: '0 24px'
+                }}>
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        height: 80
+                    }}>
                         {/* Logo */}
-                        <Link href="/" className="flex items-center gap-3 no-underline">
+                        <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none' }}>
                             <motion.div
                                 whileHover={{ scale: 1.05, rotate: 5 }}
-                                className="relative w-11 h-11 rounded-[12px] flex items-center justify-center"
                                 style={{
+                                    position: 'relative',
+                                    width: 44,
+                                    height: 44,
+                                    borderRadius: 12,
                                     background: 'linear-gradient(135deg, #10b981, #34d399)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
                                     boxShadow: '0 4px 15px rgba(16, 185, 129, 0.25)'
                                 }}
                             >
                                 <MessageCircle style={{ width: 24, height: 24, color: 'white' }} />
-                                <div className="absolute -top-1 -right-1 w-3 h-3 bg-[#a855f7] rounded-full border-2 border-[#020617]" />
+                                <div style={{
+                                    position: 'absolute',
+                                    top: -4,
+                                    right: -4,
+                                    width: 12,
+                                    height: 12,
+                                    background: '#a855f7',
+                                    borderRadius: '50%',
+                                    border: '2px solid #020617'
+                                }} />
                             </motion.div>
-                            <div className="flex flex-col">
-                                <span className="text-xl font-bold text-white -tracking-tight">WazzapAI</span>
-                                <span className="text-[10px] text-[#34d399] font-medium uppercase tracking-[0.1em]">Automation</span>
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                <span style={{ fontSize: 20, fontWeight: 700, color: 'white', letterSpacing: '-0.025em' }}>WazzapAI</span>
+                                <span style={{ fontSize: 10, color: '#34d399', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Automation</span>
                             </div>
                         </Link>
 
                         {/* Desktop Navigation */}
                         {!isMobile && (
-                            <div className="flex items-center gap-1">
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                                 {navLinks.map((link) => (
                                     <div
                                         key={link.label}
-                                        className="relative"
+                                        style={{ position: 'relative' }}
                                         onMouseEnter={() => link.children && setActiveDropdown(link.label)}
                                         onMouseLeave={() => setActiveDropdown(null)}
                                     >
                                         <Link
                                             href={link.href}
-                                            className="flex items-center gap-1 px-4 py-[10px] text-slate-300 font-medium no-underline rounded-xl"
-                                            style={{ transition: 'all 0.2s ease' }}
+                                            style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 4,
+                                                padding: '10px 16px',
+                                                color: '#cbd5e1',
+                                                fontWeight: 500,
+                                                textDecoration: 'none',
+                                                borderRadius: 12,
+                                                transition: 'all 0.2s ease'
+                                            }}
                                         >
                                             {link.label}
                                             {link.children && (
@@ -141,19 +180,32 @@ export default function Navbar() {
                                                     animate={{ opacity: 1, y: 0 }}
                                                     exit={{ opacity: 0, y: 10 }}
                                                     transition={{ duration: 0.2 }}
-                                                    className="absolute top-full left-0 mt-2 w-56 rounded-2xl overflow-hidden p-2"
                                                     style={{
+                                                        position: 'absolute',
+                                                        top: '100%',
+                                                        left: 0,
+                                                        marginTop: 8,
+                                                        width: 224,
                                                         background: 'rgba(15, 23, 42, 0.95)',
                                                         backdropFilter: 'blur(20px)',
-                                                        border: '1px solid rgba(148, 163, 184, 0.1)'
+                                                        border: '1px solid rgba(148, 163, 184, 0.1)',
+                                                        borderRadius: 16,
+                                                        overflow: 'hidden',
+                                                        padding: 8
                                                     }}
                                                 >
                                                     {link.children.map((child) => (
                                                         <Link
                                                             key={child.label}
                                                             href={child.href}
-                                                            className="block px-4 py-3 text-slate-300 no-underline rounded-xl"
-                                                            style={{ transition: 'all 0.2s ease' }}
+                                                            style={{
+                                                                display: 'block',
+                                                                padding: '12px 16px',
+                                                                color: '#cbd5e1',
+                                                                textDecoration: 'none',
+                                                                borderRadius: 12,
+                                                                transition: 'all 0.2s ease'
+                                                            }}
                                                         >
                                                             {child.label}
                                                         </Link>
@@ -168,28 +220,47 @@ export default function Navbar() {
 
                         {/* CTA Buttons - Desktop */}
                         {!isMobile && (
-                            <div className="flex items-center gap-3">
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                                 <motion.button
                                     whileHover={{ scale: 1.05 }}
                                     whileTap={{ scale: 0.95 }}
                                     onClick={switchLocale}
-                                    className="flex items-center gap-[6px] px-3 py-2 rounded-lg cursor-pointer text-slate-300 text-[13px] font-semibold mr-2"
                                     style={{
                                         background: 'rgba(255, 255, 255, 0.05)',
-                                        border: '1px solid rgba(255, 255, 255, 0.1)'
+                                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                                        borderRadius: 8,
+                                        cursor: 'pointer',
+                                        padding: '8px 12px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 6,
+                                        color: '#cbd5e1',
+                                        fontSize: 13,
+                                        fontWeight: 600,
+                                        marginRight: 8
                                     }}
                                 >
                                     <Globe style={{ width: 14, height: 14 }} />
                                     <span>{locale === 'fr' ? 'EN' : 'FR'}</span>
                                 </motion.button>
                                 {isAuthenticated ? (
+                                    // User is logged in - show Dashboard button
                                     <Link href="/dashboard" style={{ textDecoration: 'none' }}>
                                         <motion.button
                                             whileHover={{ scale: 1.02 }}
                                             whileTap={{ scale: 0.98 }}
-                                            className="inline-flex items-center gap-2 px-6 py-3 font-semibold text-[15px] rounded-[14px] border-none cursor-pointer text-white"
                                             style={{
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: 8,
+                                                padding: '12px 24px',
+                                                fontWeight: 600,
+                                                fontSize: 15,
+                                                borderRadius: 14,
+                                                border: 'none',
+                                                cursor: 'pointer',
                                                 background: 'linear-gradient(135deg, #10b981 0%, #059669 50%, #047857 100%)',
+                                                color: 'white',
                                                 boxShadow: '0 4px 20px rgba(16, 185, 129, 0.4)'
                                             }}
                                         >
@@ -198,11 +269,17 @@ export default function Navbar() {
                                         </motion.button>
                                     </Link>
                                 ) : (
+                                    // User is not logged in - show Connexion and Essai gratuit
                                     <>
                                         <Link
                                             href="/login"
-                                            className="px-5 py-[10px] text-slate-300 font-medium no-underline"
-                                            style={{ transition: 'color 0.2s ease' }}
+                                            style={{
+                                                padding: '10px 20px',
+                                                color: '#cbd5e1',
+                                                fontWeight: 500,
+                                                textDecoration: 'none',
+                                                transition: 'color 0.2s ease'
+                                            }}
                                         >
                                             {t('login')}
                                         </Link>
@@ -210,9 +287,18 @@ export default function Navbar() {
                                             <motion.button
                                                 whileHover={{ scale: 1.02 }}
                                                 whileTap={{ scale: 0.98 }}
-                                                className="inline-flex items-center gap-2 px-6 py-3 font-semibold text-[15px] rounded-[14px] border-none cursor-pointer text-white"
                                                 style={{
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    gap: 8,
+                                                    padding: '12px 24px',
+                                                    fontWeight: 600,
+                                                    fontSize: 15,
+                                                    borderRadius: 14,
+                                                    border: 'none',
+                                                    cursor: 'pointer',
                                                     background: 'linear-gradient(135deg, #10b981 0%, #059669 50%, #047857 100%)',
+                                                    color: 'white',
                                                     boxShadow: '0 4px 20px rgba(16, 185, 129, 0.4)'
                                                 }}
                                             >
@@ -230,10 +316,12 @@ export default function Navbar() {
                             <motion.button
                                 whileTap={{ scale: 0.95 }}
                                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                                className="p-[10px] rounded-xl cursor-pointer"
                                 style={{
+                                    padding: 10,
+                                    borderRadius: 12,
                                     background: 'rgba(255, 255, 255, 0.05)',
-                                    border: '1px solid rgba(255, 255, 255, 0.1)'
+                                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                                    cursor: 'pointer'
                                 }}
                             >
                                 {mobileMenuOpen ? (
@@ -255,10 +343,12 @@ export default function Navbar() {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="fixed inset-0 z-40"
                             style={{
+                                position: 'fixed',
+                                inset: 0,
                                 background: 'rgba(0, 0, 0, 0.6)',
-                                backdropFilter: 'blur(4px)'
+                                backdropFilter: 'blur(4px)',
+                                zIndex: 40
                             }}
                             onClick={() => setMobileMenuOpen(false)}
                         />
@@ -267,30 +357,49 @@ export default function Navbar() {
                             animate={{ x: 0 }}
                             exit={{ x: '100%' }}
                             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                            className="fixed top-0 right-0 bottom-0 w-80 z-50"
                             style={{
+                                position: 'fixed',
+                                top: 0,
+                                right: 0,
+                                bottom: 0,
+                                width: 320,
                                 background: 'rgba(15, 23, 42, 0.95)',
                                 backdropFilter: 'blur(40px)',
-                                border: '1px solid rgba(148, 163, 184, 0.1)'
+                                border: '1px solid rgba(148, 163, 184, 0.1)',
+                                zIndex: 50
                             }}
                         >
-                            <div className="p-6">
-                                <div className="flex items-center justify-between mb-8">
-                                    <Link href="/" className="flex items-center gap-2 no-underline">
-                                        <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{
-                                            background: 'linear-gradient(135deg, #10b981, #34d399)'
+                            <div style={{ padding: 24 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32 }}>
+                                    <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
+                                        <div style={{
+                                            width: 40,
+                                            height: 40,
+                                            borderRadius: 12,
+                                            background: 'linear-gradient(135deg, #10b981, #34d399)',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center'
                                         }}>
                                             <MessageCircle style={{ width: 20, height: 20, color: 'white' }} />
                                         </div>
-                                        <span className="text-xl font-bold text-white">WazzapAI</span>
+                                        <span style={{ fontSize: 20, fontWeight: 700, color: 'white' }}>WazzapAI</span>
                                     </Link>
-                                    <div className="flex items-center gap-2">
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                         <button
                                             onClick={switchLocale}
-                                            className="p-2 rounded-xl cursor-pointer flex items-center gap-[6px] text-white font-semibold text-sm"
                                             style={{
+                                                padding: 8,
+                                                borderRadius: 12,
                                                 background: 'rgba(255, 255, 255, 0.05)',
-                                                border: 'none'
+                                                border: 'none',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 6,
+                                                color: 'white',
+                                                fontWeight: 600,
+                                                fontSize: 14
                                             }}
                                         >
                                             <Globe style={{ width: 18, height: 18 }} />
@@ -298,10 +407,12 @@ export default function Navbar() {
                                         </button>
                                         <button
                                             onClick={() => setMobileMenuOpen(false)}
-                                            className="p-2 rounded-xl cursor-pointer"
                                             style={{
+                                                padding: 8,
+                                                borderRadius: 12,
                                                 background: 'rgba(255, 255, 255, 0.05)',
-                                                border: 'none'
+                                                border: 'none',
+                                                cursor: 'pointer'
                                             }}
                                         >
                                             <X style={{ width: 20, height: 20, color: 'white' }} />
@@ -309,26 +420,41 @@ export default function Navbar() {
                                     </div>
                                 </div>
 
-                                <nav className="flex flex-col gap-1">
+                                <nav style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                                     {navLinks.map((link) => (
                                         <div key={link.label}>
                                             <Link
                                                 href={link.href}
                                                 onClick={() => setMobileMenuOpen(false)}
-                                                className="flex items-center justify-between px-4 py-3 text-slate-200 no-underline rounded-xl"
-                                                style={{ transition: 'all 0.2s ease' }}
+                                                style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'space-between',
+                                                    padding: '12px 16px',
+                                                    color: '#e2e8f0',
+                                                    textDecoration: 'none',
+                                                    borderRadius: 12,
+                                                    transition: 'all 0.2s ease'
+                                                }}
                                             >
                                                 {link.label}
                                                 {link.children && <ChevronDown style={{ width: 16, height: 16 }} />}
                                             </Link>
                                             {link.children && (
-                                                <div className="ml-4 mt-1 flex flex-col gap-1">
+                                                <div style={{ marginLeft: 16, marginTop: 4, display: 'flex', flexDirection: 'column', gap: 4 }}>
                                                     {link.children.map((child) => (
                                                         <Link
                                                             key={child.label}
                                                             href={child.href}
                                                             onClick={() => setMobileMenuOpen(false)}
-                                                            className="block px-4 py-2 text-sm text-slate-400 no-underline rounded-xl"
+                                                            style={{
+                                                                display: 'block',
+                                                                padding: '8px 16px',
+                                                                fontSize: 14,
+                                                                color: '#94a3b8',
+                                                                textDecoration: 'none',
+                                                                borderRadius: 12
+                                                            }}
                                                         >
                                                             {child.label}
                                                         </Link>
@@ -339,15 +465,27 @@ export default function Navbar() {
                                     ))}
                                 </nav>
 
-                                <div className="mt-8 flex flex-col gap-3">
+                                <div style={{ marginTop: 32, display: 'flex', flexDirection: 'column', gap: 12 }}>
                                     {isAuthenticated ? (
                                         <Link
                                             href="/dashboard"
                                             onClick={() => setMobileMenuOpen(false)}
                                             style={{ textDecoration: 'none' }}
                                         >
-                                            <button className="flex items-center justify-center gap-2 w-full py-3 px-6 font-semibold text-[15px] rounded-[14px] border-none cursor-pointer text-white" style={{
-                                                background: 'linear-gradient(135deg, #10b981 0%, #059669 50%, #047857 100%)'
+                                            <button style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                gap: 8,
+                                                width: '100%',
+                                                padding: '12px 24px',
+                                                fontWeight: 600,
+                                                fontSize: 15,
+                                                borderRadius: 14,
+                                                border: 'none',
+                                                cursor: 'pointer',
+                                                background: 'linear-gradient(135deg, #10b981 0%, #059669 50%, #047857 100%)',
+                                                color: 'white'
                                             }}>
                                                 <LayoutDashboard style={{ width: 16, height: 16 }} />
                                                 {t('dashboard')}
@@ -358,8 +496,16 @@ export default function Navbar() {
                                             <Link
                                                 href="/login"
                                                 onClick={() => setMobileMenuOpen(false)}
-                                                className="block w-full py-3 text-center text-slate-200 rounded-xl no-underline"
-                                                style={{ background: 'rgba(255, 255, 255, 0.05)' }}
+                                                style={{
+                                                    display: 'block',
+                                                    width: '100%',
+                                                    padding: '12px',
+                                                    textAlign: 'center',
+                                                    color: '#e2e8f0',
+                                                    background: 'rgba(255, 255, 255, 0.05)',
+                                                    borderRadius: 12,
+                                                    textDecoration: 'none'
+                                                }}
                                             >
                                                 {t('login')}
                                             </Link>
@@ -368,8 +514,20 @@ export default function Navbar() {
                                                 onClick={() => setMobileMenuOpen(false)}
                                                 style={{ textDecoration: 'none' }}
                                             >
-                                                <button className="flex items-center justify-center gap-2 w-full py-3 px-6 font-semibold text-[15px] rounded-[14px] border-none cursor-pointer text-white" style={{
-                                                    background: 'linear-gradient(135deg, #10b981 0%, #059669 50%, #047857 100%)'
+                                                <button style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    gap: 8,
+                                                    width: '100%',
+                                                    padding: '12px 24px',
+                                                    fontWeight: 600,
+                                                    fontSize: 15,
+                                                    borderRadius: 14,
+                                                    border: 'none',
+                                                    cursor: 'pointer',
+                                                    background: 'linear-gradient(135deg, #10b981 0%, #059669 50%, #047857 100%)',
+                                                    color: 'white'
                                                 }}>
                                                     <Sparkles style={{ width: 16, height: 16 }} />
                                                     {t('register')}

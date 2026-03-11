@@ -17,40 +17,61 @@ export default function Problem() {
     ]
 
     return (
-        <section id="problem" className="py-16 sm:py-[100px] px-6 relative" style={{
-            background: 'linear-gradient(180deg, #020617 0%, #0f172a 50%, #020617 100%)'
+        <section id="problem" style={{
+            padding: '100px 24px',
+            background: 'linear-gradient(180deg, #020617 0%, #0f172a 50%, #020617 100%)',
+            position: 'relative'
         }}>
             {/* Background glow */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none" style={{
-                width: 800, height: 800,
-                background: 'radial-gradient(circle, rgba(239, 68, 68, 0.06) 0%, transparent 70%)'
+            <div style={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                width: 800,
+                height: 800,
+                background: 'radial-gradient(circle, rgba(239, 68, 68, 0.06) 0%, transparent 70%)',
+                pointerEvents: 'none'
             }} />
 
-            <div className="max-w-[800px] mx-auto relative z-10">
+            <div style={{ maxWidth: 800, margin: '0 auto', position: 'relative', zIndex: 1 }}>
                 {/* Title */}
                 <motion.div
                     initial={{ opacity: 0, y: 30 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ duration: 0.6 }}
-                    className="text-center mb-12"
+                    style={{ textAlign: 'center', marginBottom: 48 }}
                 >
                     <motion.div
                         initial={{ opacity: 0, scale: 0.9 }}
                         whileInView={{ opacity: 1, scale: 1 }}
                         viewport={{ once: true }}
                         transition={{ delay: 0.1 }}
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6"
                         style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            padding: '8px 16px',
+                            borderRadius: 50,
                             background: 'rgba(239, 68, 68, 0.1)',
-                            border: '1px solid rgba(239, 68, 68, 0.2)'
+                            border: '1px solid rgba(239, 68, 68, 0.2)',
+                            marginBottom: 24
                         }}
                     >
                         <AlertTriangle style={{ width: 16, height: 16, color: '#ef4444' }} />
-                        <span className="text-[13px] font-semibold text-[#ef4444]">⚠️</span>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: '#ef4444' }}>
+                            {t('badge')}
+                        </span>
                     </motion.div>
 
-                    <h2 className="font-bold text-white mb-5 leading-tight text-center" style={{ fontSize: 'clamp(28px, 5vw, 44px)' }}>
+                    <h2 style={{
+                        fontSize: 'clamp(28px, 5vw, 44px)',
+                        fontWeight: 700,
+                        color: 'white',
+                        marginBottom: 20,
+                        lineHeight: 1.2
+                    }}>
                         {t.rich('title', {
                             green: (chunks) => (
                                 <span style={{
@@ -62,16 +83,34 @@ export default function Problem() {
                             )
                         })}
                     </h2>
-                    <p className="text-lg text-slate-400 max-w-[600px] mx-auto leading-relaxed">
+                    <p style={{
+                        fontSize: 18,
+                        color: '#94a3b8',
+                        maxWidth: 600,
+                        margin: '0 auto',
+                        lineHeight: 1.7
+                    }}>
                         {t('description')}
                     </p>
-                    <p className="text-base text-slate-500 max-w-[600px] mx-auto mt-4 leading-relaxed italic">
+                    <p style={{
+                        fontSize: 16,
+                        color: '#64748b',
+                        maxWidth: 600,
+                        margin: '16px auto 0',
+                        lineHeight: 1.7,
+                        fontStyle: 'italic'
+                    }}>
                         {t('situations')}
                     </p>
                 </motion.div>
 
                 {/* Problem Items */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-12">
+                <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+                    gap: 16,
+                    marginBottom: 48
+                }}>
                     {items.map((item, index) => (
                         <motion.div
                             key={item.key}
@@ -79,14 +118,20 @@ export default function Problem() {
                             whileInView={{ opacity: 1, x: 0 }}
                             viewport={{ once: true }}
                             transition={{ duration: 0.4, delay: index * 0.1 }}
-                            className="flex items-center gap-[14px] px-[22px] py-[18px] rounded-2xl"
                             style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 14,
+                                flexWrap: 'nowrap',
+                                textAlign: 'left',
+                                padding: '18px 22px',
+                                borderRadius: 16,
                                 background: 'rgba(239, 68, 68, 0.06)',
                                 border: '1px solid rgba(239, 68, 68, 0.15)'
                             }}
                         >
                             <XCircle style={{ width: 22, height: 22, color: '#ef4444', flexShrink: 0 }} />
-                            <span className="text-[15px] text-slate-200 font-medium">
+                            <span style={{ fontSize: 15, color: '#e2e8f0', fontWeight: 500, flex: 1, minWidth: 0 }}>
                                 {t(`items.${item.key}`)}
                             </span>
                         </motion.div>
@@ -99,13 +144,20 @@ export default function Problem() {
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ duration: 0.5, delay: 0.4 }}
-                    className="text-center px-8 py-6 rounded-[20px]"
                     style={{
+                        textAlign: 'center',
+                        padding: '24px 32px',
+                        borderRadius: 20,
                         background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(239, 68, 68, 0.03))',
                         border: '1px solid rgba(239, 68, 68, 0.2)'
                     }}
                 >
-                    <p className="text-lg font-semibold text-[#fca5a5] m-0">
+                    <p style={{
+                        fontSize: 18,
+                        fontWeight: 600,
+                        color: '#fca5a5',
+                        margin: 0
+                    }}>
                         {t('conclusion')}
                     </p>
                 </motion.div>

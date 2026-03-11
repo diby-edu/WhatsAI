@@ -19,32 +19,52 @@ export default function BusinessTypes() {
     ]
 
     return (
-        <section id="business-types" className="py-16 sm:py-[100px] px-6 relative" style={{
-            background: 'linear-gradient(180deg, #020617 0%, #0f172a 50%, #020617 100%)'
+        <section id="business-types" style={{
+            padding: '100px 24px',
+            background: 'linear-gradient(180deg, #020617 0%, #0f172a 50%, #020617 100%)',
+            position: 'relative'
         }}>
             {/* Background decoration */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none" style={{
-                width: 1000, height: 1000,
-                background: 'radial-gradient(circle, rgba(37, 211, 102, 0.04) 0%, transparent 70%)'
+            <div style={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                width: 1000,
+                height: 1000,
+                background: 'radial-gradient(circle, rgba(37, 211, 102, 0.04) 0%, transparent 70%)',
+                pointerEvents: 'none'
             }} />
 
-            <div className="max-w-[1200px] mx-auto relative z-10">
+            <div style={{ maxWidth: 1200, margin: '0 auto', position: 'relative', zIndex: 1 }}>
                 {/* Header */}
                 <motion.div
                     initial={{ opacity: 0, y: 30 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ duration: 0.6 }}
-                    className="text-center mb-16"
+                    style={{ textAlign: 'center', marginBottom: 64 }}
                 >
-                    <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full mb-6" style={{
+                    <div style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: '8px 20px',
+                        borderRadius: 100,
                         background: 'rgba(37, 211, 102, 0.1)',
-                        border: '1px solid rgba(37, 211, 102, 0.2)'
+                        border: '1px solid rgba(37, 211, 102, 0.2)',
+                        marginBottom: 24
                     }}>
                         <Building2 style={{ width: 16, height: 16, color: '#25D366' }} />
-                        <span className="text-sm text-[#25D366] font-semibold">{t('badge')}</span>
+                        <span style={{ fontSize: 14, color: '#25D366', fontWeight: 600 }}>{t('badge')}</span>
                     </div>
-                    <h2 className="font-bold text-white mb-4 leading-tight" style={{ fontSize: 'clamp(28px, 5vw, 44px)' }}>
+                    <h2 style={{
+                        fontSize: 'clamp(28px, 5vw, 44px)',
+                        fontWeight: 700,
+                        color: 'white',
+                        marginBottom: 16,
+                        lineHeight: 1.2
+                    }}>
                         {t.rich('title', {
                             green: (chunks) => (
                                 <span style={{
@@ -56,13 +76,17 @@ export default function BusinessTypes() {
                             )
                         })}
                     </h2>
-                    <p className="text-lg text-slate-400 max-w-[600px] mx-auto">
+                    <p style={{ fontSize: 18, color: '#94a3b8', maxWidth: 600, margin: '0 auto' }}>
                         {t('subtitle')}
                     </p>
                 </motion.div>
 
                 {/* Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                <div className="bt-grid" style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(4, 1fr)',
+                    gap: 20
+                }}>
                     {businesses.map((biz, index) => (
                         <motion.div
                             key={biz.key}
@@ -71,42 +95,90 @@ export default function BusinessTypes() {
                             viewport={{ once: true }}
                             transition={{ duration: 0.5, delay: index * 0.07 }}
                             whileHover={{ y: -8, transition: { duration: 0.2 } }}
-                            className="p-7 rounded-3xl cursor-pointer relative overflow-hidden text-center"
                             style={{
+                                padding: 28,
+                                borderRadius: 24,
                                 background: 'rgba(15, 23, 42, 0.6)',
                                 backdropFilter: 'blur(20px)',
-                                border: '1px solid rgba(148, 163, 184, 0.1)'
+                                border: '1px solid rgba(148, 163, 184, 0.1)',
+                                cursor: 'pointer',
+                                position: 'relative',
+                                overflow: 'hidden',
+                                textAlign: 'center'
                             }}
                         >
                             {/* Hover top bar */}
                             <motion.div
                                 initial={{ opacity: 0 }}
                                 whileHover={{ opacity: 1 }}
-                                className="absolute top-0 left-0 right-0 h-[2px] rounded-t-3xl"
-                                style={{ background: biz.gradient }}
+                                style={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    right: 0,
+                                    height: 2,
+                                    background: biz.gradient,
+                                    borderRadius: '24px 24px 0 0'
+                                }}
                             />
 
                             {/* Icon */}
-                            <div className="flex items-center justify-center mx-auto mb-4" style={{
+                            <div style={{
                                 width: 56,
                                 height: 56,
                                 borderRadius: 16,
                                 background: biz.gradient,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                margin: '0 auto 16px',
                                 boxShadow: `0 10px 30px ${biz.glow}`
                             }}>
                                 <biz.icon style={{ width: 28, height: 28, color: 'white' }} />
                             </div>
 
-                            <h3 className="text-base font-semibold text-white mb-2">
+                            <h3 style={{
+                                fontSize: 16,
+                                fontWeight: 600,
+                                color: 'white',
+                                marginBottom: 8
+                            }}>
                                 {t(`items.${biz.key}.title`)}
                             </h3>
-                            <p className="text-[13px] text-slate-400 leading-relaxed m-0">
+                            <p style={{
+                                fontSize: 13,
+                                color: '#94a3b8',
+                                lineHeight: 1.6,
+                                margin: 0
+                            }}>
                                 {t(`items.${biz.key}.description`)}
                             </p>
                         </motion.div>
                     ))}
                 </div>
             </div>
+
+            <style jsx global>{`
+                @media (max-width: 1024px) {
+                    .bt-grid {
+                        grid-template-columns: repeat(2, 1fr) !important;
+                    }
+                }
+                @media (max-width: 600px) {
+                    .bt-grid {
+                        grid-template-columns: 1fr !important;
+                    }
+                }
+                @media (max-width: 768px) {
+                    #business-types h3,
+                    #business-types p {
+                        word-wrap: normal !important;
+                        overflow-wrap: normal !important;
+                        word-break: normal !important;
+                        hyphens: manual !important;
+                    }
+                }
+            `}</style>
         </section>
     )
 }

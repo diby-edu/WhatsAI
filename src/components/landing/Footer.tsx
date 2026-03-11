@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { MessageCircle, Twitter, Linkedin, Facebook, Instagram, Youtube, MapPin, Mail } from 'lucide-react'
+import { MessageCircle, ArrowRight, Twitter, Linkedin, Facebook, Instagram, Youtube, MapPin, Mail } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 const socialLinks = [
@@ -35,38 +35,58 @@ export default function Footer() {
     }
 
     return (
-        <footer className="relative pt-12 pb-6" style={{
+        <footer style={{
+            position: 'relative',
+            paddingTop: 48,
+            paddingBottom: 24,
             background: 'linear-gradient(180deg, transparent 0%, rgba(15, 23, 42, 0.8) 100%)'
         }}>
             {/* Top border gradient */}
-            <div className="absolute top-0 h-px" style={{
-                left: '10%', right: '10%',
+            <div style={{
+                position: 'absolute',
+                top: 0,
+                left: '10%',
+                right: '10%',
+                height: 1,
                 background: 'linear-gradient(90deg, transparent, rgba(16, 185, 129, 0.3), transparent)'
             }} />
 
-            <div className="max-w-[1200px] mx-auto px-6 relative z-10">
+            <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px', position: 'relative', zIndex: 10 }}>
 
-                {/* Footer Links grid */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 mb-10">
+                {/* Footer Links - Compact grid */}
+                <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+                    gap: 32,
+                    marginBottom: 40
+                }}>
                     {/* Brand */}
-                    <div className="col-span-2 sm:col-span-1">
-                        <Link href="/" className="no-underline inline-flex items-center gap-[10px] mb-4">
-                            <div className="w-10 h-10 rounded-[10px] flex items-center justify-center" style={{
-                                background: 'linear-gradient(135deg, #10b981, #059669)'
+                    <div>
+                        <Link href="/" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                            <div style={{
+                                width: 40,
+                                height: 40,
+                                borderRadius: 10,
+                                background: 'linear-gradient(135deg, #10b981, #059669)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
                             }}>
                                 <MessageCircle style={{ width: 20, height: 20, color: 'white' }} />
                             </div>
-                            <span className="font-bold text-xl" style={{
+                            <span style={{
+                                fontWeight: 700,
+                                fontSize: 20,
                                 background: 'linear-gradient(135deg, #10b981, #34d399)',
                                 WebkitBackgroundClip: 'text',
                                 WebkitTextFillColor: 'transparent'
                             }}>WazzapAI</span>
                         </Link>
-                        <p className="text-slate-500 text-[13px] leading-relaxed mb-4">
+                        <p style={{ color: '#64748b', fontSize: 13, lineHeight: 1.6, marginBottom: 16 }}>
                             {t('brandDescription')}
                         </p>
                         {/* Social icons */}
-                        <div className="flex gap-2 flex-wrap">
+                        <div style={{ display: 'flex', gap: 8 }}>
                             {socialLinks.map((social) => (
                                 <motion.a
                                     key={social.label}
@@ -74,8 +94,17 @@ export default function Footer() {
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     whileHover={{ scale: 1.1, y: -2 }}
-                                    className="w-9 h-9 rounded-[10px] flex items-center justify-center text-slate-400"
-                                    style={{ background: 'rgba(51, 65, 85, 0.5)' }}
+                                    style={{
+                                        width: 36,
+                                        height: 36,
+                                        borderRadius: 10,
+                                        background: 'rgba(51, 65, 85, 0.5)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        color: '#94a3b8',
+                                        transition: 'all 0.3s ease'
+                                    }}
                                 >
                                     <social.icon style={{ width: 16, height: 16 }} />
                                 </motion.a>
@@ -85,17 +114,26 @@ export default function Footer() {
 
                     {/* Produit */}
                     <div>
-                        <h4 className="text-slate-200 font-semibold text-sm mb-4">{t('columns.product')}</h4>
-                        <ul className="list-none p-0 m-0">
+                        <h4 style={{ color: '#e2e8f0', fontWeight: 600, fontSize: 14, marginBottom: 16 }}>{t('columns.product')}</h4>
+                        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                             {footerLinks.product.map((link) => (
-                                <li key={link.href} className="mb-[10px]">
+                                <li key={link.href} style={{ marginBottom: 10 }}>
                                     {'external' in link && link.external ? (
-                                        <a href={link.href} target="_blank" rel="noopener noreferrer"
-                                            className="text-[#25D366] no-underline text-sm">
+                                        <a href={link.href} target="_blank" rel="noopener noreferrer" style={{
+                                            color: '#25D366',
+                                            textDecoration: 'none',
+                                            fontSize: 14,
+                                            transition: 'color 0.2s'
+                                        }}>
                                             {link.label}
                                         </a>
                                     ) : (
-                                        <Link href={link.href} className="text-slate-500 no-underline text-sm">
+                                        <Link href={link.href} style={{
+                                            color: '#64748b',
+                                            textDecoration: 'none',
+                                            fontSize: 14,
+                                            transition: 'color 0.2s'
+                                        }}>
                                             {link.label}
                                         </Link>
                                     )}
@@ -106,11 +144,15 @@ export default function Footer() {
 
                     {/* Entreprise */}
                     <div>
-                        <h4 className="text-slate-200 font-semibold text-sm mb-4">{t('columns.company')}</h4>
-                        <ul className="list-none p-0 m-0">
+                        <h4 style={{ color: '#e2e8f0', fontWeight: 600, fontSize: 14, marginBottom: 16 }}>{t('columns.company')}</h4>
+                        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                             {footerLinks.company.map((link) => (
-                                <li key={link.href} className="mb-[10px]">
-                                    <Link href={link.href} className="text-slate-500 no-underline text-sm">
+                                <li key={link.href} style={{ marginBottom: 10 }}>
+                                    <Link href={link.href} style={{
+                                        color: '#64748b',
+                                        textDecoration: 'none',
+                                        fontSize: 14
+                                    }}>
                                         {link.label}
                                     </Link>
                                 </li>
@@ -120,11 +162,15 @@ export default function Footer() {
 
                     {/* Légal */}
                     <div>
-                        <h4 className="text-slate-200 font-semibold text-sm mb-4">{t('columns.legal')}</h4>
-                        <ul className="list-none p-0 m-0">
+                        <h4 style={{ color: '#e2e8f0', fontWeight: 600, fontSize: 14, marginBottom: 16 }}>{t('columns.legal')}</h4>
+                        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                             {footerLinks.legal.map((link) => (
-                                <li key={link.href} className="mb-[10px]">
-                                    <Link href={link.href} className="text-slate-500 no-underline text-sm">
+                                <li key={link.href} style={{ marginBottom: 10 }}>
+                                    <Link href={link.href} style={{
+                                        color: '#64748b',
+                                        textDecoration: 'none',
+                                        fontSize: 14
+                                    }}>
                                         {link.label}
                                     </Link>
                                 </li>
@@ -134,28 +180,93 @@ export default function Footer() {
                 </div>
 
                 {/* Bottom bar */}
-                <div className="pt-6 flex flex-wrap justify-between items-center gap-4" style={{
-                    borderTop: '1px solid rgba(148, 163, 184, 0.1)'
+                <div style={{
+                    paddingTop: 24,
+                    borderTop: '1px solid rgba(148, 163, 184, 0.1)',
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: 16
                 }}>
-                    <p className="text-slate-600 text-[13px]">
+                    <p style={{ color: '#475569', fontSize: 13 }}>
                         {t('rights')}
                     </p>
-                    <div className="flex items-center gap-6 flex-wrap">
-                        <div className="flex items-center gap-[6px] text-slate-600 text-[13px]">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#475569', fontSize: 13 }}>
                             <Mail style={{ width: 14, height: 14 }} />
                             support@wazzapai.com
                         </div>
-                        <a href="tel:+2250554585927" className="flex items-center gap-[6px] text-slate-600 text-[13px] no-underline">
+                        <a href="tel:+2250554585927" style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#475569', fontSize: 13, textDecoration: 'none' }}>
                             <MessageCircle style={{ width: 14, height: 14 }} />
                             +225 05 54 58 59 27
                         </a>
-                        <div className="flex items-center gap-[6px] text-slate-600 text-[13px]">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#475569', fontSize: 13 }}>
                             <MapPin style={{ width: 14, height: 14 }} />
-                            Abidjan, Côte d&apos;Ivoire
+                            Abidjan, Côte d'Ivoire
                         </div>
                     </div>
                 </div>
             </div>
+
+            {/* Mobile responsive styles */}
+            <style jsx global>{`
+                @media (max-width: 768px) {
+                    footer > div {
+                        padding: 0 16px !important;
+                    }
+                    footer > div > div:first-of-type {
+                        padding: 24px 20px !important;
+                    }
+                    footer > div > div:first-of-type h2 {
+                        font-size: 22px !important;
+                    }
+                    footer > div > div:first-of-type > div {
+                        gap: 24px !important;
+                    }
+                    /* Stack newsletter form on mobile */
+                    footer form {
+                        flex-direction: column !important;
+                    }
+                    footer form input {
+                        width: 100% !important;
+                    }
+                    footer form button {
+                        width: 100% !important;
+                    }
+                    /* Footer links grid */
+                    footer > div > div:nth-child(2) {
+                        grid-template-columns: repeat(2, 1fr) !important;
+                        gap: 24px !important;
+                    }
+                    /* Bottom bar stack */
+                    footer > div > div:last-child {
+                        flex-direction: column !important;
+                        text-align: center !important;
+                        gap: 12px !important;
+                    }
+                    footer > div > div:last-child > div {
+                        flex-direction: column !important;
+                        gap: 8px !important;
+                    }
+                }
+                @media (max-width: 400px) {
+                    footer > div > div:nth-child(2) {
+                        grid-template-columns: 1fr !important;
+                    }
+                    footer > div > div:first-of-type > div > div:first-child > div:last-child {
+                        flex-direction: column !important;
+                        width: 100% !important;
+                    }
+                    footer > div > div:first-of-type > div > div:first-child > div:last-child a {
+                        width: 100% !important;
+                    }
+                    footer > div > div:first-of-type > div > div:first-child > div:last-child button {
+                        width: 100% !important;
+                        justify-content: center !important;
+                    }
+                }
+            `}</style>
         </footer>
     )
 }
