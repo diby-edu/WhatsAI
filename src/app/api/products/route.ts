@@ -61,6 +61,7 @@ export async function POST(request: NextRequest) {
                 stock_quantity: body.stock_quantity ?? -1,
                 lead_fields: body.lead_fields || [],
                 variants: body.variants || [],
+                combinations: body.combinations ?? null,
                 // New structured fields
                 short_pitch: body.short_pitch || null,
                 features: body.features || [],

@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useRef, useMemo } from 'react'
-import { Plus, X, Trash2, Edit2, Check, DollarSign, ImageIcon, Upload, Palette, Ruler, Scale, Clock, Settings, Bed, Utensils, Scissors, Car, Calendar, Users, Coffee, Sparkles } from 'lucide-react'
+import { useState, useRef, useMemo, useEffect } from 'react'
+import { Plus, X, Trash2, ImageIcon, Upload, Palette, Ruler, Scale, Clock, Settings, Bed, Utensils, Scissors, Car, Calendar, Users, Coffee, Sparkles } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
 
@@ -11,6 +11,7 @@ export type VariantCategory = 'visual' | 'size' | 'weight' | 'duration' | 'custo
     'room_type' | 'view' | 'pension' | 'menu' | 'formula' | 'service_type' | 'vehicle' | 'option' | 'participants'
 
 export interface VariantOption {
+    id?: string     // stable slug, auto-generated at creation — stays fixed even if value label changes
     value: string
     price: number
     image?: string  // Optional image URL for this option
@@ -22,6 +23,16 @@ export interface VariantGroup {
     type: 'fixed' | 'additive'
     category?: VariantCategory  // Category to determine if images are needed
     options: VariantOption[]
+}
+
+// Combination = specific SKU with its own price/stock/availability/image
+export interface ProductCombination {
+    sku: string                          // unique identifier, e.g. "TSHIRT-BLACK-M"
+    attributes: Record<string, string>   // groupId -> optionId (stable slug)
+    available: boolean
+    price?: number | null                // null = use product default price
+    stock?: number | null                // null = unlimited
+    image?: string | null                // null = use product main image
 }
 
 // Default category configuration (for products)
@@ -105,11 +116,96 @@ interface ProductVariantsEditorProps {
     onChange: (variants: VariantGroup[]) => void
     currencySymbol: string
     serviceSubtype?: string  // v2.19: Service subtype to determine available categories
+    // Combinations (optional — null/undefined = not configured, uses legacy per-option prices)
+    combinations?: ProductCombination[] | null
+    onCombinationsChange?: (combinations: ProductCombination[] | null) => void
+    defaultPrice?: number  // product base price, used as placeholder in combination price inputs
 }
 
-export default function ProductVariantsEditor({ variants, onChange, currencySymbol, serviceSubtype }: ProductVariantsEditorProps) {
-    const [editingGroup, setEditingGroup] = useState<string | null>(null)
+// ── Helper functions ──────────────────────────────────────────────────────────
+
+function slugify(str: string): string {
+    return str.toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '') || 'opt'
+}
+
+function cartesian<T>(arrays: T[][]): T[][] {
+    if (arrays.length === 0) return [[]]
+    const [first, ...rest] = arrays
+    const restCombos = cartesian(rest)
+    return (first as T[]).flatMap(item => restCombos.map(combo => [item, ...combo]))
+}
+
+function getOptionLabel(groupId: string, optionId: string, variants: VariantGroup[]): string {
+    const group = variants.find(g => g.id === groupId)
+    if (!group) return optionId
+    const option = group.options.find(o => (o.id || slugify(o.value || '')) === optionId)
+    return option?.value || optionId
+}
+
+function getCombinationLabel(combo: ProductCombination, variants: VariantGroup[]): string {
+    return Object.entries(combo.attributes)
+        .map(([groupId, optionId]) => getOptionLabel(groupId, optionId, variants))
+        .join(' • ')
+}
+
+// Merge/sync combinations array with current variant groups (add new combos, keep existing)
+function mergeCombinations(variants: VariantGroup[], existing: ProductCombination[]): ProductCombination[] {
+    const eligibleGroups = variants.filter(g => g.options.length > 0)
+    if (eligibleGroups.length < 2) return existing
+
+    const perGroup = eligibleGroups.map(g =>
+        g.options.map(o => ({
+            groupId: g.id,
+            optionId: o.id || slugify(o.value || ''),
+        }))
+    )
+
+    const allCombos = cartesian(perGroup)
+
+    return allCombos.map(combo => {
+        const attributes: Record<string, string> = {}
+        const skuParts: string[] = []
+
+        combo.forEach(({ groupId, optionId }: { groupId: string; optionId: string }) => {
+            attributes[groupId] = optionId
+            skuParts.push(optionId.toUpperCase().replace(/-/g, '').slice(0, 8))
+        })
+
+        // Keep existing combination if attributes match
+        const found = existing.find(c => {
+            const cKeys = Object.keys(c.attributes)
+            const aKeys = Object.keys(attributes)
+            return cKeys.length === aKeys.length && aKeys.every(k => c.attributes[k] === attributes[k])
+        })
+
+        return found || {
+            sku: skuParts.join('-'),
+            attributes,
+            available: true,
+            price: null,
+            stock: null,
+            image: null,
+        }
+    })
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
+export default function ProductVariantsEditor({
+    variants,
+    onChange,
+    currencySymbol,
+    serviceSubtype,
+    combinations,
+    onCombinationsChange,
+    defaultPrice,
+}: ProductVariantsEditorProps) {
     const [uploadingOptionKey, setUploadingOptionKey] = useState<string | null>(null)
+    const [uploadingComboKey, setUploadingComboKey] = useState<string | null>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
     const supabase = createClient()
 
@@ -121,26 +217,67 @@ export default function ProductVariantsEditor({ variants, onChange, currencySymb
         return DEFAULT_CATEGORY_CONFIG
     }, [serviceSubtype])
 
-    // Handle image upload for a variant option
+    // Auto-sync combinations when variant options change (add/remove options)
+    useEffect(() => {
+        if (!combinations || !onCombinationsChange) return
+        const eligibleGroups = variants.filter(g => g.options.length > 0)
+        if (eligibleGroups.length < 2) return
+        const merged = mergeCombinations(variants, combinations)
+        if (JSON.stringify(merged) !== JSON.stringify(combinations)) {
+            onCombinationsChange(merged)
+        }
+    }, [variants]) // eslint-disable-line react-hooks/exhaustive-deps
+
+    // ── Combination actions ──
+
+    const enableCombinations = () => {
+        onCombinationsChange?.(mergeCombinations(variants, []))
+    }
+
+    const disableCombinations = () => {
+        if (confirm('Désactiver les combinaisons ? Les prix configurés seront perdus.')) {
+            onCombinationsChange?.(null)
+        }
+    }
+
+    const updateCombinationAt = (index: number, updates: Partial<ProductCombination>) => {
+        if (!combinations || !onCombinationsChange) return
+        const next = [...combinations]
+        next[index] = { ...next[index], ...updates }
+        onCombinationsChange(next)
+    }
+
+    const handleComboImageUpload = async (index: number, file: File) => {
+        const combo = combinations?.[index]
+        if (!combo) return
+        setUploadingComboKey(String(index))
+        try {
+            const fileExt = file.name.split('.').pop()
+            const safeSku = combo.sku.replace(/[^a-z0-9]/gi, '_').slice(0, 40)
+            const filePath = `products/combinations/combo_${safeSku}_${Date.now()}.${fileExt}`
+            const { error } = await supabase.storage.from('images').upload(filePath, file)
+            if (error) throw error
+            const { data: { publicUrl } } = supabase.storage.from('images').getPublicUrl(filePath)
+            updateCombinationAt(index, { image: publicUrl })
+        } catch (err) {
+            console.error('Error uploading combination image:', err)
+        } finally {
+            setUploadingComboKey(null)
+        }
+    }
+
+    // ── Variant group / option actions ──
+
     const handleImageUpload = async (groupId: string, optionIndex: number, file: File) => {
         const key = `${groupId}-${optionIndex}`
         setUploadingOptionKey(key)
-
         try {
             const fileExt = file.name.split('.').pop()
             const fileName = `variant_${groupId}_${optionIndex}_${Date.now()}.${fileExt}`
             const filePath = `products/variants/${fileName}`
-
-            const { error: uploadError } = await supabase.storage
-                .from('images')
-                .upload(filePath, file)
-
+            const { error: uploadError } = await supabase.storage.from('images').upload(filePath, file)
             if (uploadError) throw uploadError
-
-            const { data: { publicUrl } } = supabase.storage
-                .from('images')
-                .getPublicUrl(filePath)
-
+            const { data: { publicUrl } } = supabase.storage.from('images').getPublicUrl(filePath)
             updateOption(groupId, optionIndex, { image: publicUrl })
         } catch (err) {
             console.error('Error uploading variant image:', err)
@@ -154,11 +291,10 @@ export default function ProductVariantsEditor({ variants, onChange, currencySymb
             id: Date.now().toString(),
             name: type === 'fixed' ? 'Couleur' : 'Supplément',
             type: type,
-            category: type === 'fixed' ? 'visual' : 'custom',  // Default category based on type
-            options: [] // Empty options initially
+            category: type === 'fixed' ? 'visual' : 'custom',
+            options: []
         }
         onChange([...variants, newGroup])
-        setEditingGroup(newGroup.id)
     }
 
     const updateGroup = (id: string, updates: Partial<VariantGroup>) => {
@@ -172,19 +308,17 @@ export default function ProductVariantsEditor({ variants, onChange, currencySymb
     const addOption = (groupId: string) => {
         const group = variants.find(v => v.id === groupId)
         if (!group) return
-
         const newOption: VariantOption = {
+            id: Date.now().toString(36),  // stable unique ID — never changes after creation
             value: '',
-            price: group.type === 'fixed' ? 0 : 0
+            price: 0,
         }
-
         updateGroup(groupId, { options: [...group.options, newOption] })
     }
 
     const updateOption = (groupId: string, index: number, updates: Partial<VariantOption>) => {
         const group = variants.find(v => v.id === groupId)
         if (!group) return
-
         const newOptions = [...group.options]
         newOptions[index] = { ...newOptions[index], ...updates }
         updateGroup(groupId, { options: newOptions })
@@ -193,10 +327,34 @@ export default function ProductVariantsEditor({ variants, onChange, currencySymb
     const removeOption = (groupId: string, index: number) => {
         const group = variants.find(v => v.id === groupId)
         if (!group) return
-
-        const newOptions = group.options.filter((_, i) => i !== index)
-        updateGroup(groupId, { options: newOptions })
+        updateGroup(groupId, { options: group.options.filter((_, i) => i !== index) })
     }
+
+    const eligibleForCombinations = useMemo(
+        () => variants.filter(g => g.options.length > 0).length >= 2,
+        [variants]
+    )
+
+    // ── Shared input styles ──
+
+    const inputStyle: React.CSSProperties = {
+        background: 'rgba(30, 41, 59, 0.5)',
+        border: '1px solid rgba(148, 163, 184, 0.1)',
+        borderRadius: 10,
+        padding: '8px 10px',
+        color: 'white',
+        fontSize: 13,
+        outline: 'none',
+        width: '100%',
+    }
+
+    const inputDisabledStyle: React.CSSProperties = {
+        ...inputStyle,
+        opacity: 0.35,
+        cursor: 'not-allowed',
+    }
+
+    // ── Render ──
 
     return (
         <div style={{ marginTop: 24 }}>
@@ -212,7 +370,7 @@ export default function ProductVariantsEditor({ variants, onChange, currencySymb
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95 }}
                         style={{
-                            background: 'rgba(30, 41, 59, 0.3)', // Lighter bg to blend with card
+                            background: 'rgba(30, 41, 59, 0.3)',
                             border: '1px solid rgba(148, 163, 184, 0.1)',
                             borderRadius: 12,
                             padding: 16,
@@ -515,6 +673,243 @@ export default function ProductVariantsEditor({ variants, onChange, currencySymb
                 Fixe : Remplace le prix global (ex: Taille). <br />
                 Supplément : S'ajoute au prix global (ex: Fromage).
             </p>
+
+            {/* ── Combinations section ── */}
+
+            {/* Button to enable combinations (shown when ≥ 2 groups with options, combinations not yet configured) */}
+            {eligibleForCombinations && !combinations && onCombinationsChange && (
+                <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    style={{
+                        marginTop: 20,
+                        padding: '14px 16px',
+                        background: 'rgba(16, 185, 129, 0.07)',
+                        border: '1px dashed rgba(16, 185, 129, 0.35)',
+                        borderRadius: 12
+                    }}
+                >
+                    <p style={{ color: '#6ee7b7', fontSize: 13, marginBottom: 12, lineHeight: 1.5 }}>
+                        💡 Vous avez plusieurs groupes de variantes. Vous pouvez configurer un <strong>prix, un stock et une disponibilité spécifiques</strong> pour chaque combinaison (ex: Noir taille L = 16 000, Vert taille L = indisponible).
+                    </p>
+                    <button
+                        type="button"
+                        onClick={enableCombinations}
+                        style={{
+                            padding: '10px 16px', borderRadius: 8,
+                            background: 'rgba(16, 185, 129, 0.15)',
+                            border: '1px solid rgba(16, 185, 129, 0.4)',
+                            color: '#10b981', fontSize: 13, fontWeight: 600,
+                            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8
+                        }}
+                    >
+                        🔗 Configurer les prix par combinaison
+                    </button>
+                </motion.div>
+            )}
+
+            {/* Combinations table (shown when combinations is defined) */}
+            {eligibleForCombinations && combinations && onCombinationsChange && (
+                <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    style={{
+                        marginTop: 24,
+                        background: 'rgba(16, 185, 129, 0.05)',
+                        border: '1px solid rgba(16, 185, 129, 0.2)',
+                        borderRadius: 12,
+                        overflow: 'hidden'
+                    }}
+                >
+                    {/* Header */}
+                    <div style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        padding: '12px 16px',
+                        borderBottom: '1px solid rgba(16, 185, 129, 0.15)',
+                        background: 'rgba(16, 185, 129, 0.08)'
+                    }}>
+                        <span style={{ color: '#10b981', fontSize: 14, fontWeight: 600 }}>
+                            🔗 Prix par combinaison ({combinations.length})
+                        </span>
+                        <button
+                            type="button"
+                            onClick={disableCombinations}
+                            style={{
+                                padding: '4px 10px', borderRadius: 6,
+                                background: 'rgba(239, 68, 68, 0.1)',
+                                border: '1px solid rgba(239, 68, 68, 0.3)',
+                                color: '#f87171', fontSize: 11, cursor: 'pointer'
+                            }}
+                        >
+                            Désactiver
+                        </button>
+                    </div>
+
+                    {/* Table */}
+                    <div style={{ overflowX: 'auto', padding: '0 4px' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 560 }}>
+                            <thead>
+                                <tr>
+                                    {['Actif', 'Combinaison', 'SKU', `Prix (${currencySymbol})`, 'Stock', 'Image'].map(col => (
+                                        <th key={col} style={{
+                                            padding: '10px 12px', textAlign: 'left',
+                                            fontSize: 11, fontWeight: 600,
+                                            color: '#64748b', letterSpacing: '0.05em',
+                                            borderBottom: '1px solid rgba(148, 163, 184, 0.1)',
+                                            whiteSpace: 'nowrap'
+                                        }}>
+                                            {col.toUpperCase()}
+                                        </th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {combinations.map((combo, index) => {
+                                    const isUploading = uploadingComboKey === String(index)
+                                    const label = getCombinationLabel(combo, variants)
+                                    const cellStyle: React.CSSProperties = { padding: '8px 12px', verticalAlign: 'middle' }
+
+                                    return (
+                                        <tr
+                                            key={`combo-${index}`}
+                                            style={{
+                                                borderBottom: '1px solid rgba(148, 163, 184, 0.07)',
+                                                opacity: combo.available ? 1 : 0.45,
+                                                transition: 'opacity 0.2s',
+                                                background: combo.available ? 'transparent' : 'rgba(100,116,139,0.04)'
+                                            }}
+                                        >
+                                            {/* Toggle disponible */}
+                                            <td style={cellStyle}>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => updateCombinationAt(index, { available: !combo.available })}
+                                                    title={combo.available ? 'Disponible — cliquer pour désactiver' : 'Indisponible — cliquer pour activer'}
+                                                    style={{
+                                                        width: 34, height: 20, borderRadius: 10, border: 'none',
+                                                        cursor: 'pointer', transition: 'background 0.2s',
+                                                        background: combo.available ? '#10b981' : 'rgba(100, 116, 139, 0.4)',
+                                                        position: 'relative', display: 'inline-block', flexShrink: 0
+                                                    }}
+                                                >
+                                                    <span style={{
+                                                        position: 'absolute', top: 2,
+                                                        left: combo.available ? 16 : 2,
+                                                        width: 16, height: 16, borderRadius: '50%',
+                                                        background: 'white', transition: 'left 0.2s',
+                                                        display: 'block'
+                                                    }} />
+                                                </button>
+                                            </td>
+
+                                            {/* Label lisible */}
+                                            <td style={{ ...cellStyle, color: '#e2e8f0', fontWeight: 500, fontSize: 13, whiteSpace: 'nowrap' }}>
+                                                {label}
+                                            </td>
+
+                                            {/* SKU */}
+                                            <td style={cellStyle}>
+                                                <input
+                                                    value={combo.sku}
+                                                    onChange={(e) => updateCombinationAt(index, { sku: e.target.value })}
+                                                    disabled={!combo.available}
+                                                    placeholder="Ex: TSHIRT-BLACK-M"
+                                                    style={combo.available
+                                                        ? { ...inputStyle, width: 130, fontSize: 12 }
+                                                        : { ...inputDisabledStyle, width: 130, fontSize: 12 }
+                                                    }
+                                                />
+                                            </td>
+
+                                            {/* Prix */}
+                                            <td style={cellStyle}>
+                                                <input
+                                                    type="number"
+                                                    value={combo.price ?? ''}
+                                                    onChange={(e) => updateCombinationAt(index, {
+                                                        price: e.target.value ? parseFloat(e.target.value) : null
+                                                    })}
+                                                    disabled={!combo.available}
+                                                    placeholder={defaultPrice ? String(defaultPrice) : 'Défaut'}
+                                                    style={combo.available
+                                                        ? { ...inputStyle, width: 100, textAlign: 'right' }
+                                                        : { ...inputDisabledStyle, width: 100, textAlign: 'right' }
+                                                    }
+                                                />
+                                            </td>
+
+                                            {/* Stock */}
+                                            <td style={cellStyle}>
+                                                <input
+                                                    type="number"
+                                                    value={combo.stock ?? ''}
+                                                    onChange={(e) => updateCombinationAt(index, {
+                                                        stock: e.target.value ? parseInt(e.target.value) : null
+                                                    })}
+                                                    disabled={!combo.available}
+                                                    placeholder="∞"
+                                                    style={combo.available
+                                                        ? { ...inputStyle, width: 70, textAlign: 'center' }
+                                                        : { ...inputDisabledStyle, width: 70, textAlign: 'center' }
+                                                    }
+                                                />
+                                            </td>
+
+                                            {/* Image */}
+                                            <td style={cellStyle}>
+                                                {combo.image ? (
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                        <img
+                                                            src={combo.image}
+                                                            alt={label}
+                                                            style={{ width: 32, height: 32, borderRadius: 6, objectFit: 'cover', border: '1px solid rgba(16,185,129,0.4)' }}
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => updateCombinationAt(index, { image: null })}
+                                                            style={{ padding: '2px 6px', borderRadius: 4, background: 'rgba(239,68,68,0.15)', border: 'none', color: '#f87171', fontSize: 11, cursor: 'pointer' }}
+                                                        >
+                                                            ✕
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <label
+                                                        title="Ajouter une image pour cette combinaison"
+                                                        style={{
+                                                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                                            width: 32, height: 32, borderRadius: 6,
+                                                            background: 'rgba(30, 41, 59, 0.5)',
+                                                            border: '1px dashed rgba(148, 163, 184, 0.3)',
+                                                            color: '#64748b', cursor: 'pointer', fontSize: 16,
+                                                            opacity: isUploading ? 0.6 : 1
+                                                        }}
+                                                    >
+                                                        <input
+                                                            type="file"
+                                                            accept="image/*"
+                                                            style={{ display: 'none' }}
+                                                            disabled={isUploading}
+                                                            onChange={(e) => {
+                                                                const file = e.target.files?.[0]
+                                                                if (file) handleComboImageUpload(index, file)
+                                                            }}
+                                                        />
+                                                        {isUploading ? '⏳' : '+'}
+                                                    </label>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    )
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <p style={{ padding: '10px 16px', fontSize: 12, color: '#475569', borderTop: '1px solid rgba(148,163,184,0.07)' }}>
+                        Prix vide = prix par défaut du produit • Stock vide = illimité • Image vide = image principale
+                    </p>
+                </motion.div>
+            )}
         </div>
     )
 }

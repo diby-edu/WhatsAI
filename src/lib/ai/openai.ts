@@ -43,6 +43,7 @@ export interface GenerateResponseOptions {
         features?: any
         marketing_tags?: string[] | null
         variants?: any
+        combinations?: any
         related_products?: any
         image_url?: string | null
     }>
@@ -127,8 +128,37 @@ ${products.map(p => {
             }
 
             let variantsInfo = ''
-            if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
-                variantsInfo = `\n   🎨 VARIANTES DISPONIBLES : ${p.variants.map((v: any) => `${v.name} (${v.options.map((o: any) => o.name).join(', ')})`).join(' | ')}`
+            if (p.combinations && Array.isArray(p.combinations) && p.combinations.length > 0) {
+                // Combinations mode: show per-combination availability and price
+                const available = p.combinations.filter((c: any) => c.available)
+                const unavailable = p.combinations.filter((c: any) => !c.available)
+                const formatCombo = (c: any) => {
+                    // Resolve attribute IDs to readable labels using variant groups
+                    let label = Object.entries(c.attributes as Record<string, string>).map(([groupId, optionId]) => {
+                        if (!p.variants || !Array.isArray(p.variants)) return optionId
+                        const group = p.variants.find((g: any) => g.id === groupId)
+                        if (!group) return optionId
+                        const option = group.options?.find((o: any) => (o.id || o.value?.toLowerCase().replace(/[^a-z0-9]+/g, '-')) === optionId)
+                        return option?.value || optionId
+                    }).join(' + ')
+                    const price = c.price != null ? `${c.price.toLocaleString('fr-FR')} ${currencySymbol}` : `${displayPrice.toLocaleString('fr-FR')} ${currencySymbol}`
+                    return `${label} = ${price}`
+                }
+                variantsInfo = `\n   🔗 COMBINAISONS DISPONIBLES :\n${available.map((c: any) => `      ✅ ${formatCombo(c)}`).join('\n')}`
+                if (unavailable.length > 0) {
+                    const unavailableLabels = unavailable.map((c: any) => {
+                        return Object.entries(c.attributes as Record<string, string>).map(([groupId, optionId]) => {
+                            if (!p.variants || !Array.isArray(p.variants)) return optionId
+                            const group = p.variants.find((g: any) => g.id === groupId)
+                            const option = group?.options?.find((o: any) => (o.id || o.value?.toLowerCase().replace(/[^a-z0-9]+/g, '-')) === optionId)
+                            return option?.value || optionId
+                        }).join(' + ')
+                    }).join(', ')
+                    variantsInfo += `\n      ❌ INDISPONIBLES : ${unavailableLabels}`
+                }
+                variantsInfo += `\n   ⚠️ RÈGLE : Si le client demande une combinaison indisponible, explique pourquoi et propose une alternative disponible.`
+            } else if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
+                variantsInfo = `\n   🎨 VARIANTES DISPONIBLES : ${p.variants.map((v: any) => `${v.name} (${v.options.map((o: any) => o.value || o.name).join(', ')})`).join(' | ')}`
             }
 
             let displayPrice = p.price_fcfa

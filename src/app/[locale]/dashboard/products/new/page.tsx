@@ -21,7 +21,7 @@ import {
 import Link from 'next/link'
 import { createBrowserClient } from '@supabase/ssr'
 import { useTranslations } from 'next-intl'
-import ProductVariantsEditor, { VariantGroup } from '@/components/dashboard/ProductVariantsEditor'
+import ProductVariantsEditor, { VariantGroup, ProductCombination } from '@/components/dashboard/ProductVariantsEditor'
 import { convertToFcfa, convertFromFcfa } from '@/lib/currency'
 
 export default function NewProductPage() {
@@ -54,6 +54,7 @@ export default function NewProductPage() {
         content_included: [] as string[], // What's included in the product
         features: [] as string[], // Tags list
         variants: [] as VariantGroup[],
+        combinations: null as ProductCombination[] | null,
 
         // Strategy
         marketing_tags: [] as string[],
@@ -361,7 +362,8 @@ export default function NewProductPage() {
             const dataToSend = {
                 ...restFormData,
                 price_fcfa: convertToFcfa(parseFloat(String(price)) || 0, currency),
-                variants: variantsInFcfa
+                variants: variantsInFcfa,
+                combinations: formData.combinations ?? null
             }
 
             const res = await fetch('/api/products', {
@@ -912,6 +914,9 @@ export default function NewProductPage() {
                                 onChange={v => setFormData({ ...formData, variants: v })}
                                 currencySymbol={currency}
                                 serviceSubtype={formData.service_subtype}
+                                combinations={formData.combinations}
+                                onCombinationsChange={c => setFormData({ ...formData, combinations: c })}
+                                defaultPrice={formData.price ? parseFloat(String(formData.price)) : undefined}
                             />
                         </div>
                     </div>

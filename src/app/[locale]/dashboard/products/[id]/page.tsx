@@ -25,7 +25,7 @@ import {
 import Link from 'next/link'
 import { createBrowserClient } from '@supabase/ssr'
 import { useTranslations } from 'next-intl'
-import ProductVariantsEditor, { VariantGroup } from '@/components/dashboard/ProductVariantsEditor'
+import ProductVariantsEditor, { VariantGroup, ProductCombination } from '@/components/dashboard/ProductVariantsEditor'
 import { convertFromFcfa, convertToFcfa } from '@/lib/currency'
 
 const STEPS = [
@@ -69,6 +69,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
         content_included: [] as string[], // What's included in the product
         features: [] as string[],
         variants: [] as VariantGroup[],
+        combinations: null as ProductCombination[] | null,
         marketing_tags: [] as string[],
         related_product_ids: [] as string[],
 
@@ -133,6 +134,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                     content_included: Array.isArray(p.content_included) ? p.content_included : [],
                     features: Array.isArray(p.features) ? p.features : typeof p.features === 'string' ? JSON.parse(p.features) : [],
                     variants: convertedVariants,
+                    combinations: Array.isArray(p.combinations) ? p.combinations : null,
                     marketing_tags: Array.isArray(p.marketing_tags) ? p.marketing_tags : [],
                     related_product_ids: p.related_product_ids || [],
 
@@ -239,7 +241,8 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
             const dataToSend = {
                 ...restFormData,
                 price_fcfa: convertToFcfa(parseFloat(String(price)) || 0, currency),
-                variants: variantsInFcfa
+                variants: variantsInFcfa,
+                combinations: formData.combinations ?? null
             }
             const res = await fetch(`/api/products/${productId}`, {
                 method: 'PUT',
@@ -567,6 +570,9 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                                 variants={formData.variants}
                                 onChange={v => setFormData({ ...formData, variants: v })}
                                 currencySymbol={currency}
+                                combinations={formData.combinations}
+                                onCombinationsChange={c => setFormData({ ...formData, combinations: c })}
+                                defaultPrice={formData.price ? parseFloat(String(formData.price)) : undefined}
                             />
                         </div>
                     </motion.div>
