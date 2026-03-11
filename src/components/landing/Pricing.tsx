@@ -31,6 +31,7 @@ const COMMON_FEATURES = [
     'Support email inclus',
 ]
 
+// Per-plan extras — expiration, renewal and bonus behaviors
 const PLAN_SPECIFIC_FEATURES: Record<string, { text: string; highlight?: boolean }[]> = {
     free: [
         { text: '50 crédits offerts une seule fois' },
@@ -99,7 +100,6 @@ export default function Pricing() {
     const [isAuthenticated, setIsAuthenticated] = useState(false)
     const [loadingPlan, setLoadingPlan] = useState<string | null>(null)
     const [plans, setPlans] = useState<Plan[]>(FALLBACK_PLANS)
-
     useEffect(() => {
         const checkAuth = async () => {
             try {
@@ -131,6 +131,12 @@ export default function Pricing() {
                         is_popular: p.is_popular || false,
                         description: p.description || '',
                     }))
+                    const hasFree = formatted.some(p => p.price_fcfa === 0 || p.id === 'free' || p.name.toLowerCase().includes('gratuit') || p.name.toLowerCase().includes('free'))
+                    if (!hasFree) {
+                        const fallbackFree = FALLBACK_PLANS.find(p => p.id === 'free')
+                        if (fallbackFree) formatted.unshift(fallbackFree)
+                    }
+                    // Ensure Scale plan always shows even if not yet in DB
                     const hasScale = formatted.some(p => p.name.toLowerCase().includes('scale'))
                     if (!hasScale) {
                         const fallbackScale = FALLBACK_PLANS.find(p => p.id === 'scale')
@@ -149,19 +155,27 @@ export default function Pricing() {
     }
 
     return (
-        <section id="pricing" className="pt-[100px] pb-[60px] px-6 relative" style={{
-            background: 'linear-gradient(180deg, #020617 0%, #0f172a 100%)'
+        <section id="pricing" style={{
+            padding: '100px 24px 60px',
+            background: 'linear-gradient(180deg, #020617 0%, #0f172a 100%)',
+            position: 'relative'
         }}>
-            <div className="max-w-[1500px] mx-auto relative z-10">
+            <div style={{ maxWidth: 1500, margin: '0 auto', position: 'relative', zIndex: 1 }}>
                 {/* Header */}
                 <motion.div
                     initial={{ opacity: 0, y: 30 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ duration: 0.6 }}
-                    className="text-center mb-12"
+                    style={{ textAlign: 'center', marginBottom: 48 }}
                 >
-                    <h2 className="font-bold text-white mb-3 leading-tight" style={{ fontSize: 'clamp(28px, 4vw, 42px)' }}>
+                    <h2 style={{
+                        fontSize: 'clamp(28px, 4vw, 42px)',
+                        fontWeight: 700,
+                        color: 'white',
+                        marginBottom: 12,
+                        lineHeight: 1.2
+                    }}>
                         {t.rich('title', {
                             green: (chunks) => (
                                 <span style={{
@@ -173,14 +187,25 @@ export default function Pricing() {
                             )
                         })}
                     </h2>
-                    <p className="text-base text-slate-400 max-w-[400px] mx-auto mb-7">
+                    <p style={{ fontSize: 16, color: '#94a3b8', maxWidth: 400, margin: '0 auto 28px' }}>
                         {t('subtitle')}
                     </p>
 
                     {/* Toggles row */}
-                    <div className="flex flex-wrap items-center justify-center gap-3">
+                    <div style={{
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 12
+                    }}>
                         {/* Billing period toggle */}
-                        <div className="inline-flex items-center gap-1 p-1 rounded-full" style={{
+                        <div style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 4,
+                            padding: 4,
+                            borderRadius: 100,
                             background: 'rgba(30, 41, 59, 0.6)',
                             border: '1px solid rgba(148, 163, 184, 0.1)'
                         }}>
@@ -202,7 +227,6 @@ export default function Pricing() {
                             </button>
                             <button
                                 onClick={() => setIsYearly(true)}
-                                className="flex items-center gap-[6px]"
                                 style={{
                                     padding: '8px 16px',
                                     borderRadius: 100,
@@ -212,7 +236,10 @@ export default function Pricing() {
                                     fontWeight: 600,
                                     fontSize: 13,
                                     cursor: 'pointer',
-                                    transition: 'all 0.3s'
+                                    transition: 'all 0.3s',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 6
                                 }}
                             >
                                 {t('toggle.yearly')}
@@ -230,7 +257,12 @@ export default function Pricing() {
                         </div>
 
                         {/* Currency toggle */}
-                        <div className="inline-flex items-center gap-[2px] p-1 rounded-full" style={{
+                        <div style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 2,
+                            padding: 4,
+                            borderRadius: 100,
                             background: 'rgba(30, 41, 59, 0.6)',
                             border: '1px solid rgba(148, 163, 184, 0.1)'
                         }}>
@@ -258,7 +290,11 @@ export default function Pricing() {
                 </motion.div>
 
                 {/* Plans grid */}
-                <div className="pricing-grid grid gap-4 items-stretch">
+                <div className="pricing-grid" style={{
+                    display: 'grid',
+                    gap: 16,
+                    alignItems: 'stretch'
+                }}>
                     {plans.map((plan, index) => {
                         const nameKey = Object.keys(planIcons).find(k => plan.name.includes(k)) || plan.name
                         const Icon = planIcons[plan.name] || planIcons[nameKey] || Zap
@@ -268,53 +304,82 @@ export default function Pricing() {
                             <motion.div
                                 key={plan.id}
                                 whileHover={{ y: -6, transition: { duration: 0.2 } }}
-                                className="p-7 rounded-[22px] relative flex flex-col"
                                 style={{
+                                    padding: 28,
+                                    borderRadius: 22,
                                     background: plan.is_popular
                                         ? 'linear-gradient(180deg, rgba(37, 211, 102, 0.12) 0%, rgba(15, 23, 42, 0.8) 100%)'
                                         : 'rgba(15, 23, 42, 0.6)',
                                     backdropFilter: 'blur(20px)',
                                     border: plan.is_popular
                                         ? '2px solid rgba(37, 211, 102, 0.4)'
-                                        : '1px solid rgba(148, 163, 184, 0.1)'
+                                        : '1px solid rgba(148, 163, 184, 0.1)',
+                                    position: 'relative',
+                                    display: 'flex',
+                                    flexDirection: 'column'
                                 }}
                             >
                                 {/* Popular badge */}
                                 {plan.is_popular && (
-                                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-[14px] py-[5px] rounded-full text-white text-[10px] font-bold uppercase tracking-[0.5px] whitespace-nowrap" style={{
-                                        background: 'linear-gradient(135deg, #25D366, #10b981)'
+                                    <div style={{
+                                        position: 'absolute',
+                                        top: -12,
+                                        left: '50%',
+                                        transform: 'translateX(-50%)',
+                                        padding: '5px 14px',
+                                        borderRadius: 100,
+                                        background: 'linear-gradient(135deg, #25D366, #10b981)',
+                                        color: 'white',
+                                        fontSize: 10,
+                                        fontWeight: 700,
+                                        textTransform: 'uppercase',
+                                        letterSpacing: 0.5,
+                                        whiteSpace: 'nowrap'
                                     }}>
                                         {plan.id === 'pro' ? t('recommended') : t('popular')}
                                     </div>
                                 )}
 
-                                {/* Icon */}
-                                <div className="flex items-center justify-center mb-[10px]" style={{
+                                {/* Icon & Name */}
+                                <div style={{
                                     width: 42,
                                     height: 42,
                                     borderRadius: 13,
                                     background: colors.bg,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    marginBottom: 10,
                                     boxShadow: `0 8px 20px ${colors.glow}`
                                 }}>
                                     <Icon style={{ width: 20, height: 20, color: 'white' }} />
                                 </div>
 
-                                <h3 className="text-xl font-bold text-white mb-2">{plan.name}</h3>
+                                <h3 style={{ fontSize: 20, fontWeight: 700, color: 'white', marginBottom: 8 }}>
+                                    {plan.name}
+                                </h3>
 
                                 {/* Scale gold badge */}
                                 {plan.id === 'scale' && (
-                                    <div className="inline-flex items-center gap-[5px] px-[10px] py-1 rounded-full mb-3 self-start" style={{
+                                    <div style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: 5,
+                                        padding: '4px 10px',
+                                        borderRadius: 100,
                                         background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.18), rgba(217, 119, 6, 0.12))',
-                                        border: '1px solid rgba(245, 158, 11, 0.35)'
+                                        border: '1px solid rgba(245, 158, 11, 0.35)',
+                                        marginBottom: 12,
+                                        alignSelf: 'flex-start'
                                     }}>
-                                        <span className="text-[11px] text-[#fbbf24] font-bold">
+                                        <span style={{ fontSize: 11, color: '#fbbf24', fontWeight: 700 }}>
                                             ⭐ Rollover 20% • +2 000 crédits/mois
                                         </span>
                                     </div>
                                 )}
 
                                 {/* Price */}
-                                <div className="mb-[14px]">
+                                <div style={{ marginBottom: 14 }}>
                                     <div style={{
                                         fontSize: plan.price_fcfa === 0 ? 22 : 30,
                                         fontWeight: 800,
@@ -329,22 +394,35 @@ export default function Pricing() {
                                         {displayPrice(plan.price_fcfa)}
                                     </div>
                                     {plan.price_fcfa > 0 && (
-                                        <div className="text-[11px] text-slate-500 mt-[2px]">
+                                        <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
                                             /{isYearly ? t('perYear') : t('perMonth')}
                                         </div>
                                     )}
+                                    {/* ROI Hint */}
                                     {(plan.id === 'starter' || plan.id === 'pro') && (
-                                        <div className="mt-[10px] px-3 py-[6px] rounded-lg text-[11px] text-[#25D366] font-medium" style={{
+                                        <div style={{
+                                            marginTop: 10,
+                                            padding: '6px 12px',
+                                            borderRadius: 8,
                                             background: 'rgba(37, 211, 102, 0.08)',
-                                            border: '1px solid rgba(37, 211, 102, 0.15)'
+                                            border: '1px solid rgba(37, 211, 102, 0.15)',
+                                            fontSize: 11,
+                                            color: '#25D366',
+                                            fontWeight: 500
                                         }}>
                                             {t(`roiHint.${plan.id}`)}
                                         </div>
                                     )}
                                 </div>
 
-                                {/* Quotas */}
-                                <div className="grid grid-cols-3 gap-[6px] mb-[14px] px-[6px] py-3 rounded-xl" style={{
+                                {/* Quotas — the only differentiators */}
+                                <div className="quota-grid" style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: '1fr 1fr 1fr',
+                                    gap: 6,
+                                    marginBottom: 14,
+                                    padding: '12px 6px',
+                                    borderRadius: 12,
                                     background: plan.is_popular
                                         ? 'rgba(37, 211, 102, 0.06)'
                                         : 'rgba(255, 255, 255, 0.04)',
@@ -352,53 +430,60 @@ export default function Pricing() {
                                         ? '1px solid rgba(37, 211, 102, 0.15)'
                                         : '1px solid rgba(148, 163, 184, 0.08)'
                                 }}>
-                                    <div className="text-center">
-                                        <div className="text-[22px] font-extrabold text-white leading-[1.1]">
+                                    <div style={{ textAlign: 'center' }}>
+                                        <div style={{ fontSize: 22, fontWeight: 800, color: 'white', lineHeight: 1.1 }}>
                                             {plan.credits.toLocaleString('fr-FR')}
                                         </div>
-                                        <div className="text-[10px] text-slate-400 mt-[3px] flex items-center justify-center gap-[2px]">
+                                        <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
                                             <CreditCard size={9} />
                                             crédits
                                         </div>
                                         {plan.id !== 'free' && (
-                                            <div className="text-[9px] mt-[2px]" style={{
-                                                color: plan.id === 'scale' ? '#a78bfa' : '#64748b'
-                                            }}>
+                                            <div style={{ fontSize: 9, color: plan.id === 'scale' ? '#a78bfa' : '#64748b', marginTop: 2 }}>
                                                 {plan.id === 'scale' ? 'Rollover 20%' : 'Protégés 7j/expir.'}
                                             </div>
                                         )}
                                     </div>
-                                    <div className="text-center" style={{
-                                        borderLeft: '1px solid rgba(148,163,184,0.1)',
-                                        borderRight: '1px solid rgba(148,163,184,0.1)'
-                                    }}>
-                                        <div className="text-[22px] font-extrabold text-white leading-[1.1]">
+                                    <div style={{ textAlign: 'center', borderLeft: '1px solid rgba(148,163,184,0.1)', borderRight: '1px solid rgba(148,163,184,0.1)' }}>
+                                        <div style={{ fontSize: 22, fontWeight: 800, color: 'white', lineHeight: 1.1 }}>
                                             {plan.max_agents === -1 ? '∞' : plan.max_agents}
                                         </div>
-                                        <div className="text-[10px] text-slate-400 mt-[3px] flex items-center justify-center gap-[2px]">
+                                        <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
                                             <Users size={9} />
                                             agents
                                         </div>
                                     </div>
-                                    <div className="text-center">
-                                        <div className="text-[22px] font-extrabold text-white leading-[1.1]">
+                                    <div style={{ textAlign: 'center' }}>
+                                        <div style={{ fontSize: 22, fontWeight: 800, color: 'white', lineHeight: 1.1 }}>
                                             {plan.max_whatsapp_numbers === -1 ? '∞' : plan.max_whatsapp_numbers}
                                         </div>
-                                        <div className="text-[10px] text-slate-400 mt-[3px] flex items-center justify-center gap-[2px]">
+                                        <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
                                             <Smartphone size={9} />
                                             numéros
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* Common features */}
-                                <div className="flex-1 mb-[10px]">
+                                {/* Common features (same for all plans) */}
+                                <div style={{ flex: 1, marginBottom: 10 }}>
                                     {COMMON_FEATURES.map((feature, i) => (
-                                        <div key={i} className="flex items-start gap-2 mb-[7px]">
-                                            <div className="w-[15px] h-[15px] rounded-full flex items-center justify-center shrink-0" style={{
+                                        <div key={i} style={{
+                                            display: 'flex',
+                                            alignItems: 'flex-start',
+                                            gap: 8,
+                                            marginBottom: 7
+                                        }}>
+                                            <div style={{
+                                                width: 15,
+                                                height: 15,
+                                                borderRadius: '50%',
                                                 background: plan.is_popular
                                                     ? 'rgba(37, 211, 102, 0.2)'
-                                                    : 'rgba(148, 163, 184, 0.08)'
+                                                    : 'rgba(148, 163, 184, 0.08)',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                flexShrink: 0
                                             }}>
                                                 <Check style={{
                                                     width: 9,
@@ -406,22 +491,32 @@ export default function Pricing() {
                                                     color: plan.is_popular ? '#25D366' : '#94a3b8'
                                                 }} />
                                             </div>
-                                            <span className="text-[13px] text-slate-400">{feature}</span>
+                                            <span style={{ fontSize: 13, color: '#94a3b8' }}>{feature}</span>
                                         </div>
                                     ))}
                                 </div>
 
-                                {/* Plan-specific features */}
+                                {/* Plan-specific features (credits policy, Scale bonuses) */}
                                 {(PLAN_SPECIFIC_FEATURES[plan.id] || []).length > 0 && (
-                                    <div className="mb-[14px] pt-[10px]" style={{
-                                        borderTop: '1px solid rgba(148,163,184,0.08)'
-                                    }}>
+                                    <div style={{ marginBottom: 14, borderTop: '1px solid rgba(148,163,184,0.08)', paddingTop: 10 }}>
                                         {(PLAN_SPECIFIC_FEATURES[plan.id] || []).map((feat, i) => (
-                                            <div key={i} className="flex items-start gap-2 mb-[6px]">
-                                                <div className="w-[15px] h-[15px] rounded-full flex items-center justify-center shrink-0" style={{
+                                            <div key={i} style={{
+                                                display: 'flex',
+                                                alignItems: 'flex-start',
+                                                gap: 8,
+                                                marginBottom: 6
+                                            }}>
+                                                <div style={{
+                                                    width: 15,
+                                                    height: 15,
+                                                    borderRadius: '50%',
                                                     background: plan.id === 'scale'
                                                         ? 'rgba(139, 92, 246, 0.2)'
-                                                        : 'rgba(59, 130, 246, 0.1)'
+                                                        : 'rgba(59, 130, 246, 0.1)',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    flexShrink: 0
                                                 }}>
                                                     <span style={{
                                                         fontSize: 8,
@@ -471,14 +566,22 @@ export default function Pricing() {
                                             setLoadingPlan(null)
                                         }
                                     }}
-                                    className="w-full py-[11px] px-4 rounded-[11px] font-semibold text-[13px] flex items-center justify-center gap-[6px]"
                                     style={{
+                                        width: '100%',
+                                        padding: '11px 16px',
+                                        borderRadius: 11,
                                         border: plan.is_popular ? 'none' : '1px solid rgba(148, 163, 184, 0.15)',
                                         background: plan.is_popular
                                             ? 'linear-gradient(135deg, #25D366, #128C7E)'
                                             : 'transparent',
                                         color: plan.is_popular ? 'white' : '#e2e8f0',
+                                        fontWeight: 600,
+                                        fontSize: 13,
                                         cursor: loadingPlan === plan.id ? 'wait' : 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: 6,
                                         opacity: loadingPlan === plan.id ? 0.7 : 1
                                     }}
                                 >
@@ -498,23 +601,32 @@ export default function Pricing() {
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
-                    className="mt-8 px-7 py-6 rounded-[18px]"
                     style={{
+                        marginTop: 32,
+                        marginBottom: 0,
+                        padding: '24px 28px',
+                        borderRadius: 18,
                         background: 'rgba(15, 23, 42, 0.7)',
-                        border: '1px solid rgba(148, 163, 184, 0.1)'
+                        border: '1px solid rgba(148, 163, 184, 0.1)',
                     }}
                 >
-                    <h4 className="text-[15px] font-bold text-white mb-5 text-center">
-                        ⚡ Ce qui se passe à l&apos;expiration &amp; au renouvellement
+                    <h4 style={{ fontSize: 15, fontWeight: 700, color: 'white', marginBottom: 20, textAlign: 'center' }}>
+                        ⚡ Ce qui se passe à l'expiration &amp; au renouvellement
                     </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                        {/* Expiration */}
-                        <div className="p-4 rounded-xl" style={{
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                        gap: 20
+                    }}>
+                        {/* Expiration column */}
+                        <div style={{
+                            padding: '16px',
+                            borderRadius: 12,
                             background: 'rgba(239, 68, 68, 0.06)',
                             border: '1px solid rgba(239, 68, 68, 0.15)'
                         }}>
-                            <div className="text-[13px] font-bold text-[#f87171] mb-[10px]">
-                                📉 À l&apos;expiration
+                            <div style={{ fontSize: 13, fontWeight: 700, color: '#f87171', marginBottom: 10 }}>
+                                📉 À l'expiration
                             </div>
                             {[
                                 'Plan réduit au Free automatiquement',
@@ -523,19 +635,21 @@ export default function Pricing() {
                                 'Seul 1 agent reste actif (limite Free)',
                                 'IA en pause si crédits épuisés',
                             ].map((item, i) => (
-                                <div key={i} className="text-[12px] text-slate-400 mb-[6px] flex gap-[6px]">
-                                    <span className="text-[#f87171] shrink-0">•</span>
+                                <div key={i} style={{ fontSize: 12, color: '#94a3b8', marginBottom: 6, display: 'flex', gap: 6 }}>
+                                    <span style={{ color: '#f87171', flexShrink: 0 }}>•</span>
                                     {item}
                                 </div>
                             ))}
                         </div>
 
-                        {/* Renewal */}
-                        <div className="p-4 rounded-xl" style={{
+                        {/* Renewal column */}
+                        <div style={{
+                            padding: '16px',
+                            borderRadius: 12,
                             background: 'rgba(34, 197, 94, 0.06)',
                             border: '1px solid rgba(34, 197, 94, 0.15)'
                         }}>
-                            <div className="text-[13px] font-bold text-[#4ade80] mb-[10px]">
+                            <div style={{ fontSize: 13, fontWeight: 700, color: '#4ade80', marginBottom: 10 }}>
                                 🔄 À la souscription (dans les 7j)
                             </div>
                             {[
@@ -545,19 +659,21 @@ export default function Pricing() {
                                 'Agents archivés récupérables',
                                 'Si >7j sans renouvellement : crédits définitivement supprimés',
                             ].map((item, i) => (
-                                <div key={i} className="text-[12px] text-slate-400 mb-[6px] flex gap-[6px]">
-                                    <span className="text-[#4ade80] shrink-0">•</span>
+                                <div key={i} style={{ fontSize: 12, color: '#94a3b8', marginBottom: 6, display: 'flex', gap: 6 }}>
+                                    <span style={{ color: '#4ade80', flexShrink: 0 }}>•</span>
                                     {item}
                                 </div>
                             ))}
                         </div>
 
-                        {/* Scale */}
-                        <div className="p-4 rounded-xl" style={{
+                        {/* Scale advantages column */}
+                        <div style={{
+                            padding: '16px',
+                            borderRadius: 12,
                             background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.08), rgba(167, 139, 250, 0.04))',
                             border: '1px solid rgba(139, 92, 246, 0.25)'
                         }}>
-                            <div className="text-[13px] font-bold text-[#a78bfa] mb-[10px]">
+                            <div style={{ fontSize: 13, fontWeight: 700, color: '#a78bfa', marginBottom: 10 }}>
                                 ⭐ Avantages exclusifs Scale
                             </div>
                             {[
@@ -567,8 +683,8 @@ export default function Pricing() {
                                 'Agents illimités — aucun archivage possible',
                                 'Notification de votre bonus de rollover après chaque renouvellement',
                             ].map((item, i) => (
-                                <div key={i} className="text-[12px] text-slate-400 mb-[6px] flex gap-[6px]">
-                                    <span className="text-[#a78bfa] shrink-0">•</span>
+                                <div key={i} style={{ fontSize: 12, color: '#94a3b8', marginBottom: 6, display: 'flex', gap: 6 }}>
+                                    <span style={{ color: '#a78bfa', flexShrink: 0 }}>•</span>
                                     {item}
                                 </div>
                             ))}
@@ -581,23 +697,42 @@ export default function Pricing() {
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
-                    className="mt-12 px-10 py-6 rounded-[20px] flex items-center justify-between flex-wrap gap-4"
                     style={{
+                        marginTop: 48,
+                        padding: '24px 40px',
+                        borderRadius: 20,
                         background: 'rgba(30, 41, 59, 0.4)',
-                        border: '1px solid rgba(148, 163, 184, 0.1)'
+                        border: '1px solid rgba(148, 163, 184, 0.1)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        flexWrap: 'wrap',
+                        gap: 16
                     }}
                 >
                     <div>
-                        <h4 className="text-lg font-semibold text-white mb-1">{t('enterprise.title')}</h4>
-                        <p className="text-sm text-slate-400">{t('enterprise.subtitle')}</p>
+                        <h4 style={{ fontSize: 18, fontWeight: 600, color: 'white', marginBottom: 4 }}>
+                            {t('enterprise.title')}
+                        </h4>
+                        <p style={{ fontSize: 14, color: '#94a3b8' }}>
+                            {t('enterprise.subtitle')}
+                        </p>
                     </div>
                     <motion.button
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
-                        className="px-6 py-3 rounded-[10px] flex items-center gap-[6px] font-semibold text-sm text-[#25D366] cursor-pointer"
                         style={{
+                            padding: '12px 24px',
+                            borderRadius: 10,
                             border: '1px solid rgba(37, 211, 102, 0.4)',
-                            background: 'rgba(37, 211, 102, 0.1)'
+                            background: 'rgba(37, 211, 102, 0.1)',
+                            color: '#25D366',
+                            fontWeight: 600,
+                            fontSize: 14,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 6
                         }}
                     >
                         {t('enterprise.cta')}
@@ -605,6 +740,13 @@ export default function Pricing() {
                     </motion.button>
                 </motion.div>
             </div>
+
+            <style jsx global>{`
+                @keyframes spin {
+                    from { transform: rotate(0deg); }
+                    to { transform: rotate(360deg); }
+                }
+            `}</style>
         </section>
     )
 }

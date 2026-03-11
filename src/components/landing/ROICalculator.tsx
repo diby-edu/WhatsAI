@@ -19,32 +19,52 @@ export default function ROICalculator() {
     }
 
     return (
-        <section id="roi-calculator" className="py-16 sm:py-[100px] px-6 relative" style={{
-            background: 'linear-gradient(180deg, #020617 0%, #0f172a 50%, #020617 100%)'
+        <section id="roi-calculator" style={{
+            padding: '100px 24px',
+            background: 'linear-gradient(180deg, #020617 0%, #0f172a 50%, #020617 100%)',
+            position: 'relative'
         }}>
             {/* Background glow */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none" style={{
-                width: 800, height: 800,
-                background: 'radial-gradient(circle, rgba(37, 211, 102, 0.06) 0%, transparent 70%)'
+            <div style={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                width: 800,
+                height: 800,
+                background: 'radial-gradient(circle, rgba(37, 211, 102, 0.06) 0%, transparent 70%)',
+                pointerEvents: 'none'
             }} />
 
-            <div className="max-w-[700px] mx-auto relative z-10">
+            <div style={{ maxWidth: 700, margin: '0 auto', position: 'relative', zIndex: 1 }}>
                 {/* Header */}
                 <motion.div
                     initial={{ opacity: 0, y: 30 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ duration: 0.6 }}
-                    className="text-center mb-12"
+                    style={{ textAlign: 'center', marginBottom: 48 }}
                 >
-                    <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full mb-6" style={{
+                    <div style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: '8px 20px',
+                        borderRadius: 100,
                         background: 'rgba(37, 211, 102, 0.1)',
-                        border: '1px solid rgba(37, 211, 102, 0.2)'
+                        border: '1px solid rgba(37, 211, 102, 0.2)',
+                        marginBottom: 24
                     }}>
                         <Calculator style={{ width: 16, height: 16, color: '#25D366' }} />
-                        <span className="text-sm text-[#25D366] font-semibold">{t('badge')}</span>
+                        <span style={{ fontSize: 14, color: '#25D366', fontWeight: 600 }}>{t('badge')}</span>
                     </div>
-                    <h2 className="font-bold text-white mb-4 leading-tight text-center" style={{ fontSize: 'clamp(28px, 5vw, 40px)' }}>
+                    <h2 style={{
+                        fontSize: 'clamp(28px, 5vw, 40px)',
+                        fontWeight: 700,
+                        color: 'white',
+                        marginBottom: 16,
+                        lineHeight: 1.2
+                    }}>
                         {t.rich('title', {
                             green: (chunks) => (
                                 <span style={{
@@ -64,8 +84,9 @@ export default function ROICalculator() {
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ duration: 0.6, delay: 0.2 }}
-                    className="p-10 rounded-[28px]"
                     style={{
+                        padding: 40,
+                        borderRadius: 28,
                         background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.6) 100%)',
                         backdropFilter: 'blur(20px)',
                         border: '1px solid rgba(37, 211, 102, 0.2)',
@@ -73,59 +94,93 @@ export default function ROICalculator() {
                     }}
                 >
                     {/* Input: Messages per day */}
-                    <div className="mb-8">
-                        <label className="block text-[15px] text-slate-200 font-medium mb-3">
+                    <div style={{ marginBottom: 32 }}>
+                        <label style={{
+                            display: 'block',
+                            fontSize: 15,
+                            color: '#e2e8f0',
+                            fontWeight: 500,
+                            marginBottom: 12
+                        }}>
                             {t('inputs.messages')}
                         </label>
-                        <div className="flex items-center gap-4">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                             <input
                                 type="range"
                                 min="5"
                                 max="500"
                                 value={messages}
                                 onChange={(e) => setMessages(Number(e.target.value))}
-                                className="flex-1 h-[6px] rounded-[3px] cursor-pointer outline-none"
                                 style={{
+                                    flex: 1,
+                                    height: 6,
+                                    borderRadius: 3,
                                     appearance: 'none',
-                                    background: `linear-gradient(to right, #25D366 0%, #25D366 ${(messages - 5) / 495 * 100}%, rgba(148, 163, 184, 0.2) ${(messages - 5) / 495 * 100}%, rgba(148, 163, 184, 0.2) 100%)`
+                                    background: `linear-gradient(to right, #25D366 0%, #25D366 ${(messages - 5) / 495 * 100}%, rgba(148, 163, 184, 0.2) ${(messages - 5) / 495 * 100}%, rgba(148, 163, 184, 0.2) 100%)`,
+                                    cursor: 'pointer',
+                                    outline: 'none'
                                 }}
                             />
-                            <span className="min-w-[50px] text-right font-bold text-lg text-[#25D366]">
-                                {messages}
-                            </span>
+                            <span style={{
+                                minWidth: 50,
+                                textAlign: 'right',
+                                fontWeight: 700,
+                                fontSize: 18,
+                                color: '#25D366'
+                            }}>{messages}</span>
                         </div>
                     </div>
 
                     {/* Input: Conversion rate */}
-                    <div className="mb-8">
-                        <label className="block text-[15px] text-slate-200 font-medium mb-3">
+                    <div style={{ marginBottom: 32 }}>
+                        <label style={{
+                            display: 'block',
+                            fontSize: 15,
+                            color: '#e2e8f0',
+                            fontWeight: 500,
+                            marginBottom: 12
+                        }}>
                             {t('inputs.conversion')}
                         </label>
-                        <div className="flex items-center gap-4">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                             <input
                                 type="range"
                                 min="1"
                                 max="50"
                                 value={conversion}
                                 onChange={(e) => setConversion(Number(e.target.value))}
-                                className="flex-1 h-[6px] rounded-[3px] cursor-pointer outline-none"
                                 style={{
+                                    flex: 1,
+                                    height: 6,
+                                    borderRadius: 3,
                                     appearance: 'none',
-                                    background: `linear-gradient(to right, #25D366 0%, #25D366 ${(conversion - 1) / 49 * 100}%, rgba(148, 163, 184, 0.2) ${(conversion - 1) / 49 * 100}%, rgba(148, 163, 184, 0.2) 100%)`
+                                    background: `linear-gradient(to right, #25D366 0%, #25D366 ${(conversion - 1) / 49 * 100}%, rgba(148, 163, 184, 0.2) ${(conversion - 1) / 49 * 100}%, rgba(148, 163, 184, 0.2) 100%)`,
+                                    cursor: 'pointer',
+                                    outline: 'none'
                                 }}
                             />
-                            <span className="min-w-[50px] text-right font-bold text-lg text-[#25D366]">
-                                {conversion}%
-                            </span>
+                            <span style={{
+                                minWidth: 50,
+                                textAlign: 'right',
+                                fontWeight: 700,
+                                fontSize: 18,
+                                color: '#25D366'
+                            }}>{conversion}%</span>
                         </div>
                     </div>
 
                     {/* Input: Avg sale value */}
-                    <div className="mb-10">
-                        <label className="block text-[15px] text-slate-200 font-medium mb-3">
+                    <div style={{ marginBottom: 40 }}>
+                        <label style={{
+                            display: 'block',
+                            fontSize: 15,
+                            color: '#e2e8f0',
+                            fontWeight: 500,
+                            marginBottom: 12
+                        }}>
                             {t('inputs.avgSale')}
                         </label>
-                        <div className="flex items-center gap-4">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                             <input
                                 type="range"
                                 min="1000"
@@ -133,31 +188,50 @@ export default function ROICalculator() {
                                 step="1000"
                                 value={avgSale}
                                 onChange={(e) => setAvgSale(Number(e.target.value))}
-                                className="flex-1 h-[6px] rounded-[3px] cursor-pointer outline-none"
                                 style={{
+                                    flex: 1,
+                                    height: 6,
+                                    borderRadius: 3,
                                     appearance: 'none',
-                                    background: `linear-gradient(to right, #25D366 0%, #25D366 ${(avgSale - 1000) / 99000 * 100}%, rgba(148, 163, 184, 0.2) ${(avgSale - 1000) / 99000 * 100}%, rgba(148, 163, 184, 0.2) 100%)`
+                                    background: `linear-gradient(to right, #25D366 0%, #25D366 ${(avgSale - 1000) / 99000 * 100}%, rgba(148, 163, 184, 0.2) ${(avgSale - 1000) / 99000 * 100}%, rgba(148, 163, 184, 0.2) 100%)`,
+                                    cursor: 'pointer',
+                                    outline: 'none'
                                 }}
                             />
-                            <span className="min-w-[90px] text-right font-bold text-lg text-[#25D366]">
-                                {formatNumber(avgSale)}
-                            </span>
+                            <span style={{
+                                minWidth: 90,
+                                textAlign: 'right',
+                                fontWeight: 700,
+                                fontSize: 18,
+                                color: '#25D366'
+                            }}>{formatNumber(avgSale)}</span>
                         </div>
                     </div>
 
                     {/* Result */}
-                    <div className="py-7 px-8 rounded-[20px] text-center mb-6" style={{
+                    <div style={{
+                        padding: '28px 32px',
+                        borderRadius: 20,
                         background: 'linear-gradient(135deg, rgba(37, 211, 102, 0.15), rgba(37, 211, 102, 0.05))',
-                        border: '1px solid rgba(37, 211, 102, 0.3)'
+                        border: '1px solid rgba(37, 211, 102, 0.3)',
+                        textAlign: 'center',
+                        marginBottom: 24
                     }}>
-                        <div className="flex items-center justify-center gap-[10px] mb-2">
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 10,
+                            marginBottom: 8
+                        }}>
                             <TrendingUp style={{ width: 22, height: 22, color: '#25D366' }} />
-                            <span className="text-[15px] text-slate-400 font-medium">
+                            <span style={{ fontSize: 15, color: '#94a3b8', fontWeight: 500 }}>
                                 {t('result')}
                             </span>
                         </div>
-                        <div className="font-extrabold" style={{
+                        <div style={{
                             fontSize: 'clamp(32px, 5vw, 48px)',
+                            fontWeight: 800,
                             background: 'linear-gradient(135deg, #25D366, #6ee7b7)',
                             WebkitBackgroundClip: 'text',
                             WebkitTextFillColor: 'transparent',
@@ -168,19 +242,33 @@ export default function ROICalculator() {
                     </div>
 
                     {/* Help text */}
-                    <p className="text-center text-sm text-slate-500 mb-7">
+                    <p style={{
+                        textAlign: 'center',
+                        fontSize: 14,
+                        color: '#64748b',
+                        marginBottom: 28
+                    }}>
                         {t('helpText')}
                     </p>
 
                     {/* CTA */}
-                    <div className="text-center">
+                    <div style={{ textAlign: 'center' }}>
                         <Link href="/register" style={{ textDecoration: 'none' }}>
                             <motion.button
                                 whileHover={{ scale: 1.03, boxShadow: '0 20px 40px rgba(37, 211, 102, 0.3)' }}
                                 whileTap={{ scale: 0.98 }}
-                                className="py-4 px-8 rounded-[14px] border-none text-white font-bold text-base cursor-pointer inline-flex items-center gap-[10px]"
                                 style={{
+                                    padding: '16px 32px',
+                                    borderRadius: 14,
+                                    border: 'none',
                                     background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
+                                    color: 'white',
+                                    fontWeight: 700,
+                                    fontSize: 16,
+                                    cursor: 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 10,
                                     boxShadow: '0 10px 30px rgba(37, 211, 102, 0.2)'
                                 }}
                             >
@@ -192,6 +280,28 @@ export default function ROICalculator() {
                     </div>
                 </motion.div>
             </div>
+
+            <style jsx global>{`
+                input[type="range"]::-webkit-slider-thumb {
+                    appearance: none;
+                    width: 22px;
+                    height: 22px;
+                    border-radius: 50%;
+                    background: #25D366;
+                    cursor: pointer;
+                    border: 3px solid white;
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+                }
+                input[type="range"]::-moz-range-thumb {
+                    width: 22px;
+                    height: 22px;
+                    border-radius: 50%;
+                    background: #25D366;
+                    cursor: pointer;
+                    border: 3px solid white;
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+                }
+            `}</style>
         </section>
     )
 }

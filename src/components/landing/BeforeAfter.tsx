@@ -11,34 +11,59 @@ export default function BeforeAfter() {
     const withItems: string[] = [0, 1, 2, 3, 4].map(i => t(`with.items.${i}`))
 
     return (
-        <section id="before-after" className="py-16 sm:py-[100px] px-6 relative bg-[#0f172a]">
-            <div className="max-w-[1000px] mx-auto relative z-10">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 items-stretch">
+        <section id="before-after" style={{
+            padding: '100px 24px',
+            background: '#0f172a',
+            position: 'relative'
+        }}>
+            <div style={{ maxWidth: 1000, margin: '0 auto', position: 'relative', zIndex: 1 }}>
+                <div className="ba-grid" style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(2, 1fr)',
+                    gap: 32,
+                    alignItems: 'stretch'
+                }}>
                     {/* Without WazzapAI */}
                     <motion.div
                         initial={{ opacity: 0, x: -40 }}
                         whileInView={{ opacity: 1, x: 0 }}
                         viewport={{ once: true }}
                         transition={{ duration: 0.6 }}
-                        className="p-9 rounded-[28px] relative overflow-hidden"
                         style={{
+                            padding: 36,
+                            borderRadius: 28,
                             background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(239, 68, 68, 0.02) 100%)',
-                            border: '1px solid rgba(239, 68, 68, 0.2)'
+                            border: '1px solid rgba(239, 68, 68, 0.2)',
+                            position: 'relative',
+                            overflow: 'hidden'
                         }}
                     >
                         {/* Red glow */}
-                        <div className="absolute rounded-full" style={{
-                            top: -50, right: -50, width: 200, height: 200,
+                        <div style={{
+                            position: 'absolute',
+                            top: -50,
+                            right: -50,
+                            width: 200,
+                            height: 200,
+                            borderRadius: '50%',
                             background: 'radial-gradient(circle, rgba(239, 68, 68, 0.1) 0%, transparent 70%)',
                             filter: 'blur(40px)'
                         }} />
 
-                        <h3 className="text-2xl font-bold text-[#fca5a5] mb-7 flex items-center gap-[10px]">
+                        <h3 style={{
+                            fontSize: 24,
+                            fontWeight: 700,
+                            color: '#fca5a5',
+                            marginBottom: 28,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 10
+                        }}>
                             <XCircle style={{ width: 28, height: 28, color: '#ef4444' }} />
                             {t('without.title')}
                         </h3>
 
-                        <div className="flex flex-col gap-4">
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                             {withoutItems.map((item, index) => (
                                 <motion.div
                                     key={index}
@@ -46,10 +71,18 @@ export default function BeforeAfter() {
                                     whileInView={{ opacity: 1, x: 0 }}
                                     viewport={{ once: true }}
                                     transition={{ duration: 0.3, delay: index * 0.08 }}
-                                    className="flex items-center gap-3"
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 12,
+                                        flexWrap: 'nowrap',
+                                        textAlign: 'left'
+                                    }}
                                 >
                                     <XCircle style={{ width: 18, height: 18, color: '#ef4444', flexShrink: 0 }} />
-                                    <span className="text-[15px] text-slate-300 leading-relaxed">{item}</span>
+                                    <span style={{ fontSize: 15, color: '#cbd5e1', lineHeight: 1.5, flex: 1, minWidth: 0 }}>
+                                        {item}
+                                    </span>
                                 </motion.div>
                             ))}
                         </div>
@@ -61,25 +94,41 @@ export default function BeforeAfter() {
                         whileInView={{ opacity: 1, x: 0 }}
                         viewport={{ once: true }}
                         transition={{ duration: 0.6 }}
-                        className="p-9 rounded-[28px] relative overflow-hidden"
                         style={{
+                            padding: 36,
+                            borderRadius: 28,
                             background: 'linear-gradient(135deg, rgba(37, 211, 102, 0.08) 0%, rgba(37, 211, 102, 0.02) 100%)',
-                            border: '1px solid rgba(37, 211, 102, 0.2)'
+                            border: '1px solid rgba(37, 211, 102, 0.2)',
+                            position: 'relative',
+                            overflow: 'hidden'
                         }}
                     >
                         {/* Green glow */}
-                        <div className="absolute rounded-full" style={{
-                            top: -50, right: -50, width: 200, height: 200,
+                        <div style={{
+                            position: 'absolute',
+                            top: -50,
+                            right: -50,
+                            width: 200,
+                            height: 200,
+                            borderRadius: '50%',
                             background: 'radial-gradient(circle, rgba(37, 211, 102, 0.1) 0%, transparent 70%)',
                             filter: 'blur(40px)'
                         }} />
 
-                        <h3 className="text-2xl font-bold text-[#6ee7b7] mb-7 flex items-center gap-[10px]">
+                        <h3 style={{
+                            fontSize: 24,
+                            fontWeight: 700,
+                            color: '#6ee7b7',
+                            marginBottom: 28,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 10
+                        }}>
                             <CheckCircle style={{ width: 28, height: 28, color: '#25D366' }} />
                             {t('with.title')}
                         </h3>
 
-                        <div className="flex flex-col gap-4">
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                             {withItems.map((item, index) => (
                                 <motion.div
                                     key={index}
@@ -87,16 +136,33 @@ export default function BeforeAfter() {
                                     whileInView={{ opacity: 1, x: 0 }}
                                     viewport={{ once: true }}
                                     transition={{ duration: 0.3, delay: index * 0.08 }}
-                                    className="flex items-center gap-3"
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 12,
+                                        flexWrap: 'nowrap',
+                                        textAlign: 'left'
+                                    }}
                                 >
                                     <CheckCircle style={{ width: 18, height: 18, color: '#25D366', flexShrink: 0 }} />
-                                    <span className="text-[15px] text-slate-300 leading-relaxed">{item}</span>
+                                    <span style={{ fontSize: 15, color: '#cbd5e1', lineHeight: 1.5, flex: 1, minWidth: 0 }}>
+                                        {item}
+                                    </span>
                                 </motion.div>
                             ))}
                         </div>
                     </motion.div>
                 </div>
             </div>
+
+            <style jsx global>{`
+                @media (max-width: 768px) {
+                    .ba-grid {
+                        grid-template-columns: 1fr !important;
+                        gap: 20px !important;
+                    }
+                }
+            `}</style>
         </section>
     )
 }

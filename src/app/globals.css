@@ -713,6 +713,71 @@ h6 {
   border: 2px solid #0f172a;
 }
 
+/* =============================================
+   HERO RESPONSIVE (restored from 0f467b0)
+   ============================================= */
+
+@media (max-width: 1024px) {
+  .hero-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 40px !important;
+  }
+
+  .hero-content {
+    text-align: center !important;
+  }
+
+  .hero-phone {
+    display: none !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .hero-grid {
+    gap: 30px !important;
+  }
+
+  .hero-title {
+    font-size: 28px !important;
+    line-height: 1.25 !important;
+  }
+
+  .hero-subtitle {
+    font-size: 15px !important;
+  }
+
+  .hero-buttons {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  .hero-buttons a {
+    width: 100% !important;
+  }
+
+  .hero-buttons button {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  .hero-stats {
+    flex-direction: column !important;
+    gap: 16px !important;
+    align-items: center !important;
+  }
+}
+
+@media (max-width: 400px) {
+  .hero-title {
+    font-size: 24px !important;
+  }
+
+  .hero-subtitle {
+    font-size: 14px !important;
+  }
+}
+
 /* Reduce animations on mobile for smoother scroll */
 @media (max-width: 768px) {
   * {
