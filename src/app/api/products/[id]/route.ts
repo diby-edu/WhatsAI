@@ -68,7 +68,8 @@ export async function PUT(
                 short_pitch: body.short_pitch,
                 features: body.features,
                 marketing_tags: body.marketing_tags,
-                related_product_ids: body.related_product_ids
+                related_product_ids: body.related_product_ids,
+                service_subtype: body.service_subtype ?? null
             })
             .eq('id', id)
             .eq('user_id', user.id)

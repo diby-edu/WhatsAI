@@ -121,6 +121,7 @@ export default function AgentWizardPage({
         is_active: true,
 
         // Step 1: Identity
+        is_online_only: false,
         business_address: '',
         // contact_phone removed in favor of escalation_phone
         social_links: {
@@ -190,6 +191,7 @@ export default function AgentWizardPage({
                 description: agent.description || '',
                 is_active: agent.is_active,
 
+                is_online_only: agent.is_online_only || false,
                 business_address: agent.business_address || '',
                 // contact_phone map removed
                 social_links: agent.social_links || { website: '', facebook: '', email: '' },
@@ -399,8 +401,23 @@ export default function AgentWizardPage({
                             </div>
                         </div>
 
+                        {/* Toggle boutique en ligne */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: 'rgba(99, 102, 241, 0.08)', border: '1px solid rgba(99, 102, 241, 0.2)', borderRadius: 10 }}>
+                            <input
+                                type="checkbox"
+                                id="is_online_only"
+                                checked={formData.is_online_only}
+                                onChange={(e) => setFormData({ ...formData, is_online_only: e.target.checked })}
+                                style={{ width: 16, height: 16, cursor: 'pointer', accentColor: '#818cf8' }}
+                            />
+                            <label htmlFor="is_online_only" style={{ cursor: 'pointer', color: '#e2e8f0', fontSize: 14 }}>
+                                Boutique 100% en ligne (pas d'adresse physique)
+                                <span style={{ display: 'block', fontSize: 11, color: '#64748b', marginTop: 2 }}>L'IA ne mentionnera jamais d'adresse physique.</span>
+                            </label>
+                        </div>
+
                         {/* Address with MapPin icon */}
-                        <div>
+                        <div style={{ display: formData.is_online_only ? 'none' : undefined }}>
                             <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
                                 Adresse Physique
                             </label>
@@ -416,7 +433,7 @@ export default function AgentWizardPage({
                         </div>
 
                         {/* Lat/Lon with Ma position link */}
-                        <div className="agent-grid-2">
+                        <div className="agent-grid-2" style={{ display: formData.is_online_only ? 'none' : undefined }}>
                             <div>
                                 <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
                                     Latitude

@@ -87,6 +87,7 @@ export default function NewAgentPage() {
         enableVoice: false,
         voiceId: 'alloy',
         // NEW FIELDS
+        is_online_only: false,
         business_address: '',
         // contact_phone removed
         escalation_phone: '',
@@ -433,6 +434,7 @@ Règles:
                     enable_voice_responses: formData.enableVoice,
                     voice_id: formData.voiceId,
                     // New Fields
+                    is_online_only: formData.is_online_only,
                     business_address: formData.business_address,
                     // contact_phone removed
                     escalation_phone: formData.escalation_phone,
@@ -671,8 +673,23 @@ Règles:
                             </div>
                         </div>
 
+                        {/* Toggle boutique en ligne */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: 'rgba(99, 102, 241, 0.08)', border: '1px solid rgba(99, 102, 241, 0.2)', borderRadius: 10 }}>
+                            <input
+                                type="checkbox"
+                                id="is_online_only"
+                                checked={formData.is_online_only}
+                                onChange={(e) => updateFormData('is_online_only', e.target.checked)}
+                                style={{ width: 16, height: 16, cursor: 'pointer', accentColor: '#818cf8' }}
+                            />
+                            <label htmlFor="is_online_only" style={{ cursor: 'pointer', color: '#e2e8f0', fontSize: 14 }}>
+                                Boutique 100% en ligne (pas d'adresse physique)
+                                <span style={{ display: 'block', fontSize: 11, color: '#64748b', marginTop: 2 }}>L'IA ne mentionnera jamais d'adresse physique.</span>
+                            </label>
+                        </div>
+
                         {/* NEW FIELDS: Address & Contact */}
-                        <div>
+                        <div style={{ display: formData.is_online_only ? 'none' : undefined }}>
                             <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
                                 Adresse Physique
                             </label>
@@ -688,7 +705,7 @@ Règles:
                             </div>
                         </div>
 
-                        <div className="agent-grid-2">
+                        <div className="agent-grid-2" style={{ display: formData.is_online_only ? 'none' : undefined }}>
                             <div>
                                 <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
                                     Latitude

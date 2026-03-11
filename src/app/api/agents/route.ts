@@ -114,7 +114,8 @@ export async function POST(request: NextRequest) {
                 agent_goal: body.agent_goal || 'sales',
                 // GPS (Optional)
                 latitude: body.latitude || null,
-                longitude: body.longitude || null
+                longitude: body.longitude || null,
+                is_online_only: body.is_online_only ?? false
             })
             .select()
             .single()

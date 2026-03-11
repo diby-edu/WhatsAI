@@ -54,6 +54,7 @@ export interface GenerateResponseOptions {
     latitude?: number | null
     longitude?: number | null
     escalationPhone?: string
+    isOnlineOnly?: boolean
     // Vision
     inputImageUrls?: string[]
 }
@@ -89,6 +90,7 @@ export async function generateAIResponse(
         businessHours,
         latitude,
         longitude,
+        isOnlineOnly = false,
         inputImageUrls = []
     } = options
 
@@ -127,6 +129,17 @@ ${products.map(p => {
                 featuresList = `\n   ✨ POINTS FORTS : ${p.features.map((f: any) => f.value).join(', ')}`
             }
 
+            let displayPrice = p.price_fcfa
+            let currencySymbol = '$'
+
+            if (options.currency === 'XOF') {
+                displayPrice = p.price_fcfa
+                currencySymbol = 'FCFA'
+            } else if (options.currency === 'EUR') {
+                displayPrice = Math.round(p.price_fcfa * 0.92 * 100) / 100
+                currencySymbol = '€'
+            }
+
             let variantsInfo = ''
             if (p.combinations && Array.isArray(p.combinations) && p.combinations.length > 0) {
                 // Combinations mode: show per-combination availability and price
@@ -161,17 +174,6 @@ ${products.map(p => {
                 variantsInfo = `\n   🎨 VARIANTES DISPONIBLES : ${p.variants.map((v: any) => `${v.name} (${v.options.map((o: any) => o.value || o.name).join(', ')})`).join(' | ')}`
             }
 
-            let displayPrice = p.price_fcfa
-            let currencySymbol = '$'
-
-            if (options.currency === 'XOF') {
-                displayPrice = p.price_fcfa
-                currencySymbol = 'FCFA'
-            } else if (options.currency === 'EUR') {
-                displayPrice = Math.round(p.price_fcfa * 0.92 * 100) / 100
-                currencySymbol = '€'
-            }
-
             const imageUrl = p.image_url ? `\n   🖼️ IMAGE : ${p.image_url}` : ''
 
             return `🔹 ${p.name} - ${displayPrice.toLocaleString('fr-FR')} ${currencySymbol} ${stockInfo}
@@ -187,7 +189,12 @@ Si le client s'intéresse à un produit, APPLIQUE STRICTEMENT la règle de son t
 
     // Build Location & Hours Context
     let locationContext = ''
-    if (businessAddress || (latitude && longitude)) {
+    if (isOnlineOnly) {
+        locationContext += `\n📦 MODE E-COMMERCE EN LIGNE`
+        locationContext += `\nCette boutique est 100% en ligne, elle n'a pas d'adresse physique.`
+        locationContext += `\nINSTRUCTION : Ne jamais donner d'adresse physique ni de coordonnées GPS.`
+        locationContext += `\nPour les livraisons, demander l'adresse du CLIENT uniquement.`
+    } else if (businessAddress || (latitude && longitude)) {
         locationContext += `\n📍 LOCALISATION & HORAIRES :`
         if (businessAddress) locationContext += `\n- Adresse : ${businessAddress}`
         if (latitude && longitude) {
