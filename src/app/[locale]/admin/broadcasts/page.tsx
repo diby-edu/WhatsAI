@@ -64,8 +64,9 @@ export default function AdminBroadcastsPage() {
     const [pushBody, setPushBody] = useState('')
     const [pushPlan, setPushPlan] = useState('all')
     const [pushDeviceCount, setPushDeviceCount] = useState(0)
+    const [pushUserCount, setPushUserCount] = useState(0)
     const [pushSending, setPushSending] = useState(false)
-    const [pushResult, setPushResult] = useState<{ sent: number; failed: number; total: number } | null>(null)
+    const [pushResult, setPushResult] = useState<{ sent: number; failed: number; total: number; userCount?: number } | null>(null)
     const [pushError, setPushError] = useState<string | null>(null)
 
     // Individual selection state
@@ -141,14 +142,16 @@ export default function AdminBroadcastsPage() {
             const res = await fetch(`/api/admin/broadcasts/push?targetPlan=${plan}`)
             const data = await res.json()
             setPushDeviceCount(data.data?.count || 0)
+            setPushUserCount(data.data?.userCount || 0)
         } catch {
             setPushDeviceCount(0)
+            setPushUserCount(0)
         }
     }
 
     const sendPushBroadcast = async () => {
         if (!pushTitle.trim() || !pushBody.trim()) return
-        if (!confirm(`Envoyer cette notification à ${pushDeviceCount} appareil${pushDeviceCount === 1 ? '' : 's'} ?`)) return
+        if (!confirm(`Envoyer à ${pushDeviceCount} appareil${pushDeviceCount === 1 ? '' : 's'} push + ${pushUserCount} utilisateur${pushUserCount === 1 ? '' : 's'} dans la cloche ?`)) return
         setPushSending(true)
         setPushResult(null)
         setPushError(null)
@@ -571,11 +574,19 @@ export default function AdminBroadcastsPage() {
                         </div>
 
                         {/* Device count preview */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', marginBottom: 16, background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.2)', borderRadius: 10 }}>
-                            <Users size={16} style={{ color: '#f59e0b' }} />
-                            <span style={{ color: '#f59e0b', fontSize: 13 }}>
-                                {pushDeviceCount} appareil{pushDeviceCount === 1 ? '' : 's'} ciblé{pushDeviceCount === 1 ? '' : 's'}
-                            </span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px', background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.2)', borderRadius: 8 }}>
+                                <Bell size={14} style={{ color: '#f59e0b', flexShrink: 0 }} />
+                                <span style={{ color: '#f59e0b', fontSize: 13 }}>
+                                    {pushDeviceCount} appareil{pushDeviceCount === 1 ? '' : 's'} recevront la notification push
+                                </span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px', background: 'rgba(96, 165, 250, 0.08)', border: '1px solid rgba(96, 165, 250, 0.2)', borderRadius: 8 }}>
+                                <Users size={14} style={{ color: '#60a5fa', flexShrink: 0 }} />
+                                <span style={{ color: '#60a5fa', fontSize: 13 }}>
+                                    {pushUserCount} utilisateur{pushUserCount === 1 ? '' : 's'} verront la notification dans leur cloche
+                                </span>
+                            </div>
                         </div>
 
                         {/* Title */}
@@ -602,18 +613,22 @@ export default function AdminBroadcastsPage() {
                         {/* Warning bypass preferences */}
                         <div style={{ display: 'flex', gap: 8, padding: '10px 14px', marginBottom: 16, background: 'rgba(251, 191, 36, 0.1)', border: '1px solid rgba(251, 191, 36, 0.2)', borderRadius: 10 }}>
                             <AlertTriangle size={16} style={{ color: '#fbbf24', flexShrink: 0, marginTop: 1 }} />
-                            <span style={{ color: '#fbbf24', fontSize: 12 }}>Envoyée à tous les appareils enregistrés, sans tenir compte des préférences de notification.</span>
+                            <span style={{ color: '#fbbf24', fontSize: 12 }}>La cloche est alimentée pour tous les utilisateurs du segment, même ceux sans permission push.</span>
                         </div>
 
                         {/* Result */}
                         {pushResult && (
                             <div style={{ padding: '12px 14px', marginBottom: 16, background: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.2)', borderRadius: 10 }}>
-                                <div style={{ color: '#4ade80', fontWeight: 600, fontSize: 13, marginBottom: 2 }}>✅ Notification envoyée</div>
+                                <div style={{ color: '#4ade80', fontWeight: 600, fontSize: 13, marginBottom: 4 }}>✅ Notification envoyée</div>
                                 <div style={{ color: '#94a3b8', fontSize: 12 }}>
-                                    {pushResult.sent} envoyée{pushResult.sent !== 1 ? 's' : ''}
+                                    Push : {pushResult.sent} envoyé{pushResult.sent !== 1 ? 's' : ''}
                                     {pushResult.failed > 0 && ` · ${pushResult.failed} échec${pushResult.failed !== 1 ? 's' : ''}`}
-                                    {' / '}{pushResult.total} total
                                 </div>
+                                {(pushResult.userCount ?? 0) > 0 && (
+                                    <div style={{ color: '#94a3b8', fontSize: 12 }}>
+                                        Cloche : {pushResult.userCount} utilisateur{pushResult.userCount !== 1 ? 's' : ''} notifié{pushResult.userCount !== 1 ? 's' : ''}
+                                    </div>
+                                )}
                             </div>
                         )}
                         {pushError && (
@@ -624,12 +639,12 @@ export default function AdminBroadcastsPage() {
 
                         {/* Send button */}
                         <button onClick={sendPushBroadcast}
-                            disabled={!pushTitle.trim() || !pushBody.trim() || pushSending || pushDeviceCount === 0}
+                            disabled={!pushTitle.trim() || !pushBody.trim() || pushSending || pushUserCount === 0}
                             style={{
                                 width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
                                 padding: '13px 20px', background: 'linear-gradient(135deg, #f59e0b, #d97706)',
                                 border: 'none', borderRadius: 10, color: 'white', cursor: 'pointer', fontSize: 14, fontWeight: 600,
-                                opacity: (!pushTitle.trim() || !pushBody.trim() || pushSending || pushDeviceCount === 0) ? 0.5 : 1
+                                opacity: (!pushTitle.trim() || !pushBody.trim() || pushSending || pushUserCount === 0) ? 0.5 : 1
                             }}>
                             {pushSending
                                 ? <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />Envoi en cours...</>

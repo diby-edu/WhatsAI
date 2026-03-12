@@ -142,34 +142,61 @@ ${products.map(p => {
 
             let variantsInfo = ''
             if (p.combinations && Array.isArray(p.combinations) && p.combinations.length > 0) {
-                // Combinations mode: show per-combination availability and price
-                const available = p.combinations.filter((c: any) => c.available)
-                const unavailable = p.combinations.filter((c: any) => !c.available)
-                const formatCombo = (c: any) => {
-                    // Resolve attribute IDs to readable labels using variant groups
-                    let label = Object.entries(c.attributes as Record<string, string>).map(([groupId, optionId]) => {
+                const availableCombos = p.combinations.filter((c: any) => c.available !== false)
+                const unavailableCombos = p.combinations.filter((c: any) => c.available === false)
+
+                // Helper: resolve attribute IDs to readable labels
+                const resolveLabel = (c: any): string => {
+                    return Object.entries(c.attributes as Record<string, string>).map(([groupId, optionId]) => {
                         if (!p.variants || !Array.isArray(p.variants)) return optionId
                         const group = p.variants.find((g: any) => g.id === groupId)
-                        if (!group) return optionId
-                        const option = group.options?.find((o: any) => (o.id || o.value?.toLowerCase().replace(/[^a-z0-9]+/g, '-')) === optionId)
+                        const option = group?.options?.find((o: any) => (o.id || o.value?.toLowerCase().replace(/[^a-z0-9]+/g, '-')) === optionId)
                         return option?.value || optionId
-                    }).join(' + ')
-                    const price = c.price != null ? `${c.price.toLocaleString('fr-FR')} ${currencySymbol}` : `${displayPrice.toLocaleString('fr-FR')} ${currencySymbol}`
-                    return `${label} = ${price}`
+                    }).join(' / ')
                 }
-                variantsInfo = `\n   🔗 COMBINAISONS DISPONIBLES :\n${available.map((c: any) => `      ✅ ${formatCombo(c)}`).join('\n')}`
-                if (unavailable.length > 0) {
-                    const unavailableLabels = unavailable.map((c: any) => {
-                        return Object.entries(c.attributes as Record<string, string>).map(([groupId, optionId]) => {
-                            if (!p.variants || !Array.isArray(p.variants)) return optionId
-                            const group = p.variants.find((g: any) => g.id === groupId)
+
+                // Detect pricing structure
+                const comboPrices = availableCombos.map((c: any) => c.price).filter((v: any) => v != null)
+                const hasVariedPrices = comboPrices.length > 0 && new Set(comboPrices).size > 1
+
+                if (!hasVariedPrices) {
+                    // Case 1: same price for all — group attributes by variant and show separately
+                    const variantGroups: Record<string, Set<string>> = {}
+                    availableCombos.forEach((c: any) => {
+                        Object.entries(c.attributes as Record<string, string>).forEach(([groupId, optionId]) => {
+                            if (!variantGroups[groupId]) variantGroups[groupId] = new Set()
+                            const group = p.variants?.find((g: any) => g.id === groupId)
                             const option = group?.options?.find((o: any) => (o.id || o.value?.toLowerCase().replace(/[^a-z0-9]+/g, '-')) === optionId)
-                            return option?.value || optionId
-                        }).join(' + ')
-                    }).join(', ')
-                    variantsInfo += `\n      ❌ INDISPONIBLES : ${unavailableLabels}`
+                            variantGroups[groupId].add(option?.value || optionId)
+                        })
+                    })
+                    const groupLines = Object.entries(variantGroups).map(([groupId, options]) => {
+                        const group = p.variants?.find((g: any) => g.id === groupId)
+                        return `   ${group?.name || groupId} : ${Array.from(options).join(', ')}`
+                    }).join('\n')
+                    const attrNames = Object.keys(variantGroups).map(gId => p.variants?.find((g: any) => g.id === gId)?.name || gId).join(', ')
+                    variantsInfo = `\n   💰 Prix : ${displayPrice.toLocaleString('fr-FR')} ${currencySymbol}\n${groupLines}`
+                    variantsInfo += `\n   ⚠️ RÈGLE COLLECTE : Demande CHAQUE attribut (${attrNames}) séparément AVANT de confirmer la commande. Pour un attribut avec une seule option disponible, note-le directement sans demander.`
+                } else {
+                    // Case 2: different prices — show up to 5 combinations
+                    const toShow = availableCombos.slice(0, 5)
+                    const formatCombo = (c: any) => {
+                        const label = resolveLabel(c)
+                        const price = c.price != null ? `${c.price.toLocaleString('fr-FR')} ${currencySymbol}` : `${displayPrice.toLocaleString('fr-FR')} ${currencySymbol}`
+                        return `${label} — ${price}`
+                    }
+                    variantsInfo = `\n   🔗 COMBINAISONS DISPONIBLES :\n${toShow.map((c: any) => `      ✅ ${formatCombo(c)}`).join('\n')}`
+                    if (availableCombos.length > 5) {
+                        variantsInfo += `\n      ... et ${availableCombos.length - 5} autre(s). Demande d'abord les préférences du client pour filtrer.`
+                    }
+                    variantsInfo += `\n   ⚠️ RÈGLE : Présente ces combinaisons au client et note EXACTEMENT celle choisie dans la commande.`
                 }
-                variantsInfo += `\n   ⚠️ RÈGLE : Si le client demande une combinaison indisponible, explique pourquoi et propose une alternative disponible.`
+
+                if (unavailableCombos.length > 0) {
+                    const unavailableLabels = unavailableCombos.map(resolveLabel).join(', ')
+                    variantsInfo += `\n   ❌ INDISPONIBLES : ${unavailableLabels}`
+                    variantsInfo += `\n   Si le client demande une combinaison indisponible : explique et propose une alternative disponible.`
+                }
             } else if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
                 variantsInfo = `\n   🎨 VARIANTES DISPONIBLES : ${p.variants.map((v: any) => `${v.name} (${v.options.map((o: any) => o.value || o.name).join(', ')})`).join(' | ')}`
             }
@@ -224,9 +251,12 @@ Tu es ${agentName}, assistant sur WhatsApp. ${useEmojis ? 'Utilise des emojis mo
    Accepte TOUT : "Yopougon", "Abidjan Marcory", coordonnées GPS...
    ❌ INTERDIT : Demander numéro de rue, code postal ou complément.
 
-3️⃣ TÉLÉPHONE : Demande le numéro COMPLET avec indicatif pays (sans +, sans espaces).
-   Dis : "Votre numéro avec indicatif pays, sans le + (ex: 2250707070707 pour Côte d'Ivoire, 22170000000 pour Sénégal, 33612345678 pour France...)"
-   Si le client écrit "+" devant son indicatif, retire le + silencieusement.
+3️⃣ TÉLÉPHONE : Accepte TOUT numéro international.
+   Format cible : indicatif + numéro, SANS le signe +.
+   Dis : "Votre numéro complet avec indicatif, sans le + (ex: 33612345678 pour France, 2250707070707 pour Côte d'Ivoire)"
+   RÈGLE STRICTE : Si le client écrit "+" devant son numéro (ex: "+33612345678", "+2250707070707"),
+   ACCEPTE IMMÉDIATEMENT et retire le "+" silencieusement → stocke "33612345678".
+   Ne JAMAIS redemander un numéro à cause du "+" ou de l'indicatif pays.
 
 4️⃣ MODE DE PAIEMENT : Pour les produits PHYSIQUES, demande TOUJOURS :
    "Comment souhaitez-vous payer ? Paiement en ligne OU à la livraison ?"
