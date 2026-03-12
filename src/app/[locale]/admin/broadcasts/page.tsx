@@ -14,6 +14,7 @@ interface Agent {
 }
 
 interface UserOption {
+    id?: string
     email: string
     name: string
     plan: string
@@ -69,11 +70,15 @@ export default function AdminBroadcastsPage() {
     const [pushResult, setPushResult] = useState<{ sent: number; failed: number; total: number; userCount?: number } | null>(null)
     const [pushError, setPushError] = useState<string | null>(null)
 
-    // Individual selection state
+    // Individual selection state (shared user list)
     const [allUsers, setAllUsers] = useState<UserOption[]>([])
+    const [loadingUsers, setLoadingUsers] = useState(false)
+    // Email individual selection
     const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set())
     const [userSearch, setUserSearch] = useState('')
-    const [loadingUsers, setLoadingUsers] = useState(false)
+    // Push individual selection
+    const [selectedPushUserIds, setSelectedPushUserIds] = useState<Set<string>>(new Set())
+    const [pushUserSearch, setPushUserSearch] = useState('')
 
     useEffect(() => {
         fetchAgents()
@@ -81,7 +86,15 @@ export default function AdminBroadcastsPage() {
     }, [])
 
     useEffect(() => {
-        fetchPushDeviceCount(pushPlan)
+        if (pushPlan === 'individual') {
+            if (allUsers.length === 0) fetchAllUsers()
+            setPushDeviceCount(0)
+            setPushUserCount(0)
+        } else {
+            setSelectedPushUserIds(new Set())
+            setPushUserSearch('')
+            fetchPushDeviceCount(pushPlan)
+        }
     }, [pushPlan])
 
     useEffect(() => {
@@ -151,21 +164,32 @@ export default function AdminBroadcastsPage() {
 
     const sendPushBroadcast = async () => {
         if (!pushTitle.trim() || !pushBody.trim()) return
-        if (!confirm(`Envoyer à ${pushDeviceCount} appareil${pushDeviceCount === 1 ? '' : 's'} push + ${pushUserCount} utilisateur${pushUserCount === 1 ? '' : 's'} dans la cloche ?`)) return
+        const isIndividual = pushPlan === 'individual'
+        const pushCount = isIndividual ? selectedPushUserIds.size : pushUserCount
+        if (pushCount === 0) return
+        const deviceMsg = !isIndividual && pushDeviceCount > 0 ? ` (${pushDeviceCount} push FCM)` : ''
+        if (!confirm(`Envoyer à ${pushCount} utilisateur${pushCount === 1 ? '' : 's'}${deviceMsg} + cloche ?`)) return
         setPushSending(true)
         setPushResult(null)
         setPushError(null)
         try {
+            const bodyData: any = { title: pushTitle.trim(), body: pushBody.trim() }
+            if (isIndividual) {
+                bodyData.targetUserIds = [...selectedPushUserIds]
+            } else {
+                bodyData.targetPlan = pushPlan
+            }
             const res = await fetch('/api/admin/broadcasts/push', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title: pushTitle.trim(), body: pushBody.trim(), targetPlan: pushPlan })
+                body: JSON.stringify(bodyData)
             })
             const data = await res.json()
             if (res.ok && data.data) {
                 setPushResult(data.data)
                 setPushTitle('')
                 setPushBody('')
+                if (isIndividual) setSelectedPushUserIds(new Set())
                 fetchHistory()
             } else {
                 setPushError(data.error || 'Erreur lors de l\'envoi')
@@ -199,9 +223,24 @@ export default function AdminBroadcastsPage() {
         })
     }
 
+    const togglePushUser = (id: string) => {
+        setSelectedPushUserIds(prev => {
+            const next = new Set(prev)
+            if (next.has(id)) next.delete(id)
+            else next.add(id)
+            return next
+        })
+    }
+
     const filteredUsers = allUsers.filter(u => {
         if (!userSearch.trim()) return true
         const q = userSearch.toLowerCase()
+        return u.email.toLowerCase().includes(q) || u.name.toLowerCase().includes(q)
+    })
+
+    const filteredPushUsers = allUsers.filter(u => {
+        if (!pushUserSearch.trim()) return true
+        const q = pushUserSearch.toLowerCase()
         return u.email.toLowerCase().includes(q) || u.name.toLowerCase().includes(q)
     })
 
@@ -567,27 +606,124 @@ export default function AdminBroadcastsPage() {
                         <div style={{ marginBottom: 16 }}>
                             <label style={{ display: 'block', color: '#94a3b8', fontSize: 13, marginBottom: 8 }}>Segment cible</label>
                             <select value={pushPlan} onChange={(e) => setPushPlan(e.target.value)} style={inputStyle}>
-                                {PLAN_OPTIONS.filter(o => o.value !== 'individual').map(o => (
+                                {PLAN_OPTIONS.map(o => (
                                     <option key={o.value} value={o.value}>{o.label}</option>
                                 ))}
                             </select>
                         </div>
 
-                        {/* Device count preview */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px', background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.2)', borderRadius: 8 }}>
-                                <Bell size={14} style={{ color: '#f59e0b', flexShrink: 0 }} />
+                        {/* Individual user picker */}
+                        {pushPlan === 'individual' && (
+                            <div style={{ marginBottom: 16 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                                    <label style={{ color: '#94a3b8', fontSize: 13 }}>
+                                        Choisir les destinataires
+                                        {selectedPushUserIds.size > 0 && (
+                                            <span style={{ marginLeft: 8, color: '#f59e0b', fontWeight: 600 }}>
+                                                ({selectedPushUserIds.size} sélectionné{selectedPushUserIds.size === 1 ? '' : 's'})
+                                            </span>
+                                        )}
+                                    </label>
+                                    <div style={{ display: 'flex', gap: 6 }}>
+                                        <button
+                                            onClick={() => setSelectedPushUserIds(new Set(filteredPushUsers.map(u => u.id!).filter(Boolean)))}
+                                            style={{ background: 'none', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: 6, color: '#f59e0b', padding: '3px 8px', fontSize: 11, cursor: 'pointer' }}>
+                                            Tous
+                                        </button>
+                                        <button
+                                            onClick={() => setSelectedPushUserIds(new Set())}
+                                            style={{ background: 'none', border: '1px solid rgba(148, 163, 184, 0.2)', borderRadius: 6, color: '#94a3b8', padding: '3px 8px', fontSize: 11, cursor: 'pointer' }}>
+                                            Aucun
+                                        </button>
+                                    </div>
+                                </div>
+                                <div style={{ position: 'relative', marginBottom: 8 }}>
+                                    <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#64748b', pointerEvents: 'none' }} />
+                                    <input
+                                        type="text"
+                                        value={pushUserSearch}
+                                        onChange={e => setPushUserSearch(e.target.value)}
+                                        placeholder="Rechercher par nom ou email..."
+                                        style={{ ...inputStyle, paddingLeft: 34 }}
+                                    />
+                                </div>
+                                <div style={{ maxHeight: 240, overflowY: 'auto', border: '1px solid rgba(148, 163, 184, 0.15)', borderRadius: 10, background: 'rgba(15, 23, 42, 0.4)' }}>
+                                    {loadingUsers ? (
+                                        <div style={{ padding: 24, textAlign: 'center', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                                            <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Chargement...
+                                        </div>
+                                    ) : filteredPushUsers.length === 0 ? (
+                                        <div style={{ padding: 24, textAlign: 'center', color: '#64748b', fontSize: 13 }}>Aucun utilisateur trouvé</div>
+                                    ) : filteredPushUsers.map((u, idx) => {
+                                        const uid = u.id || u.email
+                                        const isSelected = selectedPushUserIds.has(uid)
+                                        const pc = PLAN_COLORS[u.plan] || PLAN_COLORS.free
+                                        return (
+                                            <div
+                                                key={uid}
+                                                role="checkbox"
+                                                aria-checked={isSelected}
+                                                tabIndex={0}
+                                                onClick={() => togglePushUser(uid)}
+                                                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); togglePushUser(uid) } }}
+                                                style={{
+                                                    display: 'flex', alignItems: 'center', gap: 10,
+                                                    padding: '9px 12px', cursor: 'pointer',
+                                                    borderBottom: idx < filteredPushUsers.length - 1 ? '1px solid rgba(148, 163, 184, 0.06)' : 'none',
+                                                    background: isSelected ? 'rgba(245, 158, 11, 0.08)' : 'transparent',
+                                                    transition: 'background 0.15s'
+                                                }}>
+                                                <div style={{
+                                                    width: 16, height: 16, borderRadius: 4, flexShrink: 0,
+                                                    border: isSelected ? '2px solid #f59e0b' : '2px solid rgba(148, 163, 184, 0.3)',
+                                                    background: isSelected ? '#f59e0b' : 'transparent',
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                    transition: 'all 0.15s'
+                                                }}>
+                                                    {isSelected && <span style={{ color: 'white', fontSize: 10, lineHeight: 1, fontWeight: 700 }}>✓</span>}
+                                                </div>
+                                                <div style={{ flex: 1, minWidth: 0 }}>
+                                                    <div style={{ color: 'white', fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                        {u.name || u.email.split('@')[0]}
+                                                    </div>
+                                                    <div style={{ color: '#64748b', fontSize: 11, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                        {u.email}
+                                                    </div>
+                                                </div>
+                                                <span style={{ padding: '2px 7px', borderRadius: 5, fontSize: 10, fontWeight: 600, background: pc.bg, color: pc.color, flexShrink: 0 }}>
+                                                    {u.plan || 'free'}
+                                                </span>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Device/user count preview */}
+                        {pushPlan === 'individual' ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px', marginBottom: 16, background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.2)', borderRadius: 8 }}>
+                                <Users size={14} style={{ color: '#f59e0b', flexShrink: 0 }} />
                                 <span style={{ color: '#f59e0b', fontSize: 13 }}>
-                                    {pushDeviceCount} appareil{pushDeviceCount === 1 ? '' : 's'} recevront la notification push
+                                    {selectedPushUserIds.size} utilisateur{selectedPushUserIds.size === 1 ? '' : 's'} sélectionné{selectedPushUserIds.size === 1 ? '' : 's'}
                                 </span>
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px', background: 'rgba(96, 165, 250, 0.08)', border: '1px solid rgba(96, 165, 250, 0.2)', borderRadius: 8 }}>
-                                <Users size={14} style={{ color: '#60a5fa', flexShrink: 0 }} />
-                                <span style={{ color: '#60a5fa', fontSize: 13 }}>
-                                    {pushUserCount} utilisateur{pushUserCount === 1 ? '' : 's'} verront la notification dans leur cloche
-                                </span>
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px', background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.2)', borderRadius: 8 }}>
+                                    <Bell size={14} style={{ color: '#f59e0b', flexShrink: 0 }} />
+                                    <span style={{ color: '#f59e0b', fontSize: 13 }}>
+                                        {pushDeviceCount} appareil{pushDeviceCount === 1 ? '' : 's'} recevront la notification push
+                                    </span>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px', background: 'rgba(96, 165, 250, 0.08)', border: '1px solid rgba(96, 165, 250, 0.2)', borderRadius: 8 }}>
+                                    <Users size={14} style={{ color: '#60a5fa', flexShrink: 0 }} />
+                                    <span style={{ color: '#60a5fa', fontSize: 13 }}>
+                                        {pushUserCount} utilisateur{pushUserCount === 1 ? '' : 's'} verront la notification dans leur cloche
+                                    </span>
+                                </div>
                             </div>
-                        </div>
+                        )}
 
                         {/* Title */}
                         <div style={{ marginBottom: 16 }}>
@@ -639,12 +775,12 @@ export default function AdminBroadcastsPage() {
 
                         {/* Send button */}
                         <button onClick={sendPushBroadcast}
-                            disabled={!pushTitle.trim() || !pushBody.trim() || pushSending || pushUserCount === 0}
+                            disabled={!pushTitle.trim() || !pushBody.trim() || pushSending || (pushPlan === 'individual' ? selectedPushUserIds.size === 0 : pushUserCount === 0)}
                             style={{
                                 width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
                                 padding: '13px 20px', background: 'linear-gradient(135deg, #f59e0b, #d97706)',
                                 border: 'none', borderRadius: 10, color: 'white', cursor: 'pointer', fontSize: 14, fontWeight: 600,
-                                opacity: (!pushTitle.trim() || !pushBody.trim() || pushSending || pushUserCount === 0) ? 0.5 : 1
+                                opacity: (!pushTitle.trim() || !pushBody.trim() || pushSending || (pushPlan === 'individual' ? selectedPushUserIds.size === 0 : pushUserCount === 0)) ? 0.5 : 1
                             }}>
                             {pushSending
                                 ? <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />Envoi en cours...</>
