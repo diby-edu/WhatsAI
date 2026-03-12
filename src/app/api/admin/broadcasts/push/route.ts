@@ -37,7 +37,7 @@ async function getUserIdsForPlan(adminSupabase: any, targetPlan: string): Promis
     return (data || []).map((row: any) => row.id).filter(Boolean)
 }
 
-// GET — preview device count for a plan segment
+// GET — preview device count AND total user count for a plan segment
 export async function GET(request: NextRequest) {
     const { error, adminSupabase } = await adminCheck(request)
     if (error || !adminSupabase) return error!
@@ -46,11 +46,14 @@ export async function GET(request: NextRequest) {
     const targetPlan = searchParams.get('targetPlan') || 'all'
 
     try {
-        const tokens = await getTokensForPlan(adminSupabase, targetPlan)
-        return successResponse({ count: tokens.length })
+        const [tokens, userIds] = await Promise.all([
+            getTokensForPlan(adminSupabase, targetPlan),
+            getUserIdsForPlan(adminSupabase, targetPlan)
+        ])
+        return successResponse({ count: tokens.length, userCount: userIds.length })
     } catch (err) {
         console.error('Push preview error:', err)
-        return successResponse({ count: 0 })
+        return successResponse({ count: 0, userCount: 0 })
     }
 }
 
@@ -69,35 +72,35 @@ export async function POST(request: NextRequest) {
         // Fetch all device tokens — bypass notification preferences
         const tokens = await getTokensForPlan(adminSupabase, targetPlan || 'all')
 
-        if (tokens.length === 0) {
-            return errorResponse('Aucun appareil enregistré pour ce segment', 400)
+        // Send FCM push only if there are registered devices
+        let sent = 0
+        let failed = 0
+        if (tokens.length > 0) {
+            const result = await sendPushNotificationToMultiple(tokens, {
+                title: title.trim(),
+                body: body.trim(),
+                data: { type: 'admin_broadcast', route: '/dashboard' }
+            })
+            sent = result?.success ?? 0
+            failed = result?.failure ?? 0
+
+            // Log to broadcasts table (historique admin permanent — jamais supprimé)
+            try {
+                await adminSupabase.from('broadcasts').insert({
+                    agent_id: null,
+                    user_id: user!.id,
+                    message: `[PUSH] ${title.trim()}`,
+                    recipients_count: sent,
+                    status: 'sent',
+                    created_at: new Date().toISOString()
+                })
+            } catch { /* log failure is non-blocking */ }
         }
 
-        // Send via Firebase (batches of 500 handled internally)
-        const result = await sendPushNotificationToMultiple(tokens, {
-            title: title.trim(),
-            body: body.trim(),
-            data: { type: 'admin_broadcast', route: '/dashboard' }
-        })
-
-        const sent = result?.success ?? tokens.length
-        const failed = result?.failure ?? 0
-
-        // Log to broadcasts table (historique admin permanent — jamais supprimé)
+        // Insérer dans notification_log pour la cloche — pour TOUS les users du segment
+        let userCount = 0
         try {
-            await adminSupabase.from('broadcasts').insert({
-                agent_id: null,
-                user_id: user!.id,
-                message: `[PUSH] ${title.trim()}`,
-                recipients_count: sent,
-                status: 'sent',
-                created_at: new Date().toISOString()
-            })
-        } catch { /* log failure is non-blocking */ }
-
-        // Insérer dans notification_log pour la cloche utilisateur + purge 30j
-        try {
-            // Purge des entrées > 30 jours (1 seule requête)
+            // Purge des entrées > 30 jours
             await adminSupabase
                 .from('notification_log')
                 .delete()
@@ -105,6 +108,7 @@ export async function POST(request: NextRequest) {
 
             // Batch insert pour tous les utilisateurs du segment
             const userIds = await getUserIdsForPlan(adminSupabase, targetPlan || 'all')
+            userCount = userIds.length
             if (userIds.length > 0) {
                 const rows = userIds.map((uid: string) => ({
                     user_id: uid,
@@ -115,7 +119,7 @@ export async function POST(request: NextRequest) {
             }
         } catch { /* non-bloquant */ }
 
-        return successResponse({ sent, failed, total: tokens.length })
+        return successResponse({ sent, failed, total: tokens.length, userCount })
     } catch (err) {
         console.error('Push broadcast error:', err)
         return errorResponse('Erreur serveur', 500)
