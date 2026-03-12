@@ -22,6 +22,7 @@ export interface VariantGroup {
     name: string
     type: 'fixed' | 'additive'
     category?: VariantCategory  // Category to determine if images are needed
+    customName?: string          // Free-form name when category === 'custom' (used by WhatsApp agent)
     options: VariantOption[]
 }
 
@@ -35,6 +36,9 @@ export interface ProductCombination {
     image?: string | null                // null = use product main image
 }
 
+const MAX_VARIANT_GROUPS = 3
+const MAX_COMBINATIONS = 100
+
 // Default category configuration (for products)
 // v2.30: needsImage=true pour TOUTES les catégories (l'image est optionnelle mais toujours disponible)
 const DEFAULT_CATEGORY_CONFIG: Record<string, { label: string; icon: any; needsImage: boolean; color: string }> = {
@@ -43,6 +47,16 @@ const DEFAULT_CATEGORY_CONFIG: Record<string, { label: string; icon: any; needsI
     weight: { label: '⚖️ Poids / Volume', icon: Scale, needsImage: true, color: '#8b5cf6' },
     duration: { label: '⏱️ Durée', icon: Clock, needsImage: true, color: '#10b981' },
     custom: { label: '⚙️ Autre', icon: Settings, needsImage: true, color: '#64748b' }
+}
+
+// Category configuration for digital products
+const DIGITAL_CATEGORY_CONFIG: Record<string, { label: string; icon: any; needsImage: boolean; color: string }> = {
+    version: { label: '🔢 Version', icon: Settings, needsImage: false, color: '#3b82f6' },
+    format: { label: '📄 Format (PDF, EPUB, MP4...)', icon: Ruler, needsImage: false, color: '#8b5cf6' },
+    language: { label: '🌐 Langue', icon: Sparkles, needsImage: false, color: '#10b981' },
+    license: { label: '📜 Licence', icon: Clock, needsImage: false, color: '#f59e0b' },
+    duration: { label: '⏳ Durée d\'accès', icon: Clock, needsImage: false, color: '#ec4899' },
+    custom: { label: '⚙️ Autre', icon: Settings, needsImage: false, color: '#64748b' }
 }
 
 // Service-specific category configurations
@@ -116,6 +130,7 @@ interface ProductVariantsEditorProps {
     onChange: (variants: VariantGroup[]) => void
     currencySymbol: string
     serviceSubtype?: string  // v2.19: Service subtype to determine available categories
+    productType?: string     // 'product' | 'digital' | 'service' — determines available variant categories
     // Combinations (optional — null/undefined = not configured, uses legacy per-option prices)
     combinations?: ProductCombination[] | null
     onCombinationsChange?: (combinations: ProductCombination[] | null) => void
@@ -146,6 +161,15 @@ function getOptionLabel(groupId: string, optionId: string, variants: VariantGrou
     return option?.value || optionId
 }
 
+function getComboFallbackImage(combo: ProductCombination, variants: VariantGroup[]): string | null {
+    const visualGroup = variants.find(g => g.category === 'visual')
+    if (!visualGroup) return null
+    const optionId = combo.attributes[visualGroup.id]
+    if (!optionId) return null
+    const option = visualGroup.options.find(o => (o.id || slugify(o.value || '')) === optionId)
+    return option?.image || null
+}
+
 function getCombinationLabel(combo: ProductCombination, variants: VariantGroup[]): string {
     return Object.entries(combo.attributes)
         .map(([groupId, optionId]) => getOptionLabel(groupId, optionId, variants))
@@ -164,7 +188,7 @@ function mergeCombinations(variants: VariantGroup[], existing: ProductCombinatio
         }))
     )
 
-    const allCombos = cartesian(perGroup)
+    const allCombos = cartesian(perGroup).slice(0, MAX_COMBINATIONS)
 
     return allCombos.map(combo => {
         const attributes: Record<string, string> = {}
@@ -200,6 +224,7 @@ export default function ProductVariantsEditor({
     onChange,
     currencySymbol,
     serviceSubtype,
+    productType,
     combinations,
     onCombinationsChange,
     defaultPrice,
@@ -209,13 +234,14 @@ export default function ProductVariantsEditor({
     const fileInputRef = useRef<HTMLInputElement>(null)
     const supabase = createClient()
 
-    // v2.19: Get category config based on service subtype
+    // v2.19: Get category config based on service subtype or product type
     const CATEGORY_CONFIG = useMemo(() => {
+        if (productType === 'digital') return DIGITAL_CATEGORY_CONFIG
         if (serviceSubtype && SERVICE_CATEGORY_CONFIGS[serviceSubtype]) {
             return SERVICE_CATEGORY_CONFIGS[serviceSubtype]
         }
         return DEFAULT_CATEGORY_CONFIG
-    }, [serviceSubtype])
+    }, [serviceSubtype, productType])
 
     // Auto-sync combinations when variant options change (add/remove options)
     useEffect(() => {
@@ -287,6 +313,7 @@ export default function ProductVariantsEditor({
     }
 
     const addGroup = (type: 'fixed' | 'additive') => {
+        if (variants.length >= MAX_VARIANT_GROUPS) return
         const newGroup: VariantGroup = {
             id: Date.now().toString(),
             name: type === 'fixed' ? 'Couleur' : 'Supplément',
@@ -418,7 +445,15 @@ export default function ProductVariantsEditor({
                         <div style={{ marginBottom: 16 }}>
                             <select
                                 value={group.category || 'custom'}
-                                onChange={(e) => updateGroup(group.id, { category: e.target.value as VariantCategory })}
+                                onChange={(e) => {
+                                    const newCat = e.target.value as VariantCategory
+                                    const genericNames = ['Couleur', 'Supplément', 'Taille', 'Poids', 'Durée', 'Version', 'Format', 'Langue', 'Licence']
+                                    const updates: Partial<VariantGroup> = { category: newCat }
+                                    if (newCat === 'custom' && genericNames.includes(group.name)) {
+                                        updates.name = ''
+                                    }
+                                    updateGroup(group.id, updates)
+                                }}
                                 style={{
                                     width: '100%',
                                     background: 'rgba(30, 41, 59, 0.5)',
@@ -437,7 +472,29 @@ export default function ProductVariantsEditor({
                                     </option>
                                 ))}
                             </select>
-                            {CATEGORY_CONFIG[group.category || 'custom']?.needsImage && (
+                            {group.category === 'custom' && (
+                                <div style={{ marginTop: 8 }}>
+                                    <input
+                                        value={group.customName || ''}
+                                        onChange={(e) => updateGroup(group.id, { customName: e.target.value, name: e.target.value || group.name })}
+                                        placeholder="Nom personnalisé (ex: Modèle, Fragrance, Matière...)"
+                                        style={{
+                                            width: '100%',
+                                            background: 'rgba(30, 41, 59, 0.5)',
+                                            border: `1px solid ${!group.customName?.trim() ? 'rgba(239, 68, 68, 0.5)' : 'rgba(148, 163, 184, 0.2)'}`,
+                                            borderRadius: 8,
+                                            padding: '8px 12px',
+                                            color: 'white',
+                                            fontSize: 13,
+                                            outline: 'none'
+                                        }}
+                                    />
+                                    <div style={{ marginTop: 4, fontSize: 11, color: '#94a3b8' }}>
+                                        ⚙️ Ce nom sera utilisé par l'agent WhatsApp (obligatoire)
+                                    </div>
+                                </div>
+                            )}
+                            {CATEGORY_CONFIG[group.category || 'custom']?.needsImage && group.category !== 'custom' && (
                                 <div style={{
                                     marginTop: 8,
                                     padding: '8px 12px',
@@ -625,50 +682,61 @@ export default function ProductVariantsEditor({
             </AnimatePresence>
 
             {/* Add Group Buttons */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 16 }}>
-                <button
-                    type="button"
-                    onClick={() => addGroup('fixed')}
-                    style={{
-                        padding: 12,
-                        borderRadius: 10,
-                        background: 'rgba(59, 130, 246, 0.1)',
-                        border: '1px dashed #3b82f6',
-                        color: '#60a5fa',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: 8,
-                        fontSize: 14,
-                        fontWeight: 500
-                    }}
-                >
-                    <Plus size={16} />
-                    Variante (Prix Fixe)
-                </button>
-                <button
-                    type="button"
-                    onClick={() => addGroup('additive')}
-                    style={{
-                        padding: 12,
-                        borderRadius: 10,
-                        background: 'rgba(168, 85, 247, 0.1)',
-                        border: '1px dashed #a855f7',
-                        color: '#c084fc',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: 8,
-                        fontSize: 14,
-                        fontWeight: 500
-                    }}
-                >
-                    <Plus size={16} />
-                    Option (Supplément)
-                </button>
-            </div>
+            {variants.length < MAX_VARIANT_GROUPS ? (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 16 }}>
+                    <button
+                        type="button"
+                        onClick={() => addGroup('fixed')}
+                        style={{
+                            padding: 12,
+                            borderRadius: 10,
+                            background: 'rgba(59, 130, 246, 0.1)',
+                            border: '1px dashed #3b82f6',
+                            color: '#60a5fa',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 8,
+                            fontSize: 14,
+                            fontWeight: 500
+                        }}
+                    >
+                        <Plus size={16} />
+                        Variante (Prix Fixe)
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => addGroup('additive')}
+                        style={{
+                            padding: 12,
+                            borderRadius: 10,
+                            background: 'rgba(168, 85, 247, 0.1)',
+                            border: '1px dashed #a855f7',
+                            color: '#c084fc',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 8,
+                            fontSize: 14,
+                            fontWeight: 500
+                        }}
+                    >
+                        <Plus size={16} />
+                        Option (Supplément)
+                    </button>
+                </div>
+            ) : (
+                <div style={{
+                    marginTop: 16, padding: '10px 14px',
+                    background: 'rgba(100, 116, 139, 0.1)',
+                    border: '1px solid rgba(100, 116, 139, 0.2)',
+                    borderRadius: 10, fontSize: 12, color: '#94a3b8', textAlign: 'center'
+                }}>
+                    Limite atteinte : {MAX_VARIANT_GROUPS} groupes de variantes maximum
+                </div>
+            )}
             <p style={{ marginTop: 12, fontSize: 13, color: '#64748b', textAlign: 'center' }}>
                 Fixe : Remplace le prix global (ex: Taille). <br />
                 Supplément : S'ajoute au prix global (ex: Fromage).
@@ -729,7 +797,7 @@ export default function ProductVariantsEditor({
                         background: 'rgba(16, 185, 129, 0.08)'
                     }}>
                         <span style={{ color: '#10b981', fontSize: 14, fontWeight: 600 }}>
-                            🔗 Prix par combinaison ({combinations.length})
+                            🔗 Prix par combinaison ({combinations.length}{combinations.length >= MAX_COMBINATIONS ? ' — max' : ''})
                         </span>
                         <button
                             type="button"
@@ -872,31 +940,44 @@ export default function ProductVariantsEditor({
                                                             ✕
                                                         </button>
                                                     </div>
-                                                ) : (
-                                                    <label
-                                                        title="Ajouter une image pour cette combinaison"
-                                                        style={{
-                                                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                                                            width: 32, height: 32, borderRadius: 6,
-                                                            background: 'rgba(30, 41, 59, 0.5)',
-                                                            border: '1px dashed rgba(148, 163, 184, 0.3)',
-                                                            color: '#64748b', cursor: 'pointer', fontSize: 16,
-                                                            opacity: isUploading ? 0.6 : 1
-                                                        }}
-                                                    >
-                                                        <input
-                                                            type="file"
-                                                            accept="image/*"
-                                                            style={{ display: 'none' }}
-                                                            disabled={isUploading}
-                                                            onChange={(e) => {
-                                                                const file = e.target.files?.[0]
-                                                                if (file) handleComboImageUpload(index, file)
-                                                            }}
-                                                        />
-                                                        {isUploading ? '⏳' : '+'}
-                                                    </label>
-                                                )}
+                                                ) : (() => {
+                                                    const fallback = getComboFallbackImage(combo, variants)
+                                                    return (
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                                            {fallback && (
+                                                                <img
+                                                                    src={fallback}
+                                                                    alt={label}
+                                                                    title="Image de la variante couleur (fallback)"
+                                                                    style={{ width: 28, height: 28, borderRadius: 5, objectFit: 'cover', opacity: 0.6, border: '1px dashed rgba(245,158,11,0.5)' }}
+                                                                />
+                                                            )}
+                                                            <label
+                                                                title="Ajouter une image spécifique pour cette combinaison"
+                                                                style={{
+                                                                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                                                    width: 32, height: 32, borderRadius: 6,
+                                                                    background: 'rgba(30, 41, 59, 0.5)',
+                                                                    border: '1px dashed rgba(148, 163, 184, 0.3)',
+                                                                    color: '#64748b', cursor: 'pointer', fontSize: 16,
+                                                                    opacity: isUploading ? 0.6 : 1
+                                                                }}
+                                                            >
+                                                                <input
+                                                                    type="file"
+                                                                    accept="image/*"
+                                                                    style={{ display: 'none' }}
+                                                                    disabled={isUploading}
+                                                                    onChange={(e) => {
+                                                                        const file = e.target.files?.[0]
+                                                                        if (file) handleComboImageUpload(index, file)
+                                                                    }}
+                                                                />
+                                                                {isUploading ? '⏳' : '+'}
+                                                            </label>
+                                                        </div>
+                                                    )
+                                                })()}
                                             </td>
                                         </tr>
                                     )
@@ -906,7 +987,7 @@ export default function ProductVariantsEditor({
                     </div>
 
                     <p style={{ padding: '10px 16px', fontSize: 12, color: '#475569', borderTop: '1px solid rgba(148,163,184,0.07)' }}>
-                        Prix vide = prix par défaut du produit • Stock vide = illimité • Image vide = image principale
+                        Prix vide = prix par défaut du produit{defaultPrice ? ` (${defaultPrice.toLocaleString('fr-FR')} ${currencySymbol})` : ''} • Stock vide = illimité • Image vide = image variante couleur (si dispo), sinon image principale
                     </p>
                 </motion.div>
             )}
