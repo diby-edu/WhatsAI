@@ -311,7 +311,7 @@ RÈGLE D'OR : Dès que le client confirme APRÈS LE RÉCAPITULATIF, EXÉCUTE L'O
                     type: 'object',
                     properties: {
                         customer_name: { type: 'string', description: 'Nom du client' },
-                        contact_phone: { type: 'string', description: 'Numéro de contact pour la livraison (Format 225XXXXXXXXXX)' },
+                        contact_phone: { type: 'string', description: 'Numéro complet avec indicatif pays, sans le + (ex: 33612345678, 2250707070707)' },
                         delivery_address: { type: 'string', description: 'Adresse complète de livraison' },
                         items: {
                             type: 'array',
