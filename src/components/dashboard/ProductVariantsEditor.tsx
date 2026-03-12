@@ -8,7 +8,9 @@ import { createClient } from '@/lib/supabase/client'
 // Category types for variants
 export type VariantCategory = 'visual' | 'size' | 'weight' | 'duration' | 'custom' |
     // Service-specific categories
-    'room_type' | 'view' | 'pension' | 'menu' | 'formula' | 'service_type' | 'vehicle' | 'option' | 'participants'
+    'room_type' | 'view' | 'pension' | 'menu' | 'formula' | 'service_type' | 'vehicle' | 'option' | 'participants' |
+    // Digital-specific categories
+    'version' | 'format' | 'language' | 'license'
 
 export interface VariantOption {
     id?: string     // stable slug, auto-generated at creation — stays fixed even if value label changes
