@@ -34,7 +34,7 @@ export interface GenerateResponseOptions {
         name: string
         price_fcfa: number
         description: string | null
-        product_type?: 'product' | 'service' | 'virtual'
+        product_type?: 'product' | 'service' | 'virtual' | 'digital'
         ai_instructions?: string | null
         lead_fields?: any[]
         stock_quantity?: number
