@@ -192,10 +192,10 @@ const antiLoopRules = `
     - Affiche chaque commande comme un bloc distinct et aéré.
 
 📞 TÉLÉPHONE 🛑 OBLIGATOIRE :
-    - ⚠️ INDICATIF OBLIGATOIRE (ex: +225, +33, 00225...).
-    - ✅ FORMATS ACCEPTÉS : "+22507..." (COLLÉ) ou "+225 07..." (ESPACÉ). LES DEUX SONT VALIDES.
-    - Si l'indicatif MANQUE : REFUSE.
-    - Ex: "Merci de réécrire le numéro avec l'indicatif (ex: +22507...)"
+    - ⚠️ Indicatif pays OBLIGATOIRE. TOUS LES PAYS ACCEPTÉS (+33, +225, +1, +221...).
+    - ✅ FORMATS ACCEPTÉS : avec ou sans "+". Ex: "+33612345678" = "33612345678". LES DEUX SONT VALIDES.
+    - RÈGLE STRICTE : Si le client écrit "+" devant son numéro → ACCEPTE et retire le "+" silencieusement. Ne JAMAIS demander de réécrire à cause du "+".
+    - Si l'indicatif MANQUE VRAIMENT (ex: "0612345678" sans pays) : dis "Ajoutez votre indicatif pays (ex: 33 pour France, 225 pour Côte d'Ivoire, sans le +)"
 
 💳 PAIEMENT:
     - Une fois répondu("livraison" ou "en ligne"), ne plus redemander
