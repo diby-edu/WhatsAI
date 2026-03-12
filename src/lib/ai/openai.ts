@@ -106,7 +106,8 @@ ${products.map(p => {
             let specificRules = ''
             switch (p.product_type) {
                 case 'virtual':
-                    specificRules = '📧 PRODUIT VIRTUEL -> Demande l\'email du client. Ne demande JAMAIS d\'adresse de livraison.'
+                case 'digital':
+                    specificRules = '💻 PRODUIT NUMÉRIQUE -> Demande l\'email du client. Ne demande JAMAIS d\'adresse de livraison.'
                     break
                 case 'service':
                     specificRules = '🤝 SERVICE -> Propose de fixer un rendez-vous (Date/Heure). Ne parle pas de livraison.'
@@ -172,9 +173,13 @@ ${products.map(p => {
                     })
                     const groupLines = Object.entries(variantGroups).map(([groupId, options]) => {
                         const group = p.variants?.find((g: any) => g.id === groupId)
-                        return `   ${group?.name || groupId} : ${Array.from(options).join(', ')}`
+                        const groupLabel = group?.category === 'custom' ? (group?.customName || group?.name || groupId) : (group?.name || groupId)
+                        return `   ${groupLabel} : ${Array.from(options).join(', ')}`
                     }).join('\n')
-                    const attrNames = Object.keys(variantGroups).map(gId => p.variants?.find((g: any) => g.id === gId)?.name || gId).join(', ')
+                    const attrNames = Object.keys(variantGroups).map(gId => {
+                        const g = p.variants?.find((g: any) => g.id === gId)
+                        return g?.category === 'custom' ? (g?.customName || g?.name || gId) : (g?.name || gId)
+                    }).join(', ')
                     variantsInfo = `\n   💰 Prix : ${displayPrice.toLocaleString('fr-FR')} ${currencySymbol}\n${groupLines}`
                     variantsInfo += `\n   ⚠️ RÈGLE COLLECTE : Demande CHAQUE attribut (${attrNames}) séparément AVANT de confirmer la commande. Pour un attribut avec une seule option disponible, note-le directement sans demander.`
                 } else {
@@ -198,7 +203,10 @@ ${products.map(p => {
                     variantsInfo += `\n   Si le client demande une combinaison indisponible : explique et propose une alternative disponible.`
                 }
             } else if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
-                variantsInfo = `\n   🎨 VARIANTES DISPONIBLES : ${p.variants.map((v: any) => `${v.name} (${v.options.map((o: any) => o.value || o.name).join(', ')})`).join(' | ')}`
+                variantsInfo = `\n   🎨 VARIANTES DISPONIBLES : ${p.variants.map((v: any) => {
+                    const label = v.category === 'custom' ? (v.customName || v.name) : v.name
+                    return `${label} (${v.options.map((o: any) => o.value || o.name).join(', ')})`
+                }).join(' | ')}`
             }
 
             const imageUrl = p.image_url ? `\n   🖼️ IMAGE : ${p.image_url}` : ''

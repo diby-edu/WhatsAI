@@ -913,6 +913,7 @@ export default function NewProductPage() {
                                 variants={formData.variants}
                                 onChange={v => setFormData({ ...formData, variants: v })}
                                 currencySymbol={currency}
+                                productType={formData.product_type}
                                 serviceSubtype={formData.service_subtype}
                                 combinations={formData.combinations}
                                 onCombinationsChange={c => setFormData({ ...formData, combinations: c })}
