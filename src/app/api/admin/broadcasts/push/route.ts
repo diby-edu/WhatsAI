@@ -63,14 +63,25 @@ export async function POST(request: NextRequest) {
     if (error || !adminSupabase) return error!
 
     try {
-        const { title, body, targetPlan } = await request.json()
+        const { title, body, targetPlan, targetUserIds } = await request.json()
 
         if (!title?.trim() || !body?.trim()) {
             return errorResponse('Titre et message requis', 400)
         }
 
-        // Fetch all device tokens — bypass notification preferences
-        const tokens = await getTokensForPlan(adminSupabase, targetPlan || 'all')
+        const isIndividual = Array.isArray(targetUserIds) && targetUserIds.length > 0
+
+        // Fetch device tokens
+        let tokens: string[] = []
+        if (isIndividual) {
+            const { data } = await adminSupabase
+                .from('device_tokens')
+                .select('token')
+                .in('user_id', targetUserIds)
+            tokens = (data || []).map((row: any) => row.token).filter(Boolean)
+        } else {
+            tokens = await getTokensForPlan(adminSupabase, targetPlan || 'all')
+        }
 
         // Send FCM push only if there are registered devices
         let sent = 0
@@ -107,7 +118,7 @@ export async function POST(request: NextRequest) {
                 .lt('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
 
             // Batch insert pour tous les utilisateurs du segment
-            const userIds = await getUserIdsForPlan(adminSupabase, targetPlan || 'all')
+            const userIds = isIndividual ? targetUserIds : await getUserIdsForPlan(adminSupabase, targetPlan || 'all')
             userCount = userIds.length
             if (userIds.length > 0) {
                 const rows = userIds.map((uid: string) => ({

@@ -37,9 +37,10 @@ export async function GET(request: NextRequest) {
     if (searchParams.get('export') === 'emails') {
         const { data: allProfiles } = await adminSupabase
             .from('profiles')
-            .select('email, full_name, plan, created_at')
+            .select('id, email, full_name, plan, created_at')
             .order('created_at', { ascending: false })
         const emails = (allProfiles || []).map(p => ({
+            id: p.id,
             email: p.email,
             name: p.full_name || '',
             plan: p.plan || 'free',
