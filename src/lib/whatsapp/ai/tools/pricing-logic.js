@@ -1,5 +1,5 @@
 
-const { findMatchingOption, getOptionValue, getOptionPrice, productHasRealVariants } = require('./tool-helpers')
+const { findMatchingOption, getOptionValue, getOptionPrice, productHasRealVariants, VARIANT_CATEGORY_LABELS } = require('./tool-helpers')
 
 /**
  * Calcule le prix unitaire d'un produit en fonction de ses variantes
@@ -22,27 +22,38 @@ function calculateItemPrice(product, selectedVariantsMap = {}, productNameSearch
     }
 
     logs.push(`📋 Produit avec variantes RÉELLES`)
-    let variants = product.variants
-    const matchedVariantsByType = {}
+    const variants = product.variants
+
+    // Utilise l'ID du groupe comme clé pour éviter les collisions
+    // quand plusieurs groupes portent le même name (ex: deux "Couleur").
+    // matchedById = { variantId: selectedValue }
+    const matchedById = {}
 
     // 1. Fusionner les sources de variantes
-    // A. Explicit selection (priorité)
+    // A. Explicit selection (priorité) — matching par valeur pour désambiguïser
     if (selectedVariantsMap && typeof selectedVariantsMap === 'object') {
         Object.entries(selectedVariantsMap).forEach(([k, v]) => {
-            const targetVariant = product.variants.find(pv => pv.name.toLowerCase() === k.toLowerCase())
-            if (targetVariant) matchedVariantsByType[targetVariant.name] = v
+            const kLower = k.toLowerCase()
+            // Trouver le groupe dont le nom ou le label catégorie correspond ET dont la valeur est valide
+            const targetVariant = product.variants.find(pv => {
+                if (matchedById[pv.id] !== undefined) return false // déjà attribué
+                const nameMatch = pv.name.toLowerCase() === kLower
+                const catMatch = (VARIANT_CATEGORY_LABELS[pv.category] || '') === kLower
+                return (nameMatch || catMatch) && !!findMatchingOption(pv, v)
+            })
+            if (targetVariant) matchedById[targetVariant.id] = v
         })
     }
 
-    // B. Fallback sur le nproductName (si l'IA a mis "Pizza Pepperoni Grande")
+    // B. Fallback sur le productName (si l'IA a mis "Pizza Pepperoni Grande")
     product.variants.forEach(variant => {
-        if (matchedVariantsByType[variant.name]) return // Déjà trouvé via A
+        if (matchedById[variant.id] !== undefined) return // Déjà trouvé via A
         if (!variant.options) return
 
         for (const option of variant.options) {
             const optValue = getOptionValue(option)
             if (optValue && productNameSearch.toLowerCase().includes(optValue.toLowerCase())) {
-                matchedVariantsByType[variant.name] = optValue
+                matchedById[variant.id] = optValue
                 break
             }
         }
@@ -50,7 +61,7 @@ function calculateItemPrice(product, selectedVariantsMap = {}, productNameSearch
 
     // 2. Calcul du prix
     for (const variant of product.variants) {
-        const selectedValue = matchedVariantsByType[variant.name]
+        const selectedValue = matchedById[variant.id]
         if (selectedValue) {
             const validOption = findMatchingOption(variant, selectedValue)
             if (validOption) {
@@ -67,22 +78,23 @@ function calculateItemPrice(product, selectedVariantsMap = {}, productNameSearch
                         logs.push(`⏹️ Maintien Base "${variant.name}": (0 FCFA)`)
                     }
                 }
-                // Update matched value with clean name
-                matchedVariantsByType[variant.name] = getOptionValue(validOption)
+                matchedById[variant.id] = getOptionValue(validOption)
             }
         }
     }
 
     // 3. Résultat Final
     price = effectiveBasePrice + totalSupplements
-    matchedVariantOption = Object.values(matchedVariantsByType).join(', ')
+    matchedVariantOption = product.variants
+        .map(v => matchedById[v.id])
+        .filter(Boolean)
+        .join(', ')
 
     // 4. Missing Check
-    // On ne considère manquants que les variants qui ne sont PAS des suppléments/additifs
     const missingVariants = variants.filter(v =>
         v.options &&
         v.options.length > 0 &&
-        !matchedVariantsByType[v.name] &&
+        matchedById[v.id] === undefined &&
         v.type !== 'supplement' &&
         v.type !== 'additive'
     )

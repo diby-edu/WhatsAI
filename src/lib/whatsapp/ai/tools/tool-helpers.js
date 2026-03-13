@@ -82,6 +82,32 @@ function checkStock(product, quantity) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// 🔧 CONSTANTE : LABELS DE CATÉGORIE (minuscules)
+// Utilisée pour matcher les clés de selected_variants aux groupes
+// quand le nom en DB diffère du label affiché dans le prompt.
+// Ex: groupe {name:"Couleur", category:"size"} → label "taille"
+// ═══════════════════════════════════════════════════════════════
+const VARIANT_CATEGORY_LABELS = {
+    visual: 'couleur',
+    size: 'taille',
+    weight: 'poids',
+    duration: 'durée',
+    room_type: 'type de chambre',
+    view: 'vue',
+    pension: 'pension',
+    menu: 'menu',
+    formula: 'formule',
+    service_type: 'type de service',
+    vehicle: 'véhicule',
+    option: 'option',
+    participants: 'participants',
+    version: 'version',
+    format: 'format',
+    language: 'langue',
+    license: 'licence',
+}
+
+// ═══════════════════════════════════════════════════════════════
 // 🔧 HELPER : VARIANT MATCHING
 // ═══════════════════════════════════════════════════════════════
 function getOptionValue(option) {
@@ -129,5 +155,6 @@ module.exports = {
     checkStock,
     getOptionValue,
     getOptionPrice,
-    findMatchingOption
+    findMatchingOption,
+    VARIANT_CATEGORY_LABELS
 }
