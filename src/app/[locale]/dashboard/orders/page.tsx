@@ -143,11 +143,12 @@ export default function OrdersPage() {
         const isCOD = order.payment_method === 'cod'
         switch (order.status) {
             case 'pending':
-                // COD ne passe jamais par 'pending' (le bot crée 'pending_delivery')
-                // Online (Mobile Money, CinetPay) : le marchand doit valider le paiement
-                return isCOD
-                    ? [{ value: 'shipped', label: '📦 Expédier' }]
-                    : [{ value: 'paid', label: '✅ Valider paiement' }, { value: 'cancelled', label: '❌ Annuler' }]
+                if (isCOD) return [{ value: 'shipped', label: '📦 Expédier' }]
+                // Mobile Money Direct : validation manuelle par le marchand
+                if (order.payment_method === 'mobile_money_direct')
+                    return [{ value: 'paid', label: '✅ Valider paiement' }, { value: 'cancelled', label: '❌ Annuler' }]
+                // CinetPay ('online') : validé automatiquement par webhook, seul l'annulation est possible
+                return [{ value: 'cancelled', label: '❌ Annuler' }]
             case 'pending_delivery':
                 // COD : commande créée par le bot, en attente de livraison
                 return [{ value: 'shipped', label: '📦 Expédier' }, { value: 'delivered', label: '✅ Livré' }]
