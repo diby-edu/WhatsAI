@@ -124,7 +124,12 @@ ${formattedHours !== 'Non spécifiés' ? `⏰ ${formattedHours}` : ''}
 
     // Section 6: Mode de paiement configuré par le marchand
     let paymentSection = ''
-    if (agent.payment_mode === 'mobile_money_direct') {
+    if (!agent.payment_mode || agent.payment_mode === 'cinetpay') {
+        paymentSection = `
+💳 PAIEMENT EN LIGNE (CinetPay) :
+Quand le client choisit "payer en ligne", le système génère automatiquement un lien de paiement sécurisé après create_order.
+⚠️ RÈGLE : Transmets le lien de paiement au client EXACTEMENT tel que retourné par le système. Ne l'invente pas.`
+    } else if (agent.payment_mode === 'mobile_money_direct') {
         const mmLines = []
         if (agent.mobile_money_orange) mmLines.push(`📱 Orange Money : ${agent.mobile_money_orange}`)
         if (agent.mobile_money_mtn)    mmLines.push(`📱 MTN Money : ${agent.mobile_money_mtn}`)
