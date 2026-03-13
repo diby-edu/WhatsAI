@@ -1045,6 +1045,7 @@
         "Status": {
             "pending": "Pending",
             "pending_delivery": "Pending Delivery",
+            "paid": "Payment Validated",
             "confirmed": "Confirmed",
             "processing": "Processing",
             "shipped": "Shipped",
