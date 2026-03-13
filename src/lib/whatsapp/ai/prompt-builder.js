@@ -122,6 +122,32 @@ ${formattedHours !== 'Non spécifiés' ? `⏰ ${formattedHours}` : ''}
     // Section 5: Catalogue détaillé (variantes & prix réels — critique anti-hallucination)
     const productsCatalogSection = buildProductsCatalogSection(products, currency)
 
+    // Section 6: Mode de paiement configuré par le marchand
+    let paymentSection = ''
+    if (agent.payment_mode === 'mobile_money_direct') {
+        const mmLines = []
+        if (agent.mobile_money_orange) mmLines.push(`📱 Orange Money : ${agent.mobile_money_orange}`)
+        if (agent.mobile_money_mtn)    mmLines.push(`📱 MTN Money : ${agent.mobile_money_mtn}`)
+        if (agent.mobile_money_wave)   mmLines.push(`📱 Wave : ${agent.mobile_money_wave}`)
+        if (agent.custom_payment_methods) {
+            try {
+                const custom = typeof agent.custom_payment_methods === 'string'
+                    ? JSON.parse(agent.custom_payment_methods)
+                    : agent.custom_payment_methods
+                if (Array.isArray(custom)) {
+                    custom.forEach(m => mmLines.push(`📱 ${m.name || m.type} : ${m.number}`))
+                }
+            } catch (_e) {}
+        }
+        if (mmLines.length > 0) {
+            paymentSection = `
+💳 PAIEMENT EN LIGNE (Mobile Money Direct) :
+Quand le client choisit "payer en ligne", présente-lui ces options et demande-lui de choisir :
+${mmLines.join('\n')}
+⚠️ RÈGLE : Affiche TOUJOURS ces options quand le client dit "en ligne" ou "mobile money". Ne devine pas un seul numéro.`
+        }
+    }
+
     // 4. ASSEMBLAGE FINAL
     return `${resetContext}
 ${variantsRules}
@@ -133,6 +159,7 @@ ${toolsDefinition}
 ${clientHistory}
 ${knowledgeSection}
 ${businessInfo}
+${paymentSection}
 ${productsCatalogSection}`.trim()
 }
 

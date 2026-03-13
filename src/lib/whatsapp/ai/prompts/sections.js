@@ -161,20 +161,30 @@ function buildProductsCatalogSection(products, currency) {
             const hasVariedPrices = prices.length > 0 && new Set(prices).size > 1
 
             if (!hasVariedPrices) {
-                // Prix identiques : regrouper les options par groupe
+                // Prix identiques ou tous null : regrouper les options par groupe
                 const groups = {}
+                const groupOptionPrices = {} // { gId: { optValue: price } }
                 available.forEach(c => {
                     Object.entries(c.attributes || {}).forEach(([gId, oId]) => {
-                        if (!groups[gId]) groups[gId] = new Set()
+                        if (!groups[gId]) { groups[gId] = new Set(); groupOptionPrices[gId] = {} }
                         const group = (p.variants || []).find(g => g.id === gId)
                         const option = (group?.options || []).find(o => o.id === oId)
-                        groups[gId].add(option?.value || oId)
+                        const optValue = option?.value || oId
+                        groups[gId].add(optValue)
+                        if (option?.price && option.price > 0) {
+                            groupOptionPrices[gId][optValue] = option.price
+                        }
                     })
                 })
 
                 const groupLines = Object.entries(groups).map(([gId, opts]) => {
                     const group = (p.variants || []).find(g => g.id === gId)
-                    return `   ${groupLabel(group, gId)} : ${Array.from(opts).join(', ')}`
+                    const gPrices = groupOptionPrices[gId] || {}
+                    const optStr = Array.from(opts).map(v => {
+                        const op = gPrices[v]
+                        return op ? `${v} (${toDisplay(op).toLocaleString('fr-FR')} ${currencySymbol})` : v
+                    }).join(', ')
+                    return `   ${groupLabel(group, gId)} : ${optStr}`
                 }).join('\n')
 
                 const attrNames = Object.keys(groups).map(gId => {
@@ -182,7 +192,20 @@ function buildProductsCatalogSection(products, currency) {
                     return groupLabel(g, gId)
                 }).join(', ')
 
-                variantsInfo = `\n   💰 Prix : ${displayPrice.toLocaleString('fr-FR')} ${currencySymbol}\n${groupLines}`
+                // Si les combinations ont price:null, calculer le prix réel depuis les options
+                let effectivePriceDisplay = `${displayPrice.toLocaleString('fr-FR')} ${currencySymbol}`
+                if (prices.length === 0) {
+                    const allOptPrices = Object.values(groupOptionPrices).flatMap(ps => Object.values(ps))
+                    if (allOptPrices.length > 0) {
+                        const minP = Math.min(...allOptPrices)
+                        const maxP = Math.max(...allOptPrices)
+                        effectivePriceDisplay = minP === maxP
+                            ? `${toDisplay(minP).toLocaleString('fr-FR')} ${currencySymbol}`
+                            : `${toDisplay(minP).toLocaleString('fr-FR')} - ${toDisplay(maxP).toLocaleString('fr-FR')} ${currencySymbol}`
+                    }
+                }
+
+                variantsInfo = `\n   💰 Prix : ${effectivePriceDisplay}\n${groupLines}`
                 variantsInfo += `\n   ⚠️ COLLECTE : Demande CHAQUE attribut (${attrNames}) séparément avant de confirmer.`
             } else {
                 // Prix variés : afficher les combinaisons

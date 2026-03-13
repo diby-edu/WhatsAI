@@ -224,9 +224,18 @@ async function handleCreateOrder(args, agentId, products, conversationId, supaba
             if (agent.mobile_money_orange) paymentMethods.push({ type: 'Orange Money', number: agent.mobile_money_orange })
             if (agent.mobile_money_mtn) paymentMethods.push({ type: 'MTN Money', number: agent.mobile_money_mtn })
             if (agent.mobile_money_wave) paymentMethods.push({ type: 'Wave', number: agent.mobile_money_wave })
+            try {
+                const custom = typeof agent.custom_payment_methods === 'string'
+                    ? JSON.parse(agent.custom_payment_methods)
+                    : agent.custom_payment_methods
+                if (Array.isArray(custom)) {
+                    custom.forEach(m => paymentMethods.push({ type: m.name || m.type, number: m.number }))
+                }
+            } catch (_e) {}
 
-            let msg = `✅ Commande enregistrée en attente de paiement. Veuillez effectuer le transfert de ${total} FCFA.`
-            if (agent.escalation_phone) msg += `\n\n📞 En cas de besoin, contactez le service client au ${agent.escalation_phone}.`
+            const methodsList = paymentMethods.map(m => `📱 ${m.type} : *${m.number}*`).join('\n')
+            let msg = `✅ Commande enregistrée en attente de paiement.\n\nVeuillez effectuer le transfert de *${total} FCFA* via :\n${methodsList}`
+            if (agent.escalation_phone) msg += `\n\n📞 En cas de besoin, contactez le service client au *${agent.escalation_phone}*.`
             return JSON.stringify({
                 success: true, order_id: order.id, total: total, payment_method: 'mobile_money_direct',
                 payment_methods: paymentMethods, items: itemsSummary, message: msg
