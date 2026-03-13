@@ -147,9 +147,8 @@ Quand le client choisit "payer en ligne", le système génère automatiquement u
         if (mmLines.length > 0) {
             paymentSection = `
 💳 PAIEMENT EN LIGNE (Mobile Money Direct) :
-Quand le client choisit "payer en ligne", présente-lui ces options et demande-lui de choisir :
-${mmLines.join('\n')}
-⚠️ RÈGLE : Affiche TOUJOURS ces options quand le client dit "en ligne" ou "mobile money". Ne devine pas un seul numéro.`
+Quand le client choisit "payer en ligne", réponds simplement "D'accord, les instructions de paiement vous seront envoyées avec la confirmation de commande."
+⚠️ NE PAS lister les numéros ici — ils sont inclus automatiquement dans le message de confirmation. Ne les affiche pas avant la création de la commande.`
         }
     }
 

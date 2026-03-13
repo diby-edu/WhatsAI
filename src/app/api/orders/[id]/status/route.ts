@@ -26,7 +26,7 @@ export async function PATCH(
         // Check order exists and belongs to user
         const { data: order, error: orderError } = await supabase
             .from('orders')
-            .select('id, user_id, status')
+            .select('id, user_id, status, customer_phone, agent_id')
             .eq('id', orderId)
             .single()
 
@@ -65,6 +65,17 @@ export async function PATCH(
                 })
             } catch (notifError) {
                 console.error('🔔 Notification error (non-blocking):', notifError)
+            }
+        }
+
+        // 📲 WHATSAPP: Confirmation paiement → client
+        if (status === 'paid' && order.customer_phone && order.agent_id) {
+            try {
+                const { sendWhatsAppMessage } = await import('@/lib/whatsapp/baileys')
+                const msg = `✅ Paiement confirmé ! Votre commande a bien été validée et est en cours de préparation.\n\nMerci pour votre confiance ! 🙏`
+                await sendWhatsAppMessage(order.agent_id, order.customer_phone, msg)
+            } catch (e) {
+                console.error('📲 WhatsApp payment confirmation error (non-blocking):', e)
             }
         }
 

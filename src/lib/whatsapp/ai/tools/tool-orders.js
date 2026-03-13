@@ -234,8 +234,12 @@ async function handleCreateOrder(args, agentId, products, conversationId, supaba
             } catch (_e) {}
 
             const methodsList = paymentMethods.map(m => `📱 ${m.type} : *${m.number}*`).join('\n')
-            let msg = `✅ Commande enregistrée en attente de paiement.\n\nVeuillez effectuer le transfert de *${total} FCFA* via :\n${methodsList}`
-            if (agent.escalation_phone) msg += `\n\n📞 En cas de besoin, contactez le service client au *${agent.escalation_phone}*.`
+            let msg = `⏳ Commande en attente de paiement.\n\nVeuillez effectuer le transfert de *${total} FCFA* via :\n${methodsList}`
+            if (agent.escalation_phone) {
+                msg += `\n\n📲 Envoyez votre preuve de paiement par WhatsApp au *${agent.escalation_phone}* pour validation.`
+            } else {
+                msg += `\n\nUne fois le transfert effectué, votre commande sera confirmée.`
+            }
             return JSON.stringify({
                 success: true, order_id: order.id, total: total, payment_method: 'mobile_money_direct',
                 payment_methods: paymentMethods, items: itemsSummary, message: msg
