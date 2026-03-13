@@ -10,7 +10,7 @@
  * ✅ Import findMatchingOption depuis tools.js
  */
 
-const { TOOLS, handleToolCall, findMatchingOption, getOptionValue, productHasRealVariants } = require('./tools')
+const { TOOLS, handleToolCall, findMatchingOption, getOptionValue, productHasRealVariants, VARIANT_CATEGORY_LABELS } = require('./tools')
 const { findRelevantDocuments } = require('./rag')
 const { verifyResponseIntegrity } = require('../utils/security')
 const { buildAdaptiveSystemPrompt } = require('./prompt-builder')
@@ -79,15 +79,19 @@ function preCheckCreateOrder(toolCall, products) {
                     const variantName = variant.name
                     const variantNameLower = variantName.toLowerCase()
 
-                    // Chercher la clé correspondante
-                    const selectedEntry = Object.entries(selectedVariants).find(
-                        ([k]) => k.toLowerCase() === variantNameLower
-                    )
+                    // Chercher la clé correspondante avec validation par valeur.
+                    // Quand plusieurs groupes partagent le même name (ex: deux "Couleur"),
+                    // on identifie le bon groupe en vérifiant que la valeur est valide dedans.
+                    const catLabel = (VARIANT_CATEGORY_LABELS[variant.category] || '').toLowerCase()
+                    const selectedEntry = Object.entries(selectedVariants).find(([k, v]) => {
+                        const kLower = k.toLowerCase()
+                        const keyMatch = kLower === variantNameLower || (catLabel && kLower === catLabel)
+                        return keyMatch && !!findMatchingOption(variant, v)
+                    })
 
                     if (!selectedEntry) {
-                        // Variante manquante
                         const options = variant.options.map(o => getOptionValue(o)).join(', ')
-                        console.log(`   ❌ Variante "${variantName}" MANQUANTE`)
+                        console.log(`   ❌ Variante "${variantName}" MANQUANTE ou valeur invalide`)
 
                         return {
                             valid: false,
@@ -98,21 +102,7 @@ function preCheckCreateOrder(toolCall, products) {
                     }
 
                     const selectedValue = selectedEntry[1]
-
-                    // 🎯 FIX #2 : Valider que l'option existe avec matching flexible
                     const validOption = findMatchingOption(variant, selectedValue)
-
-                    if (!validOption) {
-                        const options = variant.options.map(o => getOptionValue(o)).join(', ')
-                        console.log(`   ❌ Option "${selectedValue}" INVALIDE pour ${variantName}`)
-
-                        return {
-                            valid: false,
-                            error: `Option "${selectedValue}" invalide pour ${variantName}. ` +
-                                `Options valides: ${options}`
-                        }
-                    }
-
                     const matchedValue = getOptionValue(validOption)
                     console.log(`   ✅ ${variantName}: "${selectedValue}" → "${matchedValue}"`)
                 }

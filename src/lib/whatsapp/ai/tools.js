@@ -18,7 +18,8 @@ const {
     productHasRealVariants,
     findMatchingOption,
     getOptionValue,
-    getOptionPrice
+    getOptionPrice,
+    VARIANT_CATEGORY_LABELS
 } = require('./tools/tool-helpers')
 
 // ═══════════════════════════════════════════════════════════════
@@ -70,5 +71,6 @@ module.exports = {
     getOptionValue,
     getOptionPrice,
     productHasRealVariants,
-    checkStock
+    checkStock,
+    VARIANT_CATEGORY_LABELS
 }
