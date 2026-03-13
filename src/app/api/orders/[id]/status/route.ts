@@ -77,6 +77,13 @@ export async function PATCH(
             } catch (e) {
                 console.error('📲 WhatsApp payment confirmation error (non-blocking):', e)
             }
+            // 📦 Digital delivery: auto-send digital content if applicable
+            try {
+                const { deliverDigitalProducts } = await import('@/lib/payments/digital-delivery')
+                await deliverDigitalProducts(orderId, supabase)
+            } catch (e) {
+                console.error('📦 Digital delivery error (non-blocking):', e)
+            }
         }
 
         return successResponse({ message: `Statut mis à jour: ${status}` })

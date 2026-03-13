@@ -152,8 +152,11 @@ export default function OrdersPage() {
             case 'pending_delivery':
                 // COD : commande créée par le bot, en attente de livraison
                 return [{ value: 'shipped', label: '📦 Expédier' }, { value: 'delivered', label: '✅ Livré' }]
-            case 'paid':
+            case 'paid': {
+                const orderType = getOrderType(order)
+                if (orderType === 'digital') return [] // Auto-delivered after payment
                 return [{ value: 'shipped', label: '📦 Expédier' }]
+            }
             case 'shipped':
                 return [{ value: 'delivered', label: '✅ Livré' }]
             default:

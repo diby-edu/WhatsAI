@@ -69,7 +69,9 @@ export async function PUT(
                 features: body.features,
                 marketing_tags: body.marketing_tags,
                 related_product_ids: body.related_product_ids,
-                service_subtype: body.service_subtype ?? null
+                service_subtype: body.service_subtype ?? null,
+                digital_content: body.digital_content ?? null,
+                license_keys: body.license_keys !== undefined ? body.license_keys : undefined
             })
             .eq('id', id)
             .eq('user_id', user.id)
