@@ -41,6 +41,29 @@ export interface ProductCombination {
 const MAX_VARIANT_GROUPS = 3
 const MAX_COMBINATIONS = 100
 
+// Nom par défaut à stocker en DB pour chaque catégorie standard.
+// Synchronisé avec VARIANT_CATEGORY_LABELS dans tool-helpers.js (minuscules).
+// Evite les incohérences {name:"Couleur", category:"size"} qui font halluciner l'IA.
+const CATEGORY_DEFAULT_NAMES: Record<string, string> = {
+    visual: 'Couleur',
+    size: 'Taille',
+    weight: 'Poids',
+    duration: 'Durée',
+    room_type: 'Type de chambre',
+    view: 'Vue',
+    pension: 'Pension',
+    menu: 'Menu',
+    formula: 'Formule',
+    service_type: 'Service',
+    vehicle: 'Véhicule',
+    option: 'Option',
+    participants: 'Participants',
+    version: 'Version',
+    format: 'Format',
+    language: 'Langue',
+    license: 'Licence',
+}
+
 // Default category configuration (for products)
 // v2.30: needsImage=true pour TOUTES les catégories (l'image est optionnelle mais toujours disponible)
 const DEFAULT_CATEGORY_CONFIG: Record<string, { label: string; icon: any; needsImage: boolean; color: string }> = {
@@ -449,10 +472,18 @@ export default function ProductVariantsEditor({
                                 value={group.category || 'custom'}
                                 onChange={(e) => {
                                     const newCat = e.target.value as VariantCategory
-                                    const genericNames = ['Couleur', 'Supplément', 'Taille', 'Poids', 'Durée', 'Version', 'Format', 'Langue', 'Licence']
                                     const updates: Partial<VariantGroup> = { category: newCat }
-                                    if (newCat === 'custom' && genericNames.includes(group.name)) {
-                                        updates.name = ''
+                                    if (newCat === 'custom') {
+                                        // Catégorie "Autre" → vider le nom pour forcer la saisie manuelle
+                                        const genericNames = ['Couleur', 'Supplément', 'Taille', 'Poids', 'Durée',
+                                            'Version', 'Format', 'Langue', 'Licence', 'Type de chambre', 'Vue',
+                                            'Pension', 'Menu', 'Formule', 'Service', 'Véhicule', 'Option', 'Participants']
+                                        if (genericNames.includes(group.name)) {
+                                            updates.name = ''
+                                        }
+                                    } else {
+                                        // Catégorie standard → auto-remplir le nom pour éviter {name:"Couleur", category:"size"}
+                                        updates.name = CATEGORY_DEFAULT_NAMES[newCat] || group.name
                                     }
                                     updateGroup(group.id, updates)
                                 }}
