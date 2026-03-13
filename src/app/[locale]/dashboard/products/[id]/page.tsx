@@ -82,6 +82,10 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
 
     const [featureInput, setFeatureInput] = useState('')
     const [contentInput, setContentInput] = useState('')
+    const [digitalDeliveryType, setDigitalDeliveryType] = useState<'fixed_content' | 'license_keys'>('fixed_content')
+    const [digitalContent, setDigitalContent] = useState('')
+    const [licenseKeysInput, setLicenseKeysInput] = useState('')
+    const [existingLicenseKeys, setExistingLicenseKeys] = useState<{ key: string; used: boolean; order_id: string | null }[]>([])
 
     const getServicePlaceholders = () => {
         const servicePlaceholders: Record<string, { name: string; category: string; descFull: string; content: string; features: string }> = {
@@ -167,6 +171,17 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                     stock_quantity: p.stock_quantity ?? -1,
                     lead_fields: p.lead_fields || []
                 })
+
+                // Load digital delivery fields
+                if (p.product_type === 'digital') {
+                    if (p.license_keys && Array.isArray(p.license_keys) && p.license_keys.length > 0) {
+                        setDigitalDeliveryType('license_keys')
+                        setExistingLicenseKeys(p.license_keys)
+                    } else if (p.digital_content) {
+                        setDigitalDeliveryType('fixed_content')
+                        setDigitalContent(p.digital_content)
+                    }
+                }
             }
         } catch (e) {
             console.error(e)
@@ -263,12 +278,31 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                 }))
             }))
             const { price, ...restFormData } = formData as any
-            const dataToSend = {
+            const dataToSend: any = {
                 ...restFormData,
                 price_fcfa: convertToFcfa(parseFloat(String(price)) || 0, currency),
                 variants: variantsInFcfa,
-                combinations: formData.combinations ?? null
+                combinations: formData.combinations ?? null,
+                digital_content: null,
+                license_keys: null
             }
+
+            if (formData.product_type === 'digital') {
+                if (digitalDeliveryType === 'fixed_content') {
+                    dataToSend.digital_content = digitalContent.trim() || null
+                } else {
+                    // Parse new keys from textarea
+                    const newKeys = licenseKeysInput
+                        .split('\n')
+                        .map((k: string) => k.trim())
+                        .filter((k: string) => k.length > 0)
+                        .map((k: string) => ({ key: k, used: false, order_id: null }))
+                    // Merge: keep existing (including used ones) + add new unused keys
+                    const mergedKeys = [...existingLicenseKeys, ...newKeys]
+                    dataToSend.license_keys = mergedKeys.length > 0 ? mergedKeys : null
+                }
+            }
+
             const res = await fetch(`/api/products/${productId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
@@ -636,6 +670,79 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                                 defaultPrice={formData.price ? parseFloat(String(formData.price)) : undefined}
                             />
                         </div>
+
+                        {/* Digital Delivery Section */}
+                        {formData.product_type === 'digital' && (
+                            <div className="bg-emerald-500/5 p-6 rounded-xl border border-emerald-500/20">
+                                <h2 className="text-lg font-bold text-emerald-400 mb-1 flex items-center gap-2">
+                                    💻 Livraison numérique automatique
+                                </h2>
+                                <p className="text-sm text-slate-500 mb-4">
+                                    Contenu envoyé automatiquement au client par WhatsApp après le paiement.
+                                </p>
+
+                                {/* Mode toggle */}
+                                <div className="flex gap-2 mb-4">
+                                    {[
+                                        { id: 'fixed_content', label: '📄 Contenu fixe', desc: 'Même lien/texte pour tous' },
+                                        { id: 'license_keys', label: '🔑 Clés de licence', desc: 'Clé unique par acheteur' }
+                                    ].map(mode => (
+                                        <button
+                                            key={mode.id}
+                                            type="button"
+                                            onClick={() => setDigitalDeliveryType(mode.id as 'fixed_content' | 'license_keys')}
+                                            className={`flex-1 p-3 rounded-lg text-left transition-all border ${digitalDeliveryType === mode.id ? 'border-emerald-500 bg-emerald-500/10' : 'border-slate-700 bg-transparent'}`}
+                                        >
+                                            <div className="text-sm text-white font-medium">{mode.label}</div>
+                                            <div className="text-xs text-slate-400 mt-0.5">{mode.desc}</div>
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {digitalDeliveryType === 'fixed_content' ? (
+                                    <div>
+                                        <label className="block text-slate-300 text-sm font-medium mb-2">Lien ou contenu à envoyer</label>
+                                        <textarea
+                                            value={digitalContent}
+                                            onChange={e => setDigitalContent(e.target.value)}
+                                            placeholder="Ex: https://drive.google.com/file/d/... ou code d'activation XXXX-YYYY-ZZZZ"
+                                            className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white outline-none min-h-[80px]"
+                                        />
+                                        <p className="text-xs text-slate-500 mt-1">Sera envoyé tel quel à chaque acheteur.</p>
+                                    </div>
+                                ) : (
+                                    <div>
+                                        {/* Show existing keys */}
+                                        {existingLicenseKeys.length > 0 && (
+                                            <div className="mb-4">
+                                                <label className="block text-slate-300 text-sm font-medium mb-2">
+                                                    Clés existantes ({existingLicenseKeys.filter(k => !k.used).length} disponibles / {existingLicenseKeys.length} total)
+                                                </label>
+                                                <div className="space-y-1 max-h-40 overflow-y-auto">
+                                                    {existingLicenseKeys.map((k, i) => (
+                                                        <div key={i} className="flex items-center gap-2 text-xs font-mono">
+                                                            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${k.used ? 'bg-red-500' : 'bg-emerald-500'}`} />
+                                                            <span className={k.used ? 'text-slate-500 line-through' : 'text-slate-300'}>{k.key}</span>
+                                                            {k.used && <span className="text-slate-600">utilisée</span>}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                        <label className="block text-slate-300 text-sm font-medium mb-2">Ajouter de nouvelles clés (une par ligne)</label>
+                                        <textarea
+                                            value={licenseKeysInput}
+                                            onChange={e => setLicenseKeysInput(e.target.value)}
+                                            placeholder={"XXXX-YYYY-ZZZZ-4\nXXXX-YYYY-ZZZZ-5"}
+                                            className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white outline-none min-h-[80px] font-mono text-sm"
+                                        />
+                                        <p className="text-xs text-slate-500 mt-1">
+                                            {licenseKeysInput.split('\n').filter(k => k.trim()).length} nouvelle(s) clé(s) à ajouter au pool.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </motion.div>
                 )
 

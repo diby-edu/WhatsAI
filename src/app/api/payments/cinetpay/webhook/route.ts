@@ -153,6 +153,13 @@ export async function POST(request: NextRequest) {
                     }).eq('id', order.id)
 
                     if (!updateError) {
+                        // 📦 Digital delivery: auto-send digital content if applicable
+                        try {
+                            const { deliverDigitalProducts } = await import('@/lib/payments/digital-delivery')
+                            await deliverDigitalProducts(order.id, getSupabase())
+                        } catch (deliveryErr) {
+                            console.error('[Webhook] Digital delivery error (non-blocking):', deliveryErr)
+                        }
 
                         // Send WhatsApp notification to client
                         try {

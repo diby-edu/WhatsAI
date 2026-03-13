@@ -26,7 +26,7 @@ export async function PATCH(
         // Check booking exists and belongs to user's agent
         const { data: booking, error: bookingError } = await supabase
             .from('bookings')
-            .select('id, agent_id, status')
+            .select('id, agent_id, status, customer_phone, customer_name, service_name, start_time')
             .eq('id', bookingId)
             .single()
 
@@ -57,6 +57,28 @@ export async function PATCH(
         if (updateError) {
             console.error('Error updating booking status:', updateError)
             return errorResponse('Erreur lors de la mise à jour du statut')
+        }
+
+        // 📲 WHATSAPP: Notification au client lors de la confirmation ou complétion
+        if ((status === 'confirmed' || status === 'completed') && booking.customer_phone) {
+            try {
+                const { sendWhatsAppMessage } = await import('@/lib/whatsapp/baileys')
+                const serviceName = booking.service_name || 'votre réservation'
+                const dateStr = booking.start_time
+                    ? new Date(booking.start_time).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
+                    : null
+
+                let msg = ''
+                if (status === 'confirmed') {
+                    msg = `✅ *Réservation confirmée !*\n\nBonjour ${booking.customer_name || ''} !\n\nVotre réservation pour *${serviceName}*${dateStr ? ` le ${dateStr}` : ''} est confirmée.\n\nMerci pour votre confiance ! 🙏`
+                } else {
+                    msg = `🎉 *Merci de votre visite !*\n\nBonjour ${booking.customer_name || ''} !\n\nNous espérons que vous avez apprécié *${serviceName}*.\n\nN'hésitez pas à nous laisser un avis ou à réserver à nouveau ! 😊`
+                }
+
+                await sendWhatsAppMessage(booking.agent_id, booking.customer_phone, msg)
+            } catch (e) {
+                console.error('📲 Booking WhatsApp notification error (non-blocking):', e)
+            }
         }
 
         return successResponse({ message: `Statut mis à jour: ${status}` })

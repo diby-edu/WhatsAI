@@ -181,6 +181,9 @@ export default function NewProductPage() {
 
     const [featureInput, setFeatureInput] = useState('')
     const [contentInput, setContentInput] = useState('')
+    const [digitalDeliveryType, setDigitalDeliveryType] = useState<'fixed_content' | 'license_keys'>('fixed_content')
+    const [digitalContent, setDigitalContent] = useState('')
+    const [licenseKeysInput, setLicenseKeysInput] = useState('')
 
     const supabase = createBrowserClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -359,11 +362,26 @@ export default function NewProductPage() {
             }))
 
             const { price, ...restFormData } = formData as any
-            const dataToSend = {
+            const dataToSend: any = {
                 ...restFormData,
                 price_fcfa: convertToFcfa(parseFloat(String(price)) || 0, currency),
                 variants: variantsInFcfa,
-                combinations: formData.combinations ?? null
+                combinations: formData.combinations ?? null,
+                digital_content: null,
+                license_keys: null
+            }
+
+            if (formData.product_type === 'digital') {
+                if (digitalDeliveryType === 'fixed_content') {
+                    dataToSend.digital_content = digitalContent.trim() || null
+                } else {
+                    const keys = licenseKeysInput
+                        .split('\n')
+                        .map((k: string) => k.trim())
+                        .filter((k: string) => k.length > 0)
+                        .map((k: string) => ({ key: k, used: false, order_id: null }))
+                    dataToSend.license_keys = keys.length > 0 ? keys : null
+                }
             }
 
             const res = await fetch('/api/products', {
@@ -920,6 +938,75 @@ export default function NewProductPage() {
                                 defaultPrice={formData.price ? parseFloat(String(formData.price)) : undefined}
                             />
                         </div>
+
+                        {/* Digital Delivery Section — only for digital products */}
+                        {formData.product_type === 'digital' && (
+                            <div style={{
+                                padding: 20,
+                                background: 'rgba(16, 185, 129, 0.05)',
+                                borderRadius: 12,
+                                border: '1px solid rgba(16, 185, 129, 0.2)'
+                            }}>
+                                <h3 style={{ fontSize: 14, fontWeight: 600, color: '#34d399', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    💻 Livraison numérique automatique
+                                </h3>
+                                <p style={{ fontSize: 12, color: '#64748b', marginBottom: 16 }}>
+                                    Le contenu sera envoyé automatiquement au client par WhatsApp après le paiement.
+                                </p>
+
+                                {/* Mode selector */}
+                                <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+                                    {[
+                                        { id: 'fixed_content', label: '📄 Contenu fixe', desc: 'Même lien/texte pour tous' },
+                                        { id: 'license_keys', label: '🔑 Clés de licence', desc: 'Clé unique par acheteur' }
+                                    ].map(mode => (
+                                        <button
+                                            key={mode.id}
+                                            type="button"
+                                            onClick={() => setDigitalDeliveryType(mode.id as 'fixed_content' | 'license_keys')}
+                                            style={{
+                                                flex: 1,
+                                                padding: '10px 12px',
+                                                borderRadius: 10,
+                                                border: digitalDeliveryType === mode.id ? '2px solid #10b981' : '1px solid rgba(148, 163, 184, 0.2)',
+                                                background: digitalDeliveryType === mode.id ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
+                                                textAlign: 'center',
+                                                cursor: 'pointer'
+                                            }}
+                                        >
+                                            <div style={{ fontSize: 13, color: 'white', fontWeight: 500 }}>{mode.label}</div>
+                                            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{mode.desc}</div>
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {digitalDeliveryType === 'fixed_content' ? (
+                                    <div>
+                                        <label style={{ ...labelStyle, marginBottom: 6 }}>Lien de téléchargement ou contenu à envoyer</label>
+                                        <textarea
+                                            value={digitalContent}
+                                            onChange={e => setDigitalContent(e.target.value)}
+                                            placeholder="Ex: https://drive.google.com/file/d/... ou code d'activation XXXX-YYYY-ZZZZ"
+                                            style={{ ...inputStyle, minHeight: 80, fontFamily: 'inherit' }}
+                                        />
+                                        <p style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>Sera envoyé tel quel à chaque acheteur.</p>
+                                    </div>
+                                ) : (
+                                    <div>
+                                        <label style={{ ...labelStyle, marginBottom: 6 }}>Clés de licence (une par ligne)</label>
+                                        <textarea
+                                            value={licenseKeysInput}
+                                            onChange={e => setLicenseKeysInput(e.target.value)}
+                                            placeholder={"XXXX-YYYY-ZZZZ-1\nXXXX-YYYY-ZZZZ-2\nXXXX-YYYY-ZZZZ-3"}
+                                            style={{ ...inputStyle, minHeight: 100, fontFamily: 'monospace', fontSize: 13 }}
+                                        />
+                                        <p style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
+                                            {licenseKeysInput.split('\n').filter(k => k.trim()).length} clé(s) prêtes à être attribuées.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 )
 
