@@ -243,11 +243,12 @@ async function handleCreateOrder(args, agentId, products, conversationId, supaba
         }
 
         // CinetPay
-        let msg = `✅ Commande créée ! Lien de paiement généré pour ${total} FCFA.`
+        const payLink = `${appUrl}/pay/${order.id}`
+        let msg = `✅ Commande créée ! Voici le lien de paiement sécurisé pour *${total} FCFA* :\n${payLink}`
         if (agent.escalation_phone) msg += `\n\n📞 En cas de besoin, contactez le service client au ${agent.escalation_phone}.`
         return JSON.stringify({
             success: true, order_id: order.id, total: total, payment_method: 'online',
-            payment_link: `${appUrl}/pay/${order.id}`, items: itemsSummary, message: msg
+            payment_link: payLink, items: itemsSummary, message: msg
         })
 
     } catch (error) {
