@@ -13,7 +13,7 @@ const { prompt_STAY } = require('./prompts/workflow-service-stay')
 const { prompt_TABLE } = require('./prompts/workflow-service-table')
 const { prompt_SLOT } = require('./prompts/workflow-service-slot')
 const { prompt_RENTAL } = require('./prompts/workflow-service-rental')
-const { buildCatalogueSection, buildClientHistory, buildKnowledgeSection } = require('./prompts/sections')
+const { buildCatalogueSection, buildClientHistory, buildKnowledgeSection, buildProductsCatalogSection } = require('./prompts/sections')
 
 // Mapping des sous-types de services vers les moteurs de template
 const SERVICE_ENGINE_MAP = {
@@ -119,6 +119,9 @@ ${gpsLink ? `🗺️ ${gpsLink}` : ''}
 ${formattedHours !== 'Non spécifiés' ? `⏰ ${formattedHours}` : ''}
     ` : ''
 
+    // Section 5: Catalogue détaillé (variantes & prix réels — critique anti-hallucination)
+    const productsCatalogSection = buildProductsCatalogSection(products, currency)
+
     // 4. ASSEMBLAGE FINAL
     return `${resetContext}
 ${variantsRules}
@@ -129,7 +132,8 @@ ${antiLoopRules}
 ${toolsDefinition}
 ${clientHistory}
 ${knowledgeSection}
-${businessInfo}`.trim()
+${businessInfo}
+${productsCatalogSection}`.trim()
 }
 
 module.exports = { buildAdaptiveSystemPrompt }
