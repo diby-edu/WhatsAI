@@ -68,7 +68,7 @@ export default function AgentsPage() {
         try {
             const res = await fetch('/api/profile')
             const data = await res.json()
-            const plan = (data.data?.plan || data.plan || 'free').toLowerCase()
+            const plan = (data.data?.profile?.plan || data.data?.plan || data.plan || 'free').toLowerCase()
             const limits: Record<string, number> = { free: 1, starter: 1, pro: 3, business: 6, scale: -1 }
             setAgentLimit(limits[plan] ?? 1)
         } catch {
