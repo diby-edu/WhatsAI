@@ -1,6 +1,6 @@
 import { createAdminClient } from '@/lib/api-utils'
 import { generateAIResponse, analyzeLeadQuality, AIMessage, transcribeAudio, generateSpeech } from '@/lib/ai/openai'
-import { sendMessageWithTyping, WhatsAppMessage, setMessageHandler, downloadMedia, sendAudioMessage } from '@/lib/whatsapp/baileys'
+import { sendMessageWithTyping, WhatsAppMessage, setMessageHandler, downloadMedia, sendAudioMessage, sendImageMessage } from '@/lib/whatsapp/baileys'
 const { CreditsService } = require('./services/credits.service')
 
 /**
@@ -174,7 +174,7 @@ export function initializeMessageHandler() {
             // Fetch products for this agent only (+ shared products without specific agent)
             const { data: products } = await supabase
                 .from('products')
-                .select('name, price_fcfa, description, product_type, ai_instructions, lead_fields, stock_quantity, short_pitch, marketing_tags, features, variants, combinations, related_product_ids')
+                .select('name, price_fcfa, description, product_type, ai_instructions, lead_fields, stock_quantity, short_pitch, marketing_tags, features, variants, combinations, related_product_ids, image_url')
                 .eq('user_id', agent.user_id)
                 .eq('is_available', true)
                 .or(`agent_id.eq.${agentId},agent_id.is.null`)
@@ -208,12 +208,29 @@ export function initializeMessageHandler() {
             })
             console.log('✅ AI Response generated:', aiResponse.content.substring(0, 100), '...')
 
+            // Collect image actions to send after text response
+            const pendingImages: { image_url: string; caption: string }[] = []
+
             // Check for Tool Calls (Reservations)
             if (aiResponse.toolCalls && aiResponse.toolCalls.length > 0) {
                 console.log('🛠️ Handling tool calls:', aiResponse.toolCalls.length)
 
                 for (const toolCall of aiResponse.toolCalls) {
                     const func = (toolCall as any).function
+
+                    if (func.name === 'send_image') {
+                        const args = JSON.parse(func.arguments)
+                        console.log('📸 send_image tool called for:', args.product_name)
+                        const { handleSendImage } = require('./ai/tools/tool-images')
+                        const result = JSON.parse(await handleSendImage(args, products || []))
+                        if (result.success && result.image_url) {
+                            pendingImages.push({ image_url: result.image_url, caption: result.caption || '' })
+                            console.log('✅ Image queued:', result.image_url)
+                        } else {
+                            console.log('⚠️ send_image failed:', result.error)
+                        }
+                        continue
+                    }
 
                     if (func.name === 'create_booking') {
                         const args = JSON.parse(func.arguments)
@@ -343,6 +360,15 @@ export function initializeMessageHandler() {
                 (agent.response_delay_seconds || 2) * 1000
             )
             console.log('📤 Text result:', sendResult.success ? '✅ SUCCESS' : '❌ FAILED', sendResult)
+
+            // Send queued product images (after text)
+            if (pendingImages && pendingImages.length > 0) {
+                for (const img of pendingImages) {
+                    console.log('📸 Sending product image:', img.image_url)
+                    const imgResult = await sendImageMessage(agentId, message.from, img.image_url, img.caption)
+                    console.log('📸 Image result:', imgResult.success ? '✅ SUCCESS' : '❌ FAILED')
+                }
+            }
 
             // OPTIONAL: Send Voice Response (Premium)
             // Check if user has enough credits (needs 5 total: 1 base + 4 voice)

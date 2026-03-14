@@ -478,6 +478,36 @@ export async function sendAudioMessage(
 }
 
 /**
+ * Send an image message from a URL
+ */
+export async function sendImageMessage(
+    agentId: string,
+    to: string,
+    imageUrl: string,
+    caption: string = ''
+): Promise<{ success: boolean; messageId?: string; error?: string }> {
+    const session = activeSessions.get(agentId)
+
+    if (!session || session.status !== 'connected') {
+        return { success: false, error: 'WhatsApp not connected' }
+    }
+
+    try {
+        const jid = to.includes('@') ? to : `${to}@s.whatsapp.net`
+
+        const result = await session.socket.sendMessage(jid, {
+            image: { url: imageUrl },
+            caption: caption
+        })
+
+        return { success: true, messageId: result?.key.id || undefined }
+    } catch (error) {
+        console.error('Error sending image:', error)
+        return { success: false, error: (error as Error).message }
+    }
+}
+
+/**
  * Close a WhatsApp session
  */
 export async function closeWhatsAppSession(agentId: string): Promise<void> {

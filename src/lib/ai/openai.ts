@@ -313,6 +313,21 @@ RÈGLE D'OR : Dès que le client confirme APRÈS LE RÉCAPITULATIF, EXÉCUTE L'O
         {
             type: 'function',
             function: {
+                name: 'send_image',
+                description: 'Envoyer une image d\'un produit au client.',
+                parameters: {
+                    type: 'object',
+                    properties: {
+                        product_name: { type: 'string', description: 'Nom du produit dont on veut envoyer l\'image' },
+                        selected_variants: { type: 'object', description: 'Variantes choisies (ex: {"Couleur": "Rouge"})' }
+                    },
+                    required: ['product_name']
+                }
+            }
+        },
+        {
+            type: 'function',
+            function: {
                 name: 'create_order',
                 description: 'Enregistrer une commande de produits.',
                 parameters: {
