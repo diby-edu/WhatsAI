@@ -38,6 +38,7 @@ export async function GET(request: NextRequest) {
         const { data: allProfiles } = await adminSupabase
             .from('profiles')
             .select('id, email, full_name, plan, created_at')
+            .not('role', 'in', '("admin","superadmin")')
             .order('created_at', { ascending: false })
         const emails = (allProfiles || []).map(p => ({
             id: p.id,
@@ -54,6 +55,7 @@ export async function GET(request: NextRequest) {
         const { data: profiles, error, count } = await adminSupabase
             .from('profiles')
             .select('*', { count: 'exact' })
+            .not('role', 'in', '("admin","superadmin")')
             .order(sortBy, { ascending: sortDir })
             .range(from, to)
 
