@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1')
     const pageSize = parseInt(searchParams.get('pageSize') || '20')
     const { from, to } = getPagination(page, pageSize)
+    const search = searchParams.get('search')?.trim() || ''
 
     // Sort params
     const sortByRaw = searchParams.get('sortBy') || 'created_at'
@@ -52,10 +53,17 @@ export async function GET(request: NextRequest) {
 
     try {
         // Fetch profiles with count
-        const { data: profiles, error, count } = await adminSupabase
+        let query = adminSupabase
             .from('profiles')
             .select('*', { count: 'exact' })
             .not('role', 'in', '("admin","superadmin")')
+
+        // Server-side search across name, email and phone
+        if (search) {
+            query = query.or(`full_name.ilike.%${search}%,email.ilike.%${search}%,phone.ilike.%${search}%`)
+        }
+
+        const { data: profiles, error, count } = await query
             .order(sortBy, { ascending: sortDir })
             .range(from, to)
 
