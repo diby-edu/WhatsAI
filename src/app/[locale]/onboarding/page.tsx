@@ -80,11 +80,6 @@ export default function OnboardingPage() {
                 return
             }
 
-            // Update user metadata so middleware won't redirect again
-            await supabase.auth.updateUser({
-                data: { onboarding_completed: true }
-            })
-
             // Redirect to dashboard in the selected language
             router.push(`/${language}/dashboard`)
         } catch {
