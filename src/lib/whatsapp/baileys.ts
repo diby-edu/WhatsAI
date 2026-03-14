@@ -229,9 +229,15 @@ export async function initWhatsAppSession(
                 continue
             }
 
-            // Ignore status updates (broadcasts)
-            if (msg.key.remoteJid === 'status@broadcast' || msg.key.remoteJid?.includes('@broadcast')) {
-                console.log('⏭️ Skipping status/broadcast message')
+            // Ignore non-real JIDs: status updates, broadcasts, newsletters
+            const remoteJid = msg.key.remoteJid || ''
+            if (
+                !remoteJid ||
+                remoteJid.includes('@broadcast') ||
+                remoteJid.includes('@newsletter') ||
+                remoteJid.startsWith('status@')
+            ) {
+                console.log('⏭️ Skipping system JID:', remoteJid)
                 continue
             }
 
@@ -324,7 +330,7 @@ export async function initWhatsAppSession(
             }
 
             const whatsappMessage: WhatsAppMessage = {
-                from: msg.key.remoteJid || '',
+                from: remoteJid,
                 pushName: msg.pushName || null,
                 message: text,
                 messageType,
