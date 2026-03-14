@@ -106,10 +106,16 @@ export async function GET(request: NextRequest) {
             })
         )
 
+        // Compute max agents from plans.ts (single source of truth)
+        const { PLANS } = await import('@/lib/plans')
+        const planKey = ((profile?.plan || 'free') as string).toLowerCase() as keyof typeof PLANS
+        const maxAgents: number = (PLANS[planKey]?.agents) ?? 1
+
         return successResponse({
             stats: {
                 totalMessages,
                 activeAgents: agentsWithConversations?.filter(a => a.is_active).length || 0,
+                maxAgents,
                 totalConversations: conversationCount || 0,
                 plan: profile?.plan || 'Free',
                 credits: profile?.credits_balance || 0,

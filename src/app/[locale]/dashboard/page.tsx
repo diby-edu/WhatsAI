@@ -83,7 +83,7 @@ export default function DashboardPage() {
                     let positive = true
 
                     if (config.id === 'messages') value = s.totalMessages.toLocaleString()
-                    if (config.id === 'agents') value = s.activeAgents.toLocaleString()
+                    if (config.id === 'agents') value = s.maxAgents === -1 ? `${s.activeAgents}` : `${s.activeAgents}/${s.maxAgents}`
                     if (config.id === 'conversations') value = s.totalConversations.toLocaleString()
                     if (config.id === 'credits') value = s.credits.toLocaleString()
                     if (config.id === 'plan') {

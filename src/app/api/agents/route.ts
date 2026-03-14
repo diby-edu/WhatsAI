@@ -65,16 +65,10 @@ export async function POST(request: NextRequest) {
             .eq('user_id', user!.id)
             .is('archived_at', null)
 
-        const { data: planData } = await supabase
-            .from('subscription_plans')
-            .select('max_agents')
-            .ilike('name', profile?.plan || 'free')
-            .single()
-
-        // Fallback to plans.ts if DB unavailable; -1 = unlimited
+        // Use plans.ts as single source of truth for agent limits
         const { PLANS } = await import('@/lib/plans')
-        const fallbackLimit = (PLANS as any)[profile?.plan || 'free']?.agents ?? 1
-        const limit: number = planData?.max_agents ?? fallbackLimit
+        const planKey = ((profile?.plan || 'free') as string).toLowerCase()
+        const limit: number = (PLANS as any)[planKey]?.agents ?? 1
 
         if (limit !== -1 && (agentCount || 0) >= limit) {
             notifyAdmins('agent_quota_exceeded', {
