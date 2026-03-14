@@ -1036,9 +1036,11 @@
                 "title": "Actions",
                 "confirm": "Confirm",
                 "cancel": "Cancel",
+                "validatePayment": "Validate Payment",
                 "process": "Set to Processing",
                 "ship": "Mark as Shipped",
                 "deliver": "Mark as Delivered",
+                "finish": "Mark as Completed",
                 "completed": "Order Completed"
             }
         },

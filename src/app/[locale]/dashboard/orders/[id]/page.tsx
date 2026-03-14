@@ -26,6 +26,7 @@ interface Order {
     id: string
     order_number: string
     status: string
+    payment_method: 'online' | 'cod' | 'mobile_money_direct' | null
     total_amount: number
     created_at: string
     notes: string | null
@@ -67,8 +68,7 @@ export default function OrderDetailsPage() {
     const updateStatus = async (newStatus: string) => {
         setUpdating(true)
         try {
-            // FIX: Use PATCH on /api/orders/[id] instead of PUT on /api/orders/[id]/status
-            const res = await fetch(`/api/orders/${params.id}`, {
+            const res = await fetch(`/api/orders/${params.id}/status`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status: newStatus })
@@ -80,6 +80,66 @@ export default function OrderDetailsPage() {
             console.error('Error updating status:', err)
         } finally {
             setUpdating(false)
+        }
+    }
+
+    const getOrderType = (): 'physical' | 'digital' | 'service' | 'unknown' => {
+        if (!order?.items?.length) return 'unknown'
+        let hasDigital = false, hasService = false, hasPhysical = false
+        order.items.forEach(item => {
+            const name = item.product.name.toLowerCase()
+            if (name.match(/office|windows|licence|license|clé|key|ebook|pdf|numérique|digital/)) hasDigital = true
+            else if (name.match(/service|consultation|coaching|formation|cours|atelier|réservation|hotel|restaurant|soin/)) hasService = true
+            else hasPhysical = true
+        })
+        if (hasService && !hasPhysical && !hasDigital) return 'service'
+        if (hasDigital && !hasPhysical && !hasService) return 'digital'
+        return 'physical'
+    }
+
+    const getNextStatusOptions = () => {
+        if (!order) return []
+        const isCOD = order.payment_method === 'cod'
+        const orderType = getOrderType()
+        const isService = orderType === 'service'
+        switch (order.status) {
+            case 'pending':
+                if (isCOD) {
+                    if (isService) return [
+                        { value: 'confirmed', label: t('actions.confirm') },
+                        { value: 'cancelled', label: t('actions.cancel') }
+                    ]
+                    return [{ value: 'shipped', label: t('actions.ship') }]
+                }
+                if (order.payment_method === 'mobile_money_direct') return [
+                    { value: 'paid', label: t('actions.validatePayment') },
+                    { value: 'cancelled', label: t('actions.cancel') }
+                ]
+                // CinetPay (online) : validé par webhook
+                return [{ value: 'cancelled', label: t('actions.cancel') }]
+            case 'pending_delivery':
+                if (isService) return [
+                    { value: 'confirmed', label: t('actions.confirm') },
+                    { value: 'delivered', label: t('actions.finish') }
+                ]
+                return [
+                    { value: 'shipped', label: t('actions.ship') },
+                    { value: 'delivered', label: t('actions.deliver') }
+                ]
+            case 'paid':
+                if (orderType === 'digital') return []
+                if (isService) return [{ value: 'confirmed', label: t('actions.confirm') }]
+                return [{ value: 'shipped', label: t('actions.ship') }]
+            case 'confirmed':
+                if (isService) return [{ value: 'delivered', label: t('actions.finish') }]
+                return [{ value: 'shipped', label: t('actions.ship') }]
+            case 'processing':
+                if (isService) return [{ value: 'confirmed', label: t('actions.confirm') }]
+                return [{ value: 'shipped', label: t('actions.ship') }]
+            case 'shipped':
+                return [{ value: 'delivered', label: t('actions.deliver') }]
+            default:
+                return []
         }
     }
 
@@ -291,114 +351,36 @@ export default function OrderDetailsPage() {
                             {t('actions.title')}
                         </h2>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                            {order.status === 'pending' && (
-                                <>
-                                    <button
-                                        onClick={() => updateStatus('confirmed')}
-                                        disabled={updating}
-                                        style={{
-                                            padding: 12,
-                                            borderRadius: 10,
-                                            border: 'none',
-                                            background: '#34d399',
-                                            color: '#064e3b',
-                                            fontWeight: 600,
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            gap: 8
-                                        }}
-                                    >
-                                        {updating ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle size={18} />}
-                                        {t('actions.confirm')}
-                                    </button>
-                                    <button
-                                        onClick={() => updateStatus('cancelled')}
-                                        disabled={updating}
-                                        style={{
-                                            padding: 12,
-                                            borderRadius: 10,
-                                            border: 'none',
-                                            background: 'rgba(239, 68, 68, 0.15)',
-                                            color: '#f87171',
-                                            fontWeight: 600,
-                                            cursor: 'pointer'
-                                        }}
-                                    >
-                                        {t('actions.cancel')}
-                                    </button>
-                                </>
-                            )}
-
-                            {order.status === 'confirmed' && (
+                            {getNextStatusOptions().map(opt => (
                                 <button
-                                    onClick={() => updateStatus('processing')}
+                                    key={opt.value}
+                                    onClick={() => updateStatus(opt.value)}
                                     disabled={updating}
                                     style={{
                                         padding: 12,
                                         borderRadius: 10,
-                                        border: 'none',
-                                        background: '#60a5fa',
-                                        color: '#1e3a8a',
+                                        border: opt.value === 'cancelled' ? '1px solid rgba(248,113,113,0.4)' : 'none',
+                                        background: opt.value === 'cancelled' ? 'rgba(239,68,68,0.15)' : getStatusColor(opt.value),
+                                        color: opt.value === 'cancelled' ? '#f87171' : 'white',
                                         fontWeight: 600,
                                         cursor: 'pointer',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
-                                        gap: 8
+                                        gap: 8,
+                                        opacity: updating ? 0.6 : 1
                                     }}
                                 >
-                                    {updating ? <Loader2 className="animate-spin" size={18} /> : <Loader2 size={18} />}
-                                    {t('actions.process')}
+                                    {updating
+                                        ? <Loader2 className="animate-spin" size={18} />
+                                        : opt.value === 'cancelled' ? <XCircle size={18} />
+                                        : opt.value === 'shipped' ? <Truck size={18} />
+                                        : opt.value === 'delivered' ? <Package size={18} />
+                                        : <CheckCircle size={18} />
+                                    }
+                                    {opt.label}
                                 </button>
-                            )}
-
-                            {order.status === 'processing' && (
-                                <button
-                                    onClick={() => updateStatus('shipped')}
-                                    disabled={updating}
-                                    style={{
-                                        padding: 12,
-                                        borderRadius: 10,
-                                        border: 'none',
-                                        background: '#a78bfa',
-                                        color: '#4c1d95',
-                                        fontWeight: 600,
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        gap: 8
-                                    }}
-                                >
-                                    {updating ? <Loader2 className="animate-spin" size={18} /> : <Truck size={18} />}
-                                    {t('actions.ship')}
-                                </button>
-                            )}
-
-                            {order.status === 'shipped' && (
-                                <button
-                                    onClick={() => updateStatus('delivered')}
-                                    disabled={updating}
-                                    style={{
-                                        padding: 12,
-                                        borderRadius: 10,
-                                        border: 'none',
-                                        background: '#10b981',
-                                        color: 'white',
-                                        fontWeight: 600,
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        gap: 8
-                                    }}
-                                >
-                                    {updating ? <Loader2 className="animate-spin" size={18} /> : <Package size={18} />}
-                                    {t('actions.deliver')}
-                                </button>
-                            )}
+                            ))}
 
                             {['delivered', 'cancelled'].includes(order.status) && (
                                 <div style={{ textAlign: 'center', color: '#64748b', fontSize: 14 }}>
