@@ -1077,14 +1077,8 @@ Règles:
                             </select>
                         </div>
 
-                        {/* Voice Settings (Premium) */}
-                        <div style={{
-                            padding: 20,
-                            background: 'rgba(16, 185, 129, 0.05)',
-                            border: '1px solid rgba(16, 185, 129, 0.2)',
-                            borderRadius: 12,
-                            marginTop: 12
-                        }}>
+                        {/* Voice Settings (Premium) — hidden, text-only responses */}
+                        <div style={{ display: 'none' }}>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: formData.enableVoice ? 16 : 0 }}>
                                 <div>
                                     <h3 style={{ fontSize: 15, fontWeight: 600, color: 'white', display: 'flex', alignItems: 'center', gap: 8 }}>
