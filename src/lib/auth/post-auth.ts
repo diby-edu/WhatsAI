@@ -7,8 +7,7 @@ function isAdminRole(role: string | null | undefined): boolean {
 type RedirectPath = '/admin' | '/onboarding' | '/dashboard'
 
 /**
- * Resolve a consistent post-auth redirect path for both web OAuth and native Google login.
- * Keeps middleware expectations in sync by writing onboarding metadata when needed.
+ * Resolve a consistent post-auth redirect path for both email/password and native Google login.
  */
 export async function resolvePostAuthPath(supabase: SupabaseClient): Promise<RedirectPath> {
     const { data: { user }, error: userError } = await supabase.auth.getUser()
@@ -42,9 +41,13 @@ export async function resolvePostAuthPath(supabase: SupabaseClient): Promise<Red
     }
 
     if (onboardingCompleted === false) {
+        try {
+            await fetch('/api/auth/new-user-notify', { method: 'POST' })
+        } catch {
+            // Notification dedupe is best-effort and must never block login.
+        }
         return '/onboarding'
     }
 
     return '/dashboard'
 }
-

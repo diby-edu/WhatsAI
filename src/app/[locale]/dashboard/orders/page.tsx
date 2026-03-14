@@ -138,25 +138,38 @@ export default function OrdersPage() {
         }
     }
 
-    // Status options for orders (based on payment method)
+    // Status options for orders (based on payment method + product type)
     const getNextStatusOptions = (order: Order) => {
         const isCOD = order.payment_method === 'cod'
+        const orderType = getOrderType(order)
+        const isService = orderType === 'service'
+
         switch (order.status) {
             case 'pending':
-                if (isCOD) return [{ value: 'shipped', label: '📦 Expédier' }]
+                if (isCOD) {
+                    if (isService) return [{ value: 'confirmed', label: '✅ Confirmer' }, { value: 'cancelled', label: '❌ Annuler' }]
+                    return [{ value: 'shipped', label: '📦 Expédier' }]
+                }
                 // Mobile Money Direct : validation manuelle par le marchand
                 if (order.payment_method === 'mobile_money_direct')
                     return [{ value: 'paid', label: '✅ Valider paiement' }, { value: 'cancelled', label: '❌ Annuler' }]
                 // CinetPay ('online') : validé automatiquement par webhook, seul l'annulation est possible
                 return [{ value: 'cancelled', label: '❌ Annuler' }]
             case 'pending_delivery':
-                // COD : commande créée par le bot, en attente de livraison
+                // COD bot-created
+                if (isService) return [{ value: 'confirmed', label: '✅ Confirmer' }, { value: 'delivered', label: '🎉 Terminé' }]
                 return [{ value: 'shipped', label: '📦 Expédier' }, { value: 'delivered', label: '✅ Livré' }]
-            case 'paid': {
-                const orderType = getOrderType(order)
+            case 'paid':
                 if (orderType === 'digital') return [] // Auto-delivered after payment
+                if (isService) return [{ value: 'confirmed', label: '✅ Confirmer' }]
                 return [{ value: 'shipped', label: '📦 Expédier' }]
-            }
+            case 'confirmed':
+                // confirmed → terminal step differs by type
+                if (isService) return [{ value: 'delivered', label: '🎉 Marquer terminé' }]
+                return [{ value: 'shipped', label: '📦 Expédier' }]
+            case 'processing':
+                if (isService) return [{ value: 'confirmed', label: '✅ Confirmer' }]
+                return [{ value: 'shipped', label: '📦 Expédier' }]
             case 'shipped':
                 return [{ value: 'delivered', label: '✅ Livré' }]
             default:
@@ -696,27 +709,59 @@ export default function OrdersPage() {
                                     </div>
                                 )}
 
-                                {/* Regular Details Button */}
-                                {order.payment_verification_status !== 'awaiting_verification' && (
-                                    <button
-                                        onClick={() => router.push(`/dashboard/orders/${order.id}`)}
-                                        style={{
-                                            padding: '10px 16px',
-                                            borderRadius: 10,
-                                            background: 'rgba(59, 130, 246, 0.15)',
-                                            color: '#60a5fa',
-                                            border: 'none',
-                                            fontWeight: 600,
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: 8
-                                        }}
-                                    >
-                                        <Eye size={16} />
-                                        {t('card.details')}
-                                    </button>
+                                {/* Inline Status Buttons */}
+                                {getNextStatusOptions(order).length > 0 && (
+                                    <div style={{ display: 'flex', gap: 6 }}>
+                                        {getNextStatusOptions(order).map(opt => (
+                                            <button
+                                                key={opt.value}
+                                                onClick={() => handleStatusChange(order.id, opt.value)}
+                                                disabled={updatingStatusId === order.id}
+                                                style={{
+                                                    padding: '10px 14px',
+                                                    borderRadius: 10,
+                                                    background: `${getStatusColor(opt.value)}20`,
+                                                    color: getStatusColor(opt.value),
+                                                    border: `1px solid ${getStatusColor(opt.value)}40`,
+                                                    fontWeight: 600,
+                                                    cursor: 'pointer',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: 6,
+                                                    fontSize: 13,
+                                                    opacity: updatingStatusId === order.id ? 0.5 : 1,
+                                                    whiteSpace: 'nowrap'
+                                                }}
+                                            >
+                                                {updatingStatusId === order.id
+                                                    ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
+                                                    : getStatusIcon(opt.value)
+                                                }
+                                                {opt.label.replace(/^[^\s]+\s/, '')}
+                                            </button>
+                                        ))}
+                                    </div>
                                 )}
+
+                                {/* Details Button — always visible */}
+                                <button
+                                    onClick={() => router.push(`/dashboard/orders/${order.id}`)}
+                                    style={{
+                                        padding: '10px 16px',
+                                        borderRadius: 10,
+                                        background: 'rgba(59, 130, 246, 0.15)',
+                                        color: '#60a5fa',
+                                        border: 'none',
+                                        fontWeight: 600,
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 8
+                                    }}
+                                >
+                                    <Eye size={16} />
+                                    {t('card.details')}
+                                </button>
                             </div>
                         </motion.div>
                     ))}

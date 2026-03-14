@@ -68,16 +68,28 @@ export async function PATCH(
             }
         }
 
-        // 📲 WHATSAPP: Confirmation paiement → client
-        if (status === 'paid' && order.customer_phone && order.agent_id) {
-            try {
-                const { sendWhatsAppMessage } = await import('@/lib/whatsapp/baileys')
-                const msg = `✅ Paiement confirmé ! Votre commande a bien été validée et est en cours de préparation.\n\nMerci pour votre confiance ! 🙏`
-                await sendWhatsAppMessage(order.agent_id, order.customer_phone, msg)
-            } catch (e) {
-                console.error('📲 WhatsApp payment confirmation error (non-blocking):', e)
+        // 📲 WHATSAPP: Messages client selon le nouveau statut
+        if (order.customer_phone && order.agent_id) {
+            const whatsappMessages: Record<string, string> = {
+                paid: `✅ Paiement confirmé ! Votre commande a bien été validée et est en cours de préparation.\n\nMerci pour votre confiance ! 🙏`,
+                confirmed: `✅ Votre commande a été confirmée ! Nous préparons votre service.\n\nMerci pour votre confiance ! 🙏`,
+                shipped: `📦 Votre commande est en route ! Elle a été expédiée et vous sera livrée prochainement.\n\nMerci de votre patience ! 🚚`,
+                delivered: `🎉 Votre commande a été livrée ! Nous espérons que vous êtes satisfait(e).\n\nN'hésitez pas à nous contacter si vous avez des questions. 😊`,
+                cancelled: `❌ Votre commande a été annulée. Si vous pensez que c'est une erreur, contactez-nous.\n\nNous nous excusons pour le désagrément.`,
             }
-            // 📦 Digital delivery: auto-send digital content if applicable
+            const msg = whatsappMessages[status]
+            if (msg) {
+                try {
+                    const { sendWhatsAppMessage } = await import('@/lib/whatsapp/baileys')
+                    await sendWhatsAppMessage(order.agent_id, order.customer_phone, msg)
+                } catch (e) {
+                    console.error(`📲 WhatsApp [${status}] notification error (non-blocking):`, e)
+                }
+            }
+        }
+
+        // 📦 Digital delivery: auto-send digital content after payment
+        if (status === 'paid' && order.customer_phone && order.agent_id) {
             try {
                 const { deliverDigitalProducts } = await import('@/lib/payments/digital-delivery')
                 await deliverDigitalProducts(orderId, supabase)
