@@ -1,24 +1,49 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-import createMiddleware from 'next-intl/middleware';
+import createMiddleware from 'next-intl/middleware'
+import { hasProfilePhone } from '@/lib/profile-phone'
 
 const handleI18n = createMiddleware({
     locales: ['fr', 'en'],
-    defaultLocale: 'fr'
-});
+    defaultLocale: 'fr',
+})
+
+const PUBLIC_ROUTES = new Set([
+    '/',
+    '/login',
+    '/register',
+    '/forgot-password',
+    '/reset-password',
+    '/pricing',
+    '/features',
+    '/about',
+    '/contact',
+    '/auth/callback',
+    '/api/payments/webhook',
+])
+
+const PROTECTED_PREFIXES = ['/dashboard', '/admin', '/onboarding', '/complete-profile']
+
+function isWithinPath(pathname: string, prefix: string) {
+    return pathname === prefix || pathname.startsWith(`${prefix}/`)
+}
+
+function getLocale(pathname: string) {
+    return pathname.match(/^\/(fr|en)(?=\/|$)/)?.[1] || 'fr'
+}
+
+function redirectTo(request: NextRequest, locale: string, path: string) {
+    return NextResponse.redirect(new URL(`/${locale}${path}`, request.url))
+}
 
 export async function middleware(request: NextRequest) {
     const pathname = request.nextUrl.pathname
+    let response = handleI18n(request)
 
-    // 1. Run next-intl middleware
-    let response = handleI18n(request);
-
-    // If API route or auth callback, bypass intl logic
     if (pathname.startsWith('/api') || pathname.startsWith('/auth/callback')) {
-        response = NextResponse.next({ request });
+        response = NextResponse.next({ request })
     }
 
-    // 2. Supabase Logic
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
         return response
     }
@@ -32,12 +57,8 @@ export async function middleware(request: NextRequest) {
                     return request.cookies.getAll()
                 },
                 setAll(cookiesToSet) {
-                    cookiesToSet.forEach(({ name, value }) =>
-                        request.cookies.set(name, value)
-                    )
-                    cookiesToSet.forEach(({ name, value, options }) =>
-                        response.cookies.set(name, value, options)
-                    )
+                    cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+                    cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options))
                 },
             },
         }
@@ -47,109 +68,88 @@ export async function middleware(request: NextRequest) {
         data: { user },
     } = await supabase.auth.getUser()
 
-    // 3. Auth Guard Logic
-    const pathnameWithoutLocale = pathname.replace(/^\/(fr|en)/, '') || '/';
+    const locale = getLocale(pathname)
+    const pathnameWithoutLocale = pathname.replace(/^\/(fr|en)(?=\/|$)/, '') || '/'
+    const isAuthPage = pathnameWithoutLocale === '/login' || pathnameWithoutLocale === '/register'
+    const isPublicRoute = PUBLIC_ROUTES.has(pathnameWithoutLocale) || pathnameWithoutLocale.startsWith('/api/public')
+    const isProtectedRoute = PROTECTED_PREFIXES.some((prefix) => isWithinPath(pathnameWithoutLocale, prefix))
 
-    const publicRoutes = [
-        '/',
-        '/login',
-        '/register',
-        '/forgot-password',
-        '/reset-password',
-        '/pricing',
-        '/features',
-        '/about',
-        '/contact',
-        '/auth/callback',
-        '/api/payments/webhook',
-    ]
-
-    const isPublicRoute = publicRoutes.some(route =>
-        pathnameWithoutLocale === route || pathnameWithoutLocale.startsWith('/api/public')
-    )
-
-    // Auth checks
-    if (!user && !isPublicRoute && (pathnameWithoutLocale.startsWith('/dashboard') || pathnameWithoutLocale.startsWith('/admin') || pathnameWithoutLocale.startsWith('/onboarding'))) {
-        const locale = pathname.match(/^\/(fr|en)/)?.[1] || 'fr';
-        const redirectUrl = new URL(`/${locale}/login`, request.url);
+    if (!user && !isPublicRoute && isProtectedRoute) {
+        const redirectUrl = new URL(`/${locale}/login`, request.url)
         redirectUrl.searchParams.set('redirect', pathname)
-        return NextResponse.redirect(redirectUrl);
+        return NextResponse.redirect(redirectUrl)
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    // ⭐ FIX #1 : Vérifier le rôle de l'utilisateur connecté
-    // ═══════════════════════════════════════════════════════════════
-    let userRole: string | null = null;
+    if (!user) {
+        return response
+    }
 
-    if (user) {
-        // Vérifier métadonnées (rapide)
-        userRole = user.user_metadata?.role;
+    const needsProfileState = isProtectedRoute || isAuthPage
 
-        // Si pas dans metadata, vérifier DB
-        if (!userRole) {
-            const { data: profile } = await supabase
-                .from('profiles')
-                .select('role')
-                .eq('id', user.id)
-                .single();
+    let profileRole: string | null = null
+    let profilePhone: string | null = null
 
-            userRole = profile?.role || null;
+    if (needsProfileState) {
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('role, phone')
+            .eq('id', user.id)
+            .maybeSingle()
+
+        profileRole = profile?.role ?? null
+        profilePhone = profile?.phone ?? null
+    }
+
+    const metadataRole = typeof user.user_metadata?.role === 'string' ? user.user_metadata.role : null
+    const userRole = metadataRole || profileRole
+    const isAdmin = userRole === 'admin' || userRole === 'superadmin'
+    const onboardingCompleted = user.user_metadata?.onboarding_completed !== false
+    const hasPhone = hasProfilePhone(profilePhone)
+
+    if (isAdmin) {
+        if (
+            isAuthPage ||
+            isWithinPath(pathnameWithoutLocale, '/dashboard') ||
+            isWithinPath(pathnameWithoutLocale, '/onboarding') ||
+            isWithinPath(pathnameWithoutLocale, '/complete-profile')
+        ) {
+            return redirectTo(request, locale, '/admin')
         }
 
-        console.log(`🔐 Middleware - User: ${user.email}, Role: ${userRole}, Path: ${pathnameWithoutLocale}`);
+        return response
     }
 
-    const isAdmin = userRole === 'admin' || userRole === 'superadmin';
-
-    // ═══════════════════════════════════════════════════════════════
-    // ⭐ FIX #2 : Rediriger admin de /dashboard vers /admin
-    // ═══════════════════════════════════════════════════════════════
-    if (user && isAdmin && pathnameWithoutLocale.startsWith('/dashboard')) {
-        const locale = pathname.match(/^\/(fr|en)/)?.[1] || 'fr';
-        console.log(`🔄 Redirecting admin from /dashboard to /admin`);
-        return NextResponse.redirect(new URL(`/${locale}/admin`, request.url));
+    if (isWithinPath(pathnameWithoutLocale, '/admin')) {
+        if (!onboardingCompleted) return redirectTo(request, locale, '/onboarding')
+        if (!hasPhone) return redirectTo(request, locale, '/complete-profile')
+        return redirectTo(request, locale, '/dashboard')
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    // ⭐ FIX #3 : Bloquer non-admin qui essaye d'accéder à /admin
-    // ═══════════════════════════════════════════════════════════════
-    if (user && !isAdmin && pathnameWithoutLocale.startsWith('/admin')) {
-        const locale = pathname.match(/^\/(fr|en)/)?.[1] || 'fr';
-        console.log(`❌ Non-admin blocked from /admin, redirecting to /dashboard`);
-        return NextResponse.redirect(new URL(`/${locale}/dashboard`, request.url));
+    if (isAuthPage) {
+        if (!onboardingCompleted) return redirectTo(request, locale, '/onboarding')
+        if (!hasPhone) return redirectTo(request, locale, '/complete-profile')
+        return redirectTo(request, locale, '/dashboard')
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    // ⭐ FIX #4 : Rediriger admin qui se connecte vers /admin (pas /dashboard)
-    // ═══════════════════════════════════════════════════════════════
-    if (user && (pathnameWithoutLocale === '/login' || pathnameWithoutLocale === '/register')) {
-        const locale = pathname.match(/^\/(fr|en)/)?.[1] || 'fr';
-
-        if (isAdmin) {
-            console.log(`🔄 Redirecting admin from login to /admin`);
-            return NextResponse.redirect(new URL(`/${locale}/admin`, request.url));
+    if (!onboardingCompleted) {
+        if (!isWithinPath(pathnameWithoutLocale, '/onboarding')) {
+            return redirectTo(request, locale, '/onboarding')
         }
+        return response
+    }
 
-        // Check onboarding before redirecting to dashboard
-        if (user.user_metadata?.onboarding_completed === false) {
-            return NextResponse.redirect(new URL(`/${locale}/onboarding`, request.url));
+    if (!hasPhone) {
+        if (!isWithinPath(pathnameWithoutLocale, '/complete-profile')) {
+            return redirectTo(request, locale, '/complete-profile')
         }
-
-        return NextResponse.redirect(new URL(`/${locale}/dashboard`, request.url));
+        return response
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    // ⭐ FIX #5 : Rediriger vers /onboarding si non complété
-    // ═══════════════════════════════════════════════════════════════
-    if (user && !isAdmin && user.user_metadata?.onboarding_completed === false && !pathnameWithoutLocale.startsWith('/onboarding')) {
-        const locale = pathname.match(/^\/(fr|en)/)?.[1] || 'fr';
-        return NextResponse.redirect(new URL(`/${locale}/onboarding`, request.url));
-    }
-
-    // Si onboarding déjà complété et user tente d'accéder à /onboarding → dashboard
-    if (user && user.user_metadata?.onboarding_completed !== false && pathnameWithoutLocale.startsWith('/onboarding')) {
-        const locale = pathname.match(/^\/(fr|en)/)?.[1] || 'fr';
-        return NextResponse.redirect(new URL(`/${locale}/dashboard`, request.url));
+    if (
+        isWithinPath(pathnameWithoutLocale, '/onboarding') ||
+        isWithinPath(pathnameWithoutLocale, '/complete-profile')
+    ) {
+        return redirectTo(request, locale, '/dashboard')
     }
 
     return response

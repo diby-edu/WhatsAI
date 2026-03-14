@@ -1,8 +1,9 @@
 import { NextRequest } from 'next/server'
 import { createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
+import { normalizeStoredPhone } from '@/lib/profile-phone'
 
 // GET /api/profile - Get current user profile
-export async function GET(request: NextRequest) {
+export async function GET() {
     const supabase = await createApiClient()
     const { user, error: authError } = await getAuthUser(supabase)
 
@@ -38,10 +39,23 @@ export async function PATCH(request: NextRequest) {
         // Only allow specific fields to be updated
         const allowedFields = ['full_name', 'phone', 'company', 'timezone', 'language', 'avatar_url', 'currency']
 
-        const updates: Record<string, any> = {}
+        const updates: Record<string, unknown> = {}
         for (const field of allowedFields) {
             if (body[field] !== undefined) {
-                updates[field] = body[field]
+                if (field === 'phone') {
+                    if (typeof body.phone !== 'string' || body.phone.trim().length === 0) {
+                        return errorResponse('Le numero de telephone est obligatoire.', 400)
+                    }
+
+                    const normalizedPhone = normalizeStoredPhone(body.phone)
+                    if (!normalizedPhone) {
+                        return errorResponse('Le numero de telephone doit etre au format international valide.', 400)
+                    }
+
+                    updates[field] = normalizedPhone
+                } else {
+                    updates[field] = body[field]
+                }
             }
         }
 
@@ -57,7 +71,8 @@ export async function PATCH(request: NextRequest) {
         }
 
         return successResponse({ profile })
-    } catch (err) {
+    } catch {
         return errorResponse('Données invalides', 400)
     }
 }
+
