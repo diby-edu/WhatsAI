@@ -86,6 +86,10 @@ export async function middleware(request: NextRequest) {
 
     const needsProfileState = isProtectedRoute || isAuthPage
 
+    if (!needsProfileState) {
+        return response
+    }
+
     let profileRole: string | null = null
     let profilePhone: string | null = null
     let profileOnboardingCompleted: boolean = false
