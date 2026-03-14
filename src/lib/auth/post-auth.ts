@@ -21,7 +21,7 @@ export async function resolvePostAuthPath(supabase: SupabaseClient): Promise<Red
         : null
 
     let profileRole: string | null = null
-    let profileOnboardingCompleted: boolean | null = null
+    let profileOnboardingCompleted: boolean = false
 
     if (!isAdminRole(metadataRole)) {
         const { data: profile } = await supabase

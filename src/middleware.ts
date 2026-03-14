@@ -88,6 +88,7 @@ export async function middleware(request: NextRequest) {
 
     let profileRole: string | null = null
     let profilePhone: string | null = null
+    let profileOnboardingCompleted: boolean = false
 
     if (needsProfileState) {
         const { data: profile } = await supabase
@@ -98,12 +99,13 @@ export async function middleware(request: NextRequest) {
 
         profileRole = profile?.role ?? null
         profilePhone = profile?.phone ?? null
+        profileOnboardingCompleted = profile?.onboarding_completed === true
     }
 
     const metadataRole = typeof user.user_metadata?.role === 'string' ? user.user_metadata.role : null
     const userRole = metadataRole || profileRole
     const isAdmin = userRole === 'admin' || userRole === 'superadmin'
-    const onboardingCompleted = profile?.onboarding_completed === true
+    const onboardingCompleted = profileOnboardingCompleted
     const hasPhone = hasProfilePhone(profilePhone)
 
     if (isAdmin) {
