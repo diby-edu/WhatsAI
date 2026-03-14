@@ -107,9 +107,14 @@ export default function OrderDetailsPage() {
                 if (isCOD) {
                     if (isService) return [
                         { value: 'confirmed', label: t('actions.confirm') },
-                        { value: 'cancelled', label: t('actions.cancel') }
+                        { value: 'delivered', label: t('actions.finish') },
+                        { value: 'cancelled', label: t('actions.cancel') },
                     ]
-                    return [{ value: 'shipped', label: t('actions.ship') }]
+                    return [
+                        { value: 'shipped', label: t('actions.ship') },
+                        { value: 'delivered', label: t('actions.deliver') },
+                        { value: 'cancelled', label: t('actions.cancel') },
+                    ]
                 }
                 if (order.payment_method === 'mobile_money_direct') return [
                     { value: 'paid', label: t('actions.validatePayment') },
@@ -120,22 +125,37 @@ export default function OrderDetailsPage() {
             case 'pending_delivery':
                 if (isService) return [
                     { value: 'confirmed', label: t('actions.confirm') },
-                    { value: 'delivered', label: t('actions.finish') }
+                    { value: 'delivered', label: t('actions.finish') },
                 ]
                 return [
                     { value: 'shipped', label: t('actions.ship') },
-                    { value: 'delivered', label: t('actions.deliver') }
+                    { value: 'delivered', label: t('actions.deliver') },
                 ]
             case 'paid':
                 if (orderType === 'digital') return []
-                if (isService) return [{ value: 'confirmed', label: t('actions.confirm') }]
-                return [{ value: 'shipped', label: t('actions.ship') }]
+                if (isService) return [
+                    { value: 'confirmed', label: t('actions.confirm') },
+                    { value: 'delivered', label: t('actions.finish') },
+                ]
+                return [
+                    { value: 'shipped', label: t('actions.ship') },
+                    { value: 'delivered', label: t('actions.deliver') },
+                ]
             case 'confirmed':
                 if (isService) return [{ value: 'delivered', label: t('actions.finish') }]
-                return [{ value: 'shipped', label: t('actions.ship') }]
+                return [
+                    { value: 'shipped', label: t('actions.ship') },
+                    { value: 'delivered', label: t('actions.deliver') },
+                ]
             case 'processing':
-                if (isService) return [{ value: 'confirmed', label: t('actions.confirm') }]
-                return [{ value: 'shipped', label: t('actions.ship') }]
+                if (isService) return [
+                    { value: 'confirmed', label: t('actions.confirm') },
+                    { value: 'delivered', label: t('actions.finish') },
+                ]
+                return [
+                    { value: 'shipped', label: t('actions.ship') },
+                    { value: 'delivered', label: t('actions.deliver') },
+                ]
             case 'shipped':
                 return [{ value: 'delivered', label: t('actions.deliver') }]
             default:

@@ -138,7 +138,7 @@ export default function OrdersPage() {
         }
     }
 
-    // Status options for orders (based on payment method + product type)
+    // Tous les statuts cibles atteignables — le marchand clique directement sur l'état final
     const getNextStatusOptions = (order: Order) => {
         const isCOD = order.payment_method === 'cod'
         const orderType = getOrderType(order)
@@ -147,29 +147,56 @@ export default function OrdersPage() {
         switch (order.status) {
             case 'pending':
                 if (isCOD) {
-                    if (isService) return [{ value: 'confirmed', label: '✅ Confirmer' }, { value: 'cancelled', label: '❌ Annuler' }]
-                    return [{ value: 'shipped', label: '📦 Expédier' }]
+                    if (isService) return [
+                        { value: 'confirmed', label: '✅ Confirmer' },
+                        { value: 'delivered', label: '🎉 Terminé' },
+                        { value: 'cancelled', label: '❌ Annuler' },
+                    ]
+                    return [
+                        { value: 'shipped', label: '📦 Expédier' },
+                        { value: 'delivered', label: '✅ Livré' },
+                        { value: 'cancelled', label: '❌ Annuler' },
+                    ]
                 }
-                // Mobile Money Direct : validation manuelle par le marchand
+                // Mobile Money Direct : paiement obligatoire avant livraison
                 if (order.payment_method === 'mobile_money_direct')
                     return [{ value: 'paid', label: '✅ Valider paiement' }, { value: 'cancelled', label: '❌ Annuler' }]
-                // CinetPay ('online') : validé automatiquement par webhook, seul l'annulation est possible
+                // CinetPay ('online') : validé automatiquement par webhook
                 return [{ value: 'cancelled', label: '❌ Annuler' }]
             case 'pending_delivery':
-                // COD bot-created
-                if (isService) return [{ value: 'confirmed', label: '✅ Confirmer' }, { value: 'delivered', label: '🎉 Terminé' }]
-                return [{ value: 'shipped', label: '📦 Expédier' }, { value: 'delivered', label: '✅ Livré' }]
+                if (isService) return [
+                    { value: 'confirmed', label: '✅ Confirmer' },
+                    { value: 'delivered', label: '🎉 Terminé' },
+                ]
+                return [
+                    { value: 'shipped', label: '📦 Expédier' },
+                    { value: 'delivered', label: '✅ Livré' },
+                ]
             case 'paid':
                 if (orderType === 'digital') return [] // Auto-delivered after payment
-                if (isService) return [{ value: 'confirmed', label: '✅ Confirmer' }]
-                return [{ value: 'shipped', label: '📦 Expédier' }]
+                if (isService) return [
+                    { value: 'confirmed', label: '✅ Confirmer' },
+                    { value: 'delivered', label: '🎉 Terminé' },
+                ]
+                return [
+                    { value: 'shipped', label: '📦 Expédier' },
+                    { value: 'delivered', label: '✅ Livré' },
+                ]
             case 'confirmed':
-                // confirmed → terminal step differs by type
                 if (isService) return [{ value: 'delivered', label: '🎉 Marquer terminé' }]
-                return [{ value: 'shipped', label: '📦 Expédier' }]
+                return [
+                    { value: 'shipped', label: '📦 Expédier' },
+                    { value: 'delivered', label: '✅ Livré' },
+                ]
             case 'processing':
-                if (isService) return [{ value: 'confirmed', label: '✅ Confirmer' }]
-                return [{ value: 'shipped', label: '📦 Expédier' }]
+                if (isService) return [
+                    { value: 'confirmed', label: '✅ Confirmer' },
+                    { value: 'delivered', label: '🎉 Terminé' },
+                ]
+                return [
+                    { value: 'shipped', label: '📦 Expédier' },
+                    { value: 'delivered', label: '✅ Livré' },
+                ]
             case 'shipped':
                 return [{ value: 'delivered', label: '✅ Livré' }]
             default:
