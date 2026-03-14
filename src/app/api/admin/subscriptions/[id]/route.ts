@@ -32,7 +32,7 @@ export async function PATCH(
 
         if (action === 'change_plan') {
             if (!plan) return errorResponse('Plan requis', 400)
-            const validPlans = ['free', 'starter', 'pro', 'business']
+            const validPlans = ['free', 'starter', 'pro', 'business', 'scale']
             if (!validPlans.includes(plan)) return errorResponse('Plan invalide', 400)
 
             // Get current plan to determine upgrade vs downgrade

@@ -478,7 +478,9 @@ function BillingContent() {
                             <div style={{ fontSize: 18, fontWeight: 700, color: subscriptionEnd ? 'white' : '#64748b' }}>
                                 {subscriptionEnd
                                     ? new Date(subscriptionEnd).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
-                                    : 'Plan gratuit'}
+                                    : currentPlan !== 'free'
+                                        ? 'Géré manuellement'
+                                        : 'Plan gratuit'}
                             </div>
                         </div>
                     </div>
