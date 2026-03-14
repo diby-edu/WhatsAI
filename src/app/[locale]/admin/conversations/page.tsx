@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Bot, Eye, Loader2, MessageSquare, Search, User, X } from 'lucide-react'
+import { Bot, Eye, Loader2, Search, User, X } from 'lucide-react'
 
 function formatContactPhone(raw: string | null): { display: string; isLid: boolean } {
     if (!raw) return { display: 'Inconnu', isLid: false }
@@ -190,7 +190,7 @@ export default function AdminConversationsPage() {
                             filteredConversations.map((conversation) => {
                                 const { display, isLid } = formatContactPhone(conversation.contact_phone)
                                 return (
-                                    <tr key={conversation.id}>
+                                    <tr key={conversation.id} onClick={() => openConversation(conversation.id)} style={{ cursor: 'pointer' }} onMouseEnter={e => (e.currentTarget.style.background = 'rgba(148,163,184,0.04)')} onMouseLeave={e => (e.currentTarget.style.background = '')}>
                                         <td style={{ padding: '16px 24px', borderBottom: '1px solid rgba(148, 163, 184, 0.05)' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                                                 <div style={{
