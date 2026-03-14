@@ -73,6 +73,14 @@ export function initializeMessageHandler() {
                 .replace('@s.whatsapp.net', '')
                 .replace('@lid', '')
                 .replace('@g.us', '')
+                .replace('@broadcast', '')
+                .replace('@newsletter', '')
+
+            // Guard: reject system JIDs (broadcast, newsletter, unresolved @suffix)
+            if (!phoneNumber || phoneNumber.includes('broadcast') || phoneNumber.includes('newsletter') || phoneNumber.includes('@')) {
+                console.log('⛔ Rejected system JID in handler:', message.from)
+                return
+            }
 
             let { data: conversation } = await supabase
                 .from('conversations')
