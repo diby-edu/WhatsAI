@@ -13,11 +13,7 @@ function buildRedirectUrl(origin: string, forwardedHost: string | null, path: st
 async function resolveOnboardingPath(supabase: ReturnType<typeof createServerClient>, fallback: string): Promise<string> {
     const { data: { user } } = await supabase.auth.getUser()
 
-    // Skip if onboarding already confirmed (=== true means user has completed it)
-    // Note: email users have onboarding_completed: false in metadata from signUp()
-    //       OAuth users have no onboarding_completed key in metadata initially
-    //       Both cases must fall through to the profile check below
-    if (!user || user.user_metadata?.onboarding_completed === true) return fallback
+    if (!user) return fallback
 
     const { data: profile } = await supabase
         .from('profiles')
@@ -26,8 +22,6 @@ async function resolveOnboardingPath(supabase: ReturnType<typeof createServerCli
         .single()
 
     if (profile?.onboarding_completed === false) {
-        // Flag metadata so the middleware stays in sync on subsequent requests
-        await supabase.auth.updateUser({ data: { onboarding_completed: false } })
         // New user — notify admins (fire-and-forget, never blocks redirect)
         notifyAdmins('new_user', {
             userId: user.id,

@@ -92,7 +92,7 @@ export async function middleware(request: NextRequest) {
     if (needsProfileState) {
         const { data: profile } = await supabase
             .from('profiles')
-            .select('role, phone')
+            .select('role, phone, onboarding_completed')
             .eq('id', user.id)
             .maybeSingle()
 
@@ -103,7 +103,7 @@ export async function middleware(request: NextRequest) {
     const metadataRole = typeof user.user_metadata?.role === 'string' ? user.user_metadata.role : null
     const userRole = metadataRole || profileRole
     const isAdmin = userRole === 'admin' || userRole === 'superadmin'
-    const onboardingCompleted = user.user_metadata?.onboarding_completed !== false
+    const onboardingCompleted = profile?.onboarding_completed === true
     const hasPhone = hasProfilePhone(profilePhone)
 
     if (isAdmin) {
