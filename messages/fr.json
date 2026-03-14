@@ -1065,9 +1065,11 @@
         "title": "Actions",
         "confirm": "Confirmer",
         "cancel": "Annuler",
+        "validatePayment": "Valider le paiement",
         "process": "Mettre en préparation",
         "ship": "Marquer comme expédiée",
         "deliver": "Marquer comme livrée",
+        "finish": "Marquer terminé",
         "completed": "Commande terminée"
       }
     },
