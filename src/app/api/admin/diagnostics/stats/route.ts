@@ -1,90 +1,58 @@
-import { createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
+import { errorResponse, successResponse } from '@/lib/api-utils'
+import { requireAdminAccess } from '@/lib/admin/auth'
+import { getAgentOperationalMetrics } from '@/lib/admin/monitoring'
 
 export async function GET() {
-    const supabase = await createApiClient()
-    const { user, error: authError } = await getAuthUser(supabase)
-
-    if (authError || !user) {
-        return errorResponse('Unauthorized', 401)
-    }
-
-    const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
-
-    if (profile?.role !== 'admin' && profile?.role !== 'superadmin') {
-        return errorResponse('Accès réservé aux administrateurs', 403)
-    }
+    const { response, adminSupabase } = await requireAdminAccess()
+    if (response || !adminSupabase) return response!
 
     try {
-        // Total users
-        const { count: totalUsers } = await supabase
-            .from('profiles')
-            .select('*', { count: 'exact', head: true })
-
-        // Active users (last 30 days)
         const thirtyDaysAgo = new Date()
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-        const { count: activeUsers } = await supabase
-            .from('profiles')
-            .select('*', { count: 'exact', head: true })
-            .gte('updated_at', thirtyDaysAgo.toISOString())
 
-        // Agents
-        const { count: totalAgents } = await supabase
-            .from('agents')
-            .select('*', { count: 'exact', head: true })
+        const [
+            usersResult,
+            activeUsersResult,
+            conversationsResult,
+            messagesResult,
+            creditsResult,
+            productsResult,
+            ordersResult,
+            pendingOrdersResult,
+            agentMetrics,
+        ] = await Promise.all([
+            adminSupabase.from('profiles').select('*', { count: 'exact', head: true }),
+            adminSupabase
+                .from('profiles')
+                .select('*', { count: 'exact', head: true })
+                .gte('updated_at', thirtyDaysAgo.toISOString()),
+            adminSupabase.from('conversations').select('*', { count: 'exact', head: true }),
+            adminSupabase.from('messages').select('*', { count: 'exact', head: true }),
+            adminSupabase.from('profiles').select('credits_used_this_month'),
+            adminSupabase.from('products').select('*', { count: 'exact', head: true }),
+            adminSupabase.from('orders').select('*', { count: 'exact', head: true }),
+            adminSupabase.from('orders').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+            getAgentOperationalMetrics(adminSupabase),
+        ])
 
-        const { count: connectedAgents } = await supabase
-            .from('agents')
-            .select('*', { count: 'exact', head: true })
-            .eq('whatsapp_connected', true)
-
-        // Conversations
-        const { count: totalConversations } = await supabase
-            .from('conversations')
-            .select('*', { count: 'exact', head: true })
-
-        // Messages
-        const { count: totalMessages } = await supabase
-            .from('messages')
-            .select('*', { count: 'exact', head: true })
-
-        // Credits used
-        const { data: creditsData } = await supabase
-            .from('profiles')
-            .select('credits_used_this_month')
-
-        const totalCreditsUsed = (creditsData || []).reduce((sum, p) => sum + (p.credits_used_this_month || 0), 0)
-
-        // Products
-        const { count: totalProducts } = await supabase
-            .from('products')
-            .select('*', { count: 'exact', head: true })
-
-        // Orders
-        const { count: totalOrders } = await supabase
-            .from('orders')
-            .select('*', { count: 'exact', head: true })
-
-        const { count: pendingOrders } = await supabase
-            .from('orders')
-            .select('*', { count: 'exact', head: true })
-            .eq('status', 'pending')
+        const totalCreditsUsed = (creditsResult.data || []).reduce((sum: number, profile: any) => {
+            return sum + (profile.credits_used_this_month || 0)
+        }, 0)
 
         return successResponse({
-            totalUsers: totalUsers || 0,
-            activeUsers: activeUsers || 0,
-            totalAgents: totalAgents || 0,
-            connectedAgents: connectedAgents || 0,
-            totalConversations: totalConversations || 0,
-            totalMessages: totalMessages || 0,
+            totalUsers: usersResult.count || 0,
+            activeUsers: activeUsersResult.count || 0,
+            totalAgents: agentMetrics.total || 0,
+            connectedAgents: agentMetrics.connected || 0,
+            qrReadyAgents: agentMetrics.qr_ready || 0,
+            reconnectAgents: agentMetrics.reconnect_required || 0,
+            pausedAgents: agentMetrics.paused || 0,
+            totalConversations: conversationsResult.count || 0,
+            totalMessages: messagesResult.count || 0,
             totalCreditsUsed,
-            totalProducts: totalProducts || 0,
-            totalOrders: totalOrders || 0,
-            pendingOrders: pendingOrders || 0
+            totalProducts: productsResult.count || 0,
+            totalOrders: ordersResult.count || 0,
+            pendingOrders: pendingOrdersResult.count || 0,
         })
     } catch (err) {
         console.error('Error fetching stats:', err)

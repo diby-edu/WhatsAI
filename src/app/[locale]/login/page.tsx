@@ -1,12 +1,88 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { MessageCircle, Mail, Lock, Loader2, Eye, EyeOff, Sparkles, ArrowRight, Zap, Shield, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { resolvePostAuthPath } from '@/lib/auth/post-auth'
+
+const LOGIN_GUARD_KEY = 'wazzapai_login_guard_v1'
+const LOGIN_LOCK_WINDOW_MS = 15 * 60 * 1000
+
+type LoginGuardEntry = {
+    count: number
+    lockedUntil: number | null
+}
+
+type LoginGuardState = Record<string, LoginGuardEntry>
+
+function getLoginGuardState(): LoginGuardState {
+    if (typeof window === 'undefined') return {}
+
+    try {
+        return JSON.parse(localStorage.getItem(LOGIN_GUARD_KEY) || '{}')
+    } catch {
+        return {}
+    }
+}
+
+function saveLoginGuardState(state: LoginGuardState) {
+    if (typeof window === 'undefined') return
+    localStorage.setItem(LOGIN_GUARD_KEY, JSON.stringify(state))
+}
+
+function getAttemptKey(value: string) {
+    const normalized = value.trim().toLowerCase()
+    return normalized || 'default'
+}
+
+function getLockState(key: string) {
+    const state = getLoginGuardState()
+    const current = state[key]
+
+    if (!current?.lockedUntil || current.lockedUntil <= Date.now()) {
+        if (current?.lockedUntil) {
+            delete state[key]
+            saveLoginGuardState(state)
+        }
+        return null
+    }
+
+    return current.lockedUntil
+}
+
+function resetLoginGuard(key: string) {
+    const state = getLoginGuardState()
+    if (state[key]) {
+        delete state[key]
+        saveLoginGuardState(state)
+    }
+}
+
+function registerLoginFailure(key: string, maxLoginAttempts: number) {
+    const state = getLoginGuardState()
+    const current = state[key] || { count: 0, lockedUntil: null }
+    const nextCount = current.count + 1
+
+    if (nextCount >= maxLoginAttempts) {
+        const lockedUntil = Date.now() + LOGIN_LOCK_WINDOW_MS
+        state[key] = { count: 0, lockedUntil }
+        saveLoginGuardState(state)
+        return { lockedUntil, remaining: 0 }
+    }
+
+    state[key] = { count: nextCount, lockedUntil: null }
+    saveLoginGuardState(state)
+    return { lockedUntil: null, remaining: Math.max(0, maxLoginAttempts - nextCount) }
+}
+
+function formatLockMessage(lockedUntil: number) {
+    const remainingMs = lockedUntil - Date.now()
+    const remainingMinutes = Math.max(1, Math.ceil(remainingMs / 60000))
+    return `Trop de tentatives de connexion. Reessayez dans ${remainingMinutes} min.`
+}
 
 export default function LoginPage() {
     const router = useRouter()
@@ -15,8 +91,31 @@ export default function LoginPage() {
     const [showPassword, setShowPassword] = useState(false)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [authPolicy, setAuthPolicy] = useState({
+        requireEmailVerification: false,
+        maxLoginAttempts: 5,
+    })
 
+    useEffect(() => {
+        const loadRuntimeConfig = async () => {
+            try {
+                const res = await fetch('/api/public/runtime-config')
+                const json = await res.json()
+                if (json.success && json.data) {
+                    setAuthPolicy({
+                        requireEmailVerification: json.data.requireEmailVerification === true,
+                        maxLoginAttempts: Number(json.data.maxLoginAttempts) > 0
+                            ? Number(json.data.maxLoginAttempts)
+                            : 5,
+                    })
+                }
+            } catch (err) {
+                console.error('Failed to load auth policy:', err)
+            }
+        }
 
+        loadRuntimeConfig()
+    }, [])
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault()
         setLoading(true)
@@ -24,87 +123,118 @@ export default function LoginPage() {
 
         try {
             const supabase = createClient()
+            const attemptKey = getAttemptKey(email)
+            const lockedUntil = getLockState(attemptKey)
+
+            if (lockedUntil) {
+                setError(formatLockMessage(lockedUntil))
+                return
+            }
+
             const { error } = await supabase.auth.signInWithPassword({
                 email,
                 password,
             })
 
             if (error) {
-                // Améliorer les messages d'erreur
-                if (error.message.includes('Invalid login credentials')) {
-                    setError('Email ou mot de passe incorrect. Si vous venez de vous inscrire, vérifiez que vous avez confirmé votre email.')
+                const failureState = registerLoginFailure(attemptKey, authPolicy.maxLoginAttempts)
+
+                if (failureState.lockedUntil) {
+                    setError(formatLockMessage(failureState.lockedUntil))
+                } else if (error.message.includes('Invalid login credentials')) {
+                    setError('Email ou mot de passe incorrect. Si vous venez de vous inscrire, verifiez que vous avez confirme votre email.')
                 } else if (error.message.includes('Email not confirmed')) {
-                    setError('Veuillez confirmer votre email avant de vous connecter. Vérifiez votre boîte de réception.')
+                    setError('Veuillez confirmer votre email avant de vous connecter. Verifiez votre boite de reception.')
                 } else {
                     setError(error.message)
                 }
             } else {
+                const { data: { user } } = await supabase.auth.getUser()
+                if (authPolicy.requireEmailVerification && !user?.email_confirmed_at) {
+                    await supabase.auth.signOut()
+                    setError('La verification email est obligatoire avant connexion.')
+                    return
+                }
+
+                resetLoginGuard(attemptKey)
                 const nextPath = await resolvePostAuthPath(supabase)
                 router.push(nextPath)
                 router.refresh()
             }
         } catch {
-            setError('Une erreur est survenue. Veuillez réessayer.')
+            setError('Une erreur est survenue. Veuillez reessayer.')
         } finally {
             setLoading(false)
         }
     }
-
     const handleGoogleLogin = async () => {
         const supabase = createClient()
         setError(null)
         setLoading(true)
 
-        // Détecter si on est sur mobile (Capacitor)
+        const attemptKey = getAttemptKey(`google:${email || 'oauth'}`)
+        const lockedUntil = getLockState(attemptKey)
+        if (lockedUntil) {
+            setError(formatLockMessage(lockedUntil))
+            setLoading(false)
+            return
+        }
+
         const isCapacitor = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform()
 
         if (isCapacitor) {
             try {
-                // Importation dynamique du plugin pour éviter les erreurs SSR/Web
                 const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth')
 
-                // 1. INITIALISER le plugin (OBLIGATOIRE avant signIn)
                 await GoogleAuth.initialize({
                     clientId: '519109526767-1rfcfigbutf9217uuc69fosqjp6mis05.apps.googleusercontent.com',
                     scopes: ['profile', 'email'],
                     grantOfflineAccess: true
                 })
 
-                // 2. Se déconnecter d'abord pour forcer l'affichage du sélecteur de compte
-                // Sans ça, Google re-sélectionne automatiquement le dernier compte utilisé
                 try {
                     await GoogleAuth.signOut()
                 } catch {
-                    // Normal si aucune session Google active - on continue
+                    // No active Google session, continue
                 }
 
-                // 3. Authentification Google Native → affiche TOUS les comptes disponibles
                 const googleUser = await GoogleAuth.signIn()
 
-                if (googleUser?.authentication?.idToken) {
-                    // 2. Transmettre le token ID à Supabase
-                    const { error } = await supabase.auth.signInWithIdToken({
-                        provider: 'google',
-                        token: googleUser.authentication.idToken,
-                    })
-
-                    if (error) throw error
-
-                    // Redirection après succès
-                    const nextPath = await resolvePostAuthPath(supabase)
-                    router.push(nextPath)
-                    router.refresh()
-                } else {
+                if (!googleUser?.authentication?.idToken) {
                     setError('Impossible de recuperer le token Google.')
+                    return
                 }
+
+                const { error } = await supabase.auth.signInWithIdToken({
+                    provider: 'google',
+                    token: googleUser.authentication.idToken,
+                })
+
+                if (error) throw error
+
+                const { data: { user } } = await supabase.auth.getUser()
+                if (authPolicy.requireEmailVerification && !user?.email_confirmed_at) {
+                    await supabase.auth.signOut()
+                    setError('La verification email est obligatoire avant connexion.')
+                    return
+                }
+
+                resetLoginGuard(attemptKey)
+                const nextPath = await resolvePostAuthPath(supabase)
+                router.push(nextPath)
+                router.refresh()
             } catch (err: unknown) {
                 console.error('Google Auth Native Error:', err)
-                setError('Erreur lors de la connexion Google sur mobile. Assurez-vous d\'être connecté à internet.')
+                const failureState = registerLoginFailure(attemptKey, authPolicy.maxLoginAttempts)
+                if (failureState.lockedUntil) {
+                    setError(formatLockMessage(failureState.lockedUntil))
+                } else {
+                    setError('Erreur lors de la connexion Google sur mobile. Assurez-vous d etre connecte a internet.')
+                }
             } finally {
                 setLoading(false)
             }
         } else {
-            // Mode Web Classique
             const { error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
@@ -113,7 +243,14 @@ export default function LoginPage() {
             })
 
             if (error) {
-                setError(error.message)
+                const failureState = registerLoginFailure(attemptKey, authPolicy.maxLoginAttempts)
+                if (failureState.lockedUntil) {
+                    setError(formatLockMessage(failureState.lockedUntil))
+                } else {
+                    setError(error.message)
+                }
+            } else {
+                resetLoginGuard(attemptKey)
             }
 
             setLoading(false)
@@ -534,3 +671,5 @@ export default function LoginPage() {
         </div>
     )
 }
+
+

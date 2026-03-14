@@ -1,15 +1,10 @@
-import { createApiClient, getAuthUser, successResponse, createAdminClient } from '@/lib/api-utils'
 import { NextRequest } from 'next/server'
-
+import { successResponse, errorResponse } from '@/lib/api-utils'
+import { requireAdminAccess } from '@/lib/admin/auth'
 
 export async function GET(request: NextRequest) {
-    const supabaseSecClient = await createApiClient()
-    const { user: secUser, error: secAuthError } = await getAuthUser(supabaseSecClient)
-    if (secAuthError || secUser?.role !== 'admin') {
-        return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), { status: 403, headers: { 'Content-Type': 'application/json' } })
-    }
-
-    const supabase = createAdminClient()
+    const { response, adminSupabase } = await requireAdminAccess()
+    if (response || !adminSupabase) return response!
 
     const results: any = {
         tables: [],
@@ -19,126 +14,103 @@ export async function GET(request: NextRequest) {
             totalAgents: 0,
             totalConversations: 0,
             totalPayments: 0,
-            orphanedRecords: 0
+            orphanedRecords: 0,
         },
-        overallStatus: 'ok'
+        overallStatus: 'ok',
     }
 
     try {
-        // 1. Count users
-        const { count: userCount } = await supabase
-            .from('profiles')
-            .select('*', { count: 'exact', head: true })
-        results.stats.totalUsers = userCount || 0
-        results.tables.push({ name: 'profiles', count: userCount || 0, status: 'ok' })
+        const [usersResult, agentsResult, conversationsResult, paymentsResult, messagesResult] = await Promise.all([
+            adminSupabase.from('profiles').select('*', { count: 'exact', head: true }),
+            adminSupabase.from('agents').select('*', { count: 'exact', head: true }),
+            adminSupabase.from('conversations').select('*', { count: 'exact', head: true }),
+            adminSupabase.from('payments').select('*', { count: 'exact', head: true }),
+            adminSupabase.from('messages').select('*', { count: 'exact', head: true }),
+        ])
 
-        // 2. Count agents
-        const { count: agentCount } = await supabase
+        results.stats.totalUsers = usersResult.count || 0
+        results.stats.totalAgents = agentsResult.count || 0
+        results.stats.totalConversations = conversationsResult.count || 0
+        results.stats.totalPayments = paymentsResult.count || 0
+
+        results.tables.push(
+            { name: 'profiles', count: usersResult.count || 0, status: usersResult.error ? 'error' : 'ok' },
+            { name: 'agents', count: agentsResult.count || 0, status: agentsResult.error ? 'error' : 'ok' },
+            { name: 'conversations', count: conversationsResult.count || 0, status: conversationsResult.error ? 'error' : 'ok' },
+            { name: 'payments', count: paymentsResult.count || 0, status: paymentsResult.error ? 'error' : 'ok' },
+            { name: 'messages', count: messagesResult.count || 0, status: messagesResult.error ? 'error' : 'ok' },
+        )
+
+        const { data: orphanedAgents } = await adminSupabase
             .from('agents')
-            .select('*', { count: 'exact', head: true })
-        results.stats.totalAgents = agentCount || 0
-        results.tables.push({ name: 'agents', count: agentCount || 0, status: 'ok' })
-
-        // 3. Count conversations
-        const { count: convCount } = await supabase
-            .from('conversations')
-            .select('*', { count: 'exact', head: true })
-        results.stats.totalConversations = convCount || 0
-        results.tables.push({ name: 'conversations', count: convCount || 0, status: 'ok' })
-
-        // 4. Count payments
-        const { count: paymentCount } = await supabase
-            .from('payments')
-            .select('*', { count: 'exact', head: true })
-        results.stats.totalPayments = paymentCount || 0
-        results.tables.push({ name: 'payments', count: paymentCount || 0, status: 'ok' })
-
-        // 5. Count messages
-        const { count: messageCount } = await supabase
-            .from('messages')
-            .select('*', { count: 'exact', head: true })
-        results.tables.push({ name: 'messages', count: messageCount || 0, status: 'ok' })
-
-        // 6. Check for orphaned agents (without valid user_id)
-        const { data: orphanedAgents } = await supabase
-            .from('agents')
-            .select('id, user_id')
+            .select('id')
             .is('user_id', null)
 
-        if (orphanedAgents && orphanedAgents.length > 0) {
+        if (orphanedAgents?.length) {
             results.stats.orphanedRecords += orphanedAgents.length
             results.issues.push({
                 type: 'orphaned',
                 table: 'agents',
                 count: orphanedAgents.length,
-                message: `${orphanedAgents.length} agents sans user_id`
+                message: `${orphanedAgents.length} agents sans user_id`,
             })
         }
 
-        // 7. Check for failed payments stuck in pending
         const weekAgo = new Date()
         weekAgo.setDate(weekAgo.getDate() - 7)
 
-        const { data: stuckPayments } = await supabase
+        const { data: stuckPayments } = await adminSupabase
             .from('payments')
             .select('id')
             .eq('status', 'pending')
             .lt('created_at', weekAgo.toISOString())
 
-        if (stuckPayments && stuckPayments.length > 0) {
+        if (stuckPayments?.length) {
             results.issues.push({
                 type: 'stuck',
                 table: 'payments',
                 count: stuckPayments.length,
-                message: `${stuckPayments.length} paiements en attente depuis >7 jours`
+                message: `${stuckPayments.length} paiements en attente depuis > 7 jours`,
             })
         }
 
-        // 8. Check for users with negative credits
-        const { data: negativeCredits } = await supabase
+        const { data: negativeCredits } = await adminSupabase
             .from('profiles')
-            .select('id, credits_balance')
+            .select('id')
             .lt('credits_balance', 0)
 
-        if (negativeCredits && negativeCredits.length > 0) {
+        if (negativeCredits?.length) {
             results.issues.push({
                 type: 'anomaly',
                 table: 'profiles',
                 count: negativeCredits.length,
-                message: `${negativeCredits.length} utilisateurs avec crédits négatifs`
+                message: `${negativeCredits.length} utilisateurs avec credits negatifs`,
             })
         }
 
-        // 9. Check conversations without agent
-        const { data: convWithoutAgent } = await supabase
+        const { data: conversationsWithoutAgent } = await adminSupabase
             .from('conversations')
             .select('id')
             .is('agent_id', null)
 
-        if (convWithoutAgent && convWithoutAgent.length > 0) {
-            results.stats.orphanedRecords += convWithoutAgent.length
+        if (conversationsWithoutAgent?.length) {
+            results.stats.orphanedRecords += conversationsWithoutAgent.length
             results.issues.push({
                 type: 'orphaned',
                 table: 'conversations',
-                count: convWithoutAgent.length,
-                message: `${convWithoutAgent.length} conversations sans agent`
+                count: conversationsWithoutAgent.length,
+                message: `${conversationsWithoutAgent.length} conversations sans agent`,
             })
         }
 
-        // Set overall status
-        if (results.issues.length > 3) {
-            results.overallStatus = 'warning'
-        }
-        if (results.stats.orphanedRecords > 10) {
-            results.overallStatus = 'error'
-        }
-
+        if (results.stats.orphanedRecords > 10) results.overallStatus = 'error'
+        else if (results.issues.length > 0) results.overallStatus = 'warning'
     } catch (err: any) {
         console.error('Data integrity check error:', err)
         results.overallStatus = 'error'
         results.issues.push({
             type: 'error',
-            message: err.message || 'Erreur lors de la vérification'
+            message: err.message || 'Erreur lors de la verification',
         })
     }
 

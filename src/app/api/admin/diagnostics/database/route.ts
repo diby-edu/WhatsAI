@@ -1,48 +1,24 @@
-import { createApiClient, getAuthUser } from '@/lib/api-utils'
-import { createClient } from '@supabase/supabase-js'
-import { NextResponse } from 'next/server'
+import { errorResponse, successResponse } from '@/lib/api-utils'
+import { requireAdminAccess } from '@/lib/admin/auth'
 
 export async function GET() {
-    const supabaseSecClient = await createApiClient()
-    const { user: secUser, error: secAuthError } = await getAuthUser(supabaseSecClient)
-    if (secAuthError || secUser?.role !== 'admin') {
-        return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), { status: 403, headers: { 'Content-Type': 'application/json' } })
-    }
+    const { response, adminSupabase } = await requireAdminAccess()
+    if (response || !adminSupabase) return response!
 
     try {
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-        const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-        if (!supabaseUrl || !supabaseKey) {
-            return NextResponse.json({
-                success: false,
-                error: 'Variables Supabase non configurées'
-            })
-        }
-
-        const supabase = createClient(supabaseUrl, supabaseKey)
-
         const start = Date.now()
-        const { data, error } = await supabase.from('profiles').select('id').limit(1)
+        const { error } = await adminSupabase.from('profiles').select('id').limit(1)
         const latency = Date.now() - start
 
         if (error) {
-            return NextResponse.json({
-                success: false,
-                error: error.message,
-                latency
-            })
+            return errorResponse(error.message, 500)
         }
 
-        return NextResponse.json({
-            success: true,
+        return successResponse({
             latency,
-            message: 'Connexion établie'
+            message: 'Connexion etablie',
         })
     } catch (err: any) {
-        return NextResponse.json({
-            success: false,
-            error: err.message || 'Connexion échouée'
-        })
+        return errorResponse(err.message || 'Connexion echouee', 500)
     }
 }

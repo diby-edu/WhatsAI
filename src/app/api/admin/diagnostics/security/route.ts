@@ -1,122 +1,88 @@
-import { createApiClient, getAuthUser, successResponse } from '@/lib/api-utils'
 import { NextRequest } from 'next/server'
-
 import https from 'https'
-import http from 'http'
+import { errorResponse, successResponse } from '@/lib/api-utils'
+import { requireAdminAccess } from '@/lib/admin/auth'
 
-export async function GET(request: NextRequest) {
-    const supabaseSecClient = await createApiClient()
-    const { user: secUser, error: secAuthError } = await getAuthUser(supabaseSecClient)
-    if (secAuthError || secUser?.role !== 'admin') {
-        return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), { status: 403, headers: { 'Content-Type': 'application/json' } })
-    }
-
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://wazzapai.com'
-
-    const results: any = {
-        ssl: { status: 'unknown', message: '' },
-        webhook: { status: 'unknown', message: '' },
-        apiLatency: { status: 'unknown', value: 0 }
-    }
-
-    // 1. SSL Certificate Check
-    try {
-        const url = new URL(appUrl)
-        if (url.protocol === 'https:') {
-            const sslResult = await checkSSL(url.hostname)
-            results.ssl = sslResult
-        } else {
-            results.ssl = { status: 'warning', message: 'Site non HTTPS' }
-        }
-    } catch (err: any) {
-        results.ssl = { status: 'error', message: err.message }
-    }
-
-    // 2. Webhook Reachability (CinetPay webhook endpoint)
-    try {
-        const webhookUrl = `${appUrl}/api/payments/cinetpay/webhook`
-        const start = Date.now()
-        const res = await fetch(webhookUrl, {
-            method: 'HEAD',
-            signal: AbortSignal.timeout(5000)
-        })
-        const latency = Date.now() - start
-
-        // Webhook endpoint should accept POST but respond to HEAD with some status
-        results.webhook = {
-            status: res.status < 500 ? 'ok' : 'error',
-            message: res.status < 500 ? 'Endpoint accessible' : 'Endpoint inaccessible',
-            latency: `${latency}ms`,
-            httpStatus: res.status
-        }
-    } catch (err: any) {
-        results.webhook = {
-            status: 'error',
-            message: err.name === 'TimeoutError' ? 'Timeout (>5s)' : err.message
-        }
-    }
-
-    // 3. API Latency Test
-    try {
-        const start = Date.now()
-        await fetch(`${appUrl}/api/health`, {
-            signal: AbortSignal.timeout(5000)
-        })
-        const latency = Date.now() - start
-
-        results.apiLatency = {
-            status: latency < 200 ? 'ok' : latency < 500 ? 'warning' : 'error',
-            value: latency,
-            message: `${latency}ms`
-        }
-    } catch (err: any) {
-        results.apiLatency = { status: 'error', value: 0, message: 'Timeout ou erreur' }
-    }
-
-    return successResponse(results)
-}
-
-async function checkSSL(hostname: string): Promise<{ status: string, message: string, daysRemaining?: number }> {
+async function checkSSL(hostname: string): Promise<{ status: string; message: string; daysRemaining?: number }> {
     return new Promise((resolve) => {
-        const options = {
+        const req = https.request({
             hostname,
             port: 443,
             method: 'HEAD',
             rejectUnauthorized: true,
-            timeout: 5000
-        }
-
-        const req = https.request(options, (res) => {
+            timeout: 5000,
+        }, (res) => {
             const socket = res.socket as any
-            if (socket.getPeerCertificate) {
-                const cert = socket.getPeerCertificate()
-                if (cert && cert.valid_to) {
-                    const validTo = new Date(cert.valid_to)
-                    const now = new Date()
-                    const daysRemaining = Math.floor((validTo.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-
-                    if (daysRemaining < 0) {
-                        resolve({ status: 'error', message: 'Certificat expiré', daysRemaining })
-                    } else if (daysRemaining < 14) {
-                        resolve({ status: 'warning', message: `Expire dans ${daysRemaining}j`, daysRemaining })
-                    } else {
-                        resolve({ status: 'ok', message: `Valide (${daysRemaining}j)`, daysRemaining })
-                    }
-                    return
-                }
+            const cert = socket.getPeerCertificate ? socket.getPeerCertificate() : null
+            if (!cert?.valid_to) {
+                resolve({ status: 'ok', message: 'Certificat valide' })
+                return
             }
-            resolve({ status: 'ok', message: 'Certificat valide' })
+
+            const validTo = new Date(cert.valid_to)
+            const now = new Date()
+            const daysRemaining = Math.floor((validTo.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+
+            if (daysRemaining < 0) resolve({ status: 'error', message: 'Certificat expire', daysRemaining })
+            else if (daysRemaining < 14) resolve({ status: 'warning', message: `Expire dans ${daysRemaining}j`, daysRemaining })
+            else resolve({ status: 'ok', message: `Valide (${daysRemaining}j)`, daysRemaining })
         })
 
-        req.on('error', (err) => {
-            resolve({ status: 'error', message: err.message })
-        })
-
+        req.on('error', (err) => resolve({ status: 'error', message: err.message }))
         req.on('timeout', () => {
             req.destroy()
             resolve({ status: 'error', message: 'Timeout' })
         })
-
         req.end()
     })
+}
+
+export async function GET(request: NextRequest) {
+    const { response } = await requireAdminAccess()
+    if (response) return response
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://wazzapai.com'
+
+    try {
+        const url = new URL(appUrl)
+        const ssl = url.protocol === 'https:'
+            ? await checkSSL(url.hostname)
+            : { status: 'warning', message: 'Site non HTTPS' }
+
+        let apiLatency = { status: 'error', value: 0, message: 'Timeout ou erreur' }
+        try {
+            const start = Date.now()
+            const res = await fetch(`${appUrl}/api/health`, { signal: AbortSignal.timeout(5000) })
+            const latency = Date.now() - start
+            apiLatency = {
+                status: res.ok ? (latency < 200 ? 'ok' : latency < 500 ? 'warning' : 'error') : 'error',
+                value: latency,
+                message: `${latency}ms`,
+            }
+        } catch {
+            // keep default error result
+        }
+
+        let webhook = { status: 'error', message: 'Timeout ou erreur' }
+        try {
+            const start = Date.now()
+            const res = await fetch(`${appUrl}/api/payments/cinetpay/webhook`, {
+                method: 'HEAD',
+                signal: AbortSignal.timeout(5000),
+            })
+            const latency = Date.now() - start
+            webhook = {
+                status: res.status < 500 ? 'ok' : 'error',
+                message: res.status < 500 ? 'Endpoint accessible' : 'Endpoint inaccessible',
+                httpStatus: res.status,
+                latency: `${latency}ms`,
+            } as any
+        } catch {
+            // keep default error result
+        }
+
+        return successResponse({ ssl, apiLatency, webhook })
+    } catch (err: any) {
+        return errorResponse(err.message || 'Erreur serveur', 500)
+    }
 }

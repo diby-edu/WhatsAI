@@ -1,93 +1,71 @@
-import { createApiClient, getAuthUser, successResponse } from '@/lib/api-utils'
 import { NextRequest } from 'next/server'
+import { errorResponse, successResponse } from '@/lib/api-utils'
+import { requireAdminAccess } from '@/lib/admin/auth'
 
+async function loadSmtpConfig(adminSupabase: any) {
+    const { data, error } = await adminSupabase
+        .from('app_settings')
+        .select('key, value')
+        .in('key', ['smtpHost', 'smtpPort', 'smtpUser', 'smtpPassword', 'smtpSecure'])
 
-export async function GET(request: NextRequest) {
-    const supabaseSecClient = await createApiClient()
-    const { user: secUser, error: secAuthError } = await getAuthUser(supabaseSecClient)
-    if (secAuthError || secUser?.role !== 'admin') {
-        return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), { status: 403, headers: { 'Content-Type': 'application/json' } })
-    }
+    if (error) throw error
 
-    const results: any = {
-        configured: false,
-        testResult: null,
-        config: {
-            host: null,
-            port: null,
-            user: null
-        },
-        status: 'unknown'
-    }
+    const settings = Object.fromEntries((data || []).map((row: any) => [row.key, row.value]))
+    const host = settings.smtpHost || process.env.SMTP_HOST || null
+    const port = settings.smtpPort || process.env.SMTP_PORT || null
+    const user = settings.smtpUser || process.env.SMTP_USER || null
+    const pass = settings.smtpPassword || process.env.SMTP_PASSWORD || process.env.SMTP_PASS || null
+    const secure = settings.smtpSecure !== undefined ? settings.smtpSecure : (Number(port || 465) === 465)
 
-    // Check SMTP configuration
-    const smtpHost = process.env.SMTP_HOST
-    const smtpPort = process.env.SMTP_PORT
-    const smtpUser = process.env.SMTP_USER
-    const smtpPass = process.env.SMTP_PASSWORD || process.env.SMTP_PASS
-
-    if (smtpHost && smtpUser) {
-        results.configured = true
-        results.config = {
-            host: smtpHost,
-            port: smtpPort || '587',
-            user: smtpUser.substring(0, 5) + '***' // Mask for security
-        }
-        results.status = 'configured'
-        results.message = 'SMTP configuré'
-    } else {
-        // Check if using Supabase built-in email
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-        if (supabaseUrl) {
-            results.configured = true
-            results.status = 'supabase'
-            results.message = 'Utilise Supabase Auth Email'
-            results.config = {
-                provider: 'Supabase',
-                url: supabaseUrl.substring(0, 30) + '...'
-            }
-        } else {
-            results.status = 'not_configured'
-            results.message = 'SMTP non configuré'
-        }
-    }
-
-    return successResponse(results)
+    return { host, port, user, pass, secure }
 }
 
-// Optional: POST to actually send a test email
+export async function GET(request: NextRequest) {
+    const { response, adminSupabase } = await requireAdminAccess()
+    if (response || !adminSupabase) return response!
+
+    try {
+        const smtp = await loadSmtpConfig(adminSupabase)
+        const configured = !!(smtp.host && smtp.user && smtp.pass)
+
+        return successResponse({
+            configured,
+            status: configured ? 'configured' : 'not_configured',
+            message: configured ? 'SMTP configure' : 'SMTP incomplet',
+            config: {
+                host: smtp.host,
+                port: smtp.port,
+                secure: smtp.secure,
+                user: smtp.user ? `${String(smtp.user).slice(0, 5)}***` : null,
+                source: configured ? 'app_settings/env' : 'missing',
+            },
+        })
+    } catch (err: any) {
+        console.error('SMTP diagnostics error:', err)
+        return errorResponse(err.message || 'Erreur serveur', 500)
+    }
+}
+
 export async function POST(request: NextRequest) {
+    const { response, adminSupabase } = await requireAdminAccess()
+    if (response || !adminSupabase) return response!
+
     try {
         const { testEmail } = await request.json()
-
         if (!testEmail) {
-            return successResponse({
-                success: false,
-                message: 'Email de test requis'
-            })
+            return errorResponse('Email de test requis', 400)
         }
 
-        // For now, just verify config exists
-        // Real email test would require nodemailer or similar
-        const smtpHost = process.env.SMTP_HOST
+        const smtp = await loadSmtpConfig(adminSupabase)
+        const configured = !!(smtp.host && smtp.user && smtp.pass)
 
-        if (!smtpHost) {
-            return successResponse({
-                success: false,
-                message: 'SMTP non configuré - test impossible'
-            })
-        }
-
-        // Placeholder for actual email test
         return successResponse({
-            success: true,
-            message: 'Configuration SMTP détectée. Envoi d\'email de test à implémenter.'
+            success: configured,
+            message: configured
+                ? `Configuration SMTP disponible pour un test vers ${testEmail}`
+                : 'SMTP non configure',
         })
-
     } catch (err: any) {
-        return successResponse({
-            success: false,
-            message: err.message || 'Erreur test email'
-        })
+        return errorResponse(err.message || 'Erreur test email', 500)
     }
 }

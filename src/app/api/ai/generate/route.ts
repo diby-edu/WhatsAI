@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
-import { createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
+import { createAdminClient, createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
 import { getOpenAIClient } from '@/lib/ai/openai'
+import { getAIRuntimeSettings } from '@/lib/admin/settings'
 
 export async function POST(request: NextRequest) {
     const supabase = await createApiClient()
@@ -34,6 +35,8 @@ export async function POST(request: NextRequest) {
         if (newBalance === -2) {
             return errorResponse('Profile not found', 404)
         }
+
+        const aiDefaults = await getAIRuntimeSettings(createAdminClient())
 
         let systemPrompt = ''
         let userPrompt = ''
@@ -86,13 +89,13 @@ Langue : Francais.`
         }
 
         const completion = await getOpenAIClient().chat.completions.create({
-            model: 'gpt-4o-mini',
+            model: aiDefaults.openaiModel,
             messages: [
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: userPrompt },
             ],
-            temperature: 0.7,
-            max_tokens: 500,
+            temperature: aiDefaults.temperatureDefault,
+            max_tokens: aiDefaults.maxTokensPerMessage,
         })
 
         const generatedText = completion.choices[0]?.message?.content
