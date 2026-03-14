@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MessageCircle, ArrowRight, Loader2, Check, ChevronDown, Phone } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { PHONE_COUNTRY_CODES, buildInternationalPhone } from '@/lib/profile-phone'
 
 const currencies = [
     { code: 'XOF', label: 'Franc CFA', symbol: 'FCFA', flag: '🌍', description: 'Afrique de l\'Ouest', example: '7 000 FCFA / mois' },
@@ -17,34 +18,7 @@ const languages = [
     { code: 'en', label: 'English', flag: '🇬🇧' },
 ]
 
-const countryCodes = [
-    { dial: '+225', flag: '🇨🇮', name: 'Côte d\'Ivoire' },
-    { dial: '+221', flag: '🇸🇳', name: 'Sénégal' },
-    { dial: '+223', flag: '🇲🇱', name: 'Mali' },
-    { dial: '+226', flag: '🇧🇫', name: 'Burkina Faso' },
-    { dial: '+227', flag: '🇳🇪', name: 'Niger' },
-    { dial: '+224', flag: '🇬🇳', name: 'Guinée' },
-    { dial: '+228', flag: '🇹🇬', name: 'Togo' },
-    { dial: '+229', flag: '🇧🇯', name: 'Bénin' },
-    { dial: '+237', flag: '🇨🇲', name: 'Cameroun' },
-    { dial: '+242', flag: '🇨🇬', name: 'Congo' },
-    { dial: '+243', flag: '🇨🇩', name: 'RD Congo' },
-    { dial: '+241', flag: '🇬🇦', name: 'Gabon' },
-    { dial: '+240', flag: '🇬🇶', name: 'Guinée éq.' },
-    { dial: '+236', flag: '🇨🇫', name: 'Centrafrique' },
-    { dial: '+235', flag: '🇹🇩', name: 'Tchad' },
-    { dial: '+212', flag: '🇲🇦', name: 'Maroc' },
-    { dial: '+213', flag: '🇩🇿', name: 'Algérie' },
-    { dial: '+216', flag: '🇹🇳', name: 'Tunisie' },
-    { dial: '+234', flag: '🇳🇬', name: 'Nigeria' },
-    { dial: '+233', flag: '🇬🇭', name: 'Ghana' },
-    { dial: '+33',  flag: '🇫🇷', name: 'France' },
-    { dial: '+32',  flag: '🇧🇪', name: 'Belgique' },
-    { dial: '+41',  flag: '🇨🇭', name: 'Suisse' },
-    { dial: '+352', flag: '🇱🇺', name: 'Luxembourg' },
-    { dial: '+1',   flag: '🇺🇸', name: 'États-Unis / Canada' },
-    { dial: '+44',  flag: '🇬🇧', name: 'Royaume-Uni' },
-]
+
 
 export default function OnboardingPage() {
     const router = useRouter()
@@ -52,7 +26,7 @@ export default function OnboardingPage() {
 
     const [currency, setCurrency] = useState<string | null>(null)
     const [language, setLanguage] = useState<string>('fr')
-    const [selectedCountry, setSelectedCountry] = useState(countryCodes[0])
+    const [selectedCountry, setSelectedCountry] = useState(PHONE_COUNTRY_CODES[0])
     const [phoneNumber, setPhoneNumber] = useState('')
     const [showDropdown, setShowDropdown] = useState(false)
     const [loading, setLoading] = useState(false)
@@ -70,7 +44,12 @@ export default function OnboardingPage() {
     }, [])
 
     const handleConfirm = async () => {
+        const fullPhone = buildInternationalPhone(selectedCountry.dial, phoneNumber)
         if (!currency) return
+        if (!fullPhone) {
+            setError('Le numero de telephone est obligatoire et doit etre valide.')
+            return
+        }
         setLoading(true)
         setError(null)
 
@@ -83,16 +62,12 @@ export default function OnboardingPage() {
                 return
             }
 
-            // Build full phone number in international format
-            const digits = phoneNumber.trim().replace(/^0/, '').replace(/\s/g, '')
-            const fullPhone = digits ? `${selectedCountry.dial}${digits}` : null
-
             const updateData: Record<string, unknown> = {
                 currency,
                 language,
                 onboarding_completed: true,
+                phone: fullPhone,
             }
-            if (fullPhone) updateData.phone = fullPhone
 
             const { error: profileError } = await supabase
                 .from('profiles')
@@ -262,7 +237,7 @@ export default function OnboardingPage() {
                     </div>
 
                     {/* ── Section 3 : WhatsApp business ── */}
-                    {sectionLabel(3, 'Numéro WhatsApp de votre entreprise', true)}
+                    {sectionLabel(3, 'Numero WhatsApp de votre entreprise')}
                     <p style={{ fontSize: 12, color: '#475569', marginBottom: 10, marginTop: -6 }}>
                         Nous pourrons vous contacter directement sur WhatsApp pour le support.
                     </p>
@@ -301,7 +276,7 @@ export default function OnboardingPage() {
                                             boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
                                         }}
                                     >
-                                        {countryCodes.map((country) => (
+                                        {PHONE_COUNTRY_CODES.map((country) => (
                                             <button
                                                 key={country.dial + country.name}
                                                 onClick={() => { setSelectedCountry(country); setShowDropdown(false) }}
@@ -341,7 +316,7 @@ export default function OnboardingPage() {
                                 type="tel"
                                 placeholder="07 12 34 56 78"
                                 value={phoneNumber}
-                                onChange={e => setPhoneNumber(e.target.value)}
+                                onChange={e => { setPhoneNumber(e.target.value); if (error) setError(null) }}
                                 style={{
                                     width: '100%', padding: '12px 14px 12px 34px',
                                     borderRadius: 10, boxSizing: 'border-box',
@@ -369,15 +344,15 @@ export default function OnboardingPage() {
                         whileHover={{ scale: currency ? 1.02 : 1 }}
                         whileTap={{ scale: currency ? 0.98 : 1 }}
                         onClick={handleConfirm}
-                        disabled={!currency || loading}
+                        disabled={!currency || !buildInternationalPhone(selectedCountry.dial, phoneNumber) || loading}
                         style={{
                             width: '100%', padding: '14px 24px', borderRadius: 12, border: 'none',
-                            background: currency
+                            background: currency && buildInternationalPhone(selectedCountry.dial, phoneNumber)
                                 ? 'linear-gradient(135deg, #25D366, #128C7E)'
                                 : 'rgba(30,41,59,0.6)',
-                            color: currency ? 'white' : '#475569',
+                            color: currency && buildInternationalPhone(selectedCountry.dial, phoneNumber) ? 'white' : '#475569',
                             fontWeight: 600, fontSize: 15,
-                            cursor: currency && !loading ? 'pointer' : 'not-allowed',
+                            cursor: currency && buildInternationalPhone(selectedCountry.dial, phoneNumber) && !loading ? 'pointer' : 'not-allowed',
                             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                             transition: 'all 0.2s',
                         }}
@@ -405,3 +380,4 @@ export default function OnboardingPage() {
         </div>
     )
 }
+
