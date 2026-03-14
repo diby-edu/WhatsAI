@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
+import { createAdminClient, createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
 import { notifyAdmins } from '@/lib/notifications/admin-notify'
+import { getAIRuntimeSettings } from '@/lib/admin/settings'
 
 // GET /api/agents - List all agents for current user
 export const dynamic = 'force-dynamic'
@@ -43,6 +44,8 @@ export async function POST(request: NextRequest) {
 
     try {
         const body = await request.json()
+        const adminSupabase = createAdminClient()
+        const aiDefaults = await getAIRuntimeSettings(adminSupabase)
 
         // Validate required fields
         if (!body.name || !body.system_prompt) {
@@ -91,9 +94,9 @@ export async function POST(request: NextRequest) {
                 description: body.description || null,
                 system_prompt: body.system_prompt,
                 personality: body.personality || 'friendly',
-                model: body.model || 'gpt-4o-mini',
-                temperature: body.temperature || 0.7,
-                max_tokens: body.max_tokens || 500,
+                model: body.model || aiDefaults.openaiModel,
+                temperature: body.temperature ?? aiDefaults.temperatureDefault,
+                max_tokens: body.max_tokens ?? aiDefaults.maxTokensPerMessage,
                 use_emojis: body.use_emojis ?? true,
                 response_delay_seconds: body.response_delay_seconds || 2,
                 language: body.language || 'fr',

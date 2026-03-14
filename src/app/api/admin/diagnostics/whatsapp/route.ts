@@ -1,28 +1,16 @@
-import { createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
-export async function GET() {
-    const supabaseSecClient = await createApiClient()
-    const { user: secUser, error: secAuthError } = await getAuthUser(supabaseSecClient)
-    if (secAuthError || secUser?.role !== 'admin') {
-        return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), { status: 403, headers: { 'Content-Type': 'application/json' } })
-    }
+import { errorResponse, successResponse } from '@/lib/api-utils'
+import { requireAdminAccess } from '@/lib/admin/auth'
+import { getAgentOperationalMetrics } from '@/lib/admin/monitoring'
 
-    const supabase = await createApiClient()
+export async function GET() {
+    const { response, adminSupabase } = await requireAdminAccess()
+    if (response || !adminSupabase) return response!
 
     try {
-        const { count: total } = await supabase
-            .from('agents')
-            .select('*', { count: 'exact', head: true })
-
-        const { count: connected } = await supabase
-            .from('agents')
-            .select('*', { count: 'exact', head: true })
-            .eq('whatsapp_connected', true)
-
-        return successResponse({
-            total: total || 0,
-            connected: connected || 0
-        })
-    } catch (err) {
-        return successResponse({ total: 0, connected: 0 })
+        const metrics = await getAgentOperationalMetrics(adminSupabase)
+        return successResponse(metrics)
+    } catch (err: any) {
+        console.error('WhatsApp diagnostics error:', err)
+        return errorResponse(err.message || 'Erreur serveur', 500)
     }
 }

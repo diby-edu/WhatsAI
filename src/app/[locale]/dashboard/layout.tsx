@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -9,7 +9,6 @@ import {
     LayoutDashboard,
     Bot,
     MessagesSquare,
-    BarChart3,
     CreditCard,
     Settings,
     HelpCircle,
@@ -25,26 +24,23 @@ import {
     Check,
     AlertCircle,
     ShoppingCart,
-    Users,
     Coins,
     TrendingUp
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { initWebPush } from '@/lib/notifications/web-push'
+import {
+    type DashboardNotification,
+    fetchDashboardNotifications,
+    markAllDashboardNotificationsAsRead,
+    markDashboardNotificationAsRead,
+} from '@/lib/notifications/user-notifications'
 import { useTranslations } from 'next-intl'
 import { GlobalSearch } from '@/components/dashboard/GlobalSearch'
 import { useAndroidBackButton } from '@/hooks/useAndroidBackButton'
 import { BiometricLock } from '@/components/BiometricLock'
 import { CurrencyProvider } from '@/contexts/CurrencyContext'
-
-interface Notification {
-    id: string
-    type: 'info' | 'success' | 'warning' | 'order' | 'credits' | 'push'
-    title: string
-    message: string
-    time: string
-    read: boolean
-}
+import { useSessionTimeout } from '@/hooks/useSessionTimeout'
 
 export default function DashboardLayout({
     children,
@@ -62,13 +58,15 @@ export default function DashboardLayout({
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
     const [isMobile, setIsMobile] = useState(false)
     const [showNotifications, setShowNotifications] = useState(false)
-    const [notifications, setNotifications] = useState<Notification[]>([])
+    const [notifications, setNotifications] = useState<DashboardNotification[]>([])
     const [unreadCount, setUnreadCount] = useState(0)
     const [userAvatar, setUserAvatar] = useState<string | null>(null)
     const [userName, setUserName] = useState<string>('')
+    const [sessionTimeoutHours, setSessionTimeoutHours] = useState<number | null>(null)
     const notifRef = useRef<HTMLDivElement>(null)
     const mobileNotifBtnRef = useRef<HTMLDivElement>(null)
     const mobileNotifDropdownRef = useRef<HTMLDivElement>(null)
+    const logoutInProgressRef = useRef(false)
 
     // Defined inside component to use hooks
     const sidebarLinks = [
@@ -92,131 +90,38 @@ export default function DashboardLayout({
         return () => window.removeEventListener('resize', checkMobile)
     }, [])
 
-    // Format time — shows actual time for the bell (compact)
-    const formatTimeAgo = (date: Date) => {
-        const now = new Date()
-        const diff = now.getTime() - date.getTime()
-        const hours = Math.floor(diff / 3600000)
+    useEffect(() => {
+        const loadRuntimeConfig = async () => {
+            try {
+                const res = await fetch('/api/public/runtime-config')
+                const json = await res.json()
+                if (json.success && json.data && Number(json.data.sessionTimeout) > 0) {
+                    setSessionTimeoutHours(Number(json.data.sessionTimeout))
+                }
+            } catch (err) {
+                console.error('Failed to load session timeout:', err)
+            }
+        }
 
-        const timeStr = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
-        if (hours < 24) return timeStr  // Same day: "14:35"
-        const dateStr = date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })
-        return `${dateStr} ${timeStr}`  // Older: "03/03 14:35"
-    }
-
+        loadRuntimeConfig()
+    }, [])
     // Fetch user notifications
     useEffect(() => {
         const fetchNotifications = async () => {
             try {
-                const supabase = createClient()
-                const { data: { user } } = await supabase.auth.getUser()
-                if (!user) return
+                const result = await fetchDashboardNotifications(10)
+                setNotifications(result.notifications)
+                setUnreadCount(result.notifications.filter((notification) => !notification.read).length)
 
-                const now = new Date()
-                const notifs: Notification[] = []
-
-                // Get user's agents
-                const { data: userAgents } = await supabase
-                    .from('agents')
-                    .select('id')
-                    .eq('user_id', user.id)
-
-                const agentIds = userAgents?.map(a => a.id) || []
-
-                // Get recent orders (last 24h)
-                if (agentIds.length > 0) {
-                    const { data: recentOrders } = await supabase
-                        .from('orders')
-                        .select('id, order_number, total_amount, created_at')
-                        .in('agent_id', agentIds)
-                        .gte('created_at', new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString())
-                        .order('created_at', { ascending: false })
-                        .limit(5)
-
-                    recentOrders?.forEach(order => {
-                        notifs.push({
-                            id: `order-${order.id}`,
-                            type: 'order',
-                            title: 'Nouvelle commande',
-                            message: `#${order.order_number} - ${order.total_amount?.toLocaleString()} FCFA`,
-                            time: formatTimeAgo(new Date(order.created_at)),
-                            read: false
-                        })
-                    })
-
-                    // Get recent conversations (last 12h)
-                    const { data: recentConvos } = await supabase
-                        .from('conversations')
-                        .select('id, contact_name, created_at')
-                        .in('agent_id', agentIds)
-                        .gte('created_at', new Date(now.getTime() - 12 * 60 * 60 * 1000).toISOString())
-                        .order('created_at', { ascending: false })
-                        .limit(3)
-
-                    recentConvos?.forEach(convo => {
-                        notifs.push({
-                            id: `convo-${convo.id}`,
-                            type: 'info',
-                            title: 'Nouvelle conversation',
-                            message: convo.contact_name || 'Contact WhatsApp',
-                            time: formatTimeAgo(new Date(convo.created_at)),
-                            read: false
-                        })
-                    })
-                }
-
-                // Check credits
-                const { data: profile } = await supabase
-                    .from('profiles')
-                    .select('credits_balance, avatar_url, full_name')
-                    .eq('id', user.id)
-                    .single()
-
-                if (profile?.avatar_url) setUserAvatar(profile.avatar_url)
-                if (profile?.full_name) setUserName(profile.full_name)
-
-                if (profile && profile.credits_balance < 50) {
-                    notifs.push({
-                        id: 'low-credits',
-                        type: 'credits',
-                        title: 'Crédits faibles',
-                        message: `Il vous reste ${profile.credits_balance} crédits`,
-                        time: 'Maintenant',
-                        read: false
-                    })
-                }
-
-                // Broadcasts push reçus (visibles dans la cloche, 30 derniers jours)
-                const { data: broadcastNotifs } = await supabase
-                    .from('notification_log')
-                    .select('id, data, created_at')
-                    .eq('user_id', user.id)
-                    .eq('type', 'broadcast_push')
-                    .gte('created_at', new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString())
-                    .order('created_at', { ascending: false })
-                    .limit(5)
-
-                broadcastNotifs?.forEach(notif => {
-                    notifs.push({
-                        id: `broadcast-${notif.id}`,
-                        type: 'push',
-                        title: notif.data?.title || 'Annonce',
-                        message: notif.data?.body || '',
-                        time: formatTimeAgo(new Date(notif.created_at)),
-                        read: false
-                    })
-                })
-
-                setNotifications(notifs.slice(0, 10))
-                setUnreadCount(notifs.filter(n => !n.read).length)
-
+                if (result.profile.avatarUrl) setUserAvatar(result.profile.avatarUrl)
+                if (result.profile.fullName) setUserName(result.profile.fullName)
             } catch (err) {
                 console.error('Error fetching notifications:', err)
             }
         }
 
         fetchNotifications()
-        const interval = setInterval(fetchNotifications, 60000) // Refresh every minute
+        const interval = setInterval(fetchNotifications, 60000)
         return () => clearInterval(interval)
     }, [])
 
@@ -233,7 +138,7 @@ export default function DashboardLayout({
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ token: typeof window !== 'undefined' ? localStorage.getItem('fcm_token') : null })
                 })
-            } catch (err) {
+            } catch {
                 // Silent fail — non-critical
             }
         }
@@ -288,9 +193,21 @@ export default function DashboardLayout({
         return () => document.removeEventListener('mousedown', handleClickOutside)
     }, [isMobile])
 
-    const markAllAsRead = () => {
-        setNotifications(prev => prev.map(n => ({ ...n, read: true })))
+    const markAllAsRead = async () => {
+        setNotifications((prev) => prev.map((notification) => ({ ...notification, read: true })))
         setUnreadCount(0)
+        await markAllDashboardNotificationsAsRead(notifications)
+    }
+
+    const handleNotificationClick = async (notification: DashboardNotification) => {
+        setShowNotifications(false)
+        setNotifications((prev) =>
+            prev.map((item) => item.id === notification.id ? { ...item, read: true } : item)
+        )
+        setUnreadCount((prev) => Math.max(0, prev - (notification.read ? 0 : 1)))
+
+        await markDashboardNotificationAsRead(notification)
+        router.push(notification.href)
     }
 
     const getNotifIcon = (type: string) => {
@@ -313,45 +230,53 @@ export default function DashboardLayout({
         }
     }
 
-    const handleLogout = async () => {
-        const supabase = createClient()
+    const handleLogout = useCallback(async () => {
+        if (logoutInProgressRef.current) return
+        logoutInProgressRef.current = true
 
-        // Unregister FCM device token so push notifications stop when logged out
-        const fcmToken = typeof window !== 'undefined' ? localStorage.getItem('fcm_token') : null
-        if (fcmToken) {
-            try {
-                await fetch('/api/notifications/unregister-device', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ token: fcmToken })
-                })
-            } catch (_) { /* non-critical */ }
-        }
+        try {
+            const supabase = createClient()
 
-        // Déconnecter Google Auth sur mobile (Capacitor)
-        const isCapacitor = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform()
-        if (isCapacitor) {
-            try {
-                const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth')
-                // IMPORTANT: Initialize before signOut to ensure plugin is ready
-                await GoogleAuth.initialize({
-                    clientId: '519109526767-1rfcfigbutf9217uuc69fosqjp6mis05.apps.googleusercontent.com',
-                    scopes: ['profile', 'email'],
-                    grantOfflineAccess: true
-                })
-                await GoogleAuth.signOut()
-            } catch (e) {
-                // Ignorer si pas de session Google
+            const fcmToken = typeof window !== 'undefined' ? localStorage.getItem('fcm_token') : null
+            if (fcmToken) {
+                try {
+                    await fetch('/api/notifications/unregister-device', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ token: fcmToken })
+                    })
+                } catch {
+                    // non-critical
+                }
             }
+
+            const capacitorWindow = window as Window & { Capacitor?: { isNativePlatform?: () => boolean } }
+            const isCapacitor = typeof window !== 'undefined' && capacitorWindow.Capacitor?.isNativePlatform?.()
+            if (isCapacitor) {
+                try {
+                    const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth')
+                    await GoogleAuth.initialize({
+                        clientId: '519109526767-1rfcfigbutf9217uuc69fosqjp6mis05.apps.googleusercontent.com',
+                        scopes: ['profile', 'email'],
+                        grantOfflineAccess: true
+                    })
+                    await GoogleAuth.signOut()
+                } catch {
+                    // Ignore if there is no Google session
+                }
+            }
+
+            localStorage.removeItem('wazzapai_biometric_session')
+
+            await supabase.auth.signOut()
+            router.push('/login')
+            router.refresh()
+        } finally {
+            logoutInProgressRef.current = false
         }
+    }, [router])
 
-        // Clear biometric session
-        localStorage.removeItem('wazzapai_biometric_session')
-
-        await supabase.auth.signOut()
-        router.push('/login')
-        router.refresh()
-    }
+    useSessionTimeout(sessionTimeoutHours, handleLogout)
 
     const sidebarWidth = collapsed ? 80 : 260
 
@@ -495,14 +420,19 @@ export default function DashboardLayout({
                                 </div>
                             ) : (
                                 notifications.map((notif) => (
-                                    <div
+                                    <button
                                         key={notif.id}
+                                        onClick={() => handleNotificationClick(notif)}
                                         style={{
                                             padding: '12px 16px',
                                             borderBottom: '1px solid rgba(148, 163, 184, 0.05)',
                                             display: 'flex',
                                             gap: 10,
-                                            backgroundColor: notif.read ? 'transparent' : 'rgba(16, 185, 129, 0.05)'
+                                            backgroundColor: notif.read ? 'transparent' : 'rgba(16, 185, 129, 0.05)',
+                                            width: '100%',
+                                            border: 'none',
+                                            cursor: 'pointer',
+                                            textAlign: 'left'
                                         }}
                                     >
                                         <div style={{
@@ -528,7 +458,7 @@ export default function DashboardLayout({
                                         <div style={{ fontSize: 11, color: '#64748b', whiteSpace: 'nowrap' }}>
                                             {notif.time}
                                         </div>
-                                    </div>
+                                    </button>
                                 ))
                             )}
                         </div>
@@ -916,14 +846,19 @@ export default function DashboardLayout({
                                                 </div>
                                             ) : (
                                                 notifications.map((notif) => (
-                                                    <div
+                                                    <button
                                                         key={notif.id}
+                                                        onClick={() => handleNotificationClick(notif)}
                                                         style={{
                                                             padding: '14px 20px',
                                                             borderBottom: '1px solid rgba(148, 163, 184, 0.05)',
                                                             display: 'flex',
                                                             gap: 12,
-                                                            backgroundColor: notif.read ? 'transparent' : 'rgba(16, 185, 129, 0.05)'
+                                                            backgroundColor: notif.read ? 'transparent' : 'rgba(16, 185, 129, 0.05)',
+                                                            width: '100%',
+                                                            border: 'none',
+                                                            cursor: 'pointer',
+                                                            textAlign: 'left'
                                                         }}
                                                     >
                                                         <div style={{
@@ -964,7 +899,7 @@ export default function DashboardLayout({
                                                         }}>
                                                             {notif.time}
                                                         </div>
-                                                    </div>
+                                                    </button>
                                                 ))
                                             )}
                                         </div>
@@ -1032,3 +967,6 @@ export default function DashboardLayout({
         </div>
     )
 }
+
+
+

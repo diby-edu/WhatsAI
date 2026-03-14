@@ -1,31 +1,52 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
-    Activity, CheckCircle, XCircle, AlertTriangle, Loader2,
-    Database, Server, Bot, MessageSquare, Users, CreditCard,
-    Wifi, WifiOff, RefreshCw, Clock, Zap, HardDrive,
-    Globe, Key, Mail, Shield, Cloud, FileText, Settings,
-    Cpu, MemoryStick, Network, Lock, Smartphone
+    Activity,
+    AlertTriangle,
+    CheckCircle,
+    Clock,
+    CreditCard,
+    Cpu,
+    Database,
+    Globe,
+    HardDrive,
+    Key,
+    Loader2,
+    Lock,
+    Mail,
+    MemoryStick,
+    MessageSquare,
+    RefreshCw,
+    Server,
+    Shield,
+    Smartphone,
+    Users,
+    Wifi,
+    XCircle,
+    Zap,
 } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
 
-interface DiagnosticResult {
+type DiagnosticStatus = 'ok' | 'warning' | 'error'
+
+type DiagnosticItem = {
     name: string
     category: string
-    status: 'ok' | 'warning' | 'error' | 'loading'
+    status: DiagnosticStatus
     message: string
     details?: string
-    value?: string | number
     icon: any
 }
 
-interface SystemStats {
+type StatsPayload = {
     totalUsers: number
     activeUsers: number
     totalAgents: number
     connectedAgents: number
+    qrReadyAgents: number
+    reconnectAgents: number
+    pausedAgents: number
     totalConversations: number
     totalMessages: number
     totalCreditsUsed: number
@@ -34,890 +55,224 @@ interface SystemStats {
     pendingOrders: number
 }
 
+async function getJson(url: string) {
+    const res = await fetch(url)
+    const json = await res.json().catch(() => ({}))
+    if (!res.ok) {
+        throw new Error(json.error || `HTTP ${res.status}`)
+    }
+    return json
+}
+
 export default function AdminDiagnosticsPage() {
-    const [diagnostics, setDiagnostics] = useState<DiagnosticResult[]>([])
-    const [stats, setStats] = useState<SystemStats | null>(null)
+    const [diagnostics, setDiagnostics] = useState<DiagnosticItem[]>([])
+    const [stats, setStats] = useState<StatsPayload | null>(null)
     const [loading, setLoading] = useState(true)
     const [lastCheck, setLastCheck] = useState<Date | null>(null)
 
-
-
-    const addResult = (result: DiagnosticResult, results: DiagnosticResult[]) => {
-        const index = results.findIndex(r => r.name === result.name)
-        if (index >= 0) {
-            results[index] = result
-        } else {
-            results.push(result)
-        }
-        return [...results]
-    }
-
     async function runDiagnostics() {
         setLoading(true)
-        let results: DiagnosticResult[] = []
-        const supabase = createClient()
-
-        // ========== INFRASTRUCTURE ==========
-
-        // 1. Database Connection - Direct test
-        results = addResult({
-            name: 'Base de données Supabase',
-            category: 'Infrastructure',
-            status: 'loading',
-            message: 'Vérification...',
-            icon: Database
-        }, results)
-        setDiagnostics([...results])
 
         try {
-            const start = Date.now()
-            const { data, error } = await supabase.from('profiles').select('id').limit(1)
-            const latency = Date.now() - start
+            const [
+                database,
+                apiHealth,
+                storage,
+                openai,
+                cinetpay,
+                whatsapp,
+                whatsappService,
+                env,
+                integrity,
+                serverHealth,
+                security,
+                smtp,
+                dns,
+                ratelimit,
+                statsResponse,
+            ] = await Promise.all([
+                getJson('/api/admin/diagnostics/database'),
+                getJson('/api/health'),
+                getJson('/api/admin/diagnostics/storage'),
+                getJson('/api/admin/diagnostics/openai'),
+                getJson('/api/admin/diagnostics/cinetpay'),
+                getJson('/api/admin/diagnostics/whatsapp'),
+                getJson('/api/admin/diagnostics/whatsapp-service'),
+                getJson('/api/admin/diagnostics/env'),
+                getJson('/api/admin/diagnostics/integrity'),
+                getJson('/api/admin/diagnostics/health'),
+                getJson('/api/admin/diagnostics/security'),
+                getJson('/api/admin/diagnostics/smtp'),
+                getJson('/api/admin/diagnostics/dns'),
+                getJson('/api/admin/diagnostics/ratelimit'),
+                getJson('/api/admin/diagnostics/stats'),
+            ])
 
-            results = addResult({
-                name: 'Base de données Supabase',
-                category: 'Infrastructure',
-                status: error ? 'error' : 'ok',
-                message: error ? error.message : 'Connexion établie',
-                details: `Latence: ${latency}ms`,
-                icon: Database
-            }, results)
-        } catch (err: any) {
-            results = addResult({
-                name: 'Base de données Supabase',
-                category: 'Infrastructure',
-                status: 'error',
-                message: err.message || 'Connexion échouée',
-                icon: Database
-            }, results)
-        }
-        setDiagnostics([...results])
-
-        // 2. API Backend Health
-        results = addResult({
-            name: 'API Backend Next.js',
-            category: 'Infrastructure',
-            status: 'loading',
-            message: 'Vérification...',
-            icon: Server
-        }, results)
-        setDiagnostics([...results])
-
-        try {
-            const start = Date.now()
-            const res = await fetch('/api/health')
-            const latency = Date.now() - start
-            const data = await res.json().catch(() => ({}))
-
-            results = addResult({
-                name: 'API Backend Next.js',
-                category: 'Infrastructure',
-                status: res.ok ? 'ok' : 'error',
-                message: res.ok ? 'Opérationnelle' : 'Erreur serveur',
-                details: `Latence: ${latency}ms • Status: ${res.status}`,
-                icon: Server
-            }, results)
-        } catch (err: any) {
-            results = addResult({
-                name: 'API Backend Next.js',
-                category: 'Infrastructure',
-                status: 'error',
-                message: 'API inaccessible',
-                icon: Server
-            }, results)
-        }
-        setDiagnostics([...results])
-
-        // 3. Supabase Storage
-        results = addResult({
-            name: 'Stockage Supabase',
-            category: 'Infrastructure',
-            status: 'loading',
-            message: 'Vérification...',
-            icon: Cloud
-        }, results)
-        setDiagnostics([...results])
-
-        try {
-            const { data: buckets, error } = await supabase.storage.listBuckets()
-
-            results = addResult({
-                name: 'Stockage Supabase',
-                category: 'Infrastructure',
-                status: error ? 'error' : 'ok',
-                message: error ? error.message : 'Buckets accessibles',
-                details: buckets ? `${buckets.length} bucket(s) configuré(s)` : undefined,
-                icon: Cloud
-            }, results)
-        } catch (err: any) {
-            results = addResult({
-                name: 'Stockage Supabase',
-                category: 'Infrastructure',
-                status: 'error',
-                message: err.message || 'Stockage inaccessible',
-                icon: Cloud
-            }, results)
-        }
-        setDiagnostics([...results])
-
-        // ========== APIS EXTERNES ==========
-
-        // 4. OpenAI API
-        results = addResult({
-            name: 'API OpenAI',
-            category: 'APIs Externes',
-            status: 'loading',
-            message: 'Vérification...',
-            icon: Zap
-        }, results)
-        setDiagnostics([...results])
-
-        try {
-            const res = await fetch('/api/admin/diagnostics/openai')
-            const data = await res.json()
-
-            results = addResult({
-                name: 'API OpenAI',
-                category: 'APIs Externes',
-                status: data.success ? 'ok' : 'error',
-                message: data.success ? 'Clé API valide' : (data.error || 'Erreur de connexion'),
-                details: data.models ? `${data.models} modèles disponibles` : undefined,
-                icon: Zap
-            }, results)
-        } catch (err: any) {
-            results = addResult({
-                name: 'API OpenAI',
-                category: 'APIs Externes',
-                status: 'error',
-                message: 'Impossible de vérifier',
-                icon: Zap
-            }, results)
-        }
-        setDiagnostics([...results])
-
-        // 5. CinetPay API
-        results = addResult({
-            name: 'API CinetPay',
-            category: 'APIs Externes',
-            status: 'loading',
-            message: 'Vérification...',
-            icon: CreditCard
-        }, results)
-        setDiagnostics([...results])
-
-        try {
-            // Check if CinetPay env vars are configured
-            const res = await fetch('/api/payments/cinetpay/status', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ transaction_id: 'TEST_CHECK' })
-            })
-
-            // If we get any response (even error), the API is configured
-            results = addResult({
-                name: 'API CinetPay',
-                category: 'APIs Externes',
-                status: res.status !== 500 ? 'ok' : 'warning',
-                message: res.status !== 500 ? 'API configurée' : 'Configuration incomplète',
-                details: 'Mode production',
-                icon: CreditCard
-            }, results)
-        } catch (err: any) {
-            results = addResult({
-                name: 'API CinetPay',
-                category: 'APIs Externes',
-                status: 'warning',
-                message: 'Non vérifiable en local',
-                icon: CreditCard
-            }, results)
-        }
-        setDiagnostics([...results])
-
-        // ========== WHATSAPP ==========
-
-        // 6. WhatsApp Sessions
-        results = addResult({
-            name: 'Sessions WhatsApp',
-            category: 'WhatsApp',
-            status: 'loading',
-            message: 'Vérification...',
-            icon: Smartphone
-        }, results)
-        setDiagnostics([...results])
-
-        try {
-            const { count: totalAgents, error: agentsError } = await supabase
-                .from('agents')
-                .select('*', { count: 'exact', head: true })
-
-            const { count: connectedAgents } = await supabase
-                .from('agents')
-                .select('*', { count: 'exact', head: true })
-                .eq('whatsapp_connected', true)
-
-            const total = totalAgents || 0
-            const connected = connectedAgents || 0
-
-            results = addResult({
-                name: 'Sessions WhatsApp',
-                category: 'WhatsApp',
-                status: agentsError ? 'error' : (connected > 0 ? 'ok' : 'warning'),
-                message: agentsError ? agentsError.message : `${connected}/${total} agents connectés`,
-                details: connected === 0 && total > 0 ? 'Aucune session active' : (total === 0 ? 'Aucun agent créé' : undefined),
-                icon: Smartphone
-            }, results)
-        } catch (err: any) {
-            results = addResult({
-                name: 'Sessions WhatsApp',
-                category: 'WhatsApp',
-                status: 'error',
-                message: err.message || 'Erreur de vérification',
-                icon: Smartphone
-            }, results)
-        }
-        setDiagnostics([...results])
-
-        // 7. WhatsApp Webhook
-        results = addResult({
-            name: 'Webhook WhatsApp',
-            category: 'WhatsApp',
-            status: 'loading',
-            message: 'Vérification...',
-            icon: Network
-        }, results)
-        setDiagnostics([...results])
-
-        try {
-            const res = await fetch('/api/whatsapp/webhook')
-            results = addResult({
-                name: 'Webhook WhatsApp',
-                category: 'WhatsApp',
-                status: res.ok || res.status === 405 ? 'ok' : 'warning',
-                message: 'Endpoint accessible',
-                details: '/api/whatsapp/webhook',
-                icon: Network
-            }, results)
-        } catch {
-            results = addResult({
-                name: 'Webhook WhatsApp',
-                category: 'WhatsApp',
-                status: 'ok',
-                message: 'Endpoint configuré',
-                icon: Network
-            }, results)
-        }
-        setDiagnostics([...results])
-
-        // ========== AUTHENTIFICATION ==========
-
-        // 8. Auth System
-        results = addResult({
-            name: 'Système d\'authentification',
-            category: 'Authentification',
-            status: 'loading',
-            message: 'Vérification...',
-            icon: Lock
-        }, results)
-        setDiagnostics([...results])
-
-        try {
-            const { data: { user }, error } = await supabase.auth.getUser()
-
-            results = addResult({
-                name: 'Système d\'authentification',
-                category: 'Authentification',
-                status: error ? 'warning' : 'ok',
-                message: user ? 'Session active' : 'Pas de session',
-                details: user?.email,
-                icon: Lock
-            }, results)
-        } catch (err: any) {
-            results = addResult({
-                name: 'Système d\'authentification',
-                category: 'Authentification',
-                status: 'warning',
-                message: 'Non vérifiable',
-                icon: Lock
-            }, results)
-        }
-        setDiagnostics([...results])
-
-        // 9. Admin Access
-        results = addResult({
-            name: 'Accès administrateur',
-            category: 'Authentification',
-            status: 'loading',
-            message: 'Vérification...',
-            icon: Shield
-        }, results)
-        setDiagnostics([...results])
-
-        try {
-            const { data: { user } } = await supabase.auth.getUser()
-            if (user) {
-                const { data: profile } = await supabase
-                    .from('profiles')
-                    .select('role')
-                    .eq('id', user.id)
-                    .single()
-
-                results = addResult({
-                    name: 'Accès administrateur',
-                    category: 'Authentification',
-                    status: profile?.role === 'admin' ? 'ok' : 'warning',
-                    message: profile?.role === 'admin' ? 'Rôle admin confirmé' : 'Rôle: ' + (profile?.role || 'inconnu'),
-                    icon: Shield
-                }, results)
-            } else {
-                results = addResult({
-                    name: 'Accès administrateur',
-                    category: 'Authentification',
-                    status: 'warning',
-                    message: 'Non connecté',
-                    icon: Shield
-                }, results)
-            }
-        } catch {
-            results = addResult({
-                name: 'Accès administrateur',
-                category: 'Authentification',
-                status: 'warning',
-                message: 'Non vérifiable',
-                icon: Shield
-            }, results)
-        }
-        setDiagnostics([...results])
-
-        // ========== CONFIGURATION ==========
-
-        // 10. Environment Variables
-        results = addResult({
-            name: 'Variables d\'environnement',
-            category: 'Configuration',
-            status: 'loading',
-            message: 'Vérification...',
-            icon: Key
-        }, results)
-        setDiagnostics([...results])
-
-        try {
-            const res = await fetch('/api/admin/diagnostics/env')
-            const data = await res.json()
-            const missing = data.missing || []
-
-            results = addResult({
-                name: 'Variables d\'environnement',
-                category: 'Configuration',
-                status: missing.length === 0 ? 'ok' : 'warning',
-                message: missing.length === 0 ? 'Toutes configurées' : `${missing.length} manquante(s)`,
-                details: missing.length > 0 ? missing.join(', ') : undefined,
-                icon: Key
-            }, results)
-        } catch {
-            results = addResult({
-                name: 'Variables d\'environnement',
-                category: 'Configuration',
-                status: 'ok',
-                message: 'Variables publiques OK',
-                icon: Key
-            }, results)
-        }
-        setDiagnostics([...results])
-
-        // ========== BASE DE DONNÉES ==========
-
-        // 11. Tables principales
-        results = addResult({
-            name: 'Tables principales',
-            category: 'Base de données',
-            status: 'loading',
-            message: 'Vérification...',
-            icon: FileText
-        }, results)
-        setDiagnostics([...results])
-
-        try {
-            const tables = ['profiles', 'agents', 'conversations', 'messages', 'subscriptions', 'payments']
-            let allOk = true
-            let tableCount = 0
-
-            for (const table of tables) {
-                const { error } = await supabase.from(table).select('id').limit(1)
-                if (!error) tableCount++
-                else allOk = false
-            }
-
-            results = addResult({
-                name: 'Tables principales',
-                category: 'Base de données',
-                status: allOk ? 'ok' : 'warning',
-                message: `${tableCount}/${tables.length} tables accessibles`,
-                details: allOk ? 'profiles, agents, conversations, messages, subscriptions, payments' : undefined,
-                icon: FileText
-            }, results)
-        } catch (err: any) {
-            results = addResult({
-                name: 'Tables principales',
-                category: 'Base de données',
-                status: 'error',
-                message: err.message || 'Erreur d\'accès',
-                icon: FileText
-            }, results)
-        }
-        setDiagnostics([...results])
-
-        // 12. Pricing Plans
-        results = addResult({
-            name: 'Plans tarifaires',
-            category: 'Base de données',
-            status: 'loading',
-            message: 'Vérification...',
-            icon: CreditCard
-        }, results)
-        setDiagnostics([...results])
-
-        try {
-            const { data: plans, error } = await supabase
-                .from('subscription_plans')
-                .select('*')
-                .eq('is_active', true)
-
-            results = addResult({
-                name: 'Plans tarifaires',
-                category: 'Base de données',
-                status: error ? 'error' : (plans && plans.length > 0 ? 'ok' : 'warning'),
-                message: error ? error.message : `${plans?.length || 0} plan(s) actif(s)`,
-                details: plans?.map(p => p.name).join(', '),
-                icon: CreditCard
-            }, results)
-        } catch (err: any) {
-            results = addResult({
-                name: 'Plans tarifaires',
-                category: 'Base de données',
-                status: 'warning',
-                message: 'Table non trouvée',
-                icon: CreditCard
-            }, results)
-        }
-        setDiagnostics([...results])
-
-        // ========== PERFORMANCE & SANTE SERVEUR ==========
-
-        // 13. Server Health (Memory, CPU, Disk)
-        results = addResult({
-            name: 'Santé du serveur',
-            category: 'Performance',
-            status: 'loading',
-            message: 'Analyse...',
-            icon: Cpu
-        }, results)
-        setDiagnostics([...results])
-
-        try {
-            const res = await fetch('/api/admin/diagnostics/health')
-            const data = await res.json()
-
-            if (data.data) {
-                const health = data.data
-                results = addResult({
-                    name: 'Mémoire RAM',
-                    category: 'Performance',
-                    status: health.memory?.status || 'ok',
-                    message: `${health.memory?.percent || 0}% utilisée`,
-                    details: `${health.memory?.used} / ${health.memory?.total}`,
-                    icon: MemoryStick
-                }, results)
-                setDiagnostics([...results])
-
-                results = addResult({
-                    name: 'Processeur (CPU)',
-                    category: 'Performance',
-                    status: health.cpu?.status || 'ok',
-                    message: `Charge: ${health.cpu?.loadAverage?.['1min'] || 0}`,
-                    details: `${health.cpu?.cores} cœurs - ${health.cpu?.model?.substring(0, 30)}`,
-                    icon: Cpu
-                }, results)
-                setDiagnostics([...results])
-
-                if (health.disk && health.disk.status !== 'not_available') {
-                    results = addResult({
-                        name: 'Espace disque',
-                        category: 'Performance',
-                        status: health.disk.status || 'ok',
-                        message: `${health.disk.percent || 0}% utilisé`,
-                        details: `${health.disk.available} disponible sur ${health.disk.total}`,
-                        icon: HardDrive
-                    }, results)
-                    setDiagnostics([...results])
-                }
-
-                results = addResult({
-                    name: 'Uptime serveur',
-                    category: 'Performance',
+            const results: DiagnosticItem[] = [
+                {
+                    name: 'Base de donnees Supabase',
+                    category: 'Infrastructure',
                     status: 'ok',
-                    message: health.uptimeFormatted || 'Actif',
-                    details: `Node.js ${health.nodeVersion}`,
-                    icon: Clock
-                }, results)
-            } else {
-                results = addResult({
-                    name: 'Santé du serveur',
+                    message: database.data?.message || 'Connexion etablie',
+                    details: database.data?.latency ? `Latence: ${database.data.latency}ms` : undefined,
+                    icon: Database,
+                },
+                {
+                    name: 'API Backend Next.js',
+                    category: 'Infrastructure',
+                    status: apiHealth.data?.status === 'healthy' ? 'ok' : apiHealth.data?.status === 'degraded' ? 'warning' : 'error',
+                    message: apiHealth.data?.status || 'Inconnu',
+                    details: apiHealth.data?.services?.database?.error || undefined,
+                    icon: Server,
+                },
+                {
+                    name: 'Stockage Supabase',
+                    category: 'Infrastructure',
+                    status: 'ok',
+                    message: `${storage.data?.buckets || 0} bucket(s) accessibles`,
+                    details: storage.data?.bucketNames?.join(', ') || undefined,
+                    icon: HardDrive,
+                },
+                {
+                    name: 'API OpenAI',
+                    category: 'APIs externes',
+                    status: openai.data?.success ? 'ok' : 'error',
+                    message: openai.data?.message || 'Connexion OpenAI',
+                    details: openai.data?.models ? `${openai.data.models} modeles disponibles` : undefined,
+                    icon: Zap,
+                },
+                {
+                    name: 'API CinetPay',
+                    category: 'APIs externes',
+                    status: cinetpay.data?.configured ? 'ok' : 'warning',
+                    message: cinetpay.data?.message || 'Configuration CinetPay',
+                    details: cinetpay.data?.mode ? `Mode: ${cinetpay.data.mode}` : undefined,
+                    icon: CreditCard,
+                },
+                {
+                    name: 'Sessions WhatsApp',
+                    category: 'WhatsApp',
+                    status: whatsapp.data?.connected > 0 ? 'ok' : whatsapp.data?.reconnect_required > 0 ? 'warning' : 'warning',
+                    message: `${whatsapp.data?.connected || 0}/${whatsapp.data?.total || 0} agents connectes`,
+                    details: `QR: ${whatsapp.data?.qr_ready || 0} • Reconnexion: ${whatsapp.data?.reconnect_required || 0} • Pause: ${whatsapp.data?.paused || 0}`,
+                    icon: Smartphone,
+                },
+                {
+                    name: 'Service WhatsApp Bot',
+                    category: 'WhatsApp',
+                    status: whatsappService.data?.whatsappService?.status || 'warning',
+                    message: whatsappService.data?.whatsappService?.message || 'Statut inconnu',
+                    details: whatsappService.data?.whatsappService?.details || whatsappService.data?.agentConnections?.details,
+                    icon: MessageSquare,
+                },
+                {
+                    name: 'Variables d environnement',
+                    category: 'Configuration',
+                    status: (env.data?.missing || []).length === 0 ? 'ok' : 'warning',
+                    message: (env.data?.missing || []).length === 0 ? 'Toutes configurees' : `${env.data?.missing?.length || 0} manquante(s)`,
+                    details: env.data?.missing?.join(', ') || undefined,
+                    icon: Key,
+                },
+                {
+                    name: 'Integrite des donnees',
+                    category: 'Donnees',
+                    status: integrity.data?.overallStatus === 'error' ? 'error' : integrity.data?.overallStatus === 'warning' ? 'warning' : 'ok',
+                    message: integrity.data?.issues?.length ? `${integrity.data.issues.length} probleme(s)` : 'Aucun probleme detecte',
+                    details: integrity.data?.issues?.map((issue: any) => issue.message).join(' • ') || undefined,
+                    icon: Database,
+                },
+                {
+                    name: 'Sante serveur',
                     category: 'Performance',
-                    status: 'warning',
-                    message: 'Données indisponibles',
-                    icon: Cpu
-                }, results)
-            }
-        } catch (err) {
-            results = addResult({
-                name: 'Santé du serveur',
-                category: 'Performance',
-                status: 'warning',
-                message: 'Vérification échouée',
-                icon: Cpu
-            }, results)
-        }
-        setDiagnostics([...results])
-
-        // ========== SECURITE ==========
-
-        // 14. Security Checks (SSL, Latency)
-        results = addResult({
-            name: 'Certificat SSL',
-            category: 'Sécurité',
-            status: 'loading',
-            message: 'Vérification...',
-            icon: Lock
-        }, results)
-        setDiagnostics([...results])
-
-        try {
-            const res = await fetch('/api/admin/diagnostics/security')
-            const data = await res.json()
-
-            if (data.data) {
-                const sec = data.data
-                results = addResult({
+                    status: serverHealth.data?.overallStatus === 'critical' ? 'error' : serverHealth.data?.overallStatus === 'warning' ? 'warning' : 'ok',
+                    message: serverHealth.data?.uptimeFormatted || 'Serveur actif',
+                    details: `CPU ${serverHealth.data?.cpu?.['1min'] || serverHealth.data?.cpu?.loadAverage?.['1min'] || '?'} • RAM ${serverHealth.data?.memory?.percent || 0}%`,
+                    icon: Cpu,
+                },
+                {
                     name: 'Certificat SSL',
-                    category: 'Sécurité',
-                    status: sec.ssl?.status || 'ok',
-                    message: sec.ssl?.message || 'Valide',
-                    details: sec.ssl?.daysRemaining ? `Expire dans ${sec.ssl.daysRemaining}j` : undefined,
-                    icon: Lock
-                }, results)
-                setDiagnostics([...results])
-
-                results = addResult({
-                    name: 'Latence API',
-                    category: 'Sécurité',
-                    status: sec.apiLatency?.status || 'ok',
-                    message: sec.apiLatency?.message || 'OK',
-                    details: sec.apiLatency?.value ? `Réponse en ${sec.apiLatency.value}ms` : undefined,
-                    icon: Activity
-                }, results)
-            }
-        } catch (err) {
-            results = addResult({
-                name: 'Certificat SSL',
-                category: 'Sécurité',
-                status: 'ok',
-                message: 'Vérification locale OK',
-                icon: Lock
-            }, results)
-        }
-        setDiagnostics([...results])
-
-        // ========== EMAIL ==========
-
-        // 15. SMTP Check
-        results = addResult({
-            name: 'Configuration Email',
-            category: 'Email',
-            status: 'loading',
-            message: 'Vérification...',
-            icon: Mail
-        }, results)
-        setDiagnostics([...results])
-
-        try {
-            const res = await fetch('/api/admin/diagnostics/smtp')
-            const data = await res.json()
-
-            if (data.data) {
-                const smtp = data.data
-                results = addResult({
+                    category: 'Securite',
+                    status: security.data?.ssl?.status || 'warning',
+                    message: security.data?.ssl?.message || 'Inconnu',
+                    details: security.data?.apiLatency?.message ? `Latence API: ${security.data.apiLatency.message}` : undefined,
+                    icon: Lock,
+                },
+                {
                     name: 'Configuration Email',
                     category: 'Email',
-                    status: smtp.configured ? 'ok' : 'warning',
-                    message: smtp.message || (smtp.configured ? 'SMTP configuré' : 'Non configuré'),
-                    details: smtp.config?.provider || smtp.config?.host || undefined,
-                    icon: Mail
-                }, results)
-            }
-        } catch (err) {
-            results = addResult({
-                name: 'Configuration Email',
-                category: 'Email',
-                status: 'warning',
-                message: 'Non vérifié',
-                icon: Mail
-            }, results)
-        }
-        setDiagnostics([...results])
-
-        // ========== INTEGRITE DES DONNEES ==========
-
-        // 16. Data Integrity
-        results = addResult({
-            name: 'Intégrité des données',
-            category: 'Données',
-            status: 'loading',
-            message: 'Analyse...',
-            icon: Database
-        }, results)
-        setDiagnostics([...results])
-
-        try {
-            const res = await fetch('/api/admin/diagnostics/integrity')
-            const data = await res.json()
-
-            if (data.data) {
-                const integrity = data.data
-                results = addResult({
-                    name: 'Intégrité des données',
-                    category: 'Données',
-                    status: integrity.overallStatus || 'ok',
-                    message: integrity.issues?.length ? `${integrity.issues.length} problème(s)` : 'Aucun problème',
-                    details: integrity.issues?.map((i: any) => i.message).join(', ') || undefined,
-                    icon: Database
-                }, results)
-                setDiagnostics([...results])
-
-                // Show table stats
-                if (integrity.stats) {
-                    results = addResult({
-                        name: 'Statistiques tables',
-                        category: 'Données',
-                        status: 'ok',
-                        message: `${integrity.stats.totalUsers} utilisateurs, ${integrity.stats.totalAgents} agents`,
-                        details: `${integrity.stats.totalConversations} conversations, ${integrity.stats.totalPayments} paiements`,
-                        icon: FileText
-                    }, results)
-                }
-            }
-        } catch (err) {
-            results = addResult({
-                name: 'Intégrité des données',
-                category: 'Données',
-                status: 'warning',
-                message: 'Vérification échouée',
-                icon: Database
-            }, results)
-        }
-        setDiagnostics([...results])
-
-        // ========== WHATSAPP SERVICE ==========
-
-        // 17. WhatsApp Bot Service Health
-        results = addResult({
-            name: 'Service WhatsApp Bot',
-            category: 'Services',
-            status: 'loading',
-            message: 'Vérification...',
-            icon: Smartphone
-        }, results)
-        setDiagnostics([...results])
-
-        try {
-            const res = await fetch('/api/admin/diagnostics/whatsapp-service')
-            const data = await res.json()
-
-            if (data.data) {
-                const ws = data.data
-                results = addResult({
-                    name: 'Service WhatsApp Bot',
-                    category: 'Services',
-                    status: ws.whatsappService?.status || 'warning',
-                    message: ws.whatsappService?.message || 'Statut inconnu',
-                    details: ws.whatsappService?.details,
-                    icon: Smartphone
-                }, results)
-            }
-        } catch (err) {
-            results = addResult({
-                name: 'Service WhatsApp Bot',
-                category: 'Services',
-                status: 'warning',
-                message: 'Non vérifié',
-                icon: Smartphone
-            }, results)
-        }
-        setDiagnostics([...results])
-
-        // ========== DNS & DOMAINE ==========
-
-        // 18. DNS Propagation
-        results = addResult({
-            name: 'DNS & Domaine',
-            category: 'Réseau',
-            status: 'loading',
-            message: 'Vérification...',
-            icon: Globe
-        }, results)
-        setDiagnostics([...results])
-
-        try {
-            const res = await fetch('/api/admin/diagnostics/dns')
-            const data = await res.json()
-
-            if (data.data) {
-                const dns = data.data
-                results = addResult({
-                    name: 'Résolution DNS',
-                    category: 'Réseau',
-                    status: dns.dns?.status || 'ok',
-                    message: dns.dns?.message || 'Domaine résolu',
-                    details: dns.ipAddress ? `IP: ${dns.ipAddress}` : undefined,
-                    icon: Globe
-                }, results)
-                setDiagnostics([...results])
-
-                results = addResult({
-                    name: 'Accessibilité HTTP',
-                    category: 'Réseau',
-                    status: dns.httpReachable ? 'ok' : 'error',
-                    message: dns.httpReachable ? 'Site accessible' : 'Site inaccessible',
-                    details: dns.httpStatus ? `Status HTTP: ${dns.httpStatus}` : dns.httpError,
-                    icon: Wifi
-                }, results)
-            }
-        } catch (err) {
-            results = addResult({
-                name: 'DNS & Domaine',
-                category: 'Réseau',
-                status: 'ok',
-                message: 'Vérification locale OK',
-                icon: Globe
-            }, results)
-        }
-        setDiagnostics([...results])
-
-        // ========== RATE LIMITS ==========
-
-        // 19. API Rate Limits
-        results = addResult({
-            name: 'Limites API',
-            category: 'APIs',
-            status: 'loading',
-            message: 'Vérification quotas...',
-            icon: Activity
-        }, results)
-        setDiagnostics([...results])
-
-        try {
-            const res = await fetch('/api/admin/diagnostics/ratelimit')
-            const data = await res.json()
-
-            if (data.data) {
-                const rl = data.data
-                results = addResult({
-                    name: 'Quota OpenAI',
+                    status: smtp.data?.configured ? 'ok' : 'warning',
+                    message: smtp.data?.message || 'SMTP',
+                    details: smtp.data?.config?.host || undefined,
+                    icon: Mail,
+                },
+                {
+                    name: 'DNS et domaine',
+                    category: 'Reseau',
+                    status: dns.data?.dns?.status || 'warning',
+                    message: dns.data?.dns?.message || 'Resolution DNS',
+                    details: dns.data?.httpReachable ? `HTTP ${dns.data.httpStatus}` : dns.data?.httpError,
+                    icon: Globe,
+                },
+                {
+                    name: 'Rate limiting & Redis',
                     category: 'APIs',
-                    status: rl.openai?.status || 'ok',
-                    message: rl.openai?.message || 'OK',
-                    details: rl.openai?.details,
-                    icon: Zap
-                }, results)
-                setDiagnostics([...results])
+                    status: ratelimit.data?.redis?.configured ? 'ok' : 'warning',
+                    message: ratelimit.data?.redis?.configured ? 'Redis configure' : 'Redis non configure',
+                    details: ratelimit.data?.redis?.ping || undefined,
+                    icon: Activity,
+                },
+            ]
 
-                results = addResult({
-                    name: 'Quota CinetPay',
-                    category: 'APIs',
-                    status: rl.cinetpay?.status || 'ok',
-                    message: rl.cinetpay?.message || 'OK',
-                    details: rl.cinetpay?.details,
-                    icon: CreditCard
-                }, results)
-                setDiagnostics([...results])
-
-                results = addResult({
-                    name: 'Connexion Supabase',
-                    category: 'APIs',
-                    status: rl.supabase?.status || 'ok',
-                    message: rl.supabase?.message || 'OK',
-                    details: rl.supabase?.details,
-                    icon: Database
-                }, results)
-            }
+            setDiagnostics(results)
+            setStats(statsResponse.data || null)
+            setLastCheck(new Date())
         } catch (err) {
-            results = addResult({
-                name: 'Limites API',
-                category: 'APIs',
-                status: 'ok',
-                message: 'Quotas non vérifiés',
-                icon: Activity
-            }, results)
+            console.error('Diagnostics run failed:', err)
+            setDiagnostics([{
+                name: 'Diagnostic global',
+                category: 'Systeme',
+                status: 'error',
+                message: err instanceof Error ? err.message : 'Erreur de chargement',
+                icon: AlertTriangle,
+            }])
+        } finally {
+            setLoading(false)
         }
-        setDiagnostics([...results])
-
-        // ========== STATS ==========
-        try {
-            const res = await fetch('/api/admin/diagnostics/stats')
-            const data = await res.json()
-            if (data.data) {
-                setStats(data.data)
-            }
-        } catch (err) {
-            console.error('Error fetching stats:', err)
-        }
-
-        setLastCheck(new Date())
-        setLoading(false)
     }
 
     useEffect(() => {
-        setTimeout(() => {
-            runDiagnostics()
-        }, 0)
+        runDiagnostics()
     }, [])
 
-    const getStatusIcon = (status: string, Icon: any) => {
-        const color = status === 'ok' ? '#34d399' : status === 'warning' ? '#f59e0b' : status === 'error' ? '#f87171' : '#94a3b8'
+    const overallStatus = useMemo<DiagnosticStatus>(() => {
+        if (diagnostics.some((item) => item.status === 'error')) return 'error'
+        if (diagnostics.some((item) => item.status === 'warning')) return 'warning'
+        return 'ok'
+    }, [diagnostics])
 
-        if (status === 'loading') {
-            return <Loader2 style={{ color: '#94a3b8', animation: 'spin 1s linear infinite' }} size={20} />
-        }
+    const categories = useMemo(() => [...new Set(diagnostics.map((item) => item.category))], [diagnostics])
 
-        return status === 'ok' ? <CheckCircle style={{ color }} size={20} /> :
-            status === 'warning' ? <AlertTriangle style={{ color }} size={20} /> :
-                <XCircle style={{ color }} size={20} />
+    function getStatusIcon(status: DiagnosticStatus) {
+        if (status === 'ok') return <CheckCircle style={{ color: '#34d399' }} size={20} />
+        if (status === 'warning') return <AlertTriangle style={{ color: '#f59e0b' }} size={20} />
+        return <XCircle style={{ color: '#f87171' }} size={20} />
     }
 
-    const getStatusColor = (status: string) => {
-        switch (status) {
-            case 'ok': return '#34d399'
-            case 'warning': return '#f59e0b'
-            case 'error': return '#f87171'
-            default: return '#94a3b8'
-        }
+    function getStatusColor(status: DiagnosticStatus) {
+        if (status === 'ok') return '#34d399'
+        if (status === 'warning') return '#f59e0b'
+        return '#f87171'
     }
-
-    const categories = [...new Set(diagnostics.map(d => d.category))]
-    const overallStatus = diagnostics.every(d => d.status === 'ok' || d.status === 'loading') ? 'ok' :
-        diagnostics.some(d => d.status === 'error') ? 'error' : 'warning'
-    const okCount = diagnostics.filter(d => d.status === 'ok').length
-    const totalCount = diagnostics.filter(d => d.status !== 'loading').length
 
     return (
         <div>
-            {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32, flexWrap: 'wrap', gap: 16 }}>
                 <div>
                     <h1 style={{ fontSize: 28, fontWeight: 700, color: 'white', marginBottom: 8 }}>
-                        Diagnostic Système Complet
+                        Diagnostic systeme
                     </h1>
                     <p style={{ color: '#94a3b8' }}>
-                        Analyse exhaustive de tous les composants de l'application
+                        Verification backend uniquement, avec statuts reels et details exploitables.
                     </p>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -943,180 +298,142 @@ export default function AdminDiagnosticsPage() {
                             display: 'flex',
                             alignItems: 'center',
                             gap: 8,
-                            opacity: loading ? 0.7 : 1
+                            opacity: loading ? 0.7 : 1,
                         }}
                     >
                         <RefreshCw size={18} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
-                        Relancer le diagnostic
+                        Relancer
                     </motion.button>
                 </div>
             </div>
 
-            {/* Overall Status */}
-            {totalCount > 0 && (
-                <motion.div
-                    initial={{ opacity: 0, y: -20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    style={{
-                        padding: 24,
+            <motion.div
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                style={{
+                    padding: 24,
+                    borderRadius: 16,
+                    marginBottom: 24,
+                    background: overallStatus === 'ok'
+                        ? 'rgba(16, 185, 129, 0.1)'
+                        : overallStatus === 'error'
+                            ? 'rgba(239, 68, 68, 0.1)'
+                            : 'rgba(245, 158, 11, 0.1)',
+                    border: `1px solid ${getStatusColor(overallStatus)}30`,
+                }}
+            >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                    <div style={{
+                        width: 56,
+                        height: 56,
                         borderRadius: 16,
-                        marginBottom: 24,
-                        background: overallStatus === 'ok'
-                            ? 'rgba(16, 185, 129, 0.1)'
-                            : overallStatus === 'error'
-                                ? 'rgba(239, 68, 68, 0.1)'
-                                : 'rgba(245, 158, 11, 0.1)',
-                        border: `1px solid ${getStatusColor(overallStatus)}30`
-                    }}
-                >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                        <div style={{
-                            width: 56,
-                            height: 56,
-                            borderRadius: 16,
-                            background: `${getStatusColor(overallStatus)}20`,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                        }}>
-                            {overallStatus === 'ok' ? (
-                                <CheckCircle size={28} style={{ color: getStatusColor(overallStatus) }} />
-                            ) : overallStatus === 'error' ? (
-                                <XCircle size={28} style={{ color: getStatusColor(overallStatus) }} />
-                            ) : (
-                                <AlertTriangle size={28} style={{ color: getStatusColor(overallStatus) }} />
-                            )}
+                        background: `${getStatusColor(overallStatus)}20`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                    }}>
+                        {getStatusIcon(overallStatus)}
+                    </div>
+                    <div>
+                        <div style={{ color: 'white', fontSize: 18, fontWeight: 700 }}>
+                            {overallStatus === 'ok' ? 'Tous les checks critiques sont au vert' : overallStatus === 'warning' ? 'Des points de vigilance existent' : 'Des anomalies critiques sont detectees'}
                         </div>
-                        <div style={{ flex: 1 }}>
-                            <h2 style={{ fontSize: 22, fontWeight: 600, color: getStatusColor(overallStatus) }}>
-                                {overallStatus === 'ok' ? 'Système opérationnel' :
-                                    overallStatus === 'error' ? 'Problèmes détectés' : 'Attention requise'}
-                            </h2>
-                            <p style={{ color: '#94a3b8' }}>
-                                {okCount}/{totalCount} services fonctionnels
-                            </p>
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                            <div style={{ fontSize: 36, fontWeight: 700, color: getStatusColor(overallStatus) }}>
-                                {Math.round((okCount / totalCount) * 100)}%
-                            </div>
-                            <div style={{ color: '#64748b', fontSize: 13 }}>Score santé</div>
+                        <div style={{ color: '#94a3b8', fontSize: 14, marginTop: 4 }}>
+                            {diagnostics.length} verifications consolidees
                         </div>
                     </div>
-                </motion.div>
-            )}
-
-            {/* Diagnostics by Category */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 24, marginBottom: 32 }}>
-                {categories.map(category => (
-                    <div key={category}>
-                        <h3 style={{ fontSize: 16, fontWeight: 600, color: '#94a3b8', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 }}>
-                            {category}
-                        </h3>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: 12 }}>
-                            {diagnostics
-                                .filter(d => d.category === category)
-                                .map((diag, i) => (
-                                    <motion.div
-                                        key={diag.name}
-                                        initial={{ opacity: 0, x: -20 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{ delay: i * 0.03 }}
-                                        style={{
-                                            padding: 20,
-                                            background: 'rgba(30, 41, 59, 0.5)',
-                                            border: `1px solid ${diag.status === 'loading' ? 'rgba(148, 163, 184, 0.1)' : getStatusColor(diag.status) + '30'}`,
-                                            borderRadius: 12
-                                        }}
-                                    >
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1 }}>
-                                                <div style={{
-                                                    width: 40,
-                                                    height: 40,
-                                                    borderRadius: 10,
-                                                    background: `${getStatusColor(diag.status)}15`,
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center'
-                                                }}>
-                                                    <diag.icon size={20} style={{ color: getStatusColor(diag.status) }} />
-                                                </div>
-                                                <div style={{ flex: 1 }}>
-                                                    <div style={{ fontWeight: 600, color: 'white', fontSize: 14 }}>{diag.name}</div>
-                                                    <div style={{ fontSize: 13, color: getStatusColor(diag.status) }}>{diag.message}</div>
-                                                </div>
-                                            </div>
-                                            {getStatusIcon(diag.status, diag.icon)}
-                                        </div>
-                                        {diag.details && (
-                                            <div style={{
-                                                marginTop: 12,
-                                                padding: '8px 12px',
-                                                background: 'rgba(15, 23, 42, 0.5)',
-                                                borderRadius: 8,
-                                                fontSize: 12,
-                                                color: '#94a3b8'
-                                            }}>
-                                                {diag.details}
-                                            </div>
-                                        )}
-                                    </motion.div>
-                                ))}
-                        </div>
-                    </div>
-                ))}
-            </div>
-
-            {/* System Stats */}
-            {stats && (
-                <>
-                    <h3 style={{ fontSize: 16, fontWeight: 600, color: '#94a3b8', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 }}>
-                        Statistiques Système
-                    </h3>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
-                        <StatCard icon={Users} label="Utilisateurs" value={stats.totalUsers} subValue={`${stats.activeUsers} actifs`} color="#3b82f6" />
-                        <StatCard icon={Bot} label="Agents" value={stats.totalAgents} subValue={`${stats.connectedAgents} connectés`} color="#8b5cf6" />
-                        <StatCard icon={MessageSquare} label="Messages" value={stats.totalMessages} subValue={`${stats.totalConversations} conv.`} color="#10b981" />
-                        <StatCard icon={Zap} label="Crédits" value={stats.totalCreditsUsed} subValue="utilisés ce mois" color="#f59e0b" />
-                        <StatCard icon={HardDrive} label="Produits" value={stats.totalProducts} color="#ec4899" />
-                        <StatCard icon={CreditCard} label="Commandes" value={stats.totalOrders} subValue={`${stats.pendingOrders} en attente`} color="#06b6d4" />
-                    </div>
-                </>
-            )}
-        </div>
-    )
-}
-
-function StatCard({ icon: Icon, label, value, subValue, color }: {
-    icon: any, label: string, value: number, subValue?: string, color: string
-}) {
-    return (
-        <div style={{
-            padding: 16,
-            background: 'rgba(30, 41, 59, 0.5)',
-            border: '1px solid rgba(148, 163, 184, 0.1)',
-            borderRadius: 12
-        }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                <div style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 8,
-                    background: `${color}20`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                }}>
-                    <Icon size={18} style={{ color }} />
                 </div>
-                <span style={{ color: '#94a3b8', fontSize: 13 }}>{label}</span>
-            </div>
-            <div style={{ fontSize: 24, fontWeight: 700, color: 'white' }}>
-                {value.toLocaleString('fr-FR')}
-            </div>
-            {subValue && (
-                <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>{subValue}</div>
+            </motion.div>
+
+            {stats && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 16, marginBottom: 28 }}>
+                    {[
+                        { label: 'Utilisateurs', value: stats.totalUsers, icon: Users, color: '#60a5fa' },
+                        { label: 'Agents connectes', value: stats.connectedAgents, icon: Smartphone, color: '#34d399' },
+                        { label: 'A reconnecter', value: stats.reconnectAgents, icon: Wifi, color: '#f97316' },
+                        { label: 'Messages', value: stats.totalMessages, icon: MessageSquare, color: '#a78bfa' },
+                        { label: 'Credits utilises', value: stats.totalCreditsUsed, icon: Zap, color: '#fbbf24' },
+                        { label: 'Commandes en attente', value: stats.pendingOrders, icon: Shield, color: '#fb7185' },
+                    ].map((stat) => (
+                        <div key={stat.label} style={{
+                            background: 'rgba(15, 23, 42, 0.55)',
+                            border: '1px solid rgba(148, 163, 184, 0.1)',
+                            borderRadius: 18,
+                            padding: 18,
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                                <div style={{
+                                    width: 42,
+                                    height: 42,
+                                    borderRadius: 12,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    background: `${stat.color}20`,
+                                }}>
+                                    <stat.icon size={20} color={stat.color} />
+                                </div>
+                                <span style={{ color: '#94a3b8', fontSize: 13 }}>{stat.label}</span>
+                            </div>
+                            <div style={{ color: 'white', fontSize: 26, fontWeight: 700 }}>{Number(stat.value || 0).toLocaleString('fr-FR')}</div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {loading ? (
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}>
+                    <Loader2 style={{ width: 32, height: 32, color: '#34d399', animation: 'spin 1s linear infinite' }} />
+                </div>
+            ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                    {categories.map((category) => (
+                        <div key={category}>
+                            <h2 style={{ color: 'white', fontSize: 20, fontWeight: 700, marginBottom: 14 }}>{category}</h2>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+                                {diagnostics
+                                    .filter((item) => item.category === category)
+                                    .map((item) => (
+                                        <div key={item.name} style={{
+                                            padding: 18,
+                                            borderRadius: 18,
+                                            background: 'rgba(15, 23, 42, 0.55)',
+                                            border: '1px solid rgba(148, 163, 184, 0.1)',
+                                        }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 12 }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                                    <div style={{
+                                                        width: 42,
+                                                        height: 42,
+                                                        borderRadius: 12,
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        background: `${getStatusColor(item.status)}20`,
+                                                    }}>
+                                                        <item.icon size={20} color={getStatusColor(item.status)} />
+                                                    </div>
+                                                    <div>
+                                                        <div style={{ color: 'white', fontWeight: 700 }}>{item.name}</div>
+                                                        <div style={{ color: getStatusColor(item.status), fontSize: 12, fontWeight: 600 }}>
+                                                            {item.status === 'ok' ? 'OK' : item.status === 'warning' ? 'WARNING' : 'ERROR'}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                {getStatusIcon(item.status)}
+                                            </div>
+                                            <div style={{ color: '#e2e8f0', fontSize: 14, fontWeight: 500 }}>{item.message}</div>
+                                            {item.details && (
+                                                <div style={{ color: '#64748b', fontSize: 13, marginTop: 8, lineHeight: 1.5 }}>
+                                                    {item.details}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                            </div>
+                        </div>
+                    ))}
+                </div>
             )}
         </div>
     )

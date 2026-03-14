@@ -1,45 +1,21 @@
-import { createApiClient, getAuthUser } from '@/lib/api-utils'
-import { createClient } from '@supabase/supabase-js'
-import { NextResponse } from 'next/server'
+import { errorResponse, successResponse } from '@/lib/api-utils'
+import { requireAdminAccess } from '@/lib/admin/auth'
 
 export async function GET() {
-    const supabaseSecClient = await createApiClient()
-    const { user: secUser, error: secAuthError } = await getAuthUser(supabaseSecClient)
-    if (secAuthError || secUser?.role !== 'admin') {
-        return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), { status: 403, headers: { 'Content-Type': 'application/json' } })
-    }
+    const { response, adminSupabase } = await requireAdminAccess()
+    if (response || !adminSupabase) return response!
 
     try {
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-        const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-        if (!supabaseUrl || !supabaseKey) {
-            return NextResponse.json({
-                success: false,
-                error: 'Variables Supabase non configurées'
-            })
-        }
-
-        const supabase = createClient(supabaseUrl, supabaseKey)
-
-        const { data: buckets, error } = await supabase.storage.listBuckets()
-
+        const { data: buckets, error } = await adminSupabase.storage.listBuckets()
         if (error) {
-            return NextResponse.json({
-                success: false,
-                error: error.message
-            })
+            return errorResponse(error.message, 500)
         }
 
-        return NextResponse.json({
-            success: true,
+        return successResponse({
             buckets: buckets?.length || 0,
-            bucketNames: buckets?.map(b => b.name) || []
+            bucketNames: buckets?.map((bucket) => bucket.name) || [],
         })
     } catch (err: any) {
-        return NextResponse.json({
-            success: false,
-            error: err.message || 'Erreur de connexion au storage'
-        })
+        return errorResponse(err.message || 'Erreur de connexion au storage', 500)
     }
 }

@@ -1,47 +1,38 @@
-import { createApiClient, getAuthUser, successResponse } from '@/lib/api-utils'
+import { successResponse, errorResponse } from '@/lib/api-utils'
+import { requireAdminAccess } from '@/lib/admin/auth'
+
 const requiredEnvVars = [
     'NEXT_PUBLIC_SUPABASE_URL',
     'NEXT_PUBLIC_SUPABASE_ANON_KEY',
     'SUPABASE_SERVICE_ROLE_KEY',
     'OPENAI_API_KEY',
     'CINETPAY_API_KEY',
-    'CINETPAY_SITE_ID'
+    'CINETPAY_SITE_ID',
 ]
 
 const optionalEnvVars = [
     'CINETPAY_SECRET_KEY',
-    'WHATSAPP_API_URL'
+    'WHATSAPP_API_URL',
+    'UPSTASH_REDIS_REST_URL',
+    'UPSTASH_REDIS_REST_TOKEN',
 ]
 
 export async function GET() {
-    const supabaseSecClient = await createApiClient()
-    const { user: secUser, error: secAuthError } = await getAuthUser(supabaseSecClient)
-    if (secAuthError || secUser?.role !== 'admin') {
-        return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), { status: 403, headers: { 'Content-Type': 'application/json' } })
+    const { response } = await requireAdminAccess()
+    if (response) return response
+
+    try {
+        const missing = requiredEnvVars.filter((envVar) => !process.env[envVar])
+        const configured = requiredEnvVars.filter((envVar) => !!process.env[envVar])
+        const optional = optionalEnvVars.filter((envVar) => !!process.env[envVar])
+
+        return successResponse({
+            missing,
+            configured: configured.length,
+            optionalConfigured: optional,
+            total: requiredEnvVars.length,
+        })
+    } catch (err: any) {
+        return errorResponse(err.message || 'Erreur serveur', 500)
     }
-
-    const missing: string[] = []
-    const configured: string[] = []
-
-    for (const envVar of requiredEnvVars) {
-        if (process.env[envVar]) {
-            configured.push(envVar)
-        } else {
-            missing.push(envVar)
-        }
-    }
-
-    const optional: string[] = []
-    for (const envVar of optionalEnvVars) {
-        if (process.env[envVar]) {
-            optional.push(envVar)
-        }
-    }
-
-    return successResponse({
-        missing,
-        configured: configured.length,
-        optional: optional.length,
-        total: requiredEnvVars.length
-    })
 }

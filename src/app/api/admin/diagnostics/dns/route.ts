@@ -1,18 +1,15 @@
-import { createApiClient, getAuthUser, successResponse } from '@/lib/api-utils'
-import { NextRequest } from 'next/server'
-
 import dns from 'dns'
 import { promisify } from 'util'
+import { NextRequest } from 'next/server'
+import { errorResponse, successResponse } from '@/lib/api-utils'
+import { requireAdminAccess } from '@/lib/admin/auth'
 
 const dnsResolve = promisify(dns.resolve)
 const dnsLookup = promisify(dns.lookup)
 
 export async function GET(request: NextRequest) {
-    const supabaseSecClient = await createApiClient()
-    const { user: secUser, error: secAuthError } = await getAuthUser(supabaseSecClient)
-    if (secAuthError || secUser?.role !== 'admin') {
-        return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), { status: 403, headers: { 'Content-Type': 'application/json' } })
-    }
+    const { response } = await requireAdminAccess()
+    if (response) return response
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://wazzapai.com'
     const results: any = {
@@ -20,7 +17,8 @@ export async function GET(request: NextRequest) {
         dns: { status: 'unknown', message: '' },
         ipAddress: null,
         nameservers: [],
-        propagated: false
+        propagated: false,
+        httpReachable: false,
     }
 
     try {
@@ -28,60 +26,46 @@ export async function GET(request: NextRequest) {
         const domain = url.hostname
         results.domain = domain
 
-        // 1. DNS Lookup - Get IP address
         try {
             const { address } = await dnsLookup(domain)
             results.ipAddress = address
             results.dns.status = 'ok'
-            results.dns.message = `Résolu vers ${address}`
+            results.dns.message = `Resolu vers ${address}`
             results.propagated = true
         } catch (err: any) {
             results.dns.status = 'error'
-            results.dns.message = err.code === 'ENOTFOUND'
-                ? 'Domaine non résolu'
-                : err.message
+            results.dns.message = err.code === 'ENOTFOUND' ? 'Domaine non resolu' : err.message
         }
 
-        // 2. Get nameservers (if accessible)
         try {
-            const ns = await dnsResolve(domain, 'NS').catch(() => [])
-            results.nameservers = ns.slice(0, 3) // First 3 NS
-        } catch (err) {
-            // NS lookup failed, not critical
+            results.nameservers = (await dnsResolve(domain, 'NS').catch(() => [])).slice(0, 3)
+        } catch {
+            results.nameservers = []
         }
 
-        // 3. Check MX records (for email capability)
         try {
             const mx = await dnsResolve(domain, 'MX').catch(() => [])
             results.mxRecords = mx.length > 0
             results.mxCount = mx.length
-        } catch (err) {
+        } catch {
             results.mxRecords = false
+            results.mxCount = 0
         }
 
-        // 4. Check if domain is reachable via HTTP
         try {
-            const controller = new AbortController()
-            const timeoutId = setTimeout(() => controller.abort(), 5000)
-
-            const res = await fetch(appUrl, {
+            const response = await fetch(appUrl, {
                 method: 'HEAD',
-                signal: controller.signal
+                signal: AbortSignal.timeout(5000),
             })
-
-            clearTimeout(timeoutId)
-
-            results.httpReachable = res.ok || res.status < 500
-            results.httpStatus = res.status
+            results.httpReachable = response.ok || response.status < 500
+            results.httpStatus = response.status
         } catch (err: any) {
             results.httpReachable = false
-            results.httpError = err.name === 'AbortError' ? 'Timeout' : err.message
+            results.httpError = err.name === 'TimeoutError' ? 'Timeout' : err.message
         }
 
+        return successResponse(results)
     } catch (err: any) {
-        results.dns.status = 'error'
-        results.dns.message = 'Erreur de configuration URL'
+        return errorResponse(err.message || 'Erreur de configuration URL', 500)
     }
-
-    return successResponse(results)
 }

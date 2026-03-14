@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, Suspense } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
@@ -25,6 +25,23 @@ function RegisterForm() {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState(false)
+    const [registrationsOpen, setRegistrationsOpen] = useState(true)
+
+    useEffect(() => {
+        const loadRuntimeConfig = async () => {
+            try {
+                const res = await fetch('/api/public/runtime-config')
+                const json = await res.json()
+                if (json.success && json.data) {
+                    setRegistrationsOpen(json.data.allowRegistrations !== false)
+                }
+            } catch (err) {
+                console.error('Failed to load runtime config:', err)
+            }
+        }
+
+        loadRuntimeConfig()
+    }, [])
 
     const passwordRequirements = [
         { label: '8 caractères', met: password.length >= 8 },
@@ -39,6 +56,12 @@ function RegisterForm() {
         e.preventDefault()
         setLoading(true)
         setError(null)
+
+        if (!registrationsOpen) {
+            setError('Les inscriptions sont temporairement fermees par l administrateur.')
+            setLoading(false)
+            return
+        }
 
         if (!passwordRequirements.every(r => r.met)) {
             setError('Le mot de passe ne respecte pas les exigences de sécurité.') // Should ideally be translated too
@@ -84,6 +107,12 @@ function RegisterForm() {
         const supabase = createClient()
         setError(null)
         setLoading(true)
+
+        if (!registrationsOpen) {
+            setError('Les inscriptions sont temporairement fermees par l administrateur.')
+            setLoading(false)
+            return
+        }
 
         const isCapacitor = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform()
 
@@ -369,6 +398,24 @@ function RegisterForm() {
                         </motion.div>
                     )}
 
+                    {!registrationsOpen && (
+                        <motion.div
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            style={{
+                                marginBottom: 24,
+                                padding: 16,
+                                background: 'rgba(245, 158, 11, 0.1)',
+                                border: '1px solid rgba(245, 158, 11, 0.25)',
+                                borderRadius: 14,
+                                color: '#fbbf24',
+                                fontSize: 14
+                            }}
+                        >
+                            Les inscriptions sont actuellement suspendues.
+                        </motion.div>
+                    )}
+
                     {/* Register form */}
                     <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                         <div>
@@ -587,7 +634,7 @@ function RegisterForm() {
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
                             type="submit"
-                            disabled={loading}
+                            disabled={loading || !registrationsOpen}
                             style={{
                                 display: 'flex',
                                 alignItems: 'center',
@@ -600,9 +647,10 @@ function RegisterForm() {
                                 background: 'linear-gradient(135deg, #10b981 0%, #059669 50%, #047857 100%)',
                                 border: 'none',
                                 borderRadius: 14,
-                                cursor: loading ? 'wait' : 'pointer',
+                                cursor: loading || !registrationsOpen ? 'not-allowed' : 'pointer',
                                 boxShadow: '0 8px 32px rgba(16, 185, 129, 0.35)',
-                                marginTop: 8
+                                marginTop: 8,
+                                opacity: loading || !registrationsOpen ? 0.7 : 1
                             }}
                         >
                             {loading ? (
@@ -631,6 +679,7 @@ function RegisterForm() {
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={handleGoogleSignup}
+                        disabled={!registrationsOpen || loading}
                         style={{
                             width: '100%',
                             display: 'flex',
@@ -644,7 +693,8 @@ function RegisterForm() {
                             backgroundColor: 'rgba(30, 41, 59, 0.5)',
                             border: '1px solid rgba(148, 163, 184, 0.1)',
                             borderRadius: 14,
-                            cursor: 'pointer'
+                            cursor: !registrationsOpen || loading ? 'not-allowed' : 'pointer',
+                            opacity: !registrationsOpen || loading ? 0.7 : 1
                         }}
                     >
                         <svg style={{ width: 20, height: 20 }} viewBox="0 0 24 24">

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -41,6 +41,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useAndroidBackButton } from '@/hooks/useAndroidBackButton'
+import { useSessionTimeout } from '@/hooks/useSessionTimeout'
 
 const adminLinks = [
     { href: '/admin', label: 'Vue d\'ensemble', icon: Gauge },
@@ -94,14 +95,32 @@ export default function AdminLayout({
     const [unreadCount, setUnreadCount] = useState(0)
     const [searchQuery, setSearchQuery] = useState('')
     const [showSearchResults, setShowSearchResults] = useState(false)
+    const [sessionTimeoutHours, setSessionTimeoutHours] = useState<number | null>(null)
     const notifRef = useRef<HTMLDivElement>(null)
     const searchRef = useRef<HTMLDivElement>(null)
+    const logoutInProgressRef = useRef(false)
 
     useEffect(() => {
         const checkMobile = () => setIsMobile(window.innerWidth < 1024)
         checkMobile()
         window.addEventListener('resize', checkMobile)
         return () => window.removeEventListener('resize', checkMobile)
+    }, [])
+
+    useEffect(() => {
+        const loadRuntimeConfig = async () => {
+            try {
+                const res = await fetch('/api/public/runtime-config')
+                const json = await res.json()
+                if (json.success && json.data && Number(json.data.sessionTimeout) > 0) {
+                    setSessionTimeoutHours(Number(json.data.sessionTimeout))
+                }
+            } catch (err) {
+                console.error('Failed to load session timeout:', err)
+            }
+        }
+
+        loadRuntimeConfig()
     }, [])
 
     // Fetch admin email
@@ -173,45 +192,52 @@ export default function AdminLayout({
         return () => clearInterval(interval)
     }, [])
 
-    const handleLogout = async () => {
-        const supabase = createClient()
+    const handleLogout = useCallback(async () => {
+        if (logoutInProgressRef.current) return
+        logoutInProgressRef.current = true
 
-        // Unregister FCM device token so push notifications stop when logged out
-        const fcmToken = typeof window !== 'undefined' ? localStorage.getItem('fcm_token') : null
-        if (fcmToken) {
-            try {
-                await fetch('/api/notifications/unregister-device', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ token: fcmToken })
-                })
-            } catch (_) { /* non-critical */ }
-        }
+        try {
+            const supabase = createClient()
 
-        // Déconnecter Google Auth sur mobile (Capacitor)
-        const isCapacitor = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform()
-        if (isCapacitor) {
-            try {
-                const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth')
-                // Initialize before signOut to ensure plugin is ready
-                await GoogleAuth.initialize({
-                    clientId: '519109526767-1rfcfigbutf9217uuc69fosqjp6mis05.apps.googleusercontent.com',
-                    scopes: ['profile', 'email'],
-                    grantOfflineAccess: true
-                })
-                await GoogleAuth.signOut()
-            } catch (e) {
-                // Ignorer si pas de session Google
+            const fcmToken = typeof window !== 'undefined' ? localStorage.getItem('fcm_token') : null
+            if (fcmToken) {
+                try {
+                    await fetch('/api/notifications/unregister-device', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ token: fcmToken })
+                    })
+                } catch {
+                    // non-critical
+                }
             }
+
+            const isCapacitor = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform()
+            if (isCapacitor) {
+                try {
+                    const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth')
+                    await GoogleAuth.initialize({
+                        clientId: '519109526767-1rfcfigbutf9217uuc69fosqjp6mis05.apps.googleusercontent.com',
+                        scopes: ['profile', 'email'],
+                        grantOfflineAccess: true
+                    })
+                    await GoogleAuth.signOut()
+                } catch {
+                    // Ignore if there is no Google session
+                }
+            }
+
+            localStorage.removeItem('wazzapai_biometric_session')
+
+            await supabase.auth.signOut()
+            router.push('/login')
+            router.refresh()
+        } finally {
+            logoutInProgressRef.current = false
         }
+    }, [router])
 
-        // Clear biometric session
-        localStorage.removeItem('wazzapai_biometric_session')
-
-        await supabase.auth.signOut()
-        router.push('/login')
-        router.refresh()
-    }
+    useSessionTimeout(sessionTimeoutHours, handleLogout)
 
     // Close notifications when clicking outside
     useEffect(() => {
@@ -961,3 +987,4 @@ export default function AdminLayout({
         </div>
     )
 }
+
