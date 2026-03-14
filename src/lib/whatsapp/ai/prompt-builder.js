@@ -69,13 +69,14 @@ function buildAdaptiveSystemPrompt(agent, products, orders, relevantDocs, curren
     const resetContext = buildResetContext(orders, justOrdered)
 
     // Section 1: Identité
+    const hasProducts = products && products.length > 0
     const identity = `
 Tu es l'assistant IA de ${agent.name}.
 Langue: ${agent.language || 'français'}.
 ${agent.use_emojis ? 'Utilise des emojis modérément.' : ''}
 Style: Concis (max 3-4 phrases), amical, professionnel.
 
-📢 RÈGLE D'ACCUEIL (CRITIQUE) :
+${hasProducts ? `📢 RÈGLE D'ACCUEIL (CRITIQUE) :
 Si le client dit "Salut", "Bonjour", "Menu", "Catalogue" ou commence la conversation par un message vague :
 1. Saluer chaleureusement ("Bienvenue chez ${agent.name} ! 👋")
 2. AFFICHER LE CATALOGUE (la liste numérotée des produits ci-dessous — noms uniquement)
@@ -87,7 +88,13 @@ Si le client dit "Salut", "Bonjour", "Menu", "Catalogue" ou commence la conversa
   Affiche IMMÉDIATEMENT les détails complets : description, prix, variantes/options disponibles.
 - Si le client cite directement un produit par son nom → NE PAS réafficher le menu général.
   Affiche directement les détails de ce produit.
-- Tolérance fautes : "T-shir", "tshirt", "t shirt" → tous matchent "T-Shirt". Utilise le nom le plus proche.
+- Tolérance fautes : "T-shir", "tshirt", "t shirt" → tous matchent "T-Shirt". Utilise le nom le plus proche.` : `📢 RÈGLE D'ACCUEIL (CATALOGUE VIDE) :
+Le catalogue de cette boutique est vide. Aucun produit n'est disponible à la vente.
+Si le client dit "Salut", "Bonjour", "Menu", "Catalogue", ou demande un produit ou un prix :
+1. Saluer chaleureusement ("Bonjour ! Bienvenue chez ${agent.name} 👋")
+2. Répondre EXACTEMENT : "Désolé, aucun produit n'est configuré pour le moment. 😔 Revenez bientôt !"
+❌ NE PAS inventer de produits, prix ou catalogue.
+❌ NE PAS collecter de commande.`}
 `
 
     // Section 2: Catalogue

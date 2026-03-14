@@ -11,8 +11,16 @@ const { buildMixedWorkflow } = require('./workflow-mixed')
  */
 function buildGenericWorkflow(orders, products) {
   if (!products || products.length === 0) {
-    // Fallback si pas de produits
-    return buildPhysicalWorkflow(orders)
+    // Aucun produit configuré : interdire toute invention
+    return `
+⛔ AUCUN PRODUIT CONFIGURÉ :
+Le catalogue de cette boutique est actuellement vide.
+Si un client demande des produits, des prix, ou souhaite commander, réponds EXACTEMENT :
+"Désolé, aucun produit n'est configuré pour le moment. 😔 Revenez bientôt !"
+❌ NE PAS proposer de produits.
+❌ NE PAS inventer de prix ou de catalogue.
+❌ NE PAS collecter de commande.
+`
   }
 
   // 1. Analyse des types de produits disponibles dans le catalogue
