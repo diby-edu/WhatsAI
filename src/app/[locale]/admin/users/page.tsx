@@ -586,10 +586,11 @@ function EditUserModal({ user, onClose, onSave, onSetCredits, onAddCredits, onSu
                     <div>
                         <label style={{ display: 'block', color: '#94a3b8', fontSize: 12, marginBottom: 4 }}>Plan d'abonnement</label>
                         <select value={plan} onChange={e => setPlan(e.target.value)} style={inputStyle}>
-                            <option value="Free">Free</option>
-                            <option value="Starter">Starter</option>
-                            <option value="Pro">Pro</option>
-                            <option value="Business">Business</option>
+                            <option value="free">Free</option>
+                            <option value="starter">Starter</option>
+                            <option value="pro">Pro</option>
+                            <option value="business">Business</option>
+                            <option value="scale">Scale</option>
                         </select>
                     </div>
 
