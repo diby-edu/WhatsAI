@@ -314,7 +314,7 @@ RÈGLE D'OR : Dès que le client confirme APRÈS LE RÉCAPITULATIF, EXÉCUTE L'O
             type: 'function',
             function: {
                 name: 'send_image',
-                description: 'Envoyer une image d\'un produit au client.',
+                description: 'Envoyer l\'image d\'un produit directement au client via WhatsApp. NE PAS mentionner de lien URL dans le texte — l\'image sera envoyée automatiquement comme photo.',
                 parameters: {
                     type: 'object',
                     properties: {
