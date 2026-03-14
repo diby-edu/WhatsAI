@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
     Search, Mail, Download,
@@ -13,6 +13,7 @@ export default function AdminUsersPage() {
     const [users, setUsers] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState('')
+    const [debouncedSearch, setDebouncedSearch] = useState('')
     const [selectedPlan, setSelectedPlan] = useState('all')
     const [selectedStatus, setSelectedStatus] = useState('all')
     const [editUser, setEditUser] = useState<any>(null)
@@ -55,13 +56,23 @@ export default function AdminUsersPage() {
         credits: 'credits_balance', status: 'is_active', created: 'created_at'
     }
 
-    useEffect(() => { fetchUsers() }, [page, sortField, sortDir])
+    // Debounce search — attend 400ms après la dernière frappe avant de requêter
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(searchQuery)
+            setPage(1) // reset à la page 1 à chaque nouvelle recherche
+        }, 400)
+        return () => clearTimeout(timer)
+    }, [searchQuery])
+
+    useEffect(() => { fetchUsers() }, [page, sortField, sortDir, debouncedSearch])
 
     const fetchUsers = async () => {
         setLoading(true)
         try {
             const col = fieldToCol[sortField] || 'created_at'
-            const res = await fetch(`/api/admin/users?page=${page}&pageSize=${pageSize}&sortBy=${col}&sortDir=${sortDir}`)
+            const searchParam = debouncedSearch ? `&search=${encodeURIComponent(debouncedSearch)}` : ''
+            const res = await fetch(`/api/admin/users?page=${page}&pageSize=${pageSize}&sortBy=${col}&sortDir=${sortDir}${searchParam}`)
             const data = await res.json()
             if (data.data) {
                 const mappedUsers = data.data.map((u: any) => ({
@@ -165,11 +176,9 @@ export default function AdminUsersPage() {
     }
 
     const filteredUsers = users.filter(user => {
-        const matchesSearch = user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            user.email.toLowerCase().includes(searchQuery.toLowerCase())
         const matchesPlan = selectedPlan === 'all' || user.plan.toLowerCase() === selectedPlan
         const matchesStatus = selectedStatus === 'all' || user.status === selectedStatus
-        return matchesSearch && matchesPlan && matchesStatus
+        return matchesPlan && matchesStatus
     }).sort((a, b) => {
         let aVal: any, bVal: any
         switch (sortField) {
@@ -215,18 +224,39 @@ export default function AdminUsersPage() {
             }}>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
                     <div style={{ flex: '1 1 300px', position: 'relative' }}>
-                        <Search style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', width: 18, height: 18, color: '#64748b' }} />
+                        <Search style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', width: 18, height: 18, color: searchQuery ? '#60a5fa' : '#64748b' }} />
                         <input
-                            type="text" placeholder="Rechercher dans cette page..."
-                            value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+                            type="text"
+                            placeholder="Rechercher par nom, email ou téléphone…"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
                             style={{
-                                width: '100%', padding: '12px 12px 12px 44px', borderRadius: 10,
-                                background: 'rgba(15, 23, 42, 0.5)', border: '1px solid rgba(148, 163, 184, 0.1)',
-                                color: 'white', fontSize: 14, outline: 'none'
+                                width: '100%', padding: '12px 40px 12px 44px', borderRadius: 10,
+                                background: 'rgba(15, 23, 42, 0.5)',
+                                border: `1px solid ${searchQuery ? 'rgba(96,165,250,0.4)' : 'rgba(148, 163, 184, 0.1)'}`,
+                                color: 'white', fontSize: 14, outline: 'none',
+                                transition: 'border-color 0.2s'
                             }}
                         />
+                        {searchQuery && (
+                            <button
+                                onClick={() => setSearchQuery('')}
+                                style={{
+                                    position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+                                    background: 'none', border: 'none', color: '#64748b', cursor: 'pointer',
+                                    padding: 2, display: 'flex', alignItems: 'center'
+                                }}
+                            >
+                                <X size={16} />
+                            </button>
+                        )}
                     </div>
                 </div>
+                {debouncedSearch && meta && (
+                    <div style={{ marginTop: 10, fontSize: 13, color: '#94a3b8' }}>
+                        <span style={{ color: '#60a5fa', fontWeight: 600 }}>{meta.total}</span> résultat{meta.total !== 1 ? 's' : ''} pour <span style={{ color: 'white' }}>"{debouncedSearch}"</span>
+                    </div>
+                )}
             </div>
 
             {/* Users Table */}
