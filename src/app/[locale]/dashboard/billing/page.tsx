@@ -643,8 +643,15 @@ function BillingContent() {
                                     </div>
 
                                     <h3 style={{ fontSize: 16, fontWeight: 600, color: 'white', marginBottom: 2 }}>{plan.name}</h3>
-                                    <p style={{ color: '#64748b', fontSize: 12, marginBottom: 12 }}>
+                                    <p style={{ color: '#64748b', fontSize: 12, marginBottom: 4 }}>
                                         {t('Plans.creditsPerMonth', { count: plan.credits })}
+                                    </p>
+                                    <p style={{ color: '#64748b', fontSize: 12, marginBottom: 12 }}>
+                                        {(() => {
+                                            const agentsMap: Record<string, number> = { starter: 1, pro: 3, business: 6, scale: -1 }
+                                            const n = agentsMap[plan.id?.toLowerCase()] ?? agentsMap[plan.name?.toLowerCase()] ?? 1
+                                            return n === -1 ? '∞ agents' : `${n} agent${n > 1 ? 's' : ''}`
+                                        })()}
                                     </p>
 
                                     <div style={{ marginBottom: 16 }}>
