@@ -23,7 +23,7 @@ export const DEFAULT_ADMIN_SETTINGS = {
     smtpUser: 'support@wazzapai.com',
     smtpPassword: '',
     smtpSecure: true,
-    sessionTimeout: 24,
+    sessionTimeout: 0,
     maxLoginAttempts: 5,
     requireEmailVerification: false,
     enable2FA: false,
