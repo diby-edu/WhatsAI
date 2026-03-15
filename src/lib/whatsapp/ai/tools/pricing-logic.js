@@ -59,7 +59,52 @@ function calculateItemPrice(product, selectedVariantsMap = {}, productNameSearch
         }
     })
 
-    // 2. Calcul du prix
+    // 1.5. Lookup prix depuis les combinaisons (priorité sur les prix d'options individuels)
+    // Nécessaire quand 2+ groupes PRIX FIXE ont des prix différents par combinaison
+    if (product.combinations && Array.isArray(product.combinations) && product.combinations.length > 0) {
+        // Convertir matchedById (groupId -> value) en attrMap (groupId -> optionId)
+        const attrMap = {}
+        for (const variant of product.variants) {
+            const selectedValue = matchedById[variant.id]
+            if (!selectedValue) continue
+            const option = findMatchingOption(variant, selectedValue)
+            if (option && option.id) attrMap[variant.id] = option.id
+        }
+
+        const selectedGroupIds = Object.keys(attrMap)
+        if (selectedGroupIds.length > 0) {
+            const matchingCombo = product.combinations.find(c => {
+                if (!c.attributes || c.available === false) return false
+                // La combinaison doit correspondre à tous les attributs sélectionnés
+                return selectedGroupIds.every(gId => c.attributes[gId] === attrMap[gId])
+            })
+
+            if (matchingCombo && matchingCombo.price != null && matchingCombo.price > 0) {
+                logs.push(`🔗 Prix combinaison: ${matchingCombo.price} FCFA`)
+                price = matchingCombo.price
+
+                const missingVariants = variants.filter(v =>
+                    v.options && v.options.length > 0 &&
+                    matchedById[v.id] === undefined &&
+                    v.type !== 'supplement' && v.type !== 'additive'
+                )
+                if (missingVariants.length > 0) {
+                    const missingList = missingVariants.map(v => {
+                        const opts = v.options.map(o => getOptionValue(o)).join(', ')
+                        return `${v.name}: [${opts}]`
+                    }).join(' | ')
+                    return { price: 0, variantOptionName: null, error: `VARIANTES MANQUANTES pour "${product.name}". Demandez: ${missingList}`, missingVariants, logs }
+                }
+
+                matchedVariantOption = product.variants.map(v => matchedById[v.id]).filter(Boolean).join(', ')
+                logs.push(`✅ Variants validés: ${matchedVariantOption}`)
+                logs.push(`💵 Prix depuis combinaison: ${price} FCFA`)
+                return { price, variantOptionName: matchedVariantOption, error: null, logs }
+            }
+        }
+    }
+
+    // 2. Calcul du prix (fallback sur options individuelles si pas de combinaison avec prix)
     for (const variant of product.variants) {
         const selectedValue = matchedById[variant.id]
         if (selectedValue) {
