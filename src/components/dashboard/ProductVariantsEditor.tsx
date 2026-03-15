@@ -340,14 +340,14 @@ export default function ProductVariantsEditor({
     const addGroup = (type: 'fixed' | 'additive') => {
         if (variants.length >= MAX_VARIANT_GROUPS) return
         // Determine the best default category for this product type
-        let defaultCategory: string
+        let defaultCategory: VariantCategory
         if (type !== 'fixed') {
             defaultCategory = 'custom'
         } else if (productType === 'digital') {
             defaultCategory = 'format'
         } else if (productType === 'service') {
             // Use the first non-custom key from the active service config
-            defaultCategory = Object.keys(CATEGORY_CONFIG).find(k => k !== 'custom') || 'custom'
+            defaultCategory = (Object.keys(CATEGORY_CONFIG).find(k => k !== 'custom') || 'custom') as VariantCategory
         } else {
             defaultCategory = 'visual'
         }
