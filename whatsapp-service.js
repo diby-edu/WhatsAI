@@ -114,6 +114,10 @@ const openai = new OpenAI({ apiKey: OPENAI_API_KEY })
 // Store active sessions
 const activeSessions = new Map()
 const pendingConnections = new Set()
+// Cooldown map: évite que checkAgents re-déclenche un agent récemment initialisé
+// pendant le gap entre disconnect et reconnect (race condition → boucle infinie QR)
+const recentlyProcessed = new Map() // agentId -> lastInitTimestamp
+const AGENT_INIT_COOLDOWN = 3 * 60 * 1000 // 3 minutes entre deux initSession pour le même agent
 
 // Référence au channel Realtime pour cleanup au shutdown
 let _realtimeChannel = null
@@ -137,10 +141,15 @@ async function checkAgents() {
         const context = { supabase, supabaseRealtime, activeSessions, pendingConnections, openai, CinetPay }
 
         for (const agent of connectingAgents || []) {
-            if (!activeSessions.has(agent.id) && !pendingConnections.has(agent.id)) {
-                console.log(`⚡ triggering initSession for ${agent.name}`)
-                initSession(context, agent.id, agent.name)
-            }
+            // Skip si en cours de connexion
+            if (activeSessions.has(agent.id) || pendingConnections.has(agent.id)) continue
+            // Skip si initSession déclenché récemment (laisse le backoff interne gérer les retries)
+            const lastInit = recentlyProcessed.get(agent.id)
+            if (lastInit && Date.now() - lastInit < AGENT_INIT_COOLDOWN) continue
+
+            console.log(`⚡ triggering initSession for ${agent.name}`)
+            recentlyProcessed.set(agent.id, Date.now())
+            initSession(context, agent.id, agent.name)
         }
 
         // 2. Check for agents that should be connected and have session files
