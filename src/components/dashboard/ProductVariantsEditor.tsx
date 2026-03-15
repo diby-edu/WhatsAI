@@ -339,11 +339,25 @@ export default function ProductVariantsEditor({
 
     const addGroup = (type: 'fixed' | 'additive') => {
         if (variants.length >= MAX_VARIANT_GROUPS) return
+        // Determine the best default category for this product type
+        let defaultCategory: string
+        if (type !== 'fixed') {
+            defaultCategory = 'custom'
+        } else if (productType === 'digital') {
+            defaultCategory = 'format'
+        } else if (productType === 'service') {
+            // Use the first non-custom key from the active service config
+            defaultCategory = Object.keys(CATEGORY_CONFIG).find(k => k !== 'custom') || 'custom'
+        } else {
+            defaultCategory = 'visual'
+        }
         const newGroup: VariantGroup = {
             id: Date.now().toString(),
-            name: type === 'fixed' ? 'Couleur' : 'Supplément',
+            name: type === 'fixed'
+                ? (CATEGORY_DEFAULT_NAMES[defaultCategory] || defaultCategory)
+                : 'Supplément',
             type: type,
-            category: type === 'fixed' ? 'visual' : 'custom',
+            category: defaultCategory,
             options: []
         }
         onChange([...variants, newGroup])
