@@ -270,7 +270,17 @@ export default function ProductVariantsEditor({
 
     // Auto-sync combinations when variant options change (add/remove options)
     useEffect(() => {
-        if (!combinations || !onCombinationsChange) return
+        if (!onCombinationsChange) return
+        const fixedGroupsWithOptions = variants.filter(g => g.type === 'fixed' && g.options.length > 0)
+
+        // Auto-activer les combinaisons si ≥2 groupes PRIX FIXE ont des options
+        // (obligatoire pour que le bot calcule les prix correctement)
+        if (fixedGroupsWithOptions.length >= 2 && !combinations) {
+            onCombinationsChange(mergeCombinations(variants, []))
+            return
+        }
+
+        if (!combinations) return
         const eligibleGroups = variants.filter(g => g.options.length > 0)
         if (eligibleGroups.length < 2) return
         const merged = mergeCombinations(variants, combinations)
@@ -286,6 +296,8 @@ export default function ProductVariantsEditor({
     }
 
     const disableCombinations = () => {
+        const fixedGroupsWithOptions = variants.filter(g => g.type === 'fixed' && g.options.length > 0)
+        if (fixedGroupsWithOptions.length >= 2) return // Obligatoire avec 2+ groupes PRIX FIXE
         if (confirm('Désactiver les combinaisons ? Les prix configurés seront perdus.')) {
             onCombinationsChange?.(null)
         }
