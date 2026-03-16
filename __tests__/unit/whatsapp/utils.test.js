@@ -38,20 +38,19 @@ describe('Utils: normalizePhoneNumber (v2.2 - Strict Mode)', () => {
     });
 
     // Edge cases
-    test('should return placeholder for null/empty input', () => {
-        // Logic v2.8: Never return null to avoid crashes
-        expect(normalizePhoneNumber(null)).toBe('+000000000000');
-        expect(normalizePhoneNumber('')).toBe('+000000000000');
-        expect(normalizePhoneNumber(undefined)).toBe('+000000000000');
+    test('should return null for null/empty input', () => {
+        expect(normalizePhoneNumber(null)).toBe(null);
+        expect(normalizePhoneNumber('')).toBe(null);
+        expect(normalizePhoneNumber(undefined)).toBe(null);
     });
 
-    test('should NOT reject phone that is too short (permissive mode)', () => {
-        // Logic v2.8: Case 3 (Starts with +) -> returns as is even if short
-        expect(normalizePhoneNumber('+123')).toBe('+123');
+    test('should reject phone that is too short (strict mode)', () => {
+        // +123 = 3 digits, minimum is 8 digits after +
+        expect(normalizePhoneNumber('+123')).toBe(null);
     });
 
-    test('should NOT reject phone that is too long (permissive mode)', () => {
-        // Logic v2.8: Case 3 (Starts with +) -> returns as is even if long
-        expect(normalizePhoneNumber('+12345678901234567890')).toBe('+12345678901234567890');
+    test('should reject phone that is too long (strict mode)', () => {
+        // 20 digits exceeds E.164 maximum of 15 digits
+        expect(normalizePhoneNumber('+12345678901234567890')).toBe(null);
     });
 });
