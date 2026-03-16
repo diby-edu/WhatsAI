@@ -193,29 +193,49 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             }
         })
 
+        // Helper : téléchargement média avec timeout (évite blocage réseau)
+        const MEDIA_TIMEOUT_MS = 15000
+        const withMediaTimeout = (promise) => Promise.race([
+            promise,
+            new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Media download timeout (15s)')), MEDIA_TIMEOUT_MS)
+            )
+        ])
+
         // 2.2 Traiter message vocal (transcription)
         if (isVoiceMessage && message.audioMessage) {
             console.log('🎤 Transcribing voice message...')
-            const buffer = await downloadMediaMessage(
-                {
-                    key: message.key,
-                    message: { audioMessage: message.audioMessage }
-                },
-                'buffer',
-                { logger: console }
-            )
-
-            const transcription = await MediaService.transcribeAudio(openai, buffer)
-            message.text = transcription
-            console.log(`📝 Transcription: ${transcription}`)
+            try {
+                const buffer = await withMediaTimeout(downloadMediaMessage(
+                    {
+                        key: message.key,
+                        message: { audioMessage: message.audioMessage }
+                    },
+                    'buffer',
+                    { logger: console }
+                ))
+                const transcription = await MediaService.transcribeAudio(openai, buffer)
+                message.text = transcription
+                console.log(`📝 Transcription: ${transcription}`)
+            } catch (mediaErr) {
+                console.error('❌ Audio download/transcription failed:', mediaErr.message)
+                message.text = '[Message vocal non disponible]'
+            }
         }
 
         // 2.3 Traiter image
         if (message.imageMessage) {
             console.log('📸 Processing image...')
-            const imageBase64 = await MediaService.processImage(message, downloadMediaMessage)
-            message.imageBase64 = imageBase64
-            message.text = message.text || message.caption || "Que penses-tu de cette image ?"
+            try {
+                const imageBase64 = await withMediaTimeout(
+                    MediaService.processImage(message, downloadMediaMessage)
+                )
+                message.imageBase64 = imageBase64
+                message.text = message.text || message.caption || "Que penses-tu de cette image ?"
+            } catch (mediaErr) {
+                console.error('❌ Image download failed:', mediaErr.message)
+                message.text = message.text || '[Image non disponible]'
+            }
         }
 
         // ═══════════════════════════════════════════════════════════
