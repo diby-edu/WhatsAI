@@ -131,6 +131,7 @@ async function checkAgents() {
         const { data: connectingAgents } = await supabase
             .from('agents')
             .select('id, name, whatsapp_status')
+            .eq('is_active', true)
             .in('whatsapp_status', ['connecting', 'qr_ready'])
 
         if (connectingAgents && connectingAgents.length > 0) {
