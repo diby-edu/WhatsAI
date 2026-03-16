@@ -312,7 +312,14 @@ export default function AgentsPage() {
                             borderRadius: 10,
                             marginBottom: 16
                         }}>
-                            {agent.whatsapp_connected ? (
+                            {!agent.is_active ? (
+                                <>
+                                    <Smartphone style={{ width: 16, height: 16, color: '#fbbf24' }} />
+                                    <span style={{ fontSize: 14, color: '#fbbf24' }}>
+                                        Pause
+                                    </span>
+                                </>
+                            ) : agent.whatsapp_connected ? (
                                 <>
                                     <Smartphone style={{ width: 16, height: 16, color: '#34d399' }} />
                                     <span style={{ fontSize: 14, color: '#34d399' }}>
