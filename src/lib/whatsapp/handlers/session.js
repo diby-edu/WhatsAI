@@ -16,6 +16,8 @@ const logger = pino({ level: 'warn' })
 
 async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
     const { supabase, activeSessions, pendingConnections, openai, CinetPay } = context
+    const isSilentRestore = reconnectAttempt === 99
+    const effectiveReconnectAttempt = isSilentRestore ? 0 : reconnectAttempt
 
 
     if (activeSessions.has(agentId) && activeSessions.get(agentId).status === 'connected') {
@@ -90,7 +92,8 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
             socket,
             status: 'connecting',
             agentName,
-            reconnectAttempts: reconnectAttempt
+            reconnectAttempts: effectiveReconnectAttempt,
+            isSilentRestore
         }
         activeSessions.set(agentId, session)
 
@@ -175,7 +178,7 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                 // 🔔 NOTIFICATION: Uniquement à la première connexion (pas sur reconnexion auto)
                 // reconnectAttempt === 0 = première connexion réelle (scan QR ou démarrage initial)
                 // reconnectAttempt > 0  = reconnexion automatique après coupure → pas de notification
-                if (reconnectAttempt === 0) {
+                if (!session.isSilentRestore && effectiveReconnectAttempt === 0) {
                     try {
                         const { data: agent } = await supabase.from('agents').select('user_id').eq('id', agentId).single()
                         if (agent?.user_id) {
@@ -189,7 +192,8 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                         console.error('🔔 Notification error (non-blocking):', notifError)
                     }
                 } else {
-                    console.log(`🔄 Reconnexion silencieuse [${agentName}] (tentative ${reconnectAttempt}) — pas de notification`)
+                    const reason = session.isSilentRestore ? 'restauration au démarrage' : `tentative ${effectiveReconnectAttempt}`
+                    console.log(`🔄 Reconnexion silencieuse [${agentName}] (${reason}) — pas de notification`)
                 }
             }
 
@@ -232,7 +236,7 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                         // Évite que la reconnexion auto remette whatsapp_connected=true après une déco volontaire
                         const { data: agentCheck } = await supabase
                             .from('agents')
-                            .select('is_active, whatsapp_connected')
+                            .select('is_active, whatsapp_connected, whatsapp_status')
                             .eq('id', agentId)
                             .single()
 

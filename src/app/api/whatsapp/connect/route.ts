@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { createApiClient, getAuthUser, errorResponse, successResponse, createAdminClient } from '@/lib/api-utils'
 
 // POST /api/whatsapp/connect - Request WhatsApp connection
-// The standalone whatsapp-service.js will pick this up and generate QR
+// The standalone whatsapp-service.js will pick this up and generate QR or restore a saved session.
 export async function POST(request: NextRequest) {
     const supabase = await createApiClient()
     const { user, error: authError } = await getAuthUser(supabase)
@@ -22,13 +22,13 @@ export async function POST(request: NextRequest) {
         // Verify agent belongs to user
         const { data: agent, error } = await supabase
             .from('agents')
-            .select('id, name, whatsapp_connected, whatsapp_status, whatsapp_qr_code')
+            .select('id, name, whatsapp_connected, whatsapp_status, whatsapp_qr_code, whatsapp_phone')
             .eq('id', agentId)
             .eq('user_id', user!.id)
             .single()
 
         if (error || !agent) {
-            return errorResponse('Agent non trouvé', 404)
+            return errorResponse('Agent non trouve', 404)
         }
 
         // Check WhatsApp connection limit based on plan
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
                     .in('whatsapp_status', ['connected', 'connecting'])
 
                 if ((activeConnections || 0) >= limit) {
-                    return errorResponse(`Limite de numéros WhatsApp atteinte pour votre plan (${limit} max)`, 403)
+                    return errorResponse(`Limite de numeros WhatsApp atteinte pour votre plan (${limit} max)`, 403)
                 }
             }
         }
@@ -66,18 +66,20 @@ export async function POST(request: NextRequest) {
         if (agent.whatsapp_connected) {
             return successResponse({
                 status: 'connected',
-                message: 'WhatsApp déjà connecté'
+                message: 'WhatsApp deja connecte'
             })
         }
 
-        // Clear stale session credentials to force a fresh QR-based authentication.
-        // Without this, Baileys loads partial creds from a previous failed scan
-        // and tries to restore the session silently — no QR is ever generated.
         const adminClient = createAdminClient()
-        await adminClient
-            .from('whatsapp_sessions')
-            .delete()
-            .eq('session_id', agentId)
+        const forceFreshQr = body?.forceFreshQr === true
+
+        if (forceFreshQr || !agent.whatsapp_phone) {
+            // Fresh setup or explicit reset: clear stored credentials to force a new QR flow.
+            await adminClient
+                .from('whatsapp_sessions')
+                .delete()
+                .eq('session_id', agentId)
+        }
 
         const { error: agentUpdateError } = await adminClient
             .from('agents')
@@ -88,12 +90,14 @@ export async function POST(request: NextRequest) {
             .eq('id', agentId)
 
         if (agentUpdateError) {
-            return errorResponse('Erreur lors de l\'initiation de la connexion', 500)
+            return errorResponse('Erreur lors de l initiation de la connexion', 500)
         }
 
         return successResponse({
             status: 'connecting',
-            message: 'Demande de connexion envoyée. Le QR code sera généré sous peu...'
+            message: forceFreshQr || !agent.whatsapp_phone
+                ? 'Demande de connexion envoyee. Le QR code sera genere sous peu...'
+                : 'Demande de reconnexion envoyee. Restauration de session en cours...'
         })
     } catch (err) {
         console.error('WhatsApp connect error:', err)
@@ -126,7 +130,7 @@ export async function GET(request: NextRequest) {
         .single()
 
     if (error || !agent) {
-        return errorResponse('Agent non trouvé', 404)
+        return errorResponse('Agent non trouve', 404)
     }
 
     return successResponse({
@@ -162,7 +166,7 @@ export async function DELETE(request: NextRequest) {
         .single()
 
     if (error || !agent) {
-        return errorResponse('Agent non trouvé', 404)
+        return errorResponse('Agent non trouve', 404)
     }
 
     // Set status to 'disconnecting' - the standalone service will handle cleanup
@@ -178,11 +182,11 @@ export async function DELETE(request: NextRequest) {
         .eq('id', agentId)
 
     if (disconnectError) {
-        return errorResponse('Erreur lors de la déconnexion', 500)
+        return errorResponse('Erreur lors de la deconnexion', 500)
     }
 
     return successResponse({
         success: true,
-        message: 'Demande de déconnexion envoyée'
+        message: 'Demande de deconnexion envoyee'
     })
 }
