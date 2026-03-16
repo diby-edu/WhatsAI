@@ -109,18 +109,30 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                 try {
                     // Convert QR to data URL and store in database
                     const qrDataUrl = await QRCode.toDataURL(qr)
-                    const { error: qrError } = await supabase.from('agents').update({
+
+                    // ⭐ TIMEOUT 5s : évite que ConnectTimeoutError Supabase (30s) bloque le process
+                    const QR_SAVE_TIMEOUT_MS = 5000
+                    const saveQR = supabase.from('agents').update({
                         whatsapp_qr_code: qrDataUrl,
                         whatsapp_status: 'qr_ready'
                     }).eq('id', agentId)
 
+                    const { error: qrError } = await Promise.race([
+                        saveQR,
+                        new Promise((_, reject) =>
+                            setTimeout(() => reject(new Error('QR save timeout (5s)')), QR_SAVE_TIMEOUT_MS)
+                        )
+                    ])
+
                     if (qrError) {
-                        console.error(`❌ [${agentName}] Failed to save QR to DB:`, qrError.message)
+                        console.warn(`⚠️ [${agentName}] Failed to save QR to DB:`, qrError.message)
                     } else {
                         console.log(`✅ [${agentName}] QR code saved to DB and ready for scan`)
                     }
                 } catch (qrErr) {
-                    console.error(`❌ [${agentName}] Error during QR processing:`, qrErr.message)
+                    // Non-bloquant : QR save échoue silencieusement (timeout réseau ou erreur DB)
+                    // Le socket reste actif et un nouveau QR sera généré au prochain cycle
+                    console.warn(`⚠️ [${agentName}] QR save failed (non-blocking):`, qrErr.message)
                 }
             }
 
