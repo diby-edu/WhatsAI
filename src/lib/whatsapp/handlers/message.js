@@ -300,6 +300,16 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
         // PHASE 6 : ENVOI RÉPONSE
         // ═══════════════════════════════════════════════════════════
 
+        // 6.pre — Déduire 1 crédit de base AVANT tout envoi (poka-yoke)
+        // Si la déduction échoue (crédits épuisés, RPC indispo), on n'envoie pas.
+        try {
+            await CreditsService.deduct(supabase, agent.user_id, 1)
+            console.log(`💰 1 crédit déduit (base)`)
+        } catch (creditError) {
+            console.error('❌ Déduction crédit impossible, envoi annulé:', creditError.message)
+            return
+        }
+
         const session = activeSessions.get(agentId)
         let voiceSent = false
 
@@ -321,18 +331,30 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
         }
 
         // 6.1 Synthèse vocale (si activée)
+        // Déduire les 4 crédits voix AVANT d'envoyer. Si insuffisants → fallback texte.
         if (agent.voice_enabled && aiResponse.content.length <= 500) {
+            let voiceCreditsOk = false
             try {
-                await MessagingService.sendVoice(
-                    openai,
-                    session,
-                    message.from,
-                    aiResponse.content
-                )
-                voiceSent = true
-                console.log('🔊 Voice message sent')
-            } catch (voiceError) {
-                console.warn('Voice failed, falling back to text:', voiceError.message)
+                await CreditsService.deduct(supabase, agent.user_id, 4)
+                voiceCreditsOk = true
+            } catch (_) {
+                console.warn('⚠️ Crédits voix insuffisants, fallback texte')
+            }
+
+            if (voiceCreditsOk) {
+                try {
+                    await MessagingService.sendVoice(
+                        openai,
+                        session,
+                        message.from,
+                        aiResponse.content
+                    )
+                    voiceSent = true
+                    console.log('🔊 Voice message sent')
+                } catch (voiceError) {
+                    console.warn('Voice failed, falling back to text:', voiceError.message)
+                    // Les 4 crédits voix sont perdus si sendVoice échoue côté réseau — acceptable
+                }
             }
         }
 
@@ -371,9 +393,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
         // PHASE 7 : MISE À JOUR STATS & CRÉDITS
         // ═══════════════════════════════════════════════════════════
 
-        // 7.1 Déduction crédits (ATOMIQUE)
-        const creditsToDeduct = CreditsService.calculateCost(voiceSent)
-        await CreditsService.deduct(supabase, agent.user_id, creditsToDeduct)
+        // 7.1 Crédits déjà déduits en phase 6.pre (base) et 6.1 (voix)
 
         // 7.2 Stats agent
         await AnalyticsService.trackInteraction(supabase, agentId, 2)
