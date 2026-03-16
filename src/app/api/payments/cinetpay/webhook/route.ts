@@ -110,17 +110,21 @@ export async function POST(request: NextRequest) {
             return new Response('Missing x-token header', { status: 401 })
         }
 
-        if (process.env.CINETPAY_SECRET_KEY) {
-            // Official CinetPay HMAC format: concatenate all 16 fields
-            const signaturePayload = cpm_site_id + cpm_trans_id + cpm_trans_date + cpm_amount +
-                cpm_currency + signature + payment_method + cel_phone_num + cpm_phone_prefixe +
-                cpm_language + cpm_version + cpm_payment_config + cpm_page_action +
-                cpm_custom + cpm_designation + cpm_error_message
+        // FAIL-CLOSED : si la clé est absente, refuser tout webhook
+        if (!process.env.CINETPAY_SECRET_KEY) {
+            console.error('[Webhook] CINETPAY_SECRET_KEY non configurée — webhook rejeté (fail-closed)')
+            return new Response('Webhook not configured', { status: 500 })
+        }
 
-            if (!verifySignature(signaturePayload, xToken)) {
-                console.warn('[Webhook] Invalid x-token signature — rejecting')
-                return new Response('Invalid signature', { status: 403 })
-            }
+        // Official CinetPay HMAC format: concatenate all 16 fields
+        const signaturePayload = cpm_site_id + cpm_trans_id + cpm_trans_date + cpm_amount +
+            cpm_currency + signature + payment_method + cel_phone_num + cpm_phone_prefixe +
+            cpm_language + cpm_version + cpm_payment_config + cpm_page_action +
+            cpm_custom + cpm_designation + cpm_error_message
+
+        if (!verifySignature(signaturePayload, xToken)) {
+            console.warn('[Webhook] Invalid x-token signature — rejecting')
+            return new Response('Invalid signature', { status: 403 })
         }
 
         // Verify site_id matches our configuration

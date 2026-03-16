@@ -136,9 +136,20 @@ async function checkOutboundMessages(context) {
                             .eq('id', msg.id)
                     } catch (sendError) {
                         console.error(`Failed to send outbound to ${msg.recipient_phone}:`, sendError)
-                        await supabase.from('outbound_messages')
-                            .update({ status: 'failed', error_log: sendError.message })
-                            .eq('id', msg.id)
+
+                        // Retry logic : laisser pending si message récent (< 1h)
+                        // Le cron retentera automatiquement au prochain cycle.
+                        // Après 1h sans succès → failed définitif.
+                        const ageMs = Date.now() - new Date(msg.created_at).getTime()
+                        const ONE_HOUR = 60 * 60 * 1000
+                        if (ageMs > ONE_HOUR) {
+                            await supabase.from('outbound_messages')
+                                .update({ status: 'failed', error_log: `Abandon après 1h: ${sendError.message}` })
+                                .eq('id', msg.id)
+                            console.error(`Outbound ${msg.id} abandonné après 1h`)
+                        } else {
+                            console.log(`Outbound ${msg.id} restera pending (âge: ${Math.round(ageMs / 60000)}min) — retry au prochain cycle`)
+                        }
                     }
                 } else {
                     console.log(`Agent ${msg.agent_id} offline, keeping in queue`)
