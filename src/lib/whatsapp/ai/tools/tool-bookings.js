@@ -124,8 +124,8 @@ async function handleCreateBooking(args, agentId, products, conversationId, supa
         if (!normalizedPhone) {
             return JSON.stringify({
                 success: false,
-                error: 'TÉLÉPHONE CLIENT MANQUANT. Demandez le numéro de téléphone du client avant de créer la réservation.',
-                hint: 'Demandez : "Quel est votre numéro de téléphone ?"'
+                error: 'NUMÉRO INVALIDE OU SANS INDICATIF. Demandez le numéro complet avec indicatif pays avant de créer la réservation.',
+                hint: 'Exemples valides : +2250701020304, 002250701020304 ou 2250701020304'
             })
         }
 

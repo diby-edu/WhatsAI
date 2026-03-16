@@ -76,6 +76,17 @@ function preCheckCreateOrder(toolCall, products) {
                 const selectedVariants = item.selected_variants || {}
 
                 for (const variant of product.variants) {
+                    if (!variant.options || !Array.isArray(variant.options) || variant.options.length === 0) {
+                        continue
+                    }
+
+                    // Les suppléments/additifs sont optionnels : on ne bloque jamais create_order
+                    // si le client n'en a pas choisi.
+                    if (variant.type === 'additive' || variant.type === 'supplement') {
+                        console.log(`   ℹ️ ${variant.name}: supplément optionnel, non bloquant`)
+                        continue
+                    }
+
                     const variantName = variant.name
                     const variantNameLower = variantName.toLowerCase()
 

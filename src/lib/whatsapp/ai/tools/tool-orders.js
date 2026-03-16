@@ -2,6 +2,14 @@
 const { normalizePhoneNumber, checkStock, productHasRealVariants, findMatchingOption, getOptionValue, getOptionPrice } = require('./tool-helpers')
 const { validateCreateOrderArgs } = require('./tool-validators')
 
+function combinationMatches(attributes = {}, expected = {}) {
+    const attributeKeys = Object.keys(attributes)
+    const expectedKeys = Object.keys(expected)
+
+    if (attributeKeys.length !== expectedKeys.length) return false
+    return expectedKeys.every(key => attributes[key] === expected[key])
+}
+
 // ═══════════════════════════════════════════════════════════
 // CREATE ORDER
 // ═══════════════════════════════════════════════════════════
@@ -97,7 +105,7 @@ async function handleCreateOrder(args, agentId, products, conversationId, supaba
             // Price & Variants (Refactored v4.1)
             const { calculateItemPrice } = require('./pricing-logic')
 
-            const pricingResult = calculateItemPrice(product, item.selected_variants, item.product_name)
+            const pricingResult = calculateItemPrice(product, item.selected_variants, item.product_name, item.quantity)
 
             // Log des étapes de calcul (debug)
             if (pricingResult.logs) pricingResult.logs.forEach(l => console.log(`      ${l}`))
@@ -120,7 +128,13 @@ async function handleCreateOrder(args, agentId, products, conversationId, supaba
                 quantity: item.quantity,
                 unit_price_fcfa: price
             })
-            resolvedProducts.push({ id: product.id, name: product.name, quantity: item.quantity })
+            resolvedProducts.push({
+                id: product.id,
+                name: product.name,
+                quantity: item.quantity,
+                variantLabel: matchedVariantOption || null,
+                combinationAttributes: pricingResult.combinationAttributes || null
+            })
         }
 
         // Create Order in DB
@@ -128,8 +142,8 @@ async function handleCreateOrder(args, agentId, products, conversationId, supaba
         if (!normalizedPhone) {
             return JSON.stringify({
                 success: false,
-                error: 'TÉLÉPHONE CLIENT MANQUANT. Demandez le numéro de téléphone du client avant de créer la commande.',
-                hint: 'Demandez : "Quel est votre numéro de téléphone ?"'
+                error: 'NUMÉRO INVALIDE OU SANS INDICATIF. Demandez le numéro complet avec indicatif pays avant de créer la commande.',
+                hint: 'Exemples valides : +2250701020304, 002250701020304 ou 2250701020304'
             })
         }
         console.log(`\n📝 Création commande atomique: ${orderItems.length} items, Total: ${total} FCFA`)
@@ -165,11 +179,49 @@ async function handleCreateOrder(args, agentId, products, conversationId, supaba
             for (const resolved of resolvedProducts) {
                 const { data: prod } = await supabase
                     .from('products')
-                    .select('stock_quantity, name')
+                    .select('stock_quantity, name, combinations')
                     .eq('id', resolved.id)
                     .single()
 
-                if (prod && prod.stock_quantity !== -1 && prod.stock_quantity !== null) {
+                if (!prod) continue
+
+                if (resolved.combinationAttributes && Array.isArray(prod.combinations)) {
+                    let combinationUpdated = false
+                    const nextCombinations = prod.combinations.map(combo => {
+                        if (!combinationMatches(combo.attributes || {}, resolved.combinationAttributes)) {
+                            return combo
+                        }
+
+                        if (combo.stock === null || combo.stock === undefined || combo.stock < 0) {
+                            combinationUpdated = true
+                            return combo
+                        }
+
+                        const nextStock = Math.max(0, combo.stock - resolved.quantity)
+                        combinationUpdated = true
+                        return {
+                            ...combo,
+                            stock: nextStock,
+                            available: nextStock > 0 ? combo.available !== false : false
+                        }
+                    })
+
+                    if (combinationUpdated) {
+                        await supabase.from('products').update({ combinations: nextCombinations }).eq('id', resolved.id)
+
+                        const updatedCombo = nextCombinations.find(combo =>
+                            combinationMatches(combo.attributes || {}, resolved.combinationAttributes)
+                        )
+
+                        if (updatedCombo && updatedCombo.stock === 0) {
+                            notify(agent.user_id, 'stock_out', {
+                                productName: resolved.variantLabel ? `${prod.name} (${resolved.variantLabel})` : prod.name
+                            })
+                        }
+                    }
+                }
+
+                if (prod.stock_quantity !== -1 && prod.stock_quantity !== null) {
                     const newStock = prod.stock_quantity - resolved.quantity
                     await supabase.from('products').update({ stock_quantity: Math.max(0, newStock) }).eq('id', resolved.id)
                     if (newStock <= 0) {
@@ -309,7 +361,13 @@ async function handleFindOrder(args, agentId, supabase) {
         const { phone_number } = args
         const normalizedPhone = normalizePhoneNumber(phone_number)
 
-        if (!normalizedPhone) return JSON.stringify({ success: false, error: 'Numéro invalide' })
+        if (!normalizedPhone) {
+            return JSON.stringify({
+                success: false,
+                error: 'NUMÉRO INVALIDE OU SANS INDICATIF. Utilisez un numéro complet avec indicatif pays.',
+                hint: 'Exemples valides : +2250701020304, 002250701020304 ou 2250701020304'
+            })
+        }
 
         // 1. Récupérer les 3 dernières commandes
         const { data: orders } = await supabase
