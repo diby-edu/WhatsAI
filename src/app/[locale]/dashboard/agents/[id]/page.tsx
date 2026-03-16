@@ -180,9 +180,25 @@ export default function AgentWizardPage({
             const agent = data.data?.agent || data.agent
 
             // Initial WhatsApp State
-            if (agent.whatsapp_connected) {
+            if (!agent.is_active) {
+                setWhatsappStatus('idle')
+                setQrCode(null)
+                setConnectedPhone(null)
+            } else if (agent.whatsapp_connected) {
                 setWhatsappStatus('connected')
                 setConnectedPhone(agent.whatsapp_phone)
+            } else if (agent.whatsapp_status === 'qr_ready' && agent.whatsapp_qr_code) {
+                setWhatsappStatus('qr_ready')
+                setQrCode(agent.whatsapp_qr_code)
+                setConnectedPhone(null)
+            } else if (agent.whatsapp_status === 'connecting') {
+                setWhatsappStatus('connecting')
+                setQrCode(null)
+                setConnectedPhone(null)
+            } else {
+                setWhatsappStatus('idle')
+                setQrCode(null)
+                setConnectedPhone(null)
             }
 
             // Populate Form
@@ -270,6 +286,11 @@ export default function AgentWizardPage({
 
     // --- WhatsApp Logic (Copied from previous) ---
     const connectWhatsApp = async () => {
+        if (!formData.is_active) {
+            alert("Activez d'abord l'agent avant de connecter WhatsApp.")
+            return
+        }
+
         setWhatsappStatus('connecting')
         setQrCode(null)
         try {
@@ -316,6 +337,10 @@ export default function AgentWizardPage({
                 if (result.status === 'connected' || result.connected) {
                     setWhatsappStatus('connected')
                     setConnectedPhone(result.phoneNumber)
+                    setQrCode(null)
+                    clearInterval(interval)
+                } else if (result.status === 'paused' || result.paused) {
+                    setWhatsappStatus('idle')
                     setQrCode(null)
                     clearInterval(interval)
                 } else if (result.status === 'error') {
@@ -993,8 +1018,18 @@ export default function AgentWizardPage({
                         <div className="bg-slate-800/50 p-8 rounded-xl border border-slate-700/50 flex flex-col items-center">
                             <h2 className="text-2xl font-bold text-white mb-6">Connexion WhatsApp</h2>
 
+                            {!formData.is_active && (
+                                <div className="mb-6 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+                                    Agent en pause. Activez-le d'abord pour lancer ou reprendre un scan WhatsApp.
+                                </div>
+                            )}
+
                             {whatsappStatus === 'idle' && (
-                                <button onClick={connectWhatsApp} className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold flex items-center gap-2 transition-all">
+                                <button
+                                    onClick={connectWhatsApp}
+                                    disabled={!formData.is_active}
+                                    className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-700 disabled:text-slate-400 disabled:cursor-not-allowed text-white rounded-xl font-bold flex items-center gap-2 transition-all"
+                                >
                                     <QrCode size={20} /> Générer le QR Code
                                 </button>
                             )}

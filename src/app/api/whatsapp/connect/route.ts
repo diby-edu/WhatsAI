@@ -22,13 +22,17 @@ export async function POST(request: NextRequest) {
         // Verify agent belongs to user
         const { data: agent, error } = await supabase
             .from('agents')
-            .select('id, name, whatsapp_connected, whatsapp_status, whatsapp_qr_code, whatsapp_phone')
+            .select('id, name, is_active, whatsapp_connected, whatsapp_status, whatsapp_qr_code, whatsapp_phone')
             .eq('id', agentId)
             .eq('user_id', user!.id)
             .single()
 
         if (error || !agent) {
             return errorResponse('Agent non trouve', 404)
+        }
+
+        if (!agent.is_active) {
+            return errorResponse('Activez d abord l agent avant de connecter WhatsApp', 409)
         }
 
         // Check WhatsApp connection limit based on plan
@@ -54,7 +58,7 @@ export async function POST(request: NextRequest) {
                     .from('agents')
                     .select('*', { count: 'exact', head: true })
                     .eq('user_id', user!.id)
-                    .in('whatsapp_status', ['connected', 'connecting'])
+                    .in('whatsapp_status', ['connected', 'connecting', 'qr_ready'])
 
                 if ((activeConnections || 0) >= limit) {
                     return errorResponse(`Limite de numeros WhatsApp atteinte pour votre plan (${limit} max)`, 403)
@@ -124,7 +128,7 @@ export async function GET(request: NextRequest) {
     // Get agent with WhatsApp status
     const { data: agent, error } = await supabase
         .from('agents')
-        .select('id, whatsapp_connected, whatsapp_phone, whatsapp_status, whatsapp_qr_code')
+        .select('id, is_active, whatsapp_connected, whatsapp_phone, whatsapp_status, whatsapp_qr_code')
         .eq('id', agentId)
         .eq('user_id', user!.id)
         .single()
@@ -133,11 +137,14 @@ export async function GET(request: NextRequest) {
         return errorResponse('Agent non trouve', 404)
     }
 
+    const isPaused = agent.is_active === false
+
     return successResponse({
-        status: agent.whatsapp_connected ? 'connected' : (agent.whatsapp_status || 'disconnected'),
+        status: isPaused ? 'paused' : (agent.whatsapp_connected ? 'connected' : (agent.whatsapp_status || 'disconnected')),
         phoneNumber: agent.whatsapp_phone,
         qrCode: agent.whatsapp_qr_code,
-        connected: agent.whatsapp_connected
+        connected: !isPaused && agent.whatsapp_connected,
+        paused: isPaused
     })
 }
 
