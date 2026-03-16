@@ -142,7 +142,11 @@ const handleNotificationAction = (action: ActionPerformed) => {
  */
 const saveTokenToBackend = async (token: string): Promise<void> => {
     try {
-        const response = await fetch('/api/notifications/register-device', {
+        const endpoint = Capacitor.isNativePlatform()
+            ? '/api/notifications/register-device-native'
+            : '/api/notifications/register-device'
+
+        const response = await fetch(endpoint, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

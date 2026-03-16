@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Fingerprint, Smartphone, RefreshCw, KeyRound } from 'lucide-react'
 import { useBiometricAuth } from '@/hooks/useBiometricAuth'
+import { unregisterCurrentDeviceToken } from '@/lib/notifications/device-token-client'
 
 export function BiometricLock({ children }: { children: React.ReactNode }) {
     const { isEnabled, isAuthenticated, authenticate, getBiometricLabel, loading } = useBiometricAuth()
@@ -107,6 +108,11 @@ export function BiometricLock({ children }: { children: React.ReactNode }) {
         try {
             const { createClient } = await import('@/lib/supabase/client')
             const supabase = createClient()
+            try {
+                await unregisterCurrentDeviceToken()
+            } catch {
+                // Best-effort only
+            }
             await supabase.auth.signOut()
             // Supprimer la session biométrique
             localStorage.removeItem('wazzapai_biometric_session')

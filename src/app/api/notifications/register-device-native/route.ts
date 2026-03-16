@@ -31,19 +31,9 @@ export async function POST(request: NextRequest) {
 
         if (existing) {
             const updateData: Record<string, unknown> = {
+                user_id: authenticatedUserId,
                 platform: platform || 'android',
                 updated_at: new Date().toISOString(),
-            }
-
-            // Never trust userId from client payload.
-            // Associate only from authenticated session.
-            if (!existing.user_id || existing.user_id === authenticatedUserId) {
-                updateData.user_id = authenticatedUserId
-            } else {
-                return NextResponse.json(
-                    { error: 'Token already assigned to another user' },
-                    { status: 409 }
-                )
             }
 
             const { error: updateError } = await adminSupabase
@@ -58,8 +48,8 @@ export async function POST(request: NextRequest) {
 
             return NextResponse.json({
                 success: true,
-                action: 'updated',
-                claimed: Boolean(!existing.user_id || existing.user_id === authenticatedUserId),
+                action: existing.user_id && existing.user_id !== authenticatedUserId ? 'reassigned' : 'updated',
+                claimed: true,
             })
         }
 

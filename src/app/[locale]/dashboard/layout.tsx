@@ -41,6 +41,8 @@ import { useAndroidBackButton } from '@/hooks/useAndroidBackButton'
 import { BiometricLock } from '@/components/BiometricLock'
 import { CurrencyProvider } from '@/contexts/CurrencyContext'
 import { useSessionTimeout } from '@/hooks/useSessionTimeout'
+import { useNativeDeviceTokenSync } from '@/hooks/useNativeDeviceTokenSync'
+import { unregisterCurrentDeviceToken } from '@/lib/notifications/device-token-client'
 
 export default function DashboardLayout({
     children,
@@ -50,6 +52,7 @@ export default function DashboardLayout({
     const t = useTranslations('Dashboard.sidebar')
     const pathname = usePathname()
     const router = useRouter()
+    const isNativeApp = useNativeDeviceTokenSync()
 
     // Handle Android hardware back button
     useAndroidBackButton()
@@ -125,28 +128,11 @@ export default function DashboardLayout({
         return () => clearInterval(interval)
     }, [])
 
-    // Claim unclaimed device tokens on login (for Android WebView)
-    useEffect(() => {
-        const claimTokens = async () => {
-            try {
-                const supabase = createClient()
-                const { data: { user } } = await supabase.auth.getUser()
-                if (!user) return
-
-                await fetch('/api/notifications/claim-token', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ token: typeof window !== 'undefined' ? localStorage.getItem('fcm_token') : null })
-                })
-            } catch {
-                // Silent fail — non-critical
-            }
-        }
-        claimTokens()
-    }, [])
 
     // Web push notifications for PC browsers
     useEffect(() => {
+        if (isNativeApp) return
+
         const registerWebPush = async () => {
             try {
                 const supabase = createClient()
@@ -162,13 +148,13 @@ export default function DashboardLayout({
                     body: JSON.stringify({ token, platform: 'web' })
                 })
             } catch {
-                // Silent fail — non-critical
+                // Silent fail â€” non-critical
             }
         }
-        // Small delay to not block initial render
+
         const t = setTimeout(registerWebPush, 2000)
         return () => clearTimeout(t)
-    }, [])
+    }, [isNativeApp])
 
     // Close notifications when clicking outside
     useEffect(() => {
@@ -237,17 +223,10 @@ export default function DashboardLayout({
         try {
             const supabase = createClient()
 
-            const fcmToken = typeof window !== 'undefined' ? localStorage.getItem('fcm_token') : null
-            if (fcmToken) {
-                try {
-                    await fetch('/api/notifications/unregister-device', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ token: fcmToken })
-                    })
-                } catch {
-                    // non-critical
-                }
+            try {
+                await unregisterCurrentDeviceToken()
+            } catch {
+                // non-critical
             }
 
             const capacitorWindow = window as Window & { Capacitor?: { isNativePlatform?: () => boolean } }
@@ -276,8 +255,7 @@ export default function DashboardLayout({
         }
     }, [router])
 
-    useSessionTimeout(sessionTimeoutHours, handleLogout)
-
+    useSessionTimeout(isNativeApp ? null : sessionTimeoutHours, handleLogout)
     const sidebarWidth = collapsed ? 80 : 260
 
     return (

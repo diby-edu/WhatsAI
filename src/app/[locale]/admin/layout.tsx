@@ -42,6 +42,8 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { useAndroidBackButton } from '@/hooks/useAndroidBackButton'
 import { useSessionTimeout } from '@/hooks/useSessionTimeout'
+import { useNativeDeviceTokenSync } from '@/hooks/useNativeDeviceTokenSync'
+import { unregisterCurrentDeviceToken } from '@/lib/notifications/device-token-client'
 
 const adminLinks = [
     { href: '/admin', label: 'Vue d\'ensemble', icon: Gauge },
@@ -82,6 +84,7 @@ export default function AdminLayout({
 }) {
     const pathname = usePathname()
     const router = useRouter()
+    const isNativeApp = useNativeDeviceTokenSync()
 
     // Handle Android hardware back button
     useAndroidBackButton()
@@ -199,17 +202,10 @@ export default function AdminLayout({
         try {
             const supabase = createClient()
 
-            const fcmToken = typeof window !== 'undefined' ? localStorage.getItem('fcm_token') : null
-            if (fcmToken) {
-                try {
-                    await fetch('/api/notifications/unregister-device', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ token: fcmToken })
-                    })
-                } catch {
-                    // non-critical
-                }
+            try {
+                await unregisterCurrentDeviceToken()
+            } catch {
+                // non-critical
             }
 
             const isCapacitor = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform()
@@ -237,7 +233,7 @@ export default function AdminLayout({
         }
     }, [router])
 
-    useSessionTimeout(sessionTimeoutHours, handleLogout)
+    useSessionTimeout(isNativeApp ? null : sessionTimeoutHours, handleLogout)
 
     // Close notifications when clicking outside
     useEffect(() => {
