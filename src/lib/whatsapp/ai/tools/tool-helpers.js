@@ -3,26 +3,39 @@
 // 📞 HELPER : NORMALIZE PHONE NUMBER
 // ═══════════════════════════════════════════════════════════════
 function normalizePhoneNumber(phone, defaultCountryCode = '225') {
-    if (!phone) {
-        return null
-    }
+    if (!phone) return null
 
     let normalized = phone.toString().trim()
     normalized = normalized.replace(/[\s\-\(\)\.]/g, '')
 
+    let result = null
+
     if (normalized.startsWith('00')) normalized = '+' + normalized.substring(2)
-    if (normalized.startsWith('+')) return normalized
 
-    const countryPatterns = [{ prefix: '225' }, { prefix: '33' }, { prefix: '1' }]
-    for (const pattern of countryPatterns) {
-        if (normalized.startsWith(pattern.prefix)) return '+' + normalized
+    if (normalized.startsWith('+')) {
+        result = normalized
+    } else {
+        const countryPatterns = [{ prefix: '225' }, { prefix: '33' }, { prefix: '1' }]
+        for (const pattern of countryPatterns) {
+            if (normalized.startsWith(pattern.prefix)) {
+                result = '+' + normalized
+                break
+            }
+        }
+
+        if (!result) {
+            if (normalized.startsWith('0') && normalized.length >= 8) {
+                result = '+' + defaultCountryCode + normalized.substring(1)
+            } else {
+                result = '+' + defaultCountryCode + normalized.replace(/\D/g, '')
+            }
+        }
     }
 
-    if (normalized.startsWith('0') && normalized.length >= 8) {
-        return '+' + defaultCountryCode + normalized.substring(1)
-    }
-
-    return '+' + defaultCountryCode + normalized.replace(/\D/g, '')
+    // Validation finale : minimum 8 chiffres obligatoires
+    // Bloque les téléphones malformés (ex: 'abc' → '+225' → 3 chiffres → null)
+    const digitCount = (result || '').replace(/\D/g, '').length
+    return digitCount >= 8 ? result : null
 }
 
 // ═══════════════════════════════════════════════════════════════

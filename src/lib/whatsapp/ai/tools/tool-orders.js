@@ -46,6 +46,7 @@ async function handleCreateOrder(args, agentId, products, conversationId, supaba
 
         let total = 0
         const orderItems = []
+        const resolvedProducts = [] // IDs résolus pendant la boucle — garantis, contrairement à item.product_id de l'IA
 
         for (const item of items) {
             console.log(`\n📦 Traitement: "${item.product_name}" x${item.quantity}`)
@@ -119,6 +120,7 @@ async function handleCreateOrder(args, agentId, products, conversationId, supaba
                 quantity: item.quantity,
                 unit_price_fcfa: price
             })
+            resolvedProducts.push({ id: product.id, name: product.name, quantity: item.quantity })
         }
 
         // Create Order in DB
@@ -159,23 +161,19 @@ async function handleCreateOrder(args, agentId, products, conversationId, supaba
                 totalAmount: total
             })
 
-            // Vérifier et notifier si stock épuisé après commande
-            for (const item of args.items || []) {
-                if (item.product_id) {
-                    const { data: prod } = await supabase
-                        .from('products')
-                        .select('stock_quantity, name')
-                        .eq('id', item.product_id)
-                        .single()
+            // Décrémenter le stock via les IDs résolus (garantis — pas item.product_id de l'IA)
+            for (const resolved of resolvedProducts) {
+                const { data: prod } = await supabase
+                    .from('products')
+                    .select('stock_quantity, name')
+                    .eq('id', resolved.id)
+                    .single()
 
-                    if (prod && prod.stock_quantity !== -1 && prod.stock_quantity !== null) {
-                        const newStock = prod.stock_quantity - (item.quantity || 1)
-                        // Update stock
-                        await supabase.from('products').update({ stock_quantity: Math.max(0, newStock) }).eq('id', item.product_id)
-                        // Notify if stock out
-                        if (newStock <= 0) {
-                            notify(agent.user_id, 'stock_out', { productName: prod.name })
-                        }
+                if (prod && prod.stock_quantity !== -1 && prod.stock_quantity !== null) {
+                    const newStock = prod.stock_quantity - resolved.quantity
+                    await supabase.from('products').update({ stock_quantity: Math.max(0, newStock) }).eq('id', resolved.id)
+                    if (newStock <= 0) {
+                        notify(agent.user_id, 'stock_out', { productName: prod.name })
                     }
                 }
             }

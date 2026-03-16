@@ -129,7 +129,7 @@ async function checkPaymentStatus(transactionId) {
 }
 
 function verifyWebhookSignature(payload, signature) {
-    if (!CINETPAY_SECRET_KEY) return true // Skip verification in development
+    if (!CINETPAY_SECRET_KEY) return false // Fail-closed : clé absente → rejeter (pas de bypass silencieux)
 
     const expectedSignature = crypto
         .createHmac('sha256', CINETPAY_SECRET_KEY)
