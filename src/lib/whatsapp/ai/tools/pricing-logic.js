@@ -6,19 +6,22 @@ const { findMatchingOption, getOptionValue, getOptionPrice, productHasRealVarian
  * @param {Object} product - Le produit brut de la DB
  * @param {Object} selectedVariantsMap - Map des variantes choisies (ex: {"Taille": "Petite"})
  * @param {string} productNameSearch - Nom du produit tel que tapé par l'IA (pour fallback)
- * @returns {Object} { price, variantOptionName, error, missingVariants, logs }
+ * @param {number} quantity - Quantite demandee
+ * @returns {Object} { price, variantOptionName, error, missingVariants, logs, matchedCombination, combinationAttributes }
  */
-function calculateItemPrice(product, selectedVariantsMap = {}, productNameSearch = '') {
+function calculateItemPrice(product, selectedVariantsMap = {}, productNameSearch = '', quantity = 1) {
     const logs = []
     let price = product.price_fcfa || 0
     let effectiveBasePrice = price
     let totalSupplements = 0
     let matchedVariantOption = null
+    let matchedCombination = null
+    let combinationAttributes = null
 
     // Si pas de variantes réelles, retour direct
     if (!productHasRealVariants(product)) {
         logs.push(`ℹ️ Produit SANS variantes - Prix base: ${price} FCFA`)
-        return { price, variantOptionName: null, logs }
+        return { price, variantOptionName: null, logs, matchedCombination: null, combinationAttributes: null }
     }
 
     logs.push(`📋 Produit avec variantes RÉELLES`)
@@ -80,6 +83,11 @@ function calculateItemPrice(product, selectedVariantsMap = {}, productNameSearch
                 return selectedGroupIds.every(gId => c.attributes[gId] === attrMap[gId])
             })
 
+            if (matchingCombo) {
+                matchedCombination = matchingCombo
+                combinationAttributes = attrMap
+            }
+
             // Combinaison trouvée mais désactivée → erreur explicite
             if (matchingCombo && matchingCombo.available === false) {
                 const comboLabel = product.variants.map(v => matchedById[v.id]).filter(Boolean).join(' + ')
@@ -88,7 +96,22 @@ function calculateItemPrice(product, selectedVariantsMap = {}, productNameSearch
                     price: 0,
                     variantOptionName: null,
                     error: `La combinaison "${comboLabel}" n'est pas disponible pour "${product.name}". Proposez une autre combinaison au client.`,
-                    logs
+                    logs,
+                    matchedCombination,
+                    combinationAttributes
+                }
+            }
+
+            if (matchingCombo && matchingCombo.stock != null && matchingCombo.stock >= 0 && matchingCombo.stock < quantity) {
+                const comboLabel = product.variants.map(v => matchedById[v.id]).filter(Boolean).join(' + ')
+                logs.push(`📦 Stock combinaison insuffisant: ${matchingCombo.stock} restant(s)`)
+                return {
+                    price: 0,
+                    variantOptionName: null,
+                    error: `Stock insuffisant pour la combinaison "${comboLabel}" de "${product.name}". Seulement ${matchingCombo.stock} disponible(s).`,
+                    logs,
+                    matchedCombination,
+                    combinationAttributes
                 }
             }
 
@@ -106,13 +129,32 @@ function calculateItemPrice(product, selectedVariantsMap = {}, productNameSearch
                         const opts = v.options.map(o => getOptionValue(o)).join(', ')
                         return `${v.name}: [${opts}]`
                     }).join(' | ')
-                    return { price: 0, variantOptionName: null, error: `VARIANTES MANQUANTES pour "${product.name}". Demandez: ${missingList}`, missingVariants, logs }
+                    return {
+                        price: 0,
+                        variantOptionName: null,
+                        error: `VARIANTES MANQUANTES pour "${product.name}". Demandez: ${missingList}`,
+                        missingVariants,
+                        logs,
+                        matchedCombination,
+                        combinationAttributes
+                    }
                 }
 
                 matchedVariantOption = product.variants.map(v => matchedById[v.id]).filter(Boolean).join(', ')
                 logs.push(`✅ Variants validés: ${matchedVariantOption}`)
                 logs.push(`💵 Prix depuis combinaison: ${price} FCFA`)
-                return { price, variantOptionName: matchedVariantOption, error: null, logs }
+                return {
+                    price,
+                    variantOptionName: matchedVariantOption,
+                    error: null,
+                    logs,
+                    matchedCombination,
+                    combinationAttributes
+                }
+            }
+
+            if (matchingCombo) {
+                logs.push('ℹ️ Combinaison trouvée sans prix spécifique, fallback sur le calcul des options')
             }
         }
     }
@@ -168,7 +210,9 @@ function calculateItemPrice(product, selectedVariantsMap = {}, productNameSearch
             variantOptionName: null,
             error: `VARIANTES MANQUANTES pour "${product.name}". Demandez: ${missingList}`,
             missingVariants,
-            logs
+            logs,
+            matchedCombination,
+            combinationAttributes
         }
     }
 
@@ -179,7 +223,9 @@ function calculateItemPrice(product, selectedVariantsMap = {}, productNameSearch
         price,
         variantOptionName: matchedVariantOption,
         error: null,
-        logs
+        logs,
+        matchedCombination,
+        combinationAttributes
     }
 }
 

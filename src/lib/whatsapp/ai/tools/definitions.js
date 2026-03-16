@@ -37,7 +37,10 @@ IMPORTANT - VARIANTES :
                         }
                     },
                     customer_name: { type: 'string', description: 'Nom complet du client' },
-                    customer_phone: { type: 'string', description: 'Numéro de téléphone' },
+                    customer_phone: {
+                        type: 'string',
+                        description: 'Numéro de téléphone avec indicatif pays obligatoire. Exemples valides : 2250701020304, +2250701020304, 002250701020304. Ne jamais utiliser le format local sans indicatif (ex: 0701020304).'
+                    },
                     delivery_address: { type: 'string', description: 'Adresse de livraison complète' },
                     email: { type: 'string', description: 'Email (requis pour produits numériques)' },
                     payment_method: { type: 'string', enum: ['online', 'cod'], description: 'Mode de paiement' },
@@ -92,7 +95,10 @@ IMPORTANT - VARIANTES :
                     booking_type: { type: 'string', description: 'Type de réservation: "stay" (hôtel), "table" (restaurant), "slot" (rdv), "rental" (location)' },
                     service_name: { type: 'string', description: 'Nom du service/produit dans le catalogue (ex: "Chambres", "Menu Gourmet")' },
                     selected_variant: { type: 'string', description: 'Variante choisie (ex: "Suite", "VIP", "Menu Découverte") - OBLIGATOIRE si le service a des variantes' },
-                    customer_phone: { type: 'string', description: 'Téléphone du client (avec indicatif)' },
+                    customer_phone: {
+                        type: 'string',
+                        description: 'Téléphone du client avec indicatif pays obligatoire. Exemples valides : 2250701020304, +2250701020304, 002250701020304. Ne jamais utiliser le format local sans indicatif (ex: 0701020304).'
+                    },
                     customer_name: { type: 'string', description: 'Nom du client' },
                     preferred_date: { type: 'string', description: 'Date de début (YYYY-MM-DD)' },
                     preferred_time: { type: 'string', description: 'Heure (HH:MM) - pour table/slot' },
@@ -113,7 +119,10 @@ IMPORTANT - VARIANTES :
             parameters: {
                 type: 'object',
                 properties: {
-                    phone_number: { type: 'string', description: 'Numéro de téléphone du client' }
+                    phone_number: {
+                        type: 'string',
+                        description: 'Numéro de téléphone du client avec indicatif pays obligatoire. Exemples valides : 2250701020304, +2250701020304, 002250701020304. Ne jamais utiliser le format local sans indicatif (ex: 0701020304).'
+                    }
                 },
                 required: ['phone_number']
             }

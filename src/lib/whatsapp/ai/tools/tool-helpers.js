@@ -2,40 +2,34 @@
 // ═══════════════════════════════════════════════════════════════
 // 📞 HELPER : NORMALIZE PHONE NUMBER
 // ═══════════════════════════════════════════════════════════════
-function normalizePhoneNumber(phone, defaultCountryCode = '225') {
+function normalizePhoneNumber(phone) {
     if (!phone) return null
 
     let normalized = phone.toString().trim()
     normalized = normalized.replace(/[\s\-\(\)\.]/g, '')
 
-    let result = null
+    if (!normalized) return null
 
-    if (normalized.startsWith('00')) normalized = '+' + normalized.substring(2)
-
-    if (normalized.startsWith('+')) {
-        result = normalized
-    } else {
-        const countryPatterns = [{ prefix: '225' }, { prefix: '33' }, { prefix: '1' }]
-        for (const pattern of countryPatterns) {
-            if (normalized.startsWith(pattern.prefix)) {
-                result = '+' + normalized
-                break
-            }
-        }
-
-        if (!result) {
-            if (normalized.startsWith('0') && normalized.length >= 8) {
-                result = '+' + defaultCountryCode + normalized.substring(1)
-            } else {
-                result = '+' + defaultCountryCode + normalized.replace(/\D/g, '')
-            }
-        }
+    if (normalized.startsWith('00')) {
+        normalized = '+' + normalized.substring(2)
     }
 
-    // Validation finale : minimum 8 chiffres obligatoires
-    // Bloque les téléphones malformés (ex: 'abc' → '+225' → 3 chiffres → null)
-    const digitCount = (result || '').replace(/\D/g, '').length
-    return digitCount >= 8 ? result : null
+    if (normalized.startsWith('+')) {
+        return /^\+[1-9]\d{7,14}$/.test(normalized) ? normalized : null
+    }
+
+    if (!/^\d+$/.test(normalized)) return null
+
+    // Numéro local ambigu sans indicatif explicite -> rejet
+    if (normalized.startsWith('0')) return null
+
+    // Sans "+", on n'accepte que les numéros déjà internationaux.
+    // Min 11 chiffres pour éviter d'accepter silencieusement des formats locaux.
+    if (/^[1-9]\d{10,14}$/.test(normalized)) {
+        return '+' + normalized
+    }
+
+    return null
 }
 
 // ═══════════════════════════════════════════════════════════════
