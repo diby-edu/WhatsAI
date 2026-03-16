@@ -125,32 +125,25 @@ async function handleCreateOrder(args, agentId, products, conversationId, supaba
                 hint: 'Demandez : "Quel est votre numéro de téléphone ?"'
             })
         }
-        console.log(`\n📝 Création commande: ${orderItems.length} items, Total: ${total} FCFA`)
+        console.log(`\n📝 Création commande atomique: ${orderItems.length} items, Total: ${total} FCFA`)
 
-        const { data: order, error } = await supabase
-            .from('orders')
-            .insert({
-                user_id: agent.user_id,
-                agent_id: agentId,
-                customer_name: customer_name || 'Non spécifié',
-                customer_phone: normalizedPhone,
-                status: payment_method === 'cod' ? 'pending_delivery' : 'pending',
-                total_fcfa: total,
-                delivery_address: delivery_address || 'Non spécifié',
-                payment_method: payment_method || 'online',
-                notes: finalNotes,
-                conversation_id: conversationId
-            })
-            .select()
-            .single()
+        const { data: rpcResult, error } = await supabase.rpc('create_order_with_items', {
+            p_user_id:         agent.user_id,
+            p_agent_id:        agentId,
+            p_conversation_id: conversationId,
+            p_customer_name:   customer_name || 'Non spécifié',
+            p_customer_phone:  normalizedPhone,
+            p_delivery_address: delivery_address || 'Non spécifié',
+            p_payment_method:  payment_method || 'online',
+            p_notes:           finalNotes || null,
+            p_total_fcfa:      total,
+            p_status:          payment_method === 'cod' ? 'pending_delivery' : 'pending',
+            p_items:           JSON.stringify(orderItems)
+        })
 
         if (error) throw error
 
-        if (orderItems.length > 0) {
-            await supabase.from('order_items').insert(
-                orderItems.map(i => ({ ...i, order_id: order.id }))
-            )
-        }
+        const order = { id: rpcResult[0]?.order_id, order_number: rpcResult[0]?.order_number }
 
         // 🔔 NOTIFICATION: Nouvelle commande
         try {
