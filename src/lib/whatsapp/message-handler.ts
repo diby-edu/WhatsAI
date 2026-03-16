@@ -218,8 +218,15 @@ export function initializeMessageHandler() {
                 for (const toolCall of aiResponse.toolCalls) {
                     const func = (toolCall as any).function
 
+                    let args: any
+                    try {
+                        args = JSON.parse(func.arguments)
+                    } catch (parseErr) {
+                        console.error(`❌ Failed to parse tool arguments for ${func.name}:`, func.arguments)
+                        continue
+                    }
+
                     if (func.name === 'send_image') {
-                        const args = JSON.parse(func.arguments)
                         console.log('📸 send_image tool called for:', args.product_name)
                         const { handleSendImage } = require('./ai/tools/tool-images')
                         const result = JSON.parse(await handleSendImage(args, products || []))
@@ -233,7 +240,6 @@ export function initializeMessageHandler() {
                     }
 
                     if (func.name === 'create_booking') {
-                        const args = JSON.parse(func.arguments)
                         console.log('📅 Creating booking:', args)
 
                         const { data: booking, error: bookingError } = await supabase
@@ -280,7 +286,6 @@ export function initializeMessageHandler() {
                         aiResponse.content = finalAiResponse.content
 
                     } else if (func.name === 'create_order') {
-                        const args = JSON.parse(func.arguments)
                         console.log('🛒 Creating order:', args)
 
                         let total = 0

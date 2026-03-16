@@ -73,11 +73,24 @@ function calculateItemPrice(product, selectedVariantsMap = {}, productNameSearch
 
         const selectedGroupIds = Object.keys(attrMap)
         if (selectedGroupIds.length > 0) {
+            // Chercher la combinaison correspondante SANS filtrer sur available
+            // pour détecter les combinaisons explicitement désactivées
             const matchingCombo = product.combinations.find(c => {
-                if (!c.attributes || c.available === false) return false
-                // La combinaison doit correspondre à tous les attributs sélectionnés
+                if (!c.attributes) return false
                 return selectedGroupIds.every(gId => c.attributes[gId] === attrMap[gId])
             })
+
+            // Combinaison trouvée mais désactivée → erreur explicite
+            if (matchingCombo && matchingCombo.available === false) {
+                const comboLabel = product.variants.map(v => matchedById[v.id]).filter(Boolean).join(' + ')
+                logs.push(`🚫 Combinaison "${comboLabel}" désactivée`)
+                return {
+                    price: 0,
+                    variantOptionName: null,
+                    error: `La combinaison "${comboLabel}" n'est pas disponible pour "${product.name}". Proposez une autre combinaison au client.`,
+                    logs
+                }
+            }
 
             if (matchingCombo && matchingCombo.price != null && matchingCombo.price > 0) {
                 logs.push(`🔗 Prix combinaison: ${matchingCombo.price} FCFA`)

@@ -199,12 +199,21 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                     const sessionStatus = session.status // capture before activeSessions.delete
                     activeSessions.delete(agentId)
 
-                    // ⭐ EXPONENTIAL BACKOFF (Robustesse Expert)
-                    // Augmente le délai à chaque tentative pour éviter le spam/ban
+                    // ⭐ EXPONENTIAL BACKOFF avec plafond (poka-yoke)
+                    const MAX_RECONNECT_ATTEMPTS = 10
                     const attempt = (session.reconnectAttempts || 0) + 1
-                    const delay = Math.min(5000 * Math.pow(2, attempt - 1), 60000) // Max 1 minute
 
-                    console.log(`📡 Reconnecting in ${delay / 1000}s (Attempt ${attempt})...`)
+                    if (attempt > MAX_RECONNECT_ATTEMPTS) {
+                        console.error(`🛑 [${agentName}] Reconnexion abandonnée après ${MAX_RECONNECT_ATTEMPTS} tentatives. Intervention manuelle requise.`)
+                        await supabase.from('agents').update({
+                            whatsapp_connected: false,
+                            whatsapp_status: 'disconnected'
+                        }).eq('id', agentId)
+                        return
+                    }
+
+                    const delay = Math.min(5000 * Math.pow(2, attempt - 1), 60000) // Max 1 minute
+                    console.log(`📡 Reconnecting in ${delay / 1000}s (Attempt ${attempt}/${MAX_RECONNECT_ATTEMPTS})...`)
 
                     setTimeout(async () => {
                         // ⭐ FIX: Vérifier si l'agent veut toujours être connecté avant de reconnecter
