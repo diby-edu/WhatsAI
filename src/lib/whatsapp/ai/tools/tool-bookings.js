@@ -111,6 +111,15 @@ async function handleCreateBooking(args, agentId, products, conversationId, supa
         }
         const start_time = parsedDate.toISOString()
 
+        const normalizedPhone = normalizePhoneNumber(customer_phone)
+        if (!normalizedPhone) {
+            return JSON.stringify({
+                success: false,
+                error: 'TÉLÉPHONE CLIENT MANQUANT. Demandez le numéro de téléphone du client avant de créer la réservation.',
+                hint: 'Demandez : "Quel est votre numéro de téléphone ?"'
+            })
+        }
+
         const { data: booking, error } = await supabase
             .from('bookings')
             .insert({
@@ -118,7 +127,7 @@ async function handleCreateBooking(args, agentId, products, conversationId, supa
                 agent_id: agentId,
                 booking_type: booking_type || 'slot',
                 start_time: start_time,
-                customer_phone: normalizePhoneNumber(customer_phone),
+                customer_phone: normalizedPhone,
                 customer_name: customer_name || null,
                 service_name: service.name,
                 service_id: service.id,
