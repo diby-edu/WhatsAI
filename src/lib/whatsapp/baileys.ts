@@ -1,3 +1,12 @@
+/**
+ * ⚠️ LEGACY — NE PAS MODIFIER
+ *
+ * Ce fichier est la stack TypeScript originale (v1). Il n'est PAS utilisé en production.
+ * Stack prod : whatsapp-service.js → handlers/session.js → handlers/message.js
+ *
+ * Usage actuel : debug admin uniquement (src/app/api/admin/diagnostics/whatsapp/route.ts)
+ * Ne pas porter de corrections ici — appliquer les fixes sur la stack JS.
+ */
 import makeWASocket, {
     DisconnectReason,
     useMultiFileAuthState,

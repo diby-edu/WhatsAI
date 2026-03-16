@@ -1,5 +1,6 @@
 
 const { normalizePhoneNumber, checkStock, productHasRealVariants, findMatchingOption, getOptionValue, getOptionPrice } = require('./tool-helpers')
+const { validateCreateOrderArgs } = require('./tool-validators')
 
 // ═══════════════════════════════════════════════════════════
 // CREATE ORDER
@@ -7,6 +8,10 @@ const { normalizePhoneNumber, checkStock, productHasRealVariants, findMatchingOp
 async function handleCreateOrder(args, agentId, products, conversationId, supabase) {
     try {
         console.log('🛠️ Executing tool: create_order')
+
+        const validationError = validateCreateOrderArgs(args)
+        if (validationError) return validationError
+
         const { items, customer_name, customer_phone, delivery_address, email, payment_method, notes } = args
 
         let finalNotes = notes || ''

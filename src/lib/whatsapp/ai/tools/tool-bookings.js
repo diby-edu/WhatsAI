@@ -1,10 +1,14 @@
 
 const { normalizePhoneNumber, findMatchingOption } = require('./tool-helpers')
 const { notify } = require('../../../notifications/notify')
+const { validateCreateBookingArgs } = require('./tool-validators')
 
 async function handleCreateBooking(args, agentId, products, conversationId, supabase) {
     try {
         console.log('🛠️ Executing tool: create_booking')
+
+        const validationError = validateCreateBookingArgs(args)
+        if (validationError) return validationError
         const {
             booking_type,
             service_name,
