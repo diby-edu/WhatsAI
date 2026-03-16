@@ -1,3 +1,12 @@
+/**
+ * ⚠️ LEGACY — NE PAS MODIFIER
+ *
+ * Ce fichier est le handler TypeScript original (v1). Il n'est PAS utilisé en production.
+ * Stack prod : handlers/message.js + services/ (JS)
+ *
+ * Usage actuel : debug admin uniquement, chargé via baileys.ts
+ * Ne pas porter de corrections ici — appliquer les fixes sur la stack JS.
+ */
 import { createAdminClient } from '@/lib/api-utils'
 import { generateAIResponse, analyzeLeadQuality, AIMessage, transcribeAudio, generateSpeech } from '@/lib/ai/openai'
 import { sendMessageWithTyping, WhatsAppMessage, setMessageHandler, downloadMedia, sendAudioMessage, sendImageMessage } from '@/lib/whatsapp/baileys'
