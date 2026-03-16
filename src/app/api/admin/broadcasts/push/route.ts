@@ -1,10 +1,11 @@
 import { NextRequest } from 'next/server'
 import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
+import { getUserIdsForBroadcastSegment } from '@/lib/admin/broadcast-segments'
 import { sendPushNotificationToMultiple } from '@/lib/notifications/firebase-admin'
 
 export const dynamic = 'force-dynamic'
 
-async function adminCheck(request: NextRequest) {
+async function adminCheck() {
     const supabase = await createApiClient()
     const { user, error: authError } = await getAuthUser(supabase)
     if (authError || !user) return { error: errorResponse('Non autorisé', 401), user: null, adminSupabase: null }
@@ -14,12 +15,10 @@ async function adminCheck(request: NextRequest) {
     return { error: null, user, adminSupabase }
 }
 
-async function getTokensForPlan(adminSupabase: any, targetPlan: string): Promise<string[]> {
-    // Step 1: get user IDs for the target plan
-    const userIds = await getUserIdsForPlan(adminSupabase, targetPlan)
+async function getTokensForSegment(adminSupabase: any, targetSegment: string): Promise<string[]> {
+    const userIds = await getUserIdsForBroadcastSegment(adminSupabase, targetSegment)
     if (userIds.length === 0) return []
 
-    // Step 2: get tokens for those users
     const { data, error } = await adminSupabase
         .from('device_tokens')
         .select('token')
@@ -28,27 +27,18 @@ async function getTokensForPlan(adminSupabase: any, targetPlan: string): Promise
     return (data || []).map((row: any) => row.token).filter(Boolean)
 }
 
-async function getUserIdsForPlan(adminSupabase: any, targetPlan: string): Promise<string[]> {
-    let query = adminSupabase.from('profiles').select('id')
-    if (targetPlan && targetPlan !== 'all') {
-        query = query.eq('plan', targetPlan)
-    }
-    const { data } = await query
-    return (data || []).map((row: any) => row.id).filter(Boolean)
-}
-
 // GET — preview device count AND total user count for a plan segment
 export async function GET(request: NextRequest) {
-    const { error, adminSupabase } = await adminCheck(request)
+    const { error, adminSupabase } = await adminCheck()
     if (error || !adminSupabase) return error!
 
     const { searchParams } = new URL(request.url)
-    const targetPlan = searchParams.get('targetPlan') || 'all'
+    const targetSegment = searchParams.get('targetSegment') || searchParams.get('targetPlan') || 'all'
 
     try {
         const [tokens, userIds] = await Promise.all([
-            getTokensForPlan(adminSupabase, targetPlan),
-            getUserIdsForPlan(adminSupabase, targetPlan)
+            getTokensForSegment(adminSupabase, targetSegment),
+            getUserIdsForBroadcastSegment(adminSupabase, targetSegment)
         ])
         return successResponse({ count: tokens.length, userCount: userIds.length })
     } catch (err) {
@@ -59,11 +49,12 @@ export async function GET(request: NextRequest) {
 
 // POST — send push notification broadcast
 export async function POST(request: NextRequest) {
-    const { error, user, adminSupabase } = await adminCheck(request)
+    const { error, user, adminSupabase } = await adminCheck()
     if (error || !adminSupabase) return error!
 
     try {
-        const { title, body, targetPlan, targetUserIds } = await request.json()
+        const { title, body, targetSegment, targetPlan, targetUserIds } = await request.json()
+        const resolvedSegment = targetSegment || targetPlan || 'all'
 
         if (!title?.trim() || !body?.trim()) {
             return errorResponse('Titre et message requis', 400)
@@ -80,7 +71,7 @@ export async function POST(request: NextRequest) {
                 .in('user_id', targetUserIds)
             tokens = (data || []).map((row: any) => row.token).filter(Boolean)
         } else {
-            tokens = await getTokensForPlan(adminSupabase, targetPlan || 'all')
+            tokens = await getTokensForSegment(adminSupabase, resolvedSegment)
         }
 
         // Send FCM push only if there are registered devices
@@ -118,7 +109,7 @@ export async function POST(request: NextRequest) {
                 .lt('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
 
             // Batch insert pour tous les utilisateurs du segment
-            const userIds = isIndividual ? targetUserIds : await getUserIdsForPlan(adminSupabase, targetPlan || 'all')
+            const userIds = isIndividual ? targetUserIds : await getUserIdsForBroadcastSegment(adminSupabase, resolvedSegment)
             userCount = userIds.length
             if (userIds.length > 0) {
                 const rows = userIds.map((uid: string) => ({

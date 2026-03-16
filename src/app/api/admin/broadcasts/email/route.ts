@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
+import { getEmailRecipientsForBroadcastSegment } from '@/lib/admin/broadcast-segments'
 import nodemailer from 'nodemailer'
 
 export const dynamic = 'force-dynamic'
@@ -70,7 +71,7 @@ async function delay(ms: number) {
     return new Promise(resolve => setTimeout(resolve, ms))
 }
 
-async function adminCheck(request: NextRequest) {
+async function adminCheck() {
     const supabase = await createApiClient()
     const { user, error: authError } = await getAuthUser(supabase)
     if (authError || !user) return { error: errorResponse('Non autorisé', 401), user: null, adminSupabase: null }
@@ -82,26 +83,23 @@ async function adminCheck(request: NextRequest) {
 
 // GET — preview count by segment
 export async function GET(request: NextRequest) {
-    const { error, adminSupabase } = await adminCheck(request)
+    const { error, adminSupabase } = await adminCheck()
     if (error || !adminSupabase) return error!
 
     const { searchParams } = new URL(request.url)
-    const targetPlan = searchParams.get('targetPlan') || 'all'
+    const targetSegment = searchParams.get('targetSegment') || searchParams.get('targetPlan') || 'all'
 
-    let query = adminSupabase.from('profiles').select('*', { count: 'exact', head: true })
-    if (targetPlan !== 'all') query = query.eq('plan', targetPlan)
-
-    const { count } = await query
-    return successResponse({ count: count || 0 })
+    const recipients = await getEmailRecipientsForBroadcastSegment(adminSupabase, targetSegment)
+    return successResponse({ count: recipients.length })
 }
 
 // POST — send email campaign
 export async function POST(request: NextRequest) {
-    const { error, adminSupabase } = await adminCheck(request)
+    const { error, adminSupabase } = await adminCheck()
     if (error || !adminSupabase) return error!
 
     try {
-        const { subject, message, targetPlan, targetEmails } = await request.json()
+        const { subject, message, targetSegment, targetPlan, targetEmails } = await request.json()
 
         if (!subject?.trim() || !message?.trim()) {
             return errorResponse('Sujet et message requis', 400)
@@ -118,11 +116,14 @@ export async function POST(request: NextRequest) {
             if (fetchError) throw fetchError
             recipients = profiles || []
         } else {
-            let query = adminSupabase.from('profiles').select('email, full_name')
-            if (targetPlan && targetPlan !== 'all') query = query.eq('plan', targetPlan)
-            const { data: profiles, error: fetchError } = await query.not('email', 'is', null)
-            if (fetchError) throw fetchError
-            recipients = profiles || []
+            const profiles = await getEmailRecipientsForBroadcastSegment(
+                adminSupabase,
+                targetSegment || targetPlan || 'all'
+            )
+            recipients = profiles.map((profile) => ({
+                email: profile.email as string,
+                full_name: profile.full_name,
+            }))
         }
 
         if (recipients.length === 0) return errorResponse('Aucun destinataire trouvé', 400)
