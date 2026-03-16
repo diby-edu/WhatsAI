@@ -3,6 +3,8 @@ package com.wazzapai.app;
 import android.Manifest;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.os.Build;
@@ -24,11 +26,14 @@ import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import com.getcapacitor.BridgeActivity;
 import com.google.firebase.messaging.FirebaseMessaging;
+import org.json.JSONObject;
 
 public class MainActivity extends BridgeActivity {
 
     // Dark background to match the app theme
     private static final int STATUS_BAR_COLOR = Color.parseColor("#0f172a");
+    private static final String PREFS_NAME = "WazzapAIPrefs";
+    private static final String TOKEN_KEY = "fcm_token";
 
     // Track when app is ready (WebView loaded)
     private boolean isAppReady = false;
@@ -75,7 +80,7 @@ public class MainActivity extends BridgeActivity {
         // Request notification permission (Android 13+)
         requestNotificationPermission();
 
-        // Get and send FCM token
+        // Get FCM token and sync it to the WebView
         getFcmToken();
 
         // Re-apply after a delay to override any Capacitor/WebView changes
@@ -103,42 +108,45 @@ public class MainActivity extends BridgeActivity {
                     return;
                 }
 
-                // Get new FCM registration token
                 String token = task.getResult();
                 android.util.Log.d("WazzapAI", "FCM Token: " + token);
 
-                // Token will be sent to backend via WazzapFirebaseMessagingService
-                // But we also trigger it here to ensure it's sent on app start
-                sendFcmTokenToBackend(token);
+                persistTokenLocally(token);
+                syncTokenToWebView(token);
             });
     }
 
-    private void sendFcmTokenToBackend(String token) {
-        new Thread(() -> {
-            try {
-                java.net.URL url = new java.net.URL("https://wazzapai.com/api/notifications/register-device-native");
-                java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("POST");
-                conn.setRequestProperty("Content-Type", "application/json");
-                conn.setDoOutput(true);
-                conn.setConnectTimeout(10000);
-                conn.setReadTimeout(10000);
+    private void persistTokenLocally(String token) {
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        prefs.edit().putString(TOKEN_KEY, token).apply();
+    }
 
-                String jsonPayload = "{\"token\":\"" + token + "\",\"platform\":\"android\"}";
+    private void syncStoredTokenToWebView() {
+        String storedToken = WazzapFirebaseMessagingService.getStoredToken(this);
+        if (storedToken == null || storedToken.isEmpty()) {
+            return;
+        }
 
-                try (java.io.OutputStream os = conn.getOutputStream()) {
-                    byte[] input = jsonPayload.getBytes(java.nio.charset.StandardCharsets.UTF_8);
-                    os.write(input, 0, input.length);
-                }
+        syncTokenToWebView(storedToken);
+    }
 
-                int responseCode = conn.getResponseCode();
-                android.util.Log.d("WazzapAI", "FCM token sent to backend. Response: " + responseCode);
+    private void syncTokenToWebView(String token) {
+        if (token == null || token.isEmpty() || getBridge() == null) {
+            return;
+        }
 
-                conn.disconnect();
-            } catch (Exception e) {
-                android.util.Log.e("WazzapAI", "Error sending FCM token: " + e.getMessage());
-            }
-        }).start();
+        WebView webView = getBridge().getWebView();
+        if (webView == null) {
+            return;
+        }
+
+        String escapedToken = JSONObject.quote(token);
+        String script = "try {" +
+            "localStorage.setItem('fcm_token', " + escapedToken + ");" +
+            "window.dispatchEvent(new CustomEvent('native-fcm-token-available', { detail: { token: " + escapedToken + " } }));" +
+            "} catch (e) { console.error('FCM sync failed', e); }";
+
+        webView.post(() -> webView.evaluateJavascript(script, null));
     }
 
     private void createNotificationChannel() {
@@ -263,6 +271,8 @@ public class MainActivity extends BridgeActivity {
 
             // Cache settings
             settings.setCacheMode(WebSettings.LOAD_DEFAULT);
+
+            syncStoredTokenToWebView();
         }
     }
 

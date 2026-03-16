@@ -4,7 +4,7 @@
  * ═══════════════════════════════════════════════════════════════
  * 
  * RÈGLE D'OR (Principe 4 - Prompt Builder) :
- * - Format INTERNATIONAL OBLIGATOIRE : +XXX...
+ * - Format INTERNATIONAL OBLIGATOIRE : indicatif pays explicite
  * - Accepte TOUT format lisible : espaces, tirets, parenthèses OK
  * - Rejette les numéros SANS indicatif pays
  * 
@@ -17,89 +17,48 @@
  * EXEMPLES VALIDES :
  * ✅ +225 07 56 23 69 84  → +2250756236984
  * ✅ +33 7 12 34 56 78    → +33712345678
- * ✅ (225) 07-56-23-69-84 → +2250756236984
+ * ✅ 2250756236984        → +2250756236984
  * ✅ 002250756236984      → +2250756236984 (00 = international prefix)
  * 
  * EXEMPLES INVALIDES :
  * ❌ 07 56 23 69 84       → null (pas d'indicatif)
  * ❌ 0756236984           → null (numéro local)
- * ❌ 225...               → null (commence par indicatif mais sans +)
+ * ❌ 771234567            → null (ambigu, pas d'indicatif explicite)
  */
 
 /**
  * Normalize phone number for WhatsApp
  * @param {string} phone - Raw phone number from user
- * @param {string} defaultCountryCode - Default country code (ex: '225' for CI)
- * @returns {string} - Normalized phone (NEVER returns null)
+ * @returns {string|null} - Normalized phone or null if invalid/ambiguous
  */
-function normalizePhoneNumber(phone, defaultCountryCode = '225') {
-    if (!phone) {
-        console.warn('⚠️ Phone empty, using placeholder')
-        return '+000000000000' // Placeholder pour éviter le crash
-    }
+function normalizePhoneNumber(phone) {
+    if (!phone) return null
 
     let normalized = phone.toString().trim()
 
     // 1. NETTOYER : Supprimer espaces, tirets, parenthèses, points
     normalized = normalized.replace(/[\s\-\(\)\.]/g, '')
 
+    if (!normalized) return null
+
     // 2. CONVERTIR "00" en "+" (préfixe international)
     if (normalized.startsWith('00')) {
         normalized = '+' + normalized.substring(2)
     }
 
-    // 3. Si déjà avec "+", valider et retourner
+    // 3. Si déjà avec "+", valider strictement
     if (normalized.startsWith('+')) {
-        const digitsOnly = normalized.substring(1)
-        if (/^\d{8,15}$/.test(digitsOnly)) {
-            console.log(`✅ Phone OK: "${phone}" → "${normalized}"`)
-            return normalized
-        }
-        console.log(`⚠️ Phone format unusual but accepted: "${phone}" → "${normalized}"`)
-        return normalized
+        return /^\+[1-9]\d{7,14}$/.test(normalized) ? normalized : null
     }
 
-    // 4. INDICATIFS CONNUS - Ajouter "+"
-    const countryPatterns = [
-        { prefix: '225', minLen: 10 }, { prefix: '33', minLen: 9 }, { prefix: '1', minLen: 10 } // ... liste simplifiée pour perf, le reste sera géré par regex
-    ]
+    // 4. Sans "+", refuser tout ce qui n'est pas purement numérique
+    if (!/^\d+$/.test(normalized)) return null
 
-    for (const pattern of countryPatterns) {
-        if (normalized.startsWith(pattern.prefix)) {
-            normalized = '+' + normalized
-            console.log(`✅ Phone normalized (${pattern.prefix}): "${phone}" → "${normalized}"`)
-            return normalized
-        }
-    }
+    // 5. Numéro local ambigu (commence par 0) -> rejet
+    if (normalized.startsWith('0')) return null
 
-    // 5. NUMÉRO LOCAL (commence par 0) - Ajouter indicatif par défaut
-    if (normalized.startsWith('0') && normalized.length >= 8) {
-        normalized = '+' + defaultCountryCode + normalized.substring(1)
-        console.log(`✅ Phone normalized (local→+${defaultCountryCode}): "${phone}" → "${normalized}"`)
-        return normalized
-    }
-
-    // 6. NUMÉRO SANS 0 ET SANS INDICATIF - Supposer local
-    if (/^\d{8,10}$/.test(normalized)) {
-        normalized = '+' + defaultCountryCode + normalized
-        console.log(`✅ Phone normalized (assumed local): "${phone}" → "${normalized}"`)
-        return normalized
-    }
-
-    // 7. FALLBACK ULTIME : Ajouter "+" si c'est un numéro avec assez de chiffres
-    if (/^\d{10,15}$/.test(normalized)) {
-        normalized = '+' + normalized
-        console.log(`⚠️ Phone normalized (fallback): "${phone}" → "${normalized}"`)
-        return normalized
-    }
-
-    // 8. DERNIER RECOURS : Retourner tel quel avec "+" (ne JAMAIS bloquer)
-    if (!normalized.startsWith('+')) {
-        normalized = '+' + defaultCountryCode + normalized.replace(/\D/g, '')
-    }
-
-    console.log(`⚠️ Phone accepted as-is (last resort): "${phone}" → "${normalized}"`)
-    return normalized
+    // 6. Sans "+", n'accepter que les numéros déjà internationaux
+    return /^[1-9]\d{10,14}$/.test(normalized) ? `+${normalized}` : null
 }
 
 module.exports = { normalizePhoneNumber }

@@ -14,11 +14,6 @@ import androidx.core.app.NotificationCompat;
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
 
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
-
 public class WazzapFirebaseMessagingService extends FirebaseMessagingService {
 
     private static final String TAG = "WazzapAI-FCM";
@@ -33,9 +28,6 @@ public class WazzapFirebaseMessagingService extends FirebaseMessagingService {
 
         // Save token locally
         saveTokenLocally(token);
-
-        // Send token to backend
-        sendTokenToBackend(token);
     }
 
     @Override
@@ -67,36 +59,6 @@ public class WazzapFirebaseMessagingService extends FirebaseMessagingService {
         SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         return prefs.getString(TOKEN_KEY, null);
     }
-
-    private void sendTokenToBackend(String token) {
-        // Run in background thread
-        new Thread(() -> {
-            try {
-                URL url = new URL("https://wazzapai.com/api/notifications/register-device-native");
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("POST");
-                conn.setRequestProperty("Content-Type", "application/json");
-                conn.setDoOutput(true);
-                conn.setConnectTimeout(10000);
-                conn.setReadTimeout(10000);
-
-                String jsonPayload = "{\"token\":\"" + token + "\",\"platform\":\"android\"}";
-
-                try (OutputStream os = conn.getOutputStream()) {
-                    byte[] input = jsonPayload.getBytes(StandardCharsets.UTF_8);
-                    os.write(input, 0, input.length);
-                }
-
-                int responseCode = conn.getResponseCode();
-                Log.d(TAG, "Token sent to backend. Response: " + responseCode);
-
-                conn.disconnect();
-            } catch (Exception e) {
-                Log.e(TAG, "Error sending token to backend: " + e.getMessage());
-            }
-        }).start();
-    }
-
     private void showNotification(String title, String body, java.util.Map<String, String> data) {
         Intent intent = new Intent(this, MainActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
