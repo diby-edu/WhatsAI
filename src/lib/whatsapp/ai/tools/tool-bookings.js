@@ -102,10 +102,15 @@ async function handleCreateBooking(args, agentId, products, conversationId, supa
                 error: `Date invalide: "${preferred_date}". Format attendu: AAAA-MM-JJ (ex: 2026-03-25). Redemandez la date au client.`
             })
         }
-        const timeStr = preferred_time && /^\d{2}:\d{2}$/.test(preferred_time) ? preferred_time : '09:00'
+        // Heure invalide → erreur explicite (pas de fallback silencieux)
         if (preferred_time && !/^\d{2}:\d{2}$/.test(preferred_time)) {
-            console.warn(`⚠️ Heure invalide "${preferred_time}", fallback 09:00`)
+            return JSON.stringify({
+                success: false,
+                error: `HEURE INVALIDE: "${preferred_time}". Format attendu: HH:MM (ex: 14:30). Redemandez l'heure au client.`,
+                hint: 'Exemples valides: "09:00", "14:30", "18:00"'
+            })
         }
+        const timeStr = preferred_time && /^\d{2}:\d{2}$/.test(preferred_time) ? preferred_time : '09:00'
         const parsedDate = new Date(`${preferred_date}T${timeStr}:00`)
         if (isNaN(parsedDate.getTime())) {
             return JSON.stringify({

@@ -79,10 +79,18 @@ async function checkPendingHistoryMessages(context) {
                         }).eq('id', msg.conversation_id)
                     } catch (sendError) {
                         console.error(`Failed to send pending message to ${phoneNumber}:`, sendError)
-                        await supabase
-                            .from('messages')
-                            .update({ status: 'failed', error_message: sendError.message })
-                            .eq('id', msg.id)
+                        // Même logique que outbound : retry pendant 1h, puis failed définitif
+                        const ageMs = Date.now() - new Date(msg.created_at).getTime()
+                        const ONE_HOUR = 60 * 60 * 1000
+                        if (ageMs > ONE_HOUR) {
+                            await supabase
+                                .from('messages')
+                                .update({ status: 'failed', error_message: `Abandon après 1h: ${sendError.message}` })
+                                .eq('id', msg.id)
+                            console.error(`History message ${msg.id} abandonné après 1h`)
+                        } else {
+                            console.log(`History message ${msg.id} restera pending (âge: ${Math.round(ageMs / 60000)}min) — retry au prochain cycle`)
+                        }
                     }
                 }
             }
