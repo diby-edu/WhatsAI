@@ -85,10 +85,31 @@ async function handleCreateBooking(args, agentId, products, conversationId, supa
 
         finalPrice += supplementsTotal
 
-        // Calculer start_time
-        const start_time = preferred_date && preferred_time
-            ? new Date(`${preferred_date}T${preferred_time}:00`).toISOString()
-            : new Date(`${preferred_date}T09:00:00`).toISOString()
+        // Valider et construire start_time
+        if (!preferred_date) {
+            return JSON.stringify({
+                success: false,
+                error: 'DATE MANQUANTE. Demandez la date souhaitée au client (format: AAAA-MM-JJ, ex: 2026-03-25).'
+            })
+        }
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(preferred_date)) {
+            return JSON.stringify({
+                success: false,
+                error: `Date invalide: "${preferred_date}". Format attendu: AAAA-MM-JJ (ex: 2026-03-25). Redemandez la date au client.`
+            })
+        }
+        const timeStr = preferred_time && /^\d{2}:\d{2}$/.test(preferred_time) ? preferred_time : '09:00'
+        if (preferred_time && !/^\d{2}:\d{2}$/.test(preferred_time)) {
+            console.warn(`⚠️ Heure invalide "${preferred_time}", fallback 09:00`)
+        }
+        const parsedDate = new Date(`${preferred_date}T${timeStr}:00`)
+        if (isNaN(parsedDate.getTime())) {
+            return JSON.stringify({
+                success: false,
+                error: `Date invalide: "${preferred_date} ${timeStr}". Vérifiez et redemandez la date au client.`
+            })
+        }
+        const start_time = parsedDate.toISOString()
 
         const { data: booking, error } = await supabase
             .from('bookings')
@@ -148,7 +169,7 @@ async function handleCreateBooking(args, agentId, products, conversationId, supa
             time: preferred_time,
             end_date: end_date,
             party_size: party_size,
-            price_fcfa: service.price_fcfa,
+            price_fcfa: finalPrice,
             message: confirmMsg
         })
 
