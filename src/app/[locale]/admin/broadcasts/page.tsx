@@ -22,12 +22,16 @@ interface UserOption {
 
 type TabId = 'whatsapp' | 'email' | 'push'
 
-const PLAN_OPTIONS = [
+const SEGMENT_OPTIONS = [
     { value: 'all', label: 'Tous les utilisateurs' },
     { value: 'free', label: 'Free uniquement' },
     { value: 'starter', label: 'Starter uniquement' },
     { value: 'pro', label: 'Pro uniquement' },
     { value: 'business', label: 'Business uniquement' },
+    { value: 'agent_connected', label: 'Au moins un agent connecte' },
+    { value: 'agent_paused', label: 'Au moins un agent en pause' },
+    { value: 'agent_reconnect_required', label: 'Au moins un agent a reconnecter' },
+    { value: 'agent_qr_ready', label: 'Au moins un agent QR a scanner' },
     { value: 'individual', label: 'Sélection individuelle' },
 ]
 
@@ -36,6 +40,25 @@ const PLAN_COLORS: Record<string, { bg: string; color: string }> = {
     starter: { bg: 'rgba(96, 165, 250, 0.1)', color: '#60a5fa' },
     pro: { bg: 'rgba(16, 185, 129, 0.1)', color: '#34d399' },
     business: { bg: 'rgba(168, 85, 247, 0.1)', color: '#c084fc' },
+}
+
+function isAgentStatusSegment(value: string) {
+    return value.startsWith('agent_')
+}
+
+function getSegmentHint(value: string) {
+    switch (value) {
+        case 'agent_connected':
+            return 'Cible les utilisateurs ayant au moins un agent actuellement connecte.'
+        case 'agent_paused':
+            return 'Cible les utilisateurs ayant au moins un agent en pause.'
+        case 'agent_reconnect_required':
+            return 'Cible les utilisateurs ayant au moins un agent a reconnecter.'
+        case 'agent_qr_ready':
+            return 'Cible les utilisateurs ayant au moins un agent en attente de scan QR.'
+        default:
+            return null
+    }
 }
 
 export default function AdminBroadcastsPage() {
@@ -142,7 +165,7 @@ export default function AdminBroadcastsPage() {
 
     const fetchEmailRecipients = async (plan: string) => {
         try {
-            const res = await fetch(`/api/admin/broadcasts/email?targetPlan=${plan}`)
+            const res = await fetch(`/api/admin/broadcasts/email?targetSegment=${plan}`)
             const data = await res.json()
             setEmailRecipients(data.data?.count || 0)
         } catch (err) {
@@ -152,7 +175,7 @@ export default function AdminBroadcastsPage() {
 
     const fetchPushDeviceCount = async (plan: string) => {
         try {
-            const res = await fetch(`/api/admin/broadcasts/push?targetPlan=${plan}`)
+            const res = await fetch(`/api/admin/broadcasts/push?targetSegment=${plan}`)
             const data = await res.json()
             setPushDeviceCount(data.data?.count || 0)
             setPushUserCount(data.data?.userCount || 0)
@@ -177,7 +200,7 @@ export default function AdminBroadcastsPage() {
             if (isIndividual) {
                 bodyData.targetUserIds = [...selectedPushUserIds]
             } else {
-                bodyData.targetPlan = pushPlan
+                bodyData.targetSegment = pushPlan
             }
             const res = await fetch('/api/admin/broadcasts/push', {
                 method: 'POST',
@@ -286,7 +309,7 @@ export default function AdminBroadcastsPage() {
             if (emailPlan === 'individual') {
                 body.targetEmails = [...selectedEmails]
             } else {
-                body.targetPlan = emailPlan
+                body.targetSegment = emailPlan
             }
 
             const res = await fetch('/api/admin/broadcasts/email', {
@@ -331,7 +354,7 @@ export default function AdminBroadcastsPage() {
                 </Link>
                 <div>
                     <h1 style={{ fontSize: 22, fontWeight: 700, color: 'white', marginBottom: 4 }}>Broadcasts</h1>
-                    <p style={{ color: '#64748b', fontSize: 13 }}>Envoi de messages en masse — WhatsApp ou Email</p>
+                    <p style={{ color: '#64748b', fontSize: 13 }}>Envoi de messages en masse — WhatsApp, Email ou Push</p>
                 </div>
             </div>
 
@@ -427,8 +450,13 @@ export default function AdminBroadcastsPage() {
                         <div style={{ marginBottom: 16 }}>
                             <label style={{ display: 'block', color: '#94a3b8', fontSize: 13, marginBottom: 8 }}>Segment cible</label>
                             <select value={emailPlan} onChange={(e) => setEmailPlan(e.target.value)} style={inputStyle}>
-                                {PLAN_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                {SEGMENT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                             </select>
+                            {isAgentStatusSegment(emailPlan) && (
+                                <div style={{ color: '#64748b', fontSize: 11, marginTop: 6 }}>
+                                    {getSegmentHint(emailPlan)}
+                                </div>
+                            )}
                         </div>
 
                         {/* Individual user picker */}
@@ -606,10 +634,15 @@ export default function AdminBroadcastsPage() {
                         <div style={{ marginBottom: 16 }}>
                             <label style={{ display: 'block', color: '#94a3b8', fontSize: 13, marginBottom: 8 }}>Segment cible</label>
                             <select value={pushPlan} onChange={(e) => setPushPlan(e.target.value)} style={inputStyle}>
-                                {PLAN_OPTIONS.map(o => (
+                                {SEGMENT_OPTIONS.map(o => (
                                     <option key={o.value} value={o.value}>{o.label}</option>
                                 ))}
                             </select>
+                            {isAgentStatusSegment(pushPlan) && (
+                                <div style={{ color: '#64748b', fontSize: 11, marginTop: 6 }}>
+                                    {getSegmentHint(pushPlan)}
+                                </div>
+                            )}
                         </div>
 
                         {/* Individual user picker */}

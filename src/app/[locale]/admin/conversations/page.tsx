@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Bot, Eye, Loader2, Search, User, X } from 'lucide-react'
+import { Bot, Eye, Loader2, MessageSquare, PauseCircle, Search, User, Users, X, Zap } from 'lucide-react'
 
 function formatContactPhone(raw: string | null): { display: string; isLid: boolean } {
     if (!raw) return { display: 'Inconnu', isLid: false }
@@ -17,6 +17,9 @@ function formatContactPhone(raw: string | null): { display: string; isLid: boole
 
 type ConversationSummary = {
     id: string
+    agent_id?: string | null
+    user_id?: string | null
+    bot_paused?: boolean | null
     contact_phone: string
     contact_push_name?: string | null
     created_at: string
@@ -26,6 +29,51 @@ type ConversationSummary = {
     last_message_at?: string
     agent?: { name?: string | null } | null
     profile?: { full_name?: string | null; email?: string | null } | null
+}
+
+type ConversationKpis = {
+    totalConversations: number
+    totalMessages: number
+    activeLast24h: number
+    pausedConversations: number
+    pausedOver24h: number
+    uniqueAgents: number
+    uniqueContacts: number
+}
+
+type AgentBreakdown = {
+    agentId: string | null
+    agentName: string
+    conversations: number
+    messages: number
+    paused: number
+    activeLast24h: number
+}
+
+type OwnerBreakdown = {
+    userId: string | null
+    ownerName: string
+    ownerEmail: string | null
+    conversations: number
+    messages: number
+    paused: number
+}
+
+type PausedConversationAlert = {
+    id: string
+    contact_phone: string
+    contact_push_name?: string | null
+    agent_name: string
+    last_message_at?: string | null
+    hoursPaused: number
+    messages_count: number
+}
+
+type ConversationBreakdowns = {
+    byAgent: AgentBreakdown[]
+    byOwner: OwnerBreakdown[]
+    topAgentsByMessages: AgentBreakdown[]
+    pausedOver24h: PausedConversationAlert[]
 }
 
 type ConversationDetail = {
@@ -49,6 +97,21 @@ type ConversationDetail = {
 
 export default function AdminConversationsPage() {
     const [conversations, setConversations] = useState<ConversationSummary[]>([])
+    const [kpis, setKpis] = useState<ConversationKpis>({
+        totalConversations: 0,
+        totalMessages: 0,
+        activeLast24h: 0,
+        pausedConversations: 0,
+        pausedOver24h: 0,
+        uniqueAgents: 0,
+        uniqueContacts: 0,
+    })
+    const [breakdowns, setBreakdowns] = useState<ConversationBreakdowns>({
+        byAgent: [],
+        byOwner: [],
+        topAgentsByMessages: [],
+        pausedOver24h: [],
+    })
     const [loading, setLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null)
@@ -66,6 +129,21 @@ export default function AdminConversationsPage() {
             const data = await res.json()
             if (data.data?.conversations) {
                 setConversations(data.data.conversations)
+                setKpis(data.data.kpis || {
+                    totalConversations: data.data.conversations.length,
+                    totalMessages: 0,
+                    activeLast24h: 0,
+                    pausedConversations: 0,
+                    pausedOver24h: 0,
+                    uniqueAgents: 0,
+                    uniqueContacts: 0,
+                })
+                setBreakdowns(data.data.breakdowns || {
+                    byAgent: [],
+                    byOwner: [],
+                    topAgentsByMessages: [],
+                    pausedOver24h: [],
+                })
             }
         } catch (err) {
             console.error('Error fetching conversations:', err)
@@ -116,6 +194,58 @@ export default function AdminConversationsPage() {
         })
     }, [conversations, searchQuery])
 
+    const kpiCards = [
+        {
+            label: 'Conversations',
+            value: kpis.totalConversations,
+            icon: MessageSquare,
+            color: '#60a5fa',
+            bg: 'rgba(96, 165, 250, 0.12)',
+        },
+        {
+            label: 'Messages',
+            value: kpis.totalMessages,
+            icon: Bot,
+            color: '#a78bfa',
+            bg: 'rgba(167, 139, 250, 0.12)',
+        },
+        {
+            label: 'Actives 24h',
+            value: kpis.activeLast24h,
+            icon: Zap,
+            color: '#34d399',
+            bg: 'rgba(52, 211, 153, 0.12)',
+        },
+        {
+            label: 'En pause',
+            value: kpis.pausedConversations,
+            icon: PauseCircle,
+            color: '#f59e0b',
+            bg: 'rgba(245, 158, 11, 0.12)',
+        },
+        {
+            label: 'Pause >24h',
+            value: kpis.pausedOver24h,
+            icon: PauseCircle,
+            color: '#fb7185',
+            bg: 'rgba(251, 113, 133, 0.12)',
+        },
+        {
+            label: 'Agents impliques',
+            value: kpis.uniqueAgents,
+            icon: Bot,
+            color: '#f472b6',
+            bg: 'rgba(244, 114, 182, 0.12)',
+        },
+        {
+            label: 'Contacts uniques',
+            value: kpis.uniqueContacts,
+            icon: Users,
+            color: '#22d3ee',
+            bg: 'rgba(34, 211, 238, 0.12)',
+        },
+    ]
+
     if (loading) {
         return (
             <div className="flex justify-center items-center h-64">
@@ -129,7 +259,10 @@ export default function AdminConversationsPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
                 <div>
                     <h1 style={{ fontSize: 30, fontWeight: 700, color: 'white', marginBottom: 8 }}>Conversations</h1>
-                    <p style={{ color: '#94a3b8' }}>{conversations.length} conversations suivies</p>
+                    <p style={{ color: '#94a3b8' }}>
+                        {filteredConversations.length} conversation{filteredConversations.length === 1 ? '' : 's'}
+                        {searchQuery.trim() ? ` filtrees sur ${conversations.length}` : ' suivies'}
+                    </p>
                 </div>
                 <div style={{ position: 'relative', minWidth: 280 }}>
                     <Search style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', width: 18, height: 18, color: '#64748b' }} />
@@ -150,6 +283,160 @@ export default function AdminConversationsPage() {
                         }}
                     />
                 </div>
+            </div>
+
+            <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                gap: 14,
+            }}>
+                {kpiCards.map((card) => (
+                    <div
+                        key={card.label}
+                        style={{
+                            background: 'rgba(15, 23, 42, 0.65)',
+                            border: '1px solid rgba(148, 163, 184, 0.12)',
+                            borderRadius: 18,
+                            padding: 18,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 12,
+                        }}
+                    >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                            <span style={{ color: '#94a3b8', fontSize: 12, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                                {card.label}
+                            </span>
+                            <div style={{
+                                width: 36,
+                                height: 36,
+                                borderRadius: 12,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                background: card.bg,
+                                color: card.color,
+                            }}>
+                                <card.icon size={18} />
+                            </div>
+                        </div>
+                        <div style={{ color: 'white', fontSize: 28, fontWeight: 700, lineHeight: 1 }}>
+                            {card.value.toLocaleString('fr-FR')}
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                gap: 16,
+            }}>
+                <InsightPanel title="Repartition par agent" subtitle="Volume de conversations, messages et activite recente">
+                    <BreakdownTable
+                        headers={['Agent', 'Conv.', 'Msgs', '24h']}
+                        emptyLabel="Aucune donnee agent"
+                        rows={breakdowns.byAgent.slice(0, 8).map((row) => ({
+                            key: row.agentId || row.agentName,
+                            cells: [
+                                <div key="agent" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                    <span style={{ color: 'white', fontWeight: 600 }}>{row.agentName}</span>
+                                    <span style={{ color: '#64748b', fontSize: 11 }}>{row.paused} pausee(s)</span>
+                                </div>,
+                                row.conversations.toLocaleString('fr-FR'),
+                                row.messages.toLocaleString('fr-FR'),
+                                row.activeLast24h.toLocaleString('fr-FR'),
+                            ]
+                        }))}
+                    />
+                </InsightPanel>
+
+                <InsightPanel title="Repartition par proprietaire" subtitle="Qui porte le plus de conversations cote clients">
+                    <BreakdownTable
+                        headers={['Proprietaire', 'Conv.', 'Msgs', 'Pause']}
+                        emptyLabel="Aucune donnee proprietaire"
+                        rows={breakdowns.byOwner.slice(0, 8).map((row) => ({
+                            key: row.userId || row.ownerName,
+                            cells: [
+                                <div key="owner" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                    <span style={{ color: 'white', fontWeight: 600 }}>{row.ownerName}</span>
+                                    <span style={{ color: '#64748b', fontSize: 11 }}>{row.ownerEmail || 'Email inconnu'}</span>
+                                </div>,
+                                row.conversations.toLocaleString('fr-FR'),
+                                row.messages.toLocaleString('fr-FR'),
+                                row.paused.toLocaleString('fr-FR'),
+                            ]
+                        }))}
+                    />
+                </InsightPanel>
+            </div>
+
+            <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                gap: 16,
+            }}>
+                <InsightPanel title="Conversations en pause >24h" subtitle="Priorite de reprise humaine ou relance">
+                    {breakdowns.pausedOver24h.length === 0 ? (
+                        <EmptyInsight message="Aucune conversation en pause depuis plus de 24h." />
+                    ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                            {breakdowns.pausedOver24h.map((row) => {
+                                const { display } = formatContactPhone(row.contact_phone)
+                                return (
+                                    <button
+                                        key={row.id}
+                                        onClick={() => openConversation(row.id)}
+                                        style={{
+                                            background: 'rgba(15, 23, 42, 0.55)',
+                                            border: '1px solid rgba(148, 163, 184, 0.12)',
+                                            borderRadius: 14,
+                                            padding: 14,
+                                            textAlign: 'left',
+                                            cursor: 'pointer',
+                                        }}
+                                    >
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                                            <div>
+                                                <div style={{ color: 'white', fontWeight: 600 }}>{row.contact_push_name || display}</div>
+                                                <div style={{ color: '#64748b', fontSize: 12 }}>{row.agent_name}</div>
+                                            </div>
+                                            <div style={{
+                                                padding: '4px 8px',
+                                                borderRadius: 999,
+                                                background: 'rgba(251, 113, 133, 0.12)',
+                                                color: '#fb7185',
+                                                fontSize: 12,
+                                                fontWeight: 700,
+                                            }}>
+                                                {row.hoursPaused}h
+                                            </div>
+                                        </div>
+                                        <div style={{ marginTop: 8, color: '#94a3b8', fontSize: 12 }}>
+                                            {display} • {row.messages_count} message(s)
+                                        </div>
+                                    </button>
+                                )
+                            })}
+                        </div>
+                    )}
+                </InsightPanel>
+
+                <InsightPanel title="Top agents par volume" subtitle="Ceux qui absorbent le plus de messages">
+                    <BreakdownTable
+                        headers={['Agent', 'Msgs', 'Conv.', 'Pause']}
+                        emptyLabel="Aucun agent a afficher"
+                        rows={breakdowns.topAgentsByMessages.map((row) => ({
+                            key: `${row.agentId || row.agentName}-messages`,
+                            cells: [
+                                <span key="agent" style={{ color: 'white', fontWeight: 600 }}>{row.agentName}</span>,
+                                row.messages.toLocaleString('fr-FR'),
+                                row.conversations.toLocaleString('fr-FR'),
+                                row.paused.toLocaleString('fr-FR'),
+                            ]
+                        }))}
+                    />
+                </InsightPanel>
             </div>
 
             <div className="admin-table-wrap" style={{
@@ -434,6 +721,103 @@ export default function AdminConversationsPage() {
                     </>
                 )}
             </AnimatePresence>
+        </div>
+    )
+}
+
+function InsightPanel({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
+    return (
+        <div style={{
+            background: 'rgba(30, 41, 59, 0.5)',
+            border: '1px solid rgba(148, 163, 184, 0.1)',
+            borderRadius: 20,
+            padding: 20,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 14,
+        }}>
+            <div>
+                <h2 style={{ color: 'white', fontSize: 18, fontWeight: 700, marginBottom: 4 }}>{title}</h2>
+                <p style={{ color: '#64748b', fontSize: 13 }}>{subtitle}</p>
+            </div>
+            {children}
+        </div>
+    )
+}
+
+function EmptyInsight({ message }: { message: string }) {
+    return (
+        <div style={{
+            borderRadius: 14,
+            border: '1px dashed rgba(148, 163, 184, 0.18)',
+            padding: 18,
+            color: '#64748b',
+            fontSize: 13,
+            textAlign: 'center',
+        }}>
+            {message}
+        </div>
+    )
+}
+
+function BreakdownTable({
+    headers,
+    rows,
+    emptyLabel,
+}: {
+    headers: string[]
+    rows: Array<{ key: string; cells: ReactNode[] }>
+    emptyLabel: string
+}) {
+    if (rows.length === 0) {
+        return <EmptyInsight message={emptyLabel} />
+    }
+
+    return (
+        <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 280 }}>
+                <thead>
+                    <tr>
+                        {headers.map((header) => (
+                            <th
+                                key={header}
+                                style={{
+                                    textAlign: 'left',
+                                    padding: '0 0 10px 0',
+                                    color: '#64748b',
+                                    fontSize: 11,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.05em',
+                                    fontWeight: 700,
+                                    borderBottom: '1px solid rgba(148, 163, 184, 0.08)',
+                                }}
+                            >
+                                {header}
+                            </th>
+                        ))}
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows.map((row) => (
+                        <tr key={row.key}>
+                            {row.cells.map((cell, index) => (
+                                <td
+                                    key={`${row.key}-${index}`}
+                                    style={{
+                                        padding: '12px 0',
+                                        color: index === 0 ? '#e2e8f0' : '#cbd5e1',
+                                        fontSize: 13,
+                                        borderBottom: '1px solid rgba(148, 163, 184, 0.06)',
+                                        verticalAlign: 'top',
+                                    }}
+                                >
+                                    {cell}
+                                </td>
+                            ))}
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
         </div>
     )
 }
