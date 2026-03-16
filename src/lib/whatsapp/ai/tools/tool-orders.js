@@ -118,6 +118,13 @@ async function handleCreateOrder(args, agentId, products, conversationId, supaba
 
         // Create Order in DB
         const normalizedPhone = normalizePhoneNumber(customer_phone)
+        if (!normalizedPhone) {
+            return JSON.stringify({
+                success: false,
+                error: 'TÉLÉPHONE CLIENT MANQUANT. Demandez le numéro de téléphone du client avant de créer la commande.',
+                hint: 'Demandez : "Quel est votre numéro de téléphone ?"'
+            })
+        }
         console.log(`\n📝 Création commande: ${orderItems.length} items, Total: ${total} FCFA`)
 
         const { data: order, error } = await supabase

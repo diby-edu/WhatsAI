@@ -4,7 +4,7 @@
 // ═══════════════════════════════════════════════════════════════
 function normalizePhoneNumber(phone, defaultCountryCode = '225') {
     if (!phone) {
-        return '+000000000000'
+        return null
     }
 
     let normalized = phone.toString().trim()
