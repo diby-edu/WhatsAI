@@ -1,7 +1,15 @@
 import { NextRequest } from 'next/server'
 import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
-import { initializeMessageHandler } from '@/lib/whatsapp/message-handler'
 
+/**
+ * ⚠️ initializeMessageHandler() RETIRÉ
+ *
+ * Cette route appelait la stack TypeScript legacy (baileys.ts + message-handler.ts).
+ * La stack prod est whatsapp-service.js géré par PM2 — appeler l'ancienne stack
+ * créait un double traitement des messages et une double déduction de crédits.
+ *
+ * Pour redémarrer le bot : `pm2 restart whatsai-bot` sur le VPS.
+ */
 export async function GET(request: NextRequest) {
     return POST(request)
 }
@@ -26,17 +34,8 @@ export async function POST(request: NextRequest) {
         return errorResponse('Accès refusé', 403)
     }
 
-    try {
-        console.log('🔄 Manually initializing WhatsApp Message Handler...')
-        initializeMessageHandler()
-        console.log('✅ WhatsApp Message Handler initialized manually.')
-
-        return successResponse({
-            success: true,
-            message: 'WhatsApp Brain initialized manually 🧠',
-        })
-    } catch (error) {
-        console.error('Failed to initialize:', error)
-        return errorResponse('Failed to initialize', 500)
-    }
+    return successResponse({
+        success: false,
+        message: 'Cette action est désactivée. Le bot WhatsApp est géré par PM2 (whatsai-bot). Utilisez `pm2 restart whatsai-bot` sur le VPS pour redémarrer.',
+    })
 }
