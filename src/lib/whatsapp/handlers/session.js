@@ -11,7 +11,6 @@ const fs = require('fs')
 const path = require('path')
 const useSupabaseAuthState = require('../supabase-auth')
 const { handleMessage } = require('./message')
-
 const logger = pino({ level: 'warn' })
 
 async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
@@ -81,6 +80,8 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
             // Increase timeouts for VPS with higher latency to WhatsApp servers
             connectTimeoutMs: 60000,
             defaultQueryTimeoutMs: undefined,
+            // Avoid a heavy initial history sync during fresh QR pairing on the VPS.
+            syncFullHistory: false,
             auth: {
                 creds: state.creds,
                 keys: makeCacheableSignalKeyStore(state.keys, logger)
@@ -93,7 +94,8 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
             status: 'connecting',
             agentName,
             reconnectAttempts: effectiveReconnectAttempt,
-            isSilentRestore
+            isSilentRestore,
+            pairingSucceeded: false
         }
         activeSessions.set(agentId, session)
 
@@ -103,10 +105,11 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
 
         // Handle connection updates
         socket.ev.on('connection.update', async (update) => {
-            const { connection, lastDisconnect, qr } = update
+            const { connection, lastDisconnect, qr, isNewLogin } = update
 
             if (qr) {
                 session.status = 'qr_waiting'
+                session.pairingSucceeded = false
                 console.log(`📱 [${agentName}] QR code generated, saving to DB...`)
 
                 try {
@@ -136,6 +139,21 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                     // Non-bloquant : QR save échoue silencieusement (timeout réseau ou erreur DB)
                     // Le socket reste actif et un nouveau QR sera généré au prochain cycle
                     console.warn(`⚠️ [${agentName}] QR save failed (non-blocking):`, qrErr.message)
+                }
+            }
+
+            if (isNewLogin) {
+                session.pairingSucceeded = true
+                session.status = 'pairing_waiting_open'
+                console.log(`[${agentName}] QR scan confirmed by WhatsApp - waiting for final session open...`)
+
+                try {
+                    await supabase.from('agents').update({
+                        whatsapp_status: 'connecting',
+                        whatsapp_qr_code: null
+                    }).eq('id', agentId)
+                } catch (pairingDbErr) {
+                    console.warn(`[${agentName}] Failed to clear QR after scan confirmation:`, pairingDbErr.message)
                 }
             }
 
@@ -213,6 +231,7 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
 
                 if (shouldReconnect) {
                     const sessionStatus = session.status // capture before activeSessions.delete
+                    const pairingSucceededBeforeClose = session.pairingSucceeded === true
                     activeSessions.delete(agentId)
 
                     // ⭐ EXPONENTIAL BACKOFF avec plafond (poka-yoke)
@@ -252,9 +271,22 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                         // ⭐ FIX: Si la connexion a échoué AVANT d'atteindre 'connected' (ex: QR scanné
                         // mais handshake échoué), supprimer les credentials partiels pour forcer un
                         // nouveau QR. Sans ça, Baileys recharge des creds corrompus → pas de QR → boucle.
-                        if (sessionStatus === 'qr_waiting' || sessionStatus === 'connecting') {
+                        let hasPersistedCreds = false
+                        try {
+                            const { data: storedCreds } = await supabase
+                                .from('whatsapp_sessions')
+                                .select('key_id')
+                                .eq('session_id', agentId)
+                                .eq('key_id', 'creds')
+                                .maybeSingle()
+                            hasPersistedCreds = !!storedCreds
+                        } catch (_) { }
+
+                        if (!pairingSucceededBeforeClose && !hasPersistedCreds && (sessionStatus === 'qr_waiting' || sessionStatus === 'connecting')) {
                             console.log(`🧹 [${agentName}] Connexion échouée avant 'open' — suppression des creds partiels pour nouveau QR`)
                             await supabase.from('whatsapp_sessions').delete().eq('session_id', agentId)
+                        } else if (sessionStatus === 'qr_waiting' || sessionStatus === 'pairing_waiting_open' || sessionStatus === 'connecting') {
+                            console.log(`[${agentName}] Pairing deja confirme ou creds persistes - conservation de la session pour reprise`)
                         }
 
                         initSession(context, agentId, agentName, attempt)
