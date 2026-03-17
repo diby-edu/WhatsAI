@@ -114,13 +114,42 @@ const openai = new OpenAI({ apiKey: OPENAI_API_KEY })
 // Store active sessions
 const activeSessions = new Map()
 const pendingConnections = new Set()
+const scheduledConnections = new Set()
 // Cooldown map: évite que checkAgents re-déclenche un agent récemment initialisé
 // pendant le gap entre disconnect et reconnect (race condition → boucle infinie QR)
 const recentlyProcessed = new Map() // agentId -> lastInitTimestamp
 const AGENT_INIT_COOLDOWN = 3 * 60 * 1000 // 3 minutes entre deux initSession pour le même agent
+const INIT_STAGGER_MS = 3000
+let nextInitSlotAt = 0
 
 // Référence au channel Realtime pour cleanup au shutdown
 let _realtimeChannel = null
+
+function scheduleSessionInit(context, agent, reconnectAttempt = 0) {
+    if (activeSessions.has(agent.id) || pendingConnections.has(agent.id) || scheduledConnections.has(agent.id)) return
+
+    const startAt = Math.max(Date.now(), nextInitSlotAt)
+    const delay = Math.max(0, startAt - Date.now())
+    nextInitSlotAt = startAt + INIT_STAGGER_MS
+    scheduledConnections.add(agent.id)
+
+    const run = async () => {
+        scheduledConnections.delete(agent.id)
+        if (activeSessions.has(agent.id) || pendingConnections.has(agent.id)) return
+
+        const delaySuffix = delay > 0 ? ` in ${Math.round(delay / 1000)}s` : ''
+        console.log(`⚡ triggering initSession for ${agent.name}${delaySuffix}`)
+        await initSession(context, agent.id, agent.name, reconnectAttempt)
+    }
+
+    if (delay === 0) {
+        void run()
+    } else {
+        setTimeout(() => {
+            void run()
+        }, delay)
+    }
+}
 
 // Check for new agents that need connection
 async function checkAgents() {
@@ -143,14 +172,13 @@ async function checkAgents() {
 
         for (const agent of connectingAgents || []) {
             // Skip si en cours de connexion
-            if (activeSessions.has(agent.id) || pendingConnections.has(agent.id)) continue
+            if (activeSessions.has(agent.id) || pendingConnections.has(agent.id) || scheduledConnections.has(agent.id)) continue
             // Skip si initSession déclenché récemment (laisse le backoff interne gérer les retries)
             const lastInit = recentlyProcessed.get(agent.id)
             if (lastInit && Date.now() - lastInit < AGENT_INIT_COOLDOWN) continue
 
-            console.log(`⚡ triggering initSession for ${agent.name}`)
             recentlyProcessed.set(agent.id, Date.now())
-            initSession(context, agent.id, agent.name)
+            scheduleSessionInit(context, agent)
         }
 
         // 2. Check for agents that should be connected and have session files
@@ -163,11 +191,14 @@ async function checkAgents() {
         for (const agent of connectedAgents || []) {
             // STATELESS UPDATE: Rely on DB status, not local files
             // Only restore if not already active
-            if (!activeSessions.has(agent.id) && !pendingConnections.has(agent.id)) {
+            if (!activeSessions.has(agent.id) && !pendingConnections.has(agent.id) && !scheduledConnections.has(agent.id)) {
+                const lastInit = recentlyProcessed.get(agent.id)
+                if (lastInit && Date.now() - lastInit < AGENT_INIT_COOLDOWN) continue
                 console.log(`🔄 Restoring session for ${agent.name} (DB Status: Connected)`)
                 // Passer reconnectAttempt=99 → restauration silencieuse (pas de notification push)
                 // Une notification "connecté" au démarrage du bot serait du spam pour l'utilisateur
-                initSession(context, agent.id, agent.name, 99)
+                recentlyProcessed.set(agent.id, Date.now())
+                scheduleSessionInit(context, agent, 99)
             }
         }
     } catch (error) {
