@@ -1,6 +1,11 @@
 
 const { findMatchingOption, getOptionValue, getOptionPrice, productHasRealVariants, VARIANT_CATEGORY_LABELS } = require('./tool-helpers')
 
+function getVariantDisplayName(variant) {
+    if (!variant) return 'Variante'
+    return variant.customName || variant.name || VARIANT_CATEGORY_LABELS[variant.category] || 'Variante'
+}
+
 /**
  * Calcule le prix unitaire d'un produit en fonction de ses variantes
  * @param {Object} product - Le produit brut de la DB
@@ -40,8 +45,10 @@ function calculateItemPrice(product, selectedVariantsMap = {}, productNameSearch
             // Trouver le groupe dont le nom ou le label catégorie correspond ET dont la valeur est valide
             const targetVariant = product.variants.find(pv => {
                 if (matchedById[pv.id] !== undefined) return false // déjà attribué
-                const nameMatch = pv.name.toLowerCase() === kLower
-                const catMatch = (VARIANT_CATEGORY_LABELS[pv.category] || '') === kLower
+                const variantName = getVariantDisplayName(pv).toLowerCase()
+                const categoryLabel = (VARIANT_CATEGORY_LABELS[pv.category] || '').toLowerCase()
+                const nameMatch = variantName === kLower
+                const catMatch = categoryLabel === kLower
                 return (nameMatch || catMatch) && !!findMatchingOption(pv, v)
             })
             if (targetVariant) matchedById[targetVariant.id] = v
@@ -127,7 +134,7 @@ function calculateItemPrice(product, selectedVariantsMap = {}, productNameSearch
                 if (missingVariants.length > 0) {
                     const missingList = missingVariants.map(v => {
                         const opts = v.options.map(o => getOptionValue(o)).join(', ')
-                        return `${v.name}: [${opts}]`
+                        return `${getVariantDisplayName(v)}: [${opts}]`
                     }).join(' | ')
                     return {
                         price: 0,
@@ -169,13 +176,13 @@ function calculateItemPrice(product, selectedVariantsMap = {}, productNameSearch
 
                 if (variant.type === 'additive' || variant.type === 'supplement') {
                     totalSupplements += optionPrice
-                    logs.push(`➕ Supplément "${variant.name}": +${optionPrice} FCFA`)
+                    logs.push(`➕ Supplément "${getVariantDisplayName(variant)}": +${optionPrice} FCFA`)
                 } else {
                     if (optionPrice > 0) {
                         effectiveBasePrice = optionPrice
-                        logs.push(`🔄 Remplacement Base "${variant.name}": ${optionPrice} FCFA`)
+                        logs.push(`🔄 Remplacement Base "${getVariantDisplayName(variant)}": ${optionPrice} FCFA`)
                     } else {
-                        logs.push(`⏹️ Maintien Base "${variant.name}": (0 FCFA)`)
+                        logs.push(`⏹️ Maintien Base "${getVariantDisplayName(variant)}": (0 FCFA)`)
                     }
                 }
                 matchedById[variant.id] = getOptionValue(validOption)
@@ -202,7 +209,7 @@ function calculateItemPrice(product, selectedVariantsMap = {}, productNameSearch
     if (missingVariants.length > 0) {
         const missingList = missingVariants.map(v => {
             const opts = v.options.map(o => getOptionValue(o)).join(', ')
-            return `${v.name}: [${opts}]`
+            return `${getVariantDisplayName(v)}: [${opts}]`
         }).join(' | ')
 
         return {

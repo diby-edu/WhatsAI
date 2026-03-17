@@ -21,6 +21,9 @@ async function handleCreateOrder(args, agentId, products, conversationId, supaba
         if (validationError) return validationError
 
         const { items, customer_name, customer_phone, delivery_address, email, payment_method, notes } = args
+        const trimmedCustomerName = typeof customer_name === 'string' ? customer_name.trim() : ''
+        const trimmedDeliveryAddress = typeof delivery_address === 'string' ? delivery_address.trim() : ''
+        const normalizedPaymentMethod = typeof payment_method === 'string' ? payment_method.trim().toLowerCase() : ''
 
         let finalNotes = notes || ''
         if (email) finalNotes += `\n📧 Email: ${email}`
@@ -43,6 +46,14 @@ async function handleCreateOrder(args, agentId, products, conversationId, supaba
             return matchedProduct && matchedProduct.product_type === 'digital'
         })
 
+        if (!trimmedCustomerName) {
+            return JSON.stringify({
+                success: false,
+                error: 'NOM MANQUANT. Demandez le nom complet du client avant de creer la commande.',
+                hint: 'Demande : "Quel est votre nom complet ?"'
+            })
+        }
+
         if (hasDigitalProduct && !email) {
             console.log('❌ Email requis pour produit numérique mais non fourni')
             return JSON.stringify({
@@ -52,9 +63,26 @@ async function handleCreateOrder(args, agentId, products, conversationId, supaba
             })
         }
 
+        if (!normalizedPaymentMethod || !['online', 'cod'].includes(normalizedPaymentMethod)) {
+            return JSON.stringify({
+                success: false,
+                error: 'MODE DE PAIEMENT MANQUANT. Demandez si le client souhaite payer en ligne ou a la livraison avant de creer la commande.',
+                hint: 'Demande : "Souhaitez-vous payer en ligne ou a la livraison ?"'
+            })
+        }
+
+        if (hasDigitalProduct && normalizedPaymentMethod !== 'online') {
+            return JSON.stringify({
+                success: false,
+                error: 'PAIEMENT INVALIDE. Les produits numeriques doivent etre payes en ligne.',
+                hint: 'Demande : "Pour ce produit numerique, le paiement se fait en ligne. Souhaitez-vous continuer ?"'
+            })
+        }
+
         let total = 0
         const orderItems = []
         const resolvedProducts = [] // IDs résolus pendant la boucle — garantis, contrairement à item.product_id de l'IA
+        let hasPhysicalProduct = false
 
         for (const item of items) {
             console.log(`\n📦 Traitement: "${item.product_name}" x${item.quantity}`)
@@ -89,6 +117,10 @@ async function handleCreateOrder(args, agentId, products, conversationId, supaba
                     success: false,
                     error: `Produit "${item.product_name}" non trouvé. Disponibles: ${products.map(p => p.name).join(', ')}`
                 })
+            }
+
+            if (product.product_type !== 'digital') {
+                hasPhysicalProduct = true
             }
 
             // Check Stock
@@ -146,19 +178,28 @@ async function handleCreateOrder(args, agentId, products, conversationId, supaba
                 hint: 'Exemples valides : +2250701020304, 002250701020304 ou 2250701020304'
             })
         }
+
+        if (hasPhysicalProduct && !trimmedDeliveryAddress) {
+            return JSON.stringify({
+                success: false,
+                error: 'ADRESSE DE LIVRAISON MANQUANTE. Demandez la ville et le quartier avant de creer la commande.',
+                hint: 'Demande : "Quelle est votre adresse de livraison (ville, quartier) ?"'
+            })
+        }
+
         console.log(`\n📝 Création commande atomique: ${orderItems.length} items, Total: ${total} FCFA`)
 
         const { data: rpcResult, error } = await supabase.rpc('create_order_with_items', {
             p_user_id:         agent.user_id,
             p_agent_id:        agentId,
             p_conversation_id: conversationId,
-            p_customer_name:   customer_name || 'Non spécifié',
+            p_customer_name:   trimmedCustomerName,
             p_customer_phone:  normalizedPhone,
-            p_delivery_address: delivery_address || 'Non spécifié',
-            p_payment_method:  payment_method || 'online',
+            p_delivery_address: trimmedDeliveryAddress || null,
+            p_payment_method:  normalizedPaymentMethod,
             p_notes:           finalNotes || null,
             p_total_fcfa:      total,
-            p_status:          payment_method === 'cod' ? 'pending_delivery' : 'pending',
+            p_status:          normalizedPaymentMethod === 'cod' ? 'pending_delivery' : 'pending',
             p_items:           JSON.stringify(orderItems)
         })
 
@@ -171,7 +212,7 @@ async function handleCreateOrder(args, agentId, products, conversationId, supaba
             const { notify } = require('../../../notifications/notify')
             notify(agent.user_id, 'new_order', {
                 orderNumber: order.id?.toString().slice(-8) || '',
-                customerName: customer_name || 'Client',
+                customerName: trimmedCustomerName || 'Client',
                 totalAmount: total
             })
 
@@ -268,7 +309,7 @@ async function handleCreateOrder(args, agentId, products, conversationId, supaba
         }).join('\n\n')
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://wazzapai.com'
 
-        if (payment_method === 'cod') {
+        if (normalizedPaymentMethod === 'cod') {
             let msg = `✅ Commande confirmée ! Nous préparons la livraison. 🚚\nPaiement de ${total} FCFA à prévoir à la livraison.`
             if (agent.escalation_phone) msg += `\n\n📞 En cas de besoin, contactez le service client au ${agent.escalation_phone}.`
             return JSON.stringify({ success: true, order_id: order.id, payment_method: 'cod', items: itemsSummary, message: msg })

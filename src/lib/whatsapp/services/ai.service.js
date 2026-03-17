@@ -43,6 +43,9 @@ class AIService {
             orders: context.orders,
             customerPhone: message.from,
             conversationId: context.conversationId,
+            checkoutState: context.checkoutState,
+            cartState: context.cartState,
+            bookingState: context.bookingState,
             justOrdered // Signal pour le prompt builder
         }
 

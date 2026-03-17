@@ -170,12 +170,12 @@ class ConversationService {
                 .from('messages')
                 .select('role, content, created_at')
                 .eq('conversation_id', conversationId)
-                .order('created_at', { ascending: true })
+                .order('created_at', { ascending: false })
                 .limit(limit)
 
             if (error) throw error
 
-            return data || []
+            return (data || []).reverse()
         } catch (error) {
             console.error('Failed to load conversation history:', error)
             return [] // Dégradation gracieuse
@@ -292,6 +292,11 @@ class Conversation {
      */
     async getHistory(limit = 20) {
         return await ConversationService.getHistory(this.supabase, this.id, limit)
+    }
+
+    async updateMetadata(updates) {
+        await ConversationService.updateMetadata(this.supabase, this.id, updates)
+        this.metadata = { ...(this.metadata || {}), ...(updates || {}) }
     }
 
     /**

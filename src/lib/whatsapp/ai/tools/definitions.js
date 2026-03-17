@@ -41,12 +41,12 @@ IMPORTANT - VARIANTES :
                         type: 'string',
                         description: 'Numéro de téléphone avec indicatif pays obligatoire. Exemples valides : 2250701020304, +2250701020304, 002250701020304. Ne jamais utiliser le format local sans indicatif (ex: 0701020304).'
                     },
-                    delivery_address: { type: 'string', description: 'Adresse de livraison complète' },
+                    delivery_address: { type: 'string', description: 'Adresse de livraison complète (obligatoire pour les produits physiques)' },
                     email: { type: 'string', description: 'Email (requis pour produits numériques)' },
-                    payment_method: { type: 'string', enum: ['online', 'cod'], description: 'Mode de paiement' },
+                    payment_method: { type: 'string', enum: ['online', 'cod'], description: 'Mode de paiement. Obligatoire avant create_order.' },
                     notes: { type: 'string', description: 'Instructions spéciales' }
                 },
-                required: ['items', 'customer_name', 'customer_phone']
+                required: ['items', 'customer_name', 'customer_phone', 'payment_method']
             }
         }
     },
@@ -94,7 +94,12 @@ IMPORTANT - VARIANTES :
                 properties: {
                     booking_type: { type: 'string', description: 'Type de réservation: "stay" (hôtel), "table" (restaurant), "slot" (rdv), "rental" (location)' },
                     service_name: { type: 'string', description: 'Nom du service/produit dans le catalogue (ex: "Chambres", "Menu Gourmet")' },
-                    selected_variant: { type: 'string', description: 'Variante choisie (ex: "Suite", "VIP", "Menu Découverte") - OBLIGATOIRE si le service a des variantes' },
+                    selected_variant: { type: 'string', description: 'Champ legacy: variante principale choisie si une seule variante fixe est necessaire.' },
+                    selected_variants: {
+                        type: 'object',
+                        description: 'Variantes fixes selectionnees pour le service. Ex: {"Type de chambre": "Suite", "Vue": "Mer"}',
+                        additionalProperties: { type: 'string' }
+                    },
                     customer_phone: {
                         type: 'string',
                         description: 'Téléphone du client avec indicatif pays obligatoire. Exemples valides : 2250701020304, +2250701020304, 002250701020304. Ne jamais utiliser le format local sans indicatif (ex: 0701020304).'

@@ -72,6 +72,11 @@ const antiLoopRules = `
     - SI une info manque (taille, couleur), LISTE UNIQUEMENT ce que tu sais, ET POSE LA QUESTION EN DESSOUS.
     - Une ligne de produit ne doit contenir QUE des faits validés.
 
+🚨 RÈGLE "PAS DE QUANTITÉ IMAGINÉE" 🛑 :
+    - Si la quantité n'a pas été donnée explicitement, NE JAMAIS supposer 1.
+    - Une couleur, une taille, un "oui" ou un nom ne valent jamais quantité.
+    - Si la quantité manque, pose uniquement la question de quantité.
+
 🚨🚨🚨 RÈGLE DES 3 RÉCAPS MAXIMUM (CRITIQUE v2.14) 🚨🚨🚨
 
 ⛔ TU AS DROIT À EXACTEMENT 3 RÉCAPITULATIFS DANS TOUT LE WORKFLOW :

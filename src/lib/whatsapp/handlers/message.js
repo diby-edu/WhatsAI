@@ -22,6 +22,25 @@ const { AnalyticsService } = require('../services/analytics.service')
 const { ErrorHandler } = require('../services/errors')
 const { analyzeSentiment } = require('../ai/sentiment')
 const { downloadMediaMessage } = require('@whiskeysockets/baileys')
+const { normalizeWhatsAppContact } = require('../ai/tools/tool-helpers')
+const {
+    applyUserReplyToCheckoutState,
+    getCheckoutState,
+    inferCheckoutStateFromAssistantMessage,
+    setCheckoutState,
+} = require('../services/checkout-state.service')
+const {
+    getCartState,
+    inferCartStateFromAssistantMessage,
+    setCartState,
+    updateCartStateFromUserMessage,
+} = require('../services/cart-state.service')
+const {
+    getBookingState,
+    inferBookingStateFromAssistantMessage,
+    setBookingState,
+    updateBookingStateFromUserMessage,
+} = require('../services/booking-state.service')
 
 // ═══════════════════════════════════════════════════════════════
 // RATE LIMITING - Protection contre les abus
@@ -179,20 +198,6 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
         // PHASE 2 : TRAITEMENT DU MESSAGE ENTRANT
         // ═══════════════════════════════════════════════════════════
 
-        // 2.1 Sauvegarder le message utilisateur
-        await supabase.from('messages').insert({
-            conversation_id: conversation.id,
-            agent_id: agentId,
-            role: 'user',
-            content: message.text || (isVoiceMessage ? '[Voice Message]' : '[Image]'),
-            whatsapp_message_id: message.key.id,
-            status: 'received',
-            metadata: {
-                is_voice: isVoiceMessage,
-                has_media: !!message.imageMessage
-            }
-        })
-
         // Helper : téléchargement média avec timeout (évite blocage réseau)
         const MEDIA_TIMEOUT_MS = 15000
         const withMediaTimeout = (promise) => Promise.race([
@@ -238,12 +243,36 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             }
         }
 
+        message.text = String(message.text || '').trim()
+
+        // 2.1 Sauvegarder le vrai contenu utilisateur après transcription/traitement image
+        await supabase.from('messages').insert({
+            conversation_id: conversation.id,
+            agent_id: agentId,
+            role: 'user',
+            content: message.text || (isVoiceMessage ? '[Message vocal non disponible]' : '[Message sans texte]'),
+            whatsapp_message_id: message.key.id,
+            status: 'received',
+            metadata: {
+                is_voice: isVoiceMessage,
+                has_media: !!message.imageMessage,
+                was_transcribed: isVoiceMessage && !!message.audioMessage,
+                has_image_context: !!message.imageBase64
+            }
+        })
+
         // ═══════════════════════════════════════════════════════════
         // PHASE 3 : CHARGEMENT DU CONTEXTE
         // ═══════════════════════════════════════════════════════════
 
         // 3.1 Historique de conversation
         const conversationHistory = await conversation.getHistory(50)
+        const historyForAI =
+            conversationHistory.length > 0 && conversationHistory[conversationHistory.length - 1]?.role === 'user'
+                ? conversationHistory.slice(0, -1)
+                : conversationHistory
+
+        const normalizedContactPhone = normalizeWhatsAppContact(message.from)
 
         // 3.2 Produits de l'agent (Isolation stricte par agent_id)
         const { data: products } = await supabase
@@ -253,18 +282,58 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             .eq('is_available', true)
             .limit(20)
 
+        const orderableProducts = (products || []).filter(product => product.product_type !== 'service')
+        const serviceProducts = (products || []).filter(product => product.product_type === 'service')
+
+        const previousCartState = getCartState(conversation.metadata)
+        const previousCheckoutState = getCheckoutState(conversation.metadata)
+        const previousBookingState = getBookingState(conversation.metadata)
+        const bookingUpdate = updateBookingStateFromUserMessage(previousBookingState, message.text, serviceProducts)
+        const bookingFlowActive = !!(previousBookingState.current_booking || bookingUpdate.state.current_booking)
+
+        const cartUpdate = bookingFlowActive
+            ? { state: previousCartState, capturedFields: [], stateChanged: false, shouldBypassAI: false, directReply: null }
+            : updateCartStateFromUserMessage(previousCartState, message.text, orderableProducts)
+
+        const checkoutState = bookingFlowActive
+            ? previousCheckoutState
+            : applyUserReplyToCheckoutState(previousCheckoutState, message.text)
+
+        if (
+            JSON.stringify(previousCartState) !== JSON.stringify(cartUpdate.state) ||
+            JSON.stringify(previousCheckoutState) !== JSON.stringify(checkoutState) ||
+            JSON.stringify(previousBookingState) !== JSON.stringify(bookingUpdate.state) ||
+            conversation.metadata?.cart ||
+            conversation.metadata?.checkout ||
+            conversation.metadata?.booking
+        ) {
+            const mergedMetadata = setBookingState(
+                setCheckoutState(
+                    setCartState(conversation.metadata, cartUpdate.state),
+                    checkoutState
+                ),
+                bookingUpdate.state
+            )
+            await conversation.updateMetadata(mergedMetadata)
+        }
+
         // 3.3 Commandes récentes du client
-        const { data: orders } = await supabase
-            .from('orders')
-            .select(`
-                id, status, total_fcfa, created_at,
-                customer_phone, delivery_address,
-                items:order_items(product_name, quantity)
-            `)
-            .eq('user_id', agent.user_id)
-            .eq('customer_phone', message.from)
-            .order('created_at', { ascending: false })
-            .limit(20) // Augmenté pour couvrir l'historique de 15 jours
+        let orders = []
+        if (normalizedContactPhone) {
+            const { data: recentOrders } = await supabase
+                .from('orders')
+                .select(`
+                    id, status, total_fcfa, created_at,
+                    customer_name, customer_phone, delivery_address,
+                    items:order_items(product_name, quantity)
+                `)
+                .eq('user_id', agent.user_id)
+                .eq('customer_phone', normalizedContactPhone)
+                .order('created_at', { ascending: false })
+                .limit(20) // Augmenté pour couvrir l'historique de 15 jours
+
+            orders = recentOrders || []
+        }
 
         // ═══════════════════════════════════════════════════════════
         // PHASE 4 : ANALYSE SENTIMENT & ESCALADE
@@ -301,20 +370,55 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
 
         console.log('🧠 Generating AI response...')
 
-        const aiResponse = await AIService.generate({
-            agent,
-            message,
-            context: {
-                history: conversationHistory,
-                products: products || [],
-                orders: orders || [],
-                currency: agentCurrency,
-                supabase,
-                activeSessions,
-                CinetPay
-            },
-            openai
-        })
+        let aiResponse
+        let nextCartState = cartUpdate.state
+        let nextCheckoutState = checkoutState
+        let nextBookingState = bookingUpdate.state
+        const structuredReply = bookingUpdate.shouldBypassAI && bookingFlowActive
+            ? bookingUpdate.directReply
+            : cartUpdate.directReply
+
+        if (structuredReply) {
+            console.log('Structured flow reply generated')
+            aiResponse = {
+                content: structuredReply,
+                tokensUsed: 0,
+                imageActions: []
+            }
+        } else {
+            aiResponse = await AIService.generate({
+                agent,
+                message,
+                context: {
+                    history: historyForAI,
+                    products: products || [],
+                    orders: orders || [],
+                    currency: agentCurrency,
+                    conversationId: conversation.id,
+                    checkoutState,
+                    cartState: cartUpdate.state,
+                    bookingState: bookingUpdate.state,
+                    supabase,
+                    activeSessions,
+                    CinetPay
+                },
+                openai
+            })
+
+            nextCartState = inferCartStateFromAssistantMessage(aiResponse.content, cartUpdate.state, orderableProducts)
+            nextCheckoutState = inferCheckoutStateFromAssistantMessage(aiResponse.content, checkoutState)
+            nextBookingState = inferBookingStateFromAssistantMessage(aiResponse.content, bookingUpdate.state, serviceProducts)
+        }
+
+        await conversation.updateMetadata(
+            setBookingState(
+                setCheckoutState(
+                    setCartState(conversation.metadata, nextCartState),
+                    nextCheckoutState
+                ),
+                nextBookingState
+            )
+        )
 
         // ═══════════════════════════════════════════════════════════
         // PHASE 6 : ENVOI RÉPONSE

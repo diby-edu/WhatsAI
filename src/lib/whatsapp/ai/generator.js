@@ -14,6 +14,18 @@ const { TOOLS, handleToolCall, findMatchingOption, getOptionValue, productHasRea
 const { findRelevantDocuments } = require('./rag')
 const { verifyResponseIntegrity } = require('../utils/security')
 const { buildAdaptiveSystemPrompt } = require('./prompt-builder')
+const {
+    buildCheckoutStateGuidance,
+    mergeCheckoutStateIntoToolArgs,
+} = require('../services/checkout-state.service')
+const {
+    buildCartStateGuidance,
+    mergeCartStateIntoToolArgs,
+} = require('../services/cart-state.service')
+const {
+    buildBookingStateGuidance,
+    mergeBookingStateIntoToolArgs,
+} = require('../services/booking-state.service')
 
 // Configuration
 const MAX_RETRIES = 3
@@ -131,6 +143,34 @@ function preCheckCreateOrder(toolCall, products) {
     }
 }
 
+function hydrateToolCallArguments(toolCall, checkoutState, cartState, bookingState) {
+    try {
+        const parsedArgs = JSON.parse(toolCall.function.arguments)
+        const mergedCheckoutArgs = mergeCheckoutStateIntoToolArgs(toolCall.function.name, parsedArgs, checkoutState)
+        const mergedCartArgs = mergeCartStateIntoToolArgs(toolCall.function.name, mergedCheckoutArgs, cartState)
+        const mergedArgs = mergeBookingStateIntoToolArgs(toolCall.function.name, mergedCartArgs, bookingState)
+
+        return {
+            ...toolCall,
+            function: {
+                ...toolCall.function,
+                arguments: JSON.stringify(mergedArgs)
+            }
+        }
+    } catch {
+        return toolCall
+    }
+}
+
+function formatDirectToolResponse(parsedResult) {
+    const parts = []
+
+    if (parsedResult.items) parts.push(parsedResult.items)
+    if (parsedResult.message) parts.push(parsedResult.message)
+
+    return parts.filter(Boolean).join('\n\n')
+}
+
 /**
  * Appel OpenAI avec retry
  */
@@ -179,7 +219,10 @@ async function generateAIResponse(options, dependencies) {
             orders,
             customerPhone,
             conversationId,
-            currency = 'USD'
+            currency = 'USD',
+            checkoutState,
+            cartState,
+            bookingState
         } = options
 
         // RAG - Documents pertinents
@@ -214,7 +257,7 @@ async function generateAIResponse(options, dependencies) {
             : ''
 
         // 3. Construire le System Prompt
-        const systemPrompt = buildAdaptiveSystemPrompt(
+        let systemPrompt = buildAdaptiveSystemPrompt(
             agent,
             products || [],
             orders || [],
@@ -225,6 +268,18 @@ async function generateAIResponse(options, dependencies) {
             options.justOrdered || false, // Passer le flag de reset
             userMessage || '' // v2.19: Intent Detection Context
         )
+        const checkoutStateGuidance = buildCheckoutStateGuidance(checkoutState)
+        if (checkoutStateGuidance) {
+            systemPrompt += '\n\n' + checkoutStateGuidance
+        }
+        const cartStateGuidance = buildCartStateGuidance(cartState, products || [])
+        if (cartStateGuidance) {
+            systemPrompt += '\n\n' + cartStateGuidance
+        }
+        const bookingStateGuidance = buildBookingStateGuidance(bookingState, (products || []).filter(product => product.product_type === 'service'))
+        if (bookingStateGuidance) {
+            systemPrompt += '\n\n' + bookingStateGuidance
+        }
         console.log(`📝 Prompt size: ${systemPrompt.length} chars`)
 
         // Préparer les messages
@@ -268,8 +323,10 @@ async function generateAIResponse(options, dependencies) {
             console.log('🤖 Tool calls:', responseMessage.tool_calls.length)
 
             const newHistory = [...messages, responseMessage]
+            let directToolResponse = null
 
-            for (const toolCall of responseMessage.tool_calls) {
+            for (const rawToolCall of responseMessage.tool_calls) {
+                const toolCall = hydrateToolCallArguments(rawToolCall, checkoutState, cartState, bookingState)
                 console.log(`🔧 Tool: ${toolCall.function.name}`)
 
                 // Pre-check pour create_order
@@ -314,6 +371,16 @@ async function generateAIResponse(options, dependencies) {
                         })
                         console.log(`📸 Image à envoyer: ${parsedResult.product_name}`)
                     }
+
+                    if (
+                        parsedResult.success &&
+                        ['create_order', 'create_booking', 'check_payment_status', 'find_order'].includes(toolCall.function.name)
+                    ) {
+                        const formattedResponse = formatDirectToolResponse(parsedResult)
+                        if (formattedResponse) {
+                            directToolResponse = formattedResponse
+                        }
+                    }
                 } catch (_e) {
                     // Pas de parsing nécessaire
                 }
@@ -325,15 +392,19 @@ async function generateAIResponse(options, dependencies) {
                 })
             }
 
-            // Second appel pour la réponse finale (avec retry)
-            const secondCompletion = await callOpenAIWithRetry(openai, {
-                model: agent.model || 'gpt-4o-mini',
-                messages: newHistory,
-                max_tokens: agent.max_tokens || 500,
-                temperature: agent.temperature || 0.7
-            })
+            if (directToolResponse) {
+                content = directToolResponse
+            } else {
+                // Second appel pour la réponse finale (avec retry)
+                const secondCompletion = await callOpenAIWithRetry(openai, {
+                    model: agent.model || 'gpt-4o-mini',
+                    messages: newHistory,
+                    max_tokens: agent.max_tokens || 500,
+                    temperature: agent.temperature || 0.7
+                })
 
-            content = secondCompletion.choices[0].message.content
+                content = secondCompletion.choices[0].message.content
+            }
         }
 
         // Vérification d'intégrité (prix)

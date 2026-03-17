@@ -21,13 +21,29 @@
  * @returns {string|null} JSON erreur ou null si valide
  */
 function validateCreateOrderArgs(args) {
-    const { items } = args
+    const { items, customer_name, customer_phone } = args
 
     if (!Array.isArray(items) || items.length === 0) {
         return JSON.stringify({
             success: false,
             error: 'ARTICLES MANQUANTS. La commande doit contenir au moins un article. Demandez au client quels produits il souhaite commander.',
             hint: 'Exemple : "Quels articles souhaitez-vous commander et en quelle quantité ?"'
+        })
+    }
+
+    if (!customer_name || typeof customer_name !== 'string' || customer_name.trim() === '') {
+        return JSON.stringify({
+            success: false,
+            error: 'NOM MANQUANT. Demandez d abord le nom complet du client avant de creer la commande.',
+            hint: 'Demande : "Quel est votre nom complet ?"'
+        })
+    }
+
+    if (!customer_phone || typeof customer_phone !== 'string' || customer_phone.trim() === '') {
+        return JSON.stringify({
+            success: false,
+            error: 'TELEPHONE MANQUANT. Demandez le numero complet avec indicatif pays avant de creer la commande.',
+            hint: 'Demande : "Quel est votre numero WhatsApp avec indicatif pays ?"'
         })
     }
 
@@ -64,13 +80,37 @@ function validateCreateOrderArgs(args) {
  * @returns {string|null} JSON erreur ou null si valide
  */
 function validateCreateBookingArgs(args) {
-    const { service_name } = args
+    const { service_name, customer_name, customer_phone, preferred_date } = args
 
     if (!service_name || typeof service_name !== 'string' || service_name.trim() === '') {
         return JSON.stringify({
             success: false,
             error: 'SERVICE MANQUANT. Le nom du service est obligatoire pour créer une réservation. Demandez au client quel service il souhaite réserver.',
             hint: 'Exemple : "Quel service souhaitez-vous réserver ?"'
+        })
+    }
+
+    if (!customer_name || typeof customer_name !== 'string' || customer_name.trim() === '') {
+        return JSON.stringify({
+            success: false,
+            error: 'NOM MANQUANT. Demandez le nom complet du client avant de creer la reservation.',
+            hint: 'Demande : "Quel est votre nom complet ?"'
+        })
+    }
+
+    if (!customer_phone || typeof customer_phone !== 'string' || customer_phone.trim() === '') {
+        return JSON.stringify({
+            success: false,
+            error: 'TELEPHONE MANQUANT. Demandez le numero complet avec indicatif pays avant de creer la reservation.',
+            hint: 'Demande : "Quel est votre numero de telephone avec indicatif pays ?"'
+        })
+    }
+
+    if (!preferred_date || typeof preferred_date !== 'string' || preferred_date.trim() === '') {
+        return JSON.stringify({
+            success: false,
+            error: 'DATE MANQUANTE. Demandez la date souhaitee avant de creer la reservation.',
+            hint: 'Demande : "Pour quelle date souhaitez-vous reserver ?"'
         })
     }
 
