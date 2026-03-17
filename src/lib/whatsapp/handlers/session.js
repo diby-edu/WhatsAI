@@ -289,7 +289,11 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                             console.log(`[${agentName}] Pairing deja confirme ou creds persistes - conservation de la session pour reprise`)
                         }
 
-                        initSession(context, agentId, agentName, attempt)
+                        if (typeof context.scheduleSessionInit === 'function') {
+                            context.scheduleSessionInit(context, { id: agentId, name: agentName }, attempt)
+                        } else {
+                            initSession(context, agentId, agentName, attempt)
+                        }
                     }, delay)
                 } else {
                     activeSessions.delete(agentId)

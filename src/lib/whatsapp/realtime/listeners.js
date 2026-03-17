@@ -89,7 +89,11 @@ function setupRealtimeListeners(context) {
             console.log('⚡ [REALTIME] Agent connection requested:', name)
             const { initSession } = require('../handlers/session')
             if (!activeSessions.has(id) && !pendingConnections.has(id)) {
-                initSession(context, id, name)
+                if (typeof context.scheduleSessionInit === 'function') {
+                    context.scheduleSessionInit(context, { id, name })
+                } else {
+                    initSession(context, id, name)
+                }
             }
         })
         // 4. Agents (Deletion — close orphan socket immediately, no polling needed)
