@@ -46,15 +46,54 @@ function cloneItem(item = null) {
     }
 }
 
+function cloneCartLine(line = null) {
+    if (!line) return null
+
+    const clonedItem = cloneItem(line)
+    return {
+        ...clonedItem,
+        line_id: line.line_id || null,
+        unit_price: Number.isFinite(Number(line.unit_price)) ? Number(line.unit_price) : null,
+        line_total: Number.isFinite(Number(line.line_total)) ? Number(line.line_total) : null,
+    }
+}
+
 function cloneAwaitingField(field = null) {
     if (!field) return null
     return { ...field }
 }
 
+function migrateLegacyCartItems(cart = {}) {
+    if (Array.isArray(cart.cart_items) && cart.cart_items.length > 0) {
+        return cart.cart_items.map(cloneCartLine).filter(Boolean)
+    }
+
+    if (!cart.current_item) return []
+
+    if (![CART_STAGE.CART_RECAP, CART_STAGE.CHECKOUT].includes(cart.stage)) {
+        return []
+    }
+
+    const migratedItem = cloneItem(cart.current_item)
+    if (!migratedItem?.product_id || !migratedItem?.quantity) {
+        return []
+    }
+
+    return [{
+        ...migratedItem,
+        line_id: 'legacy-line',
+        unit_price: null,
+        line_total: null,
+    }]
+}
+
 function cloneCartState(cart = {}) {
+    const draftItem = cloneItem(cart.draft_item || cart.current_item)
+
     return {
         stage: cart.stage || CART_STAGE.IDLE,
-        current_item: cloneItem(cart.current_item),
+        draft_item: draftItem,
+        cart_items: migrateLegacyCartItems(cart),
         awaiting_field: cloneAwaitingField(cart.awaiting_field),
         last_prompt_kind: cart.last_prompt_kind || null,
         last_prompt_text: cart.last_prompt_text || null,
@@ -91,6 +130,29 @@ function isPositiveReply(text) {
 function isNegativeReply(text) {
     const normalized = normalizeText(text)
     return ['non', 'pas maintenant', 'modifier', 'je corrige', 'je veux modifier'].includes(normalized)
+}
+
+function wantsAnotherCombination(text) {
+    const normalized = normalizeText(text)
+    if (!normalized) return false
+
+    return [
+        'ajouter',
+        'autre combinaison',
+        'une autre combinaison',
+        'encore',
+        'je veux aussi',
+        'ajouter une autre',
+        'autre variante',
+    ].some(term => normalized.includes(term))
+}
+
+function buildCartActionField() {
+    return {
+        type: 'cart_action',
+        label: 'suite du panier',
+        prompt: 'Souhaitez-vous ajouter une autre combinaison ou continuer ?'
+    }
 }
 
 function findProductById(products = [], productId) {
@@ -181,8 +243,16 @@ function findStrictVariantOption(variant, text) {
     const normalizedText = normalizeText(text)
     if (!normalizedText || !variant?.options) return null
 
+    const tokens = normalizedText.split(' ').filter(Boolean)
+
     const exact = variant.options.find(option => normalizeText(getOptionValue(option)) === normalizedText)
     if (exact) return exact
+
+    const tokenExact = variant.options.find(option => {
+        const normalizedValue = normalizeText(getOptionValue(option))
+        return normalizedValue && tokens.includes(normalizedValue)
+    })
+    if (tokenExact) return tokenExact
 
     return variant.options.find(option => {
         const normalizedValue = normalizeText(getOptionValue(option))
@@ -220,10 +290,10 @@ function setSelectedVariant(item, variant, value) {
     }
 }
 
-function extractVariantsFromText(product, text, currentItem) {
+function extractVariantsFromText(product, text, draftItem) {
     const normalized = normalizeText(text)
     const captured = []
-    const nextItem = cloneItem(currentItem)
+    const nextItem = cloneItem(draftItem)
 
     if (!product || !normalized) {
         return { item: nextItem, captured }
@@ -246,6 +316,65 @@ function extractVariantsFromText(product, text, currentItem) {
     }
 
     return { item: nextItem, captured }
+}
+
+function hasDraftSelections(item) {
+    if (!item) return false
+
+    return Boolean(
+        item.quantity ||
+        Object.keys(item.selected_variants_by_id || {}).length > 0 ||
+        Object.keys(item.selected_variants || {}).length > 0 ||
+        (item.skipped_optional_variant_ids || []).length > 0
+    )
+}
+
+function splitCombinationSegments(text) {
+    const normalized = normalizeText(text)
+    if (!normalized) return []
+
+    return normalized
+        .split(/\s+(?:et|puis|\+)\s+|[;,]\s*|\n+\s*/)
+        .map(segment => segment.trim())
+        .filter(Boolean)
+}
+
+function hasAllRequiredVariants(product, item) {
+    return getRequiredVariants(product).every(variant => !!getSelectedVariantValue(item, variant.id))
+}
+
+function parseBatchCombinationLines(product, text) {
+    const segments = splitCombinationSegments(text)
+    if (segments.length < 2) {
+        return { status: 'not_batch', lines: [], segments: [] }
+    }
+
+    const lines = []
+
+    for (const segment of segments) {
+        const draftItem = createDraftItem(product)
+        const quantity = extractQuantity(segment)
+        if (!quantity) {
+            return { status: 'invalid', lines: [], segments }
+        }
+
+        draftItem.quantity = quantity
+        const variantCapture = extractVariantsFromText(product, segment, draftItem)
+        const completedItem = variantCapture.item
+
+        if (!hasAllRequiredVariants(product, completedItem)) {
+            return { status: 'invalid', lines: [], segments }
+        }
+
+        const lineResult = buildLineFromDraft(product, completedItem, lines.length + 1)
+        if (lineResult.error) {
+            return { status: 'error', error: lineResult.error, lines: [], segments }
+        }
+
+        lines.push(lineResult.line)
+    }
+
+    return { status: 'success', lines, segments }
 }
 
 function buildAwaitingField(product, item) {
@@ -295,6 +424,17 @@ function buildAwaitingField(product, item) {
     return null
 }
 
+function createDraftItem(product) {
+    return {
+        product_id: product.id,
+        product_name: product.name,
+        quantity: null,
+        selected_variants: {},
+        selected_variants_by_id: {},
+        skipped_optional_variant_ids: [],
+    }
+}
+
 function buildCapturedSummary(captured = []) {
     if (!captured || captured.length === 0) return ''
 
@@ -308,45 +448,156 @@ function buildCapturedSummary(captured = []) {
     return `Je note ${parts.slice(0, -1).join(', ')} et ${parts[parts.length - 1]}.`
 }
 
-function formatVariantsForRecap(product, item) {
-    if (!product || !item) return ''
+function buildLineFromDraft(product, draftItem, index = 1) {
+    const selectedVariantsMap = { ...(draftItem.selected_variants || {}) }
+    const pricing = calculateItemPrice(product, selectedVariantsMap, draftItem.product_name, draftItem.quantity)
+    if (pricing.error) {
+        return { error: pricing.error }
+    }
 
-    const orderedValues = [
-        ...getRequiredVariants(product),
-        ...getOptionalVariants(product),
-    ]
-        .map(variant => getSelectedVariantValue(item, variant.id))
-        .filter(Boolean)
-
-    return orderedValues.join(', ')
-}
-
-function buildMiniRecap(product, item) {
-    const selectedVariantsMap = { ...(item.selected_variants || {}) }
-    const pricing = calculateItemPrice(product, selectedVariantsMap, item.product_name, item.quantity)
     const unitPrice = pricing.price || product.price_fcfa || 0
-    const total = unitPrice * item.quantity
-    const variantSuffix = formatVariantsForRecap(product, item)
-    const variantText = variantSuffix ? ` (${variantSuffix})` : ''
+    const lineTotal = unitPrice * draftItem.quantity
 
-    return `Voici votre commande :\n\n• ${item.product_name}${variantText} x ${item.quantity} = ${total.toLocaleString('fr-FR')} FCFA.\n\nOn continue ?`
+    return {
+        line: {
+            ...cloneItem(draftItem),
+            line_id: `line_${Date.now()}_${index}`,
+            unit_price: unitPrice,
+            line_total: lineTotal,
+        }
+    }
 }
 
-function buildStructuredCartReply(state, products, capturedFields = []) {
-    const product = findProductById(products, state.current_item?.product_id)
-    if (!product || !state.current_item) return null
+function getLineSignature(line) {
+    const variantsById = line.selected_variants_by_id || {}
+    const signature = Object.keys(variantsById)
+        .sort()
+        .map(key => `${key}:${variantsById[key]}`)
+        .join('|')
+
+    return `${line.product_id}::${signature}`
+}
+
+function mergeOrAppendCartLine(cartItems = [], newLine) {
+    const signature = getLineSignature(newLine)
+    let merged = false
+
+    const nextItems = cartItems.map(item => {
+        if (merged || getLineSignature(item) !== signature || item.unit_price !== newLine.unit_price) {
+            return cloneCartLine(item)
+        }
+
+        merged = true
+        const quantity = (item.quantity || 0) + (newLine.quantity || 0)
+        return {
+            ...cloneCartLine(item),
+            quantity,
+            line_total: (item.unit_price || 0) * quantity,
+        }
+    })
+
+    if (!merged) {
+        nextItems.push(cloneCartLine(newLine))
+    }
+
+    return nextItems
+}
+
+function formatLineLabel(item) {
+    const variants = Object.values(item.selected_variants || {}).filter(Boolean).join(', ')
+    const variantSuffix = variants ? ` (${variants})` : ''
+    const total = item.line_total != null
+        ? item.line_total
+        : ((item.unit_price || 0) * (item.quantity || 0))
+
+    return `${item.product_name}${variantSuffix} x ${item.quantity} = ${total.toLocaleString('fr-FR')} FCFA`
+}
+
+function buildCartRecap(state) {
+    const cartItems = state.cart_items || []
+    const total = cartItems.reduce((sum, item) => sum + (item.line_total || 0), 0)
+    const lines = cartItems.map(item => `- ${formatLineLabel(item)}`)
+
+    return [
+        'Panier actuel :',
+        '',
+        ...lines,
+        '',
+        `Total : ${total.toLocaleString('fr-FR')} FCFA`,
+        '',
+        'Souhaitez-vous ajouter une autre combinaison ou continuer ?'
+    ].join('\n')
+}
+
+function buildBatchCartReply(state, addedLines = []) {
+    const intro = addedLines.length > 0
+        ? [
+            'Je note ces lignes :',
+            '',
+            ...addedLines.map(item => `- ${formatLineLabel(item)}`)
+        ].join('\n')
+        : null
+
+    return [intro, buildCartRecap(state)].filter(Boolean).join('\n\n')
+}
+
+function buildStructuredCartReply(state, products, capturedFields = [], options = {}) {
+    const acknowledgement = buildCapturedSummary(capturedFields)
 
     if (state.stage === CART_STAGE.CART_RECAP) {
-        return buildMiniRecap(product, state.current_item)
+        const intro = options.lineAdded
+            ? `Je note cette ligne :\n- ${formatLineLabel(options.lineAdded)}`
+            : null
+        return [acknowledgement, intro, buildCartRecap(state)].filter(Boolean).join('\n\n')
     }
 
-    const awaitingField = buildAwaitingField(product, state.current_item)
+    const product = findProductById(products, state.draft_item?.product_id)
+    if (!product || !state.draft_item) return null
+
+    const awaitingField = buildAwaitingField(product, state.draft_item)
     if (!awaitingField) {
-        return buildMiniRecap(product, state.current_item)
+        return acknowledgement || null
     }
 
-    const acknowledgement = buildCapturedSummary(capturedFields)
     return [acknowledgement, awaitingField.prompt].filter(Boolean).join(' ')
+}
+
+function detectProductForNewLine(text, products, state) {
+    const detectedProduct = findBestProduct(products, text)
+    if (detectedProduct) return detectedProduct
+
+    if (wantsAnotherCombination(text)) {
+        const lastLine = state.cart_items?.[state.cart_items.length - 1]
+        if (!lastLine) return null
+        return findProductById(products, lastLine.product_id)
+    }
+
+    return null
+}
+
+function messageLooksLikeCombinationDetails(product, text) {
+    if (!product) return false
+
+    if (extractQuantity(text)) return true
+
+    const probe = extractVariantsFromText(product, text, createDraftItem(product))
+    return probe.captured.length > 0
+}
+
+function resolveBatchProduct(products, state, text) {
+    if (state.draft_item && !hasDraftSelections(state.draft_item)) {
+        return findProductById(products, state.draft_item.product_id)
+    }
+
+    const detectedProduct = findBestProduct(products, text)
+    if (detectedProduct) return detectedProduct
+
+    const lastLine = state.cart_items?.[state.cart_items.length - 1]
+    if (state.stage === CART_STAGE.CART_RECAP && lastLine) {
+        return findProductById(products, lastLine.product_id)
+    }
+
+    return null
 }
 
 function updateCartStateFromUserMessage(previousState, text, products = []) {
@@ -360,12 +611,58 @@ function updateCartStateFromUserMessage(previousState, text, products = []) {
         return { state, capturedFields, stateChanged, shouldBypassAI, directReply: null }
     }
 
-    if (state.awaiting_field?.type === 'optional_variant' && isNegativeReply(normalized) && state.current_item) {
-        state.current_item.skipped_optional_variant_ids = Array.from(new Set([
-            ...(state.current_item.skipped_optional_variant_ids || []),
+    const batchProduct = resolveBatchProduct(products, state, normalized)
+    const canTryBatchParse = batchProduct && (!state.draft_item || !hasDraftSelections(state.draft_item))
+    if (canTryBatchParse) {
+        const batchParse = parseBatchCombinationLines(batchProduct, normalized)
+
+        if (batchParse.status === 'success') {
+            for (const line of batchParse.lines) {
+                state.cart_items = mergeOrAppendCartLine(state.cart_items, line)
+            }
+
+            state.draft_item = null
+            state.stage = CART_STAGE.CART_RECAP
+            state.awaiting_field = buildCartActionField()
+            state.last_prompt_kind = CART_STAGE.CART_RECAP
+            state.last_prompt_text = normalized
+
+            return {
+                state,
+                capturedFields,
+                stateChanged: true,
+                shouldBypassAI: true,
+                directReply: buildBatchCartReply(state, batchParse.lines),
+            }
+        }
+
+        if (batchParse.status === 'error') {
+            return {
+                state,
+                capturedFields,
+                stateChanged: false,
+                shouldBypassAI: true,
+                directReply: batchParse.error,
+            }
+        }
+
+        if (batchParse.status === 'invalid') {
+            return {
+                state,
+                capturedFields,
+                stateChanged: false,
+                shouldBypassAI: true,
+                directReply: 'Je peux ajouter plusieurs combinaisons dans un seul message si chaque ligne contient bien sa quantite et toutes ses variantes. Exemple : 2 rouge L et 1 bleu M.',
+            }
+        }
+    }
+
+    if (state.awaiting_field?.type === 'optional_variant' && isNegativeReply(normalized) && state.draft_item) {
+        state.draft_item.skipped_optional_variant_ids = Array.from(new Set([
+            ...(state.draft_item.skipped_optional_variant_ids || []),
             state.awaiting_field.variant_id,
         ]))
-        state.awaiting_field = buildAwaitingField(findProductById(products, state.current_item.product_id), state.current_item)
+        state.awaiting_field = buildAwaitingField(findProductById(products, state.draft_item.product_id), state.draft_item)
         state.last_prompt_kind = state.awaiting_field ? CART_STAGE.COLLECTING_ITEM : CART_STAGE.CART_RECAP
         state.last_prompt_text = normalized
         state.stage = state.awaiting_field ? CART_STAGE.COLLECTING_ITEM : CART_STAGE.CART_RECAP
@@ -380,7 +677,25 @@ function updateCartStateFromUserMessage(previousState, text, products = []) {
     }
 
     if (state.stage === CART_STAGE.CART_RECAP) {
-        if (isPositiveReply(normalized)) {
+        let productForNewLine = detectProductForNewLine(normalized, products, state)
+        if (!productForNewLine) {
+            const lastLine = state.cart_items?.[state.cart_items.length - 1]
+            const lastProduct = lastLine ? findProductById(products, lastLine.product_id) : null
+            if (messageLooksLikeCombinationDetails(lastProduct, normalized)) {
+                productForNewLine = lastProduct
+            }
+        }
+
+        if (productForNewLine) {
+            state.draft_item = createDraftItem(productForNewLine)
+            state.stage = CART_STAGE.COLLECTING_ITEM
+            state.awaiting_field = buildAwaitingField(productForNewLine, state.draft_item)
+            state.last_prompt_kind = CART_STAGE.COLLECTING_ITEM
+            state.last_prompt_text = normalized
+            stateChanged = true
+        }
+
+        if (!productForNewLine && isPositiveReply(normalized)) {
             state.stage = CART_STAGE.CHECKOUT
             state.awaiting_field = null
             state.last_prompt_kind = CART_STAGE.CHECKOUT
@@ -388,68 +703,81 @@ function updateCartStateFromUserMessage(previousState, text, products = []) {
             return { state, capturedFields, stateChanged: true, shouldBypassAI: false, directReply: null }
         }
 
-        if (isNegativeReply(normalized)) {
-            state.stage = CART_STAGE.COLLECTING_ITEM
-            state.awaiting_field = buildAwaitingField(findProductById(products, state.current_item?.product_id), state.current_item)
-            state.last_prompt_kind = CART_STAGE.COLLECTING_ITEM
-            state.last_prompt_text = normalized
+        if (!productForNewLine && isNegativeReply(normalized)) {
             return {
                 state,
                 capturedFields,
-                stateChanged: true,
+                stateChanged: false,
                 shouldBypassAI: true,
-                directReply: 'D’accord. Dites-moi ce que vous souhaitez modifier sur cet article : quantite, taille, couleur ou autre variante.'
+                directReply: 'D accord. Dites-moi quelle combinaison vous souhaitez ajouter ou modifier.',
             }
         }
     }
 
-    if (!state.current_item) {
+    if (!state.draft_item) {
         const detectedProduct = findBestProduct(products, normalized)
         if (detectedProduct) {
-            state.current_item = {
-                product_id: detectedProduct.id,
-                product_name: detectedProduct.name,
-                quantity: null,
-                selected_variants: {},
-                selected_variants_by_id: {},
-                skipped_optional_variant_ids: [],
-            }
+            state.draft_item = createDraftItem(detectedProduct)
             state.stage = CART_STAGE.COLLECTING_ITEM
-            state.awaiting_field = buildAwaitingField(detectedProduct, state.current_item)
+            state.awaiting_field = buildAwaitingField(detectedProduct, state.draft_item)
             state.last_prompt_kind = CART_STAGE.COLLECTING_ITEM
             state.last_prompt_text = normalized
             stateChanged = true
         }
     }
 
-    const product = findProductById(products, state.current_item?.product_id)
-    if (!product || !state.current_item) {
+    const product = findProductById(products, state.draft_item?.product_id)
+    if (!product || !state.draft_item) {
         return { state, capturedFields, stateChanged, shouldBypassAI: false, directReply: null }
     }
 
     const previousAwaiting = cloneAwaitingField(state.awaiting_field)
     const quantity = extractQuantity(normalized)
-    if (!state.current_item.quantity && quantity) {
-        state.current_item.quantity = quantity
+    if (!state.draft_item.quantity && quantity) {
+        state.draft_item.quantity = quantity
         capturedFields.push({ type: 'quantity', value: quantity })
         stateChanged = true
     }
 
-    const variantCapture = extractVariantsFromText(product, normalized, state.current_item)
-    state.current_item = variantCapture.item
+    const variantCapture = extractVariantsFromText(product, normalized, state.draft_item)
+    state.draft_item = variantCapture.item
     if (variantCapture.captured.length > 0) {
         capturedFields.push(...variantCapture.captured)
         stateChanged = true
     }
 
-    state.awaiting_field = buildAwaitingField(product, state.current_item)
+    state.awaiting_field = buildAwaitingField(product, state.draft_item)
     state.last_prompt_kind = state.awaiting_field ? CART_STAGE.COLLECTING_ITEM : CART_STAGE.CART_RECAP
     state.last_prompt_text = normalized
 
-    if (!state.awaiting_field && state.current_item.quantity) {
+    if (!state.awaiting_field && state.draft_item.quantity) {
+        const lineResult = buildLineFromDraft(product, state.draft_item, state.cart_items.length + 1)
+        if (lineResult.error) {
+            return {
+                state,
+                capturedFields,
+                stateChanged,
+                shouldBypassAI: true,
+                directReply: lineResult.error,
+            }
+        }
+
+        state.cart_items = mergeOrAppendCartLine(state.cart_items, lineResult.line)
+        state.draft_item = null
         state.stage = CART_STAGE.CART_RECAP
-        shouldBypassAI = capturedFields.length > 0
-    } else if (capturedFields.length > 0) {
+        state.awaiting_field = buildCartActionField()
+        shouldBypassAI = true
+
+        return {
+            state,
+            capturedFields,
+            stateChanged: true,
+            shouldBypassAI,
+            directReply: buildStructuredCartReply(state, products, capturedFields, { lineAdded: lineResult.line }),
+        }
+    }
+
+    if (capturedFields.length > 0 || stateChanged) {
         state.stage = CART_STAGE.COLLECTING_ITEM
         shouldBypassAI = true
     }
@@ -479,7 +807,7 @@ function inferCartStateFromAssistantMessage(content, previousState, products = [
         return cloneCartState({})
     }
 
-    if (/nom complet|numero de telephone|adresse de livraison|telephone \(avec indicatif\)/i.test(text)) {
+    if (/nom complet|numero de telephone|adresse de livraison|telephone \(avec indicatif\)|adresse email/i.test(text)) {
         state.stage = CART_STAGE.CHECKOUT
         state.awaiting_field = null
         state.last_prompt_kind = CART_STAGE.CHECKOUT
@@ -487,43 +815,15 @@ function inferCartStateFromAssistantMessage(content, previousState, products = [
         return state
     }
 
+    if (state.stage === CART_STAGE.CART_RECAP) {
+        return state
+    }
+
     const detectedProduct = findBestProduct(products, text)
-    if (detectedProduct && !state.current_item) {
-        state.current_item = {
-            product_id: detectedProduct.id,
-            product_name: detectedProduct.name,
-            quantity: null,
-            selected_variants: {},
-            selected_variants_by_id: {},
-            skipped_optional_variant_ids: [],
-        }
-    }
-
-    const product = findProductById(products, state.current_item?.product_id)
-    if (!product || !state.current_item) {
-        return state
-    }
-
-    if (/on continue \?/i.test(content)) {
-        state.stage = CART_STAGE.CART_RECAP
-        state.awaiting_field = null
-        state.last_prompt_kind = CART_STAGE.CART_RECAP
-        state.last_prompt_text = content
-        return state
-    }
-
-    if (/combien souhaitez-vous/i.test(content)) {
+    if (detectedProduct && !state.draft_item) {
+        state.draft_item = createDraftItem(detectedProduct)
         state.stage = CART_STAGE.COLLECTING_ITEM
-        state.awaiting_field = buildAwaitingField(product, { ...state.current_item, quantity: null })
-        state.last_prompt_kind = CART_STAGE.COLLECTING_ITEM
-        state.last_prompt_text = content
-        return state
-    }
-
-    const awaitingField = buildAwaitingField(product, state.current_item)
-    if (awaitingField) {
-        state.stage = CART_STAGE.COLLECTING_ITEM
-        state.awaiting_field = awaitingField
+        state.awaiting_field = buildAwaitingField(detectedProduct, state.draft_item)
         state.last_prompt_kind = CART_STAGE.COLLECTING_ITEM
         state.last_prompt_text = content
     }
@@ -533,22 +833,42 @@ function inferCartStateFromAssistantMessage(content, previousState, products = [
 
 function buildCartStateGuidance(cartState, products = []) {
     const state = cloneCartState(cartState)
-    const product = findProductById(products, state.current_item?.product_id)
 
-    if (!product || !state.current_item) return ''
+    if ((!state.cart_items || state.cart_items.length === 0) && !state.draft_item) return ''
 
     const lines = ['PANIER STRUCTURE (source systeme, prioritaire):']
-    lines.push(`- Produit courant: ${state.current_item.product_name}`)
 
-    if (state.current_item.quantity) {
-        lines.push(`- Quantite deja validee: ${state.current_item.quantity}`)
-    } else {
-        lines.push('- Quantite encore manquante')
+    if (state.cart_items.length > 0) {
+        lines.push(`- Lignes deja validees: ${state.cart_items.length}`)
+        state.cart_items.forEach((item, index) => {
+            lines.push(`- Ligne ${index + 1}: ${formatLineLabel(item)}`)
+        })
     }
 
-    const selectedVariants = Object.entries(state.current_item.selected_variants || {})
-    if (selectedVariants.length > 0) {
-        lines.push(`- Variantes deja collectees: ${selectedVariants.map(([label, value]) => `${label}=${value}`).join(', ')}`)
+    if (state.draft_item) {
+        const product = findProductById(products, state.draft_item.product_id)
+        lines.push(`- Ligne en cours: ${state.draft_item.product_name}`)
+
+        if (state.draft_item.quantity) {
+            lines.push(`- Quantite deja validee: ${state.draft_item.quantity}`)
+        } else {
+            lines.push('- Quantite encore manquante')
+        }
+
+        const selectedVariants = Object.entries(state.draft_item.selected_variants || {})
+        if (selectedVariants.length > 0) {
+            lines.push(`- Variantes deja collectees: ${selectedVariants.map(([label, value]) => `${label}=${value}`).join(', ')}`)
+        }
+
+        const optionalVariants = product
+            ? getOptionalVariants(product)
+                .filter(variant => getSelectedVariantValue(state.draft_item, variant.id))
+                .map(variant => `${variant.label}=${getSelectedVariantValue(state.draft_item, variant.id)}`)
+            : []
+
+        if (optionalVariants.length > 0) {
+            lines.push(`- Options/supplements deja collectes: ${optionalVariants.join(', ')}`)
+        }
     }
 
     if (state.awaiting_field?.label) {
@@ -559,19 +879,11 @@ function buildCartStateGuidance(cartState, products = []) {
     lines.push('- Interdiction de supposer une quantite par defaut.')
 
     if (state.stage === CART_STAGE.CART_RECAP) {
-        lines.push('- Le panier produit est complet et recapitulatif pret. Attends seulement la confirmation "On continue ?" puis passe au checkout.')
+        lines.push('- Le panier contient deja une ou plusieurs lignes validees. Demande seulement si le client veut ajouter une autre combinaison ou continuer.')
     }
 
     if (state.stage === CART_STAGE.CHECKOUT) {
         lines.push('- Le panier produit est deja verrouille. Ne redemande ni quantite ni variantes. Passe uniquement aux informations client.')
-    }
-
-    const optionalVariants = getOptionalVariants(product)
-        .filter(variant => getSelectedVariantValue(state.current_item, variant.id))
-        .map(variant => `${variant.label}=${getSelectedVariantValue(state.current_item, variant.id)}`)
-
-    if (optionalVariants.length > 0) {
-        lines.push(`- Options/supplements deja collectes: ${optionalVariants.join(', ')}`)
     }
 
     return lines.join('\n')
@@ -581,13 +893,29 @@ function mergeCartStateIntoToolArgs(functionName, args = {}, cartState = {}) {
     if (functionName !== 'create_order') return args
 
     const state = cloneCartState(cartState)
-    const item = state.current_item
-    if (!item || !item.product_name || !item.quantity) return args
+
+    const cartItems = (state.cart_items || [])
+        .filter(item => item?.product_name && item?.quantity)
+        .map(item => ({
+            product_name: item.product_name,
+            quantity: item.quantity,
+            selected_variants: { ...(item.selected_variants || {}) },
+        }))
+
+    if (cartItems.length > 0) {
+        return {
+            ...args,
+            items: cartItems,
+        }
+    }
+
+    const draftItem = state.draft_item
+    if (!draftItem || !draftItem.product_name || !draftItem.quantity) return args
 
     const structuredItem = {
-        product_name: item.product_name,
-        quantity: item.quantity,
-        selected_variants: { ...(item.selected_variants || {}) },
+        product_name: draftItem.product_name,
+        quantity: draftItem.quantity,
+        selected_variants: { ...(draftItem.selected_variants || {}) },
     }
 
     if (!Array.isArray(args.items) || args.items.length === 0) {
