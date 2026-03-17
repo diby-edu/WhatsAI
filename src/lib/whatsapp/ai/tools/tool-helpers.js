@@ -32,6 +32,16 @@ function normalizePhoneNumber(phone) {
     return null
 }
 
+function normalizeWhatsAppContact(rawContact) {
+    if (!rawContact) return null
+
+    const contact = String(rawContact).trim()
+    const base = contact.includes('@') ? contact.split('@')[0] : contact
+    const digitsOnly = base.replace(/[^\d+]/g, '')
+
+    return normalizePhoneNumber(digitsOnly)
+}
+
 // ═══════════════════════════════════════════════════════════════
 // 🔒 HELPER : MASQUAGE DONNÉES SENSIBLES (RGPD)
 // ═══════════════════════════════════════════════════════════════
@@ -157,6 +167,7 @@ function findMatchingOption(variant, clientValue) {
 
 module.exports = {
     normalizePhoneNumber,
+    normalizeWhatsAppContact,
     sanitizeForLog,
     productHasRealVariants,
     checkStock,

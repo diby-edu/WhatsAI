@@ -9,6 +9,8 @@ function buildPhysicalWorkflow(orders) {
 ÉTAPE 1 - PRODUIT ET QUANTITÉ:
     - Si le client dit un produit + quantité : QUANTITÉ REÇUE ✅
     - Si le client dit JUSTE un produit: demander "Combien souhaitez-vous ?"
+    - 🚫 INTERDICTION D'INVENTER x1 : si la quantité n'a pas été dite explicitement, ne fais aucun récapitulatif avec quantité.
+    - Si le client répond par une couleur ou une taille alors que la quantité manque encore, demande d'abord la quantité.
     - **SPLIT QUANTITÉ** : Si variantes multiples, demander la répartition.
 
 ÉTAPE 2 - VARIANTES:
@@ -17,6 +19,7 @@ function buildPhysicalWorkflow(orders) {
 
 ÉTAPE 3 - MINI-RÉCAP PANIER:
     - Afficher le détail GROUPÉ par produit avec calculs détaillés.
+    - 🚫 N'affiche jamais un panier ou un sous-total si la quantité exacte n'est pas encore connue.
     
     Exemple de format attendu (NE PAS UTILISER CES NOMS SI NON PRÉSENTS DANS LE CATALOGUE) :
     *Produit Ex* :

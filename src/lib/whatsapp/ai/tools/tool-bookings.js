@@ -2,6 +2,7 @@
 const { normalizePhoneNumber, findMatchingOption } = require('./tool-helpers')
 const { notify } = require('../../../notifications/notify')
 const { validateCreateBookingArgs } = require('./tool-validators')
+const { calculateServiceBookingPrice, getVariantDisplayName } = require('./service-pricing')
 
 async function handleCreateBooking(args, agentId, products, conversationId, supabase) {
     try {
@@ -13,6 +14,7 @@ async function handleCreateBooking(args, agentId, products, conversationId, supa
             booking_type,
             service_name,
             selected_variant,
+            selected_variants,
             selected_supplements,
             customer_phone,
             customer_name,
@@ -23,7 +25,7 @@ async function handleCreateBooking(args, agentId, products, conversationId, supa
             notes
         } = args
 
-        console.log(`🏨 create_booking: service="${service_name}", variant="${selected_variant}"`)
+        console.log(`🏨 create_booking: service="${service_name}", variant="${selected_variant || JSON.stringify(selected_variants || {})}"`)
 
         const { data: agent } = await supabase
             .from('agents')
@@ -43,51 +45,49 @@ async function handleCreateBooking(args, agentId, products, conversationId, supa
             })
         }
 
-        // Calculer le prix basé sur la variante sélectionnée
-        let finalPrice = service.price_fcfa || 0
-        let variantDetails = null
+        const normalizedSelectedVariants = {
+            ...(selected_variants && typeof selected_variants === 'object' ? selected_variants : {}),
+        }
 
-        if (selected_variant && service.variants && service.variants.length > 0) {
-            // Chercher la variante dans les variantes FIXED
-            for (const variant of service.variants) {
-                if (variant.type === 'fixed' && variant.options) {
-                    const matchedOption = findMatchingOption(variant, selected_variant)
-                    if (matchedOption) {
-                        const optPrice = (typeof matchedOption === 'object') ? (matchedOption.price || 0) : 0
-                        if (optPrice > 0) {
-                            finalPrice = optPrice
-                            variantDetails = {
-                                name: variant.name,
-                                value: (typeof matchedOption === 'object') ? (matchedOption.value || matchedOption.name) : matchedOption
-                            }
-                            console.log(`✅ Variante trouvée: ${variantDetails.name}=${variantDetails.value} @ ${finalPrice} FCFA`)
-                        }
-                        break
-                    }
-                }
+        if (selected_variant && Object.keys(normalizedSelectedVariants).length === 0) {
+            for (const variant of service.variants || []) {
+                if (variant.type !== 'fixed' || !Array.isArray(variant.options)) continue
+                if (!findMatchingOption(variant, selected_variant)) continue
+
+                normalizedSelectedVariants[getVariantDisplayName(variant)] = selected_variant
+                break
             }
         }
 
-        // Calculer les suppléments additifs
-        let supplementsTotal = 0
-        let supplementsList = []
-        if (selected_supplements && service.variants) {
-            for (const variant of service.variants) {
-                if (variant.type === 'additive' && variant.options) {
-                    for (const opt of variant.options) {
-                        const optName = (typeof opt === 'object') ? (opt.value || opt.name) : opt
-                        const optPrice = (typeof opt === 'object') ? (opt.price || 0) : 0
-                        if (selected_supplements[optName] === true) {
-                            supplementsTotal += optPrice
-                            supplementsList.push({ name: optName, price: optPrice })
-                            console.log(`➕ Supplément: ${optName} +${optPrice} FCFA`)
-                        }
-                    }
-                }
-            }
+        const pricing = calculateServiceBookingPrice(service, {
+            selectedVariantsMap: normalizedSelectedVariants,
+            selectedSupplementsMap: selected_supplements || {},
+        })
+
+        if (pricing.error) {
+            return JSON.stringify({
+                success: false,
+                error: pricing.error,
+                hint: 'Collectez toutes les variantes fixes et supplements necessaires avant de creer la reservation.'
+            })
         }
 
-        finalPrice += supplementsTotal
+        const finalPrice = pricing.price
+        const variantDetails = pricing.fixedSelections.length === 0
+            ? null
+            : (pricing.fixedSelections.length === 1
+                ? {
+                    name: pricing.fixedSelections[0].label,
+                    value: pricing.fixedSelections[0].value,
+                }
+                : pricing.fixedSelections.map(item => ({
+                    name: item.label,
+                    value: item.value,
+                })))
+        const supplementsList = pricing.supplementsList.map(item => ({
+            name: item.value,
+            price: item.price,
+        }))
 
         // Valider et construire start_time
         if (!preferred_date) {
@@ -160,6 +160,12 @@ async function handleCreateBooking(args, agentId, products, conversationId, supa
         if (preferred_time) confirmMsg += ` à ${preferred_time}`
         if (end_date) confirmMsg += ` jusqu'au ${end_date}`
         if (party_size && party_size > 1) confirmMsg += ` pour ${party_size} personne(s)`
+        if (pricing.fixedSelections.length > 0) {
+            confirmMsg += `\n🎯 Options : ${pricing.fixedSelections.map(item => `${item.label} ${item.value}`).join(', ')}`
+        }
+        if (supplementsList.length > 0) {
+            confirmMsg += `\n➕ Suppléments : ${supplementsList.map(item => item.name).join(', ')}`
+        }
         confirmMsg += '.'
 
         if (agent.escalation_phone) {
