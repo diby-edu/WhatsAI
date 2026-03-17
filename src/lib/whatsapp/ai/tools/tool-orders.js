@@ -200,7 +200,7 @@ async function handleCreateOrder(args, agentId, products, conversationId, supaba
             p_notes:           finalNotes || null,
             p_total_fcfa:      total,
             p_status:          normalizedPaymentMethod === 'cod' ? 'pending_delivery' : 'pending',
-            p_items:           JSON.stringify(orderItems)
+            p_items:           orderItems
         })
 
         if (error) throw error
