@@ -21,17 +21,22 @@ const { AIService } = require('../services/ai.service')
 const { AnalyticsService } = require('../services/analytics.service')
 const { ErrorHandler } = require('../services/errors')
 const { analyzeSentiment } = require('../ai/sentiment')
+const { handleToolCall } = require('../ai/tools')
 const { downloadMediaMessage } = require('@whiskeysockets/baileys')
 const { normalizeWhatsAppContact } = require('../ai/tools/tool-helpers')
 const {
-    applyUserReplyToCheckoutState,
+    clearCheckoutState,
     getCheckoutState,
-    inferCheckoutStateFromAssistantMessage,
+    mergeCheckoutStateIntoToolArgs,
     setCheckoutState,
+    updateCheckoutStateFromUserMessage,
 } = require('../services/checkout-state.service')
 const {
+    CART_STAGE,
+    clearCartState,
     getCartState,
     inferCartStateFromAssistantMessage,
+    mergeCartStateIntoToolArgs,
     setCartState,
     updateCartStateFromUserMessage,
 } = require('../services/cart-state.service')
@@ -41,6 +46,62 @@ const {
     setBookingState,
     updateBookingStateFromUserMessage,
 } = require('../services/booking-state.service')
+
+function formatDirectToolResponse(parsedResult) {
+    const parts = []
+
+    if (parsedResult.items) parts.push(parsedResult.items)
+    if (parsedResult.message) parts.push(parsedResult.message)
+    if (parts.length === 0 && parsedResult.error) parts.push(parsedResult.error)
+
+    return parts.filter(Boolean).join('\n\n')
+}
+
+async function submitStructuredOrder({
+    agentId,
+    customerPhone,
+    products,
+    conversationId,
+    supabase,
+    activeSessions,
+    CinetPay,
+    cartState,
+    checkoutState,
+}) {
+    const mergedCheckoutArgs = mergeCheckoutStateIntoToolArgs('create_order', { items: [] }, checkoutState)
+    const orderArgs = mergeCartStateIntoToolArgs('create_order', mergedCheckoutArgs, cartState)
+    const toolCall = {
+        id: `structured-checkout-${Date.now()}`,
+        function: {
+            name: 'create_order',
+            arguments: JSON.stringify(orderArgs),
+        }
+    }
+
+    const toolResult = await handleToolCall(
+        toolCall,
+        agentId,
+        customerPhone,
+        products,
+        conversationId,
+        supabase,
+        activeSessions,
+        CinetPay
+    )
+
+    try {
+        const parsed = JSON.parse(toolResult)
+        return {
+            success: parsed.success === true,
+            content: formatDirectToolResponse(parsed) || toolResult,
+        }
+    } catch {
+        return {
+            success: false,
+            content: toolResult,
+        }
+    }
+}
 
 // ═══════════════════════════════════════════════════════════════
 // RATE LIMITING - Protection contre les abus
@@ -295,9 +356,20 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             ? { state: previousCartState, capturedFields: [], stateChanged: false, shouldBypassAI: false, directReply: null }
             : updateCartStateFromUserMessage(previousCartState, message.text, orderableProducts)
 
-        const checkoutState = bookingFlowActive
-            ? previousCheckoutState
-            : applyUserReplyToCheckoutState(previousCheckoutState, message.text)
+        const cartJustEnteredCheckout =
+            !bookingFlowActive &&
+            previousCartState.stage !== CART_STAGE.CHECKOUT &&
+            cartUpdate.state.stage === CART_STAGE.CHECKOUT
+
+        const checkoutUpdate = bookingFlowActive
+            ? { state: previousCheckoutState, stateChanged: false, shouldBypassAI: false, directReply: null, shouldSubmitOrder: false }
+            : updateCheckoutStateFromUserMessage(previousCheckoutState, message.text, {
+                cartState: cartUpdate.state,
+                products: orderableProducts,
+                activateCheckout: cartJustEnteredCheckout,
+            })
+
+        const checkoutState = checkoutUpdate.state
 
         if (
             JSON.stringify(previousCartState) !== JSON.stringify(cartUpdate.state) ||
@@ -374,9 +446,11 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
         let nextCartState = cartUpdate.state
         let nextCheckoutState = checkoutState
         let nextBookingState = bookingUpdate.state
+        let clearCartAfterResponse = false
+        let clearCheckoutAfterResponse = false
         const structuredReply = bookingUpdate.shouldBypassAI && bookingFlowActive
             ? bookingUpdate.directReply
-            : cartUpdate.directReply
+            : (cartUpdate.directReply || checkoutUpdate.directReply)
 
         if (structuredReply) {
             console.log('Structured flow reply generated')
@@ -384,6 +458,31 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                 content: structuredReply,
                 tokensUsed: 0,
                 imageActions: []
+            }
+        } else if (checkoutUpdate.shouldSubmitOrder) {
+            console.log('Structured checkout confirmed - creating order directly')
+
+            const directOrderResult = await submitStructuredOrder({
+                agentId: agent.id,
+                customerPhone: message.from,
+                products,
+                conversationId: conversation.id,
+                supabase,
+                activeSessions,
+                CinetPay,
+                cartState: cartUpdate.state,
+                checkoutState,
+            })
+
+            aiResponse = {
+                content: directOrderResult.content,
+                tokensUsed: 0,
+                imageActions: []
+            }
+
+            if (directOrderResult.success) {
+                clearCartAfterResponse = true
+                clearCheckoutAfterResponse = true
             }
         } else {
             aiResponse = await AIService.generate({
@@ -406,19 +505,18 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             })
 
             nextCartState = inferCartStateFromAssistantMessage(aiResponse.content, cartUpdate.state, orderableProducts)
-            nextCheckoutState = inferCheckoutStateFromAssistantMessage(aiResponse.content, checkoutState)
             nextBookingState = inferBookingStateFromAssistantMessage(aiResponse.content, bookingUpdate.state, serviceProducts)
         }
 
-        await conversation.updateMetadata(
-            setBookingState(
-                setCheckoutState(
-                    setCartState(conversation.metadata, nextCartState),
-                    nextCheckoutState
-                ),
-                nextBookingState
-            )
-        )
+        let nextMetadata = conversation.metadata
+        nextMetadata = clearCartAfterResponse
+            ? clearCartState(nextMetadata)
+            : setCartState(nextMetadata, nextCartState)
+        nextMetadata = clearCheckoutAfterResponse
+            ? clearCheckoutState(nextMetadata)
+            : setCheckoutState(nextMetadata, nextCheckoutState)
+        nextMetadata = setBookingState(nextMetadata, nextBookingState)
+        await conversation.updateMetadata(nextMetadata)
 
         // ═══════════════════════════════════════════════════════════
         // PHASE 6 : ENVOI RÉPONSE
@@ -461,7 +559,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             try {
                 await CreditsService.deduct(supabase, agent.user_id, 4)
                 voiceCreditsOk = true
-            } catch (_) {
+            } catch {
                 console.warn('⚠️ Crédits voix insuffisants, fallback texte')
             }
 
