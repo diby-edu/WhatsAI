@@ -128,6 +128,7 @@ let _realtimeChannel = null
 function scheduleSessionInit(context, agent, reconnectAttempt = 0) {
     if (activeSessions.has(agent.id) || pendingConnections.has(agent.id) || scheduledConnections.has(agent.id)) return
 
+    recentlyProcessed.set(agent.id, Date.now())
     const startAt = Math.max(Date.now(), nextInitSlotAt)
     const delay = Math.max(0, startAt - Date.now())
     nextInitSlotAt = startAt + INIT_STAGGER_MS
@@ -168,7 +169,7 @@ async function checkAgents() {
             console.log(`🚀 Found ${connectingAgents.length} agents in setup phase: ${names}`)
         }
 
-        const context = { supabase, supabaseRealtime, activeSessions, pendingConnections, openai, CinetPay }
+        const context = { supabase, supabaseRealtime, activeSessions, pendingConnections, openai, CinetPay, scheduleSessionInit }
 
         for (const agent of connectingAgents || []) {
             // Skip si en cours de connexion
@@ -177,7 +178,6 @@ async function checkAgents() {
             const lastInit = recentlyProcessed.get(agent.id)
             if (lastInit && Date.now() - lastInit < AGENT_INIT_COOLDOWN) continue
 
-            recentlyProcessed.set(agent.id, Date.now())
             scheduleSessionInit(context, agent)
         }
 
@@ -197,7 +197,6 @@ async function checkAgents() {
                 console.log(`🔄 Restoring session for ${agent.name} (DB Status: Connected)`)
                 // Passer reconnectAttempt=99 → restauration silencieuse (pas de notification push)
                 // Une notification "connecté" au démarrage du bot serait du spam pour l'utilisateur
-                recentlyProcessed.set(agent.id, Date.now())
                 scheduleSessionInit(context, agent, 99)
             }
         }
@@ -254,7 +253,7 @@ async function main() {
     // Context for cron jobs and Realtime
     // - supabase (alias supabaseAdmin): pour les opérations DB
     // - supabaseRealtime: pour les subscriptions Realtime
-    const context = { supabase, supabaseRealtime, activeSessions, pendingConnections, openai, CinetPay }
+    const context = { supabase, supabaseRealtime, activeSessions, pendingConnections, openai, CinetPay, scheduleSessionInit }
 
     // ═══════════════════════════════════════════════════════════
     // ⚡ REALTIME & ADAPTIVE POLLING
