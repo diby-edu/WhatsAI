@@ -647,12 +647,14 @@ function updateCartStateFromUserMessage(previousState, text, products = []) {
         }
 
         if (batchParse.status === 'invalid') {
+            // Format ambigu : laisser l'IA guider le client naturellement
+            // (ne pas bypasser avec un template rigide qui crée des boucles)
             return {
                 state,
                 capturedFields,
                 stateChanged: false,
-                shouldBypassAI: true,
-                directReply: 'Je peux ajouter plusieurs combinaisons dans un seul message si chaque ligne contient bien sa quantite et toutes ses variantes. Exemple : 2 rouge L et 1 bleu M.',
+                shouldBypassAI: false,
+                directReply: null,
             }
         }
     }
