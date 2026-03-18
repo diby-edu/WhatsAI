@@ -328,7 +328,7 @@ function extractVariantsFromText(product, text, draftItem) {
             return false
         })
         if (matchingOptions.length >= 2) {
-            return { item: cloneItem(draftItem), captured: [], multiValue: true }
+            return { item: cloneItem(draftItem), captured: [], multiValue: true, multiVariant: variant, multiOptions: matchingOptions }
         }
 
         const option = findStrictVariantOption(variant, normalized)
@@ -398,12 +398,31 @@ function parseBatchCombinationLines(product, text) {
         const quantity = extractQuantity(segment)
 
         if (!quantity) {
-            // Pas de quantité : vérifier si les variantes sont complètes (combos sans qty)
+            // Pas de quantité : collecter les variantes du segment
             const variantCapture = extractVariantsFromText(product, segment, draftItem)
+
+            if (variantCapture.multiValue && variantCapture.multiVariant && variantCapture.multiOptions) {
+                // Plusieurs valeurs pour le même attribut dans un segment (ex: "rose blanc")
+                // → créer un sub-item par option détectée
+                for (const option of variantCapture.multiOptions) {
+                    const subItem = createDraftItem(product)
+                    setSelectedVariant(subItem, variantCapture.multiVariant, getOptionValue(option))
+                    partialCombos.push(subItem)
+                }
+                continue
+            }
+
             if (hasAllRequiredVariants(product, variantCapture.item)) {
                 partialCombos.push(variantCapture.item)
                 continue
             }
+
+            // Certaines variantes capturées mais pas toutes → combo incomplet
+            if (variantCapture.captured.length > 0) {
+                partialCombos.push(variantCapture.item)
+                continue
+            }
+
             return { status: 'invalid', lines: [], segments }
         }
 
@@ -423,8 +442,39 @@ function parseBatchCombinationLines(product, text) {
         lines.push(lineResult.line)
     }
 
-    // Tous les segments avaient des variantes complètes mais aucune quantité
+    // Tous les segments avaient des variantes mais aucune quantité
     if (partialCombos.length > 0 && lines.length === 0) {
+        const hasIncomplete = partialCombos.some(item => !hasAllRequiredVariants(product, item))
+
+        if (hasIncomplete) {
+            // Certains combos ont des variantes manquantes → décrire ce qui manque et demander de re-préciser
+            const descriptions = partialCombos.map(item => {
+                const vals = Object.values(item.selected_variants || {}).filter(Boolean)
+                const label = vals.join(' / ')
+                if (!hasAllRequiredVariants(product, item)) {
+                    const missingVars = getRequiredVariants(product)
+                        .filter(v => !getSelectedVariantValue(item, v.id))
+                        .map(v => getVariantLabel(v).toLowerCase())
+                    return `${label} (${missingVars.join(', ')} ?)`
+                }
+                return label
+            }).filter(Boolean)
+
+            const firstMissingVar = getRequiredVariants(product).find(v =>
+                partialCombos.some(item => !getSelectedVariantValue(item, v.id))
+            )
+            const availableOpts = firstMissingVar
+                ? (firstMissingVar.options || []).map(o => getOptionValue(o)).filter(Boolean).join(', ')
+                : ''
+
+            return {
+                status: 'missing_variants_and_quantities',
+                prompt: `Je vois que vous souhaitez : ${descriptions.join(', ')}.\nMerci de préciser les informations manquantes et la quantité pour chaque.${availableOpts ? `\n${getVariantLabel(firstMissingVar)} disponibles : ${availableOpts}.` : ''}`,
+                lines: [],
+                segments,
+            }
+        }
+
         const comboLabels = partialCombos.map(item => {
             const combo = findMatchingComboForPartial(product, item)
             if (combo) return resolveCombinationLabel(product, combo)
@@ -851,6 +901,17 @@ function updateCartStateFromUserMessage(previousState, text, products = []) {
                 stateChanged: false,
                 shouldBypassAI: true,
                 directReply: batchParse.error,
+            }
+        }
+
+        if (batchParse.status === 'missing_variants_and_quantities') {
+            // Combos avec variantes manquantes → demander de re-préciser sans laisser l'IA inventer
+            return {
+                state,
+                capturedFields,
+                stateChanged: false,
+                shouldBypassAI: true,
+                directReply: batchParse.prompt,
             }
         }
 
