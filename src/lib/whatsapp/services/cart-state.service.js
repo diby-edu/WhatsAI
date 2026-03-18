@@ -299,8 +299,23 @@ function extractVariantsFromText(product, text, draftItem) {
         return { item: nextItem, captured }
     }
 
+    const tokens = normalized.split(' ').filter(Boolean)
+
     for (const variant of getCollectibleVariants(product)) {
         if (getSelectedVariantValue(nextItem, variant.id)) continue
+
+        // Détecter plusieurs valeurs pour la même variante (ex: "L et M", "Rouge et Bleu")
+        // Si 2+ options matchent → multi-ligne → ne pas capturer, laisser l'IA gérer
+        const matchingOptions = variant.options.filter(option => {
+            const val = normalizeText(getOptionValue(option))
+            if (!val) return false
+            return val === normalized ||
+                tokens.includes(val) ||
+                ` ${normalized} `.includes(` ${val} `)
+        })
+        if (matchingOptions.length >= 2) {
+            return { item: cloneItem(draftItem), captured: [], multiValue: true }
+        }
 
         const option = findStrictVariantOption(variant, normalized)
         if (!option) continue
