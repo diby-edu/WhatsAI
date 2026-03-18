@@ -210,7 +210,7 @@ function buildProductsCatalogSection(products, currency) {
             } else {
                 // Prix variés : afficher les combinaisons
                 const toShow = available.slice(0, 5)
-                variantsInfo = `\n   🔗 COMBINAISONS DISPONIBLES :\n${toShow.map(c => {
+                variantsInfo = `\n   🔗 CHOIX DISPONIBLES :\n${toShow.map(c => {
                     const label = resolveLabel(c)
                     const price = c.price != null
                         ? `${Number(c.price).toLocaleString('fr-FR')} ${currencySymbol}`
@@ -220,7 +220,7 @@ function buildProductsCatalogSection(products, currency) {
                 if (available.length > 5) {
                     variantsInfo += `\n      ... et ${available.length - 5} autre(s).`
                 }
-                variantsInfo += `\n   ⚠️ RÈGLE : Présente ces combinaisons et note EXACTEMENT celle choisie.`
+                variantsInfo += `\n   ⚠️ RÈGLE : Présente ces choix disponibles et note EXACTEMENT celui choisi.`
             }
 
             if (unavailable.length > 0) {
