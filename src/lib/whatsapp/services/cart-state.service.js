@@ -359,12 +359,13 @@ function hasDraftSelections(item) {
 }
 
 function splitCombinationSegments(text) {
-    const normalized = normalizeText(text)
-    if (!normalized) return []
+    if (!text) return []
 
-    return normalized
-        .split(/\s+(?:et|puis|\+)\s+|[;,]\s*|\n+\s*/)
-        .map(segment => segment.trim())
+    // Diviser sur le texte BRUT pour préserver les sauts de ligne comme séparateurs
+    // (normalizeText collapse les \n avant le split et les perdrait)
+    return text
+        .split(/\s*(?:et|puis|\+)\s*|[;,]\s*|\n+\s*/i)
+        .map(segment => normalizeText(segment))
         .filter(Boolean)
 }
 
@@ -449,15 +450,18 @@ function parseBatchCombinationLines(product, text) {
         if (hasIncomplete) {
             // Certains combos ont des variantes manquantes → décrire ce qui manque et demander de re-préciser
             const descriptions = partialCombos.map(item => {
-                const vals = Object.values(item.selected_variants || {}).filter(Boolean)
-                const label = vals.join(' / ')
                 if (!hasAllRequiredVariants(product, item)) {
+                    const knownVals = Object.values(item.selected_variants || {}).filter(Boolean)
+                    const label = knownVals.join(' / ')
                     const missingVars = getRequiredVariants(product)
                         .filter(v => !getSelectedVariantValue(item, v.id))
                         .map(v => getVariantLabel(v).toLowerCase())
                     return `${label} (${missingVars.join(', ')} ?)`
                 }
-                return label
+                // Combo complet : utiliser l'ordre DB via resolveCombinationLabel
+                const combo = findMatchingComboForPartial(product, item)
+                if (combo) return resolveCombinationLabel(product, combo)
+                return Object.values(item.selected_variants || {}).filter(Boolean).join(' / ')
             }).filter(Boolean)
 
             const firstMissingVar = getRequiredVariants(product).find(v =>
