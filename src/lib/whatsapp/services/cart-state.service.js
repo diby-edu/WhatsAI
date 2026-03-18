@@ -871,6 +871,13 @@ function updateCartStateFromUserMessage(previousState, text, products = []) {
             state.last_prompt_text = normalized
             stateChanged = true
         }
+    } else if (!hasDraftSelections(state.draft_item)) {
+        // draft_item pré-inféré sans aucune sélection : si le client confirme ce produit → bypass AI
+        // (ex: bot a montré catalogue 1 produit → client dit "veste" → stateChanged=false sinon)
+        const existingProduct = findProductById(products, state.draft_item.product_id)
+        if (existingProduct && findBestProduct([existingProduct], normalized)) {
+            stateChanged = true
+        }
     }
 
     const product = findProductById(products, state.draft_item?.product_id)
@@ -926,12 +933,6 @@ function updateCartStateFromUserMessage(previousState, text, products = []) {
 
     if (capturedFields.length > 0 || stateChanged) {
         state.stage = CART_STAGE.COLLECTING_ITEM
-        shouldBypassAI = true
-    }
-
-    // Si le service a un draft_item avec un champ en attente, toujours montrer le prompt structuré
-    // (évite que l'IA reprenne la main quand elle a pré-inféré un produit depuis sa propre réponse)
-    if (!shouldBypassAI && state.draft_item && state.awaiting_field) {
         shouldBypassAI = true
     }
 
