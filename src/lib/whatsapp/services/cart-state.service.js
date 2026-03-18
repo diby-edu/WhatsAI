@@ -929,6 +929,12 @@ function updateCartStateFromUserMessage(previousState, text, products = []) {
         shouldBypassAI = true
     }
 
+    // Si le service a un draft_item avec un champ en attente, toujours montrer le prompt structuré
+    // (évite que l'IA reprenne la main quand elle a pré-inféré un produit depuis sa propre réponse)
+    if (!shouldBypassAI && state.draft_item && state.awaiting_field) {
+        shouldBypassAI = true
+    }
+
     const directReply = shouldBypassAI
         ? buildStructuredCartReply(state, products, capturedFields)
         : null
@@ -966,7 +972,17 @@ function inferCartStateFromAssistantMessage(content, previousState, products = [
         return state
     }
 
-    const detectedProduct = findBestProduct(products, text)
+    // Ne pas inférer si le message mentionne plusieurs produits (catalogue)
+    const matchingProductsCount = (products || []).filter(p => {
+        const productName = normalizeText(p.name)
+        if (!productName) return false
+        if (text === productName) return true
+        if (text.includes(productName) || productName.includes(text)) return true
+        const terms = text.split(' ').filter(t => t.length > 2)
+        return terms.filter(t => productName.includes(t)).length * 15 >= 30
+    }).length
+
+    const detectedProduct = matchingProductsCount === 1 ? findBestProduct(products, text) : null
     if (detectedProduct && !state.draft_item) {
         state.draft_item = createDraftItem(detectedProduct)
         state.stage = CART_STAGE.COLLECTING_ITEM
