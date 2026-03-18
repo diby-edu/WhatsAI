@@ -243,7 +243,8 @@ function findStrictVariantOption(variant, text) {
     const normalizedText = normalizeText(text)
     if (!normalizedText || !variant?.options) return null
 
-    const tokens = normalizedText.split(' ').filter(Boolean)
+    // Tokens sans ponctuation : "3 s, 2 xxxl" → ["3", "s", "2", "xxxl"]
+    const tokens = normalizedText.replace(/[,;.]/g, ' ').replace(/\s+/g, ' ').trim().split(' ').filter(Boolean)
 
     const exact = variant.options.find(option => normalizeText(getOptionValue(option)) === normalizedText)
     if (exact) return exact
@@ -254,10 +255,20 @@ function findStrictVariantOption(variant, text) {
     })
     if (tokenExact) return tokenExact
 
-    return variant.options.find(option => {
+    const partialSubstr = variant.options.find(option => {
         const normalizedValue = normalizeText(getOptionValue(option))
         if (!normalizedValue || normalizedValue.length < 2) return false
         return ` ${normalizedText} `.includes(` ${normalizedValue} `)
+    })
+    if (partialSubstr) return partialSubstr
+
+    // Correspondance préfixe : "noir" → "Noire", "blanc" → "Blanc" (min 3 chars)
+    return variant.options.find(option => {
+        const normalizedValue = normalizeText(getOptionValue(option))
+        if (!normalizedValue || normalizedValue.length < 3) return false
+        return tokens.some(t => t.length >= 3 && (
+            normalizedValue.startsWith(t) || t.startsWith(normalizedValue)
+        ))
     }) || null
 }
 
@@ -299,19 +310,22 @@ function extractVariantsFromText(product, text, draftItem) {
         return { item: nextItem, captured }
     }
 
-    const tokens = normalized.split(' ').filter(Boolean)
+    // Tokens sans ponctuation pour éviter "s," ≠ "s"
+    const cleanNormalized = normalized.replace(/[,;.]/g, ' ').replace(/\s+/g, ' ').trim()
+    const tokens = cleanNormalized.split(' ').filter(Boolean)
 
     for (const variant of getCollectibleVariants(product)) {
         if (getSelectedVariantValue(nextItem, variant.id)) continue
 
         // Détecter plusieurs valeurs pour la même variante (ex: "L et M", "Rouge et Bleu")
-        // Si 2+ options matchent → multi-ligne → ne pas capturer, laisser l'IA gérer
+        // Si 2+ options matchent (exact, token, substring ou préfixe) → multi-ligne → IA gère
         const matchingOptions = variant.options.filter(option => {
             const val = normalizeText(getOptionValue(option))
             if (!val) return false
-            return val === normalized ||
-                tokens.includes(val) ||
-                ` ${normalized} `.includes(` ${val} `)
+            if (val === normalized || tokens.includes(val) || ` ${normalized} `.includes(` ${val} `)) return true
+            // Correspondance préfixe (min 3 chars) : "noir" → "Noire"
+            if (val.length >= 3 && tokens.some(t => t.length >= 3 && (val.startsWith(t) || t.startsWith(val)))) return true
+            return false
         })
         if (matchingOptions.length >= 2) {
             return { item: cloneItem(draftItem), captured: [], multiValue: true }
@@ -365,11 +379,19 @@ function parseBatchCombinationLines(product, text) {
     }
 
     const lines = []
+    const partialCombos = [] // combos complets en variantes mais sans quantité
 
     for (const segment of segments) {
         const draftItem = createDraftItem(product)
         const quantity = extractQuantity(segment)
+
         if (!quantity) {
+            // Pas de quantité : vérifier si les variantes sont complètes (combos sans qty)
+            const variantCapture = extractVariantsFromText(product, segment, draftItem)
+            if (hasAllRequiredVariants(product, variantCapture.item)) {
+                partialCombos.push(variantCapture.item)
+                continue
+            }
             return { status: 'invalid', lines: [], segments }
         }
 
@@ -387,6 +409,20 @@ function parseBatchCombinationLines(product, text) {
         }
 
         lines.push(lineResult.line)
+    }
+
+    // Tous les segments avaient des variantes complètes mais aucune quantité
+    if (partialCombos.length > 0 && lines.length === 0) {
+        const comboLabels = partialCombos.map(item =>
+            Object.values(item.selected_variants || {}).filter(Boolean).join(' / ')
+        ).filter(Boolean)
+        return {
+            status: 'missing_quantities',
+            partialCombos,
+            prompt: `Je vois que vous souhaitez : ${comboLabels.join(' et ')}.\nCombien de chaque ? (ex : "3 ${comboLabels[0]} et 2 ${comboLabels[1] || comboLabels[0]}")`,
+            lines: [],
+            segments,
+        }
     }
 
     return { status: 'success', lines, segments }
@@ -746,6 +782,17 @@ function updateCartStateFromUserMessage(previousState, text, products = []) {
                 stateChanged: false,
                 shouldBypassAI: true,
                 directReply: batchParse.error,
+            }
+        }
+
+        if (batchParse.status === 'missing_quantities') {
+            // Variantes identifiées, quantités manquantes → prompt structuré
+            return {
+                state,
+                capturedFields,
+                stateChanged: false,
+                shouldBypassAI: true,
+                directReply: batchParse.prompt,
             }
         }
 
