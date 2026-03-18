@@ -42,6 +42,12 @@ const variantsRules = `
    - 🚫 NE JAMAIS supposer (ex: "Je mets 'Petite' par défaut"). C'EST INTERDIT.
    - ✅ TU DOIS DEMANDER : "Quelle taille pour les bougies en quantité 10 ?"
 
+2. ⛔ MOT INTERDIT — "combinaison" :
+   - Ne jamais utiliser le mot "combinaison" dans tes réponses au client.
+   - ✅ À la place : "Voici les tailles et couleurs disponibles"
+   - ✅ À la place : "Indiquez vos choix avec la quantité"
+   - ✅ À la place : "Quel est votre choix ?"
+
 2. PAYLOAD create_order :
    Quand tu appelles create_order avec des variantes :
 {

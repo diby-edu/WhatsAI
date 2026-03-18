@@ -151,7 +151,7 @@ function buildCartActionField() {
     return {
         type: 'cart_action',
         label: 'suite du panier',
-        prompt: 'Souhaitez-vous ajouter une autre combinaison ou continuer ?'
+        prompt: 'Souhaitez-vous ajouter un autre article ou continuer ?'
     }
 }
 
@@ -525,7 +525,7 @@ function buildCartRecap(state) {
         '',
         `Total : ${total.toLocaleString('fr-FR')} FCFA`,
         '',
-        'Souhaitez-vous ajouter une autre combinaison ou continuer ?'
+        'Souhaitez-vous ajouter un autre article ou continuer ?'
     ].join('\n')
 }
 
@@ -711,7 +711,7 @@ function updateCartStateFromUserMessage(previousState, text, products = []) {
                 capturedFields,
                 stateChanged: false,
                 shouldBypassAI: true,
-                directReply: 'D accord. Dites-moi quelle combinaison vous souhaitez ajouter ou modifier.',
+                directReply: 'D accord. Dites-moi quel article vous souhaitez ajouter ou modifier.',
             }
         }
     }
@@ -881,7 +881,7 @@ function buildCartStateGuidance(cartState, products = []) {
     lines.push('- Interdiction de supposer une quantite par defaut.')
 
     if (state.stage === CART_STAGE.CART_RECAP) {
-        lines.push('- Le panier contient deja une ou plusieurs lignes validees. Demande seulement si le client veut ajouter une autre combinaison ou continuer.')
+        lines.push('- Le panier contient deja une ou plusieurs lignes validees. Demande seulement si le client veut ajouter un autre article ou continuer.')
     }
 
     if (state.stage === CART_STAGE.CHECKOUT) {
