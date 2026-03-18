@@ -372,6 +372,18 @@ function hasAllRequiredVariants(product, item) {
     return getRequiredVariants(product).every(variant => !!getSelectedVariantValue(item, variant.id))
 }
 
+function findMatchingComboForPartial(product, item) {
+    return (product.combinations || []).find(combo =>
+        Object.entries(combo.attributes || {}).every(([gId, oId]) => {
+            const group = (product.variants || []).find(g => g.id === gId)
+            if (!group) return true
+            const option = (group.options || []).find(o => o.id === oId)
+            const selectedVal = item.selected_variants_by_id?.[gId] || ''
+            return normalizeText(option?.value || '') === normalizeText(selectedVal)
+        })
+    ) || null
+}
+
 function parseBatchCombinationLines(product, text) {
     const segments = splitCombinationSegments(text)
     if (segments.length < 2) {
@@ -413,12 +425,15 @@ function parseBatchCombinationLines(product, text) {
 
     // Tous les segments avaient des variantes complètes mais aucune quantité
     if (partialCombos.length > 0 && lines.length === 0) {
-        const comboLabels = partialCombos.map(item =>
-            Object.values(item.selected_variants || {}).filter(Boolean).join(' / ')
-        ).filter(Boolean)
+        const comboLabels = partialCombos.map(item => {
+            const combo = findMatchingComboForPartial(product, item)
+            if (combo) return resolveCombinationLabel(product, combo)
+            return Object.values(item.selected_variants || {}).filter(Boolean).join(' / ')
+        }).filter(Boolean)
         return {
             status: 'missing_quantities',
             partialCombos,
+            comboLabels,
             prompt: `Je vois que vous souhaitez : ${comboLabels.join(' et ')}.\nCombien de chaque ? (ex : "3 ${comboLabels[0]} et 2 ${comboLabels[1] || comboLabels[0]}")`,
             lines: [],
             segments,
@@ -750,6 +765,60 @@ function updateCartStateFromUserMessage(previousState, text, products = []) {
         return { state, capturedFields, stateChanged, shouldBypassAI, directReply: null }
     }
 
+    // Handler partial_combos : client répond aux quantités après "Combien de chaque ?"
+    if (state.awaiting_field?.type === 'partial_combos') {
+        const partialCombos = state.awaiting_field.partialCombos || []
+        const comboLabels = state.awaiting_field.comboLabels || []
+        const product = findProductById(products, state.draft_item?.product_id)
+
+        if (product && partialCombos.length > 0) {
+            const quantities = (normalized.match(/\b\d{1,3}\b/g) || []).map(Number).filter(n => n > 0)
+
+            if (quantities.length === partialCombos.length) {
+                // N nombres pour N combos → construire les lignes directement
+                const lines = []
+                let buildError = null
+                for (let i = 0; i < partialCombos.length; i++) {
+                    const itemWithQty = { ...cloneItem(partialCombos[i]), quantity: quantities[i] }
+                    const lineResult = buildLineFromDraft(product, itemWithQty, lines.length + 1)
+                    if (lineResult.error) { buildError = lineResult.error; break }
+                    lines.push(lineResult.line)
+                }
+
+                if (!buildError && lines.length > 0) {
+                    for (const line of lines) {
+                        state.cart_items = mergeOrAppendCartLine(state.cart_items, line)
+                    }
+                    state.draft_item = null
+                    state.stage = CART_STAGE.CART_RECAP
+                    state.awaiting_field = buildCartActionField()
+                    state.last_prompt_kind = CART_STAGE.CART_RECAP
+                    state.last_prompt_text = normalized
+                    return {
+                        state, capturedFields,
+                        stateChanged: true, shouldBypassAI: true,
+                        directReply: buildBatchCartReply(state, lines),
+                    }
+                }
+            }
+
+            if (quantities.length > 0 && quantities.length < partialCombos.length) {
+                // Ambigu : moins de nombres que de combos → demander par combo
+                const promptLines = comboLabels.map(label => `· ${label} : ?`).join('\n')
+                return {
+                    state, capturedFields,
+                    stateChanged: false, shouldBypassAI: true,
+                    directReply: `Précisez la quantité pour chaque :\n${promptLines}`,
+                }
+            }
+
+            // Client re-spécifie tout avec quantités (ex: "3 noire s et 2 rose xxxl")
+            // → reset pour laisser tomber dans le batch parse
+            state.awaiting_field = null
+            state.draft_item = createDraftItem(product)
+        }
+    }
+
     const batchProduct = resolveBatchProduct(products, state, normalized)
     const canTryBatchParse = batchProduct && (!state.draft_item || !hasDraftSelections(state.draft_item))
     if (canTryBatchParse) {
@@ -786,11 +855,20 @@ function updateCartStateFromUserMessage(previousState, text, products = []) {
         }
 
         if (batchParse.status === 'missing_quantities') {
-            // Variantes identifiées, quantités manquantes → prompt structuré
+            // Variantes identifiées, quantités manquantes → stocker pour le tour suivant
+            state.draft_item = createDraftItem(batchProduct)
+            state.awaiting_field = {
+                type: 'partial_combos',
+                label: 'quantites_par_combo',
+                partialCombos: batchParse.partialCombos,
+                comboLabels: batchParse.comboLabels,
+                prompt: batchParse.prompt,
+            }
+            state.stage = CART_STAGE.COLLECTING_ITEM
             return {
                 state,
                 capturedFields,
-                stateChanged: false,
+                stateChanged: true,
                 shouldBypassAI: true,
                 directReply: batchParse.prompt,
             }
