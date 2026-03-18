@@ -392,10 +392,98 @@ function parseBatchCombinationLines(product, text) {
     return { status: 'success', lines, segments }
 }
 
+function resolveCombinationLabel(product, combo) {
+    return Object.entries(combo.attributes || {}).map(([gId, oId]) => {
+        const group = (product.variants || []).find(g => g.id === gId)
+        const option = (group?.options || []).find(o => o.id === oId)
+        return option?.value || oId
+    }).join(' / ')
+}
+
+function hasPricedCombinations(product) {
+    const combos = (product.combinations || []).filter(c => c.available !== false)
+    if (combos.length < 2) return false
+    const prices = combos.map(c => c.price).filter(p => p != null)
+    return prices.length > 0 && new Set(prices).size > 1
+}
+
 function buildAwaitingField(product, item) {
     if (!item) return null
 
+    const requiredVariants = getRequiredVariants(product)
+    const allVariantsMissing = requiredVariants.length > 0 &&
+        requiredVariants.every(v => !getSelectedVariantValue(item, v.id))
+
+    // Début de collecte : aucune variante ni quantité — présenter tout en un seul message
+    if (!item.quantity && allVariantsMissing) {
+        if (hasPricedCombinations(product)) {
+            const available = (product.combinations || []).filter(c => c.available !== false)
+            const lines = available.slice(0, 10).map(combo => {
+                const label = resolveCombinationLabel(product, combo)
+                const price = combo.price != null
+                    ? ` — ${Number(combo.price).toLocaleString('fr-FR')} FCFA`
+                    : ''
+                return `· ${label}${price}`
+            })
+            if (available.length > 10) lines.push(`· ... et ${available.length - 10} autre(s).`)
+            return {
+                type: 'quantity',
+                label: 'choix_et_quantite',
+                prompt: `Voici les choix disponibles pour ${product.name} :\n${lines.join('\n')}\nLequel souhaitez-vous et en quelle quantité ?`
+            }
+        }
+
+        if (requiredVariants.length > 0) {
+            const groups = requiredVariants.map(variant => {
+                const label = getVariantLabel(variant)
+                const opts = (variant.options || []).map(o => getOptionValue(o)).filter(Boolean).join(', ')
+                return `${label}s : ${opts}`
+            })
+            const variantLabels = requiredVariants.map(v => getVariantLabel(v).toLowerCase() + 's')
+            const intro = `Voici les ${variantLabels.join(' et ')} disponibles :`
+            const question = `Quelle ${requiredVariants.map(v => getVariantLabel(v).toLowerCase()).join(', ')} et quantité souhaitez-vous ?`
+            return {
+                type: 'quantity',
+                label: 'variantes_et_quantite',
+                prompt: `${intro}\n${groups.join('\n')}\n${question}`
+            }
+        }
+    }
+
     if (!item.quantity) {
+        // Combo product avec variante(s) partiellement sélectionnée(s) :
+        // filtrer les combos disponibles selon les choix déjà faits et afficher les restants
+        if (hasPricedCombinations(product) && !allVariantsMissing) {
+            const available = (product.combinations || []).filter(c => c.available !== false)
+            const matched = available.filter(combo => {
+                return Object.entries(combo.attributes || {}).every(([gId, oId]) => {
+                    const group = (product.variants || []).find(g => g.id === gId)
+                    if (!group) return true
+                    const selectedVal = getSelectedVariantValue(item, gId)
+                    if (!selectedVal) return true // variante pas encore choisie, on garde
+                    const option = (group.options || []).find(o => o.id === oId)
+                    return (option?.value || '') === selectedVal
+                })
+            })
+
+            const missingVariant = requiredVariants.find(v => !getSelectedVariantValue(item, v.id))
+            if (missingVariant && matched.length > 0) {
+                // Extraire les options restantes pour la variante manquante
+                const remainingOptions = [...new Set(matched.map(combo => {
+                    const oId = (combo.attributes || {})[missingVariant.id]
+                    const option = (missingVariant.options || []).find(o => o.id === oId)
+                    return option?.value || oId
+                }).filter(Boolean))]
+
+                const optStr = remainingOptions.join(' ou ')
+                return {
+                    type: 'quantity',
+                    label: 'quantite_et_variante',
+                    prompt: `Combien souhaitez-vous et quelle ${getVariantLabel(missingVariant).toLowerCase()} ?${optStr ? ` (${optStr} disponible${remainingOptions.length > 1 ? 's' : ''} dans ce choix)` : ''}`
+                }
+            }
+        }
+
         return {
             type: 'quantity',
             label: 'quantite',
@@ -403,7 +491,7 @@ function buildAwaitingField(product, item) {
         }
     }
 
-    for (const variant of getRequiredVariants(product)) {
+    for (const variant of requiredVariants) {
         if (getSelectedVariantValue(item, variant.id)) continue
 
         const options = (variant.options || [])
@@ -670,6 +758,48 @@ function updateCartStateFromUserMessage(previousState, text, products = []) {
                 stateChanged: false,
                 shouldBypassAI: false,
                 directReply: null,
+            }
+        }
+    }
+
+    // Scénario F : draft_item a une quantité totale annoncée, mais le client
+    // donne des sous-quantités par variante (ex: "2 Noire S et 3 Rose S").
+    // Vérifier que la somme des sous-quantités correspond à la quantité annoncée.
+    if (!canTryBatchParse && state.draft_item?.quantity) {
+        const draftProduct = findProductById(products, state.draft_item.product_id)
+        if (draftProduct) {
+            const batchParse = parseBatchCombinationLines(draftProduct, normalized)
+            if (batchParse.status === 'success') {
+                const announced = state.draft_item.quantity
+                const batchTotal = batchParse.lines.reduce((sum, l) => sum + (l.quantity || 0), 0)
+
+                if (batchTotal !== announced) {
+                    return {
+                        state,
+                        capturedFields,
+                        stateChanged: false,
+                        shouldBypassAI: true,
+                        directReply: `Vous avez mentionné ${announced} au total mais je compte ${batchTotal} dans vos choix. Merci de me préciser les quantités correctes.`,
+                    }
+                }
+
+                // Somme cohérente : appliquer le batch
+                for (const line of batchParse.lines) {
+                    state.cart_items = mergeOrAppendCartLine(state.cart_items, line)
+                }
+                state.draft_item = null
+                state.stage = CART_STAGE.CART_RECAP
+                state.awaiting_field = buildCartActionField()
+                state.last_prompt_kind = CART_STAGE.CART_RECAP
+                state.last_prompt_text = normalized
+
+                return {
+                    state,
+                    capturedFields,
+                    stateChanged: true,
+                    shouldBypassAI: true,
+                    directReply: buildBatchCartReply(state, batchParse.lines),
+                }
             }
         }
     }

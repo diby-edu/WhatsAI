@@ -102,7 +102,15 @@ async function handleCreateBooking(args, agentId, products, conversationId, supa
                 error: `Date invalide: "${preferred_date}". Format attendu: AAAA-MM-JJ (ex: 2026-03-25). Redemandez la date au client.`
             })
         }
-        // Heure invalide → erreur explicite (pas de fallback silencieux)
+        // Heure : obligatoire pour slot/table, validée si fournie
+        const requiresTime = ['slot', 'table'].includes(booking_type || 'slot')
+        if (requiresTime && !preferred_time) {
+            return JSON.stringify({
+                success: false,
+                error: 'HEURE MANQUANTE. Demandez l\'heure souhaitée au client avant de créer la réservation.',
+                hint: 'Exemples valides: "09:00", "14:30", "18:00"'
+            })
+        }
         if (preferred_time && !/^\d{2}:\d{2}$/.test(preferred_time)) {
             return JSON.stringify({
                 success: false,
@@ -110,7 +118,7 @@ async function handleCreateBooking(args, agentId, products, conversationId, supa
                 hint: 'Exemples valides: "09:00", "14:30", "18:00"'
             })
         }
-        const timeStr = preferred_time && /^\d{2}:\d{2}$/.test(preferred_time) ? preferred_time : '09:00'
+        const timeStr = preferred_time && /^\d{2}:\d{2}$/.test(preferred_time) ? preferred_time : '00:00'
         const parsedDate = new Date(`${preferred_date}T${timeStr}:00`)
         if (isNaN(parsedDate.getTime())) {
             return JSON.stringify({
