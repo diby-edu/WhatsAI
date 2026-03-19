@@ -826,6 +826,25 @@ function updateCartStateFromUserMessage(previousState, text, products = []) {
         const product = findProductById(products, state.draft_item?.product_id)
 
         if (product && partialCombos.length > 0) {
+            // FIRST: tenter le batch parser — le client a peut-être re-spécifié avec variantes différentes
+            // Ex: "3 noir m et 5 rouge xl" après stockage de Noire/L et Rouge/XL → utiliser les nouvelles variantes
+            const batchAttempt = parseBatchCombinationLines(product, normalized)
+            if (batchAttempt.status === 'success') {
+                for (const line of batchAttempt.lines) {
+                    state.cart_items = mergeOrAppendCartLine(state.cart_items, line)
+                }
+                state.draft_item = null
+                state.stage = CART_STAGE.CART_RECAP
+                state.awaiting_field = buildCartActionField()
+                state.last_prompt_kind = CART_STAGE.CART_RECAP
+                state.last_prompt_text = normalized
+                return {
+                    state, capturedFields,
+                    stateChanged: true, shouldBypassAI: true,
+                    directReply: buildBatchCartReply(state, batchAttempt.lines),
+                }
+            }
+
             const quantities = (normalized.match(/\b\d{1,3}\b/g) || []).map(Number).filter(n => n > 0)
 
             if (quantities.length === partialCombos.length) {
@@ -1041,13 +1060,12 @@ function updateCartStateFromUserMessage(previousState, text, products = []) {
         }
 
         if (!productForNewLine && isNegativeReply(normalized)) {
-            return {
-                state,
-                capturedFields,
-                stateChanged: false,
-                shouldBypassAI: true,
-                directReply: 'D accord. Dites-moi quel article vous souhaitez ajouter ou modifier.',
-            }
+            // "non" = pas d'article à ajouter → passer au checkout
+            state.stage = CART_STAGE.CHECKOUT
+            state.awaiting_field = null
+            state.last_prompt_kind = CART_STAGE.CHECKOUT
+            state.last_prompt_text = normalized
+            return { state, capturedFields, stateChanged: true, shouldBypassAI: false, directReply: null }
         }
     }
 

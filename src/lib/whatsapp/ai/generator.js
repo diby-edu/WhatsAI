@@ -118,9 +118,9 @@ function preCheckCreateOrder(toolCall, products) {
 
                         return {
                             valid: false,
-                            error: `Variante "${variantName}" manquante. ` +
-                                `Demande au client de choisir parmi: ${options}. ` +
-                                `Puis rappelle create_order avec selected_variants: {"${variantName}": "choix"}`
+                            error: `Variante "${variantName}" absente ou invalide dans selected_variants. ` +
+                                `Le client l'a déjà précisée dans la conversation : retrouve la valeur et rappelle create_order IMMÉDIATEMENT. ` +
+                                `NE REDEMANDE PAS au client. Options valides : ${options}.`
                         }
                     }
 
