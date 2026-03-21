@@ -1044,26 +1044,15 @@ function buildCartRecap(state) {
     ].join('\n')
 }
 
-function buildBatchCartReply(state, addedLines = []) {
-    const intro = addedLines.length > 0
-        ? [
-            'Je note ces lignes :',
-            '',
-            ...addedLines.map(item => `- ${formatLineLabel(item)}`)
-        ].join('\n')
-        : null
-
-    return [intro, buildCartRecap(state)].filter(Boolean).join('\n\n')
+function buildBatchCartReply(state) {
+    return buildCartRecap(state)
 }
 
-function buildStructuredCartReply(state, products, capturedFields = [], options = {}) {
+function buildStructuredCartReply(state, products, capturedFields = []) {
     const acknowledgement = buildCapturedSummary(capturedFields)
 
     if (state.stage === CART_STAGE.CART_RECAP) {
-        const intro = options.lineAdded
-            ? `Je note cette ligne :\n- ${formatLineLabel(options.lineAdded)}`
-            : null
-        return [acknowledgement, intro, buildCartRecap(state)].filter(Boolean).join('\n\n')
+        return [acknowledgement, buildCartRecap(state)].filter(Boolean).join('\n\n')
     }
 
     const product = findProductById(products, state.draft_item?.product_id)
@@ -1570,7 +1559,7 @@ function updateCartStateFromUserMessage(previousState, text, products = []) {
             capturedFields,
             stateChanged: true,
             shouldBypassAI,
-            directReply: buildStructuredCartReply(state, products, capturedFields, { lineAdded: lineResult.line }),
+            directReply: buildStructuredCartReply(state, products, capturedFields),
         }
     }
 
