@@ -82,6 +82,25 @@ donc l'info n'est pas perdue, mais la colonne devrait contenir les variantes pou
 
 ---
 
+### Anomalie 5 — "Je note ces lignes" toujours affiché après push
+**Observé :** Le fix est dans le code (commit abcb16e) mais le serveur VPS n'a pas
+redémarré — l'ancien code est encore en production.
+**Fix :** Redéployer sur le VPS (git pull + restart process)
+**Priorité :** HAUTE (bloque la validation visuelle)
+
+### Anomalie 6 — Taille non spécifiée → bot prend M par défaut (N2) ✅ CORRIGÉ
+**Observé :** Client dit "2 belge, 1 rouge" sans taille → bot commande Belge M et Rouge M
+**Attendu :** Bot doit demander "Quelle taille ?" si non spécifiée
+**Cause :** `parseBatchCombinationLines` retournait `invalid` quand la taille était absente
+→ l'IA prenait le premier combo disponible (M) par défaut.
+**Fix appliqué :** Les segments incomplets sont collectés dans `missingVariantSegments` et
+un prompt ciblé est retourné : "Je vois : 2 × Belge (taille ?), 1 × Rouge (taille ?).
+Merci de préciser les informations manquantes. Taille disponibles : L, M, XL."
+**Fichiers concernés :** `src/lib/whatsapp/services/cart-state.service.js` — `parseBatchCombinationLines`
+**Priorité :** HAUTE ← CORRIGÉ (inclus dans prochain déploiement VPS)
+
+---
+
 ## Tests restants à faire 🔲
 
 | Test | Action | Statut |

@@ -425,6 +425,7 @@ function parseBatchCombinationLines(product, text) {
 
     const lines = []
     const partialCombos = [] // combos complets en variantes mais sans quantité
+    const missingVariantSegments = [] // segments avec quantité mais variantes manquantes
 
     for (const segment of segments) {
         const draftItem = createDraftItem(product)
@@ -464,7 +465,9 @@ function parseBatchCombinationLines(product, text) {
         const completedItem = variantCapture.item
 
         if (!hasAllRequiredVariants(product, completedItem)) {
-            return { status: 'invalid', lines: [], segments }
+            // Quantité présente mais variantes manquantes → collecter pour prompt ciblé
+            missingVariantSegments.push({ quantity, item: completedItem, segment })
+            continue
         }
 
         const lineResult = buildLineFromDraft(product, completedItem, lines.length + 1)
@@ -473,6 +476,31 @@ function parseBatchCombinationLines(product, text) {
         }
 
         lines.push(lineResult.line)
+    }
+
+    // Des segments avaient une quantité mais des variantes manquantes → demander de compléter
+    if (missingVariantSegments.length > 0) {
+        const descriptions = missingVariantSegments.map(({ quantity, item }) => {
+            const knownVals = Object.values(item.selected_variants || {}).filter(Boolean)
+            const knownLabel = knownVals.length > 0 ? knownVals.join(' / ') : '?'
+            const missingVars = getRequiredVariants(product)
+                .filter(v => !getSelectedVariantValue(item, v.id))
+                .map(v => getVariantLabel(v).toLowerCase())
+            return `${quantity} × ${knownLabel} (${missingVars.join(', ')} ?)`
+        })
+        const firstMissingVar = getRequiredVariants(product).find(v =>
+            missingVariantSegments.some(({ item }) => !getSelectedVariantValue(item, v.id))
+        )
+        const availableOpts = firstMissingVar
+            ? (firstMissingVar.options || []).map(o => getOptionValue(o)).filter(Boolean).join(', ')
+            : ''
+
+        return {
+            status: 'missing_variants_and_quantities',
+            prompt: `Je vois : ${descriptions.join(', ')}.\nMerci de préciser les informations manquantes.${availableOpts ? `\n${getVariantLabel(firstMissingVar)} disponibles : ${availableOpts}.` : ''}`,
+            lines: [],
+            segments,
+        }
     }
 
     // Tous les segments avaient des variantes mais aucune quantité
