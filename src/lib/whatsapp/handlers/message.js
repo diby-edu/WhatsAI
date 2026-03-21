@@ -355,7 +355,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
 
         const cartUpdate = bookingFlowActive
             ? { state: previousCartState, capturedFields: [], stateChanged: false, shouldBypassAI: false, directReply: null }
-            : updateCartStateFromUserMessage(previousCartState, message.text, orderableProducts)
+            : updateCartStateFromUserMessage(previousCartState, message.text, orderableProducts, agentCurrency)
 
         const cartJustEnteredCheckout =
             !bookingFlowActive &&

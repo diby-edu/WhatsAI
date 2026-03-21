@@ -20,6 +20,23 @@ const VARIANT_PRIORITY = {
     format: 50,
 }
 
+const CURRENCY_RATES   = { USD: 700, EUR: 700, GBP: 800 }
+const CURRENCY_SYMBOLS = { USD: '$', EUR: '€', GBP: '£' }
+
+function formatPrice(priceFcfa, currency = 'XOF') {
+    if (priceFcfa == null) return null
+    const amount = Number(priceFcfa)
+    const rate = CURRENCY_RATES[currency]
+    if (rate) {
+        const converted = Math.round(amount / rate)
+        const symbol = CURRENCY_SYMBOLS[currency]
+        return currency === 'USD'
+            ? `${symbol}${converted.toLocaleString('en-US')}`
+            : `${converted.toLocaleString('fr-FR')} ${symbol}`
+    }
+    return `${amount.toLocaleString('fr-FR')} FCFA`
+}
+
 function normalizeText(value) {
     return String(value || '')
         .normalize('NFD')
@@ -594,12 +611,10 @@ function detectPricingLevel(product) {
 // Produit digital : pas de variantes physiques, affichage simplifié.
 // Produit service  : ne devrait pas arriver ici (flux booking), mais géré en fallback.
 // maxCombos : nombre max de combos affichés pour N3
-function buildProductBlock(product, maxCombos = 8) {
+function buildProductBlock(product, maxCombos = 8, currency = 'XOF') {
     // Produit digital sans variantes requises → affichage simplifié
     if (product.product_type === 'digital') {
-        const price = product.price_fcfa != null
-            ? `${Number(product.price_fcfa).toLocaleString('fr-FR')} FCFA`
-            : null
+        const price = product.price_fcfa != null ? formatPrice(product.price_fcfa, currency) : null
         return {
             level: 'N1',
             text: price ? `*${product.name}* — ${price} (téléchargement immédiat)` : `*${product.name}* (téléchargement immédiat)`,
@@ -615,8 +630,8 @@ function buildProductBlock(product, maxCombos = 8) {
     // ── N1 : prix uniforme, affichage groupé par variante ──
     if (level === 'N1') {
         const basePrice = product.price_fcfa != null
-            ? `${Number(product.price_fcfa).toLocaleString('fr-FR')} FCFA`
-            : (combos[0]?.price != null ? `${Number(combos[0].price).toLocaleString('fr-FR')} FCFA` : null)
+            ? formatPrice(product.price_fcfa, currency)
+            : (combos[0]?.price != null ? formatPrice(combos[0].price, currency) : null)
         const header = basePrice ? `*${product.name}* — ${basePrice}` : `*${product.name}*`
 
         const variantLines = requiredVariants.map(variant => {
@@ -662,7 +677,7 @@ function buildProductBlock(product, maxCombos = 8) {
                 if (availableCombos.length === 0) return null
 
                 const price = [...(pivotGroups[oId] || new Set())][0]
-                const priceStr = price != null ? ` — ${Number(price).toLocaleString('fr-FR')} FCFA` : ''
+                const priceStr = price != null ? ` — ${formatPrice(price, currency)}` : ''
 
                 if (otherVariants.length > 0) {
                     const otherVariant = otherVariants[0]
@@ -692,15 +707,15 @@ function buildProductBlock(product, maxCombos = 8) {
     const minPrice = Math.min(...prices)
     const maxPrice = Math.max(...prices)
     const priceRange = minPrice === maxPrice
-        ? `${Number(minPrice).toLocaleString('fr-FR')} FCFA`
-        : `${Number(minPrice).toLocaleString('fr-FR')} à ${Number(maxPrice).toLocaleString('fr-FR')} FCFA`
+        ? formatPrice(minPrice, currency)
+        : `${formatPrice(minPrice, currency)} à ${formatPrice(maxPrice, currency)}`
 
     const shown = combos.slice(0, maxCombos)
     const overflow = combos.slice(maxCombos)
 
     const comboLines = shown.map(combo => {
         const label = resolveCombinationLabel(product, combo)
-        const price = combo.price != null ? ` — ${Number(combo.price).toLocaleString('fr-FR')} FCFA` : ''
+        const price = combo.price != null ? ` — ${formatPrice(combo.price, currency)}` : ''
         return `· ${label}${price}`
     })
 
@@ -752,14 +767,14 @@ function detectMultipleProducts(text, products) {
 }
 
 // Construit le prompt multi-produits avec ①②③ numérotation
-function buildMultiProductPrompt(products) {
+function buildMultiProductPrompt(products, currency = 'XOF') {
     const count = products.length
     const maxCombos = count >= 4 ? 3 : count === 3 ? 4 : count === 2 ? 6 : 8
     const NUMBERS = ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩']
 
     const overflow = {}
     const blocks = products.map((product, i) => {
-        const block = buildProductBlock(product, maxCombos)
+        const block = buildProductBlock(product, maxCombos, currency)
         if (block.hasOverflow) overflow[product.id] = block.overflowCombos
         return `${NUMBERS[i] || `${i + 1}.`} ${block.text}`
     })
@@ -850,7 +865,7 @@ function parseMultiProductBatchLines(products, text) {
     return { status: 'success', lines }
 }
 
-function buildAwaitingField(product, item) {
+function buildAwaitingField(product, item, currency = 'XOF') {
     if (!item) return null
 
     const requiredVariants = getRequiredVariants(product)
@@ -859,7 +874,7 @@ function buildAwaitingField(product, item) {
 
     // Début de collecte : aucune variante ni quantité — présenter avec N1/N2/N3
     if (!item.quantity && allVariantsMissing) {
-        const block = buildProductBlock(product, 8)
+        const block = buildProductBlock(product, 8, currency)
         const example = '(ex : "2 Noire L et 1 Grise M")'
         const basePrompt = block.text + '\n\n' + example
 
@@ -1041,7 +1056,7 @@ function mergeOrAppendCartLine(cartItems = [], newLine) {
     return nextItems
 }
 
-function formatLineLabel(item) {
+function formatLineLabel(item, currency = 'XOF') {
     const variants = item.variant_labels
         ? item.variant_labels.join(', ')
         : Object.values(item.selected_variants || {}).filter(Boolean).join(', ')
@@ -1050,40 +1065,40 @@ function formatLineLabel(item) {
         ? item.line_total
         : ((item.unit_price || 0) * (item.quantity || 0))
 
-    return `${item.product_name}${variantSuffix} x ${item.quantity} = ${total.toLocaleString('fr-FR')} FCFA`
+    return `${item.product_name}${variantSuffix} x ${item.quantity} = ${formatPrice(total, currency)}`
 }
 
-function buildCartRecap(state) {
+function buildCartRecap(state, currency = 'XOF') {
     const cartItems = state.cart_items || []
     const total = cartItems.reduce((sum, item) => sum + (item.line_total || 0), 0)
-    const lines = cartItems.map(item => `- ${formatLineLabel(item)}`)
+    const lines = cartItems.map(item => `- ${formatLineLabel(item, currency)}`)
 
     return [
         'Panier actuel :',
         '',
         ...lines,
         '',
-        `Total : ${total.toLocaleString('fr-FR')} FCFA`,
+        `Total : ${formatPrice(total, currency)}`,
         '',
         'Souhaitez-vous ajouter un autre article ou continuer ?'
     ].join('\n')
 }
 
-function buildBatchCartReply(state) {
-    return buildCartRecap(state)
+function buildBatchCartReply(state, currency = 'XOF') {
+    return buildCartRecap(state, currency)
 }
 
-function buildStructuredCartReply(state, products, capturedFields = []) {
+function buildStructuredCartReply(state, products, capturedFields = [], currency = 'XOF') {
     const acknowledgement = buildCapturedSummary(capturedFields)
 
     if (state.stage === CART_STAGE.CART_RECAP) {
-        return [acknowledgement, buildCartRecap(state)].filter(Boolean).join('\n\n')
+        return [acknowledgement, buildCartRecap(state, currency)].filter(Boolean).join('\n\n')
     }
 
     const product = findProductById(products, state.draft_item?.product_id)
     if (!product || !state.draft_item) return null
 
-    const awaitingField = buildAwaitingField(product, state.draft_item)
+    const awaitingField = buildAwaitingField(product, state.draft_item, currency)
     if (!awaitingField) {
         return acknowledgement || null
     }
@@ -1145,7 +1160,7 @@ function buildVariantQuestion(product, partialItem, quantity, knownLabel) {
     return `Quelle ${varLabel.toLowerCase()} pour ${quantityPrefix} ?\n(${optsStr} — répondez simplement ex : "${example}")`
 }
 
-function updateCartStateFromUserMessage(previousState, text, products = []) {
+function updateCartStateFromUserMessage(previousState, text, products = [], currency = 'XOF') {
     const state = cloneCartState(previousState)
     const normalized = normalizeText(text)
     const capturedFields = []
@@ -1169,7 +1184,7 @@ function updateCartStateFromUserMessage(previousState, text, products = []) {
             const remaining = overflow[targetProduct.id]
             const lines = remaining.map(combo => {
                 const label = resolveCombinationLabel(targetProduct, combo)
-                const price = combo.price != null ? ` — ${Number(combo.price).toLocaleString('fr-FR')} FCFA` : ''
+                const price = combo.price != null ? ` — ${formatPrice(combo.price, currency)}` : ''
                 return `· ${label}${price}`
             }).join('\n')
             return {
@@ -1202,7 +1217,7 @@ function updateCartStateFromUserMessage(previousState, text, products = []) {
                 return {
                     state, capturedFields,
                     stateChanged: true, shouldBypassAI: true,
-                    directReply: buildBatchCartReply(state, batchAttempt.lines),
+                    directReply: buildBatchCartReply(state, currency),
                 }
             }
 
@@ -1231,7 +1246,7 @@ function updateCartStateFromUserMessage(previousState, text, products = []) {
                     return {
                         state, capturedFields,
                         stateChanged: true, shouldBypassAI: true,
-                        directReply: buildBatchCartReply(state, lines),
+                        directReply: buildBatchCartReply(state, currency),
                     }
                 }
             }
@@ -1288,7 +1303,7 @@ function updateCartStateFromUserMessage(previousState, text, products = []) {
                         return {
                             state, capturedFields,
                             stateChanged: true, shouldBypassAI: true,
-                            directReply: buildBatchCartReply(state, newPendingLines),
+                            directReply: buildBatchCartReply(state, currency),
                         }
                     }
 
@@ -1359,7 +1374,7 @@ function updateCartStateFromUserMessage(previousState, text, products = []) {
                     return {
                         state, capturedFields,
                         stateChanged: true, shouldBypassAI: true,
-                        directReply: buildBatchCartReply(state, allLines),
+                        directReply: buildBatchCartReply(state, currency),
                     }
                 }
 
@@ -1422,7 +1437,7 @@ function updateCartStateFromUserMessage(previousState, text, products = []) {
                 capturedFields,
                 stateChanged: true,
                 shouldBypassAI: true,
-                directReply: buildBatchCartReply(state, batchParse.lines),
+                directReply: buildBatchCartReply(state, currency),
             }
         }
 
@@ -1527,7 +1542,7 @@ function updateCartStateFromUserMessage(previousState, text, products = []) {
                     capturedFields,
                     stateChanged: true,
                     shouldBypassAI: true,
-                    directReply: buildBatchCartReply(state, batchParse.lines),
+                    directReply: buildBatchCartReply(state, currency),
                 }
             }
         }
@@ -1538,7 +1553,7 @@ function updateCartStateFromUserMessage(previousState, text, products = []) {
             ...(state.draft_item.skipped_optional_variant_ids || []),
             state.awaiting_field.variant_id,
         ]))
-        state.awaiting_field = buildAwaitingField(findProductById(products, state.draft_item.product_id), state.draft_item)
+        state.awaiting_field = buildAwaitingField(findProductById(products, state.draft_item.product_id), state.draft_item, currency)
         state.last_prompt_kind = state.awaiting_field ? CART_STAGE.COLLECTING_ITEM : CART_STAGE.CART_RECAP
         state.last_prompt_text = normalized
         state.stage = state.awaiting_field ? CART_STAGE.COLLECTING_ITEM : CART_STAGE.CART_RECAP
@@ -1548,7 +1563,7 @@ function updateCartStateFromUserMessage(previousState, text, products = []) {
             capturedFields,
             stateChanged: true,
             shouldBypassAI: true,
-            directReply: buildStructuredCartReply(state, products, []),
+            directReply: buildStructuredCartReply(state, products, [], currency),
         }
     }
 
@@ -1565,7 +1580,7 @@ function updateCartStateFromUserMessage(previousState, text, products = []) {
         if (productForNewLine) {
             state.draft_item = createDraftItem(productForNewLine)
             state.stage = CART_STAGE.COLLECTING_ITEM
-            state.awaiting_field = buildAwaitingField(productForNewLine, state.draft_item)
+            state.awaiting_field = buildAwaitingField(productForNewLine, state.draft_item, currency)
             state.last_prompt_kind = CART_STAGE.COLLECTING_ITEM
             state.last_prompt_text = normalized
             stateChanged = true
@@ -1593,7 +1608,7 @@ function updateCartStateFromUserMessage(previousState, text, products = []) {
     if (!state.draft_item && !(state.cart_items?.length > 0)) {
         const multiProducts = detectMultipleProducts(normalized, products)
         if (multiProducts.length >= 2) {
-            const { prompt, overflow } = buildMultiProductPrompt(multiProducts)
+            const { prompt, overflow } = buildMultiProductPrompt(multiProducts, currency)
             state.stage = CART_STAGE.COLLECTING_ITEM
             state.awaiting_field = {
                 type: 'multi_product_combos',
@@ -1615,7 +1630,7 @@ function updateCartStateFromUserMessage(previousState, text, products = []) {
         if (detectedProduct) {
             state.draft_item = createDraftItem(detectedProduct)
             state.stage = CART_STAGE.COLLECTING_ITEM
-            state.awaiting_field = buildAwaitingField(detectedProduct, state.draft_item)
+            state.awaiting_field = buildAwaitingField(detectedProduct, state.draft_item, currency)
             state.last_prompt_kind = CART_STAGE.COLLECTING_ITEM
             state.last_prompt_text = normalized
             stateChanged = true
@@ -1626,7 +1641,7 @@ function updateCartStateFromUserMessage(previousState, text, products = []) {
                 return {
                     state, capturedFields,
                     stateChanged: true, shouldBypassAI: true,
-                    directReply: buildStructuredCartReply(state, products, []),
+                    directReply: buildStructuredCartReply(state, products, [], currency),
                 }
             }
         }
@@ -1659,7 +1674,7 @@ function updateCartStateFromUserMessage(previousState, text, products = []) {
         stateChanged = true
     }
 
-    state.awaiting_field = buildAwaitingField(product, state.draft_item)
+    state.awaiting_field = buildAwaitingField(product, state.draft_item, currency)
     state.last_prompt_kind = state.awaiting_field ? CART_STAGE.COLLECTING_ITEM : CART_STAGE.CART_RECAP
     state.last_prompt_text = normalized
 
@@ -1686,7 +1701,7 @@ function updateCartStateFromUserMessage(previousState, text, products = []) {
             capturedFields,
             stateChanged: true,
             shouldBypassAI,
-            directReply: buildStructuredCartReply(state, products, capturedFields),
+            directReply: buildStructuredCartReply(state, products, capturedFields, currency),
         }
     }
 
@@ -1696,7 +1711,7 @@ function updateCartStateFromUserMessage(previousState, text, products = []) {
     }
 
     const directReply = shouldBypassAI
-        ? buildStructuredCartReply(state, products, capturedFields)
+        ? buildStructuredCartReply(state, products, capturedFields, currency)
         : null
 
     const awaitingChanged = JSON.stringify(previousAwaiting) !== JSON.stringify(state.awaiting_field)
@@ -1746,7 +1761,7 @@ function inferCartStateFromAssistantMessage(content, previousState, products = [
     if (detectedProduct && !state.draft_item) {
         state.draft_item = createDraftItem(detectedProduct)
         state.stage = CART_STAGE.COLLECTING_ITEM
-        state.awaiting_field = buildAwaitingField(detectedProduct, state.draft_item)
+        state.awaiting_field = buildAwaitingField(detectedProduct, state.draft_item, currency)
         state.last_prompt_kind = CART_STAGE.COLLECTING_ITEM
         state.last_prompt_text = content
     }
