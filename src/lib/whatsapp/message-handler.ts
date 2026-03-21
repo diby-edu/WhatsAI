@@ -187,6 +187,7 @@ export function initializeMessageHandler() {
                 .eq('user_id', agent.user_id)
                 .eq('is_available', true)
                 .or(`agent_id.eq.${agentId},agent_id.is.null`)
+                .order('name', { ascending: true })
                 .limit(100)
 
             console.log(`📦 Found ${products?.length || 0} products for AI context`)
