@@ -437,7 +437,8 @@ async function handleFindOrder(args, agentId, supabase) {
         // 4. Construire le message final avec la mention SAV
         let finalMessage = `Voici les dernières commandes trouvées :\n${ordersList}`
 
-        finalMessage += `\n\nℹ️ Ceci sont vos 3 dernières commandes.`
+        const countLabel = orders.length === 1 ? `votre dernière commande` : `vos ${orders.length} dernières commandes`
+        finalMessage += `\n\nℹ️ Ceci ${orders.length === 1 ? 'est' : 'sont'} ${countLabel}.`
 
         if (agent && agent.escalation_phone) {
             finalMessage += ` Pour tout historique plus ancien, veuillez contacter le service client au ${agent.escalation_phone}.`
