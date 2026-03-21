@@ -54,7 +54,7 @@ Souhaitez-vous ajouter un autre article ou continuer ?
 
 **SQL à coller dans Supabase :**
 ```sql
-SELECT o.order_number, o.status, o.total_amount, o.customer_name,
+SELECT o.order_number, o.status, o.total_fcfa, o.customer_name,
        oi.product_name, oi.quantity, oi.unit_price
 FROM orders o
 JOIN order_items oi ON oi.order_id = o.id
