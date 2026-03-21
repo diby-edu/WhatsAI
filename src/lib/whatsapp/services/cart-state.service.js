@@ -1078,6 +1078,16 @@ function updateCartStateFromUserMessage(previousState, text, products = []) {
             state.last_prompt_kind = CART_STAGE.COLLECTING_ITEM
             state.last_prompt_text = normalized
             stateChanged = true
+
+            // Sélection par numéro pur (ex: "1", "2") → retourner immédiatement
+            // pour ne pas interpréter ce même chiffre comme une quantité
+            if (/^\d+$/.test(normalized.trim())) {
+                return {
+                    state, capturedFields,
+                    stateChanged: true, shouldBypassAI: true,
+                    directReply: buildStructuredCartReply(state, products, []),
+                }
+            }
         }
     } else if (!hasDraftSelections(state.draft_item)) {
         // draft_item pré-inféré sans aucune sélection : si le client confirme ce produit → bypass AI
