@@ -1131,7 +1131,8 @@ function buildVariantQuestion(product, partialItem, quantity, knownLabel) {
     const optsStr = opts.join(', ')
     const example = opts[0] || '?'
     const varLabel = getVariantLabel(firstMissing)
-    const quantityPrefix = quantity > 1 ? `les ${quantity} × ${knownLabel}` : `le ${knownLabel}`
+    const articleLabel = knownLabel && knownLabel !== '?' ? knownLabel : 'cet article'
+    const quantityPrefix = quantity > 1 ? `les ${quantity} × ${articleLabel}` : `le ${articleLabel}`
 
     return `Quelle ${varLabel.toLowerCase()} pour ${quantityPrefix} ?\n(${optsStr} — répondez simplement ex : "${example}")`
 }
