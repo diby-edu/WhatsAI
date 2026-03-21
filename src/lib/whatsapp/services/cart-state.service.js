@@ -1252,11 +1252,13 @@ function updateCartStateFromUserMessage(previousState, text, products = []) {
         if (product && queue && current_index < queue.length) {
             const current = queue[current_index]
 
-            // Tenter d'extraire la variante manquante depuis la réponse du client
+            // Tenter d'extraire des variantes depuis la réponse du client
             const probe = extractVariantsFromText(product, normalized, cloneItem(current.item))
             const completedItem = probe.item
+            const capturedSomething = probe.captured && probe.captured.length > 0
 
             if (hasAllRequiredVariants(product, completedItem)) {
+                // Item 100% complet → construire la ligne de panier
                 completedItem.quantity = current.quantity
                 const lineResult = buildLineFromDraft(product, completedItem, 1)
 
@@ -1297,11 +1299,21 @@ function updateCartStateFromUserMessage(previousState, text, products = []) {
                 }
             }
 
-            // Variante non reconnue → re-poser la même question
-            const question = buildVariantQuestion(product, current.item, current.quantity, current.known_label)
+            // Item pas encore complet (il manque encore des variantes)
+            // Si le client a fourni quelque chose de partiel → mettre à jour l'item dans la queue
+            // pour ne pas re-demander ce qui a déjà été capturé
+            const updatedQueue = [...queue]
+            if (capturedSomething) {
+                updatedQueue[current_index] = { ...current, item: completedItem }
+                state.awaiting_field = { ...state.awaiting_field, queue: updatedQueue }
+            }
+
+            // Demander la prochaine variante manquante (sur l'item mis à jour)
+            const itemForQuestion = capturedSomething ? completedItem : current.item
+            const question = buildVariantQuestion(product, itemForQuestion, current.quantity, current.known_label)
             return {
                 state, capturedFields,
-                stateChanged: false, shouldBypassAI: true,
+                stateChanged: capturedSomething, shouldBypassAI: true,
                 directReply: question,
             }
         }
