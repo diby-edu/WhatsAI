@@ -99,6 +99,16 @@ Merci de préciser les informations manquantes. Taille disponibles : L, M, XL."
 **Fichiers concernés :** `src/lib/whatsapp/services/cart-state.service.js` — `parseBatchCombinationLines`
 **Priorité :** HAUTE ← CORRIGÉ (inclus dans prochain déploiement VPS)
 
+### Anomalie 7 — Colonne `total_fcfa` hardcodée alors que la devise est configurable
+**Observé :** La colonne `orders.total_fcfa` porte le nom d'une devise spécifique (FCFA)
+alors que la devise de l'agent est configurable dans les paramètres (EUR, USD, XOF, etc.).
+**Impact :** Pas d'impact fonctionnel aujourd'hui (la valeur est correcte quelle que soit
+la devise), mais le nom est trompeur pour les agents utilisant une autre devise.
+**Fix à faire :** Renommer la colonne en `total_amount` dans le schéma Supabase + mettre
+à jour toutes les références dans le code.
+**Fichiers concernés :** Schéma Supabase `orders` + `src/lib/whatsapp/ai/tools/tool-orders.js`
+**Priorité :** Basse (cosmétique, pas bloquant)
+
 ---
 
 ## Tests restants à faire 🔲
