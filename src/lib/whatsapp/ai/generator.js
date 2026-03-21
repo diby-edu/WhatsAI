@@ -143,9 +143,15 @@ function preCheckCreateOrder(toolCall, products) {
     }
 }
 
-function hydrateToolCallArguments(toolCall, checkoutState, cartState, bookingState) {
+function hydrateToolCallArguments(toolCall, checkoutState, cartState, bookingState, customerPhone) {
     try {
         const parsedArgs = JSON.parse(toolCall.function.arguments)
+
+        // find_order : injecter le téléphone WhatsApp si l'IA n'en a pas fourni
+        if (toolCall.function.name === 'find_order' && !parsedArgs.phone_number && customerPhone) {
+            parsedArgs.phone_number = customerPhone
+        }
+
         const mergedCheckoutArgs = mergeCheckoutStateIntoToolArgs(toolCall.function.name, parsedArgs, checkoutState)
         const mergedCartArgs = mergeCartStateIntoToolArgs(toolCall.function.name, mergedCheckoutArgs, cartState)
         const mergedArgs = mergeBookingStateIntoToolArgs(toolCall.function.name, mergedCartArgs, bookingState)
@@ -326,7 +332,7 @@ async function generateAIResponse(options, dependencies) {
             let directToolResponse = null
 
             for (const rawToolCall of responseMessage.tool_calls) {
-                const toolCall = hydrateToolCallArguments(rawToolCall, checkoutState, cartState, bookingState)
+                const toolCall = hydrateToolCallArguments(rawToolCall, checkoutState, cartState, bookingState, customerPhone)
                 console.log(`🔧 Tool: ${toolCall.function.name}`)
 
                 // Pre-check pour create_order
