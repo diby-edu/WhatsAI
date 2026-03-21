@@ -45,6 +45,11 @@ ${(orders && orders.length > 0) ? `
       • Nom complet
       • Téléphone (avec indicatif)
       • 📍 Adresse de livraison (Ville, Quartier)
+
+    📌 RÈGLE TOUT-EN-UNE : Si le client envoie plusieurs infos dans un seul message
+    (ex : "Koffi Diby, +2250700000001, Yop Maroc"), extraire dans l'ordre :
+    1er segment = Nom / 2e segment = Téléphone / 3e segment = Adresse.
+    ✅ Confirmer directement et passer à l'étape suivante SANS redemander ce qui a été fourni.
 `}
 
 ÉTAPE 5 - PAIEMENT:

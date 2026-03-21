@@ -341,6 +341,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             .select('*')
             .eq('agent_id', agentId)
             .eq('is_available', true)
+            .order('name', { ascending: true })
             .limit(20)
 
         const orderableProducts = (products || []).filter(product => product.product_type !== 'service')

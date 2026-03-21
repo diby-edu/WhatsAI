@@ -54,6 +54,11 @@ function buildMixedWorkflow(orders) {
     • 📍 Adresse de livraison (pour [nom du produit physique])
     • 📧 Adresse email (pour recevoir [nom du produit numérique])"
 
+    📌 RÈGLE TOUT-EN-UNE : Si le client envoie plusieurs infos dans un seul message
+    (ex : "Koffi Diby, +2250700000001, Yop Maroc, koffi@email.com"), extraire dans l'ordre :
+    1er segment = Nom / 2e segment = Téléphone / 3e segment = Adresse / 4e segment = Email.
+    ✅ Confirmer directement et passer à l'étape suivante SANS redemander ce qui a été fourni.
+
     ❌ ERREUR GRAVE : Oublier l'email quand il y a un produit numérique
     ❌ ERREUR GRAVE : Demander l'email quand il n'y a PAS de produit numérique
 

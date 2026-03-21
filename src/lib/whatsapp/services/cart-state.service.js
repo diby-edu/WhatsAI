@@ -13,11 +13,11 @@ const CART_STAGE = {
 }
 
 const VARIANT_PRIORITY = {
-    size: 10,
-    weight: 20,
-    version: 30,
-    format: 40,
-    visual: 50,
+    visual: 10,   // Couleur en premier
+    size: 20,     // Taille en second
+    weight: 30,
+    version: 40,
+    format: 50,
 }
 
 function normalizeText(value) {
@@ -990,12 +990,18 @@ function buildLineFromDraft(product, draftItem, index = 1) {
     const unitPrice = pricing.price || product.price_fcfa || 0
     const lineTotal = unitPrice * draftItem.quantity
 
+    // Variantes triées par priorité (couleur avant taille) pour l'affichage panier
+    const sortedVariantLabels = getRequiredVariants(product)
+        .map(v => selectedVariantsMap[v.id])
+        .filter(Boolean)
+
     return {
         line: {
             ...cloneItem(draftItem),
             line_id: `line_${Date.now()}_${index}`,
             unit_price: unitPrice,
             line_total: lineTotal,
+            variant_labels: sortedVariantLabels.length > 0 ? sortedVariantLabels : null,
         }
     }
 }
@@ -1036,7 +1042,9 @@ function mergeOrAppendCartLine(cartItems = [], newLine) {
 }
 
 function formatLineLabel(item) {
-    const variants = Object.values(item.selected_variants || {}).filter(Boolean).join(', ')
+    const variants = item.variant_labels
+        ? item.variant_labels.join(', ')
+        : Object.values(item.selected_variants || {}).filter(Boolean).join(', ')
     const variantSuffix = variants ? ` (${variants})` : ''
     const total = item.line_total != null
         ? item.line_total
