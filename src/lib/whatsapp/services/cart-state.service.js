@@ -478,26 +478,15 @@ function parseBatchCombinationLines(product, text) {
         lines.push(lineResult.line)
     }
 
-    // Des segments avaient une quantité mais des variantes manquantes → demander de compléter
+    // Des segments avaient une quantité mais des variantes manquantes → flow one-by-one
     if (missingVariantSegments.length > 0) {
-        const descriptions = missingVariantSegments.map(({ quantity, item }) => {
-            const knownVals = Object.values(item.selected_variants || {}).filter(Boolean)
-            const knownLabel = knownVals.length > 0 ? knownVals.join(' / ') : '?'
-            const missingVars = getRequiredVariants(product)
-                .filter(v => !getSelectedVariantValue(item, v.id))
-                .map(v => getVariantLabel(v).toLowerCase())
-            return `${quantity} × ${knownLabel} (${missingVars.join(', ')} ?)`
-        })
-        const firstMissingVar = getRequiredVariants(product).find(v =>
-            missingVariantSegments.some(({ item }) => !getSelectedVariantValue(item, v.id))
-        )
-        const availableOpts = firstMissingVar
-            ? (firstMissingVar.options || []).map(o => getOptionValue(o)).filter(Boolean).join(', ')
-            : ''
-
         return {
-            status: 'missing_variants_and_quantities',
-            prompt: `Je vois : ${descriptions.join(', ')}.\nMerci de préciser les informations manquantes.${availableOpts ? `\n${getVariantLabel(firstMissingVar)} disponibles : ${availableOpts}.` : ''}`,
+            status: 'missing_variant_sequential',
+            queue: missingVariantSegments.map(({ quantity, item }) => {
+                const knownVals = Object.values(item.selected_variants || {}).filter(Boolean)
+                const knownLabel = knownVals.length > 0 ? knownVals.join(' / ') : '?'
+                return { quantity, item, known_label: knownLabel }
+            }),
             lines: [],
             segments,
         }
@@ -1132,6 +1121,21 @@ function resolveBatchProduct(products, state, text) {
     return null
 }
 
+function buildVariantQuestion(product, partialItem, quantity, knownLabel) {
+    const missingVars = getRequiredVariants(product)
+        .filter(v => !getSelectedVariantValue(partialItem, v.id))
+    const firstMissing = missingVars[0]
+    if (!firstMissing) return null
+
+    const opts = (firstMissing.options || []).map(o => getOptionValue(o)).filter(Boolean)
+    const optsStr = opts.join(', ')
+    const example = opts[0] || '?'
+    const varLabel = getVariantLabel(firstMissing)
+    const quantityPrefix = quantity > 1 ? `les ${quantity} × ${knownLabel}` : `le ${knownLabel}`
+
+    return `Quelle ${varLabel.toLowerCase()} pour ${quantityPrefix} ?\n(${optsStr} — répondez simplement ex : "${example}")`
+}
+
 function updateCartStateFromUserMessage(previousState, text, products = []) {
     const state = cloneCartState(previousState)
     const normalized = normalizeText(text)
@@ -1237,6 +1241,69 @@ function updateCartStateFromUserMessage(previousState, text, products = []) {
             // → reset pour laisser tomber dans le batch parse
             state.awaiting_field = null
             state.draft_item = createDraftItem(product)
+        }
+    }
+
+    // Handler missing_variant_one_by_one : bot pose une question par variante manquante
+    if (state.awaiting_field?.type === 'missing_variant_one_by_one') {
+        const { product_id, queue, current_index, pending_lines } = state.awaiting_field
+        const product = findProductById(products, product_id)
+
+        if (product && queue && current_index < queue.length) {
+            const current = queue[current_index]
+
+            // Tenter d'extraire la variante manquante depuis la réponse du client
+            const probe = extractVariantsFromText(product, normalized, cloneItem(current.item))
+            const completedItem = probe.item
+
+            if (hasAllRequiredVariants(product, completedItem)) {
+                completedItem.quantity = current.quantity
+                const lineResult = buildLineFromDraft(product, completedItem, 1)
+
+                if (!lineResult.error) {
+                    const newPendingLines = [...(pending_lines || []), lineResult.line]
+                    const nextIndex = current_index + 1
+
+                    if (nextIndex >= queue.length) {
+                        // Tous les items complétés → récap final
+                        for (const line of newPendingLines) {
+                            state.cart_items = mergeOrAppendCartLine(state.cart_items, line)
+                        }
+                        state.draft_item = null
+                        state.stage = CART_STAGE.CART_RECAP
+                        state.awaiting_field = buildCartActionField()
+                        state.last_prompt_kind = CART_STAGE.CART_RECAP
+                        state.last_prompt_text = normalized
+                        return {
+                            state, capturedFields,
+                            stateChanged: true, shouldBypassAI: true,
+                            directReply: buildBatchCartReply(state, newPendingLines),
+                        }
+                    }
+
+                    // Passer à l'item suivant
+                    const next = queue[nextIndex]
+                    state.awaiting_field = {
+                        ...state.awaiting_field,
+                        current_index: nextIndex,
+                        pending_lines: newPendingLines,
+                    }
+                    const question = buildVariantQuestion(product, next.item, next.quantity, next.known_label)
+                    return {
+                        state, capturedFields,
+                        stateChanged: true, shouldBypassAI: true,
+                        directReply: question,
+                    }
+                }
+            }
+
+            // Variante non reconnue → re-poser la même question
+            const question = buildVariantQuestion(product, current.item, current.quantity, current.known_label)
+            return {
+                state, capturedFields,
+                stateChanged: false, shouldBypassAI: true,
+                directReply: question,
+            }
         }
     }
 
@@ -1348,14 +1415,25 @@ function updateCartStateFromUserMessage(previousState, text, products = []) {
             }
         }
 
-        if (batchParse.status === 'missing_variants_and_quantities') {
-            // Combos avec variantes manquantes → demander de re-préciser sans laisser l'IA inventer
+        if (batchParse.status === 'missing_variant_sequential') {
+            // Variantes manquantes → poser une question par item, dans l'ordre
+            const first = batchParse.queue[0]
+            state.draft_item = createDraftItem(batchProduct)
+            state.stage = CART_STAGE.COLLECTING_ITEM
+            state.awaiting_field = {
+                type: 'missing_variant_one_by_one',
+                product_id: batchProduct.id,
+                queue: batchParse.queue,
+                current_index: 0,
+                pending_lines: [],
+            }
+            const question = buildVariantQuestion(batchProduct, first.item, first.quantity, first.known_label)
             return {
                 state,
                 capturedFields,
-                stateChanged: false,
+                stateChanged: true,
                 shouldBypassAI: true,
-                directReply: batchParse.prompt,
+                directReply: question,
             }
         }
 
