@@ -285,6 +285,38 @@ function extractQuantity(text) {
     return quantity
 }
 
+/**
+ * Extraction de quantité intelligente pour les segments multi-produits.
+ * Distingue la quantité (1-2 chiffres en début ou fin isolée) des tailles
+ * qui apparaissent au milieu du segment (ex: "41-43", "36", "XL").
+ *
+ * Cas gérés :
+ *   "2 T-shirt Noir L"    → 2 (début)
+ *   "T-shirt Noir L 2"    → 2 (fin isolée)
+ *   "3 Chaussettes 41-43" → 3 (début)
+ *   "Chaussettes 41-43 3" → 3 (fin isolée)
+ */
+function extractQuantityFromSegment(text) {
+    const normalized = normalizeText(text)
+    if (!normalized) return null
+
+    // Cas 1 : nombre au DÉBUT suivi d'au moins un caractère non-chiffre
+    const startMatch = normalized.match(/^(\d{1,3})(?:\s|$)/)
+    if (startMatch) {
+        const qty = Number(startMatch[1])
+        if (qty > 0) return qty
+    }
+
+    // Cas 2 : nombre ISOLÉ en FIN (précédé d'un espace ou début de chaîne)
+    const endMatch = normalized.match(/(?:^|\s)(\d{1,3})$/)
+    if (endMatch) {
+        const qty = Number(endMatch[1])
+        if (qty > 0) return qty
+    }
+
+    return null
+}
+
 function getSelectedVariantValue(item, variantId) {
     return item?.selected_variants_by_id?.[variantId] || null
 }
@@ -512,6 +544,295 @@ function hasPricedCombinations(product) {
     return prices.length > 0 && new Set(prices).size > 1
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// NIVEAU D'AFFICHAGE DES PRIX
+// N1 : prix identique sur tout le produit
+// N2 : prix varie par une variante dominante (ex: couleur) mais constant pour les autres
+// N3 : prix varie vraiment par combo individuel
+// ─────────────────────────────────────────────────────────────────────────────
+function detectPricingLevel(product) {
+    const combos = (product.combinations || []).filter(c => c.available !== false)
+    if (!hasPricedCombinations(product)) return 'N1'
+
+    const variants = getRequiredVariants(product)
+    // Tester chaque groupe : si regrouper par ce groupe donne des groupes iso-prix → N2
+    for (const variant of variants) {
+        const groups = {}
+        let allHavePrice = true
+        for (const combo of combos) {
+            const oId = (combo.attributes || {})[variant.id]
+            if (!oId) { allHavePrice = false; break }
+            if (combo.price == null) { allHavePrice = false; break }
+            if (!groups[oId]) groups[oId] = new Set()
+            groups[oId].add(combo.price)
+        }
+        if (allHavePrice && Object.values(groups).every(priceSet => priceSet.size === 1)) {
+            return 'N2' // ce groupe est le pivot de prix
+        }
+    }
+    return 'N3'
+}
+
+// Construit le bloc d'affichage d'un produit selon son niveau de prix et son type.
+// Produit digital : pas de variantes physiques, affichage simplifié.
+// Produit service  : ne devrait pas arriver ici (flux booking), mais géré en fallback.
+// maxCombos : nombre max de combos affichés pour N3
+function buildProductBlock(product, maxCombos = 8) {
+    // Produit digital sans variantes requises → affichage simplifié
+    if (product.product_type === 'digital') {
+        const price = product.price_fcfa != null
+            ? `${Number(product.price_fcfa).toLocaleString('fr-FR')} FCFA`
+            : null
+        return {
+            level: 'N1',
+            text: price ? `*${product.name}* — ${price} (téléchargement immédiat)` : `*${product.name}* (téléchargement immédiat)`,
+            hasOverflow: false,
+            overflowCombos: [],
+        }
+    }
+
+    const level = detectPricingLevel(product)
+    const combos = (product.combinations || []).filter(c => c.available !== false)
+    const requiredVariants = getRequiredVariants(product)
+
+    // ── N1 : prix uniforme, affichage groupé par variante ──
+    if (level === 'N1') {
+        const basePrice = product.price_fcfa != null
+            ? `${Number(product.price_fcfa).toLocaleString('fr-FR')} FCFA`
+            : (combos[0]?.price != null ? `${Number(combos[0].price).toLocaleString('fr-FR')} FCFA` : null)
+        const header = basePrice ? `*${product.name}* — ${basePrice}` : `*${product.name}*`
+
+        const variantLines = requiredVariants.map(variant => {
+            const label = getVariantLabel(variant)
+            const opts = (variant.options || []).map(o => getOptionValue(o)).filter(Boolean).join(' · ')
+            return `${label} : ${opts}`
+        })
+        return {
+            level: 'N1',
+            text: [header, ...variantLines].join('\n'),
+            hasOverflow: false,
+            overflowCombos: [],
+        }
+    }
+
+    // ── N2 : prix par groupe pivot, afficher chaque option avec ses tailles dispo ──
+    // Si le pivot n'est pas trouvé, on ne retourne pas — on laisse tomber vers N3.
+    if (level === 'N2') {
+        let pivotVariant = null
+        let pivotGroups = {}
+        for (const variant of requiredVariants) {
+            const groups = {}
+            let valid = true
+            for (const combo of combos) {
+                const oId = (combo.attributes || {})[variant.id]
+                if (!oId || combo.price == null) { valid = false; break }
+                if (!groups[oId]) groups[oId] = new Set()
+                groups[oId].add(combo.price)
+            }
+            if (valid && Object.values(groups).every(s => s.size === 1)) {
+                pivotVariant = variant
+                pivotGroups = groups
+                break
+            }
+        }
+
+        if (pivotVariant) {
+            const otherVariants = requiredVariants.filter(v => v.id !== pivotVariant.id)
+            const lines = (pivotVariant.options || []).map(pivotOption => {
+                const oId = pivotOption.id
+                const oVal = getOptionValue(pivotOption)
+                const availableCombos = combos.filter(c => (c.attributes || {})[pivotVariant.id] === oId)
+                if (availableCombos.length === 0) return null
+
+                const price = [...(pivotGroups[oId] || new Set())][0]
+                const priceStr = price != null ? ` — ${Number(price).toLocaleString('fr-FR')} FCFA` : ''
+
+                if (otherVariants.length > 0) {
+                    const otherVariant = otherVariants[0]
+                    const availableOtherIds = new Set(availableCombos.map(c => (c.attributes || {})[otherVariant.id]).filter(Boolean))
+                    const availableOpts = (otherVariant.options || [])
+                        .filter(o => availableOtherIds.has(o.id))
+                        .map(o => getOptionValue(o))
+                        .filter(Boolean)
+                        .join(' · ')
+                    return `· ${oVal} : ${availableOpts}${priceStr}`
+                }
+                return `· ${oVal}${priceStr}`
+            }).filter(Boolean)
+
+            return {
+                level: 'N2',
+                text: `*${product.name}*\n${lines.join('\n')}`,
+                hasOverflow: false,
+                overflowCombos: [],
+            }
+        }
+        // Pivot non trouvé → fall-through vers N3 ci-dessous (pas de récursion)
+    }
+
+    // ── N3 : prix par combo, liste tronquée à maxCombos ──
+    const prices = combos.map(c => c.price).filter(p => p != null)
+    const minPrice = Math.min(...prices)
+    const maxPrice = Math.max(...prices)
+    const priceRange = minPrice === maxPrice
+        ? `${Number(minPrice).toLocaleString('fr-FR')} FCFA`
+        : `${Number(minPrice).toLocaleString('fr-FR')} à ${Number(maxPrice).toLocaleString('fr-FR')} FCFA`
+
+    const shown = combos.slice(0, maxCombos)
+    const overflow = combos.slice(maxCombos)
+
+    const comboLines = shown.map(combo => {
+        const label = resolveCombinationLabel(product, combo)
+        const price = combo.price != null ? ` — ${Number(combo.price).toLocaleString('fr-FR')} FCFA` : ''
+        return `· ${label}${price}`
+    })
+
+    // Nom court pour "plus [nom_court]"
+    const shortName = normalizeText(product.name).split(' ')[0]
+    if (overflow.length > 0) {
+        comboLines.push(`(+ ${overflow.length} autres : tapez "plus ${shortName}")`)
+    }
+
+    return {
+        level: 'N3',
+        text: `*${product.name}* — ${priceRange}\n${comboLines.join('\n')}`,
+        hasOverflow: overflow.length > 0,
+        overflowCombos: overflow,
+        shortName,
+    }
+}
+
+// Détecte plusieurs produits dans un message client (seuil abaissé à 15)
+// Les produits de type 'service' sont exclus (ils ont leur propre flux de réservation)
+function detectMultipleProducts(text, products) {
+    const eligibleProducts = products.filter(p => p.product_type !== 'service')
+    const segments = text.split(/\s*(?:et|puis|,|\/|\+)\s*/i).map(s => normalizeText(s)).filter(Boolean)
+    const seen = new Set()
+    const result = []
+    for (const segment of segments) {
+        if (!segment || segment.length < 2) continue
+        // findBestProduct avec seuil 15 au lieu de 30
+        let best = null
+        let bestScore = 0
+        for (const product of eligibleProducts) {
+            const productName = normalizeText(product.name)
+            if (!productName) continue
+            let score = 0
+            if (segment === productName) score = 120
+            else if (segment.includes(productName) || productName.includes(segment)) score = 70
+            else {
+                const terms = segment.split(' ').filter(t => t.length > 2)
+                score = terms.filter(t => productName.includes(t)).length * 15
+            }
+            if (score >= 15 && score > bestScore) { bestScore = score; best = product }
+        }
+        if (best && !seen.has(best.id)) {
+            seen.add(best.id)
+            result.push(best)
+        }
+    }
+    return result.length >= 2 ? result : []
+}
+
+// Construit le prompt multi-produits avec ①②③ numérotation
+function buildMultiProductPrompt(products) {
+    const count = products.length
+    const maxCombos = count >= 4 ? 3 : count === 3 ? 4 : count === 2 ? 6 : 8
+    const NUMBERS = ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩']
+
+    const overflow = {}
+    const blocks = products.map((product, i) => {
+        const block = buildProductBlock(product, maxCombos)
+        if (block.hasOverflow) overflow[product.id] = block.overflowCombos
+        return `${NUMBERS[i] || `${i + 1}.`} ${block.text}`
+    })
+
+    // Exemple de réponse
+    const exParts = products.slice(0, 3).map(p => {
+        const name = p.name.split(' ')[0]
+        const vars = getRequiredVariants(p)
+        const opts = vars.map(v => (v.options || [])[0]).filter(Boolean).map(o => getOptionValue(o))
+        return `2 ${name} ${opts.join(' ')}`
+    })
+
+    // Label dynamique selon les variantes réellement présentes
+    const hasVariants = products.some(p => getRequiredVariants(p).length > 0)
+    const fieldLabel = hasVariants ? 'Précisez variante(s) + quantité pour chaque :' : 'Précisez la quantité pour chaque :'
+
+    const prompt = [
+        'Voici les choix disponibles pour chaque article :',
+        '',
+        blocks.join('\n\n'),
+        '',
+        fieldLabel,
+        `(ex : "${exParts.join(', ')}")`,
+    ].join('\n')
+
+    return { prompt, overflow }
+}
+
+/**
+ * Parse une réponse client multi-produits.
+ *
+ * Formats supportés (tout en un ou ligne par ligne) :
+ *   "2 Robe Noire XL, 1 Veste Rose S"
+ *   "2 T-shirt Noir L\n1 Casquette Bleu\n3 Chaussettes 41-43"
+ *   "T-shirt Noir L 2"  ← quantité en fin de segment
+ *   "Casquette Bleu 1"
+ *
+ * Les produits de type 'service' sont ignorés (flux booking séparé).
+ * Si la quantité est absente d'un segment, elle est supposée = 1.
+ */
+function parseMultiProductBatchLines(products, text) {
+    const eligibleProducts = products.filter(p => p.product_type !== 'service')
+
+    const segments = text
+        .split(/\s*(?:et|puis|\+)\s*|[;,]\s*|\n+\s*/i)
+        .map(s => normalizeText(s))
+        .filter(Boolean)
+
+    const lines = []
+
+    for (const segment of segments) {
+        if (!segment) continue
+
+        // Trouver le produit pour ce segment (scoring par tokens)
+        let targetProduct = null
+        let bestScore = 0
+        for (const product of eligibleProducts) {
+            const productName = normalizeText(product.name)
+            const terms = productName.split(' ').filter(t => t.length > 2)
+            const score = terms.filter(t => segment.includes(t)).length * 20
+                + (segment.includes(productName) ? 50 : 0)
+            if (score > bestScore) { bestScore = score; targetProduct = product }
+        }
+
+        if (!targetProduct || bestScore === 0) {
+            return { status: 'missing_product', segment, lines: [] }
+        }
+
+        // Quantité : extraction intelligente (début ou fin), défaut = 1
+        const quantity = extractQuantityFromSegment(segment) || 1
+
+        const draftItem = createDraftItem(targetProduct)
+        draftItem.quantity = quantity
+        const variantCapture = extractVariantsFromText(targetProduct, segment, draftItem)
+        const completedItem = variantCapture.item
+
+        // Les produits digitaux sans variante requise passent directement
+        if (!hasAllRequiredVariants(targetProduct, completedItem)) {
+            return { status: 'missing_variants', segment, product: targetProduct, lines: [] }
+        }
+
+        const lineResult = buildLineFromDraft(targetProduct, completedItem, lines.length + 1)
+        if (lineResult.error) return { status: 'error', error: lineResult.error, lines: [] }
+        lines.push(lineResult.line)
+    }
+
+    if (lines.length === 0) return { status: 'invalid', lines: [] }
+    return { status: 'success', lines }
+}
+
 function buildAwaitingField(product, item) {
     if (!item) return null
 
@@ -519,40 +840,26 @@ function buildAwaitingField(product, item) {
     const allVariantsMissing = requiredVariants.length > 0 &&
         requiredVariants.every(v => !getSelectedVariantValue(item, v.id))
 
-    // Début de collecte : aucune variante ni quantité — présenter tout en un seul message
+    // Début de collecte : aucune variante ni quantité — présenter avec N1/N2/N3
     if (!item.quantity && allVariantsMissing) {
-        if (hasPricedCombinations(product)) {
-            const available = (product.combinations || []).filter(c => c.available !== false)
-            const lines = available.slice(0, 10).map(combo => {
-                const label = resolveCombinationLabel(product, combo)
-                const price = combo.price != null
-                    ? ` — ${Number(combo.price).toLocaleString('fr-FR')} FCFA`
-                    : ''
-                return `· ${label}${price}`
-            })
-            if (available.length > 10) lines.push(`· ... et ${available.length - 10} autre(s).`)
+        const block = buildProductBlock(product, 8)
+        const example = '(ex : "2 Noire L et 1 Grise M")'
+        const basePrompt = block.text + '\n\n' + example
+
+        if (block.level === 'N1' || block.level === 'N2') {
             return {
                 type: 'quantity',
-                label: 'choix_et_quantite',
-                prompt: `Voici les choix disponibles pour ${product.name} :\n${lines.join('\n')}\nLequel souhaitez-vous et en quelle quantité ?`
+                label: block.level === 'N1' ? 'N1_grouped' : 'N2_by_color',
+                prompt: basePrompt,
             }
         }
 
-        if (requiredVariants.length > 0) {
-            const groups = requiredVariants.map(variant => {
-                const label = getVariantLabel(variant)
-                const opts = (variant.options || []).map(o => getOptionValue(o)).filter(Boolean).join(', ')
-                return `${label}s : ${opts}`
-            })
-            const variantLabels = requiredVariants.map(v => getVariantLabel(v).toLowerCase() + 's')
-            const intro = `Voici les ${variantLabels.join(' et ')} disponibles :`
-            const question = `Quelle ${requiredVariants.map(v => getVariantLabel(v).toLowerCase()).join(', ')} et quantité souhaitez-vous ?`
-            return {
-                type: 'quantity',
-                label: 'variantes_et_quantite',
-                prompt: `${intro}\n${groups.join('\n')}\n${question}`
-            }
+        // N3 : stocker l'overflow pour "plus [produit]"
+        const field = { type: 'quantity', label: 'N3_combos', prompt: basePrompt }
+        if (block.hasOverflow) {
+            field.overflow = { [product.id]: block.overflowCombos }
         }
+        return field
     }
 
     if (!item.quantity) {
@@ -819,6 +1126,30 @@ function updateCartStateFromUserMessage(previousState, text, products = []) {
         return { state, capturedFields, stateChanged, shouldBypassAI, directReply: null }
     }
 
+    // Handler "plus [produit]" : afficher les combos overflow restants
+    const plusMatch = normalized.match(/^plus\s+(.+)$/)
+    if (plusMatch && state.awaiting_field?.overflow) {
+        const productQuery = normalizeText(plusMatch[1])
+        const overflow = state.awaiting_field.overflow
+        const targetProduct = products.find(p => {
+            const name = normalizeText(p.name)
+            return name.includes(productQuery) || productQuery.includes(name.split(' ')[0])
+        })
+        if (targetProduct && overflow[targetProduct.id]?.length > 0) {
+            const remaining = overflow[targetProduct.id]
+            const lines = remaining.map(combo => {
+                const label = resolveCombinationLabel(targetProduct, combo)
+                const price = combo.price != null ? ` — ${Number(combo.price).toLocaleString('fr-FR')} FCFA` : ''
+                return `· ${label}${price}`
+            }).join('\n')
+            return {
+                state, capturedFields,
+                stateChanged: false, shouldBypassAI: true,
+                directReply: `*${targetProduct.name}* — combinaisons restantes :\n${lines}`,
+            }
+        }
+    }
+
     // Handler partial_combos : client répond aux quantités après "Combien de chaque ?"
     if (state.awaiting_field?.type === 'partial_combos') {
         const partialCombos = state.awaiting_field.partialCombos || []
@@ -889,6 +1220,79 @@ function updateCartStateFromUserMessage(previousState, text, products = []) {
             // → reset pour laisser tomber dans le batch parse
             state.awaiting_field = null
             state.draft_item = createDraftItem(product)
+        }
+    }
+
+    // Handler multi_product_combos : réponse client "2 Robe Noire XL, 1 Veste Rose S"
+    // Supporte aussi les réponses ligne par ligne ou message par message.
+    if (state.awaiting_field?.type === 'multi_product_combos') {
+        const productList = (state.awaiting_field.product_ids || [])
+            .map(id => findProductById(products, id))
+            .filter(Boolean)
+
+        if (productList.length > 0) {
+            const result = parseMultiProductBatchLines(productList, normalized)
+
+            if (result.status === 'success' && result.lines.length > 0) {
+                // Fusionner avec les lignes déjà collectées (messages précédents)
+                const previousLines = state.awaiting_field.lines_collected || []
+                const allLines = [...previousLines, ...result.lines]
+
+                // Vérifier si tous les produits attendus sont couverts
+                const coveredIds = new Set(allLines.map(l => l.product_id))
+                const allCovered = (state.awaiting_field.product_ids || []).every(id => coveredIds.has(id))
+
+                if (allCovered) {
+                    for (const line of allLines) {
+                        state.cart_items = mergeOrAppendCartLine(state.cart_items, line)
+                    }
+                    state.draft_item = null
+                    state.stage = CART_STAGE.CART_RECAP
+                    state.awaiting_field = buildCartActionField()
+                    state.last_prompt_kind = CART_STAGE.CART_RECAP
+                    state.last_prompt_text = normalized
+                    return {
+                        state, capturedFields,
+                        stateChanged: true, shouldBypassAI: true,
+                        directReply: buildBatchCartReply(state, allLines),
+                    }
+                }
+
+                // Pas encore complet : stocker et indiquer ce qui manque
+                const missingNames = (state.awaiting_field.product_ids || [])
+                    .filter(id => !coveredIds.has(id))
+                    .map(id => findProductById(products, id))
+                    .filter(Boolean)
+                    .map(p => p.name)
+                    .join(', ')
+
+                state.awaiting_field = { ...state.awaiting_field, lines_collected: allLines }
+                return {
+                    state, capturedFields,
+                    stateChanged: true, shouldBypassAI: true,
+                    directReply: `Noté ! Il reste : ${missingNames}.\nPrécisez variante(s) + quantité pour cet article.`,
+                }
+            }
+
+            if (result.status === 'missing_product') {
+                return {
+                    state, capturedFields,
+                    stateChanged: false, shouldBypassAI: true,
+                    directReply: `Je n'ai pas identifié le produit pour : "${result.segment}".\nPrécisez le nom de l'article (ex : "2 Robe Noire XL").`,
+                }
+            }
+
+            if (result.status === 'missing_variants' && result.product) {
+                const variantNames = getRequiredVariants(result.product)
+                    .filter(v => !getSelectedVariantValue(createDraftItem(result.product), v.id))
+                    .map(v => getVariantLabel(v).toLowerCase())
+                    .join(', ')
+                return {
+                    state, capturedFields,
+                    stateChanged: false, shouldBypassAI: true,
+                    directReply: `Pour "${result.product.name}", précisez : ${variantNames || 'les variantes requises'} (ex : "2 ${result.product.name.split(' ')[0]} Noire L").`,
+                }
+            }
         }
     }
 
@@ -1066,6 +1470,27 @@ function updateCartStateFromUserMessage(previousState, text, products = []) {
             state.last_prompt_kind = CART_STAGE.CHECKOUT
             state.last_prompt_text = normalized
             return { state, capturedFields, stateChanged: true, shouldBypassAI: false, directReply: null }
+        }
+    }
+
+    // Détection multi-produits (ex: "robe et veste") — uniquement si panier vide
+    if (!state.draft_item && !(state.cart_items?.length > 0)) {
+        const multiProducts = detectMultipleProducts(normalized, products)
+        if (multiProducts.length >= 2) {
+            const { prompt, overflow } = buildMultiProductPrompt(multiProducts)
+            state.stage = CART_STAGE.COLLECTING_ITEM
+            state.awaiting_field = {
+                type: 'multi_product_combos',
+                product_ids: multiProducts.map(p => p.id),
+                overflow,
+            }
+            state.last_prompt_kind = CART_STAGE.COLLECTING_ITEM
+            state.last_prompt_text = normalized
+            return {
+                state, capturedFields,
+                stateChanged: true, shouldBypassAI: true,
+                directReply: prompt,
+            }
         }
     }
 
