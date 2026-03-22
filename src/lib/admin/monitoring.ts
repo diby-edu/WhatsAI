@@ -35,7 +35,7 @@ function sortAlerts(alerts: AdminAlert[]) {
 export async function getAgentOperationalMetrics(adminSupabase: SupabaseClient) {
     const { data: agents, error } = await adminSupabase
         .from('agents')
-        .select('id, is_active, whatsapp_connected, whatsapp_status, whatsapp_phone')
+        .select('id, is_active, whatsapp_connected, whatsapp_status, whatsapp_phone, whatsapp_ever_connected')
 
     if (error) throw error
 
@@ -63,7 +63,7 @@ export async function buildAdminAlerts(adminSupabase: SupabaseClient): Promise<A
     const [agentsResult, lowCreditsResult, paymentsResult, payoutsResult] = await Promise.all([
         adminSupabase
             .from('agents')
-            .select('id, name, is_active, whatsapp_connected, whatsapp_status, whatsapp_phone, last_message_at, updated_at'),
+            .select('id, name, is_active, whatsapp_connected, whatsapp_status, whatsapp_phone, whatsapp_ever_connected, last_message_at, updated_at'),
         adminSupabase
             .from('profiles')
             .select('id, full_name, credits_balance')

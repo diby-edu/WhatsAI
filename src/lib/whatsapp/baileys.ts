@@ -167,7 +167,8 @@ export async function initWhatsAppSession(
                     .from('agents')
                     .update({
                         whatsapp_connected: true,
-                        whatsapp_phone: phoneNumber
+                        whatsapp_phone: phoneNumber,
+                        whatsapp_ever_connected: true
                     })
                     .eq('id', agentId)
                 console.log(`✅ Database updated: agent ${agentId} marked as connected`)

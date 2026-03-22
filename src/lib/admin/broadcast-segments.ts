@@ -79,7 +79,7 @@ async function fetchProfiles(
 async function getUserIdsForAgentStatus(adminSupabase: any, status: AgentOperationalStatus): Promise<string[]> {
     const { data, error } = await adminSupabase
         .from('agents')
-        .select('user_id, is_active, whatsapp_connected, whatsapp_status, whatsapp_phone')
+        .select('user_id, is_active, whatsapp_connected, whatsapp_status, whatsapp_phone, whatsapp_ever_connected')
         .not('user_id', 'is', null)
 
     if (error) throw error
@@ -136,4 +136,3 @@ export async function getUserIdsForBroadcastSegment(adminSupabase: any, segment?
 export async function getEmailRecipientsForBroadcastSegment(adminSupabase: any, segment?: string | null) {
     return getProfilesForBroadcastSegment(adminSupabase, segment, { requireEmail: true })
 }
-

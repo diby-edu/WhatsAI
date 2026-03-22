@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -36,6 +36,7 @@ type AdminAgent = {
     whatsapp_connected: boolean
     whatsapp_status?: string | null
     whatsapp_phone?: string | null
+    whatsapp_ever_connected?: boolean | null
     operationalStatus: string
     operationalLabel: string
     operationalDetail: string
@@ -184,7 +185,7 @@ export default function AdminAgentsPage() {
                 <div>
                     <h1 style={{ fontSize: 28, fontWeight: 700, color: 'white', marginBottom: 8 }}>Agents IA</h1>
                     <p style={{ color: '#94a3b8' }}>
-                        {agents.length} agents • {statusCounts.connected} connectes • {statusCounts.qr_ready} QR a scanner • {statusCounts.reconnect_required} a reconnecter • {statusCounts.paused} en pause
+                        {agents.length} agents â€¢ {statusCounts.connected} connectes â€¢ {statusCounts.qr_ready} a connecter â€¢ {statusCounts.reconnect_required} a reconnecter â€¢ {statusCounts.paused} en pause
                     </p>
                 </div>
                 <button
@@ -495,3 +496,4 @@ function InfoRow({ label, value, mono }: { label: string; value: string; mono?: 
         </div>
     )
 }
+

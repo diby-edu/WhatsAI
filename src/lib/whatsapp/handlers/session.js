@@ -169,7 +169,8 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                 const updateData = {
                     whatsapp_connected: true,
                     whatsapp_qr_code: null,
-                    whatsapp_status: 'connected'
+                    whatsapp_status: 'connected',
+                    whatsapp_ever_connected: true
                 }
                 if (phoneNumber) updateData.whatsapp_phone = phoneNumber
 

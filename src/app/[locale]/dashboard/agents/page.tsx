@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
@@ -11,14 +11,18 @@ import {
     Edit,
     Power,
     MessageSquare,
-    CheckCircle,
-    XCircle,
     Loader2,
     Smartphone,
     Crown
 } from 'lucide-react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
+import {
+    getAgentOperationalColors,
+    getAgentOperationalDetail,
+    getAgentOperationalLabel,
+    getAgentOperationalStatus,
+} from '@/lib/admin/agent-status'
 
 interface Agent {
     id: string
@@ -28,6 +32,7 @@ interface Agent {
     whatsapp_connected: boolean
     whatsapp_phone: string | null
     whatsapp_status: string | null
+    whatsapp_ever_connected?: boolean | null
     is_active: boolean
     total_messages: number
     total_conversations: number
@@ -180,7 +185,7 @@ export default function AgentsPage() {
                             }}
                         >
                             <Plus style={{ width: 20, height: 20 }} />
-                            Passer au plan supérieur
+                            Passer au plan supÃ©rieur
                         </Link>
                     ) : (
                         <Link
@@ -235,7 +240,14 @@ export default function AgentsPage() {
 
             {/* Agents Grid */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 24 }}>
-                {filteredAgents.map((agent, index) => (
+                {filteredAgents.map((agent, index) => {
+                    const operationalStatus = getAgentOperationalStatus(agent)
+                    const operationalLabel = getAgentOperationalLabel(operationalStatus)
+                    const operationalDetail = getAgentOperationalDetail(agent)
+                    const operationalColors = getAgentOperationalColors(operationalStatus)
+                    const StatusIcon = operationalStatus === 'qr_ready' ? MessageSquare : Smartphone
+
+                    return (
                     <motion.div
                         key={agent.id}
                         initial={{ opacity: 0, y: 20 }}
@@ -243,40 +255,13 @@ export default function AgentsPage() {
                         transition={{ delay: index * 0.1 }}
                         style={{ ...cardStyle, position: 'relative' }}
                     >
-                        {/* Status indicator */}
-                        <div style={{ position: 'absolute', top: 16, right: 16 }}>
-                            <span style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 4,
-                                padding: '4px 10px',
-                                borderRadius: 100,
-                                fontSize: 12,
-                                fontWeight: 500,
-                                background: agent.is_active ? 'rgba(16, 185, 129, 0.1)' : 'rgba(51, 65, 85, 0.5)',
-                                color: agent.is_active ? '#34d399' : '#64748b'
-                            }}>
-                                {agent.is_active ? (
-                                    <>
-                                        <CheckCircle style={{ width: 12, height: 12 }} />
-                                        {t('card.active')}
-                                    </>
-                                ) : (
-                                    <>
-                                        <XCircle style={{ width: 12, height: 12 }} />
-                                        {t('card.inactive')}
-                                    </>
-                                )}
-                            </span>
-                        </div>
-
                         {/* Agent info */}
                         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 16 }}>
                             <div style={{
                                 width: 56,
                                 height: 56,
                                 borderRadius: 14,
-                                background: 'linear-gradient(135deg, #10b981, #059669)',
+                                background: operationalColors.iconBg,
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
@@ -300,6 +285,18 @@ export default function AgentsPage() {
                                     {agent.description || ''}
                                 </p>
                             </div>
+                            <span style={{
+                                padding: '6px 10px',
+                                borderRadius: 100,
+                                fontSize: 12,
+                                fontWeight: 600,
+                                background: operationalColors.badgeBg,
+                                color: operationalColors.badgeText,
+                                whiteSpace: 'nowrap',
+                                alignSelf: 'flex-start',
+                            }}>
+                                {operationalLabel}
+                            </span>
                         </div>
 
                         {/* WhatsApp status */}
@@ -312,35 +309,10 @@ export default function AgentsPage() {
                             borderRadius: 10,
                             marginBottom: 16
                         }}>
-                            {!agent.is_active ? (
-                                <>
-                                    <Smartphone style={{ width: 16, height: 16, color: '#fbbf24' }} />
-                                    <span style={{ fontSize: 14, color: '#fbbf24' }}>
-                                        Pause
-                                    </span>
-                                </>
-                            ) : agent.whatsapp_connected ? (
-                                <>
-                                    <Smartphone style={{ width: 16, height: 16, color: '#34d399' }} />
-                                    <span style={{ fontSize: 14, color: '#34d399' }}>
-                                        {agent.whatsapp_phone || t('card.connected')}
-                                    </span>
-                                </>
-                            ) : (agent.whatsapp_phone || agent.whatsapp_status === 'disconnected') ? (
-                                <>
-                                    <Smartphone style={{ width: 16, height: 16, color: '#f97316' }} />
-                                    <span style={{ fontSize: 14, color: '#f97316' }}>
-                                        À reconnecter
-                                    </span>
-                                </>
-                            ) : (
-                                <>
-                                    <MessageSquare style={{ width: 16, height: 16, color: '#64748b' }} />
-                                    <span style={{ fontSize: 14, color: '#64748b' }}>
-                                        QR à scanner
-                                    </span>
-                                </>
-                            )}
+                            <StatusIcon style={{ width: 16, height: 16, color: operationalColors.badgeText }} />
+                            <span style={{ fontSize: 14, color: operationalColors.badgeText }}>
+                                {operationalDetail}
+                            </span>
                         </div>
 
                         {/* Stats */}
@@ -496,7 +468,8 @@ export default function AgentsPage() {
                             </Link>
                         </div>
                     </motion.div>
-                ))}
+                    )
+                })}
 
                 {/* Create new agent card */}
                 <motion.div
@@ -534,7 +507,7 @@ export default function AgentsPage() {
                                 : <Plus style={{ width: 32, height: 32, color: '#64748b' }} />}
                         </div>
                         <span style={{ fontSize: 18, fontWeight: 500, color: atLimit ? '#f59e0b' : '#94a3b8' }}>
-                            {atLimit ? 'Passer au plan supérieur' : t('emptyState.button')}
+                            {atLimit ? 'Passer au plan supÃ©rieur' : t('emptyState.button')}
                         </span>
                         <span style={{ fontSize: 14, color: '#64748b', marginTop: 4 }}>
                             {atLimit
@@ -557,7 +530,7 @@ export default function AgentsPage() {
                             <Crown style={{ width: 12, height: 12, color: '#64748b' }} />
                         </div>
                         <h2 style={{ fontSize: 15, fontWeight: 600, color: '#64748b', margin: 0 }}>
-                            Agents désactivés ({archivedAgents.length})
+                            Agents dÃ©sactivÃ©s ({archivedAgents.length})
                         </h2>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
@@ -590,7 +563,7 @@ export default function AgentsPage() {
                                             background: 'rgba(100, 116, 139, 0.2)',
                                             color: '#64748b'
                                         }}>
-                                            ⏸ Désactivé
+                                            â¸ DÃ©sactivÃ©
                                         </span>
                                     </div>
 
@@ -607,7 +580,7 @@ export default function AgentsPage() {
                                             <div style={{ fontSize: 15, fontWeight: 600, color: '#94a3b8' }}>{agent.name}</div>
                                             {agent.description && (
                                                 <div style={{ fontSize: 12, color: '#475569', marginTop: 2 }}>
-                                                    {agent.description.substring(0, 60)}{agent.description.length > 60 ? '…' : ''}
+                                                    {agent.description.substring(0, 60)}{agent.description.length > 60 ? 'â€¦' : ''}
                                                 </div>
                                             )}
                                         </div>
@@ -618,7 +591,7 @@ export default function AgentsPage() {
                                             fontSize: 11, color: '#ef4444', marginBottom: 12,
                                             display: 'flex', alignItems: 'center', gap: 4
                                         }}>
-                                            ⚠️ Suppression définitive le {deleteDate}
+                                            âš ï¸ Suppression dÃ©finitive le {deleteDate}
                                         </div>
                                     )}
 
@@ -640,7 +613,7 @@ export default function AgentsPage() {
                                         }}
                                     >
                                         <Crown style={{ width: 14, height: 14 }} />
-                                        Réactiver — Renouvelez votre abonnement
+                                        RÃ©activer â€” Renouvelez votre abonnement
                                     </Link>
                                 </div>
                             )
@@ -694,3 +667,4 @@ export default function AgentsPage() {
         </div>
     )
 }
+

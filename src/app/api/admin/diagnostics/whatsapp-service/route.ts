@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server'
+﻿import { NextRequest } from 'next/server'
 import { errorResponse, successResponse } from '@/lib/api-utils'
 import { requireAdminAccess } from '@/lib/admin/auth'
 import { getAgentOperationalMetrics } from '@/lib/admin/monitoring'
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
             agentConnections: {
                 status: agentConnections.connected > 0 ? 'ok' : 'warning',
                 message: `${agentConnections.connected}/${agentConnections.total} agents connectes`,
-                details: `QR: ${agentConnections.qr_ready} • Reconnexion: ${agentConnections.reconnect_required} • Pause: ${agentConnections.paused}`,
+                details: `A connecter: ${agentConnections.qr_ready} â€¢ A reconnecter: ${agentConnections.reconnect_required} â€¢ Pause: ${agentConnections.paused}`,
                 ...agentConnections,
             },
         })
@@ -56,3 +56,4 @@ export async function GET(request: NextRequest) {
         return errorResponse(err.message || 'Erreur serveur', 500)
     }
 }
+

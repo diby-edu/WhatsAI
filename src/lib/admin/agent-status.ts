@@ -5,10 +5,15 @@ export interface AgentStatusLike {
     whatsapp_connected?: boolean | null
     whatsapp_status?: string | null
     whatsapp_phone?: string | null
+    whatsapp_ever_connected?: boolean | null
+}
+
+export function hasAgentConnectedBefore(agent: AgentStatusLike): boolean {
+    return agent.whatsapp_ever_connected === true || agent.whatsapp_connected === true || !!agent.whatsapp_phone
 }
 
 export function getAgentOperationalStatus(agent: AgentStatusLike): AgentOperationalStatus {
-    if (!agent.is_active) {
+    if (agent.is_active === false) {
         return 'paused'
     }
 
@@ -16,7 +21,7 @@ export function getAgentOperationalStatus(agent: AgentStatusLike): AgentOperatio
         return 'connected'
     }
 
-    if (agent.whatsapp_phone || agent.whatsapp_status === 'disconnected') {
+    if (hasAgentConnectedBefore(agent)) {
         return 'reconnect_required'
     }
 
@@ -33,7 +38,7 @@ export function getAgentOperationalLabel(status: AgentOperationalStatus): string
             return 'A reconnecter'
         case 'qr_ready':
         default:
-            return 'QR a scanner'
+            return 'A connecter'
     }
 }
 
@@ -70,13 +75,15 @@ export function getAgentOperationalColors(status: AgentOperationalStatus) {
 export function getAgentOperationalDetail(agent: AgentStatusLike): string {
     const status = getAgentOperationalStatus(agent)
 
-    if (status === 'connected' && agent.whatsapp_phone) {
-        return agent.whatsapp_phone
+    switch (status) {
+        case 'connected':
+            return agent.whatsapp_phone || 'WhatsApp connecte'
+        case 'reconnect_required':
+            return 'Connexion WhatsApp perdue'
+        case 'paused':
+            return 'Agent desactive'
+        case 'qr_ready':
+        default:
+            return 'Premiere connexion en attente'
     }
-
-    if (status === 'reconnect_required' && agent.whatsapp_phone) {
-        return `${getAgentOperationalLabel(status)} (${agent.whatsapp_phone})`
-    }
-
-    return getAgentOperationalLabel(status)
 }
