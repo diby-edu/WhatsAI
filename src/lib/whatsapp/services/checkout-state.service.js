@@ -8,6 +8,7 @@ const CHECKOUT_STAGE = {
     IDLE: 'idle',
     CUSTOMER_FIELDS: 'customer_fields',
     PAYMENT_METHOD: 'payment_method',
+    CUSTOMER_RECAP: 'customer_recap',
     NOTES: 'notes',
     CONFIRMATION: 'confirmation',
     EDIT_SELECTION: 'edit_selection',
@@ -34,6 +35,7 @@ function cloneCheckoutState(checkout = {}) {
         last_prompt_kind: checkout.last_prompt_kind || null,
         last_prompt_text: checkout.last_prompt_text || null,
         note_declined: checkout.note_declined === true,
+        customer_recap_confirmed: checkout.customer_recap_confirmed === true,
         updated_at: checkout.updated_at || null,
     }
 }
@@ -265,6 +267,11 @@ function buildAwaitingField(field, context) {
             label: 'confirmation',
             prompt: 'Confirmez-vous cette commande ?'
         },
+        customer_recap: {
+            type: 'customer_recap',
+            label: 'recap informations client',
+            prompt: null,
+        },
         edit_selection: {
             type: 'edit_selection',
             label: 'modification',
@@ -321,6 +328,13 @@ function recomputeCheckoutProgress(state, context) {
         state.stage = CHECKOUT_STAGE.PAYMENT_METHOD
         state.pending_fields = ['payment_method']
         state.awaiting_field = buildAwaitingField('payment_method', context)
+        return state
+    }
+
+    if (!state.customer_recap_confirmed) {
+        state.stage = CHECKOUT_STAGE.CUSTOMER_RECAP
+        state.pending_fields = []
+        state.awaiting_field = buildAwaitingField('customer_recap', context)
         return state
     }
 
@@ -410,6 +424,19 @@ function buildOrderRecap(cartState = {}, checkoutState = {}, context) {
     return lines.join('\n')
 }
 
+function buildCustomerInfoRecap(checkoutState, context) {
+    const c = checkoutState.collected || {}
+    const paymentLabel = c.payment_method === 'cod' ? 'A la livraison' : 'En ligne'
+    const lines = ['Vos informations :']
+    lines.push(`- Nom : ${c.customer_name || 'Non renseigne'}`)
+    lines.push(`- Tel : ${c.customer_phone || 'Non renseigne'}`)
+    if (context.requiresEmail) lines.push(`- Email : ${c.email || 'Non renseigne'}`)
+    if (context.requiresAddress) lines.push(`- Adresse : ${c.delivery_address || 'Non renseignee'}`)
+    lines.push(`- Paiement : ${paymentLabel}`)
+    lines.push('', '1. Continuer', '2. Modifier une information')
+    return lines.join('\n')
+}
+
 function buildCapturedSummary(captured = []) {
     if (!captured || captured.length === 0) return ''
 
@@ -433,8 +460,12 @@ function buildStructuredCheckoutReply(state, cartState, products = [], captured 
     const context = buildCheckoutContext(cartState, products)
     const acknowledgement = buildCapturedSummary(captured)
 
+    if (state.stage === CHECKOUT_STAGE.CUSTOMER_RECAP) {
+        return [acknowledgement, buildCustomerInfoRecap(state, context)].filter(Boolean).join('\n\n')
+    }
+
     if (state.stage === CHECKOUT_STAGE.EDIT_SELECTION) {
-        return 'D accord. Que souhaitez-vous modifier ? (nom, telephone, email, adresse, paiement ou note)'
+        return [acknowledgement, state.awaiting_field.prompt].filter(Boolean).join('\n\n')
     }
 
     if (state.stage === CHECKOUT_STAGE.CONFIRMATION) {
@@ -482,11 +513,13 @@ function detectFieldToEdit(text, context) {
 function reopenFieldForEdition(state, field, context) {
     if (field === 'payment_method') {
         state.collected.payment_method = null
+        state.customer_recap_confirmed = false
     } else if (field === 'notes') {
         state.collected.notes = null
         state.note_declined = false
     } else {
         state.collected[field] = null
+        state.customer_recap_confirmed = false
     }
 
     state.pending_fields = [field]
@@ -657,6 +690,52 @@ function updateCheckoutStateFromUserMessage(previousState, text, options = {}) {
             state.collected.payment_method = paymentMethod
             removePendingField(state, 'payment_method')
             capturedFields.push({ type: 'payment_method', value: paymentMethod })
+        }
+    }
+
+    if (state.stage === CHECKOUT_STAGE.CUSTOMER_RECAP) {
+        const isContinue = normalizedText === '1' || isPositiveReply(normalizedText)
+        const isModify = normalizedText === '2' || /modif/i.test(normalizedText)
+
+        if (isContinue) {
+            state.customer_recap_confirmed = true
+            state = recomputeCheckoutProgress(state, context)
+            state.last_prompt_kind = state.stage
+            state.last_prompt_text = normalizedText
+            return {
+                state,
+                capturedFields,
+                stateChanged: true,
+                shouldBypassAI: true,
+                directReply: buildStructuredCheckoutReply(state, cartState, products),
+                shouldSubmitOrder: false,
+            }
+        }
+
+        if (isModify) {
+            state.stage = CHECKOUT_STAGE.EDIT_SELECTION
+            state.pending_fields = []
+            state.awaiting_field = buildAwaitingField('edit_selection', context)
+            state.last_prompt_kind = CHECKOUT_STAGE.EDIT_SELECTION
+            state.last_prompt_text = normalizedText
+            return {
+                state,
+                capturedFields,
+                stateChanged: true,
+                shouldBypassAI: true,
+                directReply: buildStructuredCheckoutReply(state, cartState, products),
+                shouldSubmitOrder: false,
+            }
+        }
+
+        // Rien compris → réafficher le récap
+        return {
+            state,
+            capturedFields,
+            stateChanged: false,
+            shouldBypassAI: true,
+            directReply: buildStructuredCheckoutReply(state, cartState, products),
+            shouldSubmitOrder: false,
         }
     }
 
