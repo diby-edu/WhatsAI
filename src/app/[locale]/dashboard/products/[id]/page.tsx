@@ -654,7 +654,8 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                             </div>
                         </div>
 
-                        {/* Variants */}
+                        {/* Variants — masqué pour les produits numériques */}
+                        {formData.product_type !== 'digital' && (
                         <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
                             <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
                                 <Layers className="text-blue-400" /> Variantes (Optionnel)
@@ -670,6 +671,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                                 defaultPrice={formData.price ? parseFloat(String(formData.price)) : undefined}
                             />
                         </div>
+                        )}
 
                         {/* Digital Delivery Section */}
                         {formData.product_type === 'digital' && (
