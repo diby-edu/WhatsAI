@@ -268,12 +268,24 @@ function buildAwaitingField(field, context) {
         edit_selection: {
             type: 'edit_selection',
             label: 'modification',
-            prompt: [
-                'Que souhaitez-vous modifier ?',
-                '1. Nom',
-                '2. Telephone',
-                ...(context.requiresEmail ? ['3. Email', '4. Adresse', '5. Paiement'] : ['3. Adresse', '4. Paiement']),
-            ].join('\n')
+            prompt: context.requiresEmail
+                ? [
+                    'Que souhaitez-vous modifier ?',
+                    '1. Nom',
+                    '2. Telephone',
+                    '3. Email',
+                    '4. Adresse',
+                    '5. Paiement',
+                    '6. Note de livraison',
+                ].join('\n')
+                : [
+                    'Que souhaitez-vous modifier ?',
+                    '1. Nom',
+                    '2. Telephone',
+                    '3. Adresse',
+                    '4. Paiement',
+                    '5. Note de livraison',
+                ].join('\n')
         },
     }
 
@@ -447,11 +459,13 @@ function detectFieldToEdit(text, context) {
         if (normalized === '3') return 'email'
         if (normalized === '4') return 'delivery_address'
         if (normalized === '5') return 'payment_method'
+        if (normalized === '6') return 'notes'
     } else {
         if (normalized === '1') return 'customer_name'
         if (normalized === '2') return 'customer_phone'
         if (normalized === '3') return 'delivery_address'
         if (normalized === '4') return 'payment_method'
+        if (normalized === '5') return 'notes'
     }
 
     // Détection par mot-clé (texte libre)
