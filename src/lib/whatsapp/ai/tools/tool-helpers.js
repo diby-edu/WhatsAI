@@ -69,6 +69,9 @@ function sanitizeForLog(obj) {
 // 🔧 HELPER : CHECK VARIANTS & STOCK
 // ═══════════════════════════════════════════════════════════════
 function productHasRealVariants(product) {
+    // Les produits numériques n'ont pas de variantes exploitables par le bot
+    if (product.product_type === 'digital') return false
+
     if (!product.variants) return false
     if (!Array.isArray(product.variants)) return false
     if (product.variants.length === 0) return false
