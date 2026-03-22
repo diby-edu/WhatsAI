@@ -1017,8 +1017,9 @@ function buildLineFromDraft(product, draftItem, index = 1) {
     const lineTotal = unitPrice * draftItem.quantity
 
     // Variantes triées par priorité (couleur avant taille) pour l'affichage panier
+    // selected_variants_by_id est keyed par UUID — correspondance correcte avec v.id
     const sortedVariantLabels = getRequiredVariants(product)
-        .map(v => selectedVariantsMap[v.id])
+        .map(v => (draftItem.selected_variants_by_id || {})[v.id])
         .filter(Boolean)
 
     return {
