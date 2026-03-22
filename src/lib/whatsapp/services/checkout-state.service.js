@@ -165,7 +165,18 @@ function extractCustomerName(text, lenient = false) {
     return normalized
 }
 
+function extractMapsLink(text) {
+    const match = String(text || '').match(
+        /https?:\/\/(maps\.google\.com|goo\.gl\/maps|maps\.app\.goo\.gl|www\.google\.com\/maps)[^\s]*/i
+    )
+    return match ? match[0] : null
+}
+
 function extractDeliveryAddress(text) {
+    // Accepte un lien Google Maps comme adresse
+    const mapsLink = extractMapsLink(text)
+    if (mapsLink) return mapsLink
+
     const normalized = normalizeFreeText(text)
     if (!normalized) return null
 
@@ -235,7 +246,7 @@ function buildAwaitingField(field, context) {
         delivery_address: {
             type: 'delivery_address',
             label: 'adresse de livraison',
-            prompt: 'Quelle est votre adresse de livraison ? (ex : Abidjan, Yopougon)'
+            prompt: 'Quelle est votre adresse complete de livraison ? (ville, quartier, rue) ou partagez votre geolocalisation Google Maps.'
         },
         payment_method: {
             type: 'payment_method',
@@ -401,7 +412,7 @@ function buildCapturedSummary(captured = []) {
     return 'Parfait !'
 }
 
-function buildStructuredCheckoutReply(state, cartState, products = [], captured = [], options = {}) {
+function buildStructuredCheckoutReply(state, cartState, products = [], captured = []) {
     const context = buildCheckoutContext(cartState, products)
     const acknowledgement = buildCapturedSummary(captured)
 
@@ -485,7 +496,7 @@ function updateCheckoutStateFromUserMessage(previousState, text, options = {}) {
             capturedFields,
             stateChanged: true,
             shouldBypassAI: true,
-            directReply: buildStructuredCheckoutReply(state, cartState, products, [], { initialPrompt: true }),
+            directReply: buildStructuredCheckoutReply(state, cartState, products, []),
             shouldSubmitOrder: false,
         }
     }
