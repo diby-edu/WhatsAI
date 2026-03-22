@@ -168,7 +168,7 @@ function buildCartActionField() {
     return {
         type: 'cart_action',
         label: 'suite du panier',
-        prompt: 'Souhaitez-vous ajouter un autre article ou continuer ?'
+        prompt: 'Voulez-vous ajouter un autre article ?'
     }
 }
 
@@ -1091,7 +1091,7 @@ function buildCartRecap(state, currency = 'XOF') {
         '',
         `Total : ${formatPrice(total, currency)}`,
         '',
-        'Souhaitez-vous ajouter un autre article ou continuer ?'
+        'Voulez-vous ajouter un autre article ?'
     ].join('\n')
 }
 
@@ -1828,7 +1828,7 @@ function buildCartStateGuidance(cartState, products = []) {
     lines.push('- Interdiction de supposer une quantite par defaut.')
 
     if (state.stage === CART_STAGE.CART_RECAP) {
-        lines.push('- Le panier contient deja une ou plusieurs lignes validees. Demande seulement si le client veut ajouter un autre article ou continuer.')
+        lines.push('- Le panier contient deja une ou plusieurs lignes validees. Demande seulement si le client veut ajouter un autre article.')
     }
 
     if (state.stage === CART_STAGE.CHECKOUT) {
