@@ -1091,8 +1091,39 @@ function buildCartRecap(state, currency = 'XOF') {
         '',
         `Total : ${formatPrice(total, currency)}`,
         '',
-        'Voulez-vous ajouter un autre article ?'
+        '1. Ajouter un article',
+        '2. Supprimer un article',
+        '3. Continuer',
     ].join('\n')
+}
+
+function buildCartDeleteMenu(state, currency = 'XOF') {
+    const cartItems = state.cart_items || []
+    const lines = cartItems.map((item, idx) => {
+        const variants = Object.values(item.selected_variants || {}).filter(Boolean).join(', ')
+        const label = variants ? `${item.product_name} (${variants}) x${item.quantity}` : `${item.product_name} x${item.quantity}`
+        return `${idx + 1}. ${label}`
+    })
+    return ['Quel article souhaitez-vous supprimer ?', '', ...lines].join('\n')
+}
+
+function detectItemToDelete(text, cartItems) {
+    const normalized = normalizeText(text).toLowerCase().trim()
+
+    // Par numéro
+    const num = parseInt(normalized)
+    if (!isNaN(num) && num >= 1 && num <= cartItems.length) return num - 1
+
+    // Par nom de produit ou variante
+    for (let i = 0; i < cartItems.length; i++) {
+        const item = cartItems[i]
+        const name = (item.product_name || '').toLowerCase()
+        if (normalized.includes(name) || name.includes(normalized)) return i
+        const variants = Object.values(item.selected_variants || {}).filter(Boolean).map(v => String(v).toLowerCase())
+        if (variants.some(v => normalized.includes(v) && normalized.includes(name.split(' ')[0]))) return i
+    }
+
+    return -1
 }
 
 function buildBatchCartReply(state, currency = 'XOF') {
@@ -1579,6 +1610,40 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
     }
 
     if (state.stage === CART_STAGE.CART_RECAP) {
+        // Sub-état suppression
+        if (state.awaiting_field?.type === 'cart_delete') {
+            const itemIndex = detectItemToDelete(normalized, state.cart_items || [])
+            if (itemIndex >= 0) {
+                state.cart_items = (state.cart_items || []).filter((_, i) => i !== itemIndex)
+                if (!state.cart_items.length) {
+                    state.stage = CART_STAGE.IDLE
+                    state.awaiting_field = null
+                    return { state, capturedFields, stateChanged: true, shouldBypassAI: true, directReply: 'Votre panier est vide. Quel article vous interesse ?' }
+                }
+                state.awaiting_field = buildCartActionField()
+                return { state, capturedFields, stateChanged: true, shouldBypassAI: true, directReply: buildCartRecap(state, currency) }
+            }
+            return { state, capturedFields, stateChanged: false, shouldBypassAI: true, directReply: buildCartDeleteMenu(state, currency) }
+        }
+
+        // Menu numéroté
+        if (normalized === '2' || /^(supprimer|retirer|enlever)/i.test(normalized)) {
+            state.awaiting_field = { type: 'cart_delete', label: 'suppression article' }
+            return { state, capturedFields, stateChanged: true, shouldBypassAI: true, directReply: buildCartDeleteMenu(state, currency) }
+        }
+
+        if (normalized === '3' || /^(continuer|terminer|valider)/i.test(normalized)) {
+            state.stage = CART_STAGE.CHECKOUT
+            state.awaiting_field = null
+            state.last_prompt_kind = CART_STAGE.CHECKOUT
+            state.last_prompt_text = normalized
+            return { state, capturedFields, stateChanged: true, shouldBypassAI: false, directReply: null }
+        }
+
+        if (normalized === '1') {
+            return { state, capturedFields, stateChanged: false, shouldBypassAI: true, directReply: 'Quel article souhaitez-vous ajouter ?' }
+        }
+
         let productForNewLine = detectProductForNewLine(normalized, products, state)
         if (!productForNewLine) {
             const lastLine = state.cart_items?.[state.cart_items.length - 1]
