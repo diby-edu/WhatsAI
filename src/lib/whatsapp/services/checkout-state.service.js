@@ -149,30 +149,8 @@ function extractEmailFromText(text) {
     return match ? match[0].toLowerCase() : null
 }
 
-function removePhoneFromText(text, phone) {
-    if (!phone) return normalizeFreeText(text)
 
-    const digits = phone.replace(/[^\d]/g, '')
-    const compact = String(text || '').replace(/[^\dA-Za-z+@._ -]/g, ' ')
-
-    if (!digits) return normalizeFreeText(compact)
-
-    const variants = [`+${digits}`, `00${digits}`, digits]
-    let sanitized = compact
-
-    variants.forEach(variant => {
-        sanitized = sanitized.split(variant).join(' ')
-    })
-
-    return normalizeFreeText(sanitized)
-}
-
-function removeEmailFromText(text, email) {
-    if (!email) return normalizeFreeText(text)
-    return normalizeFreeText(String(text || '').split(email).join(' '))
-}
-
-function extractCustomerName(text) {
+function extractCustomerName(text, lenient = false) {
     const normalized = normalizeFreeText(text)
         .replace(/[^\p{L}A-Za-z' -]/gu, ' ')
         .replace(/\s+/g, ' ')
@@ -181,7 +159,8 @@ function extractCustomerName(text) {
     if (!normalized) return null
 
     const tokens = tokenizeWords(normalized)
-    if (tokens.length < 2 || tokens.length > 6) return null
+    const minTokens = lenient ? 1 : 2
+    if (tokens.length < minTokens || tokens.length > 6) return null
 
     return normalized
 }
@@ -406,32 +385,20 @@ function buildOrderRecap(cartState = {}, checkoutState = {}, context) {
 function buildCapturedSummary(captured = []) {
     if (!captured || captured.length === 0) return ''
 
-    const labelFor = (entry) => {
+    if (captured.length === 1) {
+        const entry = captured[0]
         switch (entry.type) {
-            case 'customer_name':
-                return `votre nom complet : ${entry.value}`
-            case 'customer_phone':
-                return 'votre numero de telephone'
-            case 'email':
-                return 'votre adresse email'
-            case 'delivery_address':
-                return 'votre adresse de livraison'
-            case 'payment_method':
-                return entry.value === 'cod' ? 'un paiement a la livraison' : 'un paiement en ligne'
-            case 'notes':
-                return entry.value === 'Aucune'
-                    ? 'que vous n avez pas d instruction particuliere'
-                    : 'votre instruction de livraison'
-            default:
-                return entry.value || entry.type
+            case 'customer_name': return `Super, ${entry.value} !`
+            case 'customer_phone': return 'Parfait !'
+            case 'email': return 'D\'accord !'
+            case 'delivery_address': return 'D\'accord !'
+            case 'payment_method': return entry.value === 'cod' ? 'Paiement a la livraison, entendu !' : 'Paiement en ligne, entendu !'
+            case 'notes': return entry.value === 'Aucune' ? 'Aucun probleme !' : 'Noté !'
+            default: return 'D\'accord !'
         }
     }
 
-    const parts = captured.map(labelFor).filter(Boolean)
-    if (parts.length === 0) return ''
-    if (parts.length === 1) return `Je note ${parts[0]}.`
-    if (parts.length === 2) return `Je note ${parts[0]} et ${parts[1]}.`
-    return `Je note ${parts.slice(0, -1).join(', ')} et ${parts[parts.length - 1]}.`
+    return 'Parfait !'
 }
 
 function buildStructuredCheckoutReply(state, cartState, products = [], captured = [], options = {}) {
@@ -458,10 +425,7 @@ function buildStructuredCheckoutReply(state, cartState, products = [], captured 
             ...(context.requiresAddress ? ['votre adresse de livraison (ville, quartier)'] : []),
         ]
 
-        return [
-            `Pour finaliser, j ai besoin de ${introFields.join(', ')}.`,
-            state.awaiting_field.prompt
-        ].join(' ')
+        return `Pour finaliser, j ai besoin de ${introFields.join(', ')}.`
     }
 
     return [acknowledgement, state.awaiting_field.prompt].filter(Boolean).join(' ')
@@ -642,56 +606,68 @@ function updateCheckoutStateFromUserMessage(previousState, text, options = {}) {
         removePendingField(state, 'notes')
         capturedFields.push({ type: 'notes', value: state.note_declined ? 'Aucune' : normalizedText })
     } else if (state.stage === CHECKOUT_STAGE.CUSTOMER_FIELDS) {
-        let remainingText = removePhoneFromText(normalizedText, state.collected.customer_phone)
-        remainingText = removeEmailFromText(remainingText, state.collected.email)
+        // Split on commas/semicolons/newlines BEFORE any phone removal (removePhoneFromText
+        // destroys commas, making multi-field detection fail).
+        const rawSegments = normalizedText.split(/[,;\n]+/).map(s => s.trim()).filter(Boolean)
+        const isMultiSegment = rawSegments.length > 1
 
-        if (
-            remainingText &&
-            state.pending_fields.includes('customer_name') &&
-            !state.collected.customer_name &&
-            remainingText.includes(',')
-        ) {
-            const [namePart, ...rest] = remainingText.split(',')
-            const cleanName = extractCustomerName(namePart)
-            const cleanAddress = extractDeliveryAddress(rest.join(','))
+        // Filter out segments that were already captured as phone or email
+        const textSegments = rawSegments.filter(segment => {
+            if (extractPhoneFromText(segment)) return false
+            if (context.requiresEmail && extractEmailFromText(segment)) return false
+            return true
+        })
 
-            if (cleanName) {
-                state.collected.customer_name = cleanName
-                removePendingField(state, 'customer_name')
-                capturedFields.push({ type: 'customer_name', value: cleanName })
+        if (isMultiSegment) {
+            // Multiple comma-separated segments: assign in order name → address
+            for (const segment of textSegments) {
+                if (state.pending_fields.includes('customer_name') && !state.collected.customer_name) {
+                    const name = extractCustomerName(segment)
+                    if (name) {
+                        state.collected.customer_name = name
+                        removePendingField(state, 'customer_name')
+                        capturedFields.push({ type: 'customer_name', value: name })
+                        continue
+                    }
+                }
+                if (context.requiresAddress && state.pending_fields.includes('delivery_address') && !state.collected.delivery_address) {
+                    const address = extractDeliveryAddress(segment)
+                    if (address) {
+                        state.collected.delivery_address = address
+                        removePendingField(state, 'delivery_address')
+                        capturedFields.push({ type: 'delivery_address', value: address })
+                    }
+                }
             }
+        } else if (textSegments.length === 1) {
+            // Single text segment: use awaiting_field.type as context hint
+            const segment = textSegments[0]
+            const awaitingType = state.awaiting_field?.type
 
-            if (cleanAddress && context.requiresAddress && state.pending_fields.includes('delivery_address')) {
-                state.collected.delivery_address = cleanAddress
-                removePendingField(state, 'delivery_address')
-                capturedFields.push({ type: 'delivery_address', value: cleanAddress })
-            }
-
-            remainingText = ''
-        }
-
-        if (remainingText && state.pending_fields.includes('customer_name') && !state.collected.customer_name) {
-            const extractedName = extractCustomerName(remainingText)
-            if (extractedName) {
-                state.collected.customer_name = extractedName
-                removePendingField(state, 'customer_name')
-                capturedFields.push({ type: 'customer_name', value: extractedName })
-                remainingText = ''
-            }
-        }
-
-        if (
-            remainingText &&
-            context.requiresAddress &&
-            state.pending_fields.includes('delivery_address') &&
-            !state.collected.delivery_address &&
-            !state.pending_fields.includes('customer_name')
-        ) {
-            const extractedAddress = extractDeliveryAddress(remainingText)
-            if (extractedAddress) {
-                state.collected.delivery_address = extractedAddress
-                removePendingField(state, 'delivery_address')
-                capturedFields.push({ type: 'delivery_address', value: extractedAddress })
+            if (awaitingType === 'delivery_address' || (!state.pending_fields.includes('customer_name') && context.requiresAddress)) {
+                // Bot was asking for address, or name already collected
+                const address = extractDeliveryAddress(segment)
+                if (address && !state.collected.delivery_address) {
+                    state.collected.delivery_address = address
+                    removePendingField(state, 'delivery_address')
+                    capturedFields.push({ type: 'delivery_address', value: address })
+                }
+            } else {
+                // Bot was asking for name (or anything else)
+                const name = extractCustomerName(segment, true) // lenient: accept 1 token
+                if (name && state.pending_fields.includes('customer_name') && !state.collected.customer_name) {
+                    state.collected.customer_name = name
+                    removePendingField(state, 'customer_name')
+                    capturedFields.push({ type: 'customer_name', value: name })
+                } else if (context.requiresAddress && state.pending_fields.includes('delivery_address') && !state.collected.delivery_address) {
+                    // Name extraction failed (too many tokens?) → try as address
+                    const address = extractDeliveryAddress(segment)
+                    if (address) {
+                        state.collected.delivery_address = address
+                        removePendingField(state, 'delivery_address')
+                        capturedFields.push({ type: 'delivery_address', value: address })
+                    }
+                }
             }
         }
     }
