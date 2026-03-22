@@ -96,6 +96,7 @@ export async function POST(request: NextRequest) {
                 language: body.language || 'fr',
                 is_active: true,
                 whatsapp_connected: false,
+                whatsapp_ever_connected: false,
                 enable_voice_responses: body.enable_voice_responses ?? false,
                 voice_id: body.voice_id || 'alloy',
                 // New structured fields

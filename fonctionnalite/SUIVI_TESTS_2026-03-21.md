@@ -14,6 +14,7 @@
 | 4 | "non" → checkout | Bot passe au checkout et demande nom/tel/adresse ✅ |
 | 5 | Checkout complet | Récapitulatif correct, commande confirmée ✅ |
 | 6 | Vérification SQL | CMD-20260321-7902 en DB avec 2 lignes correctes ✅ |
+| 7 | "robe" → affichage N2 | Format N2 correct : groupé par couleur avec prix + tailles par ligne ✅ |
 
 ---
 
@@ -99,6 +100,31 @@ Merci de préciser les informations manquantes. Taille disponibles : L, M, XL."
 **Fichiers concernés :** `src/lib/whatsapp/services/cart-state.service.js` — `parseBatchCombinationLines`
 **Priorité :** HAUTE ← CORRIGÉ (inclus dans prochain déploiement VPS)
 
+### Anomalie 2 — "Je note ces lignes" redondant dans le récap panier ✅ RÉSOLU
+_(résolu par le déploiement VPS — plus observé lors du test 7)_
+
+---
+
+### Anomalie 8 — Exemple de commande N2 utilise une couleur inexistante
+**Observé :** Après affichage Robe de Soirée, l'exemple est `"2 Noire L et 1 Grise M"`
+**Problème :** "Grise" n'est pas une couleur de la Robe de Soirée (Noire, Rouge, Belge)
+**Attendu :** `"2 Noire L et 1 Rouge XL"` (ou toute couleur réelle du produit)
+**Cause :** L'exemple est généré par l'IA sans vérification des couleurs disponibles
+**Fix à faire :** Construire l'exemple dynamiquement depuis les vraies options du produit
+**Fichiers concernés :** `src/lib/whatsapp/services/cart-state.service.js` — `buildAwaitingField`
+**Priorité :** Moyenne
+
+### Anomalie 9 — Multi-champs checkout non parsés en une seule réponse
+**Observé :** Client envoie `"koffi diby, 0033256236548, yop maroc"` (nom + tel + adresse en une ligne)
+Bot répond : `"Je note votre numéro de téléphone et votre nom complet : koffi diby yop maroc"` puis redemande l'adresse
+**Problème :** L'adresse "yop maroc" est fusionnée dans le nom, le téléphone n'est pas confirmé à l'écran, le bot redemande l'adresse séparément
+**Attendu :** Le bot extrait les 3 champs d'un coup et passe directement au mode de paiement
+**Cause :** L'extraction multi-champs checkout (nom + téléphone + adresse en même temps) ne fonctionne pas correctement.
+Le bot prend "koffi diby yop maroc" comme nom (fusionné avec l'adresse) et redemande l'adresse séparément.
+Résultat en DB : `customer_name = "koffi diby yop maroc"` au lieu de `"koffi diby"` → donnée client corrompue.
+**Fichiers concernés :** handler checkout dans `src/lib/whatsapp/handlers/message.js` ou `src/lib/whatsapp/ai/generator.js`
+**Priorité :** CRITIQUE (données client corrompues en DB)
+
 ### Anomalie 7 — Colonne `total_fcfa` hardcodée alors que la devise est configurable
 **Observé :** La colonne `orders.total_fcfa` porte le nom d'une devise spécifique (FCFA)
 alors que la devise de l'agent est configurable dans les paramètres (EUR, USD, XOF, etc.).
@@ -115,7 +141,7 @@ la devise), mais le nom est trompeur pour les agents utilisant une autre devise.
 
 | Test | Action | Statut |
 |------|--------|--------|
-| 7 | "robe" → affichage N2 | En cours |
+| 7 | "robe" → affichage N2 + commande | Format N2 ✅, cart correct ✅, Anomalie 2 résolue ✅, voir Anomalie 8 + 9 |
 | 8 | "veste" → affichage N3 + overflow | À faire |
 | 9 | "plus veste" → combos restants | À faire |
 | 10 | "robe et veste" → prompt multi-produits ①② | À faire |

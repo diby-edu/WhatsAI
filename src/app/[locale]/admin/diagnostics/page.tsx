@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
@@ -154,7 +154,7 @@ export default function AdminDiagnosticsPage() {
                     category: 'WhatsApp',
                     status: whatsapp.data?.connected > 0 ? 'ok' : whatsapp.data?.reconnect_required > 0 ? 'warning' : 'warning',
                     message: `${whatsapp.data?.connected || 0}/${whatsapp.data?.total || 0} agents connectes`,
-                    details: `QR: ${whatsapp.data?.qr_ready || 0} • Reconnexion: ${whatsapp.data?.reconnect_required || 0} • Pause: ${whatsapp.data?.paused || 0}`,
+                    details: `A connecter: ${whatsapp.data?.qr_ready || 0} â€¢ A reconnecter: ${whatsapp.data?.reconnect_required || 0} â€¢ Pause: ${whatsapp.data?.paused || 0}`,
                     icon: Smartphone,
                 },
                 {
@@ -178,7 +178,7 @@ export default function AdminDiagnosticsPage() {
                     category: 'Donnees',
                     status: integrity.data?.overallStatus === 'error' ? 'error' : integrity.data?.overallStatus === 'warning' ? 'warning' : 'ok',
                     message: integrity.data?.issues?.length ? `${integrity.data.issues.length} probleme(s)` : 'Aucun probleme detecte',
-                    details: integrity.data?.issues?.map((issue: any) => issue.message).join(' • ') || undefined,
+                    details: integrity.data?.issues?.map((issue: any) => issue.message).join(' â€¢ ') || undefined,
                     icon: Database,
                 },
                 {
@@ -186,7 +186,7 @@ export default function AdminDiagnosticsPage() {
                     category: 'Performance',
                     status: serverHealth.data?.overallStatus === 'critical' ? 'error' : serverHealth.data?.overallStatus === 'warning' ? 'warning' : 'ok',
                     message: serverHealth.data?.uptimeFormatted || 'Serveur actif',
-                    details: `CPU ${serverHealth.data?.cpu?.['1min'] || serverHealth.data?.cpu?.loadAverage?.['1min'] || '?'} • RAM ${serverHealth.data?.memory?.percent || 0}%`,
+                    details: `CPU ${serverHealth.data?.cpu?.['1min'] || serverHealth.data?.cpu?.loadAverage?.['1min'] || '?'} â€¢ RAM ${serverHealth.data?.memory?.percent || 0}%`,
                     icon: Cpu,
                 },
                 {
@@ -438,3 +438,4 @@ export default function AdminDiagnosticsPage() {
         </div>
     )
 }
+

@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import { createApiClient, getAuthUser, errorResponse, successResponse, createAdminClient } from '@/lib/api-utils'
+import { hasAgentConnectedBefore } from '@/lib/admin/agent-status'
 
 // POST /api/whatsapp/connect - Request WhatsApp connection
 // The standalone whatsapp-service.js will pick this up and generate QR or restore a saved session.
@@ -22,7 +23,7 @@ export async function POST(request: NextRequest) {
         // Verify agent belongs to user
         const { data: agent, error } = await supabase
             .from('agents')
-            .select('id, name, is_active, whatsapp_connected, whatsapp_status, whatsapp_qr_code, whatsapp_phone')
+            .select('id, name, is_active, whatsapp_connected, whatsapp_status, whatsapp_qr_code, whatsapp_phone, whatsapp_ever_connected')
             .eq('id', agentId)
             .eq('user_id', user!.id)
             .single()
@@ -76,8 +77,10 @@ export async function POST(request: NextRequest) {
 
         const adminClient = createAdminClient()
         const forceFreshQr = body?.forceFreshQr === true
+        const hasConnectedBefore = hasAgentConnectedBefore(agent)
+        const shouldForceFreshQr = forceFreshQr || !hasConnectedBefore
 
-        if (forceFreshQr || !agent.whatsapp_phone) {
+        if (shouldForceFreshQr) {
             // Fresh setup or explicit reset: clear stored credentials to force a new QR flow.
             await adminClient
                 .from('whatsapp_sessions')
@@ -99,7 +102,7 @@ export async function POST(request: NextRequest) {
 
         return successResponse({
             status: 'connecting',
-            message: forceFreshQr || !agent.whatsapp_phone
+            message: shouldForceFreshQr
                 ? 'Demande de connexion envoyee. Le QR code sera genere sous peu...'
                 : 'Demande de reconnexion envoyee. Restauration de session en cours...'
         })

@@ -2,6 +2,10 @@
 
 Date: 2026-03-16
 
+Voir aussi :
+
+- `REGLE_PRODUIT_STATUTS_AGENT_WHATSAPP.md` pour la regle complete des 4 statuts produit (`Pause`, `Connecte`, `A reconnecter`, `A connecter`)
+
 ## Objectif
 
 Documenter la regle produit officielle pour la gestion d'un agent WhatsApp en `pause`, afin d'eviter toute ambiguite entre :
@@ -183,4 +187,3 @@ La logique officielle a retenir est donc :
 
 - `is_active` = verite operationnelle
 - `whatsapp_status` et les champs associes = dernier etat technique memorise
-
