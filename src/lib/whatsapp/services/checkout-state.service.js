@@ -220,22 +220,22 @@ function buildAwaitingField(field, context) {
         customer_name: {
             type: 'customer_name',
             label: 'nom complet',
-            prompt: 'Quel est votre nom complet ?'
+            prompt: 'Quel est votre nom complet ? (ex : Koffi Diby)'
         },
         customer_phone: {
             type: 'customer_phone',
             label: 'numero de telephone',
-            prompt: 'Quel est votre numero de telephone avec indicatif ?'
+            prompt: 'Quel est votre numero de telephone avec indicatif ? (ex : +2250700000000)'
         },
         email: {
             type: 'email',
             label: 'adresse email',
-            prompt: 'Quelle est votre adresse email ?'
+            prompt: 'Quelle est votre adresse email ? (ex : koffi@gmail.com)'
         },
         delivery_address: {
             type: 'delivery_address',
             label: 'adresse de livraison',
-            prompt: 'Quelle est votre adresse de livraison (ville, quartier) ?'
+            prompt: 'Quelle est votre adresse de livraison ? (ex : Abidjan, Yopougon)'
         },
         payment_method: {
             type: 'payment_method',
