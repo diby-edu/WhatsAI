@@ -185,7 +185,7 @@ export default function AdminAgentsPage() {
                 <div>
                     <h1 style={{ fontSize: 28, fontWeight: 700, color: 'white', marginBottom: 8 }}>Agents IA</h1>
                     <p style={{ color: '#94a3b8' }}>
-                        {agents.length} agents â€¢ {statusCounts.connected} connectes â€¢ {statusCounts.qr_ready} a connecter â€¢ {statusCounts.reconnect_required} a reconnecter â€¢ {statusCounts.paused} en pause
+                        {agents.length} agents | {statusCounts.connected} connectes | {statusCounts.qr_ready} a connecter | {statusCounts.reconnect_required} a reconnecter | {statusCounts.paused} en pause
                     </p>
                 </div>
                 <button
