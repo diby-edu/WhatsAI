@@ -331,11 +331,11 @@ function recomputeCheckoutProgress(state, context) {
         return state
     }
 
-    if (context.isDigital && !state.collected.payment_method) {
+    if (!context.requiresPaymentChoice && !state.collected.payment_method) {
         state.collected.payment_method = 'online'
     }
 
-    if (!state.collected.payment_method) {
+    if (context.requiresPaymentChoice && !state.collected.payment_method) {
         state.stage = CHECKOUT_STAGE.PAYMENT_METHOD
         state.pending_fields = ['payment_method']
         state.awaiting_field = buildAwaitingField('payment_method', context)

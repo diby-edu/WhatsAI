@@ -1640,8 +1640,27 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
             return { state, capturedFields, stateChanged: true, shouldBypassAI: false, directReply: null }
         }
 
+        // Sub-état ajout article
+        if (state.awaiting_field?.type === 'adding_article') {
+            const productToAdd = detectProductForNewLine(normalized, products, state)
+            if (productToAdd) {
+                state.draft_item = createDraftItem(productToAdd)
+                state.stage = CART_STAGE.COLLECTING_ITEM
+                state.awaiting_field = buildAwaitingField(productToAdd, state.draft_item, currency)
+                state.last_prompt_kind = CART_STAGE.COLLECTING_ITEM
+                state.last_prompt_text = normalized
+                return {
+                    state, capturedFields, stateChanged: true, shouldBypassAI: true,
+                    directReply: buildStructuredCartReply(state, products, capturedFields, currency),
+                }
+            }
+            // Produit non reconnu → re-demander
+            return { state, capturedFields, stateChanged: false, shouldBypassAI: true, directReply: 'Je n\'ai pas reconnu cet article. Lequel souhaitez-vous ajouter ?' }
+        }
+
         if (normalized === '1') {
-            return { state, capturedFields, stateChanged: false, shouldBypassAI: true, directReply: 'Quel article souhaitez-vous ajouter ?' }
+            state.awaiting_field = { type: 'adding_article', label: 'ajout article' }
+            return { state, capturedFields, stateChanged: true, shouldBypassAI: true, directReply: 'Quel article souhaitez-vous ajouter ?' }
         }
 
         let productForNewLine = detectProductForNewLine(normalized, products, state)
