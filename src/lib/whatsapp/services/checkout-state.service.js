@@ -417,17 +417,6 @@ function buildStructuredCheckoutReply(state, cartState, products = [], captured 
         return acknowledgement || null
     }
 
-    if (options.initialPrompt && state.awaiting_field.type === 'customer_name') {
-        const introFields = [
-            'votre nom complet',
-            'votre numero de telephone avec indicatif',
-            ...(context.requiresEmail ? ['votre adresse email'] : []),
-            ...(context.requiresAddress ? ['votre adresse de livraison (ville, quartier)'] : []),
-        ]
-
-        return `Pour finaliser, j ai besoin de ${introFields.join(', ')}.`
-    }
-
     return [acknowledgement, state.awaiting_field.prompt].filter(Boolean).join(' ')
 }
 
