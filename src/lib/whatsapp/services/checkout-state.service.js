@@ -228,6 +228,34 @@ function getRequiredCustomerFields(context) {
     ]
 }
 
+const FIELD_LABELS = {
+    customer_name: 'Nom',
+    customer_phone: 'Telephone',
+    email: 'Email',
+    delivery_address: 'Adresse',
+    payment_method: 'Paiement',
+    notes: 'Note de livraison',
+}
+
+function getEditableFields(context) {
+    return [
+        'customer_name',
+        'customer_phone',
+        ...(context.requiresEmail ? ['email'] : []),
+        ...(context.requiresAddress ? ['delivery_address'] : []),
+        ...(context.requiresPaymentChoice ? ['payment_method'] : []),
+        ...(context.requiresNotes ? ['notes'] : []),
+    ]
+}
+
+function buildEditMenu(context) {
+    const fields = getEditableFields(context)
+    return [
+        'Que souhaitez-vous modifier ?',
+        ...fields.map((f, i) => `${i + 1}. ${FIELD_LABELS[f]}`),
+    ].join('\n')
+}
+
 function buildAwaitingField(field, context) {
     const prompts = {
         customer_name: {
@@ -275,24 +303,7 @@ function buildAwaitingField(field, context) {
         edit_selection: {
             type: 'edit_selection',
             label: 'modification',
-            prompt: context.requiresEmail
-                ? [
-                    'Que souhaitez-vous modifier ?',
-                    '1. Nom',
-                    '2. Telephone',
-                    '3. Email',
-                    '4. Adresse',
-                    '5. Paiement',
-                    '6. Note de livraison',
-                ].join('\n')
-                : [
-                    'Que souhaitez-vous modifier ?',
-                    '1. Nom',
-                    '2. Telephone',
-                    '3. Adresse',
-                    '4. Paiement',
-                    '5. Note de livraison',
-                ].join('\n')
+            prompt: buildEditMenu(context),
         },
     }
 
@@ -483,29 +494,19 @@ function detectFieldToEdit(text, context) {
     const normalized = normalizeFreeText(text).toLowerCase().trim()
     if (!normalized) return null
 
+    const fields = getEditableFields(context)
+
     // Détection par numéro (menu numéroté)
-    if (context.requiresEmail) {
-        if (normalized === '1') return 'customer_name'
-        if (normalized === '2') return 'customer_phone'
-        if (normalized === '3') return 'email'
-        if (normalized === '4') return 'delivery_address'
-        if (normalized === '5') return 'payment_method'
-        if (normalized === '6') return 'notes'
-    } else {
-        if (normalized === '1') return 'customer_name'
-        if (normalized === '2') return 'customer_phone'
-        if (normalized === '3') return 'delivery_address'
-        if (normalized === '4') return 'payment_method'
-        if (normalized === '5') return 'notes'
-    }
+    const num = parseInt(normalized)
+    if (!isNaN(num) && num >= 1 && num <= fields.length) return fields[num - 1]
 
     // Détection par mot-clé (texte libre)
     if (normalized.includes('nom')) return 'customer_name'
     if (normalized.includes('telephone') || normalized.includes('tel') || normalized.includes('numero')) return 'customer_phone'
     if (normalized.includes('email') && context.requiresEmail) return 'email'
     if ((normalized.includes('adresse') || normalized.includes('livraison')) && context.requiresAddress) return 'delivery_address'
-    if (normalized.includes('paiement') || normalized.includes('payer')) return 'payment_method'
-    if (normalized.includes('note') || normalized.includes('instruction')) return 'notes'
+    if ((normalized.includes('paiement') || normalized.includes('payer')) && context.requiresPaymentChoice) return 'payment_method'
+    if ((normalized.includes('note') || normalized.includes('instruction')) && context.requiresNotes) return 'notes'
 
     return null
 }
