@@ -1893,6 +1893,20 @@ function mergeCartStateIntoToolArgs(functionName, args = {}, cartState = {}) {
     return args
 }
 
+function resetCartToRecap(state, currency = 'XOF') {
+    const newState = {
+        ...state,
+        stage: CART_STAGE.CART_RECAP,
+        awaiting_field: buildCartActionField(),
+        last_prompt_kind: CART_STAGE.CART_RECAP,
+        draft_item: null,
+    }
+    return {
+        state: newState,
+        directReply: buildCartRecap(newState, currency),
+    }
+}
+
 module.exports = {
     CART_STAGE,
     buildCartStateGuidance,
@@ -1900,6 +1914,7 @@ module.exports = {
     getCartState,
     inferCartStateFromAssistantMessage,
     mergeCartStateIntoToolArgs,
+    resetCartToRecap,
     setCartState,
     updateCartStateFromUserMessage,
 }

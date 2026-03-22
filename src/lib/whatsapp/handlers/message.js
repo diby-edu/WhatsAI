@@ -37,6 +37,7 @@ const {
     getCartState,
     inferCartStateFromAssistantMessage,
     mergeCartStateIntoToolArgs,
+    resetCartToRecap,
     setCartState,
     updateCartStateFromUserMessage,
 } = require('../services/cart-state.service')
@@ -457,6 +458,15 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             console.log('Structured flow reply generated')
             aiResponse = {
                 content: structuredReply,
+                tokensUsed: 0,
+                imageActions: []
+            }
+        } else if (checkoutUpdate.shouldReturnToCart) {
+            const cartReset = resetCartToRecap(cartUpdate.state, agentCurrency)
+            nextCartState = cartReset.state
+            clearCheckoutAfterResponse = true
+            aiResponse = {
+                content: cartReset.directReply,
                 tokensUsed: 0,
                 imageActions: []
             }

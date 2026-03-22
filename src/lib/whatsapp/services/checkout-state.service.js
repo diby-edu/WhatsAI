@@ -405,7 +405,7 @@ function buildOrderRecap(cartState = {}, checkoutState = {}, context) {
         lines.push(`- Note : ${noteLabel}`)
     }
 
-    lines.push('', '1. Confirmer ma commande', '2. Modifier mes informations')
+    lines.push('', '1. Confirmer ma commande', '2. Modifier mes informations', '3. Modifier le panier')
 
     return lines.join('\n')
 }
@@ -550,8 +550,21 @@ function updateCheckoutStateFromUserMessage(previousState, text, options = {}) {
     const previousSnapshot = JSON.stringify(state)
 
     if (state.stage === CHECKOUT_STAGE.CONFIRMATION) {
+        const isReturnToCart = normalizedText === '3' || /panier|article/i.test(normalizedText)
         const isConfirm = normalizedText === '1' || isPositiveReply(normalizedText)
         const isModify = normalizedText === '2' || isNegativeReply(normalizedText) || /modif/i.test(normalizedText)
+
+        if (isReturnToCart) {
+            return {
+                state,
+                capturedFields,
+                stateChanged: false,
+                shouldBypassAI: false,
+                directReply: null,
+                shouldSubmitOrder: false,
+                shouldReturnToCart: true,
+            }
+        }
 
         if (isConfirm) {
             state.last_prompt_kind = CHECKOUT_STAGE.CONFIRMATION
