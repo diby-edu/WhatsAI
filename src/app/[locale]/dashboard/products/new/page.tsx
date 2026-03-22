@@ -917,7 +917,8 @@ export default function NewProductPage() {
                             </div>
                         )}
 
-                        {/* Variants */}
+                        {/* Variants — masqué pour les produits numériques */}
+                        {formData.product_type !== 'digital' && (
                         <div style={{
                             padding: 20,
                             background: 'rgba(30, 41, 59, 0.3)',
@@ -938,6 +939,7 @@ export default function NewProductPage() {
                                 defaultPrice={formData.price ? parseFloat(String(formData.price)) : undefined}
                             />
                         </div>
+                        )}
 
                         {/* Digital Delivery Section — only for digital products */}
                         {formData.product_type === 'digital' && (
