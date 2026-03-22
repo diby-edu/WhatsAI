@@ -571,6 +571,17 @@ function resolveCombinationLabel(product, combo) {
     }).join(' / ')
 }
 
+function buildOrderExample(product) {
+    const combos = (product.combinations || []).filter(c => c.available !== false)
+    if (combos.length === 0) return '(ex : "2 articles")'
+    const label1 = resolveCombinationLabel(product, combos[0])
+    if (combos.length === 1) return label1 ? `(ex : "2 ${label1}")` : '(ex : "2 articles")'
+    const label2 = resolveCombinationLabel(product, combos[1])
+    if (label1 && label2) return `(ex : "2 ${label1} et 1 ${label2}")`
+    if (label1) return `(ex : "2 ${label1}")`
+    return '(ex : "2 articles")'
+}
+
 function hasPricedCombinations(product) {
     const combos = (product.combinations || []).filter(c => c.available !== false)
     if (combos.length < 2) return false
@@ -875,7 +886,7 @@ function buildAwaitingField(product, item, currency = 'XOF') {
     // Début de collecte : aucune variante ni quantité — présenter avec N1/N2/N3
     if (!item.quantity && allVariantsMissing) {
         const block = buildProductBlock(product, 8, currency)
-        const example = '(ex : "2 Noire L et 1 Grise M")'
+        const example = buildOrderExample(product)
         const basePrompt = block.text + '\n\n' + example
 
         if (block.level === 'N1' || block.level === 'N2') {
