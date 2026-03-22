@@ -268,7 +268,12 @@ function buildAwaitingField(field, context) {
         edit_selection: {
             type: 'edit_selection',
             label: 'modification',
-            prompt: 'Que souhaitez-vous modifier ? (nom, telephone, email, adresse, paiement ou note)'
+            prompt: [
+                'Que souhaitez-vous modifier ?',
+                '1. Nom',
+                '2. Telephone',
+                ...(context.requiresEmail ? ['3. Email', '4. Adresse', '5. Paiement'] : ['3. Adresse', '4. Paiement']),
+            ].join('\n')
         },
     }
 
@@ -388,7 +393,7 @@ function buildOrderRecap(cartState = {}, checkoutState = {}, context) {
         lines.push(`- Note : ${noteLabel}`)
     }
 
-    lines.push('', 'Confirmez-vous ?')
+    lines.push('', '1. Confirmer ma commande', '2. Modifier mes informations')
 
     return lines.join('\n')
 }
@@ -432,11 +437,26 @@ function buildStructuredCheckoutReply(state, cartState, products = [], captured 
 }
 
 function detectFieldToEdit(text, context) {
-    const normalized = normalizeFreeText(text).toLowerCase()
+    const normalized = normalizeFreeText(text).toLowerCase().trim()
     if (!normalized) return null
 
+    // Détection par numéro (menu numéroté)
+    if (context.requiresEmail) {
+        if (normalized === '1') return 'customer_name'
+        if (normalized === '2') return 'customer_phone'
+        if (normalized === '3') return 'email'
+        if (normalized === '4') return 'delivery_address'
+        if (normalized === '5') return 'payment_method'
+    } else {
+        if (normalized === '1') return 'customer_name'
+        if (normalized === '2') return 'customer_phone'
+        if (normalized === '3') return 'delivery_address'
+        if (normalized === '4') return 'payment_method'
+    }
+
+    // Détection par mot-clé (texte libre)
     if (normalized.includes('nom')) return 'customer_name'
-    if (normalized.includes('telephone') || normalized.includes('tel')) return 'customer_phone'
+    if (normalized.includes('telephone') || normalized.includes('tel') || normalized.includes('numero')) return 'customer_phone'
     if (normalized.includes('email') && context.requiresEmail) return 'email'
     if ((normalized.includes('adresse') || normalized.includes('livraison')) && context.requiresAddress) return 'delivery_address'
     if (normalized.includes('paiement') || normalized.includes('payer')) return 'payment_method'
@@ -516,7 +536,10 @@ function updateCheckoutStateFromUserMessage(previousState, text, options = {}) {
     const previousSnapshot = JSON.stringify(state)
 
     if (state.stage === CHECKOUT_STAGE.CONFIRMATION) {
-        if (isPositiveReply(normalizedText)) {
+        const isConfirm = normalizedText === '1' || isPositiveReply(normalizedText)
+        const isModify = normalizedText === '2' || isNegativeReply(normalizedText) || /modif/i.test(normalizedText)
+
+        if (isConfirm) {
             state.last_prompt_kind = CHECKOUT_STAGE.CONFIRMATION
             state.last_prompt_text = normalizedText
             return {
@@ -529,7 +552,7 @@ function updateCheckoutStateFromUserMessage(previousState, text, options = {}) {
             }
         }
 
-        if (isNegativeReply(normalizedText)) {
+        if (isModify) {
             state.stage = CHECKOUT_STAGE.EDIT_SELECTION
             state.pending_fields = []
             state.awaiting_field = buildAwaitingField('edit_selection', context)
@@ -543,6 +566,16 @@ function updateCheckoutStateFromUserMessage(previousState, text, options = {}) {
                 directReply: buildStructuredCheckoutReply(state, cartState, products),
                 shouldSubmitOrder: false,
             }
+        }
+
+        // Rien compris → réafficher le menu
+        return {
+            state,
+            capturedFields,
+            stateChanged: false,
+            shouldBypassAI: true,
+            directReply: buildStructuredCheckoutReply(state, cartState, products),
+            shouldSubmitOrder: false,
         }
     }
 
@@ -568,7 +601,7 @@ function updateCheckoutStateFromUserMessage(previousState, text, options = {}) {
             capturedFields,
             stateChanged: true,
             shouldBypassAI: true,
-            directReply: 'D accord. Indiquez simplement ce que vous souhaitez modifier : nom, telephone, email, adresse, paiement ou note.',
+            directReply: buildStructuredCheckoutReply(state, cartState, products),
             shouldSubmitOrder: false,
         }
     }
