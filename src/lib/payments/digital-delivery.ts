@@ -29,6 +29,9 @@ export async function deliverDigitalProducts(orderId: string, supabase: any): Pr
 
         if (!order?.customer_phone || !order?.agent_id) return
 
+        // WhatsApp JID requires phone without '+' (e.g. 2279654467, not +2279654467)
+        const phone = order.customer_phone.replace(/^\+/, '')
+
         // Get order items
         const { data: items } = await supabase
             .from('order_items')
@@ -94,7 +97,7 @@ export async function deliverDigitalProducts(orderId: string, supabase: any): Pr
             if (deliveryContent) {
                 const message = `🎉 *Votre produit numérique est disponible !*\n\n*${product.name}* :\n${deliveryContent}\n\nMerci pour votre achat ! 🙏`
                 try {
-                    await sendWhatsAppMessage(order.agent_id, order.customer_phone, message)
+                    await sendWhatsAppMessage(order.agent_id, phone, message)
                     console.log(`[Digital Delivery] Delivered to ${order.customer_phone} — product: ${product.name}`)
                 } catch (sendErr) {
                     console.error('[Digital Delivery] Failed to send WhatsApp:', sendErr)
