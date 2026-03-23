@@ -38,11 +38,12 @@ export async function deliverDigitalProducts(orderId: string, supabase: any): Pr
         if (!items || items.length === 0) return
 
         // Get all digital products for this agent
+        // Fallback: also match products with digital_content or license_keys set (in case product_type wasn't saved correctly)
         const { data: products } = await supabase
             .from('products')
             .select('id, name, product_type, digital_content, license_keys')
             .eq('agent_id', order.agent_id)
-            .eq('product_type', 'digital')
+            .or('product_type.eq.digital,digital_content.not.is.null,license_keys.not.is.null')
 
         if (!products || products.length === 0) return
 
