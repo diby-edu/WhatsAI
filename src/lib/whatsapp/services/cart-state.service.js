@@ -1699,6 +1699,11 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
         }
     }
 
+    // En stage CHECKOUT sans draft_item : ne pas détecter de nouveau produit, laisser le checkout gérer
+    if (state.stage === CART_STAGE.CHECKOUT && !state.draft_item) {
+        return { state, capturedFields, stateChanged, shouldBypassAI: false, directReply: null }
+    }
+
     // Détection multi-produits (ex: "robe et veste") — uniquement si panier vide
     if (!state.draft_item && !(state.cart_items?.length > 0)) {
         const multiProducts = detectMultipleProducts(normalized, products)
@@ -1720,7 +1725,7 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
         }
     }
 
-    if (!state.draft_item && state.stage !== CART_STAGE.CHECKOUT) {
+    if (!state.draft_item) {
         const detectedProduct = findBestProduct(products, normalized)
         if (detectedProduct) {
             state.draft_item = createDraftItem(detectedProduct)
