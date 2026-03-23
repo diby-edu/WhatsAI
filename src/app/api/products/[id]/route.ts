@@ -81,9 +81,10 @@ export async function PUT(
         if (error) throw error
 
         return successResponse({ product })
-    } catch (err) {
+    } catch (err: any) {
         console.error('Error updating product:', err)
-        return errorResponse('Erreur lors de la mise à jour', 500)
+        const detail = err?.message || err?.details || err?.hint || JSON.stringify(err)
+        return errorResponse(`Erreur lors de la mise à jour: ${detail}`, 500)
     }
 }
 
