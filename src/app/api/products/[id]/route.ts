@@ -61,9 +61,10 @@ export async function PUT(
                 is_available: body.is_available,
                 stock_quantity: body.stock_quantity,
                 agent_id: body.agent_id,
+                product_type: body.product_type || 'product',
                 variants: body.variants,
                 combinations: body.combinations ?? null,
-                images: body.images, // FIX: Save the images array
+                images: body.images,
                 // New structured fields
                 short_pitch: body.short_pitch,
                 features: body.features,
