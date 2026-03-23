@@ -1721,7 +1721,7 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
         }
     }
 
-    if (!state.draft_item) {
+    if (!state.draft_item && state.stage !== CART_STAGE.CHECKOUT) {
         const detectedProduct = findBestProduct(products, normalized)
         if (detectedProduct) {
             state.draft_item = createDraftItem(detectedProduct)
