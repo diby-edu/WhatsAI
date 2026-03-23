@@ -32,7 +32,7 @@ const SEGMENT_OPTIONS = [
     { value: 'agent_paused', label: 'Au moins un agent en pause' },
     { value: 'agent_reconnect_required', label: 'Au moins un agent a reconnecter' },
     { value: 'agent_qr_ready', label: 'Au moins un agent a connecter' },
-    { value: 'individual', label: 'SÃ©lection individuelle' },
+    { value: 'individual', label: 'Sélection individuelle' },
 ]
 
 const PLAN_COLORS: Record<string, { bg: string; color: string }> = {
@@ -191,7 +191,7 @@ export default function AdminBroadcastsPage() {
         const pushCount = isIndividual ? selectedPushUserIds.size : pushUserCount
         if (pushCount === 0) return
         const deviceMsg = !isIndividual && pushDeviceCount > 0 ? ` (${pushDeviceCount} push FCM)` : ''
-        if (!confirm(`Envoyer Ã  ${pushCount} utilisateur${pushCount === 1 ? '' : 's'}${deviceMsg} + cloche ?`)) return
+        if (!confirm(`Envoyer à ${pushCount} utilisateur${pushCount === 1 ? '' : 's'}${deviceMsg} + cloche ?`)) return
         setPushSending(true)
         setPushResult(null)
         setPushError(null)
@@ -218,7 +218,7 @@ export default function AdminBroadcastsPage() {
                 setPushError(data.error || 'Erreur lors de l\'envoi')
             }
         } catch {
-            setPushError('Erreur rÃ©seau')
+            setPushError('Erreur réseau')
         } finally {
             setPushSending(false)
         }
@@ -299,7 +299,7 @@ export default function AdminBroadcastsPage() {
         if (!emailSubject.trim() || !emailMessage.trim()) return
         const count = emailPlan === 'individual' ? selectedEmails.size : emailRecipients
         if (count === 0) return
-        if (!confirm(`Envoyer "${emailSubject}" Ã  ${count} utilisateur${count === 1 ? '' : 's'} ?`)) return
+        if (!confirm(`Envoyer "${emailSubject}" à ${count} utilisateur${count === 1 ? '' : 's'} ?`)) return
 
         setEmailSending(true)
         setEmailResult(null)
@@ -328,7 +328,7 @@ export default function AdminBroadcastsPage() {
                 setEmailError(data.error || 'Erreur lors de l\'envoi')
             }
         } catch {
-            setEmailError('Erreur rÃ©seau')
+            setEmailError('Erreur réseau')
         } finally {
             setEmailSending(false)
         }
@@ -354,7 +354,7 @@ export default function AdminBroadcastsPage() {
                 </Link>
                 <div>
                     <h1 style={{ fontSize: 22, fontWeight: 700, color: 'white', marginBottom: 4 }}>Broadcasts</h1>
-                    <p style={{ color: '#64748b', fontSize: 13 }}>Envoi de messages en masse â€” WhatsApp, Email ou Push</p>
+                    <p style={{ color: '#64748b', fontSize: 13 }}>Envoi de messages en masse — WhatsApp, Email ou Push</p>
                 </div>
             </div>
 
@@ -414,7 +414,7 @@ export default function AdminBroadcastsPage() {
 
                         <div style={{ display: 'flex', gap: 8, padding: '10px 14px', marginBottom: 16, background: 'rgba(251, 191, 36, 0.1)', border: '1px solid rgba(251, 191, 36, 0.2)', borderRadius: 10 }}>
                             <AlertTriangle size={16} style={{ color: '#fbbf24', flexShrink: 0, marginTop: 1 }} />
-                            <span style={{ color: '#fbbf24', fontSize: 12 }}>Envoi Ã  tous les contacts de cet agent. Utilisez avec modÃ©ration.</span>
+                            <span style={{ color: '#fbbf24', fontSize: 12 }}>Envoi à tous les contacts de cet agent. Utilisez avec modération.</span>
                         </div>
 
                         <button onClick={sendWaBroadcast}
@@ -428,7 +428,7 @@ export default function AdminBroadcastsPage() {
                             }}>
                             {(() => {
                                 if (waSending) return <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />Envoi...</>
-                                if (waSent) return <><CheckCircle size={16} />EnvoyÃ© !</>
+                                if (waSent) return <><CheckCircle size={16} />Envoyé !</>
                                 return <><Send size={16} />Envoyer le Broadcast</>
                             })()}
                         </button>
@@ -467,7 +467,7 @@ export default function AdminBroadcastsPage() {
                                         Choisir les destinataires
                                         {selectedEmails.size > 0 && (
                                             <span style={{ marginLeft: 8, color: '#60a5fa', fontWeight: 600 }}>
-                                                ({selectedEmails.size} sÃ©lectionnÃ©{selectedEmails.size === 1 ? '' : 's'})
+                                                ({selectedEmails.size} sélectionné{selectedEmails.size === 1 ? '' : 's'})
                                             </span>
                                         )}
                                     </label>
@@ -504,7 +504,7 @@ export default function AdminBroadcastsPage() {
                                             <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Chargement...
                                         </div>
                                     ) : filteredUsers.length === 0 ? (
-                                        <div style={{ padding: 24, textAlign: 'center', color: '#64748b', fontSize: 13 }}>Aucun utilisateur trouvÃ©</div>
+                                        <div style={{ padding: 24, textAlign: 'center', color: '#64748b', fontSize: 13 }}>Aucun utilisateur trouvé</div>
                                     ) : filteredUsers.map((u, idx) => {
                                         const isSelected = selectedEmails.has(u.email)
                                         const pc = PLAN_COLORS[u.plan] || PLAN_COLORS.free
@@ -566,33 +566,33 @@ export default function AdminBroadcastsPage() {
                         <div style={{ marginBottom: 16 }}>
                             <label style={{ display: 'block', color: '#94a3b8', fontSize: 13, marginBottom: 8 }}>Sujet</label>
                             <input type="text" value={emailSubject} onChange={(e) => setEmailSubject(e.target.value)}
-                                placeholder="Ex: NouveautÃ© WazzapAI â€” Ã€ ne pas manquer !" style={inputStyle} />
+                                placeholder="Ex: Nouveauté WazzapAI — Ã€ ne pas manquer !" style={inputStyle} />
                         </div>
 
                         {/* Body */}
                         <div style={{ marginBottom: 16 }}>
                             <label style={{ display: 'block', color: '#94a3b8', fontSize: 13, marginBottom: 8 }}>Corps du message</label>
                             <textarea value={emailMessage} onChange={(e) => setEmailMessage(e.target.value)}
-                                placeholder={'Voici notre annonce...\n\nCordialement,\nL\'Ã©quipe WazzapAI'}
+                                placeholder={'Voici notre annonce...\n\nCordialement,\nL\'équipe WazzapAI'}
                                 rows={8} style={{ ...inputStyle, resize: 'vertical' }} />
                             <div style={{ color: '#475569', fontSize: 11, marginTop: 4 }}>
-                                "Bonjour [Nom]" est ajoutÃ© automatiquement. Les sauts de ligne sont conservÃ©s.
+                                "Bonjour [Nom]" est ajouté automatiquement. Les sauts de ligne sont conservés.
                             </div>
                         </div>
 
                         {/* Warning */}
                         <div style={{ display: 'flex', gap: 8, padding: '10px 14px', marginBottom: 16, background: 'rgba(251, 191, 36, 0.1)', border: '1px solid rgba(251, 191, 36, 0.2)', borderRadius: 10 }}>
                             <AlertTriangle size={16} style={{ color: '#fbbf24', flexShrink: 0, marginTop: 1 }} />
-                            <span style={{ color: '#fbbf24', fontSize: 12 }}>Hostinger â‰ˆ 500 emails/h. Pour &gt;500 utilisateurs, prÃ©fÃ©rez Brevo ou Mailchimp.</span>
+                            <span style={{ color: '#fbbf24', fontSize: 12 }}>Hostinger â‰ˆ 500 emails/h. Pour &gt;500 utilisateurs, préférez Brevo ou Mailchimp.</span>
                         </div>
 
                         {/* Result */}
                         {emailResult && (
                             <div style={{ padding: '12px 14px', marginBottom: 16, background: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.2)', borderRadius: 10 }}>
-                                <div style={{ color: '#4ade80', fontWeight: 600, fontSize: 13, marginBottom: 2 }}>âœ… Campagne envoyÃ©e</div>
+                                <div style={{ color: '#4ade80', fontWeight: 600, fontSize: 13, marginBottom: 2 }}>✅ Campagne envoyée</div>
                                 <div style={{ color: '#94a3b8', fontSize: 12 }}>
-                                    {emailResult.sent} envoyÃ©{emailResult.sent !== 1 ? 's' : ''}
-                                    {emailResult.failed > 0 && ` Â· ${emailResult.failed} Ã©chec${emailResult.failed !== 1 ? 's' : ''}`}
+                                    {emailResult.sent} envoyé{emailResult.sent !== 1 ? 's' : ''}
+                                    {emailResult.failed > 0 && ` · ${emailResult.failed} échec${emailResult.failed !== 1 ? 's' : ''}`}
                                     {' / '}{emailResult.total} total
                                 </div>
                             </div>
@@ -653,7 +653,7 @@ export default function AdminBroadcastsPage() {
                                         Choisir les destinataires
                                         {selectedPushUserIds.size > 0 && (
                                             <span style={{ marginLeft: 8, color: '#f59e0b', fontWeight: 600 }}>
-                                                ({selectedPushUserIds.size} sÃ©lectionnÃ©{selectedPushUserIds.size === 1 ? '' : 's'})
+                                                ({selectedPushUserIds.size} sélectionné{selectedPushUserIds.size === 1 ? '' : 's'})
                                             </span>
                                         )}
                                     </label>
@@ -686,7 +686,7 @@ export default function AdminBroadcastsPage() {
                                             <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Chargement...
                                         </div>
                                     ) : filteredPushUsers.length === 0 ? (
-                                        <div style={{ padding: 24, textAlign: 'center', color: '#64748b', fontSize: 13 }}>Aucun utilisateur trouvÃ©</div>
+                                        <div style={{ padding: 24, textAlign: 'center', color: '#64748b', fontSize: 13 }}>Aucun utilisateur trouvé</div>
                                     ) : filteredPushUsers.map((u, idx) => {
                                         const uid = u.id || u.email
                                         const isSelected = selectedPushUserIds.has(uid)
@@ -738,7 +738,7 @@ export default function AdminBroadcastsPage() {
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px', marginBottom: 16, background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.2)', borderRadius: 8 }}>
                                 <Users size={14} style={{ color: '#f59e0b', flexShrink: 0 }} />
                                 <span style={{ color: '#f59e0b', fontSize: 13 }}>
-                                    {selectedPushUserIds.size} utilisateur{selectedPushUserIds.size === 1 ? '' : 's'} sÃ©lectionnÃ©{selectedPushUserIds.size === 1 ? '' : 's'}
+                                    {selectedPushUserIds.size} utilisateur{selectedPushUserIds.size === 1 ? '' : 's'} sélectionné{selectedPushUserIds.size === 1 ? '' : 's'}
                                 </span>
                             </div>
                         ) : (
@@ -765,7 +765,7 @@ export default function AdminBroadcastsPage() {
                                 <span style={{ color: '#475569', fontSize: 11 }}>{pushTitle.length}/65</span>
                             </div>
                             <input type="text" value={pushTitle} onChange={(e) => setPushTitle(e.target.value.slice(0, 65))}
-                                placeholder="Ex: Nouvelle fonctionnalitÃ© disponible !" style={inputStyle} />
+                                placeholder="Ex: Nouvelle fonctionnalité disponible !" style={inputStyle} />
                         </div>
 
                         {/* Body */}
@@ -775,27 +775,27 @@ export default function AdminBroadcastsPage() {
                                 <span style={{ color: '#475569', fontSize: 11 }}>{pushBody.length}/240</span>
                             </div>
                             <textarea value={pushBody} onChange={(e) => setPushBody(e.target.value.slice(0, 240))}
-                                placeholder="DÃ©couvrez ce qui est nouveau sur WazzapAI..." rows={4}
+                                placeholder="Découvrez ce qui est nouveau sur WazzapAI..." rows={4}
                                 style={{ ...inputStyle, resize: 'none' }} />
                         </div>
 
                         {/* Warning bypass preferences */}
                         <div style={{ display: 'flex', gap: 8, padding: '10px 14px', marginBottom: 16, background: 'rgba(251, 191, 36, 0.1)', border: '1px solid rgba(251, 191, 36, 0.2)', borderRadius: 10 }}>
                             <AlertTriangle size={16} style={{ color: '#fbbf24', flexShrink: 0, marginTop: 1 }} />
-                            <span style={{ color: '#fbbf24', fontSize: 12 }}>La cloche est alimentÃ©e pour tous les utilisateurs du segment, mÃªme ceux sans permission push.</span>
+                            <span style={{ color: '#fbbf24', fontSize: 12 }}>La cloche est alimentée pour tous les utilisateurs du segment, même ceux sans permission push.</span>
                         </div>
 
                         {/* Result */}
                         {pushResult && (
                             <div style={{ padding: '12px 14px', marginBottom: 16, background: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.2)', borderRadius: 10 }}>
-                                <div style={{ color: '#4ade80', fontWeight: 600, fontSize: 13, marginBottom: 4 }}>âœ… Notification envoyÃ©e</div>
+                                <div style={{ color: '#4ade80', fontWeight: 600, fontSize: 13, marginBottom: 4 }}>✅ Notification envoyée</div>
                                 <div style={{ color: '#94a3b8', fontSize: 12 }}>
-                                    Push : {pushResult.sent} envoyÃ©{pushResult.sent !== 1 ? 's' : ''}
-                                    {pushResult.failed > 0 && ` Â· ${pushResult.failed} Ã©chec${pushResult.failed !== 1 ? 's' : ''}`}
+                                    Push : {pushResult.sent} envoyé{pushResult.sent !== 1 ? 's' : ''}
+                                    {pushResult.failed > 0 && ` · ${pushResult.failed} échec${pushResult.failed !== 1 ? 's' : ''}`}
                                 </div>
                                 {(pushResult.userCount ?? 0) > 0 && (
                                     <div style={{ color: '#94a3b8', fontSize: 12 }}>
-                                        Cloche : {pushResult.userCount} utilisateur{pushResult.userCount !== 1 ? 's' : ''} notifiÃ©{pushResult.userCount !== 1 ? 's' : ''}
+                                        Cloche : {pushResult.userCount} utilisateur{pushResult.userCount !== 1 ? 's' : ''} notifié{pushResult.userCount !== 1 ? 's' : ''}
                                     </div>
                                 )}
                             </div>
@@ -843,7 +843,7 @@ function HistoryPanel({ history, activeTab }: { history: any[]; activeTab: TabId
             {filteredHistory.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: 40, color: '#64748b' }}>
                     <MessageSquare size={40} style={{ marginBottom: 12, opacity: 0.5 }} />
-                    <p>Aucun broadcast envoyÃ©</p>
+                    <p>Aucun broadcast envoyé</p>
                 </div>
             ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

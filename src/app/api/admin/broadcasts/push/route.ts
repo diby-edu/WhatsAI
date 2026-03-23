@@ -86,17 +86,6 @@ export async function POST(request: NextRequest) {
             sent = result?.success ?? 0
             failed = result?.failure ?? 0
 
-            // Log to broadcasts table (historique admin permanent — jamais supprimé)
-            try {
-                await adminSupabase.from('broadcasts').insert({
-                    agent_id: null,
-                    user_id: user!.id,
-                    message: `[PUSH] ${title.trim()}`,
-                    recipients_count: sent,
-                    status: 'sent',
-                    created_at: new Date().toISOString()
-                })
-            } catch { /* log failure is non-blocking */ }
         }
 
         // Insérer dans notification_log pour la cloche — pour TOUS les users du segment
@@ -120,6 +109,18 @@ export async function POST(request: NextRequest) {
                 await adminSupabase.from('notification_log').insert(rows)
             }
         } catch { /* non-bloquant */ }
+
+        // Log to broadcasts table après calcul userCount (push + cloche)
+        try {
+            await adminSupabase.from('broadcasts').insert({
+                agent_id: null,
+                user_id: user!.id,
+                message: `[PUSH] ${title.trim()}`,
+                recipients_count: Math.max(sent, userCount),
+                status: 'sent',
+                created_at: new Date().toISOString()
+            })
+        } catch { /* log failure is non-blocking */ }
 
         return successResponse({ sent, failed, total: tokens.length, userCount })
     } catch (err) {
