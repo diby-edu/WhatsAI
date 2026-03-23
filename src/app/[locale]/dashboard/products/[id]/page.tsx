@@ -308,10 +308,14 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(dataToSend)
             })
-            if (!res.ok) throw new Error('Failed')
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}))
+                console.error('Save error:', errData)
+                throw new Error(errData?.error || 'Failed')
+            }
             if (!silent) alert('Produit sauvegardé !')
-        } catch (error) {
-            if (!silent) alert('Erreur sauvegarde')
+        } catch (error: any) {
+            if (!silent) alert(`Erreur sauvegarde : ${error?.message || 'inconnue'}`)
         } finally {
             if (!silent) setSaving(false)
         }
