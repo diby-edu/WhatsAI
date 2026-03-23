@@ -997,13 +997,12 @@ function buildCapturedSummary(captured = []) {
     if (!captured || captured.length === 0) return ''
 
     const parts = captured.map(entry => {
-        if (entry.type === 'quantity') return `la quantite ${entry.value}`
+        if (entry.type === 'quantity') return `quantite ${entry.value}`
         return `${entry.label.toLowerCase()} ${entry.value}`
     })
 
-    if (parts.length === 1) return `Je note ${parts[0]}.`
-    if (parts.length === 2) return `Je note ${parts[0]} et ${parts[1]}.`
-    return `Je note ${parts.slice(0, -1).join(', ')} et ${parts[parts.length - 1]}.`
+    if (parts.length === 1) return `Parfait !`
+    return `Parfait !`
 }
 
 function buildLineFromDraft(product, draftItem, index = 1) {
