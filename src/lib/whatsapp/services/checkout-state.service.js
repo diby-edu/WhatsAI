@@ -364,6 +364,14 @@ function recomputeCheckoutProgress(state, context) {
 
 function activateCheckoutState(previousState = {}, context) {
     const state = cloneCheckoutState(previousState)
+
+    // Préserver les stages transitoires : leurs handlers gèrent eux-mêmes la navigation
+    // recomputeCheckoutProgress écraserait EDIT_SELECTION → CUSTOMER_RECAP (bug)
+    const transientStages = [CHECKOUT_STAGE.EDIT_SELECTION, CHECKOUT_STAGE.CONFIRMATION]
+    if (transientStages.includes(state.stage)) {
+        return state
+    }
+
     if (hasCheckoutData(state)) {
         return recomputeCheckoutProgress(state, context)
     }

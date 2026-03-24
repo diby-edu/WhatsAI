@@ -99,6 +99,8 @@ export async function deliverDigitalProducts(orderId: string, supabase: any): Pr
                 try {
                     await sendWhatsAppMessage(order.agent_id, phone, message)
                     console.log(`[Digital Delivery] Delivered to ${order.customer_phone} — product: ${product.name}`)
+                    // Mettre à jour le statut commande en 'completed' après livraison réussie
+                    await supabase.from('orders').update({ status: 'completed' }).eq('id', order.id)
                 } catch (sendErr) {
                     console.error('[Digital Delivery] Failed to send WhatsApp:', sendErr)
                 }
