@@ -1093,7 +1093,8 @@ function buildCartRecap(state, currency = 'XOF') {
         '',
         '1. Ajouter un article',
         '2. Supprimer un article',
-        '3. Continuer',
+        '3. Modifier la quantite',
+        '4. Continuer',
     ].join('\n')
 }
 
@@ -1105,6 +1106,16 @@ function buildCartDeleteMenu(state, currency = 'XOF') {
         return `${idx + 1}. ${label}`
     })
     return ['Quel article souhaitez-vous supprimer ?', '', ...lines].join('\n')
+}
+
+function buildCartModifyMenu(state) {
+    const cartItems = state.cart_items || []
+    const lines = cartItems.map((item, idx) => {
+        const variants = Object.values(item.selected_variants || {}).filter(Boolean).join(', ')
+        const label = variants ? `${item.product_name} (${variants}) x${item.quantity}` : `${item.product_name} x${item.quantity}`
+        return `${idx + 1}. ${label}`
+    })
+    return ['Quel article souhaitez-vous modifier ?', '', ...lines].join('\n')
 }
 
 function detectItemToDelete(text, cartItems) {
@@ -1626,13 +1637,45 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
             return { state, capturedFields, stateChanged: false, shouldBypassAI: true, directReply: buildCartDeleteMenu(state, currency) }
         }
 
+        // Sub-état modification quantité — étape 1 : sélection article
+        if (state.awaiting_field?.type === 'cart_modify') {
+            const itemIndex = detectItemToDelete(normalized, state.cart_items || [])
+            if (itemIndex >= 0) {
+                state.awaiting_field = { type: 'cart_modify_qty', label: 'nouvelle quantite', item_index: itemIndex }
+                const item = state.cart_items[itemIndex]
+                const variants = Object.values(item.selected_variants || {}).filter(Boolean).join(', ')
+                const label = variants ? `${item.product_name} (${variants})` : item.product_name
+                return { state, capturedFields, stateChanged: true, shouldBypassAI: true, directReply: `Quelle quantite pour ${label} ? (actuellement : ${item.quantity})` }
+            }
+            return { state, capturedFields, stateChanged: false, shouldBypassAI: true, directReply: buildCartModifyMenu(state) }
+        }
+
+        // Sub-état modification quantité — étape 2 : saisie quantité
+        if (state.awaiting_field?.type === 'cart_modify_qty') {
+            const newQty = extractQuantity(normalized)
+            const itemIndex = state.awaiting_field.item_index
+            if (newQty && newQty > 0 && itemIndex >= 0 && itemIndex < (state.cart_items || []).length) {
+                const item = state.cart_items[itemIndex]
+                const unitPrice = item.unit_price_fcfa || (item.line_total / item.quantity) || 0
+                state.cart_items[itemIndex] = { ...item, quantity: newQty, line_total: unitPrice * newQty }
+                state.awaiting_field = buildCartActionField()
+                return { state, capturedFields, stateChanged: true, shouldBypassAI: true, directReply: buildCartRecap(state, currency) }
+            }
+            return { state, capturedFields, stateChanged: false, shouldBypassAI: true, directReply: 'Quelle quantite souhaitez-vous ? (entrez un nombre)' }
+        }
+
         // Menu numéroté
         if (normalized === '2' || /^(supprimer|retirer|enlever)/i.test(normalized)) {
             state.awaiting_field = { type: 'cart_delete', label: 'suppression article' }
             return { state, capturedFields, stateChanged: true, shouldBypassAI: true, directReply: buildCartDeleteMenu(state, currency) }
         }
 
-        if (normalized === '3' || /^(continuer|terminer|valider)/i.test(normalized)) {
+        if (normalized === '3' || /^(modifier|changer|changer la quantit)/i.test(normalized)) {
+            state.awaiting_field = { type: 'cart_modify', label: 'modification quantite' }
+            return { state, capturedFields, stateChanged: true, shouldBypassAI: true, directReply: buildCartModifyMenu(state) }
+        }
+
+        if (normalized === '4' || /^(continuer|terminer|valider)/i.test(normalized)) {
             state.stage = CART_STAGE.CHECKOUT
             state.awaiting_field = null
             state.last_prompt_kind = CART_STAGE.CHECKOUT
