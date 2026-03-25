@@ -533,9 +533,11 @@ export default function AgentKnowledgePage({ params }: { params: Promise<{ id: s
                                         onChange={e => setUrlInput(e.target.value)}
                                         style={inputStyle} placeholder="https://exemple.com/faq"
                                     />
-                                    <p style={{ color: '#64748b', fontSize: 12, marginTop: 6 }}>
-                                        Pages web, Google Sites, articles, documents hébergés...
-                                    </p>
+                                    <div style={{ marginTop: 8, fontSize: 12, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                                        <p style={{ color: '#34d399' }}>✅ Sites statiques, articles, WordPress, PDF/DOCX publics, JSON</p>
+                                        <p style={{ color: '#f87171' }}>❌ Sites nécessitant une connexion, Google Drive, applications React/Angular sans SSR</p>
+                                        <p style={{ color: '#64748b' }}>⚠️ Limité aux 50 000 premiers caractères — timeout 15s</p>
+                                    </div>
                                 </div>
                                 {importError && <p style={{ color: '#f87171', fontSize: 13, marginBottom: 12 }}>{importError}</p>}
                                 <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
