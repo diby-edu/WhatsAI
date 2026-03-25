@@ -109,8 +109,9 @@ function readDocxXmlEntries(buffer: Buffer): Promise<string[]> {
                 })
             })
 
-            zipFile.on('end', () => finish(() => resolve(xmlParts)))
-            zipFile.on('error', (zipError: Error) => finish(() => reject(zipError)))
+            // Cast needed: yauzl typings only expose 'entry' but 'end'/'error' exist at runtime
+            ;(zipFile as unknown as NodeJS.EventEmitter).on('end', () => finish(() => resolve(xmlParts)))
+            ;(zipFile as unknown as NodeJS.EventEmitter).on('error', (zipError: Error) => finish(() => reject(zipError)))
             zipFile.readEntry()
         })
     })
