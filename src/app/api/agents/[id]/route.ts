@@ -100,7 +100,7 @@ export async function PATCH(
             'payment_mode', 'mobile_money_orange', 'mobile_money_mtn',
             'mobile_money_wave', 'custom_payment_methods', 'escalation_phone',
             // Support Client
-            'agent_context'
+            'agent_context', 'welcome_message'
         ]
 
         const updates: Record<string, any> = {}

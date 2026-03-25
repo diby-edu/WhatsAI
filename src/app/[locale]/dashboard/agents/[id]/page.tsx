@@ -169,6 +169,7 @@ export default function AgentWizardPage({
         custom_payment_methods: [] as { name: string; details: string }[],
         escalation_phone: '',  // Phone number to display when escalating to human
         agent_context: '',
+        welcome_message: '',
     })
 
     useEffect(() => {
@@ -252,6 +253,7 @@ export default function AgentWizardPage({
                 custom_payment_methods: agent.custom_payment_methods || [],
                 escalation_phone: agent.escalation_phone || '',
                 agent_context: agent.agent_context || '',
+                welcome_message: agent.welcome_message || '',
             })
 
             // Detect mission type for UX (Support Client = has agent_context or KB-only system_prompt)
@@ -771,6 +773,35 @@ export default function AgentWizardPage({
                                 />
                                 <p style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
                                     Ce contexte est injecté dans chaque réponse du mode Support Client.
+                                </p>
+                            </div>
+                        )}
+                        {isSupportClient && (
+                            <div>
+                                <label style={{ display: 'block', fontSize: 13, color: '#94a3b8', marginBottom: 8 }}>
+                                    Message d'accueil (optionnel)
+                                </label>
+                                <textarea
+                                    value={formData.welcome_message}
+                                    onChange={e => setFormData({ ...formData, welcome_message: e.target.value })}
+                                    placeholder="Ex: Je peux vous renseigner sur nos formations, les tarifs et le processus d'inscription."
+                                    style={{
+                                        width: '100%',
+                                        padding: 16,
+                                        borderRadius: 12,
+                                        border: '1px solid rgba(16, 185, 129, 0.3)',
+                                        background: 'rgba(16, 185, 129, 0.05)',
+                                        color: 'white',
+                                        outline: 'none',
+                                        height: 100,
+                                        resize: 'vertical',
+                                        fontFamily: 'inherit',
+                                        fontSize: 13,
+                                        lineHeight: 1.6,
+                                    }}
+                                />
+                                <p style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
+                                    Affiché après le nom de l'agent lors du premier message. Ex: "Bonjour ! Je suis l'assistant de X. <i>votre texte ici</i>"
                                 </p>
                             </div>
                         )}
