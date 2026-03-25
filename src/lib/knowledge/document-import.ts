@@ -117,7 +117,30 @@ function readDocxXmlEntries(buffer: Buffer): Promise<string[]> {
     })
 }
 
+export async function extractDocText(buffer: Buffer): Promise<ExtractedDocument> {
+    const WordExtractor = require('word-extractor')
+    const extractor = new WordExtractor()
+    const doc = await extractor.extract(buffer)
+    const text = normalizeExtractedText(doc.getBody() || '')
+
+    if (!text) {
+        throw new Error("Impossible d'extraire le texte de ce document Word (.doc)")
+    }
+
+    return { text, pages: null, format: 'docx' }
+}
+
 export async function extractPdfText(buffer: Buffer): Promise<ExtractedDocument> {
+    if (typeof (globalThis as Record<string, unknown>).DOMMatrix === 'undefined') {
+        (globalThis as Record<string, unknown>).DOMMatrix = class {
+            a=1; b=0; c=0; d=1; e=0; f=0
+            invertSelf() { return this }
+            multiplySelf() { return this }
+            translateSelf() { return this }
+            scaleSelf() { return this }
+        }
+    }
+
     const { PDFParse } = require('pdf-parse')
     const parser = new PDFParse({ data: buffer })
 
