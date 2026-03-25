@@ -171,6 +171,15 @@ function chunkText(text: string, maxChars = 800): string[] {
     return result.filter((chunk) => chunk.length > 0)
 }
 
+function isUsefulChunk(chunk: string): boolean {
+    const trimmed = chunk.trim()
+    if (trimmed.length < 40) return false
+    if (/^-{0,3}\s*\d+\s*(of|\/|sur)\s*\d+\s*-{0,3}$/i.test(trimmed)) return false
+    if (/^page\s*\d+$/i.test(trimmed)) return false
+    if (/^[\d\s\-–—/|.]+$/.test(trimmed)) return false
+    return true
+}
+
 function extractTextFromHtml(html: string): string {
     // Supprimer tout le bruit : scripts, styles, navigation, pub, cookie banners
     let text = html
@@ -295,7 +304,7 @@ export async function POST(request: NextRequest) {
         }
 
         const limitedText = rawText.slice(0, 50000)
-        const chunks = chunkText(limitedText)
+        const chunks = chunkText(limitedText).filter(isUsefulChunk)
         const sourceId = crypto.randomUUID()
 
         const insertRows = await Promise.all(
