@@ -110,7 +110,7 @@ export default function AgentKnowledgePage({ params }: { params: Promise<{ id: s
             const res = await fetch('/api/knowledge/import/pdf', { method: 'POST', body: form })
             const data = await res.json()
             if (res.ok) { resetModal(); fetchDocuments() }
-            else setImportError(data.error || 'Erreur lors de l\'import PDF')
+            else setImportError(data.error || 'Erreur lors de l\'import du document')
         } catch (e) {
             setImportError('Erreur réseau')
         } finally {
@@ -283,7 +283,7 @@ export default function AgentKnowledgePage({ params }: { params: Promise<{ id: s
                         {/* Onglets mode */}
                         <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
                             {modeTab('text', <AlignLeft size={14} />, 'Texte')}
-                            {modeTab('pdf', <Upload size={14} />, 'PDF')}
+                            {modeTab('pdf', <Upload size={14} />, 'Document')}
                             {modeTab('url', <Link2 size={14} />, 'URL')}
                         </div>
 
@@ -334,10 +334,10 @@ export default function AgentKnowledgePage({ params }: { params: Promise<{ id: s
                                     />
                                 </div>
                                 <div style={{ marginBottom: 20 }}>
-                                    <label style={{ display: 'block', color: '#94a3b8', marginBottom: 8, fontSize: 14 }}>Fichier PDF *</label>
+                                    <label style={{ display: 'block', color: '#94a3b8', marginBottom: 8, fontSize: 14 }}>Fichier *</label>
                                     <input
                                         ref={fileInputRef}
-                                        type="file" accept=".pdf"
+                                        type="file" accept=".pdf,.docx"
                                         onChange={e => setPdfFile(e.target.files?.[0] || null)}
                                         style={{ display: 'none' }}
                                     />
@@ -370,7 +370,7 @@ export default function AgentKnowledgePage({ params }: { params: Promise<{ id: s
                                     <button type="button" onClick={resetModal} style={{ background: 'transparent', color: 'white', border: '1px solid #334155', padding: '12px 24px', borderRadius: 12, cursor: 'pointer' }}>Annuler</button>
                                     <button type="submit" disabled={submitting || !pdfFile} style={{ background: '#10b981', color: 'white', border: 'none', padding: '12px 24px', borderRadius: 12, fontWeight: 600, cursor: (submitting || !pdfFile) ? 'not-allowed' : 'pointer', opacity: (submitting || !pdfFile) ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: 8 }}>
                                         {submitting && <Loader2 size={16} className="animate-spin" />}
-                                        {submitting ? 'Extraction en cours...' : 'Importer le PDF'}
+                                        {submitting ? 'Extraction en cours...' : 'Importer le document'}
                                     </button>
                                 </div>
                             </form>
