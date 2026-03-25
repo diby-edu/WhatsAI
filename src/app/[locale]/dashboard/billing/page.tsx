@@ -581,7 +581,7 @@ function BillingContent() {
                     <div>
                         <div style={{ fontWeight: 500, color: '#facc15', fontSize: 14 }}>{t('Overview.lowCredits.title')}</div>
                         <div style={{ fontSize: 12, color: 'rgba(250, 204, 21, 0.7)' }}>
-                            {t('Overview.lowCredits.message')}
+                            Il vous reste {creditsBalance} crédit{creditsBalance > 1 ? 's' : ''}.
                         </div>
                     </div>
                 </motion.div>
