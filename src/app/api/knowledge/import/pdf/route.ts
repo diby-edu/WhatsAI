@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
 import { generateEmbedding } from '@/lib/ai/openai'
-import { extractDocxText, extractPdfText } from '@/lib/knowledge/document-import'
+import { extractDocxText, extractDocText, extractPdfText } from '@/lib/knowledge/document-import'
 
 export const runtime = 'nodejs'
 
@@ -80,9 +80,6 @@ export async function POST(request: NextRequest) {
             return errorResponse('Formats supportes: PDF et DOCX', 400)
         }
 
-        if (isLegacyDoc) {
-            return errorResponse("Le format .doc classique n'est pas encore supporte. Exportez le fichier en .docx ou .pdf puis reessayez.", 415)
-        }
 
         const { data: agentCheck } = await supabase
             .from('agents')
@@ -100,7 +97,9 @@ export async function POST(request: NextRequest) {
 
         const extracted = isPdf
             ? await extractPdfText(buffer)
-            : await extractDocxText(buffer)
+            : isLegacyDoc
+                ? await extractDocText(buffer)
+                : await extractDocxText(buffer)
 
         if (!extracted.text.trim()) {
             return errorResponse("Impossible d'extraire le texte de ce document", 422)

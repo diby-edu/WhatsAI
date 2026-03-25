@@ -337,7 +337,7 @@ export default function AgentKnowledgePage({ params }: { params: Promise<{ id: s
                                     <label style={{ display: 'block', color: '#94a3b8', marginBottom: 8, fontSize: 14 }}>Fichier *</label>
                                     <input
                                         ref={fileInputRef}
-                                        type="file" accept=".pdf,.docx"
+                                        type="file" accept=".pdf,.docx,.doc"
                                         onChange={e => setPdfFile(e.target.files?.[0] || null)}
                                         style={{ display: 'none' }}
                                     />
@@ -359,8 +359,8 @@ export default function AgentKnowledgePage({ params }: { params: Promise<{ id: s
                                         ) : (
                                             <div>
                                                 <Upload size={32} style={{ color: '#334155', marginBottom: 8, margin: '0 auto 8px' }} />
-                                                <p style={{ color: '#94a3b8' }}>Cliquez pour sélectionner un PDF</p>
-                                                <p style={{ color: '#64748b', fontSize: 12 }}>Max 10 Mo — texte extractible uniquement</p>
+                                                <p style={{ color: '#94a3b8' }}>Cliquez pour sélectionner un fichier</p>
+                                                <p style={{ color: '#64748b', fontSize: 12 }}>PDF, DOCX, DOC — Max 10 Mo</p>
                                             </div>
                                         )}
                                     </div>
