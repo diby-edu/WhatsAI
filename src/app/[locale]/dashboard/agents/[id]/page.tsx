@@ -33,9 +33,9 @@ import { useTranslations } from 'next-intl'
 
 // Wizard Steps - Matching the new wizard design exactly
 const STEPS = [
+    { id: 'mission', title: 'Mission', icon: Target },
     { id: 'info', title: 'Identité', icon: Bot },
     { id: 'hours', title: 'Horaires', icon: Clock },
-    { id: 'mission', title: 'Mission', icon: Target },
     { id: 'personality', title: 'Personnalité', icon: Sparkles },
     { id: 'rules', title: 'Règles', icon: Shield },
     { id: 'settings', title: 'Paramètres', icon: Settings },
@@ -58,6 +58,8 @@ export default function AgentWizardPage({
     const [saving, setSaving] = useState(false)
     const [currentStep, setCurrentStep] = useState(0)
     const [highlightEscalation, setHighlightEscalation] = useState(false)
+    const [selectedMission, setSelectedMission] = useState('')
+    const isSupportClient = selectedMission === 'support_client'
 
     // Handle deep linking to tabs or focus fields
     useEffect(() => {
@@ -66,7 +68,7 @@ export default function AgentWizardPage({
             if (whatsappIndex !== -1) setCurrentStep(whatsappIndex)
         }
         if (sp?.focus === 'escalation') {
-            setCurrentStep(0) // Ensure we are on Identity step
+            setCurrentStep(1) // Ensure we are on Identity step (index 1 after reorder)
             // Small delay to allow render
             setTimeout(() => {
                 setHighlightEscalation(true)
@@ -166,6 +168,7 @@ export default function AgentWizardPage({
         mobile_money_wave: '',
         custom_payment_methods: [] as { name: string; details: string }[],
         escalation_phone: '',  // Phone number to display when escalating to human
+        agent_context: '',
     })
 
     useEffect(() => {
@@ -248,7 +251,13 @@ export default function AgentWizardPage({
                 mobile_money_wave: agent.mobile_money_wave || '',
                 custom_payment_methods: agent.custom_payment_methods || [],
                 escalation_phone: agent.escalation_phone || '',
+                agent_context: agent.agent_context || '',
             })
+
+            // Detect mission type for UX (Support Client = has agent_context or KB-only system_prompt)
+            if (agent.agent_context || (agent.system_prompt || '').includes('en te basant uniquement')) {
+                setSelectedMission('support_client')
+            }
 
             setLoading(false)
         } catch (err) {
@@ -257,13 +266,24 @@ export default function AgentWizardPage({
         }
     }
 
+    // Navigation helpers — Support Client skips step 2 (Horaires)
+    // STEPS: 0=mission, 1=info, 2=hours, 3=personality, 4=rules, 5=settings, 6=whatsapp
+    const getNextStep = (from: number) => {
+        if (isSupportClient && from === 1) return 3 // skip hours (index 2)
+        return Math.min(STEPS.length - 1, from + 1)
+    }
+    const getPrevStep = (from: number) => {
+        if (isSupportClient && from === 3) return 1 // skip hours (index 2)
+        return Math.max(0, from - 1)
+    }
+
     const handleSave = async (silent = false) => {
         if (!agentId) return
 
         // Validation Rule: Escalation Phone is mandatory
         if (!silent && (!formData.escalation_phone || formData.escalation_phone.trim() === '')) {
             alert("⚠️ Le Numéro d'Escalade / SAV est obligatoire pour garantir le support client.")
-            setCurrentStep(0) // Go to Identity tab
+            setCurrentStep(1) // Go to Identity tab (index 1 after reorder)
             setHighlightEscalation(true)
             setTimeout(() => setHighlightEscalation(false), 5000)
             return
@@ -571,6 +591,12 @@ export default function AgentWizardPage({
 
                 return (
                     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        {/* Notice Support Client */}
+                        {isSupportClient && (
+                            <div style={{ padding: 14, background: 'rgba(99, 102, 241, 0.1)', border: '1px solid rgba(99, 102, 241, 0.3)', borderRadius: 12, fontSize: 13, color: '#a5b4fc' }}>
+                                ℹ️ Les horaires ne s'appliquent pas au mode Support Client. Vous pouvez ignorer cette étape.
+                            </div>
+                        )}
                         {/* 24/7 Quick Toggle */}
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 16, background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: 12, marginBottom: 8 }}>
                             <div>
@@ -638,31 +664,119 @@ export default function AgentWizardPage({
                     </motion.div>
                 )
 
-            case 'mission':
+            case 'mission': {
+                const missionTemplates = [
+                    { id: 'ecommerce', emoji: '🛍️', title: 'E-commerce / Boutique', description: 'Vendre des produits, gérer les commandes et livraisons' },
+                    { id: 'restaurant', emoji: '🍽️', title: 'Restaurant / Fast-food', description: 'Prendre commandes, gérer réservations et menus' },
+                    { id: 'hotel', emoji: '🏨', title: 'Hôtel / Hébergement', description: 'Réservations de chambres, services et concierge' },
+                    { id: 'salon', emoji: '💇', title: 'Salon / Beauté', description: 'Rendez-vous, prestations et conseils beauté' },
+                    { id: 'services', emoji: '🔧', title: 'Services / Artisan', description: 'Devis, interventions et rendez-vous techniques' },
+                    { id: 'support_client', emoji: '📚', title: 'Support Client', description: 'Répondre aux questions via une base de connaissance' },
+                    { id: 'custom', emoji: '✏️', title: 'Personnalisé', description: 'Configurer librement la mission de votre agent' },
+                ]
+                const missionPrompts: Record<string, string> = {
+                    ecommerce: `Tu es l'assistant commercial de notre boutique en ligne.\n\nTon rôle:\n- Accueillir les clients et répondre à leurs questions\n- Présenter les produits disponibles (voir liste des produits)\n- Aider à choisir les bons produits selon leurs besoins\n- Prendre les commandes et informations de livraison\n\nPour commander, tu dois collecter:\n1. Le(s) produit(s) souhaité(s) et quantités\n2. Nom complet du client\n3. Numéro de téléphone\n4. Adresse de livraison complète\n5. Mode de paiement (Mobile Money, carte, ou cash à la livraison)\n\nRègles:\n- Sois courtois et serviable\n- Propose toujours des produits complémentaires\n- Confirme le total avant de valider la commande\n- Donne le délai de livraison estimé`,
+                    restaurant: `Tu es l'assistant de notre restaurant.\n\nTon rôle:\n- Présenter le menu et les plats du jour\n- Prendre les commandes (sur place ou livraison)\n- Gérer les réservations de tables\n- Informer sur les allergènes et ingrédients\n\nPour une commande livraison, collecte:\n1. Les plats et quantités\n2. Adresse de livraison\n3. Heure souhaitée\n4. Numéro de téléphone\n\nRègles:\n- Propose toujours des accompagnements et boissons\n- Précise les temps de préparation\n- Confirme le total de la commande`,
+                    hotel: `Tu es le concierge virtuel de notre hôtel.\n\nTon rôle:\n- Renseigner sur les types de chambres et tarifs\n- Effectuer des réservations\n- Informer sur les services (restaurant, spa, piscine)\n- Répondre aux questions des clients\n\nPour une réservation, collecte:\n1. Dates d'arrivée et de départ\n2. Type de chambre souhaité\n3. Nombre d'adultes et d'enfants\n4. Nom complet et téléphone\n\nRègles:\n- Propose des surclassements si disponibles\n- Mentionne les services inclus\n- Confirme le tarif total et les conditions d'annulation`,
+                    salon: `Tu es l'assistant de notre salon de beauté/coiffure.\n\nTon rôle:\n- Présenter nos services et tarifs\n- Prendre les rendez-vous\n- Conseiller sur les soins adaptés\n\nPour un rendez-vous, collecte:\n1. Le(s) service(s) souhaité(s)\n2. Date et heure préférées\n3. Nom et numéro de téléphone\n\nRègles:\n- Indique la durée estimée des prestations\n- Propose des services complémentaires\n- Confirme le rendez-vous et le tarif estimé`,
+                    services: `Tu es l'assistant de notre entreprise de services.\n\nTon rôle:\n- Comprendre les besoins du client\n- Expliquer nos services et tarifs\n- Prendre les demandes d'intervention ou de devis\n\nPour une intervention, collecte:\n1. Nature du problème ou service demandé\n2. Adresse complète\n3. Disponibilités du client\n4. Nom et téléphone\n\nRègles:\n- Pose des questions pour bien comprendre le besoin\n- Donne une fourchette de prix si possible\n- Confirme tous les détails avant de valider`,
+                    support_client: `Tu es l'assistant de ${formData.name || '[Nom de l\'entreprise]'}.\nTon rôle est de répondre aux questions des clients en te basant uniquement sur les informations que tu connais.\nNe jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact direct.`,
+                    custom: `Tu es un assistant virtuel professionnel et polyvalent. Ton rôle est d'accueillir les visiteurs, de répondre à leurs questions sur l'entreprise et de noter leurs coordonnées si nécessaire. Sois toujours courtois, bref et précis.`,
+                }
+                const applyTemplate = (templateId: string) => {
+                    const currentPrompt = formData.system_prompt
+                    if (currentPrompt && currentPrompt.trim().length > 30) {
+                        if (!window.confirm('Remplacer le prompt actuel par ce template ?')) return
+                    }
+                    setSelectedMission(templateId)
+                    setFormData({ ...formData, system_prompt: missionPrompts[templateId] || '' })
+                }
                 return (
-                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                        <p style={{ fontSize: 14, color: '#94a3b8' }}>
-                            Décrivez la mission de votre agent et ses instructions générales. C'est le "cerveau" de votre bot.
-                        </p>
-                        <textarea
-                            value={formData.system_prompt}
-                            onChange={e => setFormData({ ...formData, system_prompt: e.target.value })}
-                            placeholder="Tu es l'assistant commercial de [Nom de l'entreprise]..."
-                            style={{
-                                width: '100%',
-                                padding: 16,
-                                borderRadius: 12,
-                                border: '1px solid rgba(148, 163, 184, 0.1)',
-                                background: 'rgba(30, 41, 59, 0.5)',
-                                color: 'white',
-                                outline: 'none',
-                                height: 280,
-                                resize: 'vertical',
-                                fontFamily: 'inherit'
-                            }}
-                        />
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                        <div>
+                            <p style={{ fontSize: 14, color: '#94a3b8', marginBottom: 14 }}>
+                                Choisissez un template pour pré-remplir la mission, puis personnalisez librement.
+                            </p>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+                                {missionTemplates.map(tpl => (
+                                    <button
+                                        key={tpl.id}
+                                        onClick={() => applyTemplate(tpl.id)}
+                                        style={{
+                                            padding: '14px 16px',
+                                            border: '1px solid rgba(148, 163, 184, 0.15)',
+                                            borderRadius: 12,
+                                            background: 'rgba(30, 41, 59, 0.5)',
+                                            cursor: 'pointer',
+                                            textAlign: 'left',
+                                            transition: 'border-color 0.15s',
+                                        }}
+                                        onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(52, 211, 153, 0.4)')}
+                                        onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(148, 163, 184, 0.15)')}
+                                    >
+                                        <div style={{ fontSize: 20, marginBottom: 6 }}>{tpl.emoji}</div>
+                                        <div style={{ fontSize: 13, fontWeight: 600, color: 'white', marginBottom: 3 }}>{tpl.title}</div>
+                                        <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.4 }}>{tpl.description}</div>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        <div>
+                            <label style={{ display: 'block', fontSize: 13, color: '#94a3b8', marginBottom: 8 }}>
+                                Prompt système (modifiable)
+                            </label>
+                            <textarea
+                                value={formData.system_prompt}
+                                onChange={e => setFormData({ ...formData, system_prompt: e.target.value })}
+                                placeholder="Tu es l'assistant commercial de [Nom de l'entreprise]..."
+                                style={{
+                                    width: '100%',
+                                    padding: 16,
+                                    borderRadius: 12,
+                                    border: '1px solid rgba(148, 163, 184, 0.1)',
+                                    background: 'rgba(30, 41, 59, 0.5)',
+                                    color: 'white',
+                                    outline: 'none',
+                                    height: 220,
+                                    resize: 'vertical',
+                                    fontFamily: 'inherit',
+                                    fontSize: 13,
+                                    lineHeight: 1.6,
+                                }}
+                            />
+                        </div>
+                        {isSupportClient && (
+                            <div>
+                                <label style={{ display: 'block', fontSize: 13, color: '#94a3b8', marginBottom: 8 }}>
+                                    Contexte supplémentaire (Support Client)
+                                </label>
+                                <textarea
+                                    value={formData.agent_context}
+                                    onChange={e => setFormData({ ...formData, agent_context: e.target.value })}
+                                    placeholder="Informations complémentaires sur votre activité, produits ou politiques que l'IA doit connaître..."
+                                    style={{
+                                        width: '100%',
+                                        padding: 16,
+                                        borderRadius: 12,
+                                        border: '1px solid rgba(99, 102, 241, 0.3)',
+                                        background: 'rgba(99, 102, 241, 0.05)',
+                                        color: 'white',
+                                        outline: 'none',
+                                        height: 120,
+                                        resize: 'vertical',
+                                        fontFamily: 'inherit',
+                                        fontSize: 13,
+                                        lineHeight: 1.6,
+                                    }}
+                                />
+                                <p style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
+                                    Ce contexte est injecté dans chaque réponse du mode Support Client.
+                                </p>
+                            </div>
+                        )}
                     </motion.div>
                 )
+            }
 
             case 'personality':
                 const personalities = [
@@ -860,31 +974,35 @@ export default function AgentWizardPage({
                                     Mode de Paiement
                                 </label>
                                 <div className="agent-grid-2" style={{ gap: 12 }}>
-                                    <div
-                                        onClick={() => setFormData({ ...formData, payment_mode: 'cinetpay' })}
-                                        style={{
-                                            padding: 16,
-                                            borderRadius: 12,
-                                            border: formData.payment_mode === 'cinetpay' ? '2px solid #10b981' : '1px solid rgba(148,163,184,0.1)',
-                                            background: formData.payment_mode === 'cinetpay' ? 'rgba(16,185,129,0.1)' : 'rgba(30, 41, 59, 0.5)',
-                                            cursor: 'pointer'
-                                        }}
-                                    >
-                                        <div style={{ fontWeight: 600, color: 'white' }}>🔄 CinetPay (Automatique)</div>
-                                        <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 4 }}>Lien de paiement sécurisé</div>
-                                    </div>
+                                    {!isSupportClient && (
+                                        <div
+                                            onClick={() => setFormData({ ...formData, payment_mode: 'cinetpay' })}
+                                            style={{
+                                                padding: 16,
+                                                borderRadius: 12,
+                                                border: formData.payment_mode === 'cinetpay' ? '2px solid #10b981' : '1px solid rgba(148,163,184,0.1)',
+                                                background: formData.payment_mode === 'cinetpay' ? 'rgba(16,185,129,0.1)' : 'rgba(30, 41, 59, 0.5)',
+                                                cursor: 'pointer'
+                                            }}
+                                        >
+                                            <div style={{ fontWeight: 600, color: 'white' }}>🔄 CinetPay (Automatique)</div>
+                                            <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 4 }}>Lien de paiement sécurisé</div>
+                                        </div>
+                                    )}
                                     <div
                                         onClick={() => setFormData({ ...formData, payment_mode: 'mobile_money_direct' })}
                                         style={{
                                             padding: 16,
                                             borderRadius: 12,
-                                            border: formData.payment_mode === 'mobile_money_direct' ? '2px solid #10b981' : '1px solid rgba(148,163,184,0.1)',
-                                            background: formData.payment_mode === 'mobile_money_direct' ? 'rgba(16,185,129,0.1)' : 'rgba(30, 41, 59, 0.5)',
+                                            border: (isSupportClient || formData.payment_mode === 'mobile_money_direct') ? '2px solid #10b981' : '1px solid rgba(148,163,184,0.1)',
+                                            background: (isSupportClient || formData.payment_mode === 'mobile_money_direct') ? 'rgba(16,185,129,0.1)' : 'rgba(30, 41, 59, 0.5)',
                                             cursor: 'pointer'
                                         }}
                                     >
                                         <div style={{ fontWeight: 600, color: 'white' }}>📱 Mobile Money Direct</div>
-                                        <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 4 }}>Vérification manuelle</div>
+                                        <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 4 }}>
+                                            {isSupportClient ? 'Seul mode disponible (Support Client)' : 'Vérification manuelle'}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -1154,7 +1272,7 @@ export default function AgentWizardPage({
             <div className="fixed bottom-0 left-0 w-full bg-slate-900/90 backdrop-blur border-t border-slate-800 p-4 z-20">
                 <div className="max-w-3xl mx-auto flex justify-between items-center">
                     <button
-                        onClick={() => setCurrentStep(prev => Math.max(0, prev - 1))}
+                        onClick={() => setCurrentStep(prev => getPrevStep(prev))}
                         disabled={currentStep === 0}
                         className={`px-6 py-3 rounded-xl font-bold flex items-center gap-2 ${currentStep === 0 ? 'opacity-0 pointer-events-none' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
                     >
@@ -1170,7 +1288,7 @@ export default function AgentWizardPage({
                                     return
                                 }
                                 handleSave(true) // Auto-save
-                                setCurrentStep(prev => Math.min(STEPS.length - 1, prev + 1))
+                                setCurrentStep(prev => getNextStep(prev))
                             }}
                             className="px-6 py-3 bg-white text-slate-900 hover:bg-slate-200 rounded-xl font-bold flex items-center gap-2 shadow-lg transition-all"
                         >

@@ -688,6 +688,36 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
                                 </div>
                             </div>
                         )}
+
+                        {isSupportClient && (
+                            <div>
+                                <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
+                                    Contexte supplémentaire (optionnel)
+                                </label>
+                                <textarea
+                                    value={formData.agent_context}
+                                    onChange={(e) => updateFormData('agent_context', e.target.value)}
+                                    placeholder="Informations complémentaires sur votre activité, produits ou politiques que l'IA doit connaître..."
+                                    rows={4}
+                                    style={{
+                                        width: '100%',
+                                        padding: 16,
+                                        borderRadius: 12,
+                                        border: '1px solid rgba(99, 102, 241, 0.3)',
+                                        background: 'rgba(99, 102, 241, 0.05)',
+                                        color: 'white',
+                                        outline: 'none',
+                                        resize: 'vertical',
+                                        fontFamily: 'inherit',
+                                        fontSize: 13,
+                                        lineHeight: 1.6,
+                                    }}
+                                />
+                                <p style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
+                                    Ce contexte est injecté dans chaque réponse du mode Support Client.
+                                </p>
+                            </div>
+                        )}
                     </div>
                 )
 

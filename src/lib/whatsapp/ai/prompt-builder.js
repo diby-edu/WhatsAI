@@ -13,6 +13,7 @@ const { prompt_STAY } = require('./prompts/workflow-service-stay')
 const { prompt_TABLE } = require('./prompts/workflow-service-table')
 const { prompt_SLOT } = require('./prompts/workflow-service-slot')
 const { prompt_RENTAL } = require('./prompts/workflow-service-rental')
+const { prompt_INSCRIPTION } = require('./prompts/workflow-service-inscription')
 const { buildCatalogueSection, buildClientHistory, buildKnowledgeSection, buildProductsCatalogSection } = require('./prompts/sections')
 
 // Mapping des sous-types de services vers les moteurs de template
@@ -22,7 +23,7 @@ const SERVICE_ENGINE_MAP = {
     'restaurant': 'TABLE',
     'event': 'TABLE',
     'rental': 'RENTAL',
-    'formation': 'SLOT',
+    'formation': 'INSCRIPTION',
     'coiffeur': 'SLOT',
     'medecin': 'SLOT',
     'coaching': 'SLOT',
@@ -154,6 +155,7 @@ Si le client dit "Salut", "Bonjour", "Menu", "Catalogue", ou demande un produit 
         else if (activeEngine === 'TABLE') collectOrder = prompt_TABLE
         else if (activeEngine === 'SLOT') collectOrder = prompt_SLOT
         else if (activeEngine === 'RENTAL') collectOrder = prompt_RENTAL
+        else if (activeEngine === 'INSCRIPTION') collectOrder = prompt_INSCRIPTION
         else collectOrder = buildGenericWorkflow(orders, products) // Fallback
     } else {
         collectOrder = buildGenericWorkflow(orders, products) // Default Generic/Mixed
@@ -171,10 +173,20 @@ ${gpsLink ? `🗺️ ${gpsLink}` : ''}
 ${formattedHours !== 'Non spécifiés' ? `⏰ ${formattedHours}` : ''}
     ` : ''
 
-    // Section 5: Catalogue détaillé (variantes & prix réels — critique anti-hallucination)
+    // Section 5: Mission personnalisée (system_prompt du wizard)
+    const missionSection = agent.system_prompt && agent.system_prompt.trim()
+        ? `\n📋 MISSION DE L'AGENT :\n${agent.system_prompt.trim()}`
+        : ''
+
+    // Section 5b: Règles personnalisées (custom_rules du wizard)
+    const customRulesSection = agent.custom_rules && agent.custom_rules.trim()
+        ? `\n📌 RÈGLES PERSONNALISÉES :\n${agent.custom_rules.trim()}`
+        : ''
+
+    // Section 6: Catalogue détaillé (variantes & prix réels — critique anti-hallucination)
     const productsCatalogSection = buildProductsCatalogSection(products, currency)
 
-    // Section 6: Mode de paiement configuré par le marchand
+    // Section 7: Mode de paiement configuré par le marchand
     let paymentSection = ''
     if (!agent.payment_mode || agent.payment_mode === 'cinetpay') {
         paymentSection = `
@@ -208,9 +220,11 @@ Quand le client choisit "payer en ligne", réponds simplement "D'accord, les ins
     return `${resetContext}
 ${variantsRules}
 ${identity}
+${missionSection}
 ${catalogueSection}
 ${collectOrder}
 ${antiLoopRules}
+${customRulesSection}
 ${toolsDefinition}
 ${clientHistory}
 ${knowledgeSection}

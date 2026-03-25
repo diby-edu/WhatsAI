@@ -277,17 +277,19 @@ async function generateAIResponse(options, dependencies) {
             userMessage || '', // v2.19: Intent Detection Context
             hasKnowledgeBase
         )
-        const checkoutStateGuidance = buildCheckoutStateGuidance(checkoutState)
-        if (checkoutStateGuidance) {
-            systemPrompt += '\n\n' + checkoutStateGuidance
-        }
-        const cartStateGuidance = buildCartStateGuidance(cartState, products || [])
-        if (cartStateGuidance) {
-            systemPrompt += '\n\n' + cartStateGuidance
-        }
-        const bookingStateGuidance = buildBookingStateGuidance(bookingState, (products || []).filter(product => product.product_type === 'service'))
-        if (bookingStateGuidance) {
-            systemPrompt += '\n\n' + bookingStateGuidance
+        if (!isSupportClientMode) {
+            const checkoutStateGuidance = buildCheckoutStateGuidance(checkoutState)
+            if (checkoutStateGuidance) {
+                systemPrompt += '\n\n' + checkoutStateGuidance
+            }
+            const cartStateGuidance = buildCartStateGuidance(cartState, products || [])
+            if (cartStateGuidance) {
+                systemPrompt += '\n\n' + cartStateGuidance
+            }
+            const bookingStateGuidance = buildBookingStateGuidance(bookingState, (products || []).filter(product => product.product_type === 'service'))
+            if (bookingStateGuidance) {
+                systemPrompt += '\n\n' + bookingStateGuidance
+            }
         }
         console.log(`📝 Prompt size: ${systemPrompt.length} chars`)
 

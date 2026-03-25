@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import {
-    Calendar, Search, Filter, CheckCircle, XCircle, Clock,
-    Loader2, RefreshCw, Users, Hotel, Utensils, Scissors, ArrowLeft
+    Calendar, Search, CheckCircle, XCircle, Clock,
+    Loader2, RefreshCw, Users, Hotel, Utensils, Scissors, ArrowLeft, BookOpen
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -66,6 +66,7 @@ export default function AdminBookingsPage() {
             case 'restaurant': return Utensils
             case 'hotel': return Hotel
             case 'service': return Scissors
+            case 'inscription': return BookOpen
             default: return Calendar
         }
     }
@@ -74,10 +75,16 @@ export default function AdminBookingsPage() {
         switch (status) {
             case 'confirmed': return { bg: 'rgba(34, 197, 94, 0.15)', color: '#4ade80' }
             case 'pending': return { bg: 'rgba(251, 191, 36, 0.15)', color: '#fbbf24' }
+            case 'inscription_pending': return { bg: 'rgba(168, 85, 247, 0.15)', color: '#c084fc' }
             case 'cancelled': return { bg: 'rgba(239, 68, 68, 0.15)', color: '#f87171' }
             case 'completed': return { bg: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa' }
             default: return { bg: 'rgba(100, 116, 139, 0.15)', color: '#94a3b8' }
         }
+    }
+
+    const getStatusLabel = (status: string) => {
+        if (status === 'inscription_pending') return 'INSCRIPTION'
+        return status.toUpperCase()
     }
 
     const filteredBookings = bookings.filter(booking => {
@@ -94,6 +101,7 @@ export default function AdminBookingsPage() {
         confirmed: bookings.filter(b => b.status === 'confirmed').length,
         pending: bookings.filter(b => b.status === 'pending').length,
         today: bookings.filter(b => {
+            if (!b.start_time) return false
             const bookingDate = new Date(b.start_time).toDateString()
             const today = new Date().toDateString()
             return bookingDate === today
@@ -184,6 +192,7 @@ export default function AdminBookingsPage() {
                     <option value="restaurant">Restaurant</option>
                     <option value="hotel">Hôtel</option>
                     <option value="service">Service</option>
+                    <option value="inscription">Inscription</option>
                 </select>
             </div>
 
@@ -257,12 +266,18 @@ export default function AdminBookingsPage() {
                                             )}
                                         </td>
                                         <td style={{ padding: '14px 16px' }}>
-                                            <div style={{ color: 'white', fontSize: 14 }}>
-                                                {new Date(booking.start_time).toLocaleDateString('fr-FR')}
-                                            </div>
-                                            <div style={{ color: '#64748b', fontSize: 12 }}>
-                                                {new Date(booking.start_time).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-                                            </div>
+                                            {booking.start_time ? (
+                                                <>
+                                                    <div style={{ color: 'white', fontSize: 14 }}>
+                                                        {new Date(booking.start_time).toLocaleDateString('fr-FR')}
+                                                    </div>
+                                                    <div style={{ color: '#64748b', fontSize: 12 }}>
+                                                        {new Date(booking.start_time).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <span style={{ color: '#64748b', fontSize: 12 }}>Sans date fixe</span>
+                                            )}
                                         </td>
                                         <td style={{ padding: '14px 16px' }}>
                                             <span style={{ color: 'white', fontSize: 14 }}>
@@ -274,11 +289,25 @@ export default function AdminBookingsPage() {
                                                 padding: '4px 10px', fontSize: 11, fontWeight: 600,
                                                 borderRadius: 100, background: statusStyle.bg, color: statusStyle.color
                                             }}>
-                                                {booking.status.toUpperCase()}
+                                                {getStatusLabel(booking.status)}
                                             </span>
                                         </td>
                                         <td style={{ padding: '14px 16px' }}>
                                             <div style={{ display: 'flex', gap: 8 }}>
+                                                {booking.status === 'inscription_pending' && (
+                                                    <button
+                                                        onClick={() => updateBookingStatus(booking.id, 'confirmed')}
+                                                        title="Confirmer l'inscription (paiement reçu)"
+                                                        style={{
+                                                            width: 32, height: 32, borderRadius: 8,
+                                                            background: 'rgba(34, 197, 94, 0.1)',
+                                                            border: 'none', cursor: 'pointer',
+                                                            display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                                        }}
+                                                    >
+                                                        <CheckCircle size={16} style={{ color: '#4ade80' }} />
+                                                    </button>
+                                                )}
                                                 {booking.status === 'confirmed' && (
                                                     <button
                                                         onClick={() => updateBookingStatus(booking.id, 'completed')}
@@ -293,7 +322,7 @@ export default function AdminBookingsPage() {
                                                         <CheckCircle size={16} style={{ color: '#60a5fa' }} />
                                                     </button>
                                                 )}
-                                                {(booking.status === 'confirmed' || booking.status === 'pending') && (
+                                                {(booking.status === 'confirmed' || booking.status === 'pending' || booking.status === 'inscription_pending') && (
                                                     <button
                                                         onClick={() => updateBookingStatus(booking.id, 'cancelled')}
                                                         title="Annuler"

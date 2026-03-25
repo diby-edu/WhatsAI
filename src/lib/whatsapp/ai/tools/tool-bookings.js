@@ -89,44 +89,50 @@ async function handleCreateBooking(args, agentId, products, conversationId, supa
             price: item.price,
         }))
 
-        // Valider et construire start_time
-        if (!preferred_date) {
-            return JSON.stringify({
-                success: false,
-                error: 'DATE MANQUANTE. Demandez la date souhaitée au client (format: AAAA-MM-JJ, ex: 2026-03-25).'
-            })
+        // Inscription : pas de date/heure obligatoire
+        const isInscription = booking_type === 'inscription'
+        let start_time = null
+
+        if (!isInscription) {
+            // Valider et construire start_time
+            if (!preferred_date) {
+                return JSON.stringify({
+                    success: false,
+                    error: 'DATE MANQUANTE. Demandez la date souhaitée au client (format: AAAA-MM-JJ, ex: 2026-03-25).'
+                })
+            }
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(preferred_date)) {
+                return JSON.stringify({
+                    success: false,
+                    error: `Date invalide: "${preferred_date}". Format attendu: AAAA-MM-JJ (ex: 2026-03-25). Redemandez la date au client.`
+                })
+            }
+            // Heure : obligatoire pour slot/table, validée si fournie
+            const requiresTime = ['slot', 'table'].includes(booking_type || 'slot')
+            if (requiresTime && !preferred_time) {
+                return JSON.stringify({
+                    success: false,
+                    error: 'HEURE MANQUANTE. Demandez l\'heure souhaitée au client avant de créer la réservation.',
+                    hint: 'Exemples valides: "09:00", "14:30", "18:00"'
+                })
+            }
+            if (preferred_time && !/^\d{2}:\d{2}$/.test(preferred_time)) {
+                return JSON.stringify({
+                    success: false,
+                    error: `HEURE INVALIDE: "${preferred_time}". Format attendu: HH:MM (ex: 14:30). Redemandez l'heure au client.`,
+                    hint: 'Exemples valides: "09:00", "14:30", "18:00"'
+                })
+            }
+            const timeStr = preferred_time && /^\d{2}:\d{2}$/.test(preferred_time) ? preferred_time : '00:00'
+            const parsedDate = new Date(`${preferred_date}T${timeStr}:00`)
+            if (isNaN(parsedDate.getTime())) {
+                return JSON.stringify({
+                    success: false,
+                    error: `Date invalide: "${preferred_date} ${timeStr}". Vérifiez et redemandez la date au client.`
+                })
+            }
+            start_time = parsedDate.toISOString()
         }
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(preferred_date)) {
-            return JSON.stringify({
-                success: false,
-                error: `Date invalide: "${preferred_date}". Format attendu: AAAA-MM-JJ (ex: 2026-03-25). Redemandez la date au client.`
-            })
-        }
-        // Heure : obligatoire pour slot/table, validée si fournie
-        const requiresTime = ['slot', 'table'].includes(booking_type || 'slot')
-        if (requiresTime && !preferred_time) {
-            return JSON.stringify({
-                success: false,
-                error: 'HEURE MANQUANTE. Demandez l\'heure souhaitée au client avant de créer la réservation.',
-                hint: 'Exemples valides: "09:00", "14:30", "18:00"'
-            })
-        }
-        if (preferred_time && !/^\d{2}:\d{2}$/.test(preferred_time)) {
-            return JSON.stringify({
-                success: false,
-                error: `HEURE INVALIDE: "${preferred_time}". Format attendu: HH:MM (ex: 14:30). Redemandez l'heure au client.`,
-                hint: 'Exemples valides: "09:00", "14:30", "18:00"'
-            })
-        }
-        const timeStr = preferred_time && /^\d{2}:\d{2}$/.test(preferred_time) ? preferred_time : '00:00'
-        const parsedDate = new Date(`${preferred_date}T${timeStr}:00`)
-        if (isNaN(parsedDate.getTime())) {
-            return JSON.stringify({
-                success: false,
-                error: `Date invalide: "${preferred_date} ${timeStr}". Vérifiez et redemandez la date au client.`
-            })
-        }
-        const start_time = parsedDate.toISOString()
 
         const normalizedPhone = normalizePhoneNumber(customer_phone)
         if (!normalizedPhone) {
@@ -156,7 +162,7 @@ async function handleCreateBooking(args, agentId, products, conversationId, supa
                 end_date: end_date || null,
                 party_size: party_size || 1,
                 notes: notes || null,
-                status: 'confirmed',
+                status: isInscription ? 'inscription_pending' : 'confirmed',
                 conversation_id: conversationId
             })
             .select()
@@ -164,9 +170,11 @@ async function handleCreateBooking(args, agentId, products, conversationId, supa
 
         if (error) throw error
 
-        let confirmMsg = `📅 Réservation confirmée ! ${service.name} le ${preferred_date}`
-        if (preferred_time) confirmMsg += ` à ${preferred_time}`
-        if (end_date) confirmMsg += ` jusqu'au ${end_date}`
+        let confirmMsg = isInscription
+            ? `✅ Inscription enregistrée ! Vous êtes inscrit(e) à *${service.name}*.`
+            : `📅 Réservation confirmée ! ${service.name} le ${preferred_date}`
+        if (!isInscription && preferred_time) confirmMsg += ` à ${preferred_time}`
+        if (!isInscription && end_date) confirmMsg += ` jusqu'au ${end_date}`
         if (party_size && party_size > 1) confirmMsg += ` pour ${party_size} personne(s)`
         if (pricing.fixedSelections.length > 0) {
             confirmMsg += `\n🎯 Options : ${pricing.fixedSelections.map(item => `${item.label} ${item.value}`).join(', ')}`
@@ -176,8 +184,13 @@ async function handleCreateBooking(args, agentId, products, conversationId, supa
         }
         confirmMsg += '.'
 
+        if (isInscription && finalPrice > 0) {
+            confirmMsg += `\n\n💰 Montant : *${finalPrice.toLocaleString('fr-FR')} FCFA*`
+            confirmMsg += `\nVotre inscription sera confirmée dès réception du paiement.`
+        }
+
         if (agent.escalation_phone) {
-            confirmMsg += `\n\n📞 En cas de besoin, contactez le service client au ${agent.escalation_phone}.`
+            confirmMsg += `\n\n📞 En cas de besoin, contactez-nous au ${agent.escalation_phone}.`
         }
 
         // Notify business owner (push notification)
