@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use, useRef } from 'react'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Plus, Trash2, FileText, Loader2, Upload, Link2, AlignLeft } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, FileText, Loader2, Upload, Link2, AlignLeft, Eye, X, ChevronDown, ChevronUp } from 'lucide-react'
 import Link from 'next/link'
 
 interface Document {
@@ -12,6 +12,13 @@ interface Document {
     source_id: string | null
     chunk_index?: number
     chunks_count?: number
+}
+
+interface Segment {
+    id: string
+    chunk_index: number
+    content: string
+    title: string
 }
 
 type ImportMode = 'text' | 'pdf' | 'url'
@@ -48,6 +55,12 @@ export default function AgentKnowledgePage({ params }: { params: Promise<{ id: s
     // URL mode
     const [urlInput, setUrlInput] = useState('')
     const [urlTitle, setUrlTitle] = useState('')
+
+    // View segments modal
+    const [viewingDoc, setViewingDoc] = useState<Document | null>(null)
+    const [segments, setSegments] = useState<Segment[]>([])
+    const [loadingSegments, setLoadingSegments] = useState(false)
+    const [expandedSegment, setExpandedSegment] = useState<number | null>(null)
 
     useEffect(() => { fetchDocuments() }, [id])
 
@@ -137,6 +150,22 @@ export default function AgentKnowledgePage({ params }: { params: Promise<{ id: s
             setImportError('Erreur réseau')
         } finally {
             setSubmitting(false)
+        }
+    }
+
+    const handleViewSegments = async (doc: Document) => {
+        setViewingDoc(doc)
+        setExpandedSegment(null)
+        setLoadingSegments(true)
+        try {
+            const sourceId = doc.source_id || doc.id
+            const res = await fetch(`/api/knowledge/${sourceId}`)
+            const data = await res.json()
+            if (res.ok) setSegments(data.data.segments || [])
+        } catch (e) {
+            console.error(e)
+        } finally {
+            setLoadingSegments(false)
         }
     }
 
@@ -238,12 +267,21 @@ export default function AgentKnowledgePage({ params }: { params: Promise<{ id: s
                                 }}>
                                     <FileText size={20} style={{ color: '#10b981' }} />
                                 </div>
-                                <button
-                                    onClick={() => handleDelete(doc)}
-                                    style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer' }}
-                                >
-                                    <Trash2 size={18} />
-                                </button>
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                    <button
+                                        onClick={() => handleViewSegments(doc)}
+                                        title="Consulter le contenu"
+                                        style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer' }}
+                                    >
+                                        <Eye size={18} />
+                                    </button>
+                                    <button
+                                        onClick={() => handleDelete(doc)}
+                                        style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer' }}
+                                    >
+                                        <Trash2 size={18} />
+                                    </button>
+                                </div>
                             </div>
                             <h3 style={{ color: 'white', fontWeight: 600, marginBottom: 8 }}>{doc.title}</h3>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 'auto' }}>
@@ -262,6 +300,99 @@ export default function AgentKnowledgePage({ params }: { params: Promise<{ id: s
                             </div>
                         </motion.div>
                     ))}
+                </div>
+            )}
+
+            {/* Modal Consultation Segments */}
+            {viewingDoc && (
+                <div style={{
+                    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)',
+                    zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20
+                }}>
+                    <div style={{
+                        background: '#0f172a', width: '100%', maxWidth: 700,
+                        borderRadius: 24, border: '1px solid #334155',
+                        maxHeight: '88vh', display: 'flex', flexDirection: 'column'
+                    }}>
+                        {/* Header fixe */}
+                        <div style={{
+                            padding: '24px 28px', borderBottom: '1px solid #1e293b',
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0
+                        }}>
+                            <div>
+                                <h2 style={{ color: 'white', fontSize: 20, fontWeight: 700, marginBottom: 4 }}>
+                                    {viewingDoc.title}
+                                </h2>
+                                <p style={{ color: '#64748b', fontSize: 13 }}>
+                                    {new Date(viewingDoc.created_at).toLocaleDateString()} — {viewingDoc.chunks_count} segment{(viewingDoc.chunks_count || 1) > 1 ? 's' : ''}
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => { setViewingDoc(null); setSegments([]) }}
+                                style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', padding: 8 }}
+                            >
+                                <X size={22} />
+                            </button>
+                        </div>
+
+                        {/* Corps scrollable */}
+                        <div style={{ overflowY: 'auto', padding: '20px 28px', flex: 1 }}>
+                            {loadingSegments ? (
+                                <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}>
+                                    <Loader2 style={{ color: '#10b981', animation: 'spin 1s linear infinite' }} />
+                                </div>
+                            ) : segments.length === 0 ? (
+                                <p style={{ color: '#64748b', textAlign: 'center', padding: 40 }}>Aucun segment trouvé.</p>
+                            ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                    {segments.map((seg) => (
+                                        <div
+                                            key={seg.id}
+                                            style={{
+                                                background: '#1e293b', borderRadius: 12,
+                                                border: '1px solid #334155', overflow: 'hidden'
+                                            }}
+                                        >
+                                            <button
+                                                onClick={() => setExpandedSegment(expandedSegment === seg.chunk_index ? null : seg.chunk_index)}
+                                                style={{
+                                                    width: '100%', background: 'transparent', border: 'none',
+                                                    padding: '12px 16px', display: 'flex', alignItems: 'center',
+                                                    justifyContent: 'space-between', cursor: 'pointer', color: 'white'
+                                                }}
+                                            >
+                                                <span style={{ fontSize: 13, fontWeight: 600, color: '#94a3b8' }}>
+                                                    Segment {seg.chunk_index + 1}
+                                                    <span style={{ marginLeft: 10, fontWeight: 400, color: '#475569', fontSize: 12 }}>
+                                                        {seg.content.length} car.
+                                                    </span>
+                                                </span>
+                                                {expandedSegment === seg.chunk_index
+                                                    ? <ChevronUp size={16} style={{ color: '#64748b', flexShrink: 0 }} />
+                                                    : <ChevronDown size={16} style={{ color: '#64748b', flexShrink: 0 }} />
+                                                }
+                                            </button>
+                                            {expandedSegment === seg.chunk_index && (
+                                                <div style={{
+                                                    padding: '0 16px 16px',
+                                                    borderTop: '1px solid #334155',
+                                                    paddingTop: 12
+                                                }}>
+                                                    <pre style={{
+                                                        color: '#cbd5e1', fontSize: 13, lineHeight: 1.7,
+                                                        whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                                                        margin: 0, fontFamily: 'inherit'
+                                                    }}>
+                                                        {seg.content}
+                                                    </pre>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 </div>
             )}
 
