@@ -88,8 +88,10 @@ function buildAdaptiveSystemPrompt(agent, products, orders, relevantDocs, curren
             : ''
 
         const escalationRule = agent.escalation_phone
-            ? `Si la question dépasse ta base de connaissance, réponds naturellement : "Pour plus de détails, vous pouvez contacter directement au *${agent.escalation_phone}*."`
-            : `Si la question dépasse ta base de connaissance, indique poliment que tu n'as pas l'information et invite à recontacter.`
+            ? `Si l'info est dans ton domaine mais absente de ta base de connaissance → réponds : "Pour plus de détails, vous pouvez contacter directement au *${agent.escalation_phone}*."
+✅ Si la question concerne un service ou sujet hors de ton domaine → réponds poliment que ce n'est pas proposé et redirige vers ce que tu couvres. N'escalade JAMAIS vers le numéro pour quelque chose hors domaine.`
+            : `Si l'info est dans ton domaine mais absente de ta base de connaissance → indique poliment que tu n'as pas l'information.
+✅ Si la question concerne un service ou sujet hors domaine → réponds poliment que ce n'est pas proposé et redirige vers ce que tu couvres.`
 
         const agentContext = agent.agent_context ? `\n\n📋 CONTEXTE SUPPLÉMENTAIRE :\n${agent.agent_context}` : ''
 
