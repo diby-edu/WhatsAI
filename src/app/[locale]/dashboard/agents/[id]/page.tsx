@@ -414,6 +414,12 @@ export default function AgentWizardPage({
 
                 return (
                     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                        {isSupportClient && (
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px', background: 'rgba(99, 102, 241, 0.08)', border: '1px solid rgba(99, 102, 241, 0.2)', borderRadius: 10, fontSize: 13, color: '#a5b4fc' }}>
+                                <span>ℹ️</span>
+                                <span>En mode Support Client, la description et l'adresse s'activent automatiquement si vous ajoutez des produits à cet agent.</span>
+                            </div>
+                        )}
                         {/* Name */}
                         <div>
                             <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
@@ -818,6 +824,12 @@ export default function AgentWizardPage({
                 ]
                 return (
                     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                        {isSupportClient && (
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px', background: 'rgba(99, 102, 241, 0.08)', border: '1px solid rgba(99, 102, 241, 0.2)', borderRadius: 10, fontSize: 13, color: '#a5b4fc' }}>
+                                <span>ℹ️</span>
+                                <span>En mode Support Client, la personnalité s'active automatiquement si vous ajoutez des produits à cet agent.</span>
+                            </div>
+                        )}
                         <div>
                             <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 16 }}>
                                 Personnalité de l'agent
@@ -887,6 +899,12 @@ export default function AgentWizardPage({
             case 'rules':
                 return (
                     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                        {isSupportClient && (
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px', background: 'rgba(99, 102, 241, 0.08)', border: '1px solid rgba(99, 102, 241, 0.2)', borderRadius: 10, fontSize: 13, color: '#a5b4fc' }}>
+                                <span>ℹ️</span>
+                                <span>En mode Support Client, les règles s'activent automatiquement si vous ajoutez des produits à cet agent.</span>
+                            </div>
+                        )}
                         <p style={{ fontSize: 14, color: '#94a3b8' }}>
                             Ajoutez ici TOUTES vos règles spécifiques que le bot doit respecter absolument.
                             <br />Politique de retour, Livraison, Paiement, Promos...
