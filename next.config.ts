@@ -6,7 +6,7 @@ const withNextIntl = createNextIntlPlugin();
 const nextConfig: NextConfig = {
   reactCompiler: true,
   // Baileys requires Node.js specific features - server only
-  serverExternalPackages: ['@whiskeysockets/baileys', 'pino', 'pino-pretty'],
+  serverExternalPackages: ['@whiskeysockets/baileys', 'pino', 'pino-pretty', 'pdf-parse', 'pdfjs-dist', 'word-extractor', 'yauzl'],
   // TypeScript checking enabled for security
   typescript: {
     ignoreBuildErrors: false,
