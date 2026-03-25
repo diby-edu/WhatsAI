@@ -592,7 +592,7 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
 
     const goToKnowledgeBase = () => {
         if (!createdAgent?.id) return
-        router.push(`/dashboard/agents/${createdAgent.id}/knowledge`)
+        router.push(`/dashboard/agents/${createdAgent.id}/knowledge?from=whatsapp`)
     }
 
     const handleFinish = () => {
