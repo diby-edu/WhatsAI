@@ -325,7 +325,7 @@ async function handleCreateOrder(args, agentId, products, conversationId, supaba
                     ? JSON.parse(agent.custom_payment_methods)
                     : agent.custom_payment_methods
                 if (Array.isArray(custom)) {
-                    custom.forEach(m => paymentMethods.push({ type: m.name || m.type, number: m.number }))
+                    custom.forEach(m => paymentMethods.push({ type: m.name || m.type, number: m.details || m.number || '' }))
                 }
             } catch (_e) {}
 

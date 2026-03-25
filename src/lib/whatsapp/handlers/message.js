@@ -348,6 +348,13 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
         const orderableProducts = (products || []).filter(product => product.product_type !== 'service')
         const serviceProducts = (products || []).filter(product => product.product_type === 'service')
 
+        // hasKnowledgeBase : COUNT serveur (pas déduit de relevantDocs qui peut retourner 0 sur "Bonjour")
+        const { count: kbCount } = await supabase
+            .from('knowledge_base')
+            .select('*', { count: 'exact', head: true })
+            .eq('agent_id', agentId)
+        const hasKnowledgeBase = (kbCount || 0) > 0
+
         const previousCartState = getCartState(conversation.metadata)
         const previousCheckoutState = getCheckoutState(conversation.metadata)
         const previousBookingState = getBookingState(conversation.metadata)
@@ -508,6 +515,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                     checkoutState,
                     cartState: cartUpdate.state,
                     bookingState: bookingUpdate.state,
+                    hasKnowledgeBase,
                     supabase,
                     activeSessions,
                     CinetPay
