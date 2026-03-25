@@ -1,9 +1,8 @@
 'use client'
 
-import { useState, useEffect, use } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, use, useRef } from 'react'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Plus, Trash2, FileText, Search, Loader2 } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, FileText, Loader2, Upload, Link2, AlignLeft } from 'lucide-react'
 import Link from 'next/link'
 
 interface Document {
@@ -15,29 +14,49 @@ interface Document {
     chunks_count?: number
 }
 
+type ImportMode = 'text' | 'pdf' | 'url'
+
+const inputStyle: React.CSSProperties = {
+    width: '100%',
+    background: '#1e293b',
+    border: '1px solid #334155',
+    padding: 12,
+    borderRadius: 12,
+    color: 'white',
+    outline: 'none',
+    fontSize: 14
+}
+
 export default function AgentKnowledgePage({ params }: { params: Promise<{ id: string, locale: string }> }) {
     const { id, locale } = use(params)
-    const router = useRouter()
 
     const [documents, setDocuments] = useState<Document[]>([])
     const [loading, setLoading] = useState(true)
     const [isAdding, setIsAdding] = useState(false)
-    const [newDoc, setNewDoc] = useState({ title: '', content: '' })
+    const [importMode, setImportMode] = useState<ImportMode>('text')
     const [submitting, setSubmitting] = useState(false)
+    const [importError, setImportError] = useState<string | null>(null)
 
-    // Fetch documents
-    useEffect(() => {
-        fetchDocuments()
-    }, [id])
+    // Text mode
+    const [newDoc, setNewDoc] = useState({ title: '', content: '' })
+
+    // PDF mode
+    const [pdfFile, setPdfFile] = useState<File | null>(null)
+    const [pdfTitle, setPdfTitle] = useState('')
+    const fileInputRef = useRef<HTMLInputElement>(null)
+
+    // URL mode
+    const [urlInput, setUrlInput] = useState('')
+    const [urlTitle, setUrlTitle] = useState('')
+
+    useEffect(() => { fetchDocuments() }, [id])
 
     const fetchDocuments = async () => {
         setLoading(true)
         try {
             const res = await fetch(`/api/knowledge?agentId=${id}`)
             const data = await res.json()
-            if (res.ok) {
-                setDocuments(data.data.documents || [])
-            }
+            if (res.ok) setDocuments(data.data.documents || [])
         } catch (e) {
             console.error(e)
         } finally {
@@ -45,50 +64,115 @@ export default function AgentKnowledgePage({ params }: { params: Promise<{ id: s
         }
     }
 
-    // Add document
-    const handleAdd = async (e: React.FormEvent) => {
+    const resetModal = () => {
+        setIsAdding(false)
+        setImportMode('text')
+        setNewDoc({ title: '', content: '' })
+        setPdfFile(null)
+        setPdfTitle('')
+        setUrlInput('')
+        setUrlTitle('')
+        setImportError(null)
+    }
+
+    // Import texte
+    const handleAddText = async (e: React.FormEvent) => {
         e.preventDefault()
         setSubmitting(true)
+        setImportError(null)
         try {
             const res = await fetch('/api/knowledge', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    agentId: id,
-                    title: newDoc.title,
-                    content: newDoc.content
-                })
+                body: JSON.stringify({ agentId: id, title: newDoc.title, content: newDoc.content })
             })
-
-            if (res.ok) {
-                setNewDoc({ title: '', content: '' })
-                setIsAdding(false)
-                fetchDocuments()
-            }
+            const data = await res.json()
+            if (res.ok) { resetModal(); fetchDocuments() }
+            else setImportError(data.error || 'Erreur lors de l\'import')
         } catch (e) {
-            console.error(e)
+            setImportError('Erreur réseau')
         } finally {
             setSubmitting(false)
         }
     }
 
-    // Delete document (supprime tous les chunks de la source)
+    // Import PDF
+    const handleAddPdf = async (e: React.FormEvent) => {
+        e.preventDefault()
+        if (!pdfFile || !pdfTitle.trim()) return
+        setSubmitting(true)
+        setImportError(null)
+        try {
+            const form = new FormData()
+            form.append('file', pdfFile)
+            form.append('agentId', id)
+            form.append('title', pdfTitle)
+            const res = await fetch('/api/knowledge/import/pdf', { method: 'POST', body: form })
+            const data = await res.json()
+            if (res.ok) { resetModal(); fetchDocuments() }
+            else setImportError(data.error || 'Erreur lors de l\'import PDF')
+        } catch (e) {
+            setImportError('Erreur réseau')
+        } finally {
+            setSubmitting(false)
+        }
+    }
+
+    // Import URL
+    const handleAddUrl = async (e: React.FormEvent) => {
+        e.preventDefault()
+        if (!urlInput.trim() || !urlTitle.trim()) return
+        setSubmitting(true)
+        setImportError(null)
+        try {
+            const res = await fetch('/api/knowledge/import/url', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ agentId: id, url: urlInput.trim(), title: urlTitle.trim() })
+            })
+            const data = await res.json()
+            if (res.ok) { resetModal(); fetchDocuments() }
+            else setImportError(data.error || 'Erreur lors de l\'import URL')
+        } catch (e) {
+            setImportError('Erreur réseau')
+        } finally {
+            setSubmitting(false)
+        }
+    }
+
     const handleDelete = async (doc: Document) => {
         if (!confirm('Supprimer ce document ?')) return
-        // Utiliser source_id si disponible, sinon fallback sur id (backcompat)
         const deleteId = doc.source_id || doc.id
         try {
             const res = await fetch(`/api/knowledge/${deleteId}`, { method: 'DELETE' })
-            if (res.ok) {
-                setDocuments(documents.filter(d => (d.source_id || d.id) !== deleteId))
-            }
+            if (res.ok) setDocuments(documents.filter(d => (d.source_id || d.id) !== deleteId))
         } catch (e) {
             console.error(e)
         }
     }
 
+    const modeTab = (mode: ImportMode, icon: React.ReactNode, label: string) => (
+        <button
+            type="button"
+            onClick={() => setImportMode(mode)}
+            style={{
+                flex: 1,
+                padding: '10px 16px',
+                borderRadius: 10,
+                border: importMode === mode ? '2px solid #10b981' : '1px solid #334155',
+                background: importMode === mode ? 'rgba(16,185,129,0.1)' : 'transparent',
+                color: importMode === mode ? '#34d399' : '#94a3b8',
+                cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                fontSize: 13, fontWeight: 600
+            }}
+        >
+            {icon} {label}
+        </button>
+    )
+
     return (
-        <div style={{ padding: 40, maxWidth: 1200, margin: '0 auto' }}>
+        <div style={{ padding: 40, maxWidth: 1200, margin: '0 auto', minHeight: '100vh', background: '#0f172a' }}>
             {/* Header */}
             <div style={{ marginBottom: 40 }}>
                 <Link
@@ -101,25 +185,18 @@ export default function AgentKnowledgePage({ params }: { params: Promise<{ id: s
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
                         <h1 style={{ fontSize: 32, fontWeight: 700, color: 'white', marginBottom: 8 }}>
-                            Base de Connaissances 🧠
+                            Base de Connaissances
                         </h1>
                         <p style={{ color: '#94a3b8' }}>
-                            Apprenez à votre agent tout ce qu'il doit savoir (PDF, Procédures, Menus...)
+                            Apprenez à votre agent tout ce qu'il doit savoir — texte, PDF, ou page web.
                         </p>
                     </div>
                     <button
                         onClick={() => setIsAdding(true)}
                         style={{
-                            background: '#10b981',
-                            color: 'white',
-                            border: 'none',
-                            padding: '12px 24px',
-                            borderRadius: 12,
-                            fontWeight: 600,
-                            display: 'flex',
-                            alignItems: 'center',
-                            cursor: 'pointer',
-                            gap: 8
+                            background: '#10b981', color: 'white', border: 'none',
+                            padding: '12px 24px', borderRadius: 12, fontWeight: 600,
+                            display: 'flex', alignItems: 'center', cursor: 'pointer', gap: 8
                         }}
                     >
                         <Plus size={20} />
@@ -128,18 +205,15 @@ export default function AgentKnowledgePage({ params }: { params: Promise<{ id: s
                 </div>
             </div>
 
-            {/* List */}
+            {/* Liste */}
             {loading ? (
                 <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}>
                     <Loader2 style={{ color: '#10b981', animation: 'spin 1s linear infinite' }} />
                 </div>
             ) : documents.length === 0 ? (
                 <div style={{
-                    textAlign: 'center',
-                    padding: 60,
-                    background: '#1e293b',
-                    borderRadius: 20,
-                    border: '1px dashed #334155'
+                    textAlign: 'center', padding: 60,
+                    background: '#1e293b', borderRadius: 20, border: '1px dashed #334155'
                 }}>
                     <FileText size={48} style={{ color: '#334155', marginBottom: 16 }} />
                     <h3 style={{ color: 'white', fontSize: 18, marginBottom: 8 }}>Le cerveau est vide</h3>
@@ -153,20 +227,14 @@ export default function AgentKnowledgePage({ params }: { params: Promise<{ id: s
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             style={{
-                                background: '#1e293b',
-                                borderRadius: 16,
-                                padding: 24,
-                                border: '1px solid #334155',
-                                display: 'flex',
-                                flexDirection: 'column'
+                                background: '#1e293b', borderRadius: 16, padding: 24,
+                                border: '1px solid #334155', display: 'flex', flexDirection: 'column'
                             }}
                         >
                             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
                                 <div style={{
-                                    width: 40, height: 40,
-                                    background: 'rgba(16, 185, 129, 0.1)',
-                                    borderRadius: 10,
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                    width: 40, height: 40, background: 'rgba(16,185,129,0.1)',
+                                    borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center'
                                 }}>
                                     <FileText size={20} style={{ color: '#10b981' }} />
                                 </div>
@@ -180,15 +248,12 @@ export default function AgentKnowledgePage({ params }: { params: Promise<{ id: s
                             <h3 style={{ color: 'white', fontWeight: 600, marginBottom: 8 }}>{doc.title}</h3>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 'auto' }}>
                                 <p style={{ color: '#64748b', fontSize: 13 }}>
-                                    Appris le {new Date(doc.created_at).toLocaleDateString()}
+                                    {new Date(doc.created_at).toLocaleDateString()}
                                 </p>
                                 {doc.chunks_count && doc.chunks_count > 1 && (
                                     <span style={{
-                                        fontSize: 11,
-                                        padding: '2px 8px',
-                                        borderRadius: 20,
-                                        background: 'rgba(99,102,241,0.15)',
-                                        color: '#a5b4fc',
+                                        fontSize: 11, padding: '2px 8px', borderRadius: 20,
+                                        background: 'rgba(99,102,241,0.15)', color: '#a5b4fc',
                                         border: '1px solid rgba(99,102,241,0.3)'
                                     }}>
                                         {doc.chunks_count} segments
@@ -200,99 +265,149 @@ export default function AgentKnowledgePage({ params }: { params: Promise<{ id: s
                 </div>
             )}
 
-            {/* Modal Add */}
+            {/* Modal */}
             {isAdding && (
                 <div style={{
-                    position: 'fixed', inset: 0,
-                    background: 'rgba(0,0,0,0.8)',
-                    zIndex: 9999,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    padding: 20
+                    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)',
+                    zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20
                 }}>
                     <div style={{
-                        background: '#0f172a',
-                        width: '100%', maxWidth: 600,
-                        borderRadius: 24,
-                        padding: 32,
-                        border: '1px solid #334155'
+                        background: '#0f172a', width: '100%', maxWidth: 600,
+                        borderRadius: 24, padding: 32, border: '1px solid #334155',
+                        maxHeight: '90vh', overflowY: 'auto'
                     }}>
-                        <h2 style={{ color: 'white', fontSize: 24, fontWeight: 700, marginBottom: 24 }}>
+                        <h2 style={{ color: 'white', fontSize: 22, fontWeight: 700, marginBottom: 20 }}>
                             Nouveau Document
                         </h2>
-                        <form onSubmit={handleAdd}>
-                            <div style={{ marginBottom: 20 }}>
-                                <label style={{ display: 'block', color: '#94a3b8', marginBottom: 8, fontSize: 14 }}>Titre</label>
-                                <input
-                                    type="text"
-                                    required
-                                    value={newDoc.title}
-                                    onChange={e => setNewDoc({ ...newDoc, title: e.target.value })}
-                                    style={{
-                                        width: '100%',
-                                        background: '#1e293b',
-                                        border: '1px solid #334155',
-                                        padding: 12,
-                                        borderRadius: 12,
-                                        color: 'white',
-                                        outline: 'none'
-                                    }}
-                                    placeholder="Ex: Politique de Livraison"
-                                />
-                            </div>
-                            <div style={{ marginBottom: 24 }}>
-                                <label style={{ display: 'block', color: '#94a3b8', marginBottom: 8, fontSize: 14 }}>Contenu du document</label>
-                                <textarea
-                                    required
-                                    value={newDoc.content}
-                                    onChange={e => setNewDoc({ ...newDoc, content: e.target.value })}
-                                    style={{
-                                        width: '100%',
-                                        height: 200,
-                                        background: '#1e293b',
-                                        border: '1px solid #334155',
-                                        padding: 12,
-                                        borderRadius: 12,
-                                        color: 'white',
-                                        outline: 'none',
-                                        resize: 'none'
-                                    }}
-                                    placeholder="Collez ici le texte que l'IA doit apprendre..."
-                                />
-                            </div>
-                            <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
-                                <button
-                                    type="button"
-                                    onClick={() => setIsAdding(false)}
-                                    style={{
-                                        background: 'transparent',
-                                        color: 'white',
-                                        border: '1px solid #334155',
-                                        padding: '12px 24px',
-                                        borderRadius: 12,
-                                        cursor: 'pointer'
-                                    }}
-                                >
-                                    Annuler
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={submitting}
-                                    style={{
-                                        background: '#10b981',
-                                        color: 'white',
-                                        border: 'none',
-                                        padding: '12px 24px',
-                                        borderRadius: 12,
-                                        fontWeight: 600,
-                                        cursor: submitting ? 'not-allowed' : 'pointer',
-                                        display: 'flex', alignItems: 'center', gap: 8
-                                    }}
-                                >
-                                    {submitting && <Loader2 size={16} className="animate-spin" />}
-                                    Apprendre
-                                </button>
-                            </div>
-                        </form>
+
+                        {/* Onglets mode */}
+                        <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
+                            {modeTab('text', <AlignLeft size={14} />, 'Texte')}
+                            {modeTab('pdf', <Upload size={14} />, 'PDF')}
+                            {modeTab('url', <Link2 size={14} />, 'URL')}
+                        </div>
+
+                        {/* Mode TEXTE */}
+                        {importMode === 'text' && (
+                            <form onSubmit={handleAddText}>
+                                <div style={{ marginBottom: 16 }}>
+                                    <label style={{ display: 'block', color: '#94a3b8', marginBottom: 8, fontSize: 14 }}>Titre *</label>
+                                    <input
+                                        type="text" required value={newDoc.title}
+                                        onChange={e => setNewDoc({ ...newDoc, title: e.target.value })}
+                                        style={inputStyle} placeholder="Ex: Politique de Livraison"
+                                    />
+                                </div>
+                                <div style={{ marginBottom: 20 }}>
+                                    <label style={{ display: 'block', color: '#94a3b8', marginBottom: 8, fontSize: 14 }}>Contenu *</label>
+                                    <textarea
+                                        required value={newDoc.content}
+                                        onChange={e => setNewDoc({ ...newDoc, content: e.target.value })}
+                                        style={{ ...inputStyle, height: 200, resize: 'none' }}
+                                        placeholder="Collez ici le texte que l'IA doit apprendre..."
+                                    />
+                                    <p style={{ color: '#64748b', fontSize: 12, marginTop: 4 }}>
+                                        {newDoc.content.length} caractères
+                                        {newDoc.content.length > 2000 ? ` — sera découpé en ~${Math.ceil(newDoc.content.length / 1800)} segments` : ''}
+                                    </p>
+                                </div>
+                                {importError && <p style={{ color: '#f87171', fontSize: 13, marginBottom: 12 }}>{importError}</p>}
+                                <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+                                    <button type="button" onClick={resetModal} style={{ background: 'transparent', color: 'white', border: '1px solid #334155', padding: '12px 24px', borderRadius: 12, cursor: 'pointer' }}>Annuler</button>
+                                    <button type="submit" disabled={submitting} style={{ background: '#10b981', color: 'white', border: 'none', padding: '12px 24px', borderRadius: 12, fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        {submitting && <Loader2 size={16} className="animate-spin" />}
+                                        Apprendre
+                                    </button>
+                                </div>
+                            </form>
+                        )}
+
+                        {/* Mode PDF */}
+                        {importMode === 'pdf' && (
+                            <form onSubmit={handleAddPdf}>
+                                <div style={{ marginBottom: 16 }}>
+                                    <label style={{ display: 'block', color: '#94a3b8', marginBottom: 8, fontSize: 14 }}>Titre *</label>
+                                    <input
+                                        type="text" required value={pdfTitle}
+                                        onChange={e => setPdfTitle(e.target.value)}
+                                        style={inputStyle} placeholder="Ex: Catalogue Produits 2026"
+                                    />
+                                </div>
+                                <div style={{ marginBottom: 20 }}>
+                                    <label style={{ display: 'block', color: '#94a3b8', marginBottom: 8, fontSize: 14 }}>Fichier PDF *</label>
+                                    <input
+                                        ref={fileInputRef}
+                                        type="file" accept=".pdf"
+                                        onChange={e => setPdfFile(e.target.files?.[0] || null)}
+                                        style={{ display: 'none' }}
+                                    />
+                                    <div
+                                        onClick={() => fileInputRef.current?.click()}
+                                        style={{
+                                            border: '2px dashed #334155', borderRadius: 12,
+                                            padding: 32, textAlign: 'center', cursor: 'pointer',
+                                            background: pdfFile ? 'rgba(16,185,129,0.05)' : 'transparent',
+                                            borderColor: pdfFile ? '#10b981' : '#334155'
+                                        }}
+                                    >
+                                        {pdfFile ? (
+                                            <div>
+                                                <FileText size={32} style={{ color: '#10b981', marginBottom: 8, margin: '0 auto 8px' }} />
+                                                <p style={{ color: '#34d399', fontWeight: 600 }}>{pdfFile.name}</p>
+                                                <p style={{ color: '#64748b', fontSize: 12 }}>{(pdfFile.size / 1024).toFixed(0)} Ko</p>
+                                            </div>
+                                        ) : (
+                                            <div>
+                                                <Upload size={32} style={{ color: '#334155', marginBottom: 8, margin: '0 auto 8px' }} />
+                                                <p style={{ color: '#94a3b8' }}>Cliquez pour sélectionner un PDF</p>
+                                                <p style={{ color: '#64748b', fontSize: 12 }}>Max 10 Mo — texte extractible uniquement</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                                {importError && <p style={{ color: '#f87171', fontSize: 13, marginBottom: 12 }}>{importError}</p>}
+                                <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+                                    <button type="button" onClick={resetModal} style={{ background: 'transparent', color: 'white', border: '1px solid #334155', padding: '12px 24px', borderRadius: 12, cursor: 'pointer' }}>Annuler</button>
+                                    <button type="submit" disabled={submitting || !pdfFile} style={{ background: '#10b981', color: 'white', border: 'none', padding: '12px 24px', borderRadius: 12, fontWeight: 600, cursor: (submitting || !pdfFile) ? 'not-allowed' : 'pointer', opacity: (submitting || !pdfFile) ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        {submitting && <Loader2 size={16} className="animate-spin" />}
+                                        {submitting ? 'Extraction en cours...' : 'Importer le PDF'}
+                                    </button>
+                                </div>
+                            </form>
+                        )}
+
+                        {/* Mode URL */}
+                        {importMode === 'url' && (
+                            <form onSubmit={handleAddUrl}>
+                                <div style={{ marginBottom: 16 }}>
+                                    <label style={{ display: 'block', color: '#94a3b8', marginBottom: 8, fontSize: 14 }}>Titre *</label>
+                                    <input
+                                        type="text" required value={urlTitle}
+                                        onChange={e => setUrlTitle(e.target.value)}
+                                        style={inputStyle} placeholder="Ex: FAQ Site Officiel"
+                                    />
+                                </div>
+                                <div style={{ marginBottom: 20 }}>
+                                    <label style={{ display: 'block', color: '#94a3b8', marginBottom: 8, fontSize: 14 }}>URL *</label>
+                                    <input
+                                        type="url" required value={urlInput}
+                                        onChange={e => setUrlInput(e.target.value)}
+                                        style={inputStyle} placeholder="https://exemple.com/faq"
+                                    />
+                                    <p style={{ color: '#64748b', fontSize: 12, marginTop: 6 }}>
+                                        Pages web, Google Sites, articles, documents hébergés...
+                                    </p>
+                                </div>
+                                {importError && <p style={{ color: '#f87171', fontSize: 13, marginBottom: 12 }}>{importError}</p>}
+                                <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+                                    <button type="button" onClick={resetModal} style={{ background: 'transparent', color: 'white', border: '1px solid #334155', padding: '12px 24px', borderRadius: 12, cursor: 'pointer' }}>Annuler</button>
+                                    <button type="submit" disabled={submitting} style={{ background: '#10b981', color: 'white', border: 'none', padding: '12px 24px', borderRadius: 12, fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        {submitting && <Loader2 size={16} className="animate-spin" />}
+                                        {submitting ? 'Récupération en cours...' : 'Importer l\'URL'}
+                                    </button>
+                                </div>
+                            </form>
+                        )}
                     </div>
                 </div>
             )}
