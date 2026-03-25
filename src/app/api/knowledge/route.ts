@@ -61,45 +61,41 @@ export async function GET(request: NextRequest) {
 
 // Découpe un texte en chunks de ~500 tokens (approx. 2000 caractères)
 // Coupe sur les sauts de paragraphe, sinon sur les phrases
-function chunkText(text: string, maxChars = 2000): string[] {
+function chunkText(text: string, maxChars = 800): string[] {
     const trimmed = text.trim()
-    if (trimmed.length <= maxChars) return [trimmed]
 
-    const chunks: string[] = []
-    const paragraphs = trimmed.split(/\n{2,}/)
-    let current = ''
+    // Découper d'abord sur les séparateurs FAQ (---)
+    // Chaque bloc Q/R devient un segment indépendant
+    const sections = trimmed.split(/\n\s*---\s*\n/)
 
-    for (const para of paragraphs) {
-        if ((current + '\n\n' + para).length > maxChars && current.length > 0) {
-            chunks.push(current.trim())
-            current = para
-        } else {
-            current = current ? current + '\n\n' + para : para
-        }
-    }
-    if (current.trim()) chunks.push(current.trim())
-
-    // Si un paragraphe dépasse maxChars, découper sur les phrases
     const result: string[] = []
-    for (const chunk of chunks) {
-        if (chunk.length <= maxChars) {
-            result.push(chunk)
-        } else {
-            const sentences = chunk.split(/(?<=[.!?])\s+/)
-            let sub = ''
-            for (const sentence of sentences) {
-                if ((sub + ' ' + sentence).length > maxChars && sub.length > 0) {
-                    result.push(sub.trim())
-                    sub = sentence
-                } else {
-                    sub = sub ? sub + ' ' + sentence : sentence
-                }
-            }
-            if (sub.trim()) result.push(sub.trim())
+
+    for (const section of sections) {
+        const s = section.trim()
+        if (!s) continue
+
+        if (s.length <= maxChars) {
+            result.push(s)
+            continue
         }
+
+        // Section trop grande → découper sur paragraphes
+        const paragraphs = s.split(/\n{2,}/)
+        let current = ''
+
+        for (const para of paragraphs) {
+            if ((current + '\n\n' + para).length > maxChars && current.length > 0) {
+                result.push(current.trim())
+                current = para
+            } else {
+                current = current ? current + '\n\n' + para : para
+            }
+        }
+        if (current.trim()) result.push(current.trim())
     }
 
-    return result.filter(c => c.length > 0)
+    // Filtrer les segments bruit (marqueurs de page, contenu vide, < 30 chars)
+    return result.filter(c => c.trim().length >= 30)
 }
 
 // POST /api/knowledge - Add new document (with chunking)
