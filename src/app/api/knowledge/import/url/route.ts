@@ -172,6 +172,7 @@ function chunkText(text: string, maxChars = 800): string[] {
 }
 
 function extractTextFromHtml(html: string): string {
+    // Supprimer tout le bruit : scripts, styles, navigation, pub, cookie banners
     let text = html
         .replace(/<script[\s\S]*?<\/script>/gi, '')
         .replace(/<style[\s\S]*?<\/style>/gi, '')
@@ -179,9 +180,29 @@ function extractTextFromHtml(html: string): string {
         .replace(/<nav[\s\S]*?<\/nav>/gi, '')
         .replace(/<footer[\s\S]*?<\/footer>/gi, '')
         .replace(/<header[\s\S]*?<\/header>/gi, '')
+        .replace(/<aside[\s\S]*?<\/aside>/gi, '')
+        .replace(/<form[\s\S]*?<\/form>/gi, '')
+        .replace(/<iframe[\s\S]*?<\/iframe>/gi, '')
+        .replace(/<noscript[\s\S]*?<\/noscript>/gi, '')
+        // Supprimer les attributs class/id/style/data-* qui polluent
+        .replace(/\s+(class|id|style|data-[a-z-]+|aria-[a-z-]+)="[^"]*"/gi, '')
 
-    text = text.replace(/<\/?(p|div|h[1-6]|li|tr|br|hr|section|article)[^>]*>/gi, '\n')
+    // Essayer d'extraire le contenu principal si balise main ou article présente
+    const mainMatch = text.match(/<main[\s\S]*?<\/main>/i)
+    const articleMatch = text.match(/<article[\s\S]*?<\/article>/i)
+    if (mainMatch) text = mainMatch[0]
+    else if (articleMatch) text = articleMatch[0]
+
+    // Convertir les balises structurelles en sauts de ligne
+    text = text
+        .replace(/<h[1-6][^>]*>/gi, '\n\n')
+        .replace(/<\/h[1-6]>/gi, '\n')
+        .replace(/<\/?(p|div|li|tr|br|hr|section|article|blockquote)[^>]*>/gi, '\n')
+
+    // Supprimer toutes les balises restantes
     text = text.replace(/<[^>]+>/g, ' ')
+
+    // Décoder les entités HTML
     text = text
         .replace(/&nbsp;/g, ' ')
         .replace(/&amp;/g, '&')
@@ -189,6 +210,7 @@ function extractTextFromHtml(html: string): string {
         .replace(/&gt;/g, '>')
         .replace(/&quot;/g, '"')
         .replace(/&#39;/g, "'")
+        .replace(/&[a-z]+;/gi, ' ')
 
     return text.replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim()
 }
