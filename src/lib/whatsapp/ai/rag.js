@@ -65,8 +65,8 @@ async function findRelevantDocuments(openai, supabase, agentId, userQuery) {
 
         const { data: documents, error } = await supabase.rpc('match_documents', {
             query_embedding: embedding,
-            match_threshold: 0.45,
-            match_count: 5,
+            match_threshold: 0.30,
+            match_count: 8,
             p_agent_id: agentId  // ⭐ CRITICAL: Prevents cross-agent data leak
         })
 
