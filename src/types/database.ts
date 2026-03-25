@@ -117,6 +117,8 @@ export type Database = {
                     title: string
                     content: string
                     content_type: 'text' | 'faq' | 'document' | 'url'
+                    source_id: string | null
+                    chunk_index: number
                     created_at: string
                     updated_at: string
                 }

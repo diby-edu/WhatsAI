@@ -10,6 +10,9 @@ interface Document {
     id: string
     title: string
     created_at: string
+    source_id: string | null
+    chunk_index?: number
+    chunks_count?: number
 }
 
 export default function AgentKnowledgePage({ params }: { params: Promise<{ id: string, locale: string }> }) {
@@ -69,14 +72,15 @@ export default function AgentKnowledgePage({ params }: { params: Promise<{ id: s
         }
     }
 
-    // Delete document
-    const handleDelete = async (docId: string) => {
+    // Delete document (supprime tous les chunks de la source)
+    const handleDelete = async (doc: Document) => {
         if (!confirm('Supprimer ce document ?')) return
-
+        // Utiliser source_id si disponible, sinon fallback sur id (backcompat)
+        const deleteId = doc.source_id || doc.id
         try {
-            const res = await fetch(`/api/knowledge/${docId}`, { method: 'DELETE' })
+            const res = await fetch(`/api/knowledge/${deleteId}`, { method: 'DELETE' })
             if (res.ok) {
-                setDocuments(documents.filter(d => d.id !== docId))
+                setDocuments(documents.filter(d => (d.source_id || d.id) !== deleteId))
             }
         } catch (e) {
             console.error(e)
@@ -167,16 +171,30 @@ export default function AgentKnowledgePage({ params }: { params: Promise<{ id: s
                                     <FileText size={20} style={{ color: '#10b981' }} />
                                 </div>
                                 <button
-                                    onClick={() => handleDelete(doc.id)}
+                                    onClick={() => handleDelete(doc)}
                                     style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer' }}
                                 >
                                     <Trash2 size={18} />
                                 </button>
                             </div>
                             <h3 style={{ color: 'white', fontWeight: 600, marginBottom: 8 }}>{doc.title}</h3>
-                            <p style={{ color: '#64748b', fontSize: 13, marginTop: 'auto' }}>
-                                Appris le {new Date(doc.created_at).toLocaleDateString()}
-                            </p>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 'auto' }}>
+                                <p style={{ color: '#64748b', fontSize: 13 }}>
+                                    Appris le {new Date(doc.created_at).toLocaleDateString()}
+                                </p>
+                                {doc.chunks_count && doc.chunks_count > 1 && (
+                                    <span style={{
+                                        fontSize: 11,
+                                        padding: '2px 8px',
+                                        borderRadius: 20,
+                                        background: 'rgba(99,102,241,0.15)',
+                                        color: '#a5b4fc',
+                                        border: '1px solid rgba(99,102,241,0.3)'
+                                    }}>
+                                        {doc.chunks_count} segments
+                                    </span>
+                                )}
+                            </div>
                         </motion.div>
                     ))}
                 </div>
