@@ -34,8 +34,12 @@ const inputStyle: React.CSSProperties = {
     fontSize: 14
 }
 
-export default function AgentKnowledgePage({ params }: { params: Promise<{ id: string, locale: string }> }) {
+export default function AgentKnowledgePage({ params, searchParams }: { params: Promise<{ id: string, locale: string }>, searchParams?: Promise<{ from?: string }> }) {
     const { id, locale } = use(params)
+    const sp = searchParams ? use(searchParams) : {}
+    const backHref = sp?.from === 'whatsapp'
+        ? `/${locale}/dashboard/agents/${id}?tab=whatsapp`
+        : `/${locale}/dashboard/agents/${id}`
 
     const [documents, setDocuments] = useState<Document[]>([])
     const [loading, setLoading] = useState(true)
@@ -205,7 +209,7 @@ export default function AgentKnowledgePage({ params }: { params: Promise<{ id: s
             {/* Header */}
             <div style={{ marginBottom: 40 }}>
                 <Link
-                    href={`/${locale}/dashboard/agents/${id}`}
+                    href={backHref}
                     style={{ display: 'inline-flex', alignItems: 'center', color: '#94a3b8', marginBottom: 16, textDecoration: 'none' }}
                 >
                     <ArrowLeft style={{ width: 16, height: 16, marginRight: 8 }} />
