@@ -228,7 +228,8 @@ async function generateAIResponse(options, dependencies) {
             currency = 'USD',
             checkoutState,
             cartState,
-            bookingState
+            bookingState,
+            hasKnowledgeBase = false
         } = options
 
         // RAG - Documents pertinents
@@ -263,6 +264,7 @@ async function generateAIResponse(options, dependencies) {
             : ''
 
         // 3. Construire le System Prompt
+        const isSupportClientMode = (products || []).length === 0 && hasKnowledgeBase
         let systemPrompt = buildAdaptiveSystemPrompt(
             agent,
             products || [],
@@ -272,7 +274,8 @@ async function generateAIResponse(options, dependencies) {
             options.gpsLink || gpsLink || '',
             options.formattedHours || formattedHours || 'Non spécifiés',
             options.justOrdered || false, // Passer le flag de reset
-            userMessage || '' // v2.19: Intent Detection Context
+            userMessage || '', // v2.19: Intent Detection Context
+            hasKnowledgeBase
         )
         const checkoutStateGuidance = buildCheckoutStateGuidance(checkoutState)
         if (checkoutStateGuidance) {
@@ -309,14 +312,22 @@ async function generateAIResponse(options, dependencies) {
 
         const modelToUse = options.imageBase64 ? 'gpt-4o' : (agent.model || 'gpt-4o-mini')
 
+        // En mode Support Client (KB-only), désactiver tous les tools transactionnels
+        const SUPPORT_CLIENT_DISABLED_TOOLS = ['create_order', 'check_payment_status', 'send_image', 'create_booking', 'find_order']
+        const activeTools = isSupportClientMode
+            ? TOOLS.filter(t => !SUPPORT_CLIENT_DISABLED_TOOLS.includes(t.function?.name))
+            : TOOLS
+        const toolsConfig = activeTools.length > 0
+            ? { tools: activeTools, tool_choice: 'auto' }
+            : {}
+
         // Appel OpenAI avec retry
         const completion = await callOpenAIWithRetry(openai, {
             model: modelToUse,
             messages,
             max_tokens: agent.max_tokens || 500,
             temperature: agent.temperature || 0.7,
-            tools: TOOLS,
-            tool_choice: 'auto'
+            ...toolsConfig
         })
 
         const responseMessage = completion.choices[0].message

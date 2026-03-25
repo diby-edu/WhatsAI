@@ -30,7 +30,7 @@ const SERVICE_ENGINE_MAP = {
     'other': 'SLOT'
 }
 
-function buildAdaptiveSystemPrompt(agent, products, orders, relevantDocs, currency, gpsLink, formattedHours, justOrdered = false, userMessage = '') {
+function buildAdaptiveSystemPrompt(agent, products, orders, relevantDocs, currency, gpsLink, formattedHours, justOrdered = false, userMessage = '', hasKnowledgeBase = false) {
 
     // 1. ANALYSE DU CONTEXTE AGENT & PRODUITS
     const serviceProducts = products.filter(p => p.product_type === 'service')
@@ -61,6 +61,50 @@ function buildAdaptiveSystemPrompt(agent, products, orders, relevantDocs, curren
             conversationIntent = 'service_booking'
             activeEngine = SERVICE_ENGINE_MAP[matchedProduct.service_subtype] || 'SLOT'
         }
+    }
+
+    // MODE SUPPORT CLIENT : aucun produit + base de connaissance → prompt KB-only
+    if (products.length === 0 && hasKnowledgeBase) {
+        const knowledgeSection = buildKnowledgeSection(relevantDocs)
+
+        // Construire la section paiement manuel (si configurée)
+        let supportPaymentLines = []
+        if (agent.mobile_money_orange) supportPaymentLines.push(`📱 Orange Money : ${agent.mobile_money_orange}`)
+        if (agent.mobile_money_mtn)    supportPaymentLines.push(`📱 MTN Money : ${agent.mobile_money_mtn}`)
+        if (agent.mobile_money_wave)   supportPaymentLines.push(`📱 Wave : ${agent.mobile_money_wave}`)
+        if (agent.custom_payment_methods) {
+            try {
+                const custom = typeof agent.custom_payment_methods === 'string'
+                    ? JSON.parse(agent.custom_payment_methods)
+                    : agent.custom_payment_methods
+                if (Array.isArray(custom)) {
+                    custom.forEach(m => supportPaymentLines.push(`📱 ${m.name || m.type} : ${m.details || m.number || ''}`))
+                }
+            } catch (_e) {}
+        }
+        const supportPaymentSection = supportPaymentLines.length > 0
+            ? `\n\n💳 PAIEMENT :\n${supportPaymentLines.join('\n')}`
+            : ''
+
+        const escalationRule = agent.escalation_phone
+            ? `Si la question dépasse ta base de connaissance, réponds naturellement : "Pour plus de détails, vous pouvez contacter directement au *${agent.escalation_phone}*."`
+            : `Si la question dépasse ta base de connaissance, indique poliment que tu n'as pas l'information et invite à recontacter.`
+
+        const agentContext = agent.agent_context ? `\n\n📋 CONTEXTE SUPPLÉMENTAIRE :\n${agent.agent_context}` : ''
+
+        return `Tu es l'assistant IA de ${agent.name}.
+Langue: ${agent.language || 'français'}.
+${agent.use_emojis ? 'Utilise des emojis modérément.' : ''}
+Style: Concis (max 3-4 phrases), amical, professionnel.
+
+📚 MODE SUPPORT CLIENT — BASE DE CONNAISSANCE :
+Tu réponds UNIQUEMENT à partir de la base de connaissance fournie ci-dessous.
+⛔ INTERDIT absolu : inventer, supposer, ou donner une information absente de la base de connaissance.
+⛔ INTERDIT absolu : révéler que tu es un bot ou une IA.
+✅ Si le client salue → accueille chaleureusement et propose ton aide.
+✅ Si info absente → ${escalationRule}${agentContext}${supportPaymentSection}
+
+${knowledgeSection}`.trim()
     }
 
     // 3. CONSTRUCTION DES SECTIONS
@@ -148,7 +192,7 @@ Quand le client choisit "payer en ligne", le système génère automatiquement u
                     ? JSON.parse(agent.custom_payment_methods)
                     : agent.custom_payment_methods
                 if (Array.isArray(custom)) {
-                    custom.forEach(m => mmLines.push(`📱 ${m.name || m.type} : ${m.number}`))
+                    custom.forEach(m => mmLines.push(`📱 ${m.name || m.type} : ${m.details || m.number || ''}`))
                 }
             } catch (_e) {}
         }

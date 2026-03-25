@@ -113,7 +113,14 @@ export async function POST(request: NextRequest) {
                 // GPS (Optional)
                 latitude: body.latitude || null,
                 longitude: body.longitude || null,
-                is_online_only: body.is_online_only ?? false
+                is_online_only: body.is_online_only ?? false,
+                // Payment & escalation (Support Client + transactionnel)
+                payment_mode: body.payment_mode || null,
+                mobile_money_orange: body.mobile_money_orange || null,
+                mobile_money_mtn: body.mobile_money_mtn || null,
+                mobile_money_wave: body.mobile_money_wave || null,
+                custom_payment_methods: body.custom_payment_methods || null,
+                escalation_phone: body.escalation_phone || null
             })
             .select()
             .single()
