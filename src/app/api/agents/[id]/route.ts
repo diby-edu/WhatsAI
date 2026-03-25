@@ -98,7 +98,9 @@ export async function PATCH(
             'is_online_only',
             // Payment settings
             'payment_mode', 'mobile_money_orange', 'mobile_money_mtn',
-            'mobile_money_wave', 'custom_payment_methods', 'escalation_phone'
+            'mobile_money_wave', 'custom_payment_methods', 'escalation_phone',
+            // Support Client
+            'agent_context'
         ]
 
         const updates: Record<string, any> = {}

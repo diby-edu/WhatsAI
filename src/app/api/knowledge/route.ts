@@ -50,6 +50,18 @@ export async function POST(request: NextRequest) {
             return errorResponse('Missing required fields', 400)
         }
 
+        // Vérifier que l'agent appartient bien à l'utilisateur connecté
+        const { data: agentCheck } = await supabase
+            .from('agents')
+            .select('id')
+            .eq('id', agentId)
+            .eq('user_id', user.id)
+            .single()
+
+        if (!agentCheck) {
+            return errorResponse('Agent not found or unauthorized', 403)
+        }
+
         // Generate embedding
         const embedding = await generateEmbedding(content)
 

@@ -114,6 +114,8 @@ export async function POST(request: NextRequest) {
                 latitude: body.latitude || null,
                 longitude: body.longitude || null,
                 is_online_only: body.is_online_only ?? false,
+                // Agent context (Support Client)
+                agent_context: body.agent_context || null,
                 // Payment & escalation (Support Client + transactionnel)
                 payment_mode: body.payment_mode || null,
                 mobile_money_orange: body.mobile_money_orange || null,
