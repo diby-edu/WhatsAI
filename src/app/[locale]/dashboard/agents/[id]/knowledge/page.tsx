@@ -473,16 +473,24 @@ export default function AgentKnowledgePage({ params }: { params: Promise<{ id: s
                                         style={{ display: 'none' }}
                                     />
                                     <div
-                                        onClick={() => fileInputRef.current?.click()}
+                                        onClick={() => !pdfFile && fileInputRef.current?.click()}
                                         style={{
                                             border: '2px dashed #334155', borderRadius: 12,
-                                            padding: 32, textAlign: 'center', cursor: 'pointer',
+                                            padding: 32, textAlign: 'center', cursor: pdfFile ? 'default' : 'pointer',
                                             background: pdfFile ? 'rgba(16,185,129,0.05)' : 'transparent',
-                                            borderColor: pdfFile ? '#10b981' : '#334155'
+                                            borderColor: pdfFile ? '#10b981' : '#334155',
+                                            position: 'relative'
                                         }}
                                     >
                                         {pdfFile ? (
                                             <div>
+                                                <button
+                                                    type="button"
+                                                    onClick={e => { e.stopPropagation(); setPdfFile(null); if (fileInputRef.current) fileInputRef.current.value = '' }}
+                                                    style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(239,68,68,0.15)', border: 'none', borderRadius: 6, width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#f87171' }}
+                                                >
+                                                    <X size={14} />
+                                                </button>
                                                 <FileText size={32} style={{ color: '#10b981', marginBottom: 8, margin: '0 auto 8px' }} />
                                                 <p style={{ color: '#34d399', fontWeight: 600 }}>{pdfFile.name}</p>
                                                 <p style={{ color: '#64748b', fontSize: 12 }}>{(pdfFile.size / 1024).toFixed(0)} Ko</p>
