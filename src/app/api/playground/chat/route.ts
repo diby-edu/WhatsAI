@@ -5,6 +5,11 @@ import { getOpenAIClient } from '@/lib/ai/openai'
 import OpenAI from 'openai'
 import { getAIRuntimeSettings } from '@/lib/admin/settings'
 
+export const runtime = 'nodejs'
+
+const { buildAdaptiveSystemPrompt } = require('@/lib/whatsapp/ai/prompt-builder')
+const { findRelevantDocuments } = require('@/lib/whatsapp/ai/rag')
+
 export async function POST(request: NextRequest) {
     const supabase = await createApiClient()
     const { user, error: authError } = await getAuthUser(supabase)
@@ -28,9 +33,10 @@ export async function POST(request: NextRequest) {
             return errorResponse('Agent et message requis', 400)
         }
 
+        // Récupérer l'agent complet (tous les champs nécessaires au prompt-builder)
         const { data: agent, error: agentError } = await supabase
             .from('agents')
-            .select('id, name, system_prompt, personality, model')
+            .select('*')
             .eq('id', agentId)
             .eq('user_id', user.id)
             .single()
@@ -39,6 +45,7 @@ export async function POST(request: NextRequest) {
             return errorResponse('Agent non trouve', 404)
         }
 
+        // Déduire les crédits
         const { data: newBalance, error: creditError } = await supabase
             .rpc('deduct_credits', { p_user_id: user.id, p_amount: 1 })
 
@@ -47,36 +54,70 @@ export async function POST(request: NextRequest) {
             return errorResponse('Erreur de debit de credits', 500)
         }
 
-        if (newBalance === -1) {
-            return errorResponse('Credits insuffisants', 402)
+        if (newBalance === -1) return errorResponse('Credits insuffisants', 402)
+        if (newBalance === -2) return errorResponse('Profil non trouve', 404)
+
+        // Récupérer les produits de l'agent
+        const { data: products } = await supabase
+            .from('products')
+            .select('*')
+            .eq('agent_id', agentId)
+            .eq('is_active', true)
+            .order('display_order', { ascending: true })
+
+        const agentProducts = products || []
+
+        // Vérifier si une KB existe pour cet agent
+        const { count: kbCount } = await supabase
+            .from('knowledge_base')
+            .select('id', { count: 'exact', head: true })
+            .eq('agent_id', agentId)
+
+        const hasKnowledgeBase = (kbCount ?? 0) > 0
+
+        // RAG : rechercher les documents pertinents
+        let relevantDocs: any[] = []
+        if (hasKnowledgeBase) {
+            try {
+                relevantDocs = await findRelevantDocuments(
+                    getOpenAIClient(),
+                    supabase,
+                    agentId,
+                    message
+                )
+            } catch (ragErr) {
+                console.error('RAG error in playground:', ragErr)
+            }
         }
 
-        if (newBalance === -2) {
-            return errorResponse('Profil non trouve', 404)
-        }
+        // Construire le prompt complet via prompt-builder
+        const systemPrompt = buildAdaptiveSystemPrompt(
+            agent,
+            agentProducts,
+            [],          // orders vides (pas de commandes réelles en playground)
+            relevantDocs,
+            null,        // currency
+            null,        // gpsLink
+            null,        // formattedHours
+            false,       // justOrdered
+            message,     // userMessage (pour détection d'intention)
+            hasKnowledgeBase
+        )
 
+        // Construire les messages avec historique
         const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-            {
-                role: 'system',
-                content: agent.system_prompt || `Tu es ${agent.name}, un assistant IA serviable.`,
-            },
+            { role: 'system', content: systemPrompt }
         ]
 
         if (conversationHistory && Array.isArray(conversationHistory)) {
             for (const msg of conversationHistory.slice(-10)) {
                 if (msg.role === 'user' || msg.role === 'assistant') {
-                    messages.push({
-                        role: msg.role,
-                        content: msg.content,
-                    })
+                    messages.push({ role: msg.role, content: msg.content })
                 }
             }
         }
 
-        messages.push({
-            role: 'user',
-            content: message,
-        })
+        messages.push({ role: 'user', content: message })
 
         const completion = await getOpenAIClient().chat.completions.create({
             model: agent.model || aiDefaults.openaiModel,
@@ -90,6 +131,8 @@ export async function POST(request: NextRequest) {
         return successResponse({
             response,
             credits_remaining: typeof newBalance === 'number' && newBalance >= 0 ? newBalance : undefined,
+            kb_used: hasKnowledgeBase,
+            docs_found: relevantDocs.length,
         })
     } catch (err) {
         console.error('Playground chat error:', err)
