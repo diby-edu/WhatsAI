@@ -14,10 +14,12 @@ export async function DELETE(
         return errorResponse('Unauthorized', 401)
     }
 
+    // Supprimer tous les chunks de cette source (source_id = id)
+    // Compatibilité : les vieux documents ont source_id = id (après migration backfill)
     const { error } = await supabase
         .from('knowledge_base')
         .delete()
-        .eq('id', id)
+        .eq('source_id', id)
         .eq('user_id', user.id) // Security check
 
     if (error) {
