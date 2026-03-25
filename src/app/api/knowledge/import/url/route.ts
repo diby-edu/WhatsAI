@@ -3,6 +3,9 @@ import { lookup } from 'node:dns/promises'
 import { isIP } from 'node:net'
 import { createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
 import { generateEmbedding } from '@/lib/ai/openai'
+import { extractDocxText, extractPdfText } from '@/lib/knowledge/document-import'
+
+export const runtime = 'nodejs'
 
 const SUPPORTED_PROTOCOLS = new Set(['http:', 'https:'])
 const MAX_REDIRECTS = 5
@@ -67,6 +70,18 @@ function isPdfResponse(contentType: string, finalUrl: URL, contentDisposition: s
         lowerContentType.includes('application/pdf') ||
         lowerPath.endsWith('.pdf') ||
         lowerDisposition.includes('.pdf')
+    )
+}
+
+function isDocxResponse(contentType: string, finalUrl: URL, contentDisposition: string | null): boolean {
+    const lowerContentType = contentType.toLowerCase()
+    const lowerDisposition = (contentDisposition || '').toLowerCase()
+    const lowerPath = finalUrl.pathname.toLowerCase()
+
+    return (
+        lowerContentType.includes('application/vnd.openxmlformats-officedocument.wordprocessingml.document') ||
+        lowerPath.endsWith('.docx') ||
+        lowerDisposition.includes('.docx')
     )
 }
 
@@ -232,9 +247,12 @@ export async function POST(request: NextRequest) {
 
         if (isPdfResponse(contentType, finalUrl, contentDisposition)) {
             const buffer = Buffer.from(await response.arrayBuffer())
-            const pdfParse = require('pdf-parse')
-            const pdfData = await pdfParse(buffer)
-            rawText = pdfData.text || ''
+            const extracted = await extractPdfText(buffer)
+            rawText = extracted.text || ''
+        } else if (isDocxResponse(contentType, finalUrl, contentDisposition)) {
+            const buffer = Buffer.from(await response.arrayBuffer())
+            const extracted = await extractDocxText(buffer)
+            rawText = extracted.text || ''
         } else if (contentType.includes('application/json')) {
             const json = await response.json()
             rawText = JSON.stringify(json, null, 2)
@@ -245,7 +263,7 @@ export async function POST(request: NextRequest) {
             rawText = await response.text()
         } else {
             return errorResponse(
-                `Type de contenu non supporte (${contentType || 'inconnu'}). Les formats supportes via URL sont HTML, texte, JSON et PDF public.`,
+                `Type de contenu non supporte (${contentType || 'inconnu'}). Les formats supportes via URL sont HTML, texte, JSON, PDF public et DOCX public.`,
                 415
             )
         }

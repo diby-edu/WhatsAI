@@ -588,7 +588,17 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
 
     // Le polling est désormais géré entièrement par pollForQR() pour éviter les conflits d'état React
 
+    const goToKnowledgeBase = () => {
+        if (!createdAgent?.id) return
+        router.push(`/dashboard/agents/${createdAgent.id}/knowledge`)
+    }
+
     const handleFinish = () => {
+        if (isSupportClient && createdAgent?.id) {
+            goToKnowledgeBase()
+            return
+        }
+
         router.push('/dashboard/agents')
     }
 
@@ -1459,10 +1469,17 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
                                     {t('Wizard.buttons.generateQr')}
                                 </button>
                                 <button
+                                    onClick={goToKnowledgeBase}
+                                    style={buttonSecondaryStyle}
+                                >
+                                    <Bot style={{ width: 18, height: 18 }} />
+                                    {isSupportClient ? 'Configurer la base de connaissance' : 'Ajouter une base de connaissance'}
+                                </button>
+                                <button
                                     onClick={handleFinish}
                                     style={{ ...buttonSecondaryStyle, marginTop: 8 }}
                                 >
-                                    {t('Wizard.buttons.skip')}
+                                    {isSupportClient ? 'Plus tard' : t('Wizard.buttons.skip')}
                                 </button>
                             </>
                         )}
@@ -1520,10 +1537,17 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
                                     Numéro: {connectedPhone}
                                 </p>
                                 <button
+                                    onClick={goToKnowledgeBase}
+                                    style={buttonSecondaryStyle}
+                                >
+                                    <Bot style={{ width: 18, height: 18 }} />
+                                    {isSupportClient ? 'Configurer la base de connaissance' : 'Ajouter une base de connaissance'}
+                                </button>
+                                <button
                                     onClick={handleFinish}
                                     style={buttonPrimaryStyle}
                                 >
-                                    {t('Wizard.buttons.finish')}
+                                    {isSupportClient ? 'Continuer vers la base de connaissance' : t('Wizard.buttons.finish')}
                                     <ArrowRight style={{ width: 20, height: 20 }} />
                                 </button>
                             </>
