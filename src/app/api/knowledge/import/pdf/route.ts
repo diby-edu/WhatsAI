@@ -5,7 +5,7 @@ import { extractDocxText, extractDocText, extractPdfText } from '@/lib/knowledge
 
 export const runtime = 'nodejs'
 
-function chunkText(text: string, maxChars = 2000): string[] {
+function chunkText(text: string, maxChars = 800): string[] {
     const trimmed = text.trim()
     if (trimmed.length <= maxChars) return [trimmed]
 
