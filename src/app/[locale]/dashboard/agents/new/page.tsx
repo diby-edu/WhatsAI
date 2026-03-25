@@ -110,7 +110,8 @@ export default function NewAgentPage() {
         mobile_money_mtn: '',
         mobile_money_wave: '',
         custom_payment_methods: [] as { name: string; details: string }[],
-        agent_context: ''
+        agent_context: '',
+        welcome_message: ''
     })
 
     const steps = [
@@ -473,7 +474,8 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
                     mobile_money_mtn: formData.mobile_money_mtn || null,
                     mobile_money_wave: formData.mobile_money_wave || null,
                     custom_payment_methods: formData.custom_payment_methods || [],
-                    agent_context: formData.agent_context || null
+                    agent_context: formData.agent_context || null,
+                    welcome_message: formData.welcome_message || null
                 }),
             })
 
@@ -725,6 +727,35 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
                                 />
                                 <p style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
                                     Ce contexte est injecté dans chaque réponse du mode Support Client.
+                                </p>
+                            </div>
+                        )}
+                        {isSupportClient && (
+                            <div>
+                                <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
+                                    Message d'accueil (optionnel)
+                                </label>
+                                <textarea
+                                    value={formData.welcome_message}
+                                    onChange={(e) => updateFormData('welcome_message', e.target.value)}
+                                    placeholder="Ex: Je peux vous renseigner sur nos formations, les tarifs et le processus d'inscription."
+                                    rows={3}
+                                    style={{
+                                        width: '100%',
+                                        padding: 16,
+                                        borderRadius: 12,
+                                        border: '1px solid rgba(16, 185, 129, 0.3)',
+                                        background: 'rgba(16, 185, 129, 0.05)',
+                                        color: 'white',
+                                        outline: 'none',
+                                        resize: 'vertical',
+                                        fontFamily: 'inherit',
+                                        fontSize: 13,
+                                        lineHeight: 1.6,
+                                    }}
+                                />
+                                <p style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
+                                    Affiché après le nom de l'agent lors du premier message. Ex: "Bonjour ! Je suis l'assistant de X. <i>votre texte ici</i>"
                                 </p>
                             </div>
                         )}
