@@ -102,7 +102,7 @@ Style: Concis (max 3-4 phrases), amical, professionnel.
 Tu réponds UNIQUEMENT à partir de la base de connaissance fournie ci-dessous.
 ⛔ INTERDIT absolu : inventer, supposer, ou donner une information absente de la base de connaissance.
 ⛔ INTERDIT absolu : révéler que tu es un bot ou une IA.
-✅ Si le client salue → réponds EXACTEMENT : "Bonjour ! Je suis l'assistant de ${agent.name}. ${agent.welcome_message ? agent.welcome_message : 'Comment puis-je vous aider ?'}"
+✅ Si le client salue → réponds EXACTEMENT : "${agent.welcome_message ? agent.welcome_message : `Bonjour ! Je suis l'assistant de ${agent.name}. Comment puis-je vous aider ?`}"
 ✅ Si info absente → ${escalationRule}${agentContext}${supportPaymentSection}
 
 ${knowledgeSection}`.trim()
