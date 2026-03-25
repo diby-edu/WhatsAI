@@ -41,7 +41,7 @@ interface Booking {
     booking_type: string
     service_name: string | null
     status: string
-    start_time: string
+    start_time: string | null
     party_size: number
     location: string | null
     notes: string | null
@@ -210,6 +210,11 @@ export default function OrdersPage() {
             case 'pending':
                 return [
                     { value: 'confirmed', label: '✅ Confirmer' },
+                    { value: 'cancelled', label: '❌ Annuler' }
+                ]
+            case 'inscription_pending':
+                return [
+                    { value: 'confirmed', label: '✅ Paiement reçu — Confirmer' },
                     { value: 'cancelled', label: '❌ Annuler' }
                 ]
             case 'confirmed':
@@ -506,7 +511,7 @@ export default function OrdersPage() {
                     }}
                 >
                     🛎️ Réservations ({bookings.length})
-                    {bookings.filter(b => b.status === 'pending').length > 0 && (
+                    {bookings.filter(b => b.status === 'pending' || b.status === 'inscription_pending').length > 0 && (
                         <span style={{
                             background: '#8b5cf6',
                             color: 'white',
@@ -515,7 +520,7 @@ export default function OrdersPage() {
                             fontSize: 12,
                             fontWeight: 700
                         }}>
-                            {bookings.filter(b => b.status === 'pending').length}
+                            {bookings.filter(b => b.status === 'pending' || b.status === 'inscription_pending').length}
                         </span>
                     )}
                 </button>
@@ -857,15 +862,18 @@ export default function OrdersPage() {
                                                 fontSize: 12,
                                                 fontWeight: 600,
                                                 background: booking.status === 'pending' ? 'rgba(251, 191, 36, 0.2)'
+                                                    : booking.status === 'inscription_pending' ? 'rgba(139, 92, 246, 0.2)'
                                                     : booking.status === 'confirmed' ? 'rgba(16, 185, 129, 0.2)'
-                                                        : booking.status === 'completed' ? 'rgba(59, 130, 246, 0.2)'
-                                                            : 'rgba(239, 68, 68, 0.2)',
+                                                    : booking.status === 'completed' ? 'rgba(59, 130, 246, 0.2)'
+                                                    : 'rgba(239, 68, 68, 0.2)',
                                                 color: booking.status === 'pending' ? '#fbbf24'
+                                                    : booking.status === 'inscription_pending' ? '#a78bfa'
                                                     : booking.status === 'confirmed' ? '#10b981'
-                                                        : booking.status === 'completed' ? '#60a5fa'
-                                                            : '#ef4444'
+                                                    : booking.status === 'completed' ? '#60a5fa'
+                                                    : '#ef4444'
                                             }}>
                                                 {booking.status === 'pending' && '🟡 En attente'}
+                                                {booking.status === 'inscription_pending' && '📚 Inscription'}
                                                 {booking.status === 'confirmed' && '✅ Confirmé'}
                                                 {booking.status === 'completed' && '🎉 Terminé'}
                                                 {booking.status === 'cancelled' && '❌ Annulé'}
@@ -876,7 +884,10 @@ export default function OrdersPage() {
                                             <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                                                 <Users size={14} /> {booking.party_size}
                                             </span>
-                                            <span>📅 {format.dateTime(new Date(booking.start_time), { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                                            {booking.start_time
+                                                ? <span>📅 {format.dateTime(new Date(booking.start_time), { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                                                : <span style={{ color: '#a78bfa' }}>📚 Inscription</span>
+                                            }
                                         </p>
                                         {booking.location && (
                                             <p style={{ color: '#64748b', fontSize: 13, marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>

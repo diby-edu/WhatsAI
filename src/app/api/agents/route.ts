@@ -48,8 +48,8 @@ export async function POST(request: NextRequest) {
         const aiDefaults = await getAIRuntimeSettings(adminSupabase)
 
         // Validate required fields
-        if (!body.name || !body.system_prompt) {
-            return errorResponse('Le nom et les instructions sont requis', 400)
+        if (!body.name) {
+            return errorResponse('Le nom de l\'agent est requis', 400)
         }
 
         // Check agent limit based on plan (reads from DB so admin changes take effect)
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
                 user_id: user!.id,
                 name: body.name,
                 description: body.description || null,
-                system_prompt: body.system_prompt,
+                system_prompt: body.system_prompt || '',
                 personality: body.personality || 'friendly',
                 model: body.model || aiDefaults.openaiModel,
                 temperature: body.temperature ?? aiDefaults.temperatureDefault,

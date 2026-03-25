@@ -88,11 +88,11 @@ IMPORTANT - VARIANTES :
         type: 'function',
         function: {
             name: 'create_booking',
-            description: 'Créer une réservation pour un service (hôtel, restaurant, salon, consulting, etc.).',
+            description: 'Créer une réservation pour un service (hôtel, restaurant, salon, consulting, formation, etc.).',
             parameters: {
                 type: 'object',
                 properties: {
-                    booking_type: { type: 'string', description: 'Type de réservation: "stay" (hôtel), "table" (restaurant), "slot" (rdv), "rental" (location)' },
+                    booking_type: { type: 'string', description: 'Type de réservation: "stay" (hôtel), "table" (restaurant), "slot" (rdv), "rental" (location), "inscription" (formation/atelier sans date fixe)' },
                     service_name: { type: 'string', description: 'Nom du service/produit dans le catalogue (ex: "Chambres", "Menu Gourmet")' },
                     selected_variant: { type: 'string', description: 'Champ legacy: variante principale choisie si une seule variante fixe est necessaire.' },
                     selected_variants: {
@@ -112,7 +112,7 @@ IMPORTANT - VARIANTES :
                     selected_supplements: { type: 'object', description: 'Suppléments choisis (ex: {"Petit déjeuner": true, "Deuxième lit": true})' },
                     notes: { type: 'string', description: 'Demandes spéciales (allergies, préférences, etc.)' }
                 },
-                required: ['booking_type', 'service_name', 'customer_phone', 'customer_name', 'preferred_date']
+                required: ['booking_type', 'service_name', 'customer_phone', 'customer_name']
             }
         }
     },

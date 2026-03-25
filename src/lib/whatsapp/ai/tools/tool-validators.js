@@ -106,12 +106,15 @@ function validateCreateBookingArgs(args) {
         })
     }
 
-    if (!preferred_date || typeof preferred_date !== 'string' || preferred_date.trim() === '') {
-        return JSON.stringify({
-            success: false,
-            error: 'DATE MANQUANTE. Demandez la date souhaitee avant de creer la reservation.',
-            hint: 'Demande : "Pour quelle date souhaitez-vous reserver ?"'
-        })
+    // preferred_date n'est pas requis pour les inscriptions (pas de date fixe)
+    if (args.booking_type !== 'inscription') {
+        if (!preferred_date || typeof preferred_date !== 'string' || preferred_date.trim() === '') {
+            return JSON.stringify({
+                success: false,
+                error: 'DATE MANQUANTE. Demandez la date souhaitee avant de creer la reservation.',
+                hint: 'Demande : "Pour quelle date souhaitez-vous reserver ?"'
+            })
+        }
     }
 
     return null

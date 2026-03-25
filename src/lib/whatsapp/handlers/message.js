@@ -355,23 +355,34 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             .eq('agent_id', agentId)
         const hasKnowledgeBase = (kbCount || 0) > 0
 
+        // Mode Support Client : pas de produits + KB → bypass total des flux transactionnels
+        const isSupportClientMode = (products || []).length === 0 && hasKnowledgeBase
+
         const previousCartState = getCartState(conversation.metadata)
         const previousCheckoutState = getCheckoutState(conversation.metadata)
         const previousBookingState = getBookingState(conversation.metadata)
-        const bookingUpdate = updateBookingStateFromUserMessage(previousBookingState, message.text, serviceProducts)
-        const bookingFlowActive = !!(previousBookingState.current_booking || bookingUpdate.state.current_booking)
 
-        const cartUpdate = bookingFlowActive
-            ? { state: previousCartState, capturedFields: [], stateChanged: false, shouldBypassAI: false, directReply: null }
+        const noopCartUpdate = { state: previousCartState, capturedFields: [], stateChanged: false, shouldBypassAI: false, directReply: null }
+        const noopCheckoutUpdate = { state: previousCheckoutState, stateChanged: false, shouldBypassAI: false, directReply: null, shouldSubmitOrder: false }
+        const noopBookingUpdate = { state: previousBookingState, stateChanged: false, shouldBypassAI: false, directReply: null }
+
+        const bookingUpdate = isSupportClientMode
+            ? noopBookingUpdate
+            : updateBookingStateFromUserMessage(previousBookingState, message.text, serviceProducts)
+        const bookingFlowActive = !isSupportClientMode && !!(previousBookingState.current_booking || bookingUpdate.state.current_booking)
+
+        const cartUpdate = (isSupportClientMode || bookingFlowActive)
+            ? noopCartUpdate
             : updateCartStateFromUserMessage(previousCartState, message.text, orderableProducts, agentCurrency)
 
         const cartJustEnteredCheckout =
+            !isSupportClientMode &&
             !bookingFlowActive &&
             previousCartState.stage !== CART_STAGE.CHECKOUT &&
             cartUpdate.state.stage === CART_STAGE.CHECKOUT
 
-        const checkoutUpdate = bookingFlowActive
-            ? { state: previousCheckoutState, stateChanged: false, shouldBypassAI: false, directReply: null, shouldSubmitOrder: false }
+        const checkoutUpdate = (isSupportClientMode || bookingFlowActive)
+            ? noopCheckoutUpdate
             : updateCheckoutStateFromUserMessage(previousCheckoutState, message.text, {
                 cartState: cartUpdate.state,
                 products: orderableProducts,
@@ -381,12 +392,14 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
         const checkoutState = checkoutUpdate.state
 
         if (
-            JSON.stringify(previousCartState) !== JSON.stringify(cartUpdate.state) ||
-            JSON.stringify(previousCheckoutState) !== JSON.stringify(checkoutState) ||
-            JSON.stringify(previousBookingState) !== JSON.stringify(bookingUpdate.state) ||
-            conversation.metadata?.cart ||
-            conversation.metadata?.checkout ||
-            conversation.metadata?.booking
+            !isSupportClientMode && (
+                JSON.stringify(previousCartState) !== JSON.stringify(cartUpdate.state) ||
+                JSON.stringify(previousCheckoutState) !== JSON.stringify(checkoutState) ||
+                JSON.stringify(previousBookingState) !== JSON.stringify(bookingUpdate.state) ||
+                conversation.metadata?.cart ||
+                conversation.metadata?.checkout ||
+                conversation.metadata?.booking
+            )
         ) {
             const mergedMetadata = setBookingState(
                 setCheckoutState(
@@ -527,15 +540,17 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             nextBookingState = inferBookingStateFromAssistantMessage(aiResponse.content, bookingUpdate.state, serviceProducts)
         }
 
-        let nextMetadata = conversation.metadata
-        nextMetadata = clearCartAfterResponse
-            ? clearCartState(nextMetadata)
-            : setCartState(nextMetadata, nextCartState)
-        nextMetadata = clearCheckoutAfterResponse
-            ? clearCheckoutState(nextMetadata)
-            : setCheckoutState(nextMetadata, nextCheckoutState)
-        nextMetadata = setBookingState(nextMetadata, nextBookingState)
-        await conversation.updateMetadata(nextMetadata)
+        if (!isSupportClientMode) {
+            let nextMetadata = conversation.metadata
+            nextMetadata = clearCartAfterResponse
+                ? clearCartState(nextMetadata)
+                : setCartState(nextMetadata, nextCartState)
+            nextMetadata = clearCheckoutAfterResponse
+                ? clearCheckoutState(nextMetadata)
+                : setCheckoutState(nextMetadata, nextCheckoutState)
+            nextMetadata = setBookingState(nextMetadata, nextBookingState)
+            await conversation.updateMetadata(nextMetadata)
+        }
 
         // ═══════════════════════════════════════════════════════════
         // PHASE 6 : ENVOI RÉPONSE

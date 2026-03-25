@@ -18,7 +18,7 @@ export async function PATCH(
         const { status } = body
 
         // Validate status
-        const validStatuses = ['pending', 'confirmed', 'completed', 'cancelled']
+        const validStatuses = ['pending', 'confirmed', 'completed', 'cancelled', 'inscription_pending']
         if (!validStatuses.includes(status)) {
             return errorResponse(`Statut invalide: ${status}`)
         }
