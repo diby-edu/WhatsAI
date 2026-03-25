@@ -533,10 +533,10 @@ export default function AgentKnowledgePage({ params }: { params: Promise<{ id: s
                                         onChange={e => setUrlInput(e.target.value)}
                                         style={inputStyle} placeholder="https://exemple.com/faq"
                                     />
-                                    <div style={{ marginTop: 8, fontSize: 12, display: 'flex', flexDirection: 'column', gap: 3 }}>
-                                        <p style={{ color: '#34d399' }}>✅ Sites statiques, articles, WordPress, PDF/DOCX publics, JSON</p>
-                                        <p style={{ color: '#f87171' }}>❌ Sites nécessitant une connexion, Google Drive, applications React/Angular sans SSR</p>
-                                        <p style={{ color: '#64748b' }}>⚠️ Limité aux 50 000 premiers caractères — timeout 15s</p>
+                                    <div style={{ marginTop: 8, fontSize: 12, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                        <p style={{ color: '#34d399' }}>✅ Fonctionne : pages web publiques, articles de blog, WordPress, Wix, Google Sites, fichiers PDF ou Word hébergés publiquement</p>
+                                        <p style={{ color: '#f87171' }}>❌ Ne fonctionne pas : pages privées (connexion requise), Google Drive, Notion, Dropbox, applications web dynamiques (React, Angular…)</p>
+                                        <p style={{ color: '#f59e0b' }}>⚠️ Seuls les 50 000 premiers caractères sont traités — les pages très longues seront tronquées</p>
                                     </div>
                                 </div>
                                 {importError && <p style={{ color: '#f87171', fontSize: 13, marginBottom: 12 }}>{importError}</p>}
