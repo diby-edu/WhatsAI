@@ -109,18 +109,21 @@ export default function NewAgentPage() {
         mobile_money_orange: '',
         mobile_money_mtn: '',
         mobile_money_wave: '',
-        custom_payment_methods: [] as { name: string; details: string }[]
+        custom_payment_methods: [] as { name: string; details: string }[],
+        agent_context: ''
     })
 
     const steps = [
-        { id: 'info', title: t('Wizard.steps.info'), icon: Bot },
-        { id: 'hours', title: 'Horaires', icon: Clock }, // New Step
         { id: 'mission', title: t('Wizard.steps.mission'), icon: Target },
+        { id: 'info', title: t('Wizard.steps.info'), icon: Bot },
+        { id: 'hours', title: 'Horaires', icon: Clock },
         { id: 'personality', title: t('Wizard.steps.personality'), icon: Sparkles },
-        { id: 'rules', title: 'Règles', icon: Shield }, // New Step
+        { id: 'rules', title: 'Règles', icon: Shield },
         { id: 'settings', title: t('Wizard.steps.settings'), icon: Settings },
         { id: 'whatsapp', title: t('Wizard.steps.whatsapp'), icon: Smartphone },
     ]
+
+    const isSupportClient = formData.mission === 'support_client'
 
     const missionTemplates = [
         {
@@ -253,6 +256,14 @@ Règles:
 - Confirme tous les détails avant de valider`,
         },
         {
+            id: 'support_client',
+            title: 'Support Client',
+            description: 'Répondre aux questions via une base de connaissance. Idéal pour formateurs, experts, services.',
+            prompt: `Tu es l'assistant de ${'{name}'}.
+Ton rôle est de répondre aux questions des clients en te basant uniquement sur les informations que tu connais.
+Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact direct.`,
+        },
+        {
             id: 'custom',
             title: t('Templates.custom.title'),
             description: t('Templates.custom.description'),
@@ -279,12 +290,12 @@ Règles:
 
     const canProceed = () => {
         switch (currentStep) {
-            case 0: // Info
-                return formData.name.trim() !== '' && formData.escalation_phone.trim() !== ''
-            case 1: // Hours
-                return true
-            case 2: // Mission
+            case 0: // Mission (new step 0)
                 return formData.mission !== ''
+            case 1: // Info
+                return formData.name.trim() !== '' && formData.escalation_phone.trim() !== ''
+            case 2: // Hours
+                return true
             case 3: // Personality
                 return formData.personality !== ''
             case 4: // Rules
@@ -296,6 +307,19 @@ Règles:
             default:
                 return false
         }
+    }
+
+    // Calcul du prochain/précédent step en tenant compte des skips Support Client
+    const getNextStep = (from: number) => {
+        // Support Client : skip step 2 (Horaires)
+        if (isSupportClient && from === 1) return 3
+        return Math.min(steps.length - 1, from + 1)
+    }
+
+    const getPrevStep = (from: number) => {
+        // Support Client : skip step 2 (Horaires)
+        if (isSupportClient && from === 3) return 1
+        return Math.max(0, from - 1)
     }
 
     // AI Generation
@@ -448,7 +472,8 @@ Règles:
                     mobile_money_orange: formData.mobile_money_orange || null,
                     mobile_money_mtn: formData.mobile_money_mtn || null,
                     mobile_money_wave: formData.mobile_money_wave || null,
-                    custom_payment_methods: formData.custom_payment_methods || []
+                    custom_payment_methods: formData.custom_payment_methods || [],
+                    agent_context: formData.agent_context || null
                 }),
             })
 
@@ -616,7 +641,57 @@ Règles:
 
     const renderStepContent = () => {
         switch (currentStep) {
-            case 0:
+            case 0: // MISSION (new step 0)
+                return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                        <div>
+                            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 16 }}>
+                                {t('Form.mission.label')}
+                            </label>
+                            <div className="agent-grid-3">
+                                {missionTemplates.map((template) => (
+                                    <button
+                                        key={template.id}
+                                        onClick={() => selectMissionTemplate(template)}
+                                        style={{
+                                            padding: 16,
+                                            border: `2px solid ${formData.mission === template.id ? '#10b981' : 'rgba(148, 163, 184, 0.1)'}`,
+                                            borderRadius: 12,
+                                            textAlign: 'left',
+                                            background: formData.mission === template.id ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        <h3 style={{ fontWeight: 600, color: 'white', marginBottom: 4 }}>{template.title}</h3>
+                                        <p style={{ fontSize: 13, color: '#94a3b8' }}>{template.description}</p>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {formData.mission && (
+                            <div style={{
+                                padding: 16,
+                                background: 'rgba(16, 185, 129, 0.05)',
+                                border: '1px solid rgba(16, 185, 129, 0.2)',
+                                borderRadius: 12,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 12
+                            }}>
+                                <Shield size={20} color="#34d399" />
+                                <div>
+                                    <h4 style={{ color: '#34d399', fontWeight: 600, fontSize: 14 }}>Mode Sécurisé Activé</h4>
+                                    <p style={{ color: '#94a3b8', fontSize: 13 }}>
+                                        L'IA est maintenant configurée pour suivre strictement le scénario <strong>{missionTemplates.find(tmpl => tmpl.id === formData.mission)?.title}</strong>.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )
+
+            case 1: // INFO
                 return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                         <div>
@@ -768,7 +843,7 @@ Règles:
                     </div>
                 )
 
-            case 1: // HOURS
+            case 2: // HOURS
                 const set24_7 = () => {
                     const allOpen: typeof formData.business_hours = {
                         monday: { open: '00:00', close: '23:59', closed: false },
@@ -784,6 +859,12 @@ Règles:
 
                 return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        {/* Notice Support Client */}
+                        {isSupportClient && (
+                            <div style={{ padding: 14, background: 'rgba(99, 102, 241, 0.1)', border: '1px solid rgba(99, 102, 241, 0.3)', borderRadius: 12, fontSize: 13, color: '#a5b4fc' }}>
+                                ℹ️ Les horaires ne s'appliquent pas au mode Support Client. Vous pouvez ignorer cette étape.
+                            </div>
+                        )}
                         {/* 24/7 Quick Toggle */}
                         <div className="agent-hours-banner" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 16, background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: 12, marginBottom: 8 }}>
                             <div>
@@ -853,56 +934,6 @@ Règles:
                     </div>
                 )
 
-
-            case 2: // MISSION
-                return (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                        <div>
-                            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 16 }}>
-                                {t('Form.mission.label')}
-                            </label>
-                            <div className="agent-grid-3">
-                                {missionTemplates.map((template) => (
-                                    <button
-                                        key={template.id}
-                                        onClick={() => selectMissionTemplate(template)}
-                                        style={{
-                                            padding: 16,
-                                            border: `2px solid ${formData.mission === template.id ? '#10b981' : 'rgba(148, 163, 184, 0.1)'}`,
-                                            borderRadius: 12,
-                                            textAlign: 'left',
-                                            background: formData.mission === template.id ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
-                                            cursor: 'pointer'
-                                        }}
-                                    >
-                                        <h3 style={{ fontWeight: 600, color: 'white', marginBottom: 4 }}>{template.title}</h3>
-                                        <p style={{ fontSize: 13, color: '#94a3b8' }}>{template.description}</p>
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {formData.mission && (
-                            <div style={{
-                                padding: 16,
-                                background: 'rgba(16, 185, 129, 0.05)',
-                                border: '1px solid rgba(16, 185, 129, 0.2)',
-                                borderRadius: 12,
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 12
-                            }}>
-                                <Shield size={20} color="#34d399" />
-                                <div>
-                                    <h4 style={{ color: '#34d399', fontWeight: 600, fontSize: 14 }}>Mode Sécurisé Activé</h4>
-                                    <p style={{ color: '#94a3b8', fontSize: 13 }}>
-                                        L'IA est maintenant configurée pour suivre strictement le scénario <strong>{missionTemplates.find(t => t.id === formData.mission)?.title}</strong>.
-                                    </p>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                )
 
             case 3: // PERSONALITY
                 return (
@@ -1183,31 +1214,35 @@ Règles:
                                 Mode de Paiement
                             </label>
                             <div className="agent-grid-2" style={{ gap: 12 }}>
-                                <div
-                                    onClick={() => updateFormData('payment_mode', 'cinetpay')}
-                                    style={{
-                                        padding: 16,
-                                        borderRadius: 12,
-                                        border: formData.payment_mode === 'cinetpay' ? '2px solid #10b981' : '1px solid rgba(148,163,184,0.1)',
-                                        background: formData.payment_mode === 'cinetpay' ? 'rgba(16,185,129,0.1)' : 'rgba(30, 41, 59, 0.5)',
-                                        cursor: 'pointer'
-                                    }}
-                                >
-                                    <div style={{ fontWeight: 600, color: 'white' }}>🔄 CinetPay (Automatique)</div>
-                                    <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 4 }}>Lien de paiement sécurisé</div>
-                                </div>
+                                {!isSupportClient && (
+                                    <div
+                                        onClick={() => updateFormData('payment_mode', 'cinetpay')}
+                                        style={{
+                                            padding: 16,
+                                            borderRadius: 12,
+                                            border: formData.payment_mode === 'cinetpay' ? '2px solid #10b981' : '1px solid rgba(148,163,184,0.1)',
+                                            background: formData.payment_mode === 'cinetpay' ? 'rgba(16,185,129,0.1)' : 'rgba(30, 41, 59, 0.5)',
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        <div style={{ fontWeight: 600, color: 'white' }}>🔄 CinetPay (Automatique)</div>
+                                        <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 4 }}>Lien de paiement sécurisé</div>
+                                    </div>
+                                )}
                                 <div
                                     onClick={() => updateFormData('payment_mode', 'mobile_money_direct')}
                                     style={{
                                         padding: 16,
                                         borderRadius: 12,
-                                        border: formData.payment_mode === 'mobile_money_direct' ? '2px solid #10b981' : '1px solid rgba(148,163,184,0.1)',
-                                        background: formData.payment_mode === 'mobile_money_direct' ? 'rgba(16,185,129,0.1)' : 'rgba(30, 41, 59, 0.5)',
+                                        border: (isSupportClient || formData.payment_mode === 'mobile_money_direct') ? '2px solid #10b981' : '1px solid rgba(148,163,184,0.1)',
+                                        background: (isSupportClient || formData.payment_mode === 'mobile_money_direct') ? 'rgba(16,185,129,0.1)' : 'rgba(30, 41, 59, 0.5)',
                                         cursor: 'pointer'
                                     }}
                                 >
-                                    <div style={{ fontWeight: 600, color: 'white' }}>📱 Mobile Money Direct</div>
-                                    <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 4 }}>Vérification manuelle</div>
+                                    <div style={{ fontWeight: 600, color: 'white' }}>📱 Mobile Money / Manuel</div>
+                                    <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 4 }}>
+                                        {isSupportClient ? 'Seul mode disponible (Support Client)' : 'Vérification manuelle'}
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1601,7 +1636,7 @@ Règles:
             {/* Navigation buttons */}
             <div className="agent-nav" style={{ display: 'flex', justifyContent: 'space-between', marginTop: 24 }}>
                 <button
-                    onClick={() => setCurrentStep(prev => Math.max(0, prev - 1))}
+                    onClick={() => setCurrentStep(prev => getPrevStep(prev))}
                     disabled={currentStep === 0}
                     style={{
                         ...buttonSecondaryStyle,
@@ -1615,7 +1650,7 @@ Règles:
 
                 {currentStep < 6 ? (
                     <button
-                        onClick={() => setCurrentStep(prev => Math.min(steps.length - 1, prev + 1))}
+                        onClick={() => setCurrentStep(prev => getNextStep(prev))}
                         disabled={!canProceed()}
                         style={{
                             ...buttonPrimaryStyle,
