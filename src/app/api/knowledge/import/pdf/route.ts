@@ -53,6 +53,18 @@ function chunkText(text: string, maxChars = 800): string[] {
     return result.filter((chunk) => chunk.length > 0)
 }
 
+function isUsefulChunk(chunk: string): boolean {
+    const trimmed = chunk.trim()
+    // Trop court pour être utile
+    if (trimmed.length < 40) return false
+    // Marqueurs de page PDF : "-- 2 of 9 --", "Page 3", etc.
+    if (/^-{0,3}\s*\d+\s*(of|\/|sur)\s*\d+\s*-{0,3}$/i.test(trimmed)) return false
+    if (/^page\s*\d+$/i.test(trimmed)) return false
+    // Que des chiffres, tirets ou espaces
+    if (/^[\d\s\-–—/|.]+$/.test(trimmed)) return false
+    return true
+}
+
 export async function POST(request: NextRequest) {
     const supabase = await createApiClient()
     const { user, error: authError } = await getAuthUser(supabase)
@@ -105,7 +117,7 @@ export async function POST(request: NextRequest) {
             return errorResponse("Impossible d'extraire le texte de ce document", 422)
         }
 
-        const chunks = chunkText(extracted.text)
+        const chunks = chunkText(extracted.text).filter(isUsefulChunk)
         const sourceId = crypto.randomUUID()
 
         const insertRows = await Promise.all(
