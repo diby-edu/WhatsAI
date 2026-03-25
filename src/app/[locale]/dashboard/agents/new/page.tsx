@@ -765,6 +765,12 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
             case 1: // INFO
                 return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                        {isSupportClient && (
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px', background: 'rgba(99, 102, 241, 0.08)', border: '1px solid rgba(99, 102, 241, 0.2)', borderRadius: 10, fontSize: 13, color: '#a5b4fc' }}>
+                                <span>ℹ️</span>
+                                <span>En mode Support Client, la description et l'adresse s'activent automatiquement si vous ajoutez des produits à cet agent.</span>
+                            </div>
+                        )}
                         <div>
                             <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
                                 {t('Form.name.label')} *
@@ -1009,6 +1015,12 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
             case 3: // PERSONALITY
                 return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                        {isSupportClient && (
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px', background: 'rgba(99, 102, 241, 0.08)', border: '1px solid rgba(99, 102, 241, 0.2)', borderRadius: 10, fontSize: 13, color: '#a5b4fc' }}>
+                                <span>ℹ️</span>
+                                <span>En mode Support Client, la personnalité s'active automatiquement si vous ajoutez des produits à cet agent.</span>
+                            </div>
+                        )}
                         <div>
                             <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 16 }}>
                                 {t('Form.personality.label')}
@@ -1077,6 +1089,12 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
             case 4: // RULES
                 return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                        {isSupportClient && (
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px', background: 'rgba(99, 102, 241, 0.08)', border: '1px solid rgba(99, 102, 241, 0.2)', borderRadius: 10, fontSize: 13, color: '#a5b4fc' }}>
+                                <span>ℹ️</span>
+                                <span>En mode Support Client, les règles s'activent automatiquement si vous ajoutez des produits à cet agent.</span>
+                            </div>
+                        )}
                         <div>
                             <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
                                 Règles spécifiques
