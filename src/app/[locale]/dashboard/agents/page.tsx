@@ -13,7 +13,8 @@ import {
     MessageSquare,
     Loader2,
     Smartphone,
-    Crown
+    Crown,
+    BookOpen
 } from 'lucide-react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
@@ -369,6 +370,32 @@ export default function AgentsPage() {
                                 }}
                             >
                                 <Edit style={{ width: 18, height: 18, color: '#3b82f6' }} />
+                            </Link>
+                            <Link
+                                href={`/dashboard/agents/${agent.id}/knowledge`}
+                                title="Base de connaissances"
+                                style={{
+                                    width: 40,
+                                    height: 40,
+                                    borderRadius: 10,
+                                    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    transition: 'all 0.2s'
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.3)'
+                                    e.currentTarget.style.transform = 'scale(1.05)'
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.15)'
+                                    e.currentTarget.style.transform = 'scale(1)'
+                                }}
+                            >
+                                <BookOpen style={{ width: 18, height: 18, color: '#10b981' }} />
                             </Link>
                             <button
                                 onClick={() => toggleAgentStatus(agent.id)}
