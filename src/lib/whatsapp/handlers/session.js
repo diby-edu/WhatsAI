@@ -375,6 +375,11 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                     caption: msg.message?.imageMessage?.caption
                 }
 
+                // Read receipt avec délai humain (1.5s) — anti-ban
+                setTimeout(async () => {
+                    try { await socket.readMessages([msg.key]) } catch { /* silencieux */ }
+                }, 1500)
+
                 await handleMessage(context, agentId, messagePayload, isVoiceMessage)
             }
         })
