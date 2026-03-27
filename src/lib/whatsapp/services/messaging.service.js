@@ -8,9 +8,26 @@
 
 class MessagingService {
     /**
-     * Envoie un message texte (avec retry)
+     * Simule la frappe avant d'envoyer (anti-détection bot)
+     * Délai : 1s de base + 30ms/caractère, plafonné à 2s
+     */
+    static async simulateTyping(session, to, text) {
+        if (!session?.socket) return
+        try {
+            const delay = 1000 + Math.min(text.length * 30, 1000)
+            await session.socket.sendPresenceUpdate('composing', to)
+            await new Promise(resolve => setTimeout(resolve, delay))
+            await session.socket.sendPresenceUpdate('paused', to)
+        } catch {
+            // Ignorer les erreurs de présence — ne pas bloquer l'envoi
+        }
+    }
+
+    /**
+     * Envoie un message texte (avec typing indicator + retry)
      */
     static async sendText(session, to, text, options = {}) {
+        await this.simulateTyping(session, to, text)
         return await this.withRetry(async () => {
             if (!session || !session.socket) {
                 throw new Error('WhatsApp session or socket unavailable')

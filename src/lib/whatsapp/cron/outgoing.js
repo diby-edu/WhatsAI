@@ -1,3 +1,29 @@
+// Compteur horaire des broadcasts par agent (in-memory, reset auto)
+const broadcastHourlyCount = new Map() // agentId -> { count, windowStart }
+const BROADCAST_HOURLY_LIMIT = 50
+const BROADCAST_DELAY_MIN = 3000  // 3s
+const BROADCAST_DELAY_MAX = 8000  // 8s
+
+function getBroadcastCount(agentId) {
+    const now = Date.now()
+    const entry = broadcastHourlyCount.get(agentId)
+    if (!entry || now - entry.windowStart >= 3600000) {
+        broadcastHourlyCount.set(agentId, { count: 0, windowStart: now })
+        return 0
+    }
+    return entry.count
+}
+
+function incrementBroadcastCount(agentId) {
+    const entry = broadcastHourlyCount.get(agentId) || { count: 0, windowStart: Date.now() }
+    entry.count++
+    broadcastHourlyCount.set(agentId, entry)
+}
+
+function broadcastDelay() {
+    return BROADCAST_DELAY_MIN + Math.random() * (BROADCAST_DELAY_MAX - BROADCAST_DELAY_MIN)
+}
+
 async function getAgentIsActive(supabase, agentId, cache) {
     if (cache.has(agentId)) return cache.get(agentId)
 
@@ -131,13 +157,25 @@ async function checkOutboundMessages(context) {
 
                 const session = activeSessions.get(msg.agent_id)
                 if (session && session.socket) {
+                    // Limite horaire broadcast : 50 messages/heure par agent
+                    const hourlyCount = getBroadcastCount(msg.agent_id)
+                    if (hourlyCount >= BROADCAST_HOURLY_LIMIT) {
+                        console.log(`⏳ Broadcast limit reached for agent ${msg.agent_id} (${hourlyCount}/h) — retry next cycle`)
+                        continue
+                    }
+
                     try {
                         let jid = msg.recipient_phone
                         if (!jid.includes('@')) jid = jid.replace(/\D/g, '') + '@s.whatsapp.net'
 
+                        // Délai aléatoire anti-spam entre chaque message broadcast (3s–8s)
+                        await new Promise(resolve => setTimeout(resolve, broadcastDelay()))
+
                         await session.socket.sendMessage(jid, {
                             text: msg.message_content
                         })
+
+                        incrementBroadcastCount(msg.agent_id)
 
                         await supabase.from('outbound_messages')
                             .update({ status: 'sent', sent_at: new Date().toISOString() })
