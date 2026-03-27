@@ -7,6 +7,15 @@ const {
     calculateServiceBookingPrice,
     getVariantDisplayName,
 } = require('../ai/tools/service-pricing')
+const {
+    bookingTypeNeedsEndDate,
+    bookingTypeNeedsPartySize,
+    bookingTypeNeedsPaymentChoice,
+    bookingTypeNeedsTime,
+    formatBookingPaymentLabel,
+    normalizeBookingPaymentMethod,
+    normalizeBookingType,
+} = require('./booking-utils')
 
 const BOOKING_STAGE = {
     IDLE: 'idle',
@@ -54,6 +63,7 @@ function cloneBooking(booking = null) {
         party_size: booking.party_size ? Number(booking.party_size) : null,
         customer_name: booking.customer_name || null,
         customer_phone: booking.customer_phone || null,
+        payment_method: booking.payment_method || null,
         notes: booking.notes === undefined ? null : booking.notes,
         note_declined: booking.note_declined === true,
     }
@@ -265,10 +275,24 @@ function extractTime(text) {
 }
 
 function extractPartySize(text) {
-    const match = normalizeText(text).match(/\b\d{1,2}\b/)
-    if (!match) return null
-    const size = Number(match[0])
-    return Number.isFinite(size) && size > 0 ? size : null
+    const normalized = normalizeText(text)
+    const patterns = [
+        /\b(\d{1,2})\s*(?:personnes?|pers?|adultes?|enfants?|voyageurs?|couverts?)\b/,
+        /\bnous serons\s+(\d{1,2})\b/,
+        /\bpour\s+(\d{1,2})\s+personnes?\b/,
+    ]
+
+    for (const pattern of patterns) {
+        const match = normalized.match(pattern)
+        if (!match) continue
+
+        const size = Number(match[1])
+        if (Number.isFinite(size) && size > 0) {
+            return size
+        }
+    }
+
+    return null
 }
 
 function extractCustomerName(text) {
@@ -290,15 +314,23 @@ function extractCustomerPhone(text) {
 }
 
 function serviceNeedsTime(service) {
-    return ['slot', 'table'].includes(service?.service_subtype || 'other')
+    return bookingTypeNeedsTime(normalizeBookingType(null, service?.service_subtype))
 }
 
 function serviceNeedsEndDate(service) {
-    return ['stay', 'hotel', 'residence', 'rental'].includes(service?.service_subtype || 'other')
+    return bookingTypeNeedsEndDate(normalizeBookingType(null, service?.service_subtype))
 }
 
 function serviceNeedsPartySize(service) {
-    return ['stay', 'hotel', 'residence', 'table'].includes(service?.service_subtype || 'other')
+    return bookingTypeNeedsPartySize(normalizeBookingType(null, service?.service_subtype))
+}
+
+function serviceNeedsPaymentChoice(service) {
+    return bookingTypeNeedsPaymentChoice(normalizeBookingType(null, service?.service_subtype))
+}
+
+function detectBookingPaymentMethod(text) {
+    return normalizeBookingPaymentMethod(text)
 }
 
 function buildAwaitingField(service, booking) {
@@ -395,6 +427,16 @@ function buildAwaitingField(service, booking) {
         }
     }
 
+    if (serviceNeedsPaymentChoice(service) && !booking.payment_method) {
+        return {
+            type: 'payment_method',
+            label: 'mode de paiement',
+            prompt: service?.service_subtype === 'rental'
+                ? 'Souhaitez-vous payer en ligne ou au retrait ?'
+                : 'Souhaitez-vous payer en ligne ou sur place ?'
+        }
+    }
+
     return null
 }
 
@@ -410,6 +452,7 @@ function buildCapturedSummary(captured = []) {
         if (item.type === 'party_size') return `${item.value} personne(s)`
         if (item.type === 'customer_name') return `le nom ${item.value}`
         if (item.type === 'customer_phone') return `le telephone ${item.value}`
+        if (item.type === 'payment_method') return `le paiement ${formatBookingPaymentLabel(item.value)}`
         if (item.type === 'notes') return `la note "${item.value}"`
         return item.value
     })
@@ -419,10 +462,14 @@ function buildCapturedSummary(captured = []) {
     return `Je note ${parts.slice(0, -1).join(', ')} et ${parts[parts.length - 1]}.`
 }
 
-function buildBookingRecap(service, booking) {
+function buildBookingRecapLegacy(service, booking) {
     const pricing = calculateServiceBookingPrice(service, {
         selectedVariantsMap: booking.selected_variants,
         selectedSupplementsMap: booking.selected_supplements,
+        bookingType: normalizeBookingType(null, booking.service_subtype || service?.service_subtype),
+        serviceSubtype: booking.service_subtype || service?.service_subtype,
+        preferredDate: booking.preferred_date,
+        endDate: booking.end_date,
     })
 
     const lines = ['Voici le recapitulatif de votre reservation :', '', `• ${booking.service_name}`]
@@ -460,6 +507,82 @@ function buildBookingRecap(service, booking) {
         lines.push('• Notes : aucune')
     } else if (booking.notes) {
         lines.push(`• Notes : ${booking.notes}`)
+    }
+
+    if (pricing.nights) {
+        lines.push(`â€¢ Duree : ${pricing.nights} nuit${pricing.nights > 1 ? 's' : ''}`)
+    }
+    if (booking.payment_method) {
+        lines.push(`â€¢ Paiement : ${formatBookingPaymentLabel(booking.payment_method)}`)
+    }
+
+    const cleanedLines = lines.filter(line => !String(line).startsWith('Ã¢â‚¬Â¢'))
+    if (cleanedLines.length !== lines.length) {
+        lines.length = 0
+        lines.push(...cleanedLines)
+    }
+    if (pricing.nights && !lines.some(line => String(line).includes('Duree :'))) {
+        lines.push(`- Duree : ${pricing.nights} nuit${pricing.nights > 1 ? 's' : ''}`)
+    }
+    if (booking.payment_method && !lines.some(line => String(line).includes('Paiement :'))) {
+        lines.push(`- Paiement : ${formatBookingPaymentLabel(booking.payment_method)}`)
+    }
+
+    lines.push('', 'Confirmez-vous ?')
+    return lines.join('\n')
+}
+
+function buildBookingRecap(service, booking) {
+    const pricing = calculateServiceBookingPrice(service, {
+        selectedVariantsMap: booking.selected_variants,
+        selectedSupplementsMap: booking.selected_supplements,
+        bookingType: normalizeBookingType(null, booking.service_subtype || service?.service_subtype),
+        serviceSubtype: booking.service_subtype || service?.service_subtype,
+        preferredDate: booking.preferred_date,
+        endDate: booking.end_date,
+    })
+
+    const lines = ['Voici le recapitulatif de votre reservation :', '', `- ${booking.service_name}`]
+
+    if (pricing.fixedSelections.length > 0) {
+        lines.push(`- Variantes : ${pricing.fixedSelections.map(item => `${item.label} ${item.value}`).join(', ')}`)
+    }
+
+    if (pricing.supplementsList.length > 0) {
+        lines.push(`- Supplements : ${pricing.supplementsList.map(item => item.value).join(', ')}`)
+    }
+
+    if (booking.preferred_date) {
+        lines.push(`- Date : ${booking.preferred_date}`)
+    }
+    if (booking.end_date) {
+        lines.push(`- Fin : ${booking.end_date}`)
+    }
+    if (pricing.nights) {
+        lines.push(`- Duree : ${pricing.nights} nuit${pricing.nights > 1 ? 's' : ''}`)
+    }
+    if (booking.preferred_time) {
+        lines.push(`- Heure : ${booking.preferred_time}`)
+    }
+    if (booking.party_size) {
+        lines.push(`- Personnes : ${booking.party_size}`)
+    }
+    if (booking.payment_method) {
+        lines.push(`- Paiement : ${formatBookingPaymentLabel(booking.payment_method)}`)
+    }
+    if (pricing.price > 0) {
+        lines.push(`- Prix : ${pricing.price.toLocaleString('fr-FR')} FCFA`)
+    }
+    if (booking.customer_name) {
+        lines.push(`- Nom : ${booking.customer_name}`)
+    }
+    if (booking.customer_phone) {
+        lines.push(`- Telephone : ${booking.customer_phone}`)
+    }
+    if (booking.note_declined) {
+        lines.push('- Notes : aucune')
+    } else if (booking.notes) {
+        lines.push(`- Notes : ${booking.notes}`)
     }
 
     lines.push('', 'Confirmez-vous ?')
@@ -568,6 +691,7 @@ function updateBookingStateFromUserMessage(previousState, text, services = []) {
                 party_size: null,
                 customer_name: null,
                 customer_phone: null,
+                payment_method: null,
                 notes: null,
                 note_declined: false,
             }
@@ -626,7 +750,7 @@ function updateBookingStateFromUserMessage(previousState, text, services = []) {
         }
     }
 
-    if (serviceNeedsPartySize(service) && !state.current_booking.party_size && state.awaiting_field?.type === 'party_size') {
+    if (serviceNeedsPartySize(service) && !state.current_booking.party_size) {
         const extractedPartySize = extractPartySize(text)
         if (extractedPartySize) {
             state.current_booking.party_size = extractedPartySize
@@ -640,6 +764,15 @@ function updateBookingStateFromUserMessage(previousState, text, services = []) {
         if (extractedPhone) {
             state.current_booking.customer_phone = extractedPhone
             captured.push({ type: 'customer_phone', value: extractedPhone })
+            stateChanged = true
+        }
+    }
+
+    if (serviceNeedsPaymentChoice(service) && !state.current_booking.payment_method) {
+        const extractedPaymentMethod = detectBookingPaymentMethod(text)
+        if (extractedPaymentMethod) {
+            state.current_booking.payment_method = extractedPaymentMethod
+            captured.push({ type: 'payment_method', value: extractedPaymentMethod })
             stateChanged = true
         }
     }
@@ -733,6 +866,7 @@ function buildBookingStateGuidance(bookingState, services = []) {
     if (state.current_booking.party_size) lines.push(`- Taille de groupe deja collectee: ${state.current_booking.party_size}`)
     if (state.current_booking.customer_name) lines.push(`- Nom deja collecte: ${state.current_booking.customer_name}`)
     if (state.current_booking.customer_phone) lines.push(`- Telephone deja collecte: ${state.current_booking.customer_phone}`)
+    if (state.current_booking.payment_method) lines.push(`- Paiement deja choisi: ${formatBookingPaymentLabel(state.current_booking.payment_method)}`)
 
     if (state.current_booking.note_declined) {
         lines.push('- Le client a refuse les demandes particulieres.')
@@ -775,6 +909,7 @@ function mergeBookingStateIntoToolArgs(functionName, args = {}, bookingState = {
         party_size: args.party_size || booking.party_size || args.party_size,
         customer_name: args.customer_name || booking.customer_name || args.customer_name,
         customer_phone: args.customer_phone || booking.customer_phone || args.customer_phone,
+        payment_method: args.payment_method || booking.payment_method || args.payment_method,
         notes: args.notes !== undefined ? args.notes : booking.notes,
     }
 }

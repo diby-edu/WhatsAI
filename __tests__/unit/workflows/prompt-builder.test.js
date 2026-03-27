@@ -163,14 +163,14 @@ describe('Prompt Builder', () => {
             expect(prompt).toMatch(/SLOT|RENDEZ-VOUS/)
         })
 
-        test('should use SLOT engine for formation services', () => {
+        test('should use INSCRIPTION engine for formation services', () => {
             const products = [
                 { id: '1', name: 'Formation Excel', price_fcfa: 100000, product_type: 'service', service_subtype: 'formation' }
             ]
             const prompt = buildAdaptiveSystemPrompt(
                 mockAgent, products, mockOrders, mockDocs, currency, gpsLink, formattedHours
             )
-            expect(prompt).toMatch(/SLOT/)
+            expect(prompt).toMatch(/INSCRIPTION|FORMATION\/ATELIER|📚/)
         })
 
         test('should use SLOT engine for coaching services', () => {

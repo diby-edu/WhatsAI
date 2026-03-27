@@ -48,5 +48,7 @@ next-env.d.ts
 google-services.json
 android/app/google-services.json
 
+# WIP feature drafts not ready for versioning/deploy
+/FONCTIONNALITE/GUIDE_DEMARRAGE_WIP_2026-03-24/
 
 Package Complet Fourni 6 FICHIERS/

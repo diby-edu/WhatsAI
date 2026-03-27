@@ -4,6 +4,10 @@ const {
     getOptionPrice,
     VARIANT_CATEGORY_LABELS,
 } = require('./tool-helpers')
+const {
+    calculateDateRangeDays,
+    normalizeBookingType,
+} = require('../../services/booking-utils')
 
 function getVariantDisplayName(variant) {
     if (!variant) return 'Variante'
@@ -40,6 +44,7 @@ function resolveVariantSelection(selectedVariantsMap = {}, variant) {
 function calculateServiceBookingPrice(service, input = {}) {
     const selectedVariantsMap = input.selectedVariantsMap || {}
     const selectedSupplementsMap = input.selectedSupplementsMap || {}
+    const normalizedBookingType = normalizeBookingType(input.bookingType, input.serviceSubtype || service?.service_subtype)
 
     const fixedVariants = (service?.variants || []).filter(variant =>
         Array.isArray(variant.options) &&
@@ -174,8 +179,33 @@ function calculateServiceBookingPrice(service, input = {}) {
         }
     }
 
+    let durationDays = null
+    if (normalizedBookingType === 'stay' && input.preferredDate && input.endDate) {
+        const duration = calculateDateRangeDays(input.preferredDate, input.endDate)
+        if (duration.error) {
+            return {
+                price: 0,
+                unitPrice: effectiveBasePrice,
+                nights: null,
+                fixedSelections,
+                supplementsList,
+                matchedCombination,
+                combinationAttributes,
+                missingFixedVariants: [],
+                error: duration.error,
+            }
+        }
+
+        durationDays = duration.days
+    }
+
+    const unitPrice = effectiveBasePrice
+    const baseTotal = durationDays ? unitPrice * durationDays : unitPrice
+
     return {
-        price: effectiveBasePrice + supplementsTotal,
+        price: baseTotal + supplementsTotal,
+        unitPrice,
+        nights: durationDays,
         fixedSelections,
         supplementsList,
         matchedCombination,

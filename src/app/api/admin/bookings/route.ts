@@ -26,6 +26,13 @@ export async function GET(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url)
         const type = searchParams.get('type')
+        const normalizedType = type === 'hotel'
+            ? 'stay'
+            : type === 'restaurant'
+                ? 'table'
+                : type === 'service'
+                    ? 'slot'
+                    : type
 
         let query = adminSupabase
             .from('bookings')
@@ -43,8 +50,8 @@ export async function GET(request: NextRequest) {
             .order('start_time', { ascending: false })
             .limit(100)
 
-        if (type && type !== 'all') {
-            query = query.eq('booking_type', type)
+        if (normalizedType && normalizedType !== 'all') {
+            query = query.eq('booking_type', normalizedType)
         }
 
         const { data: bookings, error } = await query

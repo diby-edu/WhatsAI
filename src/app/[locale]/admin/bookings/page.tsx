@@ -63,11 +63,28 @@ export default function AdminBookingsPage() {
 
     const getTypeIcon = (type: string) => {
         switch (type) {
+            case 'table':
             case 'restaurant': return Utensils
+            case 'stay':
             case 'hotel': return Hotel
+            case 'slot':
             case 'service': return Scissors
             case 'inscription': return BookOpen
             default: return Calendar
+        }
+    }
+
+    const getTypeLabel = (type: string) => {
+        switch (type) {
+            case 'stay':
+            case 'hotel':
+                return 'Hebergement'
+            case 'table':
+                return 'Restaurant'
+            case 'slot':
+            case 'service':
+                return 'Service'
+            default: return type
         }
     }
 
@@ -189,9 +206,9 @@ export default function AdminBookingsPage() {
                     }}
                 >
                     <option value="all">Tous les types</option>
-                    <option value="restaurant">Restaurant</option>
-                    <option value="hotel">Hôtel</option>
-                    <option value="service">Service</option>
+                    <option value="table">Restaurant</option>
+                    <option value="stay">Hebergement</option>
+                    <option value="slot">Service</option>
                     <option value="inscription">Inscription</option>
                 </select>
             </div>
@@ -241,7 +258,7 @@ export default function AdminBookingsPage() {
                                                     <TypeIcon size={18} style={{ color: '#a78bfa' }} />
                                                 </div>
                                                 <span style={{ color: 'white', fontSize: 13, textTransform: 'capitalize' }}>
-                                                    {booking.booking_type}
+                                                    {getTypeLabel(booking.booking_type)}
                                                 </span>
                                             </div>
                                         </td>

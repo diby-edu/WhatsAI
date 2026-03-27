@@ -120,22 +120,22 @@ describe('Generic Workflow Orchestrator', () => {
         // EDGE CASES
         // ═══════════════════════════════════════════════════════════════
 
-        test('should fallback to PHYSICAL when no products', () => {
+        test('should return empty-catalog protection when no products', () => {
             const workflow = buildGenericWorkflow([], [])
 
-            expect(workflow).toMatch(/PHYSIQUE|📦/)
+            expect(workflow).toMatch(/AUCUN PRODUIT CONFIGURÉ|aucun produit n'est configuré/i)
         })
 
-        test('should fallback to PHYSICAL when products is null', () => {
+        test('should return empty-catalog protection when products is null', () => {
             const workflow = buildGenericWorkflow([], null)
 
-            expect(workflow).toMatch(/PHYSIQUE|📦/)
+            expect(workflow).toMatch(/AUCUN PRODUIT CONFIGURÉ|aucun produit n'est configuré/i)
         })
 
-        test('should fallback to PHYSICAL when products is undefined', () => {
+        test('should return empty-catalog protection when products is undefined', () => {
             const workflow = buildGenericWorkflow([])
 
-            expect(workflow).toMatch(/PHYSIQUE|📦/)
+            expect(workflow).toMatch(/AUCUN PRODUIT CONFIGURÉ|aucun produit n'est configuré/i)
         })
 
         // ═══════════════════════════════════════════════════════════════
