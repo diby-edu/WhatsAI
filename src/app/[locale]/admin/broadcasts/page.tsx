@@ -109,7 +109,14 @@ export default function AdminBroadcastsPage() {
 
     useEffect(() => {
         fetchAgents()
-        fetchHistory()
+        fetchHistory().then((broadcasts: any[]) => {
+            // Reprendre le suivi si un broadcast est toujours en cours
+            const inProgress = broadcasts?.find((b: any) => b.status === 'sending' && b.id)
+            if (inProgress) {
+                setActiveBroadcastId(inProgress.id)
+                setBroadcastProgress({ total: inProgress.recipients_count || 0, sent: 0, failed: 0, pending: inProgress.recipients_count || 0 })
+            }
+        })
     }, [])
 
     // Comptage escalation_phones quand le type change
@@ -187,9 +194,12 @@ export default function AdminBroadcastsPage() {
         try {
             const res = await fetch('/api/admin/broadcasts')
             const data = await res.json()
-            if (data.data?.broadcasts) setHistory(data.data.broadcasts)
+            const broadcasts = data.data?.broadcasts || []
+            setHistory(broadcasts)
+            return broadcasts
         } catch (err) {
             console.error('Error fetching history:', err)
+            return []
         }
     }
 
