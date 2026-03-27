@@ -10,6 +10,14 @@
  * Retour : null si valide, chaîne JSON d'erreur sinon (format uniforme tools).
  */
 
+const {
+    bookingTypeNeedsEndDate,
+    bookingTypeNeedsPartySize,
+    bookingTypeNeedsPaymentChoice,
+    normalizeBookingPaymentMethod,
+    normalizeBookingType,
+} = require('../../services/booking-utils')
+
 /**
  * Valide les arguments de create_order.
  *
@@ -80,7 +88,16 @@ function validateCreateOrderArgs(args) {
  * @returns {string|null} JSON erreur ou null si valide
  */
 function validateCreateBookingArgs(args) {
-    const { service_name, customer_name, customer_phone, preferred_date } = args
+    const {
+        service_name,
+        customer_name,
+        customer_phone,
+        preferred_date,
+        end_date,
+        party_size,
+        payment_method,
+    } = args
+    const normalizedBookingType = normalizeBookingType(args.booking_type)
 
     if (!service_name || typeof service_name !== 'string' || service_name.trim() === '') {
         return JSON.stringify({
@@ -107,7 +124,7 @@ function validateCreateBookingArgs(args) {
     }
 
     // preferred_date n'est pas requis pour les inscriptions (pas de date fixe)
-    if (args.booking_type !== 'inscription') {
+    if (normalizedBookingType !== 'inscription') {
         if (!preferred_date || typeof preferred_date !== 'string' || preferred_date.trim() === '') {
             return JSON.stringify({
                 success: false,
@@ -115,6 +132,35 @@ function validateCreateBookingArgs(args) {
                 hint: 'Demande : "Pour quelle date souhaitez-vous reserver ?"'
             })
         }
+    }
+
+    if (bookingTypeNeedsEndDate(normalizedBookingType)) {
+        if (!end_date || typeof end_date !== 'string' || end_date.trim() === '') {
+            return JSON.stringify({
+                success: false,
+                error: 'DATE DE FIN MANQUANTE. Pour un sejour ou une location, demandez la date de fin avant de creer la reservation.',
+                hint: 'Demande : "Quelle est la date de depart / fin ?"'
+            })
+        }
+    }
+
+    if (bookingTypeNeedsPartySize(normalizedBookingType)) {
+        const normalizedPartySize = Number(party_size)
+        if (!Number.isFinite(normalizedPartySize) || normalizedPartySize <= 0) {
+            return JSON.stringify({
+                success: false,
+                error: 'NOMBRE DE PERSONNES MANQUANT OU INVALIDE. Demandez combien de personnes sont concernees avant de creer la reservation.',
+                hint: 'Demande : "Combien de personnes sont concernees ?"'
+            })
+        }
+    }
+
+    if (bookingTypeNeedsPaymentChoice(normalizedBookingType) && !normalizeBookingPaymentMethod(payment_method)) {
+        return JSON.stringify({
+            success: false,
+            error: 'MODE DE PAIEMENT MANQUANT. Pour ce type de reservation, demandez si le client souhaite payer en ligne ou sur place.',
+            hint: 'Valeurs attendues : "online" ou "onsite"'
+        })
     }
 
     return null

@@ -65,6 +65,8 @@ function buildAdaptiveSystemPrompt(agent, products, orders, relevantDocs, curren
     }
 
     // MODE SUPPORT CLIENT : aucun produit + base de connaissance → prompt KB-only
+    const isServiceFlow = conversationIntent === 'service_booking' && !!activeEngine
+
     if (products.length === 0 && hasKnowledgeBase) {
         const knowledgeSection = buildKnowledgeSection(relevantDocs)
 
@@ -190,7 +192,15 @@ ${formattedHours !== 'Non spécifiés' ? `⏰ ${formattedHours}` : ''}
 
     // Section 7: Mode de paiement configuré par le marchand
     let paymentSection = ''
-    if (!agent.payment_mode || agent.payment_mode === 'cinetpay') {
+    if (isServiceFlow && false) {
+        paymentSection = `
+ðŸ’³ PAIEMENT POUR LES RÃ‰SERVATIONS DE SERVICE :
+- Pour une rÃ©servation de service, utilise TOUJOURS create_booking et JAMAIS create_order.
+- Si le service est un hÃ©bergement (STAY) ou une location (RENTAL), collecte aussi payment_method :
+  â€¢ "online" = paiement en ligne
+  â€¢ "onsite" = paiement sur place / Ã  l'arrivÃ©e / au retrait
+- âš ï¸ N'annonce JAMAIS qu'un lien de paiement sera gÃ©nÃ©rÃ© automatiquement aprÃ¨s create_booking, sauf si le systÃ¨me l'a explicitement retournÃ©.`
+    } else if (!agent.payment_mode || agent.payment_mode === 'cinetpay') {
         paymentSection = `
 💳 PAIEMENT EN LIGNE (CinetPay) :
 Quand le client choisit "payer en ligne", le système génère automatiquement un lien de paiement sécurisé après create_order.
@@ -216,6 +226,16 @@ Quand le client choisit "payer en ligne", le système génère automatiquement u
 Quand le client choisit "payer en ligne", réponds simplement "D'accord, les instructions de paiement vous seront envoyées avec la confirmation de commande."
 ⚠️ NE PAS lister les numéros ici — ils sont inclus automatiquement dans le message de confirmation. Ne les affiche pas avant la création de la commande.`
         }
+    }
+
+    if (isServiceFlow) {
+        paymentSection = `
+PAIEMENT POUR LES RESERVATIONS DE SERVICE :
+- Pour une reservation de service, utilise TOUJOURS create_booking et JAMAIS create_order.
+- Si le service est un hebergement (STAY) ou une location (RENTAL), collecte aussi payment_method :
+  - "online" = paiement en ligne
+  - "onsite" = paiement sur place / a l'arrivee / au retrait
+- N'annonce jamais qu'un lien de paiement sera genere automatiquement apres create_booking, sauf si le systeme l'a explicitement retourne.`
     }
 
     // 4. ASSEMBLAGE FINAL

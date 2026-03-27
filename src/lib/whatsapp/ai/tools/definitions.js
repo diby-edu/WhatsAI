@@ -109,6 +109,11 @@ IMPORTANT - VARIANTES :
                     preferred_time: { type: 'string', description: 'Heure (HH:MM) - pour table/slot' },
                     end_date: { type: 'string', description: 'Date de fin (YYYY-MM-DD) - pour stay/rental' },
                     party_size: { type: 'number', description: 'Nombre de personnes/couverts' },
+                    payment_method: {
+                        type: 'string',
+                        enum: ['online', 'onsite'],
+                        description: 'Mode de paiement pour les réservations qui le demandent. Utiliser "online" pour paiement en ligne, "onsite" pour paiement sur place / à l arrivée / au retrait.'
+                    },
                     selected_supplements: { type: 'object', description: 'Suppléments choisis (ex: {"Petit déjeuner": true, "Deuxième lit": true})' },
                     notes: { type: 'string', description: 'Demandes spéciales (allergies, préférences, etc.)' }
                 },
