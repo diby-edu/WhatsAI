@@ -29,14 +29,27 @@ export default function OnboardingPage() {
     const [selectedCountry, setSelectedCountry] = useState(PHONE_COUNTRY_CODES[0])
     const [phoneNumber, setPhoneNumber] = useState('')
     const [showDropdown, setShowDropdown] = useState(false)
+    const [dialSearch, setDialSearch] = useState('')
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+
+    // Auto-sélection quand l'indicatif saisi correspond exactement à un pays
+    useEffect(() => {
+        if (!dialSearch.startsWith('+') || dialSearch.length < 2) return
+        const exact = PHONE_COUNTRY_CODES.find(c => c.dial === dialSearch)
+        if (exact) {
+            setSelectedCountry(exact)
+            setShowDropdown(false)
+            setDialSearch('')
+        }
+    }, [dialSearch])
 
     // Close dropdown on outside click
     useEffect(() => {
         const handleClick = (e: MouseEvent) => {
             if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
                 setShowDropdown(false)
+                setDialSearch('')
             }
         }
         document.addEventListener('mousedown', handleClick)
@@ -240,7 +253,7 @@ export default function OnboardingPage() {
                         {/* Country code selector */}
                         <div ref={dropdownRef} style={{ position: 'relative', flexShrink: 0 }}>
                             <button
-                                onClick={() => setShowDropdown(!showDropdown)}
+                                onClick={() => { setShowDropdown(v => !v); setDialSearch('') }}
                                 style={{
                                     display: 'flex', alignItems: 'center', gap: 6,
                                     padding: '12px 12px', borderRadius: 10, height: '100%',
@@ -262,19 +275,42 @@ export default function OnboardingPage() {
                                         animate={{ opacity: 1, y: 0 }}
                                         exit={{ opacity: 0, y: -6 }}
                                         transition={{ duration: 0.15 }}
+                                        onWheel={e => e.stopPropagation()}
                                         style={{
                                             position: 'absolute', top: '110%', left: 0, zIndex: 50,
                                             background: '#0f172a',
                                             border: '1px solid rgba(148,163,184,0.15)',
-                                            borderRadius: 12, width: 220,
-                                            maxHeight: 260, overflowY: 'auto',
+                                            borderRadius: 12, width: 240,
                                             boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
                                         }}
                                     >
-                                        {PHONE_COUNTRY_CODES.map((country) => (
+                                        {/* Recherche par indicatif ou nom */}
+                                        <div style={{ padding: '8px 10px', borderBottom: '1px solid rgba(148,163,184,0.1)' }}>
+                                            <input
+                                                autoFocus
+                                                type="text"
+                                                placeholder="+225 ou Côte d'Ivoire"
+                                                value={dialSearch}
+                                                onChange={e => setDialSearch(e.target.value)}
+                                                style={{
+                                                    width: '100%', boxSizing: 'border-box',
+                                                    padding: '7px 10px', borderRadius: 8,
+                                                    border: '1px solid rgba(148,163,184,0.2)',
+                                                    background: 'rgba(30,41,59,0.8)',
+                                                    color: 'white', fontSize: 13,
+                                                    outline: 'none',
+                                                }}
+                                            />
+                                        </div>
+                                        <div style={{ maxHeight: 220, overflowY: 'auto' }}>
+                                        {PHONE_COUNTRY_CODES.filter(c =>
+                                            !dialSearch ||
+                                            c.dial.includes(dialSearch) ||
+                                            c.name.toLowerCase().includes(dialSearch.toLowerCase())
+                                        ).map((country) => (
                                             <button
                                                 key={country.dial + country.name}
-                                                onClick={() => { setSelectedCountry(country); setShowDropdown(false) }}
+                                                onClick={() => { setSelectedCountry(country); setShowDropdown(false); setDialSearch('') }}
                                                 style={{
                                                     display: 'flex', alignItems: 'center', gap: 10,
                                                     width: '100%', padding: '10px 14px',
@@ -295,6 +331,7 @@ export default function OnboardingPage() {
                                                 <span style={{ color: '#64748b', fontSize: 12 }}>{country.dial}</span>
                                             </button>
                                         ))}
+                                        </div>
                                     </motion.div>
                                 )}
                             </AnimatePresence>
