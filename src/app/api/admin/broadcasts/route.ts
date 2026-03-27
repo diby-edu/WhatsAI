@@ -89,32 +89,64 @@ export async function POST(request: NextRequest) {
 
     try {
         const body = await request.json()
-        const { agentId, message } = body
+        const { agentId, message, recipientType = 'agent_conversations' } = body
 
         if (!agentId || !message?.trim()) {
             return errorResponse('agentId and message are required', 400)
         }
 
-        // Get all conversations for this agent
-        const { data: conversations, error: convError } = await adminSupabase
-            .from('conversations')
-            .select('contact_phone')
-            .eq('agent_id', agentId)
+        // Récupérer les destinataires selon le type
+        let uniquePhones: string[] = []
 
-        if (convError) throw convError
+        if (recipientType === 'escalation_phones') {
+            const { data: agents, error: agentsError } = await adminSupabase
+                .from('agents')
+                .select('escalation_phone')
+                .not('escalation_phone', 'is', null)
 
-        const uniquePhones = [...new Set(conversations?.map(c => c.contact_phone) || [])]
+            if (agentsError) throw agentsError
+            uniquePhones = [...new Set(agents?.map((a: any) => a.escalation_phone).filter(Boolean) || [])]
+        } else {
+            // Mode par défaut : conversations de l'agent
+            const { data: conversations, error: convError } = await adminSupabase
+                .from('conversations')
+                .select('contact_phone')
+                .eq('agent_id', agentId)
 
-        if (uniquePhones.length === 0) {
-            return errorResponse('No recipients found for this agent', 400)
+            if (convError) throw convError
+            uniquePhones = [...new Set(conversations?.map((c: any) => c.contact_phone) || [])]
         }
 
-        // Queue messages for each recipient
+        if (uniquePhones.length === 0) {
+            return errorResponse('Aucun destinataire trouvé', 400)
+        }
+
+        // Créer le log broadcast d'abord pour obtenir l'ID
+        const { data: broadcastLog, error: logError } = await adminSupabase
+            .from('broadcasts')
+            .insert({
+                agent_id: agentId,
+                message: message.trim(),
+                recipients_count: uniquePhones.length,
+                status: 'sending',
+                created_at: new Date().toISOString()
+            })
+            .select('id')
+            .single()
+
+        if (logError) {
+            console.warn('Could not log broadcast:', logError)
+        }
+
+        const broadcastId = broadcastLog?.id || null
+
+        // Mettre en queue les messages
         const outboundMessages = uniquePhones.map(phone => ({
             agent_id: agentId,
             recipient_phone: phone,
             message_content: message.trim(),
             status: 'pending',
+            broadcast_id: broadcastId,
             created_at: new Date().toISOString()
         }))
 
@@ -126,23 +158,11 @@ export async function POST(request: NextRequest) {
             throw insertError
         }
 
-        // Log the broadcast
-        try {
-            await adminSupabase.from('broadcasts').insert({
-                agent_id: agentId,
-                message: message.trim(),
-                recipients_count: uniquePhones.length,
-                status: 'sent',
-                created_at: new Date().toISOString()
-            })
-        } catch (broadcastLogError) {
-            console.warn('Could not log broadcast:', broadcastLogError)
-        }
-
         return successResponse({
             success: true,
+            broadcastId,
             recipientCount: uniquePhones.length,
-            message: `Broadcast queued for ${uniquePhones.length} recipients`
+            message: `Broadcast en file pour ${uniquePhones.length} destinataires`
         })
     } catch (err) {
         console.error('Error sending broadcast:', err)
