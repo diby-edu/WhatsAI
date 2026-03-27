@@ -38,91 +38,146 @@ async function getAgentIsActive(supabase, agentId, cache) {
     return isActive
 }
 
+const ONE_HOUR = 60 * 60 * 1000
+
+function resolveJid(contactJid, phoneNumber) {
+    if (contactJid?.includes('@')) return contactJid
+    const base = contactJid || phoneNumber
+    if (base.includes('@')) return base
+    const isLid = phoneNumber.length > 15 || !/^\d{10,13}$/.test(phoneNumber)
+    return phoneNumber + (isLid ? '@lid' : '@s.whatsapp.net')
+}
+
+async function simulateTyping(socket, jid, text) {
+    try {
+        const delay = 1000 + Math.min(text.length * 30, 1000)
+        await socket.sendPresenceUpdate('composing', jid)
+        await new Promise(resolve => setTimeout(resolve, delay))
+        await socket.sendPresenceUpdate('paused', jid)
+    } catch { /* ne pas bloquer l'envoi */ }
+}
+
+async function handleHistorySendError(supabase, msg, error) {
+    console.error(`Failed to send pending message to ${msg.conversation.contact_phone}:`, error)
+    const ageMs = Date.now() - new Date(msg.created_at).getTime()
+    if (ageMs > ONE_HOUR) {
+        await supabase.from('messages')
+            .update({ status: 'failed', error_message: `Abandon après 1h: ${error.message}` })
+            .eq('id', msg.id)
+        console.error(`History message ${msg.id} abandonné après 1h`)
+    } else {
+        console.log(`History message ${msg.id} restera pending (âge: ${Math.round(ageMs / 60000)}min)`)
+    }
+}
+
+async function sendHistoryMessage(supabase, session, msg) {
+    const jid = resolveJid(msg.conversation.contact_jid, msg.conversation.contact_phone)
+    await simulateTyping(session.socket, jid, msg.content)
+    const result = await session.socket.sendMessage(jid, { text: msg.content })
+    await supabase.from('messages')
+        .update({ status: 'sent', whatsapp_message_id: result.key.id })
+        .eq('id', msg.id)
+    await supabase.from('conversations').update({
+        last_message_text: msg.content.substring(0, 200),
+        last_message_at: new Date().toISOString(),
+        last_message_role: 'assistant'
+    }).eq('id', msg.conversation_id)
+}
+
+async function processHistoryMessage(supabase, activeSessions, agentStateCache, msg) {
+    const agentId = msg.conversation.agent_id
+    const isActive = await getAgentIsActive(supabase, agentId, agentStateCache)
+    if (!isActive) {
+        await supabase.from('messages')
+            .update({ status: 'failed', error_message: 'agent_inactive' })
+            .eq('id', msg.id)
+        return
+    }
+    const session = activeSessions.get(agentId)
+    if (!session?.socket) return
+    try {
+        await sendHistoryMessage(supabase, session, msg)
+    } catch (sendError) {
+        await handleHistorySendError(supabase, msg, sendError)
+    }
+}
+
 // CHECK PENDING MESSAGES (Hybrid Solution: History)
 async function checkPendingHistoryMessages(context) {
     const { supabase, activeSessions } = context
     const agentStateCache = new Map()
-
     try {
         const { data: pendingMessages } = await supabase
             .from('messages')
-            .select(`
-                *,
-                conversation:conversations!inner(
-                    contact_phone,
-                    contact_jid,
-                    agent_id,
-                    bot_paused
-                )
-            `)
+            .select(`*, conversation:conversations!inner(contact_phone, contact_jid, agent_id, bot_paused)`)
             .eq('status', 'pending')
             .eq('role', 'assistant')
             .limit(10)
 
-        if (pendingMessages && pendingMessages.length > 0) {
-            console.log(`Found ${pendingMessages.length} pending assistant messages (History)`)
-
-            for (const msg of pendingMessages) {
-                const agentId = msg.conversation.agent_id
-                const isActive = await getAgentIsActive(supabase, agentId, agentStateCache)
-
-                if (!isActive) {
-                    await supabase
-                        .from('messages')
-                        .update({ status: 'failed', error_message: 'agent_inactive' })
-                        .eq('id', msg.id)
-                    continue
-                }
-
-                const phoneNumber = msg.conversation.contact_phone
-                const contactJid = msg.conversation.contact_jid
-                const session = activeSessions.get(agentId)
-
-                if (session && session.socket) {
-                    try {
-                        let jid = contactJid || phoneNumber
-                        if (!jid.includes('@')) {
-                            const isLid = phoneNumber.length > 15 || !/^\d{10,13}$/.test(phoneNumber)
-                            jid = phoneNumber + (isLid ? '@lid' : '@s.whatsapp.net')
-                        }
-
-                        const result = await session.socket.sendMessage(jid, {
-                            text: msg.content
-                        })
-
-                        await supabase
-                            .from('messages')
-                            .update({
-                                status: 'sent',
-                                whatsapp_message_id: result.key.id
-                            })
-                            .eq('id', msg.id)
-
-                        await supabase.from('conversations').update({
-                            last_message_text: msg.content.substring(0, 200),
-                            last_message_at: new Date().toISOString(),
-                            last_message_role: 'assistant'
-                        }).eq('id', msg.conversation_id)
-                    } catch (sendError) {
-                        console.error(`Failed to send pending message to ${phoneNumber}:`, sendError)
-                        // Même logique que outbound : retry pendant 1h, puis failed définitif
-                        const ageMs = Date.now() - new Date(msg.created_at).getTime()
-                        const ONE_HOUR = 60 * 60 * 1000
-                        if (ageMs > ONE_HOUR) {
-                            await supabase
-                                .from('messages')
-                                .update({ status: 'failed', error_message: `Abandon après 1h: ${sendError.message}` })
-                                .eq('id', msg.id)
-                            console.error(`History message ${msg.id} abandonné après 1h`)
-                        } else {
-                            console.log(`History message ${msg.id} restera pending (âge: ${Math.round(ageMs / 60000)}min) — retry au prochain cycle`)
-                        }
-                    }
-                }
-            }
+        if (!pendingMessages?.length) return
+        console.log(`Found ${pendingMessages.length} pending assistant messages (History)`)
+        for (const msg of pendingMessages) {
+            await processHistoryMessage(supabase, activeSessions, agentStateCache, msg)
         }
     } catch (error) {
         console.error('Error checking pending history messages:', error)
+    }
+}
+
+// OUTBOUND — helpers
+
+async function markOutboundFailed(supabase, msgId, reason) {
+    await supabase.from('outbound_messages')
+        .update({ status: 'failed', error_log: reason })
+        .eq('id', msgId)
+}
+
+async function handleOutboundSendError(supabase, msg, sendError) {
+    console.error(`Failed to send outbound to ${msg.recipient_phone}:`, sendError)
+    const ageMs = Date.now() - new Date(msg.created_at).getTime()
+    if (ageMs > ONE_HOUR) {
+        await markOutboundFailed(supabase, msg.id, `Abandon après 1h: ${sendError.message}`)
+        console.error(`Outbound ${msg.id} abandonné après 1h`)
+    } else {
+        console.log(`Outbound ${msg.id} restera pending (âge: ${Math.round(ageMs / 60000)}min) — retry au prochain cycle`)
+    }
+}
+
+async function sendOutboundMessage(supabase, session, msg) {
+    let jid = msg.recipient_phone
+    if (!jid.includes('@')) jid = jid.replaceAll(/\D/gu, '') + '@s.whatsapp.net'
+
+    await new Promise(resolve => setTimeout(resolve, broadcastDelay()))
+    await session.socket.sendMessage(jid, { text: msg.message_content })
+    incrementBroadcastCount(msg.agent_id)
+    await supabase.from('outbound_messages')
+        .update({ status: 'sent', sent_at: new Date().toISOString() })
+        .eq('id', msg.id)
+}
+
+async function processOutboundMessage(supabase, activeSessions, agentStateCache, msg) {
+    const isActive = await getAgentIsActive(supabase, msg.agent_id, agentStateCache)
+    if (!isActive) {
+        await markOutboundFailed(supabase, msg.id, 'agent_inactive')
+        return
+    }
+
+    const session = activeSessions.get(msg.agent_id)
+    if (!session?.socket) {
+        console.log(`Agent ${msg.agent_id} offline, keeping in queue`)
+        return
+    }
+
+    const hourlyCount = getBroadcastCount(msg.agent_id)
+    if (hourlyCount >= BROADCAST_HOURLY_LIMIT) {
+        console.log(`Broadcast limit reached for agent ${msg.agent_id} (${hourlyCount}/h) — retry next cycle`)
+        return
+    }
+
+    try {
+        await sendOutboundMessage(supabase, session, msg)
+    } catch (sendError) {
+        await handleOutboundSendError(supabase, msg, sendError)
     }
 }
 
@@ -144,63 +199,10 @@ async function checkOutboundMessages(context) {
             return
         }
 
-        if (messages && messages.length > 0) {
-            console.log(`Found ${messages.length} pending outbound messages`)
-            for (const msg of messages) {
-                const isActive = await getAgentIsActive(supabase, msg.agent_id, agentStateCache)
-                if (!isActive) {
-                    await supabase.from('outbound_messages')
-                        .update({ status: 'failed', error_log: 'agent_inactive' })
-                        .eq('id', msg.id)
-                    continue
-                }
-
-                const session = activeSessions.get(msg.agent_id)
-                if (session && session.socket) {
-                    // Limite horaire broadcast : 50 messages/heure par agent
-                    const hourlyCount = getBroadcastCount(msg.agent_id)
-                    if (hourlyCount >= BROADCAST_HOURLY_LIMIT) {
-                        console.log(`⏳ Broadcast limit reached for agent ${msg.agent_id} (${hourlyCount}/h) — retry next cycle`)
-                        continue
-                    }
-
-                    try {
-                        let jid = msg.recipient_phone
-                        if (!jid.includes('@')) jid = jid.replace(/\D/g, '') + '@s.whatsapp.net'
-
-                        // Délai aléatoire anti-spam entre chaque message broadcast (3s–8s)
-                        await new Promise(resolve => setTimeout(resolve, broadcastDelay()))
-
-                        await session.socket.sendMessage(jid, {
-                            text: msg.message_content
-                        })
-
-                        incrementBroadcastCount(msg.agent_id)
-
-                        await supabase.from('outbound_messages')
-                            .update({ status: 'sent', sent_at: new Date().toISOString() })
-                            .eq('id', msg.id)
-                    } catch (sendError) {
-                        console.error(`Failed to send outbound to ${msg.recipient_phone}:`, sendError)
-
-                        // Retry logic : laisser pending si message récent (< 1h)
-                        // Le cron retentera automatiquement au prochain cycle.
-                        // Après 1h sans succès → failed définitif.
-                        const ageMs = Date.now() - new Date(msg.created_at).getTime()
-                        const ONE_HOUR = 60 * 60 * 1000
-                        if (ageMs > ONE_HOUR) {
-                            await supabase.from('outbound_messages')
-                                .update({ status: 'failed', error_log: `Abandon après 1h: ${sendError.message}` })
-                                .eq('id', msg.id)
-                            console.error(`Outbound ${msg.id} abandonné après 1h`)
-                        } else {
-                            console.log(`Outbound ${msg.id} restera pending (âge: ${Math.round(ageMs / 60000)}min) — retry au prochain cycle`)
-                        }
-                    }
-                } else {
-                    console.log(`Agent ${msg.agent_id} offline, keeping in queue`)
-                }
-            }
+        if (!messages?.length) return
+        console.log(`Found ${messages.length} pending outbound messages`)
+        for (const msg of messages) {
+            await processOutboundMessage(supabase, activeSessions, agentStateCache, msg)
         }
     } catch (e) {
         console.error('Error checking outbound messages:', e)
