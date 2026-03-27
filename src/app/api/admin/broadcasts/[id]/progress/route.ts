@@ -5,8 +5,9 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
+    const { id } = await params
     const supabase = await createApiClient()
     const { user, error: authError } = await getAuthUser(supabase)
 
@@ -27,7 +28,7 @@ export async function GET(
         const { data: rows, error } = await adminSupabase
             .from('outbound_messages')
             .select('status')
-            .eq('broadcast_id', params.id)
+            .eq('broadcast_id', id)
 
         if (error) throw error
 
