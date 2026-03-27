@@ -1,6 +1,6 @@
 ﻿'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
     Send, Users, MessageSquare, Loader2, CheckCircle,
     ArrowLeft, AlertTriangle, Clock, Mail, Search, Bell
@@ -67,12 +67,16 @@ export default function AdminBroadcastsPage() {
     // WhatsApp state
     const [agents, setAgents] = useState<Agent[]>([])
     const [selectedAgent, setSelectedAgent] = useState<string>('')
+    const [waRecipientType, setWaRecipientType] = useState<'agent_conversations' | 'escalation_phones'>('agent_conversations')
     const [waMessage, setWaMessage] = useState('')
     const [waSending, setWaSending] = useState(false)
     const [waSent, setWaSent] = useState(false)
     const [recipientCount, setRecipientCount] = useState(0)
     const [history, setHistory] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
+    const [activeBroadcastId, setActiveBroadcastId] = useState<string | null>(null)
+    const [broadcastProgress, setBroadcastProgress] = useState<{ total: number, sent: number, failed: number, pending: number } | null>(null)
+    const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
     // Email state
     const [emailSubject, setEmailSubject] = useState('')
@@ -107,6 +111,43 @@ export default function AdminBroadcastsPage() {
         fetchAgents()
         fetchHistory()
     }, [])
+
+    // Comptage escalation_phones quand le type change
+    useEffect(() => {
+        if (waRecipientType === 'escalation_phones') {
+            fetch('/api/admin/broadcasts/preview?recipientType=escalation_phones')
+                .then(r => r.json())
+                .then(d => setRecipientCount(d.data?.count || 0))
+                .catch(() => setRecipientCount(0))
+        } else if (selectedAgent) {
+            fetchWaRecipientCount(selectedAgent)
+        } else {
+            setRecipientCount(0)
+        }
+    }, [waRecipientType])
+
+    // Polling progression broadcast actif
+    useEffect(() => {
+        if (!activeBroadcastId) return
+        if (broadcastProgress && broadcastProgress.pending === 0) return
+
+        progressIntervalRef.current = setInterval(async () => {
+            try {
+                const res = await fetch(`/api/admin/broadcasts/${activeBroadcastId}/progress`)
+                const data = await res.json()
+                if (data.data) {
+                    setBroadcastProgress(data.data)
+                    if (data.data.pending === 0 && progressIntervalRef.current) {
+                        clearInterval(progressIntervalRef.current)
+                    }
+                }
+            } catch { /* silencieux */ }
+        }, 5000)
+
+        return () => {
+            if (progressIntervalRef.current) clearInterval(progressIntervalRef.current)
+        }
+    }, [activeBroadcastId])
 
     useEffect(() => {
         if (pushPlan === 'individual') {
@@ -275,17 +316,27 @@ export default function AdminBroadcastsPage() {
     const sendWaBroadcast = async () => {
         if (!selectedAgent || !waMessage.trim()) return
         setWaSending(true)
+        setActiveBroadcastId(null)
+        setBroadcastProgress(null)
         try {
             const res = await fetch('/api/admin/broadcasts', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ agentId: selectedAgent, message: waMessage.trim() })
+                body: JSON.stringify({
+                    agentId: selectedAgent,
+                    message: waMessage.trim(),
+                    recipientType: waRecipientType,
+                })
             })
             const data = await res.json()
             if (data.data?.success) {
                 setWaSent(true)
                 setWaMessage('')
                 fetchHistory()
+                if (data.data.broadcastId) {
+                    setActiveBroadcastId(data.data.broadcastId)
+                    setBroadcastProgress({ total: data.data.recipientCount, sent: 0, failed: 0, pending: data.data.recipientCount })
+                }
                 setTimeout(() => setWaSent(false), 5000)
             }
         } catch (err) {
@@ -386,10 +437,39 @@ export default function AdminBroadcastsPage() {
                             <Send size={18} style={{ color: '#34d399' }} /> Nouveau Broadcast WhatsApp
                         </h2>
 
+                        {/* Sélecteur type de destinataires */}
                         <div style={{ marginBottom: 16 }}>
-                            <label style={{ display: 'block', color: '#94a3b8', fontSize: 13, marginBottom: 8 }}>Agent</label>
+                            <label style={{ display: 'block', color: '#94a3b8', fontSize: 13, marginBottom: 8 }}>Destinataires</label>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                                {([
+                                    { value: 'agent_conversations', label: 'Contacts agent' },
+                                    { value: 'escalation_phones', label: 'Numéros d\'escalade' },
+                                ] as const).map(opt => (
+                                    <button key={opt.value} onClick={() => setWaRecipientType(opt.value)}
+                                        style={{
+                                            flex: 1, padding: '9px 12px', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer',
+                                            border: waRecipientType === opt.value ? '1px solid #34d399' : '1px solid rgba(148,163,184,0.2)',
+                                            background: waRecipientType === opt.value ? 'rgba(52,211,153,0.1)' : 'rgba(15,23,42,0.5)',
+                                            color: waRecipientType === opt.value ? '#34d399' : '#94a3b8',
+                                        }}>
+                                        {opt.label}
+                                    </button>
+                                ))}
+                            </div>
+                            {waRecipientType === 'escalation_phones' && (
+                                <p style={{ fontSize: 11, color: '#64748b', marginTop: 6 }}>
+                                    Envoie au numéro d'escalade configuré sur chaque agent de la plateforme.
+                                </p>
+                            )}
+                        </div>
+
+                        {/* Agent expéditeur (toujours requis pour la session WhatsApp) */}
+                        <div style={{ marginBottom: 16 }}>
+                            <label style={{ display: 'block', color: '#94a3b8', fontSize: 13, marginBottom: 8 }}>
+                                Agent expéditeur
+                            </label>
                             <select value={selectedAgent} onChange={(e) => handleAgentChange(e.target.value)} style={inputStyle}>
-                                <option value="">-- Choisir un agent --</option>
+                                <option value="">-- Choisir un agent connecté --</option>
                                 {agents.map(agent => (
                                     <option key={agent.id} value={agent.id}>
                                         {agent.name} ({agent.total_conversations || 0} conversations)
@@ -398,10 +478,13 @@ export default function AdminBroadcastsPage() {
                             </select>
                         </div>
 
-                        {selectedAgent && (
+                        {recipientCount > 0 && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', marginBottom: 16, background: 'rgba(52, 211, 153, 0.1)', border: '1px solid rgba(52, 211, 153, 0.2)', borderRadius: 10 }}>
                                 <Users size={16} style={{ color: '#34d399' }} />
-                                <span style={{ color: '#34d399', fontSize: 13 }}>{recipientCount} destinataires</span>
+                                <span style={{ color: '#34d399', fontSize: 13 }}>{recipientCount} destinataire{recipientCount > 1 ? 's' : ''}</span>
+                                <span style={{ color: '#64748b', fontSize: 12, marginLeft: 'auto' }}>
+                                    ~{Math.ceil(recipientCount / 50)}h d'envoi
+                                </span>
                             </div>
                         )}
 
@@ -414,7 +497,7 @@ export default function AdminBroadcastsPage() {
 
                         <div style={{ display: 'flex', gap: 8, padding: '10px 14px', marginBottom: 16, background: 'rgba(251, 191, 36, 0.1)', border: '1px solid rgba(251, 191, 36, 0.2)', borderRadius: 10 }}>
                             <AlertTriangle size={16} style={{ color: '#fbbf24', flexShrink: 0, marginTop: 1 }} />
-                            <span style={{ color: '#fbbf24', fontSize: 12 }}>Envoi à tous les contacts de cet agent. Utilisez avec modération.</span>
+                            <span style={{ color: '#fbbf24', fontSize: 12 }}>Limite : 50 messages/heure par agent. L'envoi se fait progressivement.</span>
                         </div>
 
                         <button onClick={sendWaBroadcast}
@@ -427,11 +510,42 @@ export default function AdminBroadcastsPage() {
                                 opacity: (!selectedAgent || !waMessage.trim() || waSending || recipientCount === 0) ? 0.5 : 1
                             }}>
                             {(() => {
-                                if (waSending) return <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />Envoi...</>
-                                if (waSent) return <><CheckCircle size={16} />Envoyé !</>
+                                if (waSending) return <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />Mise en file...</>
+                                if (waSent) return <><CheckCircle size={16} />En cours d'envoi !</>
                                 return <><Send size={16} />Envoyer le Broadcast</>
                             })()}
                         </button>
+
+                        {/* Barre de progression */}
+                        {broadcastProgress && activeBroadcastId && (
+                            <div style={{ marginTop: 16, padding: '14px 16px', background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(148,163,184,0.15)', borderRadius: 10 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                                    <span style={{ color: '#94a3b8', fontSize: 13 }}>Progression</span>
+                                    <span style={{ fontSize: 13, fontWeight: 600, color: broadcastProgress.pending === 0 ? '#34d399' : '#60a5fa' }}>
+                                        {broadcastProgress.sent + broadcastProgress.failed} / {broadcastProgress.total}
+                                    </span>
+                                </div>
+                                <div style={{ height: 6, background: 'rgba(148,163,184,0.1)', borderRadius: 99, overflow: 'hidden' }}>
+                                    <div style={{
+                                        height: '100%', borderRadius: 99, transition: 'width 0.5s ease',
+                                        background: broadcastProgress.pending === 0 ? '#34d399' : 'linear-gradient(90deg, #10b981, #60a5fa)',
+                                        width: `${broadcastProgress.total > 0 ? Math.round((broadcastProgress.sent + broadcastProgress.failed) / broadcastProgress.total * 100) : 0}%`,
+                                    }} />
+                                </div>
+                                <div style={{ display: 'flex', gap: 16, marginTop: 8 }}>
+                                    <span style={{ fontSize: 11, color: '#34d399' }}>{broadcastProgress.sent} envoyés</span>
+                                    {broadcastProgress.failed > 0 && <span style={{ fontSize: 11, color: '#f87171' }}>{broadcastProgress.failed} échoués</span>}
+                                    {broadcastProgress.pending > 0 && (
+                                        <span style={{ fontSize: 11, color: '#64748b' }}>
+                                            {broadcastProgress.pending} en attente · ~{Math.ceil(broadcastProgress.pending / 50 * 60)}min restantes
+                                        </span>
+                                    )}
+                                    {broadcastProgress.pending === 0 && (
+                                        <span style={{ fontSize: 11, color: '#34d399', marginLeft: 'auto' }}>Terminé</span>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     <HistoryPanel history={history} activeTab="whatsapp" />
