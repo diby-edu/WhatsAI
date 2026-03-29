@@ -554,6 +554,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                     cartState: cartUpdate.state,
                     bookingState: bookingUpdate.state,
                     restaurantState: restaurantUpdate.state,
+                    restaurantQuestionDetected: restaurantUpdate.questionDetected || false,
                     hasKnowledgeBase,
                     supabase,
                     activeSessions,

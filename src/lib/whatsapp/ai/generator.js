@@ -261,6 +261,7 @@ async function generateAIResponse(options, dependencies) {
             cartState,
             bookingState,
             restaurantState,
+            restaurantQuestionDetected = false,
             hasKnowledgeBase = false
         } = options
 
@@ -327,7 +328,7 @@ async function generateAIResponse(options, dependencies) {
             if (bookingStateGuidance) {
                 systemPrompt += '\n\n' + bookingStateGuidance
             }
-            const restaurantStateGuidance = buildRestaurantStateGuidance(restaurantState)
+            const restaurantStateGuidance = buildRestaurantStateGuidance(restaurantState, { questionDetected: restaurantQuestionDetected })
             if (restaurantStateGuidance) {
                 systemPrompt += '\n\n' + restaurantStateGuidance
             }

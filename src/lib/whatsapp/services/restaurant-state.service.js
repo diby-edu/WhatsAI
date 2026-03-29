@@ -171,9 +171,32 @@ function extractQuantityFromSegment(text) {
     return null
 }
 
-function isAvailabilityQuestion(text) {
+/**
+ * Détecte toute question hors-parcours commande :
+ * - Questions de disponibilité menu
+ * - Infos pratiques (wifi, parking, horaires, adresse, paiement...)
+ * - Questions générales sur le restaurant
+ * Quand true → état figé + IA répond librement + réancre le flow
+ */
+function isOffTopicQuestion(text) {
     const normalized = normalizeText(text)
-    return /(est[- ]ce qu[e']|est[- ]ce que vous|avez[- ]vous|vous avez|y a[- ]t[- ]il|il y a[- ]t[- ]il|proposez[- ]vous|vous proposez|faites[- ]vous|vous faites|c[' ]est quoi|qu[' ]est[- ]ce que|dispo|disponible|au menu|dans.*menu|sur.*carte|dans.*carte)\b/.test(normalized)
+
+    // Formes interrogatives françaises
+    if (/(est[- ]ce qu[e']|est[- ]ce que vous|avez[- ]vous|vous avez|y a[- ]t[- ]il|il y a[- ]t[- ]il|proposez[- ]vous|vous proposez|faites[- ]vous|vous faites|c[' ]est quoi|qu[' ]est[- ]ce que|pouvez[- ]vous me|puis[- ]je savoir|acceptez[- ]vous)\b/.test(normalized)) return true
+
+    // Infos pratiques & logistique
+    if (/(wifi|internet|connexion|parking|stationnement|stationner|horaire|heure d ouverture|heure de fermeture|ouvert|ferme|fermeture|climatise|climatisation|air conditionne|tenue|dress.?code|carte bancaire|visa|mastercard|terminal de paiement|acceptez vous la carte)\b/.test(normalized)) return true
+
+    // Disponibilité menu
+    if (/(dispo|disponible|au menu|dans.*menu|sur.*carte|dans.*carte)\b/.test(normalized)) return true
+
+    // Localisation & orientation
+    if (/(ou etes.vous|ou vous trouvez|comment venir|comment y aller|l adresse|votre adresse|ou se trouve|ou est.ce|ou vous situez)\b/.test(normalized)) return true
+
+    // Questions générales restaurant
+    if (/(specialite|ambiance|capacite|nombre de table|terrasse|privatiser|privatisation|seminaire|animaux|enfants bienvenus|accessibilite|handicap|bruit|musique|cuisine typique)\b/.test(normalized)) return true
+
+    return false
 }
 
 function extractItemsFromText(text, restaurantProducts = [], currentItems = []) {
@@ -588,9 +611,9 @@ function updateRestaurantStateFromUserMessage(previousState, text, restaurantPro
     const previousMode = state.mode
     const previousSignature = JSON.stringify(state)
 
-    // Si le message est une question sur la disponibilité, ne pas capturer d'items
-    // → laisser l'IA répondre naturellement ("Oui, nous avons X à Y FCFA")
-    const questionDetected = isAvailabilityQuestion(text)
+    // Si le message est une question hors-parcours, ne pas capturer d'items
+    // → état figé, IA répond librement et réancre le flow
+    const questionDetected = isOffTopicQuestion(text)
     const itemResult = questionDetected
         ? { items: cloneItems(state.items), captured: [] }
         : extractItemsFromText(text, restaurantProducts, state.items)
@@ -614,7 +637,7 @@ function updateRestaurantStateFromUserMessage(previousState, text, restaurantPro
         (!!detectedMode && detectedMode !== previousMode)
 
     if (!shouldStartFlow) {
-        return { state, captured: [], stateChanged: false, shouldBypassAI: false, directReply: null }
+        return { state, captured: [], stateChanged: false, shouldBypassAI: false, questionDetected, directReply: null }
     }
 
     const dates = extractDates(text)
@@ -703,6 +726,7 @@ function updateRestaurantStateFromUserMessage(previousState, text, restaurantPro
         captured,
         stateChanged,
         shouldBypassAI,
+        questionDetected,
         directReply: shouldBypassAI ? buildStructuredRestaurantReply(state, captured) : null,
     }
 }
@@ -727,7 +751,7 @@ function inferRestaurantStateFromAssistantMessage(content, previousState = {}) {
     return state
 }
 
-function buildRestaurantStateGuidance(restaurantState = {}) {
+function buildRestaurantStateGuidance(restaurantState = {}, options = {}) {
     const state = cloneRestaurantState(restaurantState)
     if (!hasRestaurantStateData(state)) return ''
 
@@ -759,6 +783,17 @@ function buildRestaurantStateGuidance(restaurantState = {}) {
     } else {
         lines.push('- Ne redemande jamais les informations deja collectees.')
         lines.push('- Si le client donne une information utile hors ordre, memorise-la.')
+    }
+
+    if (options.questionDetected) {
+        lines.push('---')
+        lines.push('⚠️ QUESTION HORS-PARCOURS DETECTEE :')
+        lines.push('  1. Reponds precisement a la question posee par le client (utilise la base de connaissance si disponible).')
+        lines.push('  2. Apres avoir repondu, rappelle naturellement ou on en etait dans le parcours.')
+        if (state.awaiting_field?.label) {
+            lines.push(`     Exemple : "Pour votre commande, il me reste a confirmer : ${state.awaiting_field.label}."`)
+        }
+        lines.push('  NE PAS ignorer la question. NE PAS enchaîner directement sur le champ manquant sans repondre.')
     }
 
     return lines.join('\n')
