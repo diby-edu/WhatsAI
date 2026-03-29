@@ -157,9 +157,9 @@ function getDrinkProducts(products) {
 
 function detectMenuChoice(text) {
     const n = normalizeText(text)
-    if (/^1$|notre carte|la carte|voir la carte|voir le menu|les plats|commander/.test(n)) return 1
-    if (/^2$|\bboissons?\b|\bdrinks?\b/.test(n)) return 2
-    if (/^3$|reserver|reservation|\bune table\b/.test(n)) return 3
+    if (n === '1' || ['notre carte', 'la carte', 'voir la carte', 'voir le menu', 'les plats', 'commander'].includes(n)) return 1
+    if (n === '2' || ['boisson', 'boissons', 'drink', 'drinks'].includes(n)) return 2
+    if (n === '3' || ['reserver', 'reservation', 'une table', 'reserver une table'].includes(n)) return 3
     return null
 }
 
@@ -279,6 +279,48 @@ function splitSegments(text) {
         .filter(Boolean)
 }
 
+function escapeRegExp(value) {
+    return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function extractQuantityForProductSegment(segment, product) {
+    const normalizedSegment = normalizeText(segment)
+    const normalizedProduct = normalizeText(product?.name)
+    if (!normalizedSegment || !normalizedProduct) return extractQuantityFromSegment(segment) || 1
+
+    const idx = normalizedSegment.indexOf(normalizedProduct)
+    if (idx >= 0) {
+        const before = normalizedSegment.slice(0, idx).trim()
+        const after = normalizedSegment.slice(idx + normalizedProduct.length).trim()
+
+        if (before) {
+            const trailingDigits = before.match(/(\d{1,3})\s*$/)
+            if (trailingDigits) {
+                const value = Number(trailingDigits[1])
+                if (Number.isFinite(value) && value > 0) return value
+            }
+
+            for (const [word, value] of Object.entries(FRENCH_NUMBER_WORDS)) {
+                if (new RegExp(`\\b${escapeRegExp(word)}\\s*$`).test(before)) return value
+            }
+        }
+
+        if (after) {
+            const leadingDigits = after.match(/^(?:x\s*)?(\d{1,3})\b/)
+            if (leadingDigits) {
+                const value = Number(leadingDigits[1])
+                if (Number.isFinite(value) && value > 0) return value
+            }
+
+            for (const [word, value] of Object.entries(FRENCH_NUMBER_WORDS)) {
+                if (new RegExp(`^(?:x\\s*)?${escapeRegExp(word)}\\b`).test(after)) return value
+            }
+        }
+    }
+
+    return extractQuantityFromSegment(segment) || 1
+}
+
 function extractItemsFromText(text, products, currentItems) {
     if (!products || products.length === 0) return { items: cloneCartItems(currentItems), captured: [] }
     const nextItems = cloneCartItems(currentItems)
@@ -289,7 +331,7 @@ function extractItemsFromText(text, products, currentItems) {
     for (const seg of toInspect) {
         const product = findProductByName(products, seg)
         if (!product) continue
-        const qty = extractQuantityFromSegment(seg) || 1
+        const qty = extractQuantityForProductSegment(seg, product)
         const existing = nextItems.find(i => i.product_id === product.id)
         if (existing) {
             existing.quantity += qty
@@ -667,6 +709,11 @@ function buildIntermediateRecap(cartItems) {
     return lines.join('\n')
 }
 
+function buildItemsCapturedAck(capturedItems = []) {
+    if (!Array.isArray(capturedItems) || capturedItems.length === 0) return null
+    return `✅ ${capturedItems.map(c => c.value).join(', ')} ajouté${capturedItems.length > 1 ? 's' : ''}`
+}
+
 function buildFinalCartRecap(cartItems) {
     const lines = ['Récapitulatif final :']
     let total = 0
@@ -863,6 +910,7 @@ function updateRestaurantStateFromUserMessage(previousState, text, restaurantPro
         if (questionDetected) return noOp
 
         const choice = detectMenuChoice(text)
+        const reservationIntent = /reserver|reservation|\bune table\b/.test(normalized)
 
         if (choice === 1) {
             // Notre Carte → première section
@@ -902,12 +950,52 @@ function updateRestaurantStateFromUserMessage(previousState, text, restaurantPro
         }
 
         // Commande directe (sans passer par le menu)
-        const allProducts = restaurantProducts.filter(p => p.menu_section_slug !== 'drinks')
+        const allProducts = restaurantProducts
         const itemResult = extractItemsFromText(text, allProducts, state.cart_items)
+        const inlineMode = detectFulfillmentMode(text)
+
+        if (reservationIntent && itemResult.captured.length > 0) {
+            state.cart_items = itemResult.items
+            state.fulfillment_mode = 'dine_in'
+            state.stage = RESTAURANT_STAGE.CUSTOMER_FLOW
+            captureCustomerFlowFields(state, text)
+            state.awaiting_cf_field = buildAwaitingCfField(state)
+
+            if (!state.awaiting_cf_field) {
+                state.stage = RESTAURANT_STAGE.RECAP
+                state.last_prompt_kind = RESTAURANT_STAGE.RECAP
+                const parts = [buildItemsCapturedAck(itemResult.captured), buildFinalRecap(state)].filter(Boolean)
+                return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: parts.join('\n\n') }
+            }
+
+            state.last_prompt_kind = RESTAURANT_STAGE.CUSTOMER_FLOW
+            const parts = [buildItemsCapturedAck(itemResult.captured), state.awaiting_cf_field.prompt].filter(Boolean)
+            return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: parts.join('\n\n') }
+        }
+
         if (itemResult.captured.length > 0) {
             state.cart_items = itemResult.items
+
+            if (inlineMode && inlineMode !== 'booking_only') {
+                state.fulfillment_mode = inlineMode
+                state.stage = RESTAURANT_STAGE.CUSTOMER_FLOW
+                captureCustomerFlowFields(state, text)
+                state.awaiting_cf_field = buildAwaitingCfField(state)
+
+                if (!state.awaiting_cf_field) {
+                    state.stage = RESTAURANT_STAGE.RECAP
+                    state.last_prompt_kind = RESTAURANT_STAGE.RECAP
+                    const parts = [buildItemsCapturedAck(itemResult.captured), buildFinalRecap(state)].filter(Boolean)
+                    return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: parts.join('\n\n') }
+                }
+
+                state.last_prompt_kind = RESTAURANT_STAGE.CUSTOMER_FLOW
+                const parts = [buildItemsCapturedAck(itemResult.captured), state.awaiting_cf_field.prompt].filter(Boolean)
+                return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: parts.join('\n\n') }
+            }
+
             state.stage = RESTAURANT_STAGE.MODE
-            const ack = `✅ ${itemResult.captured.map(c => c.value).join(', ')} ajouté${itemResult.captured.length > 1 ? 's' : ''}`
+            const ack = buildItemsCapturedAck(itemResult.captured)
             const cartRecap = buildFinalCartRecap(state.cart_items)
             const modeMsg = buildModeQuestion()
             state.last_prompt_kind = RESTAURANT_STAGE.MODE

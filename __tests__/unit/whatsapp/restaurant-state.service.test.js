@@ -81,6 +81,27 @@ describe('restaurant-state.service', () => {
         expect(result.directReply).not.toMatch(/nom complet et votre t[eé]l[eé]phone/i)
     })
 
+    test('captures a dine-in reservation with mixed items instead of opening the drinks menu', () => {
+        const result = updateRestaurantStateFromUserMessage(
+            {},
+            'Je veux reserver une table demain a 21h pour 3 personnes avec 2 Plat 01, 1 Dessert 01 et 2 Boisson 01',
+            restaurantProducts
+        )
+
+        expect(result.state.stage).toBe(RESTAURANT_STAGE.CUSTOMER_FLOW)
+        expect(result.state.fulfillment_mode).toBe('dine_in')
+        expect(result.state.customer_flow.scheduled_time).toBe('21:00')
+        expect(result.state.customer_flow.party_size).toBe(3)
+        expect(result.state.cart_items).toHaveLength(3)
+        expect(result.state.cart_items.find(item => item.product_name === 'Plat 01')?.quantity).toBe(2)
+        expect(result.state.cart_items.find(item => item.product_name === 'Dessert 01')?.quantity).toBe(1)
+        expect(result.state.cart_items.find(item => item.product_name === 'Boisson 01')?.quantity).toBe(2)
+        expect(result.state.awaiting_cf_field?.type).toBe('notes')
+        expect(result.directReply).toMatch(/2x Plat 01/i)
+        expect(result.directReply).toMatch(/demandes particuli/i)
+        expect(result.directReply).not.toMatch(/\*BOISSONS\*/i)
+    })
+
     test('merges collected state into create_restaurant_checkout args', () => {
         const state = {
             stage: RESTAURANT_STAGE.READY,
