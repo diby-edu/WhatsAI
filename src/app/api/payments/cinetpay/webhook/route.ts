@@ -452,6 +452,10 @@ export async function POST(request: NextRequest) {
                         })
                         .eq('id', booking.id)
                     console.log('[Webhook] Booking deposit REFUSED/CANCELLED')
+                    try {
+                        const failMessage = `*Paiement non abouti*\n\nNous n'avons pas pu traiter votre acompte pour la reservation ${booking.service_name || ''}. Votre reservation n'est pas confirmee.\n\nVeuillez reessayer ou contacter notre equipe.`
+                        await queueAssistantMessage(booking.agent_id, booking.conversation_id, booking.customer_phone, failMessage)
+                    } catch (_e) { }
                 } else {
                     console.log('[Webhook] Booking deposit status pending:', cinetpayStatus.status)
                 }

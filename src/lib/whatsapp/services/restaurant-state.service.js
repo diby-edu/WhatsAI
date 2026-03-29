@@ -134,10 +134,17 @@ function splitItemSegments(text) {
         .filter(Boolean)
 }
 
+const FRENCH_NUMBER_WORDS = {
+    'un': 1, 'une': 1, 'deux': 2, 'trois': 3, 'quatre': 4, 'cinq': 5,
+    'six': 6, 'sept': 7, 'huit': 8, 'neuf': 9, 'dix': 10,
+    'onze': 11, 'douze': 12, 'quinze': 15, 'vingt': 20
+}
+
 function extractQuantityFromSegment(text) {
     const normalized = normalizeText(text)
     if (!normalized) return null
 
+    // Chiffres arabes (priorité)
     const startMatch = normalized.match(/^(\d{1,3})(?:\s|$)/)
     if (startMatch) {
         const quantity = Number(startMatch[1])
@@ -156,7 +163,17 @@ function extractQuantityFromSegment(text) {
         if (Number.isFinite(quantity) && quantity > 0) return quantity
     }
 
+    // Nombres en toutes lettres français
+    for (const [word, value] of Object.entries(FRENCH_NUMBER_WORDS)) {
+        if (new RegExp(`\\b${word}\\b`).test(normalized)) return value
+    }
+
     return null
+}
+
+function isAvailabilityQuestion(text) {
+    const normalized = normalizeText(text)
+    return /(est[- ]ce qu[e']|est[- ]ce que vous|avez[- ]vous|vous avez|y a[- ]t[- ]il|il y a[- ]t[- ]il|proposez[- ]vous|vous proposez|faites[- ]vous|vous faites|c[' ]est quoi|qu[' ]est[- ]ce que|dispo|disponible|au menu|dans.*menu|sur.*carte|dans.*carte)\b/.test(normalized)
 }
 
 function extractItemsFromText(text, restaurantProducts = [], currentItems = []) {
@@ -571,7 +588,12 @@ function updateRestaurantStateFromUserMessage(previousState, text, restaurantPro
     const previousMode = state.mode
     const previousSignature = JSON.stringify(state)
 
-    const itemResult = extractItemsFromText(text, restaurantProducts, state.items)
+    // Si le message est une question sur la disponibilité, ne pas capturer d'items
+    // → laisser l'IA répondre naturellement ("Oui, nous avons X à Y FCFA")
+    const questionDetected = isAvailabilityQuestion(text)
+    const itemResult = questionDetected
+        ? { items: cloneItems(state.items), captured: [] }
+        : extractItemsFromText(text, restaurantProducts, state.items)
     if (itemResult.captured.length > 0) {
         state.items = itemResult.items
         captured.push(...itemResult.captured)
@@ -664,7 +686,17 @@ function updateRestaurantStateFromUserMessage(previousState, text, restaurantPro
 
     const awaitingChanged = JSON.stringify(previousAwaiting) !== JSON.stringify(state.awaiting_field)
     const stateChanged = previousSignature !== JSON.stringify(state)
-    const shouldBypassAI = stateChanged || awaitingChanged
+
+    // dine_in capturé sans items ni question → laisser l'IA montrer la carte
+    // et proposer une précommande avant de collecter la date
+    const dineInJustCapturedWithoutItems =
+        state.mode === 'dine_in' &&
+        previousMode !== 'dine_in' &&
+        state.items.length === 0 &&
+        !questionDetected
+
+    // Question de disponibilité → laisser l'IA répondre naturellement
+    const shouldBypassAI = !questionDetected && !dineInJustCapturedWithoutItems && (stateChanged || awaitingChanged)
 
     return {
         state,
@@ -715,6 +747,10 @@ function buildRestaurantStateGuidance(restaurantState = {}) {
     if (state.note_declined) lines.push('- Le client ne souhaite pas ajouter de note.')
     else if (state.notes) lines.push(`- Note deja collectee: ${state.notes}`)
     if (state.awaiting_field?.label) lines.push(`- Champ bloquant actuel: ${state.awaiting_field.label}`)
+
+    if (state.mode === 'dine_in' && state.items.length === 0) {
+        lines.push('- Pas de pre-commande pour l instant. Propose brievement la carte et demande si le client souhaite pre-commander avant de collecter la date.')
+    }
 
     if (state.stage === RESTAURANT_STAGE.READY) {
         lines.push('- Le client vient de confirmer le recapitulatif.')
