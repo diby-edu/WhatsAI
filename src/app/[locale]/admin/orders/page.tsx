@@ -22,6 +22,8 @@ interface Order {
     items_count?: number
     payment_method?: string
     notes?: string | null
+    fulfillment_mode?: 'takeaway' | 'delivery' | null
+    pickup_at?: string | null
 }
 
 export default function AdminOrdersPage() {
@@ -99,6 +101,8 @@ export default function AdminOrdersPage() {
         switch (status) {
             case 'paid': return { bg: 'rgba(34, 197, 94, 0.15)', color: '#4ade80' }
             case 'pending': return { bg: 'rgba(251, 191, 36, 0.15)', color: '#fbbf24' }
+            case 'pending_pickup': return { bg: 'rgba(249, 115, 22, 0.15)', color: '#fb923c' }
+            case 'confirmed': return { bg: 'rgba(52, 211, 153, 0.15)', color: '#34d399' }
             case 'cancelled': return { bg: 'rgba(239, 68, 68, 0.15)', color: '#f87171' }
             case 'shipped': return { bg: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa' }
             case 'delivered': return { bg: 'rgba(16, 185, 129, 0.15)', color: '#34d399' }
@@ -136,7 +140,8 @@ export default function AdminOrdersPage() {
         total: orders.length,
         pending: orders.filter(o => o.status === 'pending').length,
         paid: orders.filter(o => o.status === 'paid').length,
-        shipped: orders.filter(o => o.status === 'shipped').length
+        shipped: orders.filter(o => o.status === 'shipped').length,
+        pending_pickup: orders.filter(o => o.status === 'pending_pickup').length
     }
 
     return (
@@ -180,7 +185,8 @@ export default function AdminOrdersPage() {
                     { label: 'Total', value: stats.total, icon: ShoppingCart, color: '#3b82f6' },
                     { label: 'En attente', value: stats.pending, icon: Clock, color: '#fbbf24' },
                     { label: 'Payées', value: stats.paid, icon: CreditCard, color: '#4ade80' },
-                    { label: 'Expédiées', value: stats.shipped, icon: Truck, color: '#60a5fa' }
+                    { label: 'Expédiées', value: stats.shipped, icon: Truck, color: '#60a5fa' },
+                    { label: 'Retrait', value: stats.pending_pickup, icon: Package, color: '#fb923c' }
                 ].map((stat, i) => (
                     <div key={i} style={{
                         padding: 16, background: 'rgba(30, 41, 59, 0.5)',
@@ -226,6 +232,7 @@ export default function AdminOrdersPage() {
                     <option value="all">Tous les statuts</option>
                     <option value="pending">En attente</option>
                     <option value="paid">Payées</option>
+                    <option value="pending_pickup">Prêtes retrait</option>
                     <option value="shipped">Expédiées</option>
                     <option value="delivered">Livrées</option>
                     <option value="cancelled">Annulées</option>
@@ -346,16 +353,28 @@ export default function AdminOrdersPage() {
                                                         <XCircle size={14} style={{ color: '#f87171' }} />
                                                     </button>
                                                 )}
-                                                {order.status === 'paid' && (
+                                                {order.status === 'paid' && order.fulfillment_mode !== 'takeaway' && (
                                                     <button onClick={() => updateOrderStatus(order.id, 'shipped')} title="Marquer expédiée"
                                                         style={{ width: 30, height: 30, borderRadius: 8, background: 'rgba(59, 130, 246, 0.1)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                                         <Truck size={14} style={{ color: '#60a5fa' }} />
+                                                    </button>
+                                                )}
+                                                {(order.status === 'pending_pickup' || (order.status === 'paid' && order.fulfillment_mode === 'takeaway')) && (
+                                                    <button onClick={() => updateOrderStatus(order.id, 'confirmed')} title="Marquer confirmée"
+                                                        style={{ width: 30, height: 30, borderRadius: 8, background: 'rgba(16, 185, 129, 0.1)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                        <CheckCircle size={14} style={{ color: '#34d399' }} />
                                                     </button>
                                                 )}
                                                 {order.status === 'shipped' && (
                                                     <button onClick={() => updateOrderStatus(order.id, 'delivered')} title="Marquer livrée"
                                                         style={{ width: 30, height: 30, borderRadius: 8, background: 'rgba(16, 185, 129, 0.1)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                                         <CheckCircle size={14} style={{ color: '#34d399' }} />
+                                                    </button>
+                                                )}
+                                                {order.status === 'confirmed' && order.fulfillment_mode === 'takeaway' && (
+                                                    <button onClick={() => updateOrderStatus(order.id, 'delivered')} title="Marquer retirée"
+                                                        style={{ width: 30, height: 30, borderRadius: 8, background: 'rgba(16, 185, 129, 0.1)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                        <Package size={14} style={{ color: '#34d399' }} />
                                                     </button>
                                                 )}
                                             </div>

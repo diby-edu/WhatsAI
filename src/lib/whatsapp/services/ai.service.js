@@ -46,6 +46,7 @@ class AIService {
             checkoutState: context.checkoutState,
             cartState: context.cartState,
             bookingState: context.bookingState,
+            restaurantState: context.restaurantState,
             hasKnowledgeBase: context.hasKnowledgeBase ?? false,
             justOrdered // Signal pour le prompt builder
         }

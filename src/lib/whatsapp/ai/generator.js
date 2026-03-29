@@ -26,6 +26,11 @@ const {
     buildBookingStateGuidance,
     mergeBookingStateIntoToolArgs,
 } = require('../services/booking-state.service')
+const {
+    buildRestaurantStateGuidance,
+    hasRestaurantStateData,
+    mergeRestaurantStateIntoToolArgs,
+} = require('../services/restaurant-state.service')
 
 // Configuration
 const MAX_RETRIES = 3
@@ -36,6 +41,31 @@ const RETRY_DELAY_MS = 1000
  */
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+function detectServiceEngine(products = [], userMessage = '') {
+    const serviceProducts = products.filter(product => product.product_type === 'service')
+    if (serviceProducts.length === 0) {
+        return null
+    }
+
+    const isServiceOnlyAgent = products.length > 0 && serviceProducts.length === products.length
+    if (isServiceOnlyAgent) {
+        const subtype = serviceProducts[0]?.service_subtype || 'other'
+        if (subtype === 'restaurant') return 'RESTAURANT'
+        return null
+    }
+
+    const lowerMessage = String(userMessage || '').toLowerCase()
+    const matchedProduct = products
+        .filter(product => lowerMessage.includes(String(product.name || '').toLowerCase()))
+        .sort((a, b) => String(b.name || '').length - String(a.name || '').length)[0]
+
+    if (matchedProduct?.service_subtype === 'restaurant') {
+        return 'RESTAURANT'
+    }
+
+    return null
 }
 
 /**
@@ -143,7 +173,7 @@ function preCheckCreateOrder(toolCall, products) {
     }
 }
 
-function hydrateToolCallArguments(toolCall, checkoutState, cartState, bookingState, customerPhone) {
+function hydrateToolCallArguments(toolCall, checkoutState, cartState, bookingState, restaurantState, customerPhone) {
     try {
         const parsedArgs = JSON.parse(toolCall.function.arguments)
 
@@ -154,7 +184,8 @@ function hydrateToolCallArguments(toolCall, checkoutState, cartState, bookingSta
 
         const mergedCheckoutArgs = mergeCheckoutStateIntoToolArgs(toolCall.function.name, parsedArgs, checkoutState)
         const mergedCartArgs = mergeCartStateIntoToolArgs(toolCall.function.name, mergedCheckoutArgs, cartState)
-        const mergedArgs = mergeBookingStateIntoToolArgs(toolCall.function.name, mergedCartArgs, bookingState)
+        const mergedBookingArgs = mergeBookingStateIntoToolArgs(toolCall.function.name, mergedCartArgs, bookingState)
+        const mergedArgs = mergeRestaurantStateIntoToolArgs(toolCall.function.name, mergedBookingArgs, restaurantState)
 
         return {
             ...toolCall,
@@ -229,6 +260,7 @@ async function generateAIResponse(options, dependencies) {
             checkoutState,
             cartState,
             bookingState,
+            restaurantState,
             hasKnowledgeBase = false
         } = options
 
@@ -265,6 +297,7 @@ async function generateAIResponse(options, dependencies) {
 
         // 3. Construire le System Prompt
         const isSupportClientMode = (products || []).length === 0 && hasKnowledgeBase
+        const activeEngineHint = hasRestaurantStateData(restaurantState) ? 'RESTAURANT' : null
         let systemPrompt = buildAdaptiveSystemPrompt(
             agent,
             products || [],
@@ -275,7 +308,8 @@ async function generateAIResponse(options, dependencies) {
             options.formattedHours || formattedHours || 'Non spécifiés',
             options.justOrdered || false, // Passer le flag de reset
             userMessage || '', // v2.19: Intent Detection Context
-            hasKnowledgeBase
+            hasKnowledgeBase,
+            activeEngineHint
         )
         if (!isSupportClientMode) {
             const checkoutStateGuidance = buildCheckoutStateGuidance(checkoutState)
@@ -286,9 +320,16 @@ async function generateAIResponse(options, dependencies) {
             if (cartStateGuidance) {
                 systemPrompt += '\n\n' + cartStateGuidance
             }
-            const bookingStateGuidance = buildBookingStateGuidance(bookingState, (products || []).filter(product => product.product_type === 'service'))
+            const bookingStateGuidance = buildBookingStateGuidance(
+                bookingState,
+                (products || []).filter(product => product.product_type === 'service' && product.service_subtype !== 'restaurant')
+            )
             if (bookingStateGuidance) {
                 systemPrompt += '\n\n' + bookingStateGuidance
+            }
+            const restaurantStateGuidance = buildRestaurantStateGuidance(restaurantState)
+            if (restaurantStateGuidance) {
+                systemPrompt += '\n\n' + restaurantStateGuidance
             }
         }
         console.log(`📝 Prompt size: ${systemPrompt.length} chars`)
@@ -313,12 +354,17 @@ async function generateAIResponse(options, dependencies) {
         }
 
         const modelToUse = options.imageBase64 ? 'gpt-4o' : (agent.model || 'gpt-4o-mini')
+        const activeServiceEngine = activeEngineHint || detectServiceEngine(products || [], userMessage || '')
+        const isRestaurantMode = activeServiceEngine === 'RESTAURANT'
 
         // En mode Support Client (KB-only), désactiver tous les tools transactionnels
         const SUPPORT_CLIENT_DISABLED_TOOLS = ['create_order', 'check_payment_status', 'send_image', 'create_booking', 'find_order']
+        const RESTAURANT_DISABLED_TOOLS = ['create_order', 'create_booking']
         const activeTools = isSupportClientMode
             ? TOOLS.filter(t => !SUPPORT_CLIENT_DISABLED_TOOLS.includes(t.function?.name))
-            : TOOLS
+            : isRestaurantMode
+                ? TOOLS.filter(t => !RESTAURANT_DISABLED_TOOLS.includes(t.function?.name))
+                : TOOLS
         const toolsConfig = activeTools.length > 0
             ? { tools: activeTools, tool_choice: 'auto' }
             : {}
@@ -345,7 +391,7 @@ async function generateAIResponse(options, dependencies) {
             let directToolResponse = null
 
             for (const rawToolCall of responseMessage.tool_calls) {
-                const toolCall = hydrateToolCallArguments(rawToolCall, checkoutState, cartState, bookingState, customerPhone)
+                const toolCall = hydrateToolCallArguments(rawToolCall, checkoutState, cartState, bookingState, restaurantState, customerPhone)
                 console.log(`🔧 Tool: ${toolCall.function.name}`)
 
                 // Pre-check pour create_order
@@ -393,7 +439,7 @@ async function generateAIResponse(options, dependencies) {
 
                     if (
                         parsedResult.success &&
-                        ['create_order', 'create_booking', 'check_payment_status', 'find_order'].includes(toolCall.function.name)
+                        ['create_order', 'create_booking', 'create_restaurant_checkout', 'check_payment_status', 'find_order'].includes(toolCall.function.name)
                     ) {
                         const formattedResponse = formatDirectToolResponse(parsedResult)
                         if (formattedResponse) {

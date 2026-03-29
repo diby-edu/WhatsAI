@@ -16,6 +16,77 @@ function verifySignature(payload: string, signature: string): boolean {
     return verifyWebhookSignature(payload, signature)
 }
 
+async function queueAssistantMessage(
+    agentId: string | null | undefined,
+    conversationId: string | null | undefined,
+    customerPhone: string,
+    message: string
+) {
+    if (!agentId || !customerPhone) {
+        return
+    }
+
+    let conversation: { id: string } | null = null
+
+    if (conversationId) {
+        const { data: linkedConversation } = await getSupabase()
+            .from('conversations')
+            .select('id')
+            .eq('id', conversationId)
+            .single()
+        if (linkedConversation) {
+            conversation = linkedConversation
+        }
+    }
+
+    if (!conversation) {
+        const { data: fallbackConversation } = await getSupabase()
+            .from('conversations')
+            .select('id')
+            .eq('agent_id', agentId)
+            .eq('contact_phone', customerPhone)
+            .single()
+        conversation = fallbackConversation
+    }
+
+    let insertedInHistory = false
+
+    if (conversation) {
+        const { error: insertError } = await getSupabase()
+            .from('messages')
+            .insert({
+                conversation_id: conversation.id,
+                agent_id: agentId,
+                role: 'assistant',
+                content: message,
+                status: 'pending'
+            })
+
+        if (!insertError) {
+            insertedInHistory = true
+            await getSupabase()
+                .from('conversations')
+                .update({
+                    last_message_text: message.substring(0, 200),
+                    last_message_at: new Date().toISOString(),
+                    last_message_role: 'assistant'
+                })
+                .eq('id', conversation.id)
+        }
+    }
+
+    if (!insertedInHistory) {
+        await getSupabase()
+            .from('outbound_messages')
+            .insert({
+                agent_id: agentId,
+                recipient_phone: customerPhone,
+                message_content: message,
+                status: 'pending'
+            })
+    }
+}
+
 export async function POST(request: NextRequest) {
     try {
 
@@ -320,6 +391,75 @@ export async function POST(request: NextRequest) {
                 console.error('[Webhook] ORDER NOT FOUND! transaction_id:', cpm_trans_id)
                 console.error('   This means the order was not saved with this transaction_id.')
                 console.error('   Check if /api/public/orders/[orderId]/pay saved the transaction_id correctly.')
+            }
+        }
+
+        if (cpm_trans_id.startsWith('BKG_')) {
+            const { data: booking } = await getSupabase()
+                .from('bookings')
+                .select('*')
+                .eq('transaction_id', cpm_trans_id)
+                .single()
+
+            if (booking) {
+                if (booking.deposit_status === 'paid' || booking.status === 'confirmed') {
+                    return new Response('OK', { status: 200 })
+                }
+
+                const cinetpayStatus = await checkPaymentStatus(cpm_trans_id)
+
+                if (cinetpayStatus.status === 'ACCEPTED') {
+                    const { error: updateError } = await getSupabase()
+                        .from('bookings')
+                        .update({
+                            deposit_status: 'paid',
+                            status: 'confirmed',
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('id', booking.id)
+
+                    if (!updateError) {
+                        try {
+                            const amount = Number(booking.deposit_amount_fcfa || cinetpayStatus.amount || 0)
+                            const serviceName = booking.service_name || 'votre reservation'
+                            const dateStr = booking.start_time
+                                ? new Date(booking.start_time).toLocaleDateString('fr-FR', {
+                                    weekday: 'long',
+                                    day: 'numeric',
+                                    month: 'long',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                })
+                                : null
+                            const confirmationMessage = `*Acompte recu !*\n\nMerci ! Votre acompte de ${amount.toLocaleString('fr-FR')} FCFA pour la reservation ${serviceName}${dateStr ? ` le ${dateStr}` : ''} a ete confirme.\n\nVotre reservation est maintenant confirmee.\n\nMerci pour votre confiance !`
+
+                            await queueAssistantMessage(
+                                booking.agent_id,
+                                booking.conversation_id,
+                                booking.customer_phone,
+                                confirmationMessage
+                            )
+                        } catch (notifyErr) {
+                            console.error('[Webhook] Failed to send booking confirmation:', notifyErr)
+                        }
+                    }
+                } else if (cinetpayStatus.status === 'REFUSED' || cinetpayStatus.status === 'CANCELLED') {
+                    await getSupabase()
+                        .from('bookings')
+                        .update({
+                            deposit_status: 'expired',
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('id', booking.id)
+                    console.log('[Webhook] Booking deposit REFUSED/CANCELLED')
+                } else {
+                    console.log('[Webhook] Booking deposit status pending:', cinetpayStatus.status)
+                }
+
+                return new Response('OK', { status: 200 })
+            } else {
+                console.error('[Webhook] BOOKING NOT FOUND! transaction_id:', cpm_trans_id)
+                console.error('   Check if /api/payments/cinetpay/booking-initiate saved the transaction_id correctly.')
             }
         }
         // Credits/subscriptions finalization goes through shared pipeline.

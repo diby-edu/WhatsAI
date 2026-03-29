@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
 import {
     Calendar, Search, CheckCircle, XCircle, Clock,
     Loader2, RefreshCw, Users, Hotel, Utensils, Scissors, ArrowLeft, BookOpen
@@ -10,14 +9,38 @@ import Link from 'next/link'
 
 interface Booking {
     id: string
+    customer_name: string | null
     customer_phone: string
     booking_type: string
+    booking_source?: string | null
+    service_name?: string | null
     status: string
-    start_time: string
+    start_time: string | null
+    preferred_date?: string | null
+    preferred_time?: string | null
     party_size: number
     notes: string | null
+    price_fcfa?: number
+    fulfillment_mode?: string | null
+    payment_method?: string | null
+    deposit_required?: boolean
+    deposit_amount_fcfa?: number
+    deposit_status?: string | null
+    items_count?: number
     created_at: string
     agent_name?: string
+    vendor_name?: string | null
+    vendor_email?: string | null
+}
+
+async function fetchAdminBookings(typeFilter: string) {
+    const url = typeFilter === 'all'
+        ? '/api/admin/bookings'
+        : `/api/admin/bookings?type=${typeFilter}`
+
+    const res = await fetch(url)
+    const data = await res.json()
+    return data.data?.bookings || []
 }
 
 export default function AdminBookingsPage() {
@@ -27,20 +50,26 @@ export default function AdminBookingsPage() {
     const [searchTerm, setSearchTerm] = useState('')
 
     useEffect(() => {
-        fetchBookings()
+        const loadBookings = async () => {
+            setLoading(true)
+            try {
+                const nextBookings = await fetchAdminBookings(typeFilter)
+                setBookings(nextBookings)
+            } catch (err) {
+                console.error('Error fetching bookings:', err)
+            } finally {
+                setLoading(false)
+            }
+        }
+
+        loadBookings()
     }, [typeFilter])
 
     const fetchBookings = async () => {
         setLoading(true)
         try {
-            const url = typeFilter === 'all'
-                ? '/api/admin/bookings'
-                : `/api/admin/bookings?type=${typeFilter}`
-            const res = await fetch(url)
-            const data = await res.json()
-            if (data.data?.bookings) {
-                setBookings(data.data.bookings)
-            }
+            const nextBookings = await fetchAdminBookings(typeFilter)
+            setBookings(nextBookings)
         } catch (err) {
             console.error('Error fetching bookings:', err)
         } finally {
@@ -48,12 +77,12 @@ export default function AdminBookingsPage() {
         }
     }
 
-    const updateBookingStatus = async (bookingId: string, newStatus: string) => {
+    const updateBooking = async (bookingId: string, payload: Record<string, string>) => {
         try {
             await fetch(`/api/admin/bookings/${bookingId}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status: newStatus })
+                body: JSON.stringify(payload)
             })
             fetchBookings()
         } catch (err) {
@@ -61,30 +90,42 @@ export default function AdminBookingsPage() {
         }
     }
 
-    const getTypeIcon = (type: string) => {
-        switch (type) {
-            case 'table':
+    const updateBookingStatus = async (bookingId: string, newStatus: string) => {
+        await updateBooking(bookingId, { status: newStatus })
+    }
+
+    const updateBookingDepositStatus = async (bookingId: string, depositStatus: string) => {
+        await updateBooking(bookingId, { deposit_status: depositStatus })
+    }
+
+    const getBookingKind = (booking: Booking) => {
+        if (booking.booking_source === 'restaurant') return 'restaurant'
+        if (booking.booking_type === 'stay') return 'stay'
+        if (booking.booking_type === 'slot') return 'slot'
+        if (booking.booking_type === 'inscription') return 'inscription'
+        if (booking.booking_type === 'table') return 'table'
+        return booking.booking_type || 'other'
+    }
+
+    const getTypeIcon = (booking: Booking) => {
+        switch (getBookingKind(booking)) {
             case 'restaurant': return Utensils
-            case 'stay':
-            case 'hotel': return Hotel
-            case 'slot':
-            case 'service': return Scissors
+            case 'stay': return Hotel
+            case 'slot': return Scissors
             case 'inscription': return BookOpen
+            case 'table': return Calendar
             default: return Calendar
         }
     }
 
-    const getTypeLabel = (type: string) => {
-        switch (type) {
-            case 'stay':
-            case 'hotel':
-                return 'Hebergement'
-            case 'table':
-                return 'Restaurant'
-            case 'slot':
-            case 'service':
-                return 'Service'
-            default: return type
+    const getTypeLabel = (booking: Booking) => {
+        switch (getBookingKind(booking)) {
+            case 'restaurant': return 'Restaurant'
+            case 'stay': return 'Hebergement'
+            case 'slot': return 'Service'
+            case 'inscription': return 'Inscription'
+            case 'table': return 'Table / Event'
+            default: return booking.booking_type
         }
     }
 
@@ -104,11 +145,45 @@ export default function AdminBookingsPage() {
         return status.toUpperCase()
     }
 
+    const getDepositStatusColor = (depositStatus?: string | null) => {
+        switch (depositStatus) {
+            case 'paid': return { bg: 'rgba(34, 197, 94, 0.15)', color: '#4ade80' }
+            case 'pending': return { bg: 'rgba(251, 191, 36, 0.15)', color: '#fbbf24' }
+            case 'waived': return { bg: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa' }
+            case 'expired': return { bg: 'rgba(239, 68, 68, 0.15)', color: '#f87171' }
+            default: return { bg: 'rgba(100, 116, 139, 0.15)', color: '#94a3b8' }
+        }
+    }
+
+    const getDepositStatusLabel = (depositStatus?: string | null) => {
+        switch (depositStatus) {
+            case 'paid': return 'Acompte paye'
+            case 'pending': return 'Acompte en attente'
+            case 'waived': return 'Acompte leve'
+            case 'expired': return 'Acompte expire'
+            case 'not_required': return 'Sans acompte'
+            default: return 'Sans acompte'
+        }
+    }
+
+    const getPaymentLabel = (booking: Booking) => {
+        switch (booking.payment_method) {
+            case 'online': return 'En ligne'
+            case 'onsite': return 'Sur place'
+            case 'cod': return 'A la livraison'
+            default: return 'Non defini'
+        }
+    }
+
     const filteredBookings = bookings.filter(booking => {
         if (!searchTerm) return true
         const search = searchTerm.toLowerCase()
         return (
             booking.customer_phone?.toLowerCase().includes(search) ||
+            booking.customer_name?.toLowerCase().includes(search) ||
+            booking.service_name?.toLowerCase().includes(search) ||
+            booking.agent_name?.toLowerCase().includes(search) ||
+            booking.vendor_name?.toLowerCase().includes(search) ||
             booking.id.toLowerCase().includes(search)
         )
     })
@@ -206,7 +281,8 @@ export default function AdminBookingsPage() {
                     }}
                 >
                     <option value="all">Tous les types</option>
-                    <option value="table">Restaurant</option>
+                    <option value="restaurant">Restaurant</option>
+                    <option value="table">Table / Event</option>
                     <option value="stay">Hebergement</option>
                     <option value="slot">Service</option>
                     <option value="inscription">Inscription</option>
@@ -230,10 +306,10 @@ export default function AdminBookingsPage() {
                     </div>
                 ) : (
                     <div className="admin-table-wrap" style={{ overflowX: 'auto' }}>
-                    <table className="admin-table" style={{ width: '100%', borderCollapse: 'collapse', minWidth: 580 }}>
+                    <table className="admin-table" style={{ width: '100%', borderCollapse: 'collapse', minWidth: 820 }}>
                         <thead>
                             <tr style={{ borderBottom: '1px solid rgba(148, 163, 184, 0.1)' }}>
-                                {['Type', 'Client', 'Vendeur', 'Date/Heure', 'Personnes', 'Statut', 'Actions'].map(h => (
+                                {['Type', 'Client', 'Vendeur', 'Date/Heure', 'Personnes', 'Paiement', 'Statut', 'Actions'].map(h => (
                                     <th key={h} style={{
                                         padding: '14px 16px', textAlign: 'left', fontSize: 11,
                                         fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em',
@@ -245,7 +321,8 @@ export default function AdminBookingsPage() {
                         <tbody>
                             {filteredBookings.map((booking) => {
                                 const statusStyle = getStatusColor(booking.status)
-                                const TypeIcon = getTypeIcon(booking.booking_type)
+                                const depositStyle = getDepositStatusColor(booking.deposit_status)
+                                const TypeIcon = getTypeIcon(booking)
                                 return (
                                     <tr key={booking.id} style={{ borderBottom: '1px solid rgba(148, 163, 184, 0.05)' }}>
                                         <td style={{ padding: '14px 16px' }}>
@@ -257,13 +334,23 @@ export default function AdminBookingsPage() {
                                                 }}>
                                                     <TypeIcon size={18} style={{ color: '#a78bfa' }} />
                                                 </div>
-                                                <span style={{ color: 'white', fontSize: 13, textTransform: 'capitalize' }}>
-                                                    {getTypeLabel(booking.booking_type)}
-                                                </span>
+                                                <div>
+                                                    <div style={{ color: 'white', fontSize: 13, textTransform: 'capitalize' }}>
+                                                        {getTypeLabel(booking)}
+                                                    </div>
+                                                    {booking.service_name && (
+                                                        <div style={{ color: '#64748b', fontSize: 11 }}>
+                                                            {booking.service_name}
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
                                         </td>
                                         <td style={{ padding: '14px 16px' }}>
                                             <div style={{ color: 'white', fontWeight: 500, fontSize: 14 }}>
+                                                {booking.customer_name || 'Client'}
+                                            </div>
+                                            <div style={{ color: '#64748b', fontSize: 12 }}>
                                                 {booking.customer_phone}
                                             </div>
                                             {booking.notes && (
@@ -273,13 +360,13 @@ export default function AdminBookingsPage() {
                                             )}
                                         </td>
                                         <td style={{ padding: '14px 16px' }}>
-                                            {(booking as any).vendor_name ? (
+                                            {booking.vendor_name ? (
                                                 <>
-                                                    <div style={{ color: '#a78bfa', fontWeight: 500, fontSize: 13 }}>{(booking as any).vendor_name}</div>
-                                                    <div style={{ color: '#64748b', fontSize: 11 }}>{(booking as any).agent_name || ''}</div>
+                                                    <div style={{ color: '#a78bfa', fontWeight: 500, fontSize: 13 }}>{booking.vendor_name}</div>
+                                                    <div style={{ color: '#64748b', fontSize: 11 }}>{booking.agent_name || ''}</div>
                                                 </>
                                             ) : (
-                                                <span style={{ color: '#475569', fontSize: 12 }}>{(booking as any).agent_name || '-'}</span>
+                                                <span style={{ color: '#475569', fontSize: 12 }}>{booking.agent_name || '-'}</span>
                                             )}
                                         </td>
                                         <td style={{ padding: '14px 16px' }}>
@@ -293,13 +380,50 @@ export default function AdminBookingsPage() {
                                                     </div>
                                                 </>
                                             ) : (
-                                                <span style={{ color: '#64748b', fontSize: 12 }}>Sans date fixe</span>
+                                                <span style={{ color: '#64748b', fontSize: 12 }}>
+                                                    {booking.preferred_date
+                                                        ? `${booking.preferred_date}${booking.preferred_time ? ` ${booking.preferred_time}` : ''}`
+                                                        : 'Sans date fixe'}
+                                                </span>
                                             )}
                                         </td>
                                         <td style={{ padding: '14px 16px' }}>
                                             <span style={{ color: 'white', fontSize: 14 }}>
                                                 {booking.party_size} pers.
                                             </span>
+                                            {typeof booking.items_count === 'number' && booking.items_count > 0 && (
+                                                <div style={{ color: '#64748b', fontSize: 11 }}>
+                                                    {booking.items_count} article{booking.items_count > 1 ? 's' : ''}
+                                                </div>
+                                            )}
+                                        </td>
+                                        <td style={{ padding: '14px 16px' }}>
+                                            <div style={{ color: 'white', fontSize: 13, fontWeight: 500 }}>
+                                                {getPaymentLabel(booking)}
+                                            </div>
+                                            {booking.deposit_required ? (
+                                                <>
+                                                    <div style={{ color: '#94a3b8', fontSize: 11 }}>
+                                                        Acompte {Number(booking.deposit_amount_fcfa || 0).toLocaleString('fr-FR')} FCFA
+                                                    </div>
+                                                    <div style={{ marginTop: 6 }}>
+                                                        <span style={{
+                                                            padding: '4px 8px',
+                                                            fontSize: 10,
+                                                            fontWeight: 600,
+                                                            borderRadius: 100,
+                                                            background: depositStyle.bg,
+                                                            color: depositStyle.color
+                                                        }}>
+                                                            {getDepositStatusLabel(booking.deposit_status)}
+                                                        </span>
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <div style={{ color: '#64748b', fontSize: 11 }}>
+                                                    Sans acompte
+                                                </div>
+                                            )}
                                         </td>
                                         <td style={{ padding: '14px 16px' }}>
                                             <span style={{
@@ -310,7 +434,48 @@ export default function AdminBookingsPage() {
                                             </span>
                                         </td>
                                         <td style={{ padding: '14px 16px' }}>
-                                            <div style={{ display: 'flex', gap: 8 }}>
+                                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                                {booking.deposit_required && booking.deposit_status === 'pending' && (
+                                                    <>
+                                                        <button
+                                                            onClick={() => updateBookingDepositStatus(booking.id, 'paid')}
+                                                            title="Marquer acompte paye"
+                                                            style={{
+                                                                width: 32, height: 32, borderRadius: 8,
+                                                                background: 'rgba(34, 197, 94, 0.1)',
+                                                                border: 'none', cursor: 'pointer',
+                                                                display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                                            }}
+                                                        >
+                                                            <CheckCircle size={16} style={{ color: '#4ade80' }} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => updateBookingDepositStatus(booking.id, 'waived')}
+                                                            title="Lever l acompte"
+                                                            style={{
+                                                                padding: '0 10px', height: 32, borderRadius: 8,
+                                                                background: 'rgba(59, 130, 246, 0.1)',
+                                                                border: 'none', cursor: 'pointer',
+                                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                                color: '#60a5fa', fontSize: 11, fontWeight: 600
+                                                            }}
+                                                        >
+                                                            Sans acompte
+                                                        </button>
+                                                        <button
+                                                            onClick={() => updateBookingDepositStatus(booking.id, 'expired')}
+                                                            title="Marquer acompte expire"
+                                                            style={{
+                                                                width: 32, height: 32, borderRadius: 8,
+                                                                background: 'rgba(251, 191, 36, 0.1)',
+                                                                border: 'none', cursor: 'pointer',
+                                                                display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                                            }}
+                                                        >
+                                                            <Clock size={16} style={{ color: '#fbbf24' }} />
+                                                        </button>
+                                                    </>
+                                                )}
                                                 {booking.status === 'inscription_pending' && (
                                                     <button
                                                         onClick={() => updateBookingStatus(booking.id, 'confirmed')}

@@ -1,6 +1,23 @@
 import { NextRequest } from 'next/server'
 import { createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
 
+function normalizeRestaurantMenuFields(body: any) {
+    const isRestaurantService = body.product_type === 'service' && body.service_subtype === 'restaurant'
+    const rawSortOrder = body.menu_sort_order
+    const parsedSortOrder =
+        rawSortOrder === '' || rawSortOrder === null || rawSortOrder === undefined
+            ? null
+            : Number(rawSortOrder)
+
+    return {
+        menu_section_slug: isRestaurantService ? (body.menu_section_slug || null) : null,
+        menu_sort_order:
+            isRestaurantService && Number.isFinite(parsedSortOrder)
+                ? parsedSortOrder
+                : null
+    }
+}
+
 // GET - Get single product
 export async function GET(
     request: NextRequest,
@@ -48,6 +65,7 @@ export async function PUT(
 
     try {
         const body = await request.json()
+        const restaurantMenuFields = normalizeRestaurantMenuFields(body)
 
         const { data: product, error } = await supabase
             .from('products')
@@ -71,6 +89,7 @@ export async function PUT(
                 marketing_tags: body.marketing_tags,
                 related_product_ids: body.related_product_ids,
                 service_subtype: body.service_subtype || null,
+                ...restaurantMenuFields,
                 digital_content: body.digital_content ?? null,
                 license_keys: body.license_keys !== undefined ? body.license_keys : undefined
             })

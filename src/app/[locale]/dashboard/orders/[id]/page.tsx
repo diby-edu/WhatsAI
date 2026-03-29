@@ -33,6 +33,8 @@ interface Order {
     customer_name: string | null
     customer_phone: string
     delivery_address: string | null
+    fulfillment_mode?: 'takeaway' | 'delivery' | null
+    pickup_at?: string | null
     items: OrderItem[]
 }
 
@@ -102,9 +104,14 @@ export default function OrderDetailsPage() {
         const isCOD = order.payment_method === 'cod'
         const orderType = getOrderType()
         const isService = orderType === 'service'
+        const isPickupOrder = order.fulfillment_mode === 'takeaway' || order.status === 'pending_pickup'
         switch (order.status) {
             case 'pending':
                 if (isCOD) {
+                    if (isPickupOrder) return [
+                        { value: 'pending_pickup', label: '🛍️ Prêt pour retrait' },
+                        { value: 'cancelled', label: t('actions.cancel') },
+                    ]
                     if (isService) return [
                         { value: 'confirmed', label: t('actions.confirm') },
                         { value: 'delivered', label: t('actions.finish') },
@@ -122,6 +129,11 @@ export default function OrderDetailsPage() {
                 ]
                 // CinetPay (online) : validé par webhook
                 return [{ value: 'cancelled', label: t('actions.cancel') }]
+            case 'pending_pickup':
+                return [
+                    { value: 'confirmed', label: t('actions.confirm') },
+                    { value: 'delivered', label: 'Retirée' },
+                ]
             case 'pending_delivery':
                 if (isService) return [
                     { value: 'confirmed', label: t('actions.confirm') },
@@ -133,6 +145,10 @@ export default function OrderDetailsPage() {
                 ]
             case 'paid':
                 if (orderType === 'digital') return []
+                if (isPickupOrder) return [
+                    { value: 'confirmed', label: t('actions.confirm') },
+                    { value: 'delivered', label: 'Retirée' },
+                ]
                 if (isService) return [
                     { value: 'confirmed', label: t('actions.confirm') },
                     { value: 'delivered', label: t('actions.finish') },
@@ -142,12 +158,17 @@ export default function OrderDetailsPage() {
                     { value: 'delivered', label: t('actions.deliver') },
                 ]
             case 'confirmed':
+                if (isPickupOrder) return [{ value: 'delivered', label: 'Retirée' }]
                 if (isService) return [{ value: 'delivered', label: t('actions.finish') }]
                 return [
                     { value: 'shipped', label: t('actions.ship') },
                     { value: 'delivered', label: t('actions.deliver') },
                 ]
             case 'processing':
+                if (isPickupOrder) return [
+                    { value: 'confirmed', label: t('actions.confirm') },
+                    { value: 'delivered', label: 'Retirée' },
+                ]
                 if (isService) return [
                     { value: 'confirmed', label: t('actions.confirm') },
                     { value: 'delivered', label: t('actions.finish') },
@@ -166,6 +187,9 @@ export default function OrderDetailsPage() {
     const getStatusColor = (status: string) => {
         switch (status) {
             case 'pending': return '#fbbf24'
+            case 'pending_delivery': return '#f59e0b'
+            case 'pending_pickup': return '#f97316'
+            case 'paid': return '#10b981'
             case 'confirmed': return '#34d399'
             case 'processing': return '#60a5fa'
             case 'shipped': return '#a78bfa'
@@ -176,6 +200,7 @@ export default function OrderDetailsPage() {
     }
 
     const getStatusLabel = (status: string) => {
+        if (status === 'pending_pickup') return 'Prête pour retrait'
         try {
             return tStatus(status as any)
         } catch {
@@ -238,6 +263,9 @@ export default function OrderDetailsPage() {
                         gap: 8
                     }}>
                         {order.status === 'pending' && <Clock size={16} />}
+                        {order.status === 'pending_delivery' && <Truck size={16} />}
+                        {order.status === 'pending_pickup' && <Package size={16} />}
+                        {order.status === 'paid' && <CheckCircle size={16} />}
                         {order.status === 'confirmed' && <CheckCircle size={16} />}
                         {order.status === 'processing' && <Loader2 size={16} />}
                         {order.status === 'shipped' && <Truck size={16} />}
@@ -395,6 +423,7 @@ export default function OrderDetailsPage() {
                                         ? <Loader2 className="animate-spin" size={18} />
                                         : opt.value === 'cancelled' ? <XCircle size={18} />
                                         : opt.value === 'shipped' ? <Truck size={18} />
+                                        : opt.value === 'pending_pickup' ? <Package size={18} />
                                         : opt.value === 'delivered' ? <Package size={18} />
                                         : <CheckCircle size={18} />
                                     }

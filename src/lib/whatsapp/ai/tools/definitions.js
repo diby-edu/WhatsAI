@@ -137,6 +137,51 @@ IMPORTANT - VARIANTES :
                 required: ['phone_number']
             }
         }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'create_restaurant_checkout',
+            description: 'Créer un checkout restaurant unifié. Utiliser ce tool pour sur place, réservation simple, emporté ou livraison. Ne jamais appeler create_order ou create_booking depuis un flow restaurant.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    fulfillment_mode: {
+                        type: 'string',
+                        enum: ['dine_in', 'booking_only', 'takeaway', 'delivery'],
+                        description: 'Mode restaurant : dine_in, booking_only, takeaway ou delivery.'
+                    },
+                    items: {
+                        type: 'array',
+                        description: 'Articles restaurant. Obligatoire pour takeaway/delivery, optionnel pour dine_in, vide pour booking_only.',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                product_name: { type: 'string', description: 'Nom du plat ou de la boisson dans le catalogue restaurant.' },
+                                quantity: { type: 'integer', description: 'Quantité demandée.' }
+                            },
+                            required: ['product_name', 'quantity']
+                        }
+                    },
+                    customer_name: { type: 'string', description: 'Nom complet du client.' },
+                    customer_phone: {
+                        type: 'string',
+                        description: 'Téléphone du client avec indicatif pays obligatoire.'
+                    },
+                    scheduled_date: { type: 'string', description: 'Date souhaitée (YYYY-MM-DD). Requise pour dine_in et booking_only.' },
+                    scheduled_time: { type: 'string', description: 'Heure souhaitée (HH:MM). Requise pour dine_in et booking_only.' },
+                    party_size: { type: 'integer', description: 'Nombre de personnes. Requis pour dine_in et booking_only.' },
+                    delivery_address: { type: 'string', description: 'Adresse de livraison. Requise pour delivery.' },
+                    payment_method: {
+                        type: 'string',
+                        enum: ['online', 'onsite'],
+                        description: 'Paiement en ligne ou sur place / au retrait / à la livraison.'
+                    },
+                    notes: { type: 'string', description: 'Notes ou demandes particulières.' }
+                },
+                required: ['fulfillment_mode', 'customer_name', 'customer_phone', 'payment_method']
+            }
+        }
     }
 ]
 

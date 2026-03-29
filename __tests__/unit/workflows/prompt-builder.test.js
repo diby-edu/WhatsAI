@@ -123,14 +123,14 @@ describe('Prompt Builder', () => {
             expect(prompt).toMatch(/STAY|HÉBERGEMENT/)
         })
 
-        test('should use TABLE engine for restaurant services', () => {
+        test('should use RESTAURANT engine for restaurant services', () => {
             const products = [
                 { id: '1', name: 'Table VIP', price_fcfa: 30000, product_type: 'service', service_subtype: 'restaurant' }
             ]
             const prompt = buildAdaptiveSystemPrompt(
                 mockAgent, products, mockOrders, mockDocs, currency, gpsLink, formattedHours
             )
-            expect(prompt).toMatch(/TABLE|RESTAURANT|🍽️/)
+            expect(prompt).toMatch(/RESTAURANT|create_restaurant_checkout|booking_only|takeaway|delivery/i)
         })
 
         test('should use TABLE engine for event services', () => {

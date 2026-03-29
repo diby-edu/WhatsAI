@@ -24,6 +24,15 @@ import { useTranslations } from 'next-intl'
 import ProductVariantsEditor, { VariantGroup, ProductCombination } from '@/components/dashboard/ProductVariantsEditor'
 import { convertToFcfa, convertFromFcfa } from '@/lib/currency'
 
+const RESTAURANT_MENU_SECTIONS = [
+    { id: 'starters', label: 'Entrees' },
+    { id: 'mains', label: 'Plats principaux' },
+    { id: 'extras', label: 'Supplements' },
+    { id: 'desserts', label: 'Desserts' },
+    { id: 'drinks', label: 'Boissons' },
+    { id: 'other', label: 'Autre section' }
+]
+
 export default function NewProductPage() {
     const t = useTranslations('Products.Wizard')
     const router = useRouter()
@@ -63,6 +72,8 @@ export default function NewProductPage() {
         // Defaults
         product_type: 'product',
         service_subtype: '', // v2.19 Intent Mapping (hotel, restaurant, etc.)
+        menu_section_slug: '',
+        menu_sort_order: '' as string | number,
         stock_quantity: -1,
         lead_fields: []
     })
@@ -362,11 +373,21 @@ export default function NewProductPage() {
             }))
 
             const { price, ...restFormData } = formData as any
+            const isRestaurantMenuItem =
+                formData.product_type === 'service' &&
+                formData.service_subtype === 'restaurant'
             const dataToSend: any = {
                 ...restFormData,
                 price_fcfa: convertToFcfa(parseFloat(String(price)) || 0, currency),
                 variants: variantsInFcfa,
                 combinations: formData.combinations ?? null,
+                menu_section_slug: isRestaurantMenuItem ? (formData.menu_section_slug || null) : null,
+                menu_sort_order:
+                    isRestaurantMenuItem &&
+                    String(formData.menu_sort_order ?? '').trim() !== '' &&
+                    Number.isFinite(Number(formData.menu_sort_order))
+                        ? Number(formData.menu_sort_order)
+                        : null,
                 digital_content: null,
                 license_keys: null
             }
@@ -555,6 +576,51 @@ export default function NewProductPage() {
                                 </motion.div>
                             )
                         }
+
+                        {formData.product_type === 'service' && formData.service_subtype === 'restaurant' && (
+                            <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                style={{
+                                    padding: 16,
+                                    borderRadius: 12,
+                                    border: '1px solid rgba(16, 185, 129, 0.2)',
+                                    background: 'rgba(16, 185, 129, 0.06)'
+                                }}
+                            >
+                                <label style={labelStyle}>Menu restaurant</label>
+                                <p style={{ fontSize: 12, color: '#94a3b8', marginBottom: 12 }}>
+                                    Utilise une section canonique pour guider l&apos;IA et ordonner la carte.
+                                </p>
+                                <div className="agent-grid-2">
+                                    <div>
+                                        <label style={{ ...labelStyle, marginBottom: 6 }}>Section de menu</label>
+                                        <select
+                                            value={formData.menu_section_slug}
+                                            onChange={e => setFormData({ ...formData, menu_section_slug: e.target.value })}
+                                            style={inputStyle}
+                                        >
+                                            <option value="">Choisir une section</option>
+                                            {RESTAURANT_MENU_SECTIONS.map(section => (
+                                                <option key={section.id} value={section.id}>{section.label}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label style={{ ...labelStyle, marginBottom: 6 }}>Ordre dans la carte</label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            step="1"
+                                            value={formData.menu_sort_order}
+                                            onChange={e => setFormData({ ...formData, menu_sort_order: e.target.value })}
+                                            placeholder="100"
+                                            style={inputStyle}
+                                        />
+                                    </div>
+                                </div>
+                            </motion.div>
+                        )}
 
                         {/* Multi-Image Upload Gallery */}
                         <div>

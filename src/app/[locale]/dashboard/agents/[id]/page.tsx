@@ -167,6 +167,8 @@ export default function AgentWizardPage({
         mobile_money_mtn: '',
         mobile_money_wave: '',
         custom_payment_methods: [] as { name: string; details: string }[],
+        restaurant_deposit_enabled: false,
+        restaurant_deposit_percentage: 30,
         escalation_phone: '',  // Phone number to display when escalating to human
         agent_context: '',
         welcome_message: '',
@@ -251,6 +253,8 @@ export default function AgentWizardPage({
                 mobile_money_mtn: agent.mobile_money_mtn || '',
                 mobile_money_wave: agent.mobile_money_wave || '',
                 custom_payment_methods: agent.custom_payment_methods || [],
+                restaurant_deposit_enabled: agent.restaurant_deposit_enabled ?? false,
+                restaurant_deposit_percentage: agent.restaurant_deposit_percentage ?? 30,
                 escalation_phone: agent.escalation_phone || '',
                 agent_context: agent.agent_context || '',
                 welcome_message: agent.welcome_message || '',
@@ -1176,6 +1180,82 @@ export default function AgentWizardPage({
                                     </div>
                                 </div>
                             )}
+
+                            <div style={{
+                                padding: 16,
+                                borderRadius: 12,
+                                border: '1px solid rgba(16, 185, 129, 0.2)',
+                                background: formData.restaurant_deposit_enabled
+                                    ? 'rgba(16, 185, 129, 0.08)'
+                                    : 'rgba(15, 23, 42, 0.3)'
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+                                    <div>
+                                        <h3 style={{ fontSize: 15, fontWeight: 600, color: 'white' }}>
+                                            Acompte reservations restaurant
+                                        </h3>
+                                        <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>
+                                            Utilise uniquement pour les reservations restaurant avec precommande ou table.
+                                        </p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setFormData({ ...formData, restaurant_deposit_enabled: !formData.restaurant_deposit_enabled })}
+                                        style={{
+                                            width: 48,
+                                            height: 28,
+                                            borderRadius: 14,
+                                            background: formData.restaurant_deposit_enabled ? '#10b981' : '#334155',
+                                            border: 'none',
+                                            cursor: 'pointer',
+                                            position: 'relative',
+                                            flexShrink: 0
+                                        }}
+                                    >
+                                        <div style={{
+                                            width: 22,
+                                            height: 22,
+                                            borderRadius: '50%',
+                                            background: 'white',
+                                            position: 'absolute',
+                                            top: 3,
+                                            left: formData.restaurant_deposit_enabled ? 23 : 3,
+                                            transition: 'left 0.2s'
+                                        }} />
+                                    </button>
+                                </div>
+
+                                {formData.restaurant_deposit_enabled && (
+                                    <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
+                                                Pourcentage d&apos;acompte: {formData.restaurant_deposit_percentage}%
+                                            </label>
+                                            <input
+                                                type="range"
+                                                min="0"
+                                                max="100"
+                                                step="5"
+                                                value={formData.restaurant_deposit_percentage}
+                                                onChange={e => setFormData({ ...formData, restaurant_deposit_percentage: parseInt(e.target.value) })}
+                                                style={{ width: '100%', accentColor: '#10b981' }}
+                                            />
+                                        </div>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            max="100"
+                                            step="1"
+                                            value={formData.restaurant_deposit_percentage}
+                                            onChange={e => setFormData({ ...formData, restaurant_deposit_percentage: Math.max(0, Math.min(100, parseInt(e.target.value || '0'))) })}
+                                            style={selectStyle}
+                                        />
+                                        <p style={{ fontSize: 12, color: '#94a3b8' }}>
+                                            Exemple: 30% demande un acompte de 30% avant confirmation finale de la reservation.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </motion.div>
                 )
