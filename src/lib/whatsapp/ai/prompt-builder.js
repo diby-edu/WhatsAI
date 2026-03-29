@@ -14,13 +14,14 @@ const { prompt_TABLE } = require('./prompts/workflow-service-table')
 const { prompt_SLOT } = require('./prompts/workflow-service-slot')
 const { prompt_RENTAL } = require('./prompts/workflow-service-rental')
 const { prompt_INSCRIPTION } = require('./prompts/workflow-service-inscription')
+const { prompt_RESTAURANT } = require('./prompts/workflow-service-restaurant')
 const { buildCatalogueSection, buildClientHistory, buildKnowledgeSection, buildProductsCatalogSection } = require('./prompts/sections')
 
 // Mapping des sous-types de services vers les moteurs de template
 const SERVICE_ENGINE_MAP = {
     'hotel': 'STAY',
     'residence': 'STAY',
-    'restaurant': 'TABLE',
+    'restaurant': 'RESTAURANT',
     'event': 'TABLE',
     'rental': 'RENTAL',
     'formation': 'INSCRIPTION',
@@ -31,7 +32,7 @@ const SERVICE_ENGINE_MAP = {
     'other': 'SLOT'
 }
 
-function buildAdaptiveSystemPrompt(agent, products, orders, relevantDocs, currency, gpsLink, formattedHours, justOrdered = false, userMessage = '', hasKnowledgeBase = false) {
+function buildAdaptiveSystemPrompt(agent, products, orders, relevantDocs, currency, gpsLink, formattedHours, justOrdered = false, userMessage = '', hasKnowledgeBase = false, activeEngineHint = null) {
 
     // 1. ANALYSE DU CONTEXTE AGENT & PRODUITS
     const serviceProducts = products.filter(p => p.product_type === 'service')
@@ -41,7 +42,10 @@ function buildAdaptiveSystemPrompt(agent, products, orders, relevantDocs, curren
     let conversationIntent = 'generic' // 'product_order' (default)
     let activeEngine = null
 
-    if (isServiceOnlyAgent) {
+    if (activeEngineHint) {
+        conversationIntent = 'service_booking'
+        activeEngine = activeEngineHint
+    } else if (isServiceOnlyAgent) {
         // Agent 100% service : utiliser le template du premier service trouvé
         const mainService = serviceProducts[0]
         const subtype = mainService.service_subtype || 'other'
@@ -156,6 +160,7 @@ Si le client dit "Salut", "Bonjour", "Menu", "Catalogue", ou demande un produit 
     // Logique de bascule (Switch Engine)
     if (conversationIntent === 'service_booking' && activeEngine) {
         if (activeEngine === 'STAY') collectOrder = prompt_STAY
+        else if (activeEngine === 'RESTAURANT') collectOrder = prompt_RESTAURANT
         else if (activeEngine === 'TABLE') collectOrder = prompt_TABLE
         else if (activeEngine === 'SLOT') collectOrder = prompt_SLOT
         else if (activeEngine === 'RENTAL') collectOrder = prompt_RENTAL
@@ -228,7 +233,7 @@ Quand le client choisit "payer en ligne", réponds simplement "D'accord, les ins
         }
     }
 
-    if (isServiceFlow) {
+    if (isServiceFlow && activeEngine !== 'RESTAURANT') {
         paymentSection = `
 PAIEMENT POUR LES RESERVATIONS DE SERVICE :
 - Pour une reservation de service, utilise TOUJOURS create_booking et JAMAIS create_order.

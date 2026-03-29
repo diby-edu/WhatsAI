@@ -47,6 +47,13 @@ const {
     setBookingState,
     updateBookingStateFromUserMessage,
 } = require('../services/booking-state.service')
+const {
+    getRestaurantState,
+    hasRestaurantStateData,
+    inferRestaurantStateFromAssistantMessage,
+    setRestaurantState,
+    updateRestaurantStateFromUserMessage,
+} = require('../services/restaurant-state.service')
 
 function formatDirectToolResponse(parsedResult) {
     const parts = []
@@ -347,6 +354,8 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
 
         const orderableProducts = (products || []).filter(product => product.product_type !== 'service')
         const serviceProducts = (products || []).filter(product => product.product_type === 'service')
+        const restaurantProducts = serviceProducts.filter(product => product.service_subtype === 'restaurant')
+        const standardServiceProducts = serviceProducts.filter(product => product.service_subtype !== 'restaurant')
 
         // hasKnowledgeBase : COUNT serveur (pas déduit de relevantDocs qui peut retourner 0 sur "Bonjour")
         const { count: kbCount } = await supabase
@@ -361,27 +370,35 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
         const previousCartState = getCartState(conversation.metadata)
         const previousCheckoutState = getCheckoutState(conversation.metadata)
         const previousBookingState = getBookingState(conversation.metadata)
+        const previousRestaurantState = getRestaurantState(conversation.metadata)
 
         const noopCartUpdate = { state: previousCartState, capturedFields: [], stateChanged: false, shouldBypassAI: false, directReply: null }
         const noopCheckoutUpdate = { state: previousCheckoutState, stateChanged: false, shouldBypassAI: false, directReply: null, shouldSubmitOrder: false }
         const noopBookingUpdate = { state: previousBookingState, stateChanged: false, shouldBypassAI: false, directReply: null }
+        const noopRestaurantUpdate = { state: previousRestaurantState, stateChanged: false, shouldBypassAI: false, directReply: null }
 
-        const bookingUpdate = isSupportClientMode
+        const restaurantUpdate = isSupportClientMode
+            ? noopRestaurantUpdate
+            : updateRestaurantStateFromUserMessage(previousRestaurantState, message.text, restaurantProducts)
+        const restaurantFlowActive = !isSupportClientMode && hasRestaurantStateData(restaurantUpdate.state)
+
+        const bookingUpdate = (isSupportClientMode || restaurantFlowActive)
             ? noopBookingUpdate
-            : updateBookingStateFromUserMessage(previousBookingState, message.text, serviceProducts)
+            : updateBookingStateFromUserMessage(previousBookingState, message.text, standardServiceProducts)
         const bookingFlowActive = !isSupportClientMode && !!(previousBookingState.current_booking || bookingUpdate.state.current_booking)
 
-        const cartUpdate = (isSupportClientMode || bookingFlowActive)
+        const cartUpdate = (isSupportClientMode || restaurantFlowActive || bookingFlowActive)
             ? noopCartUpdate
             : updateCartStateFromUserMessage(previousCartState, message.text, orderableProducts, agentCurrency)
 
         const cartJustEnteredCheckout =
             !isSupportClientMode &&
+            !restaurantFlowActive &&
             !bookingFlowActive &&
             previousCartState.stage !== CART_STAGE.CHECKOUT &&
             cartUpdate.state.stage === CART_STAGE.CHECKOUT
 
-        const checkoutUpdate = (isSupportClientMode || bookingFlowActive)
+        const checkoutUpdate = (isSupportClientMode || restaurantFlowActive || bookingFlowActive)
             ? noopCheckoutUpdate
             : updateCheckoutStateFromUserMessage(previousCheckoutState, message.text, {
                 cartState: cartUpdate.state,
@@ -396,17 +413,22 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                 JSON.stringify(previousCartState) !== JSON.stringify(cartUpdate.state) ||
                 JSON.stringify(previousCheckoutState) !== JSON.stringify(checkoutState) ||
                 JSON.stringify(previousBookingState) !== JSON.stringify(bookingUpdate.state) ||
+                JSON.stringify(previousRestaurantState) !== JSON.stringify(restaurantUpdate.state) ||
                 conversation.metadata?.cart ||
                 conversation.metadata?.checkout ||
-                conversation.metadata?.booking
+                conversation.metadata?.booking ||
+                conversation.metadata?.restaurant
             )
         ) {
-            const mergedMetadata = setBookingState(
-                setCheckoutState(
-                    setCartState(conversation.metadata, cartUpdate.state),
-                    checkoutState
+            const mergedMetadata = setRestaurantState(
+                setBookingState(
+                    setCheckoutState(
+                        setCartState(conversation.metadata, cartUpdate.state),
+                        checkoutState
+                    ),
+                    bookingUpdate.state
                 ),
-                bookingUpdate.state
+                restaurantUpdate.state
             )
             await conversation.updateMetadata(mergedMetadata)
         }
@@ -468,11 +490,14 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
         let nextCartState = cartUpdate.state
         let nextCheckoutState = checkoutState
         let nextBookingState = bookingUpdate.state
+        let nextRestaurantState = restaurantUpdate.state
         let clearCartAfterResponse = false
         let clearCheckoutAfterResponse = false
-        const structuredReply = bookingUpdate.shouldBypassAI && bookingFlowActive
-            ? bookingUpdate.directReply
-            : (cartUpdate.directReply || checkoutUpdate.directReply)
+        const structuredReply = restaurantUpdate.shouldBypassAI && restaurantFlowActive
+            ? restaurantUpdate.directReply
+            : bookingUpdate.shouldBypassAI && bookingFlowActive
+                ? bookingUpdate.directReply
+                : (cartUpdate.directReply || checkoutUpdate.directReply)
 
         if (structuredReply) {
             console.log('Structured flow reply generated')
@@ -528,6 +553,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                     checkoutState,
                     cartState: cartUpdate.state,
                     bookingState: bookingUpdate.state,
+                    restaurantState: restaurantUpdate.state,
                     hasKnowledgeBase,
                     supabase,
                     activeSessions,
@@ -537,7 +563,8 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             })
 
             nextCartState = inferCartStateFromAssistantMessage(aiResponse.content, cartUpdate.state, orderableProducts)
-            nextBookingState = inferBookingStateFromAssistantMessage(aiResponse.content, bookingUpdate.state, serviceProducts)
+            nextBookingState = inferBookingStateFromAssistantMessage(aiResponse.content, bookingUpdate.state, standardServiceProducts)
+            nextRestaurantState = inferRestaurantStateFromAssistantMessage(aiResponse.content, restaurantUpdate.state)
         }
 
         if (!isSupportClientMode) {
@@ -549,6 +576,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                 ? clearCheckoutState(nextMetadata)
                 : setCheckoutState(nextMetadata, nextCheckoutState)
             nextMetadata = setBookingState(nextMetadata, nextBookingState)
+            nextMetadata = setRestaurantState(nextMetadata, nextRestaurantState)
             await conversation.updateMetadata(nextMetadata)
         }
 

@@ -1,6 +1,23 @@
 import { NextRequest } from 'next/server'
 import { createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
 
+function normalizeRestaurantMenuFields(body: any) {
+    const isRestaurantService = body.product_type === 'service' && body.service_subtype === 'restaurant'
+    const rawSortOrder = body.menu_sort_order
+    const parsedSortOrder =
+        rawSortOrder === '' || rawSortOrder === null || rawSortOrder === undefined
+            ? null
+            : Number(rawSortOrder)
+
+    return {
+        menu_section_slug: isRestaurantService ? (body.menu_section_slug || null) : null,
+        menu_sort_order:
+            isRestaurantService && Number.isFinite(parsedSortOrder)
+                ? parsedSortOrder
+                : null
+    }
+}
+
 // GET - List all products for user
 export async function GET(request: NextRequest) {
     const supabase = await createApiClient()
@@ -37,6 +54,7 @@ export async function POST(request: NextRequest) {
 
     try {
         const body = await request.json()
+        const restaurantMenuFields = normalizeRestaurantMenuFields(body)
 
         // v2.19: Mandatory service_subtype validation
         if (body.product_type === 'service' && !body.service_subtype) {
@@ -68,6 +86,7 @@ export async function POST(request: NextRequest) {
                 marketing_tags: body.marketing_tags || [],
                 related_product_ids: body.related_product_ids || [],
                 service_subtype: body.service_subtype || null,
+                ...restaurantMenuFields,
                 digital_content: body.digital_content || null,
                 license_keys: body.license_keys || null
             })

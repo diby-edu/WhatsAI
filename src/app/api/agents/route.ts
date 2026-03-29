@@ -3,6 +3,19 @@ import { createAdminClient, createApiClient, getAuthUser, errorResponse, success
 import { notifyAdmins } from '@/lib/notifications/admin-notify'
 import { getAIRuntimeSettings } from '@/lib/admin/settings'
 
+function normalizeRestaurantDepositSettings(body: any) {
+    const enabled = !!body.restaurant_deposit_enabled
+    const rawPercentage = Number(body.restaurant_deposit_percentage ?? 0)
+    const boundedPercentage = Number.isFinite(rawPercentage)
+        ? Math.max(0, Math.min(100, rawPercentage))
+        : 0
+
+    return {
+        restaurant_deposit_enabled: enabled,
+        restaurant_deposit_percentage: enabled ? boundedPercentage : 0
+    }
+}
+
 // GET /api/agents - List all agents for current user
 export const dynamic = 'force-dynamic'
 
@@ -46,6 +59,7 @@ export async function POST(request: NextRequest) {
         const body = await request.json()
         const adminSupabase = createAdminClient()
         const aiDefaults = await getAIRuntimeSettings(adminSupabase)
+        const restaurantDepositSettings = normalizeRestaurantDepositSettings(body)
 
         // Validate required fields
         if (!body.name) {
@@ -123,7 +137,8 @@ export async function POST(request: NextRequest) {
                 mobile_money_mtn: body.mobile_money_mtn || null,
                 mobile_money_wave: body.mobile_money_wave || null,
                 custom_payment_methods: body.custom_payment_methods || null,
-                escalation_phone: body.escalation_phone || null
+                escalation_phone: body.escalation_phone || null,
+                ...restaurantDepositSettings
             })
             .select()
             .single()

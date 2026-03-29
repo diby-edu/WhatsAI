@@ -28,6 +28,15 @@ import { useTranslations } from 'next-intl'
 import ProductVariantsEditor, { VariantGroup, ProductCombination } from '@/components/dashboard/ProductVariantsEditor'
 import { convertFromFcfa, convertToFcfa } from '@/lib/currency'
 
+const RESTAURANT_MENU_SECTIONS = [
+    { id: 'starters', label: 'Entrees' },
+    { id: 'mains', label: 'Plats principaux' },
+    { id: 'extras', label: 'Supplements' },
+    { id: 'desserts', label: 'Desserts' },
+    { id: 'drinks', label: 'Boissons' },
+    { id: 'other', label: 'Autre section' }
+]
+
 const STEPS = [
     { id: 'basics', title: 'Identité & Prix', icon: Package },
     { id: 'details', title: 'Détails & Variantes', icon: Layers },
@@ -76,6 +85,8 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
         // Defaults
         product_type: 'product',
         service_subtype: '' as string,
+        menu_section_slug: '',
+        menu_sort_order: '' as string | number,
         stock_quantity: -1,
         lead_fields: []
     })
@@ -168,6 +179,8 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
 
                     product_type: p.product_type || 'product',
                     service_subtype: p.service_subtype || '',
+                    menu_section_slug: p.menu_section_slug || '',
+                    menu_sort_order: p.menu_sort_order ?? '',
                     stock_quantity: p.stock_quantity ?? -1,
                     lead_fields: p.lead_fields || []
                 })
@@ -278,11 +291,21 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                 }))
             }))
             const { price, ...restFormData } = formData as any
+            const isRestaurantMenuItem =
+                formData.product_type === 'service' &&
+                formData.service_subtype === 'restaurant'
             const dataToSend: any = {
                 ...restFormData,
                 price_fcfa: convertToFcfa(parseFloat(String(price)) || 0, currency),
                 variants: variantsInFcfa,
                 combinations: formData.combinations ?? null,
+                menu_section_slug: isRestaurantMenuItem ? (formData.menu_section_slug || null) : null,
+                menu_sort_order:
+                    isRestaurantMenuItem &&
+                    String(formData.menu_sort_order ?? '').trim() !== '' &&
+                    Number.isFinite(Number(formData.menu_sort_order))
+                        ? Number(formData.menu_sort_order)
+                        : null,
                 digital_content: null,
                 license_keys: null
             }
@@ -387,6 +410,42 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                                             <span style={{ fontSize: 16 }}>{sub.icon}</span>{sub.label}
                                         </button>
                                     ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {formData.product_type === 'service' && formData.service_subtype === 'restaurant' && (
+                            <div className="bg-emerald-500/5 p-6 rounded-xl border border-emerald-500/20">
+                                <label className="block text-slate-300 font-medium mb-1">Menu restaurant</label>
+                                <p className="text-xs text-slate-400 mb-3">
+                                    Utilise une section canonique pour guider l&apos;IA et ordonner la carte.
+                                </p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-slate-300 font-medium mb-1">Section de menu</label>
+                                        <select
+                                            value={formData.menu_section_slug}
+                                            onChange={e => setFormData({ ...formData, menu_section_slug: e.target.value })}
+                                            className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                                        >
+                                            <option value="">Choisir une section</option>
+                                            {RESTAURANT_MENU_SECTIONS.map(section => (
+                                                <option key={section.id} value={section.id}>{section.label}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-slate-300 font-medium mb-1">Ordre dans la carte</label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            step="1"
+                                            value={formData.menu_sort_order}
+                                            onChange={e => setFormData({ ...formData, menu_sort_order: e.target.value })}
+                                            placeholder="100"
+                                            className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         )}

@@ -23,7 +23,7 @@ const CinetPay = require('./src/lib/whatsapp/utils/cinetpay')
 const path = require('path')
 const http = require('http')
 const { initSession } = require('./src/lib/whatsapp/handlers/session')
-const { checkPendingPayments, cancelExpiredOrders, requestFeedback } = require('./src/lib/whatsapp/cron/jobs')
+const { checkPendingPayments, cancelExpiredOrders, cancelExpiredBookingDeposits, requestFeedback } = require('./src/lib/whatsapp/cron/jobs')
 const { checkPendingHistoryMessages, checkOutboundMessages } = require('./src/lib/whatsapp/cron/outgoing')
 const { setupRealtimeListeners, cleanupRealtimeListeners } = require('./src/lib/whatsapp/realtime/listeners')
 
@@ -292,6 +292,7 @@ async function main() {
     // ✅ Jobs de maintenance (longue durée)
     setInterval(() => checkPendingPayments(supabase), 10 * 60 * 1000)
     setInterval(() => cancelExpiredOrders(supabase), 30 * 60 * 1000)
+    setInterval(() => cancelExpiredBookingDeposits(supabase), 60 * 60 * 1000)
     setInterval(() => requestFeedback(supabase), 24 * 60 * 60 * 1000)
 
     // ═══════════════════════════════════════════════════════════

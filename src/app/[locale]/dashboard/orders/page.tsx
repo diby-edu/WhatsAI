@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { motion } from 'framer-motion'
 import {
     ShoppingBag, Search, Filter, Eye,
     CheckCircle, XCircle, Clock, Truck, Package,
     Loader2, Image as ImageIcon, Check, X,
-    CalendarCheck, ChevronDown, Users, MapPin,
+    CalendarCheck, Users, MapPin,
     FileText, Layers
 } from 'lucide-react'
 import { useTranslations, useFormatter } from 'next-intl'
@@ -24,6 +25,8 @@ interface Order {
     payment_method: 'online' | 'cod' | 'mobile_money_direct' | null
     payment_verification_status: string | null
     payment_screenshot_url: string | null
+    fulfillment_mode?: 'takeaway' | 'delivery' | null
+    pickup_at?: string | null
     created_at: string
     items_count: number
     items?: {
@@ -47,6 +50,15 @@ interface Booking {
     notes: string | null
     price_fcfa: number
     created_at: string
+    booking_source?: string | null
+    fulfillment_mode?: string | null
+    payment_method?: string | null
+    deposit_required?: boolean | null
+    deposit_amount_fcfa?: number | null
+    deposit_status?: string | null
+    transaction_id?: string | null
+    provider_payment_url?: string | null
+    items_count?: number
 }
 
 export default function OrdersPage() {
@@ -138,15 +150,41 @@ export default function OrdersPage() {
         }
     }
 
+    const handleBookingDepositStatusChange = async (bookingId: string, depositStatus: string) => {
+        setUpdatingStatusId(bookingId)
+        try {
+            const res = await fetch(`/api/bookings/${bookingId}/status`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ deposit_status: depositStatus })
+            })
+            if (res.ok) {
+                fetchBookings()
+            } else {
+                const data = await res.json()
+                alert(data.error || 'Erreur lors de la mise a jour de l acompte')
+            }
+        } catch (err) {
+            console.error('Booking deposit status change error:', err)
+        } finally {
+            setUpdatingStatusId(null)
+        }
+    }
+
     // Tous les statuts cibles atteignables — le marchand clique directement sur l'état final
     const getNextStatusOptions = (order: Order) => {
         const isCOD = order.payment_method === 'cod'
         const orderType = getOrderType(order)
         const isService = orderType === 'service'
+        const isPickupOrder = order.fulfillment_mode === 'takeaway' || order.status === 'pending_pickup'
 
         switch (order.status) {
             case 'pending':
                 if (isCOD) {
+                    if (isPickupOrder) return [
+                        { value: 'pending_pickup', label: '🛍️ Prêt retrait' },
+                        { value: 'cancelled', label: '❌ Annuler' },
+                    ]
                     if (isService) return [
                         { value: 'confirmed', label: '✅ Confirmer' },
                         { value: 'delivered', label: '🎉 Terminé' },
@@ -163,6 +201,11 @@ export default function OrdersPage() {
                     return [{ value: 'paid', label: '✅ Valider paiement' }, { value: 'cancelled', label: '❌ Annuler' }]
                 // CinetPay ('online') : validé automatiquement par webhook
                 return [{ value: 'cancelled', label: '❌ Annuler' }]
+            case 'pending_pickup':
+                return [
+                    { value: 'confirmed', label: '✅ Confirmer' },
+                    { value: 'delivered', label: '🎉 Retirée' },
+                ]
             case 'pending_delivery':
                 if (isService) return [
                     { value: 'confirmed', label: '✅ Confirmer' },
@@ -174,6 +217,10 @@ export default function OrdersPage() {
                 ]
             case 'paid':
                 if (orderType === 'digital') return [] // Auto-delivered after payment
+                if (isPickupOrder) return [
+                    { value: 'confirmed', label: '✅ Confirmer' },
+                    { value: 'delivered', label: '🎉 Retirée' },
+                ]
                 if (isService) return [
                     { value: 'confirmed', label: '✅ Confirmer' },
                     { value: 'delivered', label: '🎉 Terminé' },
@@ -183,12 +230,17 @@ export default function OrdersPage() {
                     { value: 'delivered', label: '✅ Livré' },
                 ]
             case 'confirmed':
+                if (isPickupOrder) return [{ value: 'delivered', label: '🎉 Retirée' }]
                 if (isService) return [{ value: 'delivered', label: '🎉 Marquer terminé' }]
                 return [
                     { value: 'shipped', label: '📦 Expédier' },
                     { value: 'delivered', label: '✅ Livré' },
                 ]
             case 'processing':
+                if (isPickupOrder) return [
+                    { value: 'confirmed', label: '✅ Confirmer' },
+                    { value: 'delivered', label: '🎉 Retirée' },
+                ]
                 if (isService) return [
                     { value: 'confirmed', label: '✅ Confirmer' },
                     { value: 'delivered', label: '🎉 Terminé' },
@@ -205,7 +257,7 @@ export default function OrdersPage() {
     }
 
     // Status options for bookings
-    const getBookingStatusOptions = (status: string) => {
+    const getBookingStatusOptionsLegacy = (status: string) => {
         switch (status) {
             case 'pending':
                 return [
@@ -225,6 +277,65 @@ export default function OrdersPage() {
             default:
                 return []
         }
+    }
+
+    const getBookingKind = (booking: Booking) => {
+        if (booking.booking_source === 'restaurant') return 'restaurant'
+        if (booking.booking_type === 'stay') return 'stay'
+        if (booking.booking_type === 'slot') return 'slot'
+        if (booking.booking_type === 'inscription') return 'inscription'
+        if (booking.booking_type === 'table') return 'table'
+        return booking.booking_type || 'other'
+    }
+
+    const getBookingKindLabel = (booking: Booking) => {
+        switch (getBookingKind(booking)) {
+            case 'restaurant': return 'Restaurant'
+            case 'stay': return 'Hebergement'
+            case 'slot': return 'Service'
+            case 'inscription': return 'Inscription'
+            case 'table': return 'Table / Event'
+            default: return booking.booking_type
+        }
+    }
+
+    const getBookingPaymentLabel = (booking: Booking) => {
+        switch (booking.payment_method) {
+            case 'online': return 'En ligne'
+            case 'onsite': return 'Sur place'
+            case 'cod': return booking.fulfillment_mode === 'delivery' ? 'A la livraison' : 'Au retrait'
+            default: return 'Non defini'
+        }
+    }
+
+    const getBookingDepositLabel = (booking: Booking) => {
+        switch (booking.deposit_status) {
+            case 'paid': return 'Acompte paye'
+            case 'pending': return 'Acompte en attente'
+            case 'waived': return 'Acompte leve'
+            case 'expired': return 'Acompte expire'
+            default: return booking.deposit_required ? 'Acompte requis' : 'Sans acompte'
+        }
+    }
+
+    const getBookingModeLabel = (booking: Booking) => {
+        switch (booking.fulfillment_mode) {
+            case 'dine_in': return 'Sur place'
+            case 'booking_only': return 'Reservation simple'
+            case 'takeaway': return 'A emporter'
+            case 'delivery': return 'Livraison'
+            default: return null
+        }
+    }
+
+    const getBookingStatusOptions = (booking: Booking) => {
+        if (booking.deposit_required && booking.deposit_status === 'pending') {
+            return [
+                { value: 'cancelled', label: '❌ Annuler' }
+            ]
+        }
+
+        return getBookingStatusOptionsLegacy(booking.status)
     }
 
     const handleVerify = async (orderId: string, action: 'verify' | 'reject') => {
@@ -254,6 +365,7 @@ export default function OrdersPage() {
         switch (status) {
             case 'pending': return '#fbbf24'
             case 'pending_delivery': return '#f59e0b'
+            case 'pending_pickup': return '#f97316'
             case 'paid': return '#10b981'
             case 'confirmed': return '#34d399'
             case 'processing': return '#60a5fa'
@@ -268,6 +380,7 @@ export default function OrdersPage() {
         switch (status) {
             case 'pending': return <Clock size={16} />
             case 'pending_delivery': return <Truck size={16} />
+            case 'pending_pickup': return <Package size={16} />
             case 'paid': return <CheckCircle size={16} />
             case 'confirmed': return <CheckCircle size={16} />
             case 'processing': return <Loader2 size={16} />
@@ -279,8 +392,9 @@ export default function OrdersPage() {
     }
 
     const getStatusLabel = (status: string) => {
+        if (status === 'pending_pickup') return 'Prête pour retrait'
         try {
-            return tStatus(status as any)
+            return tStatus(status as never)
         } catch {
             return status
         }
@@ -439,6 +553,7 @@ export default function OrdersPage() {
                             <option value="">{t('filter.all')}</option>
                             <option value="pending">{t('filter.pending')}</option>
                             <option value="pending_delivery">{t('filter.pending_delivery')}</option>
+                            <option value="pending_pickup">Prête pour retrait</option>
                             <option value="paid">{t('filter.paid')}</option>
                             <option value="delivered">{t('filter.delivered')}</option>
                             <option value="cancelled">{t('filter.cancelled')}</option>
@@ -634,6 +749,18 @@ export default function OrdersPage() {
                                             {getStatusIcon(order.status)}
                                             {getStatusLabel(order.status)}
                                         </span>
+                                        {order.fulfillment_mode && (
+                                            <span style={{
+                                                padding: '4px 10px',
+                                                borderRadius: 100,
+                                                fontSize: 11,
+                                                fontWeight: 600,
+                                                background: order.fulfillment_mode === 'takeaway' ? 'rgba(249, 115, 22, 0.18)' : 'rgba(59, 130, 246, 0.18)',
+                                                color: order.fulfillment_mode === 'takeaway' ? '#fb923c' : '#60a5fa'
+                                            }}>
+                                                {order.fulfillment_mode === 'takeaway' ? 'À emporter' : 'Livraison'}
+                                            </span>
+                                        )}
                                         {/* Mobile Money Status Badge */}
                                         {order.payment_verification_status && (
                                             <span style={{
@@ -854,8 +981,20 @@ export default function OrdersPage() {
                                     <div>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
                                             <h3 style={{ color: 'white', fontWeight: 600, fontSize: 16 }}>
-                                                {booking.service_name || booking.booking_type}
+                                                {booking.service_name || getBookingKindLabel(booking)}
                                             </h3>
+                                            <span style={{
+                                                padding: '4px 10px',
+                                                borderRadius: 100,
+                                                fontSize: 12,
+                                                fontWeight: 600,
+                                                background: booking.booking_source === 'restaurant'
+                                                    ? 'rgba(16, 185, 129, 0.15)'
+                                                    : 'rgba(139, 92, 246, 0.12)',
+                                                color: booking.booking_source === 'restaurant' ? '#34d399' : '#a78bfa'
+                                            }}>
+                                                {getBookingKindLabel(booking)}
+                                            </span>
                                             <span style={{
                                                 padding: '4px 10px',
                                                 borderRadius: 100,
@@ -884,11 +1023,28 @@ export default function OrdersPage() {
                                             <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                                                 <Users size={14} /> {booking.party_size}
                                             </span>
+                                            {getBookingModeLabel(booking) && (
+                                                <span>🍽️ {getBookingModeLabel(booking)}</span>
+                                            )}
                                             {booking.start_time
                                                 ? <span>📅 {format.dateTime(new Date(booking.start_time), { dateStyle: 'medium', timeStyle: 'short' })}</span>
                                                 : <span style={{ color: '#a78bfa' }}>📚 Inscription</span>
                                             }
                                         </p>
+                                        <div style={{ color: '#64748b', fontSize: 12, marginTop: 6, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                                            <span>Paiement: {getBookingPaymentLabel(booking)}</span>
+                                            {booking.deposit_required ? (
+                                                <span>
+                                                    {getBookingDepositLabel(booking)}
+                                                    {booking.deposit_amount_fcfa ? ` • ${formatPrice(booking.deposit_amount_fcfa)}` : ''}
+                                                </span>
+                                            ) : (
+                                                <span>Sans acompte</span>
+                                            )}
+                                            {typeof booking.items_count === 'number' && booking.items_count > 0 && (
+                                                <span>{booking.items_count} article{booking.items_count > 1 ? 's' : ''} precommande{booking.items_count > 1 ? 's' : ''}</span>
+                                            )}
+                                        </div>
                                         {booking.location && (
                                             <p style={{ color: '#64748b', fontSize: 13, marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
                                                 <MapPin size={12} /> {booking.location}
@@ -907,9 +1063,85 @@ export default function OrdersPage() {
                                     )}
 
                                     {/* Booking Status Actions */}
-                                    {getBookingStatusOptions(booking.status).length > 0 && (
+                                    {(booking.deposit_required && booking.deposit_status === 'pending') && (
+                                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                            {booking.provider_payment_url && (
+                                                <button
+                                                    onClick={() => window.open(booking.provider_payment_url || '', '_blank', 'noopener,noreferrer')}
+                                                    disabled={updatingStatusId === booking.id}
+                                                    style={{
+                                                        padding: '10px 12px',
+                                                        borderRadius: 10,
+                                                        background: 'rgba(59, 130, 246, 0.15)',
+                                                        color: '#60a5fa',
+                                                        border: 'none',
+                                                        fontWeight: 600,
+                                                        cursor: 'pointer',
+                                                        opacity: updatingStatusId === booking.id ? 0.5 : 1
+                                                    }}
+                                                    title={booking.transaction_id ? `Ouvrir le lien ${booking.transaction_id}` : 'Ouvrir le lien de paiement'}
+                                                >
+                                                    Ouvrir lien
+                                                </button>
+                                            )}
+                                            <button
+                                                onClick={() => handleBookingDepositStatusChange(booking.id, 'paid')}
+                                                disabled={updatingStatusId === booking.id}
+                                                style={{
+                                                    width: 36,
+                                                    height: 36,
+                                                    borderRadius: 10,
+                                                    background: 'rgba(34, 197, 94, 0.15)',
+                                                    color: '#4ade80',
+                                                    border: 'none',
+                                                    fontWeight: 700,
+                                                    cursor: 'pointer',
+                                                    opacity: updatingStatusId === booking.id ? 0.5 : 1
+                                                }}
+                                                title="Marquer acompte paye"
+                                            >
+                                                ✓
+                                            </button>
+                                            <button
+                                                onClick={() => handleBookingDepositStatusChange(booking.id, 'waived')}
+                                                disabled={updatingStatusId === booking.id}
+                                                style={{
+                                                    padding: '10px 12px',
+                                                    borderRadius: 10,
+                                                    background: 'rgba(59, 130, 246, 0.15)',
+                                                    color: '#60a5fa',
+                                                    border: 'none',
+                                                    fontWeight: 600,
+                                                    cursor: 'pointer',
+                                                    opacity: updatingStatusId === booking.id ? 0.5 : 1
+                                                }}
+                                                title="Lever l acompte"
+                                            >
+                                                Sans acompte
+                                            </button>
+                                            <button
+                                                onClick={() => handleBookingDepositStatusChange(booking.id, 'expired')}
+                                                disabled={updatingStatusId === booking.id}
+                                                style={{
+                                                    width: 36,
+                                                    height: 36,
+                                                    borderRadius: 10,
+                                                    background: 'rgba(251, 191, 36, 0.15)',
+                                                    color: '#fbbf24',
+                                                    border: 'none',
+                                                    fontWeight: 700,
+                                                    cursor: 'pointer',
+                                                    opacity: updatingStatusId === booking.id ? 0.5 : 1
+                                                }}
+                                                title="Marquer acompte expire"
+                                            >
+                                                !
+                                            </button>
+                                        </div>
+                                    )}
+                                    {getBookingStatusOptions(booking).length > 0 && (
                                         <div style={{ display: 'flex', gap: 8 }}>
-                                            {getBookingStatusOptions(booking.status).map(option => (
+                                            {getBookingStatusOptions(booking).map(option => (
                                                 <button
                                                     key={option.value}
                                                     onClick={() => handleBookingStatusChange(booking.id, option.value)}
@@ -953,10 +1185,13 @@ export default function OrdersPage() {
                     }}
                 >
                     <div onClick={e => e.stopPropagation()} style={{ maxWidth: '90vw', maxHeight: '90vh' }}>
-                        <img
+                        <Image
                             src={getScreenshotUrl(screenshotModal)}
+                            width={1200}
+                            height={1600}
+                            unoptimized
                             alt="Capture d'écran paiement"
-                            style={{ maxWidth: '100%', maxHeight: '85vh', borderRadius: 12 }}
+                            style={{ maxWidth: '100%', height: 'auto', maxHeight: '85vh', borderRadius: 12 }}
                         />
                         <div style={{ textAlign: 'center', marginTop: 16 }}>
                             <button

@@ -1,6 +1,19 @@
 import { NextRequest } from 'next/server'
 import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
 
+function normalizeRestaurantDepositSettings(body: any) {
+    const enabled = !!body.restaurant_deposit_enabled
+    const rawPercentage = Number(body.restaurant_deposit_percentage ?? 0)
+    const boundedPercentage = Number.isFinite(rawPercentage)
+        ? Math.max(0, Math.min(100, rawPercentage))
+        : 0
+
+    return {
+        restaurant_deposit_enabled: enabled,
+        restaurant_deposit_percentage: enabled ? boundedPercentage : 0
+    }
+}
+
 async function cleanupAgentDependencies(adminSupabase: ReturnType<typeof createAdminClient>, agentId: string) {
     // This table exists in production schema and can block agent deletion (FK restriction)
     const { error: outboundError } = await adminSupabase
@@ -99,6 +112,7 @@ export async function PATCH(
             // Payment settings
             'payment_mode', 'mobile_money_orange', 'mobile_money_mtn',
             'mobile_money_wave', 'custom_payment_methods', 'escalation_phone',
+            'restaurant_deposit_enabled', 'restaurant_deposit_percentage',
             // Support Client
             'agent_context', 'welcome_message'
         ]
@@ -108,6 +122,21 @@ export async function PATCH(
             if (body[field] !== undefined) {
                 updates[field] = body[field]
             }
+        }
+
+        if (body.restaurant_deposit_enabled !== undefined) {
+            Object.assign(updates, normalizeRestaurantDepositSettings({
+                restaurant_deposit_enabled: body.restaurant_deposit_enabled,
+                restaurant_deposit_percentage:
+                    body.restaurant_deposit_percentage !== undefined
+                        ? body.restaurant_deposit_percentage
+                        : updates.restaurant_deposit_percentage
+            }))
+        } else if (body.restaurant_deposit_percentage !== undefined) {
+            const rawPercentage = Number(body.restaurant_deposit_percentage)
+            updates.restaurant_deposit_percentage = Number.isFinite(rawPercentage)
+                ? Math.max(0, Math.min(100, rawPercentage))
+                : 0
         }
 
         // Prevent bypassing plan limits by manually activating an agent

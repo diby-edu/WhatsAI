@@ -18,7 +18,7 @@ export async function PATCH(
         const { status } = body
 
         // Validate status
-        const validStatuses = ['pending', 'paid', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'pending_delivery', 'refunded']
+        const validStatuses = ['pending', 'paid', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'pending_delivery', 'pending_pickup', 'refunded']
         if (!validStatuses.includes(status)) {
             return errorResponse(`Statut invalide: ${status}`)
         }
@@ -74,6 +74,7 @@ export async function PATCH(
                 paid: `✅ Paiement confirmé ! Votre commande a bien été validée et est en cours de préparation.\n\nMerci pour votre confiance ! 🙏`,
                 confirmed: `✅ Votre commande a été confirmée ! Nous préparons votre service.\n\nMerci pour votre confiance ! 🙏`,
                 shipped: `📦 Votre commande est en route ! Elle a été expédiée et vous sera livrée prochainement.\n\nMerci de votre patience ! 🚚`,
+                pending_pickup: `🛍️ Votre commande est prête pour retrait ! Vous pouvez venir la récupérer dès que possible.\n\nMerci pour votre confiance !`,
                 delivered: `🎉 Votre commande a été livrée ! Nous espérons que vous êtes satisfait(e).\n\nN'hésitez pas à nous contacter si vous avez des questions. 😊`,
                 cancelled: `❌ Votre commande a été annulée. Si vous pensez que c'est une erreur, contactez-nous.\n\nNous nous excusons pour le désagrément.`,
             }
