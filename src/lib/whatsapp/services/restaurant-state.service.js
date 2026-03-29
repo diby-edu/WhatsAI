@@ -1,13 +1,38 @@
-const {
-    normalizePhoneNumber,
-} = require('../ai/tools/tool-helpers')
+'use strict'
+
+const { normalizePhoneNumber } = require('../ai/tools/tool-helpers')
+
+// ═══════════════════════════════════════════════════════════════
+// STAGES
+// ═══════════════════════════════════════════════════════════════
 
 const RESTAURANT_STAGE = {
-    IDLE: 'idle',
-    COLLECTING: 'collecting',
-    RECAP: 'recap',
-    READY: 'ready',
+    MENU_HOME:      'MENU_HOME',      // Menu principal (1=carte, 2=boissons, 3=réserver)
+    SECTION:        'SECTION',        // Navigation section par section (starters→mains→extras→desserts)
+    DRINKS:         'DRINKS',         // Section boissons
+    MODE:           'MODE',           // Choix mode (sur place / emporter / livraison)
+    CUSTOMER_FLOW:  'CUSTOMER_FLOW',  // Collecte infos client
+    RECAP:          'RECAP',          // Récap final + confirmation
+    READY:          'READY',          // Confirmé → déclenche create_restaurant_checkout
 }
+
+// ═══════════════════════════════════════════════════════════════
+// CONFIG SECTIONS
+// ═══════════════════════════════════════════════════════════════
+
+const SECTION_ORDER_CANONICAL = ['starters', 'mains', 'extras', 'desserts']
+
+const SECTION_CONFIG = {
+    starters: { label: 'ENTRÉES',      emoji: '🥗', singular: 'entrée'      },
+    mains:    { label: 'PLATS',         emoji: '🍽️', singular: 'plat'        },
+    extras:   { label: 'SUPPLÉMENTS',   emoji: '➕', singular: 'supplément'  },
+    desserts: { label: 'DESSERTS',      emoji: '🍰', singular: 'dessert'     },
+    drinks:   { label: 'BOISSONS',      emoji: '🥤', singular: 'boisson'     },
+}
+
+// ═══════════════════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════════════════
 
 function normalizeText(value) {
     return String(value || '')
@@ -18,44 +43,55 @@ function normalizeText(value) {
         .trim()
 }
 
-function cloneItems(items = []) {
+// ═══════════════════════════════════════════════════════════════
+// STATE CLONING
+// ═══════════════════════════════════════════════════════════════
+
+function cloneCartItems(items = []) {
     return Array.isArray(items)
         ? items.map(item => ({
-            product_id: item.product_id || null,
-            product_name: item.product_name || null,
-            quantity: Number.isFinite(Number(item.quantity)) ? Number(item.quantity) : 1,
-            unit_price_fcfa: Number.isFinite(Number(item.unit_price_fcfa)) ? Number(item.unit_price_fcfa) : null,
-            line_total_fcfa: Number.isFinite(Number(item.line_total_fcfa)) ? Number(item.line_total_fcfa) : null,
-            product_category: item.product_category || null,
+            product_id:       item.product_id || null,
+            product_name:     item.product_name || '',
+            menu_section_slug: item.menu_section_slug || null,
+            quantity:         Number.isFinite(Number(item.quantity)) ? Number(item.quantity) : 1,
+            unit_price_fcfa:  Number.isFinite(Number(item.unit_price_fcfa)) ? Number(item.unit_price_fcfa) : 0,
+            line_total_fcfa:  Number.isFinite(Number(item.line_total_fcfa)) ? Number(item.line_total_fcfa) : 0,
         }))
         : []
 }
 
-function cloneAwaitingField(field = null) {
-    if (!field) return null
-    return { ...field }
+function cloneCustomerFlow(cf = {}) {
+    return {
+        scheduled_date:   cf.scheduled_date || null,
+        scheduled_time:   cf.scheduled_time || null,
+        party_size:       Number.isFinite(Number(cf.party_size)) ? Number(cf.party_size) : null,
+        delivery_address: cf.delivery_address || null,
+        customer_name:    cf.customer_name || null,
+        customer_phone:   cf.customer_phone || null,
+        notes:            cf.notes === undefined ? null : cf.notes,
+        note_declined:    cf.note_declined === true,
+        payment_method:   cf.payment_method || null,
+    }
 }
 
 function cloneRestaurantState(state = {}) {
     return {
-        stage: state.stage || RESTAURANT_STAGE.IDLE,
-        mode: state.mode || null,
-        items: cloneItems(state.items || []),
-        customer_name: state.customer_name || null,
-        customer_phone: state.customer_phone || null,
-        scheduled_date: state.scheduled_date || null,
-        scheduled_time: state.scheduled_time || null,
-        party_size: Number.isFinite(Number(state.party_size)) ? Number(state.party_size) : null,
-        delivery_address: state.delivery_address || null,
-        payment_method: state.payment_method || null,
-        notes: state.notes === undefined ? null : state.notes,
-        note_declined: state.note_declined === true,
-        awaiting_field: cloneAwaitingField(state.awaiting_field),
-        last_prompt_kind: state.last_prompt_kind || null,
-        last_prompt_text: state.last_prompt_text || null,
-        updated_at: state.updated_at || null,
+        stage:                 state.stage || RESTAURANT_STAGE.MENU_HOME,
+        section_order:         Array.isArray(state.section_order) ? [...state.section_order] : [],
+        current_section_index: Number.isFinite(Number(state.current_section_index)) ? Number(state.current_section_index) : 0,
+        drinks_enabled:        state.drinks_enabled === true,
+        cart_items:            cloneCartItems(state.cart_items || []),
+        fulfillment_mode:      state.fulfillment_mode || null,
+        customer_flow:         cloneCustomerFlow(state.customer_flow || {}),
+        awaiting_cf_field:     state.awaiting_cf_field || null,
+        last_prompt_kind:      state.last_prompt_kind || null,
+        updated_at:            state.updated_at || null,
     }
 }
+
+// ═══════════════════════════════════════════════════════════════
+// STATE GET / SET / CLEAR
+// ═══════════════════════════════════════════════════════════════
 
 function getRestaurantState(metadata = {}) {
     return cloneRestaurantState(metadata.restaurant || {})
@@ -67,231 +103,337 @@ function setRestaurantState(metadata = {}, restaurantState) {
         restaurant: {
             ...cloneRestaurantState(restaurantState),
             updated_at: new Date().toISOString(),
-        }
+        },
     }
 }
 
 function clearRestaurantState(metadata = {}) {
-    return {
-        ...(metadata || {}),
-        restaurant: null,
-    }
+    return { ...(metadata || {}), restaurant: null }
 }
 
 function hasRestaurantStateData(state = {}) {
-    const cloned = cloneRestaurantState(state)
+    const s = cloneRestaurantState(state)
     return Boolean(
-        cloned.stage !== RESTAURANT_STAGE.IDLE ||
-        cloned.mode ||
-        cloned.items.length > 0 ||
-        cloned.customer_name ||
-        cloned.customer_phone ||
-        cloned.scheduled_date ||
-        cloned.scheduled_time ||
-        cloned.party_size ||
-        cloned.delivery_address ||
-        cloned.payment_method ||
-        cloned.note_declined ||
-        cloned.notes
+        s.cart_items.length > 0 ||
+        s.fulfillment_mode ||
+        s.customer_flow.customer_name ||
+        s.customer_flow.customer_phone ||
+        s.customer_flow.scheduled_date ||
+        s.stage !== RESTAURANT_STAGE.MENU_HOME
     )
 }
 
-function scoreRestaurantProductMatch(searchName, product) {
-    const normalizedSearch = normalizeText(searchName)
-    const productName = normalizeText(product?.name)
-    const productText = normalizeText(`${product?.name || ''} ${product?.description || ''} ${product?.category || ''}`)
+// ═══════════════════════════════════════════════════════════════
+// PRODUCTS HELPERS
+// ═══════════════════════════════════════════════════════════════
 
-    if (!normalizedSearch || !productName) return 0
-    if (productName === normalizedSearch) return 100
-    if (normalizedSearch.includes(productName) || productName.includes(normalizedSearch)) return 60
-
-    const terms = normalizedSearch.split(/\s+/).filter(term => term.length > 2)
-    const nameHits = terms.filter(term => productName.includes(term)).length
-    const textHits = terms.filter(term => productText.includes(term)).length
-
-    return nameHits * 12 + textHits * 3
+function buildSectionOrder(products) {
+    const present = new Set(products.map(p => p.menu_section_slug).filter(Boolean))
+    return SECTION_ORDER_CANONICAL.filter(slug => present.has(slug))
 }
 
-function findRestaurantProductByName(products = [], productName) {
-    let bestProduct = null
-    let bestScore = 0
-
-    for (const product of products) {
-        const score = scoreRestaurantProductMatch(productName, product)
-        if (score > bestScore) {
-            bestProduct = product
-            bestScore = score
-        }
-    }
-
-    return bestScore >= 10 ? bestProduct : null
+function getProductsForSection(products, slug) {
+    return products.filter(p => p.menu_section_slug === slug)
 }
 
-function splitItemSegments(text) {
-    return String(text || '')
-        .split(/\s*(?:,|\+|;|\bet\b|\bpuis\b)\s*/i)
-        .map(segment => String(segment || '').trim())
-        .filter(Boolean)
+function getDrinkProducts(products) {
+    return products.filter(p => p.menu_section_slug === 'drinks')
 }
+
+// ═══════════════════════════════════════════════════════════════
+// DETECTION FUNCTIONS
+// ═══════════════════════════════════════════════════════════════
+
+function detectMenuChoice(text) {
+    const n = normalizeText(text)
+    if (/^1$|notre carte|la carte|voir la carte|voir le menu|les plats|commander/.test(n)) return 1
+    if (/^2$|\bboissons?\b|\bdrinks?\b/.test(n)) return 2
+    if (/^3$|reserver|reservation|\bune table\b/.test(n)) return 3
+    return null
+}
+
+function detectSuiteCommand(text) {
+    return /\bsuite\b|\bsuivant\b|\bcontinuer\b/.test(normalizeText(text))
+}
+
+function detectValiderCommand(text) {
+    return /\bvalider\b|\bfinaliser\b/.test(normalizeText(text))
+}
+
+function detectModifierSection(text) {
+    const n = normalizeText(text)
+    if (/modifier.*entree|modifier.*starters|retour.*entree/.test(n)) return 'starters'
+    if (/modifier.*plat|modifier.*mains|retour.*plat/.test(n)) return 'mains'
+    if (/modifier.*supplement|modifier.*extras|retour.*supplement/.test(n)) return 'extras'
+    if (/modifier.*dessert|retour.*dessert/.test(n)) return 'desserts'
+    if (/modifier.*boisson|modifier.*drink|retour.*boisson/.test(n)) return 'drinks'
+    if (/\bmodifier\b/.test(n)) return 'generic'
+    return null
+}
+
+function detectFulfillmentMode(text) {
+    const n = normalizeText(text)
+    if (/(livraison|livrer|a domicile|chez moi|en livraison)/.test(n)) return 'delivery'
+    if (/(a emporter|emporter|retrait|retirer|takeaway)/.test(n)) return 'takeaway'
+    if (/(sur place|manger sur place|surplace|au restaurant|en salle)/.test(n)) return 'dine_in'
+    if (/^1$/.test(n.trim())) return 'dine_in'
+    if (/^2$/.test(n.trim())) return 'takeaway'
+    if (/^3$/.test(n.trim())) return 'delivery'
+    return null
+}
+
+function isPositiveReply(text) {
+    const n = normalizeText(text)
+    return ['oui', 'ok', 'okay', 'daccord', "d'accord", 'je confirme', 'confirme', 'cest bon', "c'est bon", 'yes'].includes(n)
+}
+
+function isNegativeReply(text) {
+    const n = normalizeText(text)
+    return ['non', 'modifier', 'je veux modifier', 'corriger', 'pas encore'].includes(n)
+}
+
+// ═══════════════════════════════════════════════════════════════
+// OFF-TOPIC QUESTION DETECTION
+// ═══════════════════════════════════════════════════════════════
+
+function isOffTopicQuestion(text) {
+    const n = normalizeText(text)
+    if (/(est[- ]ce qu[e']|est[- ]ce que vous|avez[- ]vous|vous avez|y a[- ]t[- ]il|il y a[- ]t[- ]il|proposez[- ]vous|vous proposez|faites[- ]vous|vous faites|c[' ]est quoi|qu[' ]est[- ]ce que|pouvez[- ]vous me|puis[- ]je savoir|acceptez[- ]vous)\b/.test(n)) return true
+    if (/(wifi|internet|parking|stationnement|horaire|heure d ouverture|ferme|fermeture|climatise|climatisation|air conditionne|tenue|dress.?code|carte bancaire|visa|mastercard|terminal de paiement)\b/.test(n)) return true
+    if (/(dispo|disponible|au menu|dans.*menu|sur.*carte|dans.*carte)\b/.test(n)) return true
+    if (/(ou etes.vous|ou vous trouvez|comment venir|comment y aller|l adresse|votre adresse|ou se trouve|ou est.ce)\b/.test(n)) return true
+    if (/(specialite|ambiance|capacite|nombre de table|terrasse|privatiser|privatisation|seminaire|animaux|enfants bienvenus|accessibilite|cuisine typique)\b/.test(n)) return true
+    return false
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ITEM EXTRACTION
+// ═══════════════════════════════════════════════════════════════
 
 const FRENCH_NUMBER_WORDS = {
     'un': 1, 'une': 1, 'deux': 2, 'trois': 3, 'quatre': 4, 'cinq': 5,
     'six': 6, 'sept': 7, 'huit': 8, 'neuf': 9, 'dix': 10,
-    'onze': 11, 'douze': 12, 'quinze': 15, 'vingt': 20
+    'onze': 11, 'douze': 12, 'quinze': 15, 'vingt': 20,
 }
 
 function extractQuantityFromSegment(text) {
-    const normalized = normalizeText(text)
-    if (!normalized) return null
+    const n = normalizeText(text)
+    if (!n) return null
 
-    // Chiffres arabes (priorité)
-    const startMatch = normalized.match(/^(\d{1,3})(?:\s|$)/)
-    if (startMatch) {
-        const quantity = Number(startMatch[1])
-        if (Number.isFinite(quantity) && quantity > 0) return quantity
-    }
+    const startMatch = n.match(/^(\d{1,3})(?:\s|$)/)
+    if (startMatch) { const q = Number(startMatch[1]); if (Number.isFinite(q) && q > 0) return q }
 
-    const endMatch = normalized.match(/(?:^|\s)(\d{1,3})$/)
-    if (endMatch) {
-        const quantity = Number(endMatch[1])
-        if (Number.isFinite(quantity) && quantity > 0) return quantity
-    }
+    const endMatch = n.match(/(?:^|\s)(\d{1,3})$/)
+    if (endMatch) { const q = Number(endMatch[1]); if (Number.isFinite(q) && q > 0) return q }
 
-    const inlineMatch = normalized.match(/\b(\d{1,3})\b/)
-    if (inlineMatch) {
-        const quantity = Number(inlineMatch[1])
-        if (Number.isFinite(quantity) && quantity > 0) return quantity
-    }
+    const inlineMatch = n.match(/\b(\d{1,3})\b/)
+    if (inlineMatch) { const q = Number(inlineMatch[1]); if (Number.isFinite(q) && q > 0) return q }
 
-    // Nombres en toutes lettres français
     for (const [word, value] of Object.entries(FRENCH_NUMBER_WORDS)) {
-        if (new RegExp(`\\b${word}\\b`).test(normalized)) return value
+        if (new RegExp(`\\b${word}\\b`).test(n)) return value
+    }
+    return null
+}
+
+function scoreProductMatch(searchName, product) {
+    const ns = normalizeText(searchName)
+    const np = normalizeText(product?.name)
+    const nt = normalizeText(`${product?.name || ''} ${product?.description || ''}`)
+    if (!ns || !np) return 0
+    if (np === ns) return 100
+    if (ns.includes(np) || np.includes(ns)) return 60
+    const terms = ns.split(/\s+/).filter(t => t.length > 2)
+    const nameHits = terms.filter(t => np.includes(t)).length
+    const textHits = terms.filter(t => nt.includes(t)).length
+    return nameHits * 12 + textHits * 3
+}
+
+function findProductByName(products, name) {
+    let best = null, bestScore = 0
+    for (const p of products) {
+        const score = scoreProductMatch(name, p)
+        if (score > bestScore) { best = p; bestScore = score }
+    }
+    return bestScore >= 10 ? best : null
+}
+
+function splitSegments(text) {
+    return String(text || '')
+        .split(/\s*(?:,|\+|;|\bet\b|\bpuis\b)\s*/i)
+        .map(s => s.trim())
+        .filter(Boolean)
+}
+
+function extractItemsFromText(text, products, currentItems) {
+    if (!products || products.length === 0) return { items: cloneCartItems(currentItems), captured: [] }
+    const nextItems = cloneCartItems(currentItems)
+    const captured = []
+    const segments = splitSegments(text)
+    const toInspect = segments.length > 0 ? segments : [text]
+
+    for (const seg of toInspect) {
+        const product = findProductByName(products, seg)
+        if (!product) continue
+        const qty = extractQuantityFromSegment(seg) || 1
+        const existing = nextItems.find(i => i.product_id === product.id)
+        if (existing) {
+            existing.quantity += qty
+            existing.line_total_fcfa = Number(product.price_fcfa || 0) * existing.quantity
+        } else {
+            nextItems.push({
+                product_id:        product.id,
+                product_name:      product.name,
+                menu_section_slug: product.menu_section_slug || null,
+                quantity:          qty,
+                unit_price_fcfa:   Number(product.price_fcfa || 0),
+                line_total_fcfa:   Number(product.price_fcfa || 0) * qty,
+            })
+        }
+        captured.push({ type: 'item', value: `${qty}x ${product.name}` })
+    }
+    return { items: nextItems, captured }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DATE / TIME EXTRACTION (langage naturel)
+// ═══════════════════════════════════════════════════════════════
+
+const MONTH_NAMES_FR = {
+    'janvier': 1, 'fevrier': 2, 'mars': 3, 'avril': 4, 'mai': 5, 'juin': 6,
+    'juillet': 7, 'aout': 8, 'septembre': 9, 'octobre': 10, 'novembre': 11, 'decembre': 12,
+}
+
+const DAY_NAMES_FR = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi']
+
+function extractDate(text) {
+    const raw = String(text || '')
+    const n = normalizeText(raw)
+    const today = new Date()
+
+    // ISO: YYYY-MM-DD
+    const iso = raw.match(/\b(\d{4})-(\d{2})-(\d{2})\b/)
+    if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`
+
+    // FR: DD/MM/YYYY ou DD-MM-YYYY
+    const fr = raw.match(/\b(\d{2})[/-](\d{2})[/-](\d{4})\b/)
+    if (fr) return `${fr[3]}-${fr[2]}-${fr[1]}`
+
+    // "demain"
+    if (/\bdemain\b/.test(n)) {
+        const d = new Date(today); d.setDate(d.getDate() + 1)
+        return d.toISOString().slice(0, 10)
+    }
+
+    // "aujourd'hui" / "ce soir" / "ce midi"
+    if (/\baujourd.?hui\b|ce soir\b|ce midi\b/.test(n)) return today.toISOString().slice(0, 10)
+
+    // "après-demain"
+    if (/\bapres[- ]?demain\b/.test(n)) {
+        const d = new Date(today); d.setDate(d.getDate() + 2)
+        return d.toISOString().slice(0, 10)
+    }
+
+    // Noms de jours (prochain)
+    for (let i = 0; i < DAY_NAMES_FR.length; i++) {
+        if (new RegExp(`\\b${DAY_NAMES_FR[i]}\\b`).test(n)) {
+            const d = new Date(today)
+            let daysAhead = i - d.getDay()
+            if (daysAhead <= 0) daysAhead += 7
+            d.setDate(d.getDate() + daysAhead)
+            return d.toISOString().slice(0, 10)
+        }
+    }
+
+    // "le 5 avril" / "5 avril"
+    for (const [name, month] of Object.entries(MONTH_NAMES_FR)) {
+        const m = n.match(new RegExp(`\\b(\\d{1,2})\\s+${name}\\b`))
+        if (m) {
+            const day = Number(m[1])
+            if (day >= 1 && day <= 31) {
+                let year = today.getFullYear()
+                const tentative = new Date(year, month - 1, day)
+                if (tentative < today) year++
+                return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+            }
+        }
+    }
+
+    // DD/MM ou D/M (sans année)
+    const short = raw.match(/\b(\d{1,2})[/-](\d{1,2})\b/)
+    if (short) {
+        const day = Number(short[1]), month = Number(short[2])
+        if (day >= 1 && day <= 31 && month >= 1 && month <= 12) {
+            let year = today.getFullYear()
+            const tentative = new Date(year, month - 1, day)
+            if (tentative < today) year++
+            return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+        }
     }
 
     return null
 }
 
-/**
- * Détecte toute question hors-parcours commande :
- * - Questions de disponibilité menu
- * - Infos pratiques (wifi, parking, horaires, adresse, paiement...)
- * - Questions générales sur le restaurant
- * Quand true → état figé + IA répond librement + réancre le flow
- */
-function isOffTopicQuestion(text) {
-    const normalized = normalizeText(text)
-
-    // Formes interrogatives françaises
-    if (/(est[- ]ce qu[e']|est[- ]ce que vous|avez[- ]vous|vous avez|y a[- ]t[- ]il|il y a[- ]t[- ]il|proposez[- ]vous|vous proposez|faites[- ]vous|vous faites|c[' ]est quoi|qu[' ]est[- ]ce que|pouvez[- ]vous me|puis[- ]je savoir|acceptez[- ]vous)\b/.test(normalized)) return true
-
-    // Infos pratiques & logistique
-    if (/(wifi|internet|connexion|parking|stationnement|stationner|horaire|heure d ouverture|heure de fermeture|ouvert|ferme|fermeture|climatise|climatisation|air conditionne|tenue|dress.?code|carte bancaire|visa|mastercard|terminal de paiement|acceptez vous la carte)\b/.test(normalized)) return true
-
-    // Disponibilité menu
-    if (/(dispo|disponible|au menu|dans.*menu|sur.*carte|dans.*carte)\b/.test(normalized)) return true
-
-    // Localisation & orientation
-    if (/(ou etes.vous|ou vous trouvez|comment venir|comment y aller|l adresse|votre adresse|ou se trouve|ou est.ce|ou vous situez)\b/.test(normalized)) return true
-
-    // Questions générales restaurant
-    if (/(specialite|ambiance|capacite|nombre de table|terrasse|privatiser|privatisation|seminaire|animaux|enfants bienvenus|accessibilite|handicap|bruit|musique|cuisine typique)\b/.test(normalized)) return true
-
-    return false
-}
-
-function extractItemsFromText(text, restaurantProducts = [], currentItems = []) {
-    if (!Array.isArray(restaurantProducts) || restaurantProducts.length === 0) {
-        return { items: cloneItems(currentItems), captured: [] }
-    }
-
-    const nextItems = cloneItems(currentItems)
-    const captured = []
-    const segments = splitItemSegments(text)
-    const inspectedSegments = segments.length > 0 ? segments : [String(text || '')]
-
-    for (const segment of inspectedSegments) {
-        const product = findRestaurantProductByName(restaurantProducts, segment)
-        if (!product) continue
-
-        const quantity = extractQuantityFromSegment(segment) || 1
-        const existingItem = nextItems.find(item => item.product_id === product.id)
-        if (existingItem) {
-            existingItem.quantity += quantity
-            existingItem.line_total_fcfa = Number(product.price_fcfa || 0) * existingItem.quantity
-        } else {
-            nextItems.push({
-                product_id: product.id,
-                product_name: product.name,
-                quantity,
-                unit_price_fcfa: Number(product.price_fcfa || 0),
-                line_total_fcfa: Number(product.price_fcfa || 0) * quantity,
-                product_category: product.menu_section_slug || product.category || null,
-            })
-        }
-
-        captured.push({
-            type: 'item',
-            value: `${quantity}x ${product.name}`
-        })
-    }
-
-    return { items: nextItems, captured }
-}
-
-function extractDates(text) {
-    const raw = String(text || '')
-    const matches = []
-
-    const isoMatches = raw.match(/\b\d{4}-\d{2}-\d{2}\b/g) || []
-    isoMatches.forEach(value => matches.push(value))
-
-    const frMatches = raw.match(/\b\d{2}[/-]\d{2}[/-]\d{4}\b/g) || []
-    frMatches.forEach(value => {
-        const [day, month, year] = value.split(/[/-]/)
-        matches.push(`${year}-${month}-${day}`)
-    })
-
-    return Array.from(new Set(matches))
-}
-
 function extractTime(text) {
-    const match = String(text || '').match(/\b(\d{1,2})(?:[:hH](\d{2}))\b/)
-    if (!match) return null
+    const raw = String(text || '')
+    const n = normalizeText(raw)
 
-    const hours = Number(match[1])
-    const minutes = Number(match[2] || '00')
-    if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null
-    if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null
+    if (/\bmidi\b/.test(n)) return '12:00'
+    if (/\bminuit\b/.test(n)) return '00:00'
 
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
+    // HH:MM ou HHhMM
+    const full = raw.match(/\b(\d{1,2})[hH:](\d{2})\b/)
+    if (full) {
+        const h = Number(full[1]), m = Number(full[2])
+        if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
+            return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+        }
+    }
+
+    // "15h" sans minutes
+    const hourOnly = raw.match(/\b(\d{1,2})\s*h(?:eures?)?\b/i)
+    if (hourOnly) {
+        const h = Number(hourOnly[1])
+        if (h >= 0 && h <= 23) return `${String(h).padStart(2, '0')}:00`
+    }
+
+    return null
 }
+
+// ═══════════════════════════════════════════════════════════════
+// OTHER FIELD EXTRACTION
+// ═══════════════════════════════════════════════════════════════
 
 function extractPartySize(text) {
-    const normalized = normalizeText(text)
+    const n = normalizeText(text)
     const patterns = [
-        /\b(\d{1,2})\s*(?:personnes?|pers?|adultes?|enfants?|couverts?)\b/,
+        /\b(\d{1,2})\s*(?:personnes?|pers?|adultes?|couverts?)\b/,
         /\bnous serons\s+(\d{1,2})\b/,
-        /\bpour\s+(\d{1,2})\s+personnes?\b/,
+        /\bpour\s+(\d{1,2})\s*(?:personnes?)?\b/,
     ]
-
-    for (const pattern of patterns) {
-        const match = normalized.match(pattern)
-        if (!match) continue
-
-        const size = Number(match[1])
-        if (Number.isFinite(size) && size > 0) {
-            return size
+    for (const p of patterns) {
+        const m = n.match(p)
+        if (m) {
+            const s = Number(m[1])
+            if (Number.isFinite(s) && s > 0 && s <= 50) return s
         }
     }
-
+    for (const [word, value] of Object.entries(FRENCH_NUMBER_WORDS)) {
+        if (new RegExp(`^${word}$`).test(n)) return value
+    }
+    // Simple digit answer (ex: "4")
+    const simple = n.match(/^(\d{1,2})$/)
+    if (simple) {
+        const s = Number(simple[1])
+        if (s > 0 && s <= 50) return s
+    }
     return null
 }
 
 function extractCustomerPhone(text) {
     const candidates = String(text || '').match(/(?:\+|00)?\d[\d\s().-]{7,}\d/g) || []
-    for (const candidate of candidates) {
-        const normalized = normalizePhoneNumber(candidate)
-        if (normalized) return normalized
+    for (const c of candidates) {
+        const norm = normalizePhoneNumber(c)
+        if (norm) return norm
     }
     return null
 }
@@ -299,18 +441,11 @@ function extractCustomerPhone(text) {
 function extractCustomerName(text, force = false) {
     const raw = String(text || '').trim()
     if (!raw) return null
-
-    const explicitMatch = raw.match(/(?:je m[' ]appelle|mon nom est|moi c[' ]est|c[' ]est)\s+(.+)$/i)
-    const source = explicitMatch ? explicitMatch[1] : (force ? raw : null)
+    const explicit = raw.match(/(?:je m[' ]appelle|mon nom est|moi c[' ]est|c[' ]est)\s+(.+)$/i)
+    const source = explicit ? explicit[1] : (force ? raw : null)
     if (!source) return null
-
-    const cleaned = source
-        .replace(/[^\p{L}A-Za-z' -]/gu, ' ')
-        .replace(/\s+/g, ' ')
-        .trim()
-
+    const cleaned = source.replace(/[^\p{L}A-Za-z' -]/gu, ' ').replace(/\s+/g, ' ').trim()
     if (!cleaned) return null
-
     const words = cleaned.split(' ').filter(Boolean)
     if (words.length < 1 || words.length > 6) return null
     return cleaned
@@ -319,515 +454,676 @@ function extractCustomerName(text, force = false) {
 function extractDeliveryAddress(text, force = false) {
     const raw = String(text || '').trim()
     if (!raw) return null
-
     const mapsLink = raw.match(/https?:\/\/(maps\.google\.com|goo\.gl\/maps|maps\.app\.goo\.gl|www\.google\.com\/maps)[^\s]*/i)
     if (mapsLink) return mapsLink[0]
-
-    const normalized = normalizeText(raw)
-    if (!force && !/(adresse|livraison|quartier|avenue|rue|boulevard|commune|immeuble|maison|appartement)/.test(normalized)) {
-        return null
-    }
-
+    const n = normalizeText(raw)
+    if (!force && !/(adresse|livraison|quartier|avenue|rue|boulevard|commune|immeuble|maison|appartement)/.test(n)) return null
     const cleaned = raw.replace(/\s+/g, ' ').trim()
     return cleaned.length >= 8 ? cleaned : null
 }
 
-function detectFulfillmentMode(text, hasItems = false, currentMode = null) {
-    const normalized = normalizeText(text)
-    if (!normalized) return currentMode
+// ═══════════════════════════════════════════════════════════════
+// MESSAGE BUILDERS
+// ═══════════════════════════════════════════════════════════════
 
-    if (/(livraison|livrer|a domicile|chez moi)/.test(normalized)) return 'delivery'
-    if (/(emporter|a emporter|retrait|retirer|takeaway)/.test(normalized)) return 'takeaway'
-    if (/(sur place|manger sur place|surplace|au restaurant)/.test(normalized)) return 'dine_in'
-
-    if (/\b(reserver|reservation|table)\b/.test(normalized)) {
-        return hasItems ? 'dine_in' : 'booking_only'
-    }
-
-    if (currentMode === 'booking_only' && hasItems) {
-        return 'dine_in'
-    }
-
-    return currentMode
+function formatPrice(price_fcfa) {
+    if (!price_fcfa) return 'Prix sur demande'
+    return `${Number(price_fcfa).toLocaleString('fr-FR')} FCFA`
 }
 
-function detectRestaurantPaymentMethod(text, mode) {
-    const normalized = normalizeText(text)
-    if (!normalized) return null
+function formatReadableDate(isoDate) {
+    if (!isoDate) return isoDate
+    try {
+        const [year, month, day] = isoDate.split('-')
+        const d = new Date(Number(year), Number(month) - 1, Number(day))
+        const dayName = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'][d.getDay()]
+        const monthName = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'][d.getMonth()]
+        return `${dayName} ${Number(day)} ${monthName}`
+    } catch {
+        return isoDate
+    }
+}
 
-    if (/(en ligne|online|payer maintenant|mobile money|carte)/.test(normalized)) {
-        return 'online'
+function buildSectionMessage(slug, products, cartItems, state) {
+    const config = SECTION_CONFIG[slug]
+    if (!config) return null
+    const sectionProducts = getProductsForSection(products, slug)
+    if (sectionProducts.length === 0) return null
+
+    const lines = [`${config.emoji} *${config.label}*`]
+    for (const p of sectionProducts) {
+        lines.push(`• ${p.name} — ${formatPrice(p.price_fcfa)}`)
     }
 
-    if (mode === 'dine_in' || mode === 'booking_only') {
-        if (/(sur place|onsite|a l arrivee|a l'arrivee)/.test(normalized)) {
-            return 'onsite'
-        }
+    const example = sectionProducts[0]?.name?.toLowerCase() || 'article'
+    lines.push(`Choisissez et précisez la quantité (ex : "1 ${example}")`)
+
+    if (slug === 'drinks') {
+        const lastFoodSlug = state.section_order[state.section_order.length - 1]
+        const lastLabel = (lastFoodSlug && SECTION_CONFIG[lastFoodSlug]?.label.toLowerCase()) || 'desserts'
+        lines.push(`ou tapez "valider" pour finaliser · "modifier" pour les ${lastLabel}.`)
     } else {
-        if (/(sur place|au retrait|a la livraison|cash|cod)/.test(normalized)) {
-            return 'onsite'
+        const idx = state.current_section_index
+        const order = state.section_order
+        const isFirst = idx === 0
+        const isLast = idx === order.length - 1
+        const prevLabel = !isFirst ? SECTION_CONFIG[order[idx - 1]]?.label.toLowerCase() : null
+        const nextSlug = !isLast ? order[idx + 1] : null
+        const nextLabel = nextSlug ? SECTION_CONFIG[nextSlug]?.label.toLowerCase() : null
+
+        if (isLast) {
+            const nextTarget = state.drinks_enabled ? 'les boissons' : 'continuer'
+            if (isFirst) {
+                lines.push(`ou tapez "suite" pour ${nextTarget}.`)
+            } else {
+                lines.push(`ou tapez "suite" pour ${nextTarget} · "modifier" pour les ${prevLabel}.`)
+            }
+        } else {
+            if (isFirst) {
+                lines.push(`ou tapez "suite" pour les ${nextLabel}.`)
+            } else {
+                lines.push(`ou tapez "suite" pour les ${nextLabel} · "modifier" pour les ${prevLabel}.`)
+            }
         }
     }
 
-    return null
-}
-
-function buildAwaitingField(state) {
-    if (!state.mode) {
-        return {
-            type: 'mode',
-            label: 'mode de commande',
-            prompt: 'Souhaitez-vous manger sur place, reserver sans commande, emporter ou livraison ?'
-        }
-    }
-
-    if ((state.mode === 'takeaway' || state.mode === 'delivery') && state.items.length === 0) {
-        return {
-            type: 'items',
-            label: 'articles',
-            prompt: 'Quels plats ou boissons souhaitez-vous commander ?'
-        }
-    }
-
-    if ((state.mode === 'dine_in' || state.mode === 'booking_only') && !state.scheduled_date) {
-        return {
-            type: 'scheduled_date',
-            label: 'date',
-            prompt: 'Pour quelle date souhaitez-vous reserver ? (format conseille: YYYY-MM-DD)'
-        }
-    }
-
-    if ((state.mode === 'dine_in' || state.mode === 'booking_only') && !state.scheduled_time) {
-        return {
-            type: 'scheduled_time',
-            label: 'heure',
-            prompt: 'A quelle heure souhaitez-vous venir ? (format conseille: HH:MM)'
-        }
-    }
-
-    if ((state.mode === 'dine_in' || state.mode === 'booking_only') && !state.party_size) {
-        return {
-            type: 'party_size',
-            label: 'nombre de personnes',
-            prompt: 'Pour combien de personnes ?'
-        }
-    }
-
-    if (state.mode === 'delivery' && !state.delivery_address) {
-        return {
-            type: 'delivery_address',
-            label: 'adresse de livraison',
-            prompt: 'Quelle est l adresse de livraison complete ?'
-        }
-    }
-
-    if (!state.customer_name) {
-        return {
-            type: 'customer_name',
-            label: 'nom complet',
-            prompt: 'Quel est votre nom complet ?'
-        }
-    }
-
-    if (!state.customer_phone) {
-        return {
-            type: 'customer_phone',
-            label: 'numero de telephone',
-            prompt: 'Quel est votre numero de telephone avec indicatif pays ?'
-        }
-    }
-
-    if (!state.payment_method) {
-        return {
-            type: 'payment_method',
-            label: 'mode de paiement',
-            prompt: state.mode === 'delivery'
-                ? 'Souhaitez-vous payer en ligne ou a la livraison ?'
-                : state.mode === 'takeaway'
-                    ? 'Souhaitez-vous payer en ligne ou au retrait ?'
-                    : 'Souhaitez-vous payer en ligne ou sur place ?'
-        }
-    }
-
-    if (state.notes === null && !state.note_declined) {
-        return {
-            type: 'notes',
-            label: 'notes',
-            prompt: 'Avez-vous une demande particuliere a ajouter ?'
-        }
-    }
-
-    return null
-}
-
-function formatModeLabel(mode) {
-    switch (mode) {
-        case 'dine_in': return 'Sur place'
-        case 'booking_only': return 'Reservation simple'
-        case 'takeaway': return 'A emporter'
-        case 'delivery': return 'Livraison'
-        default: return 'Non defini'
-    }
-}
-
-function formatPaymentLabel(paymentMethod, mode) {
-    if (paymentMethod === 'online') return 'En ligne'
-    if (paymentMethod === 'onsite') {
-        if (mode === 'delivery') return 'A la livraison'
-        if (mode === 'takeaway') return 'Au retrait'
-        return 'Sur place'
-    }
-    return 'Non defini'
-}
-
-function buildCapturedSummary(captured = []) {
-    if (!captured.length) return ''
-
-    const parts = captured.map(item => {
-        if (item.type === 'item') return item.value
-        if (item.type === 'mode') return `le mode ${formatModeLabel(item.value).toLowerCase()}`
-        if (item.type === 'scheduled_date') return `la date ${item.value}`
-        if (item.type === 'scheduled_time') return `l heure ${item.value}`
-        if (item.type === 'party_size') return `${item.value} personne(s)`
-        if (item.type === 'customer_name') return `le nom ${item.value}`
-        if (item.type === 'customer_phone') return `le telephone ${item.value}`
-        if (item.type === 'delivery_address') return `l adresse ${item.value}`
-        if (item.type === 'payment_method') return `le paiement ${formatPaymentLabel(item.value)}`
-        if (item.type === 'notes') return `la note "${item.value}"`
-        return item.value
-    })
-
-    if (parts.length === 1) return `Parfait, ${parts[0]}.`
-    if (parts.length === 2) return `Parfait, ${parts[0]} et ${parts[1]}.`
-    return `Parfait, ${parts.slice(0, -1).join(', ')} et ${parts[parts.length - 1]}.`
-}
-
-function buildRestaurantRecap(state) {
-    const lines = ['Voici le recapitulatif de votre demande :', '']
-
-    lines.push(`- Mode : ${formatModeLabel(state.mode)}`)
-
-    if (state.items.length > 0) {
-        lines.push(`- Articles : ${state.items.map(item => `${item.quantity}x ${item.product_name}`).join(', ')}`)
-        const total = state.items.reduce((sum, item) => {
-            if (Number.isFinite(Number(item.line_total_fcfa))) return sum + Number(item.line_total_fcfa)
-            if (Number.isFinite(Number(item.unit_price_fcfa))) return sum + (Number(item.unit_price_fcfa) * Number(item.quantity || 0))
-            return sum
-        }, 0)
-        if (total > 0) {
-            lines.push(`- Total estime : ${total.toLocaleString('fr-FR')} FCFA`)
-        }
-    }
-
-    if (state.scheduled_date) lines.push(`- Date : ${state.scheduled_date}`)
-    if (state.scheduled_time) lines.push(`- Heure : ${state.scheduled_time}`)
-    if (state.party_size) lines.push(`- Personnes : ${state.party_size}`)
-    if (state.delivery_address) lines.push(`- Adresse : ${state.delivery_address}`)
-    if (state.customer_name) lines.push(`- Nom : ${state.customer_name}`)
-    if (state.customer_phone) lines.push(`- Telephone : ${state.customer_phone}`)
-    if (state.payment_method) lines.push(`- Paiement : ${formatPaymentLabel(state.payment_method, state.mode)}`)
-
-    if (state.note_declined) {
-        lines.push('- Notes : aucune')
-    } else if (state.notes) {
-        lines.push(`- Notes : ${state.notes}`)
-    }
-
-    lines.push('', 'Confirmez-vous ?')
     return lines.join('\n')
 }
 
-function buildStructuredRestaurantReply(state, captured = []) {
-    if (state.stage === RESTAURANT_STAGE.RECAP) {
-        return buildRestaurantRecap(state)
+function buildIntermediateRecap(cartItems) {
+    const foodItems = cartItems.filter(i => i.menu_section_slug !== 'drinks')
+    const lines = ['Votre commande :']
+    let subtotal = 0
+
+    for (const slug of SECTION_ORDER_CANONICAL) {
+        const items = foodItems.filter(i => i.menu_section_slug === slug)
+        const config = SECTION_CONFIG[slug]
+        if (!config) continue
+        if (items.length > 0) {
+            for (const item of items) {
+                lines.push(`${config.emoji} ${item.quantity}× ${item.product_name} — ${item.line_total_fcfa.toLocaleString('fr-FR')} FCFA`)
+                subtotal += item.line_total_fcfa
+            }
+        } else {
+            lines.push(`${config.emoji} Aucun ${config.singular}`)
+        }
     }
 
-    const acknowledgement = buildCapturedSummary(captured)
-    return [acknowledgement, state.awaiting_field?.prompt].filter(Boolean).join(' ')
+    lines.push(`💰 Sous-total : ${subtotal.toLocaleString('fr-FR')} FCFA`)
+    return lines.join('\n')
 }
 
-function isPositiveReply(text) {
-    const normalized = normalizeText(text)
-    return ['oui', 'ok', 'okay', 'daccord', "d'accord", 'je confirme', 'confirme', 'cest bon', "c'est bon"].includes(normalized)
+function buildFinalCartRecap(cartItems) {
+    const lines = ['Récapitulatif final :']
+    let total = 0
+    for (const slug of [...SECTION_ORDER_CANONICAL, 'drinks']) {
+        const items = cartItems.filter(i => i.menu_section_slug === slug)
+        for (const item of items) {
+            const emoji = SECTION_CONFIG[slug]?.emoji || '•'
+            lines.push(`${emoji} ${item.quantity}× ${item.product_name} — ${item.line_total_fcfa.toLocaleString('fr-FR')} FCFA`)
+            total += item.line_total_fcfa
+        }
+    }
+    lines.push(`💰 Total : ${total.toLocaleString('fr-FR')} FCFA`)
+    return lines.join('\n')
 }
 
-function isNegativeReply(text) {
-    const normalized = normalizeText(text)
-    return ['non', 'modifier', 'je veux modifier', 'corriger', 'je corrige', 'pas maintenant'].includes(normalized)
+function buildModeQuestion() {
+    return [
+        '✏️ Tapez "modifier entrées/plats/suppléments/desserts/boissons" pour corriger',
+        'ou choisissez le mode :',
+        '1️⃣ Sur place',
+        '2️⃣ À emporter',
+        '3️⃣ Livraison',
+    ].join('\n')
 }
+
+function buildFinalRecap(state) {
+    const cf = state.customer_flow
+    const lines = []
+
+    if (state.cart_items.length > 0) {
+        let total = 0
+        const itemParts = []
+        for (const slug of [...SECTION_ORDER_CANONICAL, 'drinks']) {
+            for (const item of state.cart_items.filter(i => i.menu_section_slug === slug)) {
+                itemParts.push(`${SECTION_CONFIG[slug]?.emoji || '•'} ${item.quantity}× ${item.product_name}`)
+                total += item.line_total_fcfa
+            }
+        }
+        if (itemParts.length > 0) {
+            lines.push(itemParts.join(' | '))
+            lines.push(`💰 Total : ${total.toLocaleString('fr-FR')} FCFA`)
+        }
+    }
+
+    if (cf.scheduled_date) {
+        const dateStr = formatReadableDate(cf.scheduled_date)
+        const timeStr = cf.scheduled_time ? ` à ${cf.scheduled_time}` : ''
+        const partyStr = cf.party_size ? ` — ${cf.party_size} personne${cf.party_size > 1 ? 's' : ''}` : ''
+        if (state.fulfillment_mode === 'takeaway') {
+            lines.push(`🕐 Récupération : ${dateStr}${timeStr}`)
+        } else {
+            lines.push(`📅 ${dateStr}${timeStr}${partyStr}`)
+        }
+    } else if (cf.party_size) {
+        lines.push(`👥 ${cf.party_size} personne${cf.party_size > 1 ? 's' : ''}`)
+    }
+
+    if (cf.delivery_address) lines.push(`🚚 Livraison : ${cf.delivery_address}`)
+
+    if (cf.customer_name || cf.customer_phone) {
+        const parts = []
+        if (cf.customer_name) parts.push(`👤 ${cf.customer_name}`)
+        if (cf.customer_phone) parts.push(`📱 ${cf.customer_phone}`)
+        lines.push(parts.join(' | '))
+    }
+
+    if (cf.note_declined) {
+        lines.push('📝 Notes : Aucune')
+    } else if (cf.notes) {
+        lines.push(`📝 Notes : ${cf.notes}`)
+    }
+
+    lines.push('Confirmez-vous ?')
+    return lines.join('\n')
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CUSTOMER FLOW — CHAMP EN ATTENTE
+// ═══════════════════════════════════════════════════════════════
+
+function buildAwaitingCfField(state) {
+    const cf = state.customer_flow
+    const mode = state.fulfillment_mode
+
+    if ((mode === 'dine_in' || mode === 'booking_only' || mode === 'takeaway') && !cf.scheduled_date) {
+        return {
+            type: 'date_time',
+            label: 'date et heure',
+            prompt: mode === 'takeaway'
+                ? 'Pour quelle date et heure de récupération ? 🕐'
+                : 'Pour quelle date et à quelle heure ? 📅⏰',
+        }
+    }
+
+    if ((mode === 'dine_in' || mode === 'booking_only') && !cf.party_size) {
+        return { type: 'party_size', label: 'nombre de personnes', prompt: 'Pour combien de personnes ? 👥' }
+    }
+
+    if (mode === 'delivery' && !cf.delivery_address) {
+        return { type: 'delivery_address', label: 'adresse de livraison', prompt: 'Quelle est votre adresse de livraison ? 📍' }
+    }
+
+    if ((mode === 'dine_in' || mode === 'booking_only') && cf.notes === null && !cf.note_declined) {
+        return { type: 'notes', label: 'demandes particulières', prompt: 'Avez-vous des demandes particulières ? (tapez "non" si aucune)' }
+    }
+
+    if (!cf.customer_name || !cf.customer_phone) {
+        return { type: 'customer_info', label: 'nom et téléphone', prompt: 'Votre nom complet et votre téléphone avec indicatif ? 👤📱' }
+    }
+
+    return null
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ADVANCE SECTION HELPER
+// ═══════════════════════════════════════════════════════════════
+
+function advanceSectionOrDrinks(state, products, ackMessage) {
+    const nextIndex = state.current_section_index + 1
+
+    if (nextIndex < state.section_order.length) {
+        state.current_section_index = nextIndex
+        const nextSlug = state.section_order[nextIndex]
+        const sectionMsg = buildSectionMessage(nextSlug, products, state.cart_items, state)
+        const reply = ackMessage ? `${ackMessage}\n\n${sectionMsg}` : sectionMsg
+        state.last_prompt_kind = RESTAURANT_STAGE.SECTION
+        return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: reply }
+    }
+
+    if (state.drinks_enabled) {
+        state.stage = RESTAURANT_STAGE.DRINKS
+        const foodRecap = buildIntermediateRecap(state.cart_items)
+        const drinksMsg = buildSectionMessage('drinks', products, state.cart_items, state)
+        const parts = []
+        if (ackMessage) parts.push(ackMessage)
+        parts.push(foodRecap)
+        if (drinksMsg) parts.push(drinksMsg)
+        state.last_prompt_kind = RESTAURANT_STAGE.DRINKS
+        return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: parts.join('\n\n') }
+    }
+
+    // Pas de boissons → directement au choix du mode
+    state.stage = RESTAURANT_STAGE.MODE
+    const cartRecap = buildFinalCartRecap(state.cart_items)
+    const modeMsg = buildModeQuestion()
+    const parts = []
+    if (ackMessage) parts.push(ackMessage)
+    if (state.cart_items.length > 0) parts.push(cartRecap)
+    parts.push(modeMsg)
+    state.last_prompt_kind = RESTAURANT_STAGE.MODE
+    return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: parts.join('\n\n') }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MAIN UPDATE FUNCTION
+// ═══════════════════════════════════════════════════════════════
 
 function updateRestaurantStateFromUserMessage(previousState, text, restaurantProducts = []) {
     const state = cloneRestaurantState(previousState)
     const normalized = normalizeText(text)
-    const captured = []
+    if (!normalized) return { state, stateChanged: false, shouldBypassAI: false, questionDetected: false, directReply: null }
 
-    if (!normalized) {
-        return { state, captured, stateChanged: false, shouldBypassAI: false, directReply: null }
+    // Initialiser section_order et drinks_enabled si vide
+    if (state.section_order.length === 0 && restaurantProducts.length > 0) {
+        state.section_order = buildSectionOrder(restaurantProducts)
+        state.drinks_enabled = getDrinkProducts(restaurantProducts).length > 0
     }
 
-    if (state.awaiting_field?.type === 'notes' && ['non', 'aucune', 'aucun', 'rien', 'ras'].includes(normalized)) {
-        state.note_declined = true
-        state.notes = null
-        state.awaiting_field = buildAwaitingField(state)
-        state.stage = state.awaiting_field ? RESTAURANT_STAGE.COLLECTING : RESTAURANT_STAGE.RECAP
-        state.last_prompt_kind = state.stage
-        state.last_prompt_text = normalized
-        return {
-            state,
-            captured,
-            stateChanged: true,
-            shouldBypassAI: true,
-            directReply: buildStructuredRestaurantReply(state, [])
-        }
-    }
-
-    if (state.stage === RESTAURANT_STAGE.RECAP && isPositiveReply(normalized)) {
-        state.stage = RESTAURANT_STAGE.READY
-        state.awaiting_field = null
-        state.last_prompt_kind = RESTAURANT_STAGE.READY
-        state.last_prompt_text = normalized
-        return { state, captured, stateChanged: true, shouldBypassAI: false, directReply: null }
-    }
-
-    if (state.stage === RESTAURANT_STAGE.RECAP && isNegativeReply(normalized)) {
-        state.stage = RESTAURANT_STAGE.COLLECTING
-        state.awaiting_field = {
-            type: 'free_edit',
-            label: 'modification',
-            prompt: 'D accord. Dites-moi ce que vous souhaitez modifier.'
-        }
-        state.last_prompt_kind = RESTAURANT_STAGE.COLLECTING
-        state.last_prompt_text = normalized
-        return {
-            state,
-            captured,
-            stateChanged: true,
-            shouldBypassAI: true,
-            directReply: state.awaiting_field.prompt
-        }
-    }
-
-    const previousAwaiting = cloneAwaitingField(state.awaiting_field)
-    const previousMode = state.mode
-    const previousSignature = JSON.stringify(state)
-
-    // Si le message est une question hors-parcours, ne pas capturer d'items
-    // → état figé, IA répond librement et réancre le flow
     const questionDetected = isOffTopicQuestion(text)
-    const itemResult = questionDetected
-        ? { items: cloneItems(state.items), captured: [] }
-        : extractItemsFromText(text, restaurantProducts, state.items)
-    if (itemResult.captured.length > 0) {
-        state.items = itemResult.items
-        captured.push(...itemResult.captured)
-    }
+    const noOp = { state, stateChanged: false, shouldBypassAI: false, questionDetected, directReply: null }
 
-    const detectedMode = detectFulfillmentMode(text, state.items.length > 0, state.mode)
-    if (detectedMode && detectedMode !== state.mode) {
-        state.mode = detectedMode
-        captured.push({ type: 'mode', value: detectedMode })
-    }
+    // ──────────────────────────────────────────────
+    // STAGE: MENU_HOME
+    // ──────────────────────────────────────────────
+    if (state.stage === RESTAURANT_STAGE.MENU_HOME) {
+        if (questionDetected) return noOp
 
-    if (state.mode === 'booking_only' && state.items.length > 0) {
-        state.mode = 'dine_in'
-    }
+        const choice = detectMenuChoice(text)
 
-    const shouldStartFlow = hasRestaurantStateData(state) ||
-        itemResult.captured.length > 0 ||
-        (!!detectedMode && detectedMode !== previousMode)
-
-    if (!shouldStartFlow) {
-        return { state, captured: [], stateChanged: false, shouldBypassAI: false, questionDetected, directReply: null }
-    }
-
-    const dates = extractDates(text)
-    if (!state.scheduled_date && dates[0]) {
-        state.scheduled_date = dates[0]
-        captured.push({ type: 'scheduled_date', value: dates[0] })
-    }
-
-    if (!state.scheduled_time) {
-        const extractedTime = extractTime(text)
-        if (extractedTime) {
-            state.scheduled_time = extractedTime
-            captured.push({ type: 'scheduled_time', value: extractedTime })
+        if (choice === 1) {
+            // Notre Carte → première section
+            if (state.section_order.length === 0) {
+                // Pas de sections food → boissons
+                state.stage = RESTAURANT_STAGE.DRINKS
+                const drinksMsg = buildSectionMessage('drinks', restaurantProducts, state.cart_items, state)
+                state.last_prompt_kind = RESTAURANT_STAGE.DRINKS
+                return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: drinksMsg }
+            }
+            state.stage = RESTAURANT_STAGE.SECTION
+            state.current_section_index = 0
+            const sectionMsg = buildSectionMessage(state.section_order[0], restaurantProducts, state.cart_items, state)
+            state.last_prompt_kind = RESTAURANT_STAGE.SECTION
+            return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: sectionMsg }
         }
-    }
 
-    if (!state.party_size) {
-        const extractedPartySize = extractPartySize(text)
-        if (extractedPartySize) {
-            state.party_size = extractedPartySize
-            captured.push({ type: 'party_size', value: extractedPartySize })
+        if (choice === 2) {
+            state.stage = RESTAURANT_STAGE.DRINKS
+            const drinksMsg = buildSectionMessage('drinks', restaurantProducts, state.cart_items, state)
+            state.last_prompt_kind = RESTAURANT_STAGE.DRINKS
+            return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: drinksMsg }
         }
-    }
 
-    if (!state.customer_phone) {
-        const extractedPhone = extractCustomerPhone(text)
-        if (extractedPhone) {
-            state.customer_phone = extractedPhone
-            captured.push({ type: 'customer_phone', value: extractedPhone })
+        if (choice === 3) {
+            state.fulfillment_mode = 'booking_only'
+            state.stage = RESTAURANT_STAGE.CUSTOMER_FLOW
+            state.awaiting_cf_field = buildAwaitingCfField(state)
+            state.last_prompt_kind = RESTAURANT_STAGE.CUSTOMER_FLOW
+            return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: state.awaiting_cf_field?.prompt }
         }
-    }
 
-    if (!state.customer_name) {
-        const extractedName = extractCustomerName(text, state.awaiting_field?.type === 'customer_name' || state.awaiting_field?.type === 'free_edit')
-        if (extractedName) {
-            state.customer_name = extractedName
-            captured.push({ type: 'customer_name', value: extractedName })
+        // Commande directe (sans passer par le menu)
+        const allProducts = restaurantProducts.filter(p => p.menu_section_slug !== 'drinks')
+        const itemResult = extractItemsFromText(text, allProducts, state.cart_items)
+        if (itemResult.captured.length > 0) {
+            state.cart_items = itemResult.items
+            state.stage = RESTAURANT_STAGE.MODE
+            const ack = `✅ ${itemResult.captured.map(c => c.value).join(', ')} ajouté${itemResult.captured.length > 1 ? 's' : ''}`
+            const cartRecap = buildFinalCartRecap(state.cart_items)
+            const modeMsg = buildModeQuestion()
+            state.last_prompt_kind = RESTAURANT_STAGE.MODE
+            return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: `${ack}\n\n${cartRecap}\n\n${modeMsg}` }
         }
-    }
 
-    if (state.mode === 'delivery' && !state.delivery_address) {
-        const extractedAddress = extractDeliveryAddress(text, state.awaiting_field?.type === 'delivery_address' || state.awaiting_field?.type === 'free_edit')
-        if (extractedAddress) {
-            state.delivery_address = extractedAddress
-            captured.push({ type: 'delivery_address', value: extractedAddress })
+        // Réservation directe par texte
+        if (/reserver|reservation|\bune table\b/.test(normalized)) {
+            state.fulfillment_mode = 'booking_only'
+            state.stage = RESTAURANT_STAGE.CUSTOMER_FLOW
+            state.awaiting_cf_field = buildAwaitingCfField(state)
+            state.last_prompt_kind = RESTAURANT_STAGE.CUSTOMER_FLOW
+            return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: state.awaiting_cf_field?.prompt }
         }
+
+        // Laisser l'IA afficher le menu principal (premier message, bonjour, etc.)
+        return noOp
     }
 
-    if (!state.payment_method) {
-        const extractedPaymentMethod = detectRestaurantPaymentMethod(text, state.mode)
-        if (extractedPaymentMethod) {
-            state.payment_method = extractedPaymentMethod
-            captured.push({ type: 'payment_method', value: extractedPaymentMethod })
+    // ──────────────────────────────────────────────
+    // STAGE: SECTION
+    // ──────────────────────────────────────────────
+    if (state.stage === RESTAURANT_STAGE.SECTION) {
+        if (questionDetected) return noOp
+
+        // Commande de modification de section
+        const modifyTarget = detectModifierSection(text)
+        if (modifyTarget && modifyTarget !== 'generic') {
+            const targetIdx = state.section_order.indexOf(modifyTarget)
+            if (targetIdx >= 0) {
+                state.current_section_index = targetIdx
+                state.cart_items = state.cart_items.filter(i => i.menu_section_slug !== modifyTarget)
+                const sectionMsg = buildSectionMessage(modifyTarget, restaurantProducts, state.cart_items, state)
+                return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: `🔄 Modification ${SECTION_CONFIG[modifyTarget]?.label.toLowerCase()}\n\n${sectionMsg}` }
+            }
         }
-    }
 
-    if ((state.awaiting_field?.type === 'notes' || state.awaiting_field?.type === 'free_edit') && !state.note_declined && state.notes === null) {
-        const trimmed = String(text || '').trim()
-        if (trimmed && !isPositiveReply(trimmed) && !isNegativeReply(trimmed)) {
-            state.notes = trimmed
-            captured.push({ type: 'notes', value: trimmed })
+        // Capture items (tous les produits food)
+        const foodProducts = restaurantProducts.filter(p => p.menu_section_slug !== 'drinks')
+        const itemResult = extractItemsFromText(text, foodProducts, state.cart_items)
+
+        if (itemResult.captured.length > 0) {
+            state.cart_items = itemResult.items
+            const ack = `✅ ${itemResult.captured.map(c => c.value).join(', ')} ajouté${itemResult.captured.length > 1 ? 's' : ''}`
+            return advanceSectionOrDrinks(state, restaurantProducts, ack)
         }
+
+        // "suite" sans item
+        if (detectSuiteCommand(text)) {
+            return advanceSectionOrDrinks(state, restaurantProducts, null)
+        }
+
+        return noOp
     }
 
-    state.awaiting_field = buildAwaitingField(state)
-    state.stage = state.awaiting_field ? RESTAURANT_STAGE.COLLECTING : RESTAURANT_STAGE.RECAP
-    state.last_prompt_kind = state.stage
-    state.last_prompt_text = normalized
+    // ──────────────────────────────────────────────
+    // STAGE: DRINKS
+    // ──────────────────────────────────────────────
+    if (state.stage === RESTAURANT_STAGE.DRINKS) {
+        if (questionDetected) return noOp
 
-    const awaitingChanged = JSON.stringify(previousAwaiting) !== JSON.stringify(state.awaiting_field)
-    const stateChanged = previousSignature !== JSON.stringify(state)
+        // Retour vers une section food
+        const modifyTarget = detectModifierSection(text)
+        if (modifyTarget && modifyTarget !== 'drinks' && modifyTarget !== 'generic') {
+            const targetIdx = state.section_order.indexOf(modifyTarget)
+            if (targetIdx >= 0) {
+                state.stage = RESTAURANT_STAGE.SECTION
+                state.current_section_index = targetIdx
+                state.cart_items = state.cart_items.filter(i => i.menu_section_slug !== modifyTarget)
+                const sectionMsg = buildSectionMessage(modifyTarget, restaurantProducts, state.cart_items, state)
+                return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: `🔄 Modification ${SECTION_CONFIG[modifyTarget]?.label.toLowerCase()}\n\n${sectionMsg}` }
+            }
+        }
 
-    // dine_in capturé sans items ni question → laisser l'IA montrer la carte
-    // et proposer une précommande avant de collecter la date
-    const dineInJustCapturedWithoutItems =
-        state.mode === 'dine_in' &&
-        previousMode !== 'dine_in' &&
-        state.items.length === 0 &&
-        !questionDetected
+        // Capture boissons
+        const drinkProducts = getDrinkProducts(restaurantProducts)
+        const drinkResult = extractItemsFromText(text, drinkProducts, state.cart_items)
 
-    // Question de disponibilité → laisser l'IA répondre naturellement
-    const shouldBypassAI = !questionDetected && !dineInJustCapturedWithoutItems && (stateChanged || awaitingChanged)
+        if (drinkResult.captured.length > 0) {
+            state.cart_items = drinkResult.items
+            const ack = `✅ ${drinkResult.captured.map(c => c.value).join(', ')} ajouté${drinkResult.captured.length > 1 ? 's' : ''}`
+            state.stage = RESTAURANT_STAGE.MODE
+            const cartRecap = buildFinalCartRecap(state.cart_items)
+            const modeMsg = buildModeQuestion()
+            state.last_prompt_kind = RESTAURANT_STAGE.MODE
+            return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: `${ack}\n\n${cartRecap}\n\n${modeMsg}` }
+        }
 
-    return {
-        state,
-        captured,
-        stateChanged,
-        shouldBypassAI,
-        questionDetected,
-        directReply: shouldBypassAI ? buildStructuredRestaurantReply(state, captured) : null,
+        // "valider" / "suite" → mode sans boissons
+        if (detectValiderCommand(text) || detectSuiteCommand(text)) {
+            state.stage = RESTAURANT_STAGE.MODE
+            const cartRecap = state.cart_items.length > 0 ? buildFinalCartRecap(state.cart_items) : null
+            const modeMsg = buildModeQuestion()
+            state.last_prompt_kind = RESTAURANT_STAGE.MODE
+            const parts = cartRecap ? `${cartRecap}\n\n${modeMsg}` : modeMsg
+            return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: parts }
+        }
+
+        return noOp
     }
+
+    // ──────────────────────────────────────────────
+    // STAGE: MODE
+    // ──────────────────────────────────────────────
+    if (state.stage === RESTAURANT_STAGE.MODE) {
+        if (questionDetected) return noOp
+
+        // Modification section depuis le mode
+        const modifyTarget = detectModifierSection(text)
+        if (modifyTarget && modifyTarget !== 'generic') {
+            if (modifyTarget === 'drinks' && state.drinks_enabled) {
+                state.stage = RESTAURANT_STAGE.DRINKS
+                state.cart_items = state.cart_items.filter(i => i.menu_section_slug !== 'drinks')
+                const drinksMsg = buildSectionMessage('drinks', restaurantProducts, state.cart_items, state)
+                return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: `🔄 Modification boissons\n\n${drinksMsg}` }
+            }
+            const targetIdx = state.section_order.indexOf(modifyTarget)
+            if (targetIdx >= 0) {
+                state.stage = RESTAURANT_STAGE.SECTION
+                state.current_section_index = targetIdx
+                state.cart_items = state.cart_items.filter(i => i.menu_section_slug !== modifyTarget)
+                const sectionMsg = buildSectionMessage(modifyTarget, restaurantProducts, state.cart_items, state)
+                return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: `🔄 Modification ${SECTION_CONFIG[modifyTarget]?.label.toLowerCase()}\n\n${sectionMsg}` }
+            }
+        }
+
+        const mode = detectFulfillmentMode(text)
+        if (mode && mode !== 'booking_only') {
+            state.fulfillment_mode = mode
+            state.stage = RESTAURANT_STAGE.CUSTOMER_FLOW
+            state.awaiting_cf_field = buildAwaitingCfField(state)
+            state.last_prompt_kind = RESTAURANT_STAGE.CUSTOMER_FLOW
+            return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: state.awaiting_cf_field?.prompt }
+        }
+
+        return noOp
+    }
+
+    // ──────────────────────────────────────────────
+    // STAGE: CUSTOMER_FLOW
+    // ──────────────────────────────────────────────
+    if (state.stage === RESTAURANT_STAGE.CUSTOMER_FLOW) {
+        if (questionDetected) return noOp
+
+        const cf = state.customer_flow
+        const awaitingType = state.awaiting_cf_field?.type
+        let captured = false
+
+        // date_time (date + heure combinés)
+        if (awaitingType === 'date_time') {
+            const date = extractDate(text)
+            if (date) { cf.scheduled_date = date; captured = true }
+            const time = extractTime(text)
+            if (time) { cf.scheduled_time = time; captured = true }
+        }
+
+        // party_size
+        if (awaitingType === 'party_size') {
+            const ps = extractPartySize(text)
+            if (ps) { cf.party_size = ps; captured = true }
+        }
+
+        // delivery_address
+        if (awaitingType === 'delivery_address') {
+            const addr = extractDeliveryAddress(text, true)
+            if (addr) { cf.delivery_address = addr; captured = true }
+        }
+
+        // notes
+        if (awaitingType === 'notes') {
+            if (['non', 'aucune', 'aucun', 'rien', 'ras'].includes(normalized)) {
+                cf.note_declined = true; cf.notes = null; captured = true
+            } else {
+                cf.notes = String(text || '').trim(); captured = true
+            }
+        }
+
+        // customer_info (nom + téléphone)
+        if (awaitingType === 'customer_info') {
+            if (!cf.customer_phone) {
+                const phone = extractCustomerPhone(text)
+                if (phone) { cf.customer_phone = phone; captured = true }
+            }
+            if (!cf.customer_name) {
+                const name = extractCustomerName(text, true)
+                if (name) { cf.customer_name = name; captured = true }
+            }
+        }
+
+        state.customer_flow = cf
+        state.awaiting_cf_field = buildAwaitingCfField(state)
+
+        if (!captured) {
+            // Rien capturé → AI reformule la question
+            return noOp
+        }
+
+        if (state.awaiting_cf_field) {
+            // Encore des champs → prochain champ
+            state.last_prompt_kind = RESTAURANT_STAGE.CUSTOMER_FLOW
+            return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: state.awaiting_cf_field.prompt }
+        }
+
+        // Tous les champs collectés → RECAP
+        state.stage = RESTAURANT_STAGE.RECAP
+        state.last_prompt_kind = RESTAURANT_STAGE.RECAP
+        const recap = buildFinalRecap(state)
+        return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: recap }
+    }
+
+    // ──────────────────────────────────────────────
+    // STAGE: RECAP
+    // ──────────────────────────────────────────────
+    if (state.stage === RESTAURANT_STAGE.RECAP) {
+        if (questionDetected) return noOp
+
+        if (isPositiveReply(normalized)) {
+            state.stage = RESTAURANT_STAGE.READY
+            state.last_prompt_kind = RESTAURANT_STAGE.READY
+            return { state, stateChanged: true, shouldBypassAI: false, questionDetected: false, directReply: null }
+        }
+
+        // Modification section depuis le récap
+        const modifyTarget = detectModifierSection(text)
+        if (modifyTarget && modifyTarget !== 'generic') {
+            if (modifyTarget === 'drinks' && state.drinks_enabled) {
+                state.stage = RESTAURANT_STAGE.DRINKS
+                state.cart_items = state.cart_items.filter(i => i.menu_section_slug !== 'drinks')
+                const drinksMsg = buildSectionMessage('drinks', restaurantProducts, state.cart_items, state)
+                return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: `🔄 Modification boissons\n\n${drinksMsg}` }
+            }
+            const targetIdx = state.section_order.indexOf(modifyTarget)
+            if (targetIdx >= 0) {
+                state.stage = RESTAURANT_STAGE.SECTION
+                state.current_section_index = targetIdx
+                state.cart_items = state.cart_items.filter(i => i.menu_section_slug !== modifyTarget)
+                const sectionMsg = buildSectionMessage(modifyTarget, restaurantProducts, state.cart_items, state)
+                return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: `🔄 Modification ${SECTION_CONFIG[modifyTarget]?.label.toLowerCase()}\n\n${sectionMsg}` }
+            }
+        }
+
+        if (isNegativeReply(normalized)) {
+            // "non" générique → retour au mode
+            state.stage = RESTAURANT_STAGE.MODE
+            state.last_prompt_kind = RESTAURANT_STAGE.MODE
+            const cartRecap = buildFinalCartRecap(state.cart_items)
+            const modeMsg = buildModeQuestion()
+            return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: `D'accord. Que souhaitez-vous modifier ?\n\n${cartRecap}\n\n${modeMsg}` }
+        }
+
+        return noOp
+    }
+
+    // Fallback (READY ou autre)
+    return { state, stateChanged: false, shouldBypassAI: false, questionDetected, directReply: null }
 }
+
+// ═══════════════════════════════════════════════════════════════
+// INFÉRENCE DEPUIS MESSAGE ASSISTANT
+// ═══════════════════════════════════════════════════════════════
 
 function inferRestaurantStateFromAssistantMessage(content, previousState = {}) {
     const state = cloneRestaurantState(previousState)
-    const normalized = normalizeText(content)
-    if (!normalized) return state
+    const n = normalizeText(content)
+    if (!n) return state
 
-    if (/reservation restaurant enregistree|reservation de table enregistree|commande restaurant enregistree/.test(normalized)) {
+    if (/reservation restaurant enregistree|commande restaurant enregistree|reservation de table enregistree|checkout confirme/.test(n)) {
         return cloneRestaurantState({})
-    }
-
-    if (/confirmez-vous/.test(normalized) && hasRestaurantStateData(state)) {
-        state.stage = RESTAURANT_STAGE.RECAP
-        state.awaiting_field = null
-        state.last_prompt_kind = RESTAURANT_STAGE.RECAP
-        state.last_prompt_text = content
-        return state
     }
 
     return state
 }
 
+// ═══════════════════════════════════════════════════════════════
+// GUIDANCE POUR L'IA
+// ═══════════════════════════════════════════════════════════════
+
 function buildRestaurantStateGuidance(restaurantState = {}, options = {}) {
     const state = cloneRestaurantState(restaurantState)
     if (!hasRestaurantStateData(state)) return ''
 
-    const lines = ['RESTAURANT STATE (source systeme, prioritaire):']
+    const lines = ['RESTAURANT STATE (source système, prioritaire) :']
+    lines.push(`- Stage : ${state.stage}`)
 
-    if (state.mode) lines.push(`- Mode deja choisi: ${state.mode}`)
-    if (state.items.length > 0) {
-        lines.push(`- Articles deja collectes: ${state.items.map(item => `${item.quantity}x ${item.product_name}`).join(', ')}`)
+    if (state.cart_items.length > 0) {
+        lines.push(`- Panier : ${state.cart_items.map(i => `${i.quantity}x ${i.product_name}`).join(', ')}`)
+        const total = state.cart_items.reduce((s, i) => s + i.line_total_fcfa, 0)
+        lines.push(`- Total panier : ${total.toLocaleString('fr-FR')} FCFA`)
     }
-    if (state.scheduled_date) lines.push(`- Date deja collectee: ${state.scheduled_date}`)
-    if (state.scheduled_time) lines.push(`- Heure deja collectee: ${state.scheduled_time}`)
-    if (state.party_size) lines.push(`- Nombre de personnes deja collecte: ${state.party_size}`)
-    if (state.delivery_address) lines.push(`- Adresse deja collectee: ${state.delivery_address}`)
-    if (state.customer_name) lines.push(`- Nom deja collecte: ${state.customer_name}`)
-    if (state.customer_phone) lines.push(`- Telephone deja collecte: ${state.customer_phone}`)
-    if (state.payment_method) lines.push(`- Paiement deja choisi: ${formatPaymentLabel(state.payment_method, state.mode)}`)
-    if (state.note_declined) lines.push('- Le client ne souhaite pas ajouter de note.')
-    else if (state.notes) lines.push(`- Note deja collectee: ${state.notes}`)
-    if (state.awaiting_field?.label) lines.push(`- Champ bloquant actuel: ${state.awaiting_field.label}`)
 
-    if (state.mode === 'dine_in' && state.items.length === 0) {
-        lines.push('- Pas de pre-commande pour l instant. Propose brievement la carte et demande si le client souhaite pre-commander avant de collecter la date.')
+    const cf = state.customer_flow
+    if (state.fulfillment_mode) lines.push(`- Mode : ${state.fulfillment_mode}`)
+    if (cf.scheduled_date) lines.push(`- Date : ${cf.scheduled_date}${cf.scheduled_time ? ' à ' + cf.scheduled_time : ''}`)
+    if (cf.party_size)     lines.push(`- Personnes : ${cf.party_size}`)
+    if (cf.delivery_address) lines.push(`- Adresse livraison : ${cf.delivery_address}`)
+    if (cf.customer_name)  lines.push(`- Nom : ${cf.customer_name}`)
+    if (cf.customer_phone) lines.push(`- Téléphone : ${cf.customer_phone}`)
+    if (cf.note_declined)  lines.push('- Notes : aucune (déclinées)')
+    else if (cf.notes)     lines.push(`- Notes : ${cf.notes}`)
+
+    if (state.awaiting_cf_field?.label) {
+        lines.push(`- Champ en attente : ${state.awaiting_cf_field.label}`)
     }
 
     if (state.stage === RESTAURANT_STAGE.READY) {
-        lines.push('- Le client vient de confirmer le recapitulatif.')
-        lines.push('- Si toutes les informations requises sont presentes, appelle create_restaurant_checkout maintenant.')
-        lines.push('- Ne pose pas une nouvelle question avant l appel tool.')
+        lines.push('- Le client vient de confirmer.')
+        lines.push('- Appelle create_restaurant_checkout maintenant avec les données ci-dessus.')
+        lines.push('- Ne pose pas de question avant l\'appel.')
     } else {
-        lines.push('- Ne redemande jamais les informations deja collectees.')
-        lines.push('- Si le client donne une information utile hors ordre, memorise-la.')
+        lines.push('- Ne redemande jamais les infos déjà collectées.')
     }
 
     if (options.questionDetected) {
-        const contactRef = options.escalationPhone
-            ? `au *${options.escalationPhone}*`
-            : `directement au restaurant`
+        const contactRef = options.escalationPhone ? `au *${options.escalationPhone}*` : 'directement au restaurant'
         lines.push('---')
-        lines.push('⚠️ QUESTION HORS-PARCOURS DETECTEE :')
-        lines.push('  1. Si la reponse est dans la base de connaissance ou le profil → reponds precisement.')
-        lines.push(`  2. Si l information est absente → dis : "Je n ai pas cette information. Pour en savoir plus, contactez-nous ${contactRef}."`)
-        lines.push('  3. Dans tous les cas, apres avoir repondu, rappelle naturellement ou on en etait.')
-        if (state.awaiting_field?.label) {
-            lines.push(`     Exemple : "Pour votre commande, il me reste a confirmer : ${state.awaiting_field.label}."`)
+        lines.push('⚠️ QUESTION HORS-PARCOURS DÉTECTÉE :')
+        lines.push('  1. Si la réponse est dans la base de connaissance → réponds précisément.')
+        lines.push(`  2. Si l\'info est absente → dis : "Je n\'ai pas cette information. Contactez-nous ${contactRef}."`)
+        lines.push('  3. Dans tous les cas, rappelle naturellement où on en était.')
+        if (state.awaiting_cf_field?.label) {
+            lines.push(`     Ex : "Pour votre commande, il me reste à confirmer : ${state.awaiting_cf_field.label}."`)
         }
-        lines.push('  NE PAS inventer une information absente. NE PAS sauter directement au champ manquant sans repondre.')
+        lines.push('  NE PAS inventer. NE PAS sauter au champ manquant sans répondre.')
     }
 
     return lines.join('\n')
 }
 
+// ═══════════════════════════════════════════════════════════════
+// MERGE TOOL ARGS
+// ═══════════════════════════════════════════════════════════════
+
 function mergeRestaurantStateIntoToolArgs(functionName, args = {}, restaurantState = {}) {
     if (functionName !== 'create_restaurant_checkout') return args
-
     const state = cloneRestaurantState(restaurantState)
     if (!hasRestaurantStateData(state)) return args
 
+    const cf = state.customer_flow
     const mergedItems = Array.isArray(args.items) && args.items.length > 0
         ? args.items
-        : state.items.map(item => ({
-            product_name: item.product_name,
-            quantity: item.quantity,
-        }))
+        : state.cart_items.map(item => ({ product_name: item.product_name, quantity: item.quantity }))
 
     return {
         ...args,
-        fulfillment_mode: args.fulfillment_mode || state.mode || args.fulfillment_mode,
-        items: mergedItems,
-        customer_name: args.customer_name || state.customer_name || args.customer_name,
-        customer_phone: args.customer_phone || state.customer_phone || args.customer_phone,
-        scheduled_date: args.scheduled_date || state.scheduled_date || args.scheduled_date,
-        scheduled_time: args.scheduled_time || state.scheduled_time || args.scheduled_time,
-        party_size: args.party_size || state.party_size || args.party_size,
-        delivery_address: args.delivery_address || state.delivery_address || args.delivery_address,
-        payment_method: args.payment_method || state.payment_method || args.payment_method,
-        notes: args.notes !== undefined ? args.notes : state.notes,
+        fulfillment_mode:  args.fulfillment_mode  || state.fulfillment_mode,
+        items:             mergedItems,
+        customer_name:     args.customer_name     || cf.customer_name,
+        customer_phone:    args.customer_phone    || cf.customer_phone,
+        scheduled_date:    args.scheduled_date    || cf.scheduled_date,
+        scheduled_time:    args.scheduled_time    || cf.scheduled_time,
+        party_size:        args.party_size        || cf.party_size,
+        delivery_address:  args.delivery_address  || cf.delivery_address,
+        payment_method:    args.payment_method    || cf.payment_method || 'onsite',
+        notes:             args.notes !== undefined ? args.notes : cf.notes,
     }
 }
 
