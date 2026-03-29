@@ -25,12 +25,11 @@ import ProductVariantsEditor, { VariantGroup, ProductCombination } from '@/compo
 import { convertToFcfa, convertFromFcfa } from '@/lib/currency'
 
 const RESTAURANT_MENU_SECTIONS = [
-    { id: 'starters', label: 'Entrees' },
+    { id: 'starters', label: 'Entrées' },
     { id: 'mains', label: 'Plats principaux' },
-    { id: 'extras', label: 'Supplements' },
+    { id: 'extras', label: 'Suppléments' },
     { id: 'desserts', label: 'Desserts' },
     { id: 'drinks', label: 'Boissons' },
-    { id: 'other', label: 'Autre section' }
 ]
 
 export default function NewProductPage() {
@@ -46,6 +45,13 @@ export default function NewProductPage() {
     const [analyzing, setAnalyzing] = useState(false)
     const [analysisResult, setAnalysisResult] = useState<any>(null)
     const [existingProductTypes, setExistingProductTypes] = useState<string[]>([])
+    const [batchMode, setBatchMode] = useState(false)
+    const [batchItems, setBatchItems] = useState<{ name: string; price: string }[]>([
+        { name: '', price: '' },
+        { name: '', price: '' },
+        { name: '', price: '' },
+    ])
+    const [batchLoading, setBatchLoading] = useState(false)
 
     // Form Data
     const [formData, setFormData] = useState({
@@ -174,6 +180,19 @@ export default function NewProductPage() {
             features: "Ex: Bio, Artisanal, Garantie 2 ans..."
         }
 
+        if (formData.product_type === 'service' && formData.service_subtype === 'restaurant') {
+            const restaurantNameBySection: Record<string, string> = {
+                starters: 'Ex: Salade Turque, Avocat, Soupe du jour...',
+                mains: 'Ex: Attiéké poisson, Queue de bœuf, Agouti...',
+                extras: 'Ex: Frites, Sauce pimentée, Riz...',
+                desserts: 'Ex: Fondant chocolat, Crème caramel...',
+                drinks: 'Ex: Bière Flag, Jus de goyave, Vin rouge...',
+            }
+            return {
+                ...servicePlaceholders.restaurant,
+                name: restaurantNameBySection[formData.menu_section_slug] || 'Ex: Agouti, Salade Turque, Bière...',
+            }
+        }
         if (formData.product_type === 'service' && formData.service_subtype) {
             return servicePlaceholders[formData.service_subtype] || defaultPlaceholders
         }
@@ -205,7 +224,21 @@ export default function NewProductPage() {
         loadAgents()
         fetchProfile()
         checkExistingProductTypes()
+        // Restaurer le dernier sous-service sélectionné
+        const lastSubtype = localStorage.getItem('product_last_service_subtype')
+        if (lastSubtype) {
+            setFormData(prev => ({ ...prev, service_subtype: lastSubtype, product_type: 'service' }))
+        }
     }, [])
+
+    // Restaurer le dernier agent après chargement de la liste
+    useEffect(() => {
+        if (agents.length === 0) return
+        const lastAgentId = localStorage.getItem('product_last_agent_id')
+        if (lastAgentId && agents.some(a => a.id === lastAgentId)) {
+            setFormData(prev => ({ ...prev, agent_id: lastAgentId }))
+        }
+    }, [agents])
 
     // v2.30: Check if user already has services or products to enforce isolation
     const checkExistingProductTypes = async () => {
@@ -421,6 +454,59 @@ export default function NewProductPage() {
         }
     }
 
+    const handleSaveBatch = async () => {
+        const validItems = batchItems.filter(item => item.name.trim() !== '')
+        if (validItems.length === 0) {
+            alert('Ajoutez au moins un article avec un nom.')
+            return
+        }
+        if (!formData.menu_section_slug) {
+            alert('Choisissez une rubrique de la carte avant de sauvegarder.')
+            return
+        }
+        setBatchLoading(true)
+        try {
+            const results = await Promise.all(
+                validItems.map(item =>
+                    fetch('/api/products', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            name: item.name.trim(),
+                            price_fcfa: convertToFcfa(parseFloat(item.price) || 0, currency),
+                            product_type: 'service',
+                            service_subtype: 'restaurant',
+                            menu_section_slug: formData.menu_section_slug,
+                            menu_sort_order: null,
+                            agent_id: formData.agent_id || null,
+                            is_available: true,
+                            category: 'Restauration',
+                            images: [],
+                            image_url: '',
+                            description: '',
+                            features: [],
+                            marketing_tags: [],
+                            variants: [],
+                            combinations: null,
+                            digital_content: null,
+                            license_keys: null,
+                        })
+                    })
+                )
+            )
+            const failed = results.filter(r => !r.ok).length
+            if (failed > 0) {
+                alert(`${validItems.length - failed} article(s) créés, ${failed} échec(s).`)
+            } else {
+                router.push('/dashboard/products')
+            }
+        } catch {
+            alert('Erreur lors de la création en masse.')
+        } finally {
+            setBatchLoading(false)
+        }
+    }
+
     const steps = [
         { id: 'basics', title: 'Identité', icon: Package },
         { id: 'details', title: 'Détails', icon: Layers },
@@ -553,7 +639,10 @@ export default function NewProductPage() {
                                             <button
                                                 key={sub.id}
                                                 type="button"
-                                                onClick={() => setFormData({ ...formData, service_subtype: sub.id })}
+                                                onClick={() => {
+                                                    localStorage.setItem('product_last_service_subtype', sub.id)
+                                                    setFormData({ ...formData, service_subtype: sub.id })
+                                                }}
                                                 style={{
                                                     padding: '10px',
                                                     borderRadius: 8,
@@ -590,35 +679,165 @@ export default function NewProductPage() {
                             >
                                 <label style={labelStyle}>Menu restaurant</label>
                                 <p style={{ fontSize: 12, color: '#94a3b8', marginBottom: 12 }}>
-                                    Utilise une section canonique pour guider l&apos;IA et ordonner la carte.
+                                    Classe cet article dans la bonne rubrique pour que l&apos;IA présente la carte dans l&apos;ordre.
                                 </p>
-                                <div className="agent-grid-2">
-                                    <div>
-                                        <label style={{ ...labelStyle, marginBottom: 6 }}>Section de menu</label>
-                                        <select
-                                            value={formData.menu_section_slug}
-                                            onChange={e => setFormData({ ...formData, menu_section_slug: e.target.value })}
-                                            style={inputStyle}
-                                        >
-                                            <option value="">Choisir une section</option>
-                                            {RESTAURANT_MENU_SECTIONS.map(section => (
-                                                <option key={section.id} value={section.id}>{section.label}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label style={{ ...labelStyle, marginBottom: 6 }}>Ordre dans la carte</label>
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            step="1"
-                                            value={formData.menu_sort_order}
-                                            onChange={e => setFormData({ ...formData, menu_sort_order: e.target.value })}
-                                            placeholder="100"
-                                            style={inputStyle}
-                                        />
-                                    </div>
+                                <div>
+                                    <label style={{ ...labelStyle, marginBottom: 6 }}>Rubrique de la carte</label>
+                                    <select
+                                        value={formData.menu_section_slug}
+                                        onChange={e => setFormData({ ...formData, menu_section_slug: e.target.value })}
+                                        style={inputStyle}
+                                    >
+                                        <option value="">Choisir une rubrique</option>
+                                        {RESTAURANT_MENU_SECTIONS.map(section => (
+                                            <option key={section.id} value={section.id}>{section.label}</option>
+                                        ))}
+                                    </select>
                                 </div>
+                            </motion.div>
+                        )}
+
+                        {/* Mode création en masse (restaurant uniquement) */}
+                        {formData.product_type === 'service' && formData.service_subtype === 'restaurant' && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: -8 }}>
+                                <button
+                                    type="button"
+                                    onClick={() => setBatchMode(v => !v)}
+                                    style={{
+                                        padding: '6px 14px',
+                                        borderRadius: 8,
+                                        border: batchMode ? '1px solid #10b981' : '1px solid rgba(148,163,184,0.3)',
+                                        background: batchMode ? 'rgba(16,185,129,0.1)' : 'transparent',
+                                        color: batchMode ? '#34d399' : '#94a3b8',
+                                        fontSize: 12,
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 6,
+                                    }}
+                                >
+                                    <Plus size={13} />
+                                    {batchMode ? 'Mode ajout multiple activé' : 'Ajouter plusieurs articles en même temps'}
+                                </button>
+                                {batchMode && (
+                                    <span style={{ fontSize: 11, color: '#64748b' }}>
+                                        Choisissez une rubrique ci-dessus puis remplissez le tableau
+                                    </span>
+                                )}
+                            </div>
+                        )}
+
+                        {batchMode && formData.product_type === 'service' && formData.service_subtype === 'restaurant' && (
+                            <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                style={{
+                                    padding: 16,
+                                    borderRadius: 12,
+                                    border: '1px solid rgba(16,185,129,0.25)',
+                                    background: 'rgba(16,185,129,0.05)',
+                                }}
+                            >
+                                <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 12 }}>
+                                    Rubrique : <strong style={{ color: '#34d399' }}>
+                                        {RESTAURANT_MENU_SECTIONS.find(s => s.id === formData.menu_section_slug)?.label || '— sélectionnez une rubrique —'}
+                                    </strong>
+                                    &nbsp;·&nbsp;Agent : <strong style={{ color: '#34d399' }}>
+                                        {agents.find(a => a.id === formData.agent_id)?.name || 'Tous les agents'}
+                                    </strong>
+                                </div>
+
+                                {/* Table header */}
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px 40px', gap: 8, marginBottom: 6 }}>
+                                    <span style={{ fontSize: 11, color: '#64748b', paddingLeft: 4 }}>Nom</span>
+                                    <span style={{ fontSize: 11, color: '#64748b' }}>Prix ({currency === 'XOF' ? 'FCFA' : currency})</span>
+                                    <span />
+                                </div>
+
+                                {/* Rows */}
+                                {batchItems.map((item, i) => (
+                                    <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 140px 40px', gap: 8, marginBottom: 8 }}>
+                                        <input
+                                            type="text"
+                                            value={item.name}
+                                            onChange={e => {
+                                                const updated = [...batchItems]
+                                                updated[i] = { ...updated[i], name: e.target.value }
+                                                setBatchItems(updated)
+                                            }}
+                                            placeholder={getServicePlaceholders().name}
+                                            style={{ ...inputStyle, padding: '9px 12px', fontSize: 13 }}
+                                        />
+                                        <input
+                                            type="text"
+                                            inputMode="numeric"
+                                            value={item.price}
+                                            onChange={e => {
+                                                const val = e.target.value
+                                                if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                                                    const updated = [...batchItems]
+                                                    updated[i] = { ...updated[i], price: val }
+                                                    setBatchItems(updated)
+                                                }
+                                            }}
+                                            placeholder="0"
+                                            style={{ ...inputStyle, padding: '9px 12px', fontSize: 13 }}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setBatchItems(prev => prev.filter((_, idx) => idx !== i))}
+                                            style={{
+                                                background: 'rgba(239,68,68,0.1)',
+                                                border: '1px solid rgba(239,68,68,0.2)',
+                                                borderRadius: 8,
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                            }}
+                                        >
+                                            <X size={14} color="#f87171" />
+                                        </button>
+                                    </div>
+                                ))}
+
+                                {/* Add row */}
+                                <button
+                                    type="button"
+                                    onClick={() => setBatchItems(prev => [...prev, { name: '', price: '' }])}
+                                    style={{
+                                        width: '100%',
+                                        padding: '8px',
+                                        borderRadius: 8,
+                                        border: '1px dashed rgba(148,163,184,0.3)',
+                                        background: 'transparent',
+                                        color: '#64748b',
+                                        fontSize: 12,
+                                        cursor: 'pointer',
+                                        marginTop: 4,
+                                        marginBottom: 12,
+                                    }}
+                                >
+                                    + Ajouter une ligne
+                                </button>
+
+                                {/* Save batch */}
+                                <button
+                                    type="button"
+                                    onClick={handleSaveBatch}
+                                    disabled={batchLoading}
+                                    style={{
+                                        ...buttonPrimaryStyle,
+                                        width: '100%',
+                                        justifyContent: 'center',
+                                        opacity: batchLoading ? 0.7 : 1,
+                                    }}
+                                >
+                                    {batchLoading
+                                        ? <><Loader2 size={16} className="animate-spin" /> Enregistrement...</>
+                                        : <><Check size={16} /> Enregistrer {batchItems.filter(i => i.name.trim()).length} article(s)</>
+                                    }
+                                </button>
                             </motion.div>
                         )}
 
@@ -710,8 +929,12 @@ export default function NewProductPage() {
 
                         <div>
                             <label style={labelStyle}>
-                                {formData.product_type === 'service' ? 'Nom du Service' :
-                                    formData.product_type === 'digital' ? 'Nom du Produit Numérique' : 'Nom du Produit'}
+                                {formData.product_type === 'service' && formData.service_subtype === 'restaurant'
+                                    ? (formData.menu_section_slug === 'drinks' ? 'Nom de la boisson'
+                                        : formData.menu_section_slug ? 'Nom du plat'
+                                        : 'Nom du plat ou de la boisson')
+                                    : formData.product_type === 'service' ? 'Nom du Service'
+                                    : formData.product_type === 'digital' ? 'Nom du Produit Numérique' : 'Nom du Produit'}
                             </label>
                             <input
                                 type="text"
@@ -759,7 +982,10 @@ export default function NewProductPage() {
                             <label style={labelStyle}>Agent Vendeur</label>
                             <select
                                 value={formData.agent_id}
-                                onChange={e => setFormData({ ...formData, agent_id: e.target.value })}
+                                onChange={e => {
+                                    if (e.target.value) localStorage.setItem('product_last_agent_id', e.target.value)
+                                    setFormData({ ...formData, agent_id: e.target.value })
+                                }}
                                 style={inputStyle}
                             >
                                 <option value="">Tous les agents</option>
