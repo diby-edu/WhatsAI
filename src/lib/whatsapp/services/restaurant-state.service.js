@@ -478,6 +478,78 @@ function extractDeliveryAddress(text, force = false) {
     return cleaned.length >= 8 ? cleaned : null
 }
 
+function captureCustomerFlowFields(state, text, options = {}) {
+    const cf = cloneCustomerFlow(state.customer_flow || {})
+    const mode = state.fulfillment_mode
+    const awaitingType = options.awaitingType || null
+    let captured = false
+
+    const needsSchedule = mode === 'dine_in' || mode === 'booking_only' || mode === 'takeaway'
+
+    if (needsSchedule && !cf.scheduled_date) {
+        const date = extractDate(text)
+        if (date) {
+            cf.scheduled_date = date
+            captured = true
+        }
+    }
+
+    if (needsSchedule && !cf.scheduled_time) {
+        const time = extractTime(text)
+        if (time) {
+            cf.scheduled_time = time
+            captured = true
+        }
+    }
+
+    if ((mode === 'dine_in' || mode === 'booking_only') && !cf.party_size) {
+        const partySize = extractPartySize(text)
+        if (partySize) {
+            cf.party_size = partySize
+            captured = true
+        }
+    }
+
+    if (mode === 'delivery' && !cf.delivery_address) {
+        const address = extractDeliveryAddress(text, awaitingType === 'delivery_address')
+        if (address) {
+            cf.delivery_address = address
+            captured = true
+        }
+    }
+
+    if (!cf.customer_phone) {
+        const phone = extractCustomerPhone(text)
+        if (phone) {
+            cf.customer_phone = phone
+            captured = true
+        }
+    }
+
+    if (!cf.customer_name) {
+        const name = extractCustomerName(text, awaitingType === 'customer_info')
+        if (name) {
+            cf.customer_name = name
+            captured = true
+        }
+    }
+
+    if (awaitingType === 'notes' && cf.notes === null && !cf.note_declined) {
+        const normalized = normalizeText(text)
+        if (['non', 'aucune', 'aucun', 'rien', 'ras'].includes(normalized)) {
+            cf.note_declined = true
+            cf.notes = null
+            captured = true
+        } else {
+            cf.notes = String(text || '').trim()
+            captured = true
+        }
+    }
+
+    state.customer_flow = cf
+    return captured
+}
+
 // ═══════════════════════════════════════════════════════════════
 // MESSAGE BUILDERS
 // ═══════════════════════════════════════════════════════════════
@@ -679,13 +751,25 @@ function buildAwaitingCfField(state) {
     const cf = state.customer_flow
     const mode = state.fulfillment_mode
 
-    if ((mode === 'dine_in' || mode === 'booking_only' || mode === 'takeaway') && !cf.scheduled_date) {
+    if ((mode === 'dine_in' || mode === 'booking_only' || mode === 'takeaway') && (!cf.scheduled_date || !cf.scheduled_time)) {
+        const bothMissing = !cf.scheduled_date && !cf.scheduled_time
+        const onlyDateMissing = !cf.scheduled_date && cf.scheduled_time
+        const onlyTimeMissing = cf.scheduled_date && !cf.scheduled_time
+
         return {
             type: 'date_time',
-            label: 'date et heure',
+            label: bothMissing ? 'date et heure' : onlyDateMissing ? 'date' : 'heure',
             prompt: mode === 'takeaway'
-                ? 'Pour quelle date et heure de récupération ? 🕐'
-                : 'Pour quelle date et à quelle heure ? 📅⏰',
+                ? bothMissing
+                    ? 'Pour quelle date et heure de récupération ? 🕐'
+                    : onlyDateMissing
+                        ? 'Pour quelle date de récupération ? 📅'
+                        : 'À quelle heure souhaitez-vous récupérer votre commande ? (format conseillé : HH:MM) ⏰'
+                : bothMissing
+                    ? 'Pour quelle date et à quelle heure ? 📅⏰'
+                    : onlyDateMissing
+                        ? 'Pour quelle date ? 📅'
+                        : 'À quelle heure souhaitez-vous venir ? (format conseillé : HH:MM) ⏰',
         }
     }
 
@@ -702,7 +786,13 @@ function buildAwaitingCfField(state) {
     }
 
     if (!cf.customer_name || !cf.customer_phone) {
-        return { type: 'customer_info', label: 'nom et téléphone', prompt: 'Votre nom complet et votre téléphone avec indicatif ? 👤📱' }
+        if (!cf.customer_name && !cf.customer_phone) {
+            return { type: 'customer_info', label: 'nom et téléphone', prompt: 'Votre nom complet et votre téléphone avec indicatif ? 👤📱' }
+        }
+        if (!cf.customer_name) {
+            return { type: 'customer_info', label: 'nom complet', prompt: 'Quel est votre nom complet, s\'il vous plaît ? 👤' }
+        }
+        return { type: 'customer_info', label: 'numéro de téléphone', prompt: 'Quel est votre numéro de téléphone avec l\'indicatif, s\'il vous plaît ? 📱' }
     }
 
     return null
@@ -800,9 +890,15 @@ function updateRestaurantStateFromUserMessage(previousState, text, restaurantPro
         if (choice === 3) {
             state.fulfillment_mode = 'booking_only'
             state.stage = RESTAURANT_STAGE.CUSTOMER_FLOW
+            captureCustomerFlowFields(state, text)
             state.awaiting_cf_field = buildAwaitingCfField(state)
+            if (!state.awaiting_cf_field) {
+                state.stage = RESTAURANT_STAGE.RECAP
+                state.last_prompt_kind = RESTAURANT_STAGE.RECAP
+                return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: buildFinalRecap(state) }
+            }
             state.last_prompt_kind = RESTAURANT_STAGE.CUSTOMER_FLOW
-            return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: state.awaiting_cf_field?.prompt }
+            return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: state.awaiting_cf_field.prompt }
         }
 
         // Commande directe (sans passer par le menu)
@@ -822,9 +918,15 @@ function updateRestaurantStateFromUserMessage(previousState, text, restaurantPro
         if (/reserver|reservation|\bune table\b/.test(normalized)) {
             state.fulfillment_mode = 'booking_only'
             state.stage = RESTAURANT_STAGE.CUSTOMER_FLOW
+            captureCustomerFlowFields(state, text)
             state.awaiting_cf_field = buildAwaitingCfField(state)
+            if (!state.awaiting_cf_field) {
+                state.stage = RESTAURANT_STAGE.RECAP
+                state.last_prompt_kind = RESTAURANT_STAGE.RECAP
+                return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: buildFinalRecap(state) }
+            }
             state.last_prompt_kind = RESTAURANT_STAGE.CUSTOMER_FLOW
-            return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: state.awaiting_cf_field?.prompt }
+            return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: state.awaiting_cf_field.prompt }
         }
 
         // Laisser l'IA afficher le menu principal (premier message, bonjour, etc.)
@@ -1004,9 +1106,15 @@ function updateRestaurantStateFromUserMessage(previousState, text, restaurantPro
         if (mode && mode !== 'booking_only') {
             state.fulfillment_mode = mode
             state.stage = RESTAURANT_STAGE.CUSTOMER_FLOW
+            captureCustomerFlowFields(state, text)
             state.awaiting_cf_field = buildAwaitingCfField(state)
+            if (!state.awaiting_cf_field) {
+                state.stage = RESTAURANT_STAGE.RECAP
+                state.last_prompt_kind = RESTAURANT_STAGE.RECAP
+                return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: buildFinalRecap(state) }
+            }
             state.last_prompt_kind = RESTAURANT_STAGE.CUSTOMER_FLOW
-            return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: state.awaiting_cf_field?.prompt }
+            return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: state.awaiting_cf_field.prompt }
         }
 
         return noOp
@@ -1018,52 +1126,8 @@ function updateRestaurantStateFromUserMessage(previousState, text, restaurantPro
     if (state.stage === RESTAURANT_STAGE.CUSTOMER_FLOW) {
         if (questionDetected) return noOp
 
-        const cf = state.customer_flow
         const awaitingType = state.awaiting_cf_field?.type
-        let captured = false
-
-        // date_time (date + heure combinés)
-        if (awaitingType === 'date_time') {
-            const date = extractDate(text)
-            if (date) { cf.scheduled_date = date; captured = true }
-            const time = extractTime(text)
-            if (time) { cf.scheduled_time = time; captured = true }
-        }
-
-        // party_size
-        if (awaitingType === 'party_size') {
-            const ps = extractPartySize(text)
-            if (ps) { cf.party_size = ps; captured = true }
-        }
-
-        // delivery_address
-        if (awaitingType === 'delivery_address') {
-            const addr = extractDeliveryAddress(text, true)
-            if (addr) { cf.delivery_address = addr; captured = true }
-        }
-
-        // notes
-        if (awaitingType === 'notes') {
-            if (['non', 'aucune', 'aucun', 'rien', 'ras'].includes(normalized)) {
-                cf.note_declined = true; cf.notes = null; captured = true
-            } else {
-                cf.notes = String(text || '').trim(); captured = true
-            }
-        }
-
-        // customer_info (nom + téléphone)
-        if (awaitingType === 'customer_info') {
-            if (!cf.customer_phone) {
-                const phone = extractCustomerPhone(text)
-                if (phone) { cf.customer_phone = phone; captured = true }
-            }
-            if (!cf.customer_name) {
-                const name = extractCustomerName(text, true)
-                if (name) { cf.customer_name = name; captured = true }
-            }
-        }
-
-        state.customer_flow = cf
+        const captured = captureCustomerFlowFields(state, text, { awaitingType })
         state.awaiting_cf_field = buildAwaitingCfField(state)
 
         if (!captured) {
