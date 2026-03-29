@@ -86,6 +86,7 @@ function cloneRestaurantState(state = {}) {
         customer_flow:         cloneCustomerFlow(state.customer_flow || {}),
         awaiting_cf_field:     state.awaiting_cf_field || null,
         last_prompt_kind:      state.last_prompt_kind || null,
+        modification_origin:   state.modification_origin || null, // 'RECAP' si modification depuis le récap
         updated_at:            state.updated_at || null,
     }
 }
@@ -159,6 +160,10 @@ function detectSuiteCommand(text) {
 
 function detectValiderCommand(text) {
     return /\bvalider\b|\bfinaliser\b/.test(normalizeText(text))
+}
+
+function detectRetourCommand(text) {
+    return /\bretour\b|\bannuler\b/.test(normalizeText(text))
 }
 
 function detectModifierSection(text) {
@@ -531,6 +536,32 @@ function buildSectionMessage(slug, products, cartItems, state) {
     return lines.join('\n')
 }
 
+// Message de modification de section (depuis RECAP) — affiche la sélection actuelle + retour
+function buildSectionModificationMessage(slug, products, cartItems, state) {
+    const config = SECTION_CONFIG[slug]
+    const sectionProducts = slug === 'drinks'
+        ? getDrinkProducts(products)
+        : getProductsForSection(products, slug)
+    if (!config || sectionProducts.length === 0) return null
+
+    const lines = [`${config.emoji} *${config.label}*`]
+
+    // Sélection actuelle
+    const current = (cartItems || []).filter(i => i.menu_section_slug === slug)
+    if (current.length > 0) {
+        lines.push(`Sélection actuelle : ${current.map(i => `${i.quantity}× ${i.product_name}`).join(', ')}`)
+    }
+
+    for (const p of sectionProducts) {
+        lines.push(`· ${p.name} — ${formatPrice(p.price_fcfa)}`)
+    }
+
+    lines.push(`Retapez votre sélection complète pour remplacer`)
+    lines.push(`ou tapez "retour" pour annuler.`)
+
+    return lines.join('\n')
+}
+
 function buildIntermediateRecap(cartItems) {
     const foodItems = cartItems.filter(i => i.menu_section_slug !== 'drinks')
     const lines = ['Votre commande :']
@@ -581,7 +612,7 @@ function buildModeQuestion() {
 
 function buildFinalRecap(state) {
     const cf = state.customer_flow
-    const lines = []
+    const lines = ['Récapitulatif de votre réservation :']
 
     if (state.cart_items.length > 0) {
         let total = 0
@@ -796,7 +827,39 @@ function updateRestaurantStateFromUserMessage(previousState, text, restaurantPro
     if (state.stage === RESTAURANT_STAGE.SECTION) {
         if (questionDetected) return noOp
 
-        // Commande de modification de section
+        const currentSlug = state.section_order[state.current_section_index]
+
+        // Mode modification depuis RECAP
+        if (state.modification_origin === 'RECAP') {
+            // "retour" → annuler la modification, revenir au récap
+            if (detectRetourCommand(text)) {
+                state.modification_origin = null
+                state.stage = RESTAURANT_STAGE.RECAP
+                state.last_prompt_kind = RESTAURANT_STAGE.RECAP
+                const recap = buildFinalRecap(state)
+                return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: recap }
+            }
+
+            // Capture items → remplacer la section + retour au récap
+            const sectionProds = restaurantProducts.filter(p => p.menu_section_slug === currentSlug)
+            const freshResult = extractItemsFromText(text, sectionProds, [])
+            if (freshResult.captured.length > 0) {
+                state.cart_items = [
+                    ...state.cart_items.filter(i => i.menu_section_slug !== currentSlug),
+                    ...freshResult.items,
+                ]
+                state.modification_origin = null
+                state.stage = RESTAURANT_STAGE.RECAP
+                state.last_prompt_kind = RESTAURANT_STAGE.RECAP
+                const ack = `✅ ${freshResult.captured.map(c => c.value).join(', ')} sélectionné${freshResult.captured.length > 1 ? 's' : ''}`
+                const recap = buildFinalRecap(state)
+                return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: `${ack}\n\n${recap}` }
+            }
+
+            return noOp
+        }
+
+        // Navigation normale — commande de modification d'une section précédente
         const modifyTarget = detectModifierSection(text)
         if (modifyTarget && modifyTarget !== 'generic') {
             const targetIdx = state.section_order.indexOf(modifyTarget)
@@ -832,7 +895,37 @@ function updateRestaurantStateFromUserMessage(previousState, text, restaurantPro
     if (state.stage === RESTAURANT_STAGE.DRINKS) {
         if (questionDetected) return noOp
 
-        // Retour vers une section food
+        // Mode modification depuis RECAP
+        if (state.modification_origin === 'RECAP') {
+            // "retour" → annuler la modification, revenir au récap
+            if (detectRetourCommand(text)) {
+                state.modification_origin = null
+                state.stage = RESTAURANT_STAGE.RECAP
+                state.last_prompt_kind = RESTAURANT_STAGE.RECAP
+                const recap = buildFinalRecap(state)
+                return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: recap }
+            }
+
+            // Capture boissons → remplacer + retour au récap
+            const drinkProds = getDrinkProducts(restaurantProducts)
+            const freshResult = extractItemsFromText(text, drinkProds, [])
+            if (freshResult.captured.length > 0) {
+                state.cart_items = [
+                    ...state.cart_items.filter(i => i.menu_section_slug !== 'drinks'),
+                    ...freshResult.items,
+                ]
+                state.modification_origin = null
+                state.stage = RESTAURANT_STAGE.RECAP
+                state.last_prompt_kind = RESTAURANT_STAGE.RECAP
+                const ack = `✅ ${freshResult.captured.map(c => c.value).join(', ')} sélectionné${freshResult.captured.length > 1 ? 's' : ''}`
+                const recap = buildFinalRecap(state)
+                return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: `${ack}\n\n${recap}` }
+            }
+
+            return noOp
+        }
+
+        // Navigation normale — retour vers une section food
         const modifyTarget = detectModifierSection(text)
         if (modifyTarget && modifyTarget !== 'drinks' && modifyTarget !== 'generic') {
             const targetIdx = state.section_order.indexOf(modifyTarget)
@@ -993,22 +1086,24 @@ function updateRestaurantStateFromUserMessage(previousState, text, restaurantPro
             return { state, stateChanged: true, shouldBypassAI: false, questionDetected: false, directReply: null }
         }
 
-        // Modification section depuis le récap
+        // Modification section depuis le récap (affiche sélection actuelle + retour)
         const modifyTarget = detectModifierSection(text)
         if (modifyTarget && modifyTarget !== 'generic') {
             if (modifyTarget === 'drinks' && state.drinks_enabled) {
                 state.stage = RESTAURANT_STAGE.DRINKS
-                state.cart_items = state.cart_items.filter(i => i.menu_section_slug !== 'drinks')
-                const drinksMsg = buildSectionMessage('drinks', restaurantProducts, state.cart_items, state)
-                return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: `🔄 Modification boissons\n\n${drinksMsg}` }
+                state.modification_origin = 'RECAP'
+                // Items conservés : buildSectionModificationMessage les affiche
+                const drinksMsg = buildSectionModificationMessage('drinks', restaurantProducts, state.cart_items, state)
+                return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: drinksMsg }
             }
             const targetIdx = state.section_order.indexOf(modifyTarget)
             if (targetIdx >= 0) {
                 state.stage = RESTAURANT_STAGE.SECTION
                 state.current_section_index = targetIdx
-                state.cart_items = state.cart_items.filter(i => i.menu_section_slug !== modifyTarget)
-                const sectionMsg = buildSectionMessage(modifyTarget, restaurantProducts, state.cart_items, state)
-                return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: `🔄 Modification ${SECTION_CONFIG[modifyTarget]?.label.toLowerCase()}\n\n${sectionMsg}` }
+                state.modification_origin = 'RECAP'
+                // Items conservés : buildSectionModificationMessage les affiche
+                const sectionMsg = buildSectionModificationMessage(modifyTarget, restaurantProducts, state.cart_items, state)
+                return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: sectionMsg }
             }
         }
 
