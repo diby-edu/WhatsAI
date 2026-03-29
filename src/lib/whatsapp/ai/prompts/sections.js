@@ -21,7 +21,56 @@ function buildCatalogueSection(products, currency) {
         return '\n📦 CATALOGUE : Aucun produit configuré.\n'
     }
 
-    // v2.41: Liste de noms uniquement — les détails sont affichés quand un produit est sélectionné
+    // v2.42: Catalogue restaurant groupé par rubrique si menu_section_slug présent
+    const SECTION_ORDER = ['starters', 'mains', 'extras', 'desserts', 'drinks']
+    const SECTION_LABELS = {
+        starters: 'Entrées',
+        mains: 'Plats Principaux',
+        extras: 'Suppléments',
+        desserts: 'Desserts',
+        drinks: 'Boissons'
+    }
+
+    const isRestaurantMenu = products.some(p => p.menu_section_slug)
+
+    if (isRestaurantMenu) {
+        const sections = {}
+        const noSection = []
+
+        products.forEach(p => {
+            if (p.menu_section_slug && SECTION_LABELS[p.menu_section_slug]) {
+                if (!sections[p.menu_section_slug]) sections[p.menu_section_slug] = []
+                sections[p.menu_section_slug].push(p)
+            } else {
+                noSection.push(p)
+            }
+        })
+
+        const formatPrice = (p) => {
+            if (!p.price_fcfa) return ''
+            if (currency === 'USD' || currency === 'EUR') return ` — ${Math.round(p.price_fcfa / 700)} ${currency}`
+            return ` — ${p.price_fcfa} FCFA`
+        }
+
+        let carte = '\n🍽️ CARTE :\n'
+        SECTION_ORDER.forEach(slug => {
+            if (sections[slug] && sections[slug].length > 0) {
+                carte += `\n▸ ${SECTION_LABELS[slug]}\n`
+                sections[slug].forEach(p => {
+                    carte += `  • ${p.name}${formatPrice(p)}\n`
+                })
+            }
+        })
+        if (noSection.length > 0) {
+            carte += `\n▸ Autres\n`
+            noSection.forEach(p => {
+                carte += `  • ${p.name}${formatPrice(p)}\n`
+            })
+        }
+        return carte
+    }
+
+    // Standard : liste numérotée — détails affichés à la sélection
     const catalogueItems = products.map((p, index) => {
         return `${index + 1}. ${p.name}`
     }).join('\n')
