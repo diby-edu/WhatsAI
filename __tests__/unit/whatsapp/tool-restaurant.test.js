@@ -314,4 +314,36 @@ describe('tool-restaurant', () => {
         expect(global.fetch).not.toHaveBeenCalled()
         expect(mockNotify).not.toHaveBeenCalled()
     })
+
+    test('keeps onsite takeaway payments as cod and does not force an online link', async () => {
+        const { handleCreateRestaurantCheckout } = loadTool()
+
+        const { supabase, rpcCalls } = createSupabase({
+            agent: {
+                user_id: 'user-1',
+                name: 'Restaurant Lagoon',
+                escalation_phone: '+2250102030405',
+                restaurant_deposit_enabled: false,
+                restaurant_deposit_percentage: 0
+            },
+            orderRpcData: [{ order_id: 'order-789' }]
+        })
+
+        const rawResult = await handleCreateRestaurantCheckout({
+            fulfillment_mode: 'takeaway',
+            items: [{ product_name: 'Thieb Poulet', quantity: 1 }],
+            customer_name: 'Awa Konan',
+            customer_phone: '+2250701020304',
+            payment_method: 'onsite'
+        }, 'agent-1', restaurantProducts, 'conversation-1', supabase)
+
+        const result = JSON.parse(rawResult)
+
+        expect(result.success).toBe(true)
+        expect(result.payment_method).toBe('cod')
+        expect(result.payment_link).toBeNull()
+        expect(result.message).toMatch(/Paiement au retrait/i)
+        expect(rpcCalls[0].params.p_payment_method).toBe('cod')
+        expect(rpcCalls[0].params.p_status).toBe('pending_pickup')
+    })
 })

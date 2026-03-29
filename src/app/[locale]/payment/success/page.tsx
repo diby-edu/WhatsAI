@@ -4,11 +4,16 @@ import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { CheckCircle2, XCircle, Loader2, MessageCircle, ArrowRight, CreditCard, RefreshCw } from 'lucide-react'
+import { CheckCircle2, XCircle, Loader2, ArrowRight, CreditCard, RefreshCw } from 'lucide-react'
 
 function PaymentSuccessContent() {
     const searchParams = useSearchParams()
     const transactionId = searchParams.get('transaction_id')
+    const transactionKind = transactionId?.startsWith('BKG_')
+        ? 'booking'
+        : transactionId?.startsWith('ORD_')
+            ? 'order'
+            : 'account'
 
     const [status, setStatus] = useState<'loading' | 'success' | 'failed' | 'pending'>('loading')
     const [message, setMessage] = useState('')
@@ -18,45 +23,79 @@ function PaymentSuccessContent() {
     useEffect(() => {
         let isMounted = true
         let currentRetry = 0
+        let fallbackTimer: ReturnType<typeof setTimeout> | null = null
 
         const verifyPayment = async (txnId: string) => {
             if (!isMounted) return
 
             try {
-                const res = await fetch('/api/payments/cinetpay/status', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ transaction_id: txnId })
-                })
+                const isPublicCheckoutTransaction = txnId.startsWith('BKG_') || txnId.startsWith('ORD_')
+                const response = await fetch(
+                    isPublicCheckoutTransaction
+                        ? `/api/payments/cinetpay/status?transaction_id=${encodeURIComponent(txnId)}`
+                        : '/api/payments/cinetpay/status',
+                    isPublicCheckoutTransaction
+                        ? { method: 'GET' }
+                        : {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ transaction_id: txnId })
+                        }
+                )
 
-                const data = await res.json()
+                const data = await response.json()
 
                 if (!isMounted) return
 
                 if (data.success && data.status === 'ACCEPTED') {
                     setStatus('success')
                     setCreditsAdded(data.credits_added || 0)
-                    setMessage('Votre paiement a été confirmé et vos crédits ont été ajoutés !')
-                } else if (data.status === 'REFUSED' || data.status === 'CANCELLED') {
-                    setStatus('failed')
-                    setMessage('Le paiement a été refusé ou annulé.')
-                } else {
-                    // Still pending, retry in 3 seconds (max 10 retries)
-                    if (currentRetry < 10) {
-                        setStatus('pending')
-                        setMessage('Vérification du paiement en cours...')
-                        currentRetry++
-                        setTimeout(() => verifyPayment(txnId), 3000)
-                    } else {
-                        setStatus('pending')
-                        setMessage('Le paiement est en cours de traitement. Vous recevrez vos crédits sous peu.')
-                    }
+                    setMessage(
+                        txnId.startsWith('BKG_')
+                            ? 'Votre acompte a ete confirme. Vous recevrez la confirmation de reservation sur WhatsApp.'
+                            : txnId.startsWith('ORD_')
+                                ? 'Votre paiement a ete confirme. La commande continue son traitement.'
+                                : 'Votre paiement a ete confirme et vos credits ont ete ajoutes !'
+                    )
+                    return
                 }
+
+                if (data.status === 'REFUSED' || data.status === 'CANCELLED') {
+                    setStatus('failed')
+                    setMessage(
+                        txnId.startsWith('BKG_')
+                            ? 'Le paiement de l acompte a ete refuse ou annule.'
+                            : 'Le paiement a ete refuse ou annule.'
+                    )
+                    return
+                }
+
+                if (currentRetry < 10) {
+                    setStatus('pending')
+                    setMessage(
+                        txnId.startsWith('BKG_')
+                            ? 'Verification de votre acompte en cours...'
+                            : 'Verification du paiement en cours...'
+                    )
+                    currentRetry += 1
+                    setRetryCount(currentRetry)
+                    setTimeout(() => verifyPayment(txnId), 3000)
+                    return
+                }
+
+                setStatus('pending')
+                setMessage(
+                    txnId.startsWith('BKG_')
+                        ? 'Votre acompte est en cours de confirmation. Vous recevrez la confirmation sur WhatsApp.'
+                        : txnId.startsWith('ORD_')
+                            ? 'Votre paiement est en cours de confirmation. Vous recevrez une confirmation sous peu.'
+                            : 'Le paiement est en cours de traitement. Vous recevrez vos credits sous peu.'
+                )
             } catch (err) {
                 if (isMounted) {
                     console.error('Error verifying payment:', err)
                     setStatus('failed')
-                    setMessage('Erreur lors de la vérification du paiement.')
+                    setMessage('Erreur lors de la verification du paiement.')
                 }
             }
         }
@@ -64,26 +103,30 @@ function PaymentSuccessContent() {
         if (transactionId) {
             verifyPayment(transactionId)
         } else {
-            // No transaction ID, check for simple success/cancelled
-            const paymentParam = searchParams.get('payment')
-            if (paymentParam === 'success') {
-                setStatus('success')
-                setMessage('Votre paiement a été traité avec succès.')
-            } else if (paymentParam === 'cancelled') {
-                setStatus('failed')
-                setMessage('Le paiement a été annulé.')
-            } else {
-                setStatus('failed')
-                setMessage('Aucune transaction trouvée.')
-            }
+            fallbackTimer = setTimeout(() => {
+                if (!isMounted) return
+
+                const paymentParam = searchParams.get('payment')
+                if (paymentParam === 'success') {
+                    setStatus('success')
+                    setMessage('Votre paiement a ete traite avec succes.')
+                } else if (paymentParam === 'cancelled') {
+                    setStatus('failed')
+                    setMessage('Le paiement a ete annule.')
+                } else {
+                    setStatus('failed')
+                    setMessage('Aucune transaction trouvee.')
+                }
+            }, 0)
         }
 
         return () => {
             isMounted = false
+            if (fallbackTimer) clearTimeout(fallbackTimer)
         }
     }, [transactionId, searchParams])
 
-
+    const showActionButtons = status === 'success' || status === 'failed' || (status === 'pending' && retryCount >= 10)
 
     return (
         <div style={{
@@ -94,7 +137,6 @@ function PaymentSuccessContent() {
             backgroundColor: '#020617',
             padding: 24
         }}>
-            {/* Background effects */}
             <div style={{
                 position: 'absolute',
                 inset: 0,
@@ -119,7 +161,6 @@ function PaymentSuccessContent() {
                     zIndex: 10
                 }}
             >
-                {/* Status Icon */}
                 <motion.div
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
@@ -153,20 +194,18 @@ function PaymentSuccessContent() {
                     )}
                 </motion.div>
 
-                {/* Title */}
                 <h1 style={{
                     fontSize: 28,
                     fontWeight: 700,
                     color: 'white',
                     marginBottom: 12
                 }}>
-                    {status === 'loading' && 'Vérification...'}
+                    {status === 'loading' && 'Verification...'}
                     {status === 'pending' && 'Traitement en cours...'}
-                    {status === 'success' && 'Paiement réussi ! 🎉'}
-                    {status === 'failed' && 'Paiement échoué'}
+                    {status === 'success' && 'Paiement reussi !'}
+                    {status === 'failed' && 'Paiement echoue'}
                 </h1>
 
-                {/* Message */}
                 <p style={{
                     fontSize: 16,
                     color: '#94a3b8',
@@ -176,7 +215,6 @@ function PaymentSuccessContent() {
                     {message}
                 </p>
 
-                {/* Credits added */}
                 {status === 'success' && creditsAdded > 0 && (
                     <div style={{
                         display: 'inline-flex',
@@ -190,53 +228,76 @@ function PaymentSuccessContent() {
                     }}>
                         <CreditCard style={{ width: 20, height: 20, color: '#34d399' }} />
                         <span style={{ fontSize: 16, fontWeight: 600, color: '#34d399' }}>
-                            +{creditsAdded} crédits ajoutés
+                            +{creditsAdded} credits ajoutes
                         </span>
                     </div>
                 )}
 
-                {/* Action buttons */}
-                {(status === 'success' || status === 'failed' || (status === 'pending' && retryCount >= 10)) && (
+                {showActionButtons && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 16 }}>
-                        <Link
-                            href="/dashboard"
-                            style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: 10,
-                                padding: '16px 32px',
-                                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                                borderRadius: 14,
-                                color: 'white',
-                                fontWeight: 600,
-                                textDecoration: 'none',
-                                boxShadow: '0 8px 32px rgba(16, 185, 129, 0.3)'
-                            }}
-                        >
-                            Retour au tableau de bord
-                            <ArrowRight style={{ width: 18, height: 18 }} />
-                        </Link>
+                        {transactionKind === 'account' ? (
+                            <>
+                                <Link
+                                    href="/dashboard"
+                                    style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: 10,
+                                        padding: '16px 32px',
+                                        background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                                        borderRadius: 14,
+                                        color: 'white',
+                                        fontWeight: 600,
+                                        textDecoration: 'none',
+                                        boxShadow: '0 8px 32px rgba(16, 185, 129, 0.3)'
+                                    }}
+                                >
+                                    Retour au tableau de bord
+                                    <ArrowRight style={{ width: 18, height: 18 }} />
+                                </Link>
 
-                        {status === 'failed' && (
-                            <Link
-                                href="/dashboard/billing"
+                                {status === 'failed' && (
+                                    <Link
+                                        href="/dashboard/billing"
+                                        style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            gap: 8,
+                                            padding: '14px 24px',
+                                            background: 'rgba(30, 41, 59, 0.5)',
+                                            border: '1px solid rgba(148, 163, 184, 0.1)',
+                                            borderRadius: 14,
+                                            color: '#94a3b8',
+                                            fontWeight: 500,
+                                            textDecoration: 'none'
+                                        }}
+                                    >
+                                        Reessayer le paiement
+                                    </Link>
+                                )}
+                            </>
+                        ) : (
+                            <button
+                                onClick={() => window.close()}
                                 style={{
                                     display: 'inline-flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    gap: 8,
-                                    padding: '14px 24px',
-                                    background: 'rgba(30, 41, 59, 0.5)',
-                                    border: '1px solid rgba(148, 163, 184, 0.1)',
+                                    gap: 10,
+                                    padding: '16px 32px',
+                                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                                     borderRadius: 14,
-                                    color: '#94a3b8',
-                                    fontWeight: 500,
-                                    textDecoration: 'none'
+                                    color: 'white',
+                                    fontWeight: 600,
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    boxShadow: '0 8px 32px rgba(16, 185, 129, 0.3)'
                                 }}
                             >
-                                Réessayer le paiement
-                            </Link>
+                                Fermer cette page
+                            </button>
                         )}
                     </div>
                 )}

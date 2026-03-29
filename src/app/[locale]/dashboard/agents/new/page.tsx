@@ -1288,7 +1288,7 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
                                         Acompte reservations restaurant
                                     </h3>
                                     <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>
-                                        Utilise uniquement pour les reservations restaurant avec precommande ou table.
+                                        Utilise uniquement pour les reservations restaurant avec precommande.
                                     </p>
                                 </div>
                                 <button

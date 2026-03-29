@@ -1,5 +1,28 @@
 
 // 1. RELANCE AUTOMATIQUE DES PAIEMENTS
+async function clearRestaurantConversationState(supabase, conversationId) {
+    if (!conversationId) return
+
+    const { data: conversation } = await supabase
+        .from('conversations')
+        .select('metadata')
+        .eq('id', conversationId)
+        .single()
+
+    if (!conversation?.metadata?.restaurant) return
+
+    await supabase
+        .from('conversations')
+        .update({
+            metadata: {
+                ...conversation.metadata,
+                restaurant: null,
+            }
+        })
+        .eq('id', conversationId)
+}
+
+// 1. RELANCE AUTOMATIQUE DES PAIEMENTS
 async function checkPendingPayments(supabase) {
     try {
         const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString()
@@ -73,7 +96,7 @@ async function cancelExpiredBookingDeposits(supabase) {
 
         const { data: expiredBookings } = await supabase
             .from('bookings')
-            .select('id, agent_id, customer_phone, customer_name, service_name, start_time')
+            .select('id, agent_id, customer_phone, customer_name, service_name, start_time, conversation_id')
             .eq('booking_source', 'restaurant')
             .eq('status', 'pending')
             .eq('deposit_required', true)
@@ -97,6 +120,8 @@ async function cancelExpiredBookingDeposits(supabase) {
             if (updateError || !updatedBooking) {
                 continue
             }
+
+            await clearRestaurantConversationState(supabase, booking.conversation_id)
 
             if (!booking.customer_phone) continue
 

@@ -33,6 +33,13 @@ function buildCatalogueSection(products, currency) {
 
     const isRestaurantMenu = products.some(p => p.menu_section_slug)
 
+    const sortRestaurantSectionProducts = (items) => [...items].sort((a, b) => {
+        const aSort = Number.isFinite(Number(a.menu_sort_order)) ? Number(a.menu_sort_order) : Number.MAX_SAFE_INTEGER
+        const bSort = Number.isFinite(Number(b.menu_sort_order)) ? Number(b.menu_sort_order) : Number.MAX_SAFE_INTEGER
+        if (aSort !== bSort) return aSort - bSort
+        return String(a.name || '').localeCompare(String(b.name || ''), 'fr', { sensitivity: 'base' })
+    })
+
     if (isRestaurantMenu) {
         const sections = {}
         const noSection = []
@@ -56,14 +63,14 @@ function buildCatalogueSection(products, currency) {
         SECTION_ORDER.forEach(slug => {
             if (sections[slug] && sections[slug].length > 0) {
                 carte += `\n▸ ${SECTION_LABELS[slug]}\n`
-                sections[slug].forEach(p => {
+                sortRestaurantSectionProducts(sections[slug]).forEach(p => {
                     carte += `  • ${p.name}${formatPrice(p)}\n`
                 })
             }
         })
         if (noSection.length > 0) {
             carte += `\n▸ Autres\n`
-            noSection.forEach(p => {
+            sortRestaurantSectionProducts(noSection).forEach(p => {
                 carte += `  • ${p.name}${formatPrice(p)}\n`
             })
         }

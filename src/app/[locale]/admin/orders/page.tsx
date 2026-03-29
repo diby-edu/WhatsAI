@@ -24,6 +24,9 @@ interface Order {
     notes?: string | null
     fulfillment_mode?: 'takeaway' | 'delivery' | null
     pickup_at?: string | null
+    deposit_required?: boolean | null
+    deposit_amount_fcfa?: number | null
+    deposit_status?: string | null
 }
 
 export default function AdminOrdersPage() {
@@ -102,6 +105,7 @@ export default function AdminOrdersPage() {
             case 'paid': return { bg: 'rgba(34, 197, 94, 0.15)', color: '#4ade80' }
             case 'pending': return { bg: 'rgba(251, 191, 36, 0.15)', color: '#fbbf24' }
             case 'pending_pickup': return { bg: 'rgba(249, 115, 22, 0.15)', color: '#fb923c' }
+            case 'pending_delivery': return { bg: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa' }
             case 'confirmed': return { bg: 'rgba(52, 211, 153, 0.15)', color: '#34d399' }
             case 'cancelled': return { bg: 'rgba(239, 68, 68, 0.15)', color: '#f87171' }
             case 'shipped': return { bg: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa' }
@@ -141,7 +145,8 @@ export default function AdminOrdersPage() {
         pending: orders.filter(o => o.status === 'pending').length,
         paid: orders.filter(o => o.status === 'paid').length,
         shipped: orders.filter(o => o.status === 'shipped').length,
-        pending_pickup: orders.filter(o => o.status === 'pending_pickup').length
+        pending_pickup: orders.filter(o => o.status === 'pending_pickup').length,
+        pending_delivery: orders.filter(o => o.status === 'pending_delivery').length
     }
 
     return (
@@ -186,6 +191,7 @@ export default function AdminOrdersPage() {
                     { label: 'En attente', value: stats.pending, icon: Clock, color: '#fbbf24' },
                     { label: 'Payées', value: stats.paid, icon: CreditCard, color: '#4ade80' },
                     { label: 'Expédiées', value: stats.shipped, icon: Truck, color: '#60a5fa' },
+                    { label: 'Livraison', value: stats.pending_delivery, icon: Truck, color: '#60a5fa' },
                     { label: 'Retrait', value: stats.pending_pickup, icon: Package, color: '#fb923c' }
                 ].map((stat, i) => (
                     <div key={i} style={{
@@ -236,6 +242,7 @@ export default function AdminOrdersPage() {
                     <option value="shipped">Expédiées</option>
                     <option value="delivered">Livrées</option>
                     <option value="cancelled">Annulées</option>
+                    <option value="pending_delivery">En livraison</option>
                 </select>
             </div>
 
@@ -315,15 +322,25 @@ export default function AdminOrdersPage() {
                                             <span style={{ color: '#4ade80', fontWeight: 600, fontSize: 14 }}>
                                                 {order.total_fcfa?.toLocaleString('fr-FR')} FCFA
                                             </span>
+                                            {order.deposit_required && (
+                                                <div style={{ color: '#94a3b8', fontSize: 11, marginTop: 4 }}>
+                                                    Acompte {Number(order.deposit_amount_fcfa || 0).toLocaleString('fr-FR')} FCFA
+                                                    {order.deposit_status ? ` • ${order.deposit_status}` : ''}
+                                                </div>
+                                            )}
                                         </td>
                                         <td style={{ padding: '14px 16px' }}>
-                                            {(order.payment_method === 'cinetpay' || order.agent_payment_mode === 'cinetpay' || (!order.payment_method && !order.agent_payment_mode)) ? (
+                                            {(order.payment_method === 'online' || (!order.payment_method && order.agent_payment_mode === 'cinetpay') || (!order.payment_method && !order.agent_payment_mode)) ? (
                                                 <span style={{ padding: '3px 8px', borderRadius: 100, fontSize: 11, fontWeight: 600, background: 'rgba(52, 211, 153, 0.15)', color: '#34d399' }}>
                                                     CinetPay
                                                 </span>
+                                            ) : order.payment_method === 'mobile_money_direct' ? (
+                                                <span style={{ padding: '3px 8px', borderRadius: 100, fontSize: 11, fontWeight: 600, background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b' }}>
+                                                    Mobile Money
+                                                </span>
                                             ) : (
                                                 <span style={{ padding: '3px 8px', borderRadius: 100, fontSize: 11, fontWeight: 600, background: 'rgba(251, 146, 60, 0.15)', color: '#fb923c' }}>
-                                                    Direct
+                                                    Sur place
                                                 </span>
                                             )}
                                         </td>
@@ -353,7 +370,7 @@ export default function AdminOrdersPage() {
                                                         <XCircle size={14} style={{ color: '#f87171' }} />
                                                     </button>
                                                 )}
-                                                {order.status === 'paid' && order.fulfillment_mode !== 'takeaway' && (
+                                                {(order.status === 'paid' || order.status === 'pending_delivery') && order.fulfillment_mode !== 'takeaway' && (
                                                     <button onClick={() => updateOrderStatus(order.id, 'shipped')} title="Marquer expédiée"
                                                         style={{ width: 30, height: 30, borderRadius: 8, background: 'rgba(59, 130, 246, 0.1)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                                         <Truck size={14} style={{ color: '#60a5fa' }} />
@@ -430,6 +447,14 @@ export default function AdminOrdersPage() {
                                             </span>
                                         </div>
                                         {orderType && <Row label="Type de commande" value={orderType} />}
+                                        {viewOrder.fulfillment_mode && <Row label="Mode" value={viewOrder.fulfillment_mode === 'takeaway' ? 'A emporter' : 'Livraison'} />}
+                                        {viewOrder.pickup_at && <Row label="Retrait prevu" value={viewOrder.pickup_at} />}
+                                        {viewOrder.deposit_required && (
+                                            <Row
+                                                label="Acompte"
+                                                value={`${Number(viewOrder.deposit_amount_fcfa || 0).toLocaleString('fr-FR')} FCFA${viewOrder.deposit_status ? ` (${viewOrder.deposit_status})` : ''}`}
+                                            />
+                                        )}
                                         <Row label="Adresse" value={viewOrder.delivery_address || 'N/A'} />
                                         {viewOrder.notes && <Row label="Notes" value={viewOrder.notes} />}
                                         <Row label="Date" value={new Date(viewOrder.created_at).toLocaleString('fr-FR')} />
