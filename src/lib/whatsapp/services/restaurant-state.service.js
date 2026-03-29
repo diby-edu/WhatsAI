@@ -14,6 +14,7 @@ const RESTAURANT_STAGE = {
     CUSTOMER_FLOW:  'CUSTOMER_FLOW',  // Collecte infos client
     RECAP:          'RECAP',          // Récap final + confirmation
     READY:          'READY',          // Confirmé → déclenche create_restaurant_checkout
+    DEPOSIT:        'DEPOSIT',        // En attente de paiement d'acompte
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1023,6 +1024,22 @@ function updateRestaurantStateFromUserMessage(previousState, text, restaurantPro
         return noOp
     }
 
+    // ──────────────────────────────────────────────
+    // STAGE: DEPOSIT (en attente de paiement d'acompte)
+    // ──────────────────────────────────────────────
+    if (state.stage === RESTAURANT_STAGE.DEPOSIT) {
+        // Questions hors-parcours → IA répond + réancre sur le statut acompte
+        if (questionDetected) return noOp
+
+        // Client dit avoir payé → IA gère (ne peut pas confirmer sans webhook)
+        if (/(j ai paye|paiement effectue|c est fait|j ai transfere|j ai envoye|j ai regle|transaction|recu de paiement)/.test(normalized)) {
+            return noOp
+        }
+
+        // Toute autre réponse → ne pas relancer le flow
+        return noOp
+    }
+
     // Fallback (READY ou autre)
     return { state, stateChanged: false, shouldBypassAI: false, questionDetected, directReply: null }
 }
@@ -1036,6 +1053,16 @@ function inferRestaurantStateFromAssistantMessage(content, previousState = {}) {
     const n = normalizeText(content)
     if (!n) return state
 
+    // Acompte requis → passer en DEPOSIT (attente paiement)
+    if (/acompte|lien de paiement|pour confirmer.*versez|sera confirmee des reception|paiement.*requis|deposez/.test(n)) {
+        state.stage = RESTAURANT_STAGE.DEPOSIT
+        return state
+    }
+
+    // Confirmation sans acompte → réinitialiser l'état
+    if (/(reservation|commande).*(confirmee|confirmee|enregistree|validee)/.test(n) && !/acompte/.test(n)) {
+        return cloneRestaurantState({})
+    }
     if (/reservation restaurant enregistree|commande restaurant enregistree|reservation de table enregistree|checkout confirme/.test(n)) {
         return cloneRestaurantState({})
     }
@@ -1078,6 +1105,12 @@ function buildRestaurantStateGuidance(restaurantState = {}, options = {}) {
         lines.push('- Le client vient de confirmer.')
         lines.push('- Appelle create_restaurant_checkout maintenant avec les données ci-dessus.')
         lines.push('- Ne pose pas de question avant l\'appel.')
+    } else if (state.stage === RESTAURANT_STAGE.DEPOSIT) {
+        lines.push('- STATUT : En attente de paiement d\'acompte.')
+        lines.push('- Ne relance PAS le parcours de commande.')
+        lines.push('- Ne recrée PAS de checkout.')
+        lines.push('- Si le client dit avoir payé → réponds : "Parfait ! Votre réservation sera confirmée automatiquement dès réception du paiement."')
+        lines.push('- Si le client pose une autre question → réponds-y, puis rappelle l\'attente d\'acompte.')
     } else {
         lines.push('- Ne redemande jamais les infos déjà collectées.')
     }
