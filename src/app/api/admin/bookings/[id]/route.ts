@@ -1,6 +1,31 @@
 import { NextRequest } from 'next/server'
 import { createApiClient, getAuthUser, errorResponse, successResponse, createAdminClient } from '@/lib/api-utils'
 
+async function clearRestaurantConversationState(
+    adminSupabase: ReturnType<typeof createAdminClient>,
+    conversationId: string | null | undefined
+) {
+    if (!conversationId) return
+
+    const { data: conversation } = await adminSupabase
+        .from('conversations')
+        .select('metadata')
+        .eq('id', conversationId)
+        .single()
+
+    if (!conversation?.metadata?.restaurant) return
+
+    await adminSupabase
+        .from('conversations')
+        .update({
+            metadata: {
+                ...conversation.metadata,
+                restaurant: null,
+            }
+        })
+        .eq('id', conversationId)
+}
+
 // PATCH - Update booking status (admin only)
 export async function PATCH(
     request: NextRequest,
@@ -45,7 +70,7 @@ export async function PATCH(
 
         const { data: existingBooking, error: existingBookingError } = await adminSupabase
             .from('bookings')
-            .select('status, deposit_status, customer_phone, customer_name, service_name, start_time, agent_id')
+            .select('status, deposit_status, customer_phone, customer_name, service_name, start_time, agent_id, conversation_id, booking_source')
             .eq('id', id)
             .single()
 
@@ -63,6 +88,13 @@ export async function PATCH(
             if (!sameDepositStatus && !validDepositTransition) {
                 return errorResponse('Invalid deposit_status transition', 400)
             }
+        }
+
+        const requiresDepositConfirmation = existingBooking.booking_source === 'restaurant'
+            && existingBooking.deposit_status === 'pending'
+
+        if ((status === 'confirmed' || status === 'completed') && requiresDepositConfirmation) {
+            return errorResponse('Deposit still pending - confirm payment or waive deposit first', 400)
         }
 
         const updatePayload: Record<string, string> = {
@@ -109,6 +141,17 @@ export async function PATCH(
             } catch (notifyError) {
                 console.error('Booking WhatsApp notification error (non-blocking):', notifyError)
             }
+        }
+
+        const shouldClearRestaurantState =
+            existingBooking.booking_source === 'restaurant' &&
+            (
+                ['paid', 'waived', 'expired'].includes(updatePayload.deposit_status || '') ||
+                ['cancelled', 'completed'].includes(finalStatus)
+            )
+
+        if (shouldClearRestaurantState) {
+            await clearRestaurantConversationState(adminSupabase, existingBooking.conversation_id)
         }
 
         return successResponse({

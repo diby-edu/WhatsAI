@@ -1,13 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useSearchParams } from 'next/navigation'
 import { Loader2, CheckCircle, CreditCard, ShoppingBag } from 'lucide-react'
 import { motion } from 'framer-motion'
-import Link from 'next/link'
 
 export default function OrderPaymentPage() {
     const params = useParams()
+    const searchParams = useSearchParams()
     const [loading, setLoading] = useState(true)
     const [order, setOrder] = useState<any>(null)
     const [items, setItems] = useState<any[]>([])
@@ -16,7 +16,24 @@ export default function OrderPaymentPage() {
 
     useEffect(() => {
         fetchOrder()
-    }, [params.orderId])
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [params.orderId, searchParams.toString()])
+
+    const verifyReturnPayment = async (transactionId: string) => {
+        try {
+            const response = await fetch(`/api/payments/cinetpay/status?transaction_id=${encodeURIComponent(transactionId)}`)
+            const data = await response.json()
+
+            if (data.success && data.status === 'ACCEPTED') {
+                setStatus('success')
+            } else if (data.status === 'REFUSED' || data.status === 'CANCELLED') {
+                setStatus('error')
+                setError('Le paiement a ete refuse ou annule.')
+            }
+        } catch (err) {
+            console.error('Error verifying order payment:', err)
+        }
+    }
 
     const fetchOrder = async () => {
         try {
@@ -29,11 +46,20 @@ export default function OrderPaymentPage() {
 
             setOrder(data.order)
             setItems(data.items || [])
-            if (data.order.status === 'paid') setStatus('success')
 
+            const isDepositPaid = data.order.deposit_required && data.order.deposit_status === 'paid'
+            if (data.order.status === 'paid' || isDepositPaid) {
+                setStatus('success')
+            } else if (searchParams.get('status') === 'success' && data.order.transaction_id) {
+                await verifyReturnPayment(data.order.transaction_id)
+            } else if (searchParams.get('status') === 'cancelled') {
+                setStatus('error')
+                setError('Le paiement a ete annule.')
+            }
         } catch (err: any) {
             console.error('Error fetching order:', err)
             setError(err.message || 'Commande introuvable')
+            setStatus('error')
         } finally {
             setLoading(false)
         }
@@ -43,7 +69,6 @@ export default function OrderPaymentPage() {
         setStatus('processing')
 
         try {
-            // Call CinetPay initiation API
             const res = await fetch(`/api/public/orders/${params.orderId}/pay`, {
                 method: 'POST'
             })
@@ -51,10 +76,9 @@ export default function OrderPaymentPage() {
             const data = await res.json()
 
             if (!res.ok || !data.payment_url) {
-                throw new Error(data.error || 'Échec de l\'initialisation du paiement')
+                throw new Error(data.error || 'Echec de l initialisation du paiement')
             }
 
-            // Redirect to CinetPay payment page
             window.location.href = data.payment_url
         } catch (err: any) {
             console.error('Payment failed:', err)
@@ -82,6 +106,9 @@ export default function OrderPaymentPage() {
         )
     }
 
+    const isDepositPayment = order.deposit_required && order.deposit_status === 'pending'
+    const payableAmount = Number(isDepositPayment ? order.deposit_amount_fcfa : order.total_fcfa || 0)
+
     if (status === 'success') {
         return (
             <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white p-4">
@@ -91,22 +118,30 @@ export default function OrderPaymentPage() {
                     className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-8 text-center"
                 >
                     <CheckCircle className="w-16 h-16 text-emerald-500 mx-auto mb-6" />
-                    <h1 className="text-2xl font-bold mb-2">Paiement Réussi !</h1>
-                    <p className="text-slate-400 mb-6">Merci pour votre commande.</p>
+                    <h1 className="text-2xl font-bold mb-2">Paiement reussi !</h1>
+                    <p className="text-slate-400 mb-6">
+                        {isDepositPayment ? 'Votre acompte a ete confirme.' : 'Merci pour votre commande.'}
+                    </p>
                     <div className="bg-slate-950/50 rounded-xl p-4 mb-6 text-left">
                         <div className="flex justify-between text-sm mb-2">
                             <span className="text-slate-400">Commande</span>
                             <span className="font-mono">#{order.id.substring(0, 8)}</span>
                         </div>
-                        <div className="flex justify-between text-lg font-bold">
-                            <span>Total</span>
-                            <span className="text-emerald-400">{order.total_fcfa?.toLocaleString('fr-FR')} FCFA</span>
+                        <div className="flex justify-between text-sm mb-2">
+                            <span className="text-slate-400">{isDepositPayment ? 'Acompte' : 'Total'}</span>
+                            <span className="font-semibold">{payableAmount.toLocaleString('fr-FR')} FCFA</span>
                         </div>
+                        {isDepositPayment && (
+                            <div className="flex justify-between text-sm">
+                                <span className="text-slate-400">Commande totale</span>
+                                <span>{Number(order.total_fcfa || 0).toLocaleString('fr-FR')} FCFA</span>
+                            </div>
+                        )}
                     </div>
 
                     <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 mb-6">
                         <p className="text-emerald-400 text-sm">
-                            📱 Vous allez recevoir une confirmation sur WhatsApp
+                            Vous allez recevoir une confirmation sur WhatsApp
                         </p>
                     </div>
 
@@ -128,19 +163,22 @@ export default function OrderPaymentPage() {
                 animate={{ y: 0, opacity: 1 }}
                 className="w-full max-w-md"
             >
-                {/* Header */}
                 <div className="text-center mb-8">
                     <div className="w-16 h-16 bg-blue-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
                         <ShoppingBag className="w-8 h-8 text-blue-500" />
                     </div>
-                    <h1 className="text-2xl font-bold">Résumé de la commande</h1>
-                    <p className="text-slate-400">Total à payer</p>
+                    <h1 className="text-2xl font-bold">Resume de la commande</h1>
+                    <p className="text-slate-400">{isDepositPayment ? 'Acompte a payer' : 'Total a payer'}</p>
                     <div className="text-4xl font-bold text-white mt-2">
-                        {order.total_fcfa?.toLocaleString('fr-FR')} <span className="text-lg text-slate-500">FCFA</span>
+                        {payableAmount.toLocaleString('fr-FR')} <span className="text-lg text-slate-500">FCFA</span>
                     </div>
+                    {isDepositPayment && (
+                        <p className="text-sm text-slate-500 mt-2">
+                            Total commande: {Number(order.total_fcfa || 0).toLocaleString('fr-FR')} FCFA
+                        </p>
+                    )}
                 </div>
 
-                {/* List */}
                 <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden mb-6">
                     <div className="p-4 border-b border-slate-800 bg-slate-900/50">
                         <h3 className="font-semibold text-sm text-slate-400 uppercase tracking-wider">Articles</h3>
@@ -150,7 +188,7 @@ export default function OrderPaymentPage() {
                             <div key={i} className="p-4 flex justify-between items-center">
                                 <div>
                                     <div className="font-medium">{item.product_name}</div>
-                                    <div className="text-sm text-slate-500">Quantité: {item.quantity}</div>
+                                    <div className="text-sm text-slate-500">Quantite: {item.quantity}</div>
                                 </div>
                                 <div className="text-right">
                                     {(item.unit_price_fcfa * item.quantity).toLocaleString('fr-FR')} FCFA
@@ -160,13 +198,18 @@ export default function OrderPaymentPage() {
                     </div>
                 </div>
 
-                {/* Delivery */}
                 <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-8">
-                    <h3 className="font-semibold text-sm text-slate-400 uppercase tracking-wider mb-2">Livraison</h3>
-                    <p>{order.delivery_address || 'Pas d\'adresse spécifiée'}</p>
+                    <h3 className="font-semibold text-sm text-slate-400 uppercase tracking-wider mb-2">
+                        {order.fulfillment_mode === 'takeaway' ? 'Retrait' : 'Livraison'}
+                    </h3>
+                    <p>
+                        {order.fulfillment_mode === 'takeaway'
+                            ? (order.pickup_at ? `Retrait prevu a ${order.pickup_at}` : 'Retrait sur place')
+                            : (order.delivery_address || 'Pas d adresse specifiee')
+                        }
+                    </p>
                 </div>
 
-                {/* Button */}
                 <button
                     onClick={handlePayment}
                     disabled={status === 'processing'}
@@ -177,7 +220,7 @@ export default function OrderPaymentPage() {
                     ) : (
                         <>
                             <CreditCard className="w-6 h-6" />
-                            Payer Maintenant
+                            {isDepositPayment ? 'Payer l acompte' : 'Payer maintenant'}
                         </>
                     )}
                 </button>

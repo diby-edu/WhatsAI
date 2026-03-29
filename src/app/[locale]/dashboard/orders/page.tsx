@@ -27,6 +27,10 @@ interface Order {
     payment_screenshot_url: string | null
     fulfillment_mode?: 'takeaway' | 'delivery' | null
     pickup_at?: string | null
+    deposit_required?: boolean | null
+    deposit_amount_fcfa?: number | null
+    deposit_status?: string | null
+    transaction_id?: string | null
     created_at: string
     items_count: number
     items?: {
@@ -805,6 +809,12 @@ export default function OrdersPage() {
                                     <div style={{ color: '#64748b', fontSize: 13 }}>
                                         {order.items_count} articles
                                     </div>
+                                    {order.deposit_required && (
+                                        <div style={{ color: '#94a3b8', fontSize: 12, marginTop: 4 }}>
+                                            Acompte: {formatPrice(order.deposit_amount_fcfa || 0)}
+                                            {order.deposit_status ? ` • ${order.deposit_status}` : ''}
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Verification Buttons (Mobile Money) */}

@@ -44,6 +44,11 @@ export async function GET(request: NextRequest) {
                 user_id,
                 payment_method,
                 transaction_id,
+                fulfillment_mode,
+                pickup_at,
+                deposit_required,
+                deposit_amount_fcfa,
+                deposit_status,
                 agent:agents(name, payment_mode),
                 profile:profiles!orders_user_id_fkey(email),
                 order_items(id)

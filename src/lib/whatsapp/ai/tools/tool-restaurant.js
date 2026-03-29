@@ -5,6 +5,18 @@ const CINETPAY_API_KEY = process.env.CINETPAY_API_KEY
 const CINETPAY_SITE_ID = process.env.CINETPAY_SITE_ID
 const CINETPAY_BASE_URL = 'https://api-checkout.cinetpay.com/v2/payment'
 
+function buildRestaurantOrderPaymentLabel(paymentMethod, fulfillmentMode) {
+    if (paymentMethod === 'cod') {
+        return fulfillmentMode === 'delivery' ? 'Paiement a la livraison.' : 'Paiement au retrait.'
+    }
+
+    if (paymentMethod === 'mobile_money_direct') {
+        return 'Paiement a finaliser via Mobile Money.'
+    }
+
+    return 'Paiement en ligne.'
+}
+
 function scoreRestaurantProductMatch(searchName, product) {
     const normalizedSearch = String(searchName || '').trim().toLowerCase()
     const productName = String(product.name || '').trim().toLowerCase()
@@ -387,13 +399,15 @@ async function handleCreateRestaurantCheckout(args, agentId, products, conversat
             ? Math.ceil((totalFcfa * orderDepositPercentage) / 100)
             : 0
 
-        const orderUsesCinetpay = !agent.payment_mode || agent.payment_mode === 'cinetpay'
-        const orderUsesMobileMoney = agent.payment_mode === 'mobile_money_direct'
+        const orderUsesCinetpay = paymentMethod === 'online' && (!agent.payment_mode || agent.payment_mode === 'cinetpay')
+        const orderUsesMobileMoney = paymentMethod === 'online' && agent.payment_mode === 'mobile_money_direct'
 
         // Pour les orders, le payment_method DB reflète le mode de paiement final
-        const orderPaymentMethod = orderUsesCinetpay ? 'online' : 'cod'
+        const orderPaymentMethod = paymentMethod === 'cod'
+            ? 'cod'
+            : (orderUsesMobileMoney ? 'mobile_money_direct' : 'online')
         const orderStatus = fulfillmentMode === 'delivery'
-            ? (orderPaymentMethod === 'online' ? 'pending' : 'pending_delivery')
+            ? (orderPaymentMethod === 'cod' ? 'pending_delivery' : 'pending')
             : 'pending_pickup'
 
         const { data: orderResult, error: orderError } = await supabase.rpc('create_restaurant_order_with_items', {
@@ -424,15 +438,21 @@ async function handleCreateRestaurantCheckout(args, agentId, products, conversat
         let orderPaymentLink = null
         let orderPaymentMessage = ''
 
-        if (orderUsesCinetpay && orderId) {
+        if (orderPaymentMethod === 'online' && orderId) {
             orderPaymentLink = `${appUrl}/pay/${orderId}`
             if (orderDepositRequired) {
                 orderPaymentMessage = `\nAcompte requis : *${orderDepositAmountFcfa.toLocaleString('fr-FR')} FCFA* (${orderDepositPercentage}%).\nLien de paiement : ${orderPaymentLink}`
             } else {
                 orderPaymentMessage = `\nLien de paiement : ${orderPaymentLink}`
             }
-        } else if (orderUsesMobileMoney && orderDepositRequired) {
-            orderPaymentMessage = buildMobileMoneyDepositMessage(agent, orderDepositAmountFcfa, orderDepositPercentage)
+        } else if (orderPaymentMethod === 'mobile_money_direct') {
+            if (orderDepositRequired) {
+                orderPaymentMessage = buildMobileMoneyDepositMessage(agent, orderDepositAmountFcfa, orderDepositPercentage)
+            } else {
+                orderPaymentMessage = `\n${buildRestaurantOrderPaymentLabel(orderPaymentMethod, fulfillmentMode)}`
+            }
+        } else {
+            orderPaymentMessage = `\n${buildRestaurantOrderPaymentLabel(orderPaymentMethod, fulfillmentMode)}`
         }
 
         try {

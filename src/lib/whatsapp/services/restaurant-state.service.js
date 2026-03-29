@@ -134,12 +134,21 @@ function buildSectionOrder(products) {
     return SECTION_ORDER_CANONICAL.filter(slug => present.has(slug))
 }
 
+function sortRestaurantSectionProducts(products = []) {
+    return [...products].sort((a, b) => {
+        const aSort = Number.isFinite(Number(a.menu_sort_order)) ? Number(a.menu_sort_order) : Number.MAX_SAFE_INTEGER
+        const bSort = Number.isFinite(Number(b.menu_sort_order)) ? Number(b.menu_sort_order) : Number.MAX_SAFE_INTEGER
+        if (aSort !== bSort) return aSort - bSort
+        return String(a.name || '').localeCompare(String(b.name || ''), 'fr', { sensitivity: 'base' })
+    })
+}
+
 function getProductsForSection(products, slug) {
-    return products.filter(p => p.menu_section_slug === slug)
+    return sortRestaurantSectionProducts(products.filter(p => p.menu_section_slug === slug))
 }
 
 function getDrinkProducts(products) {
-    return products.filter(p => p.menu_section_slug === 'drinks')
+    return sortRestaurantSectionProducts(products.filter(p => p.menu_section_slug === 'drinks'))
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -396,7 +405,7 @@ function extractTime(text) {
     }
 
     // "15h" sans minutes
-    const hourOnly = raw.match(/\b(\d{1,2})\s*h(?:eures?)?\b/i)
+    const hourOnly = raw.match(/\b(\d{1,2})\s*(?:h|heure|heures)\b/i)
     if (hourOnly) {
         const h = Number(hourOnly[1])
         if (h >= 0 && h <= 23) return `${String(h).padStart(2, '0')}:00`
@@ -414,7 +423,8 @@ function extractPartySize(text) {
     const patterns = [
         /\b(\d{1,2})\s*(?:personnes?|pers?|adultes?|couverts?)\b/,
         /\bnous serons\s+(\d{1,2})\b/,
-        /\bpour\s+(\d{1,2})\s*(?:personnes?)?\b/,
+        /\bpour\s+(\d{1,2})\s+personnes?\b/,
+        /\bpour\s+(\d{1,2})\b/,
     ]
     for (const p of patterns) {
         const m = n.match(p)

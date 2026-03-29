@@ -34,7 +34,7 @@ export async function PATCH(
             return errorResponse('Status is required', 400)
         }
 
-        const validStatuses = ['pending', 'paid', 'confirmed', 'shipped', 'delivered', 'cancelled', 'pending_pickup']
+        const validStatuses = ['pending', 'paid', 'confirmed', 'shipped', 'delivered', 'cancelled', 'pending_pickup', 'pending_delivery']
         if (!validStatuses.includes(status)) {
             return errorResponse('Invalid status', 400)
         }

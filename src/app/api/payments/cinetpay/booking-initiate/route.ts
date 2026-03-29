@@ -56,6 +56,10 @@ export async function POST(request: NextRequest) {
             return errorResponse('This booking does not require a deposit', 400)
         }
 
+        if (booking.status === 'cancelled' || booking.status === 'completed') {
+            return errorResponse('This booking is no longer payable in its current state', 400)
+        }
+
         if (booking.payment_method !== 'online') {
             return errorResponse('This booking is not configured for online payment', 400)
         }

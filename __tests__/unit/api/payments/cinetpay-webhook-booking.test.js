@@ -221,7 +221,8 @@ describe('POST /api/payments/cinetpay/webhook for BKG_*', () => {
                 })
             })
         ]))
-        expect(inserts).toHaveLength(0)
+        expect(inserts).toHaveLength(1)
+        expect(inserts[0].payload.content).toMatch(/Paiement non abouti/i)
     })
 
     test('is idempotent when the booking deposit is already paid', async () => {
@@ -230,6 +231,49 @@ describe('POST /api/payments/cinetpay/webhook for BKG_*', () => {
             transaction_id: 'BKG_booking_1_1234',
             deposit_status: 'paid',
             status: 'confirmed',
+            deposit_amount_fcfa: 5000,
+            service_name: 'Diner sur place',
+            start_time: null,
+            agent_id: 'agent_1',
+            conversation_id: 'conv_1',
+            customer_phone: '+2250701020304'
+        }
+        const updates = []
+        const inserts = []
+
+        mockCreateClient.mockReturnValue(createSupabaseMock({ booking, updates, inserts }))
+
+        const response = await POST(makeWebhookRequest({
+            cpm_site_id: 'site_123',
+            cpm_trans_id: 'BKG_booking_1_1234',
+            cpm_trans_date: '20260329120000',
+            cpm_amount: '5000',
+            cpm_currency: 'XOF',
+            signature: 'sig',
+            payment_method: 'MOMO',
+            cel_phone_num: '0701020304',
+            cpm_phone_prefixe: '225',
+            cpm_language: 'fr',
+            cpm_version: 'v2',
+            cpm_payment_config: 'SINGLE',
+            cpm_page_action: 'PAYMENT',
+            cpm_custom: '',
+            cpm_designation: 'Acompte',
+            cpm_error_message: ''
+        }))
+
+        expect(response.status).toBe(200)
+        expect(mockCheckPaymentStatus).not.toHaveBeenCalled()
+        expect(updates).toHaveLength(0)
+        expect(inserts).toHaveLength(0)
+    })
+
+    test('ignores terminal cancelled bookings instead of reconfirming them', async () => {
+        const booking = {
+            id: 'booking_123',
+            transaction_id: 'BKG_booking_1_1234',
+            deposit_status: 'pending',
+            status: 'cancelled',
             deposit_amount_fcfa: 5000,
             service_name: 'Diner sur place',
             start_time: null,

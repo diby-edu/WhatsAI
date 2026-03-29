@@ -1,6 +1,31 @@
 import { NextRequest } from 'next/server'
 import { createApiClient, successResponse, errorResponse, getAuthUser } from '@/lib/api-utils'
 
+async function clearRestaurantConversationState(
+    supabase: Awaited<ReturnType<typeof createApiClient>>,
+    conversationId: string | null | undefined
+) {
+    if (!conversationId) return
+
+    const { data: conversation } = await supabase
+        .from('conversations')
+        .select('metadata')
+        .eq('id', conversationId)
+        .single()
+
+    if (!conversation?.metadata?.restaurant) return
+
+    await supabase
+        .from('conversations')
+        .update({
+            metadata: {
+                ...conversation.metadata,
+                restaurant: null,
+            }
+        })
+        .eq('id', conversationId)
+}
+
 export async function PATCH(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
@@ -33,7 +58,7 @@ export async function PATCH(
 
         const { data: booking, error: bookingError } = await supabase
             .from('bookings')
-            .select('id, agent_id, status, customer_phone, customer_name, service_name, start_time, deposit_required, deposit_status, booking_source')
+            .select('id, agent_id, status, customer_phone, customer_name, service_name, start_time, deposit_required, deposit_status, booking_source, conversation_id')
             .eq('id', bookingId)
             .single()
 
@@ -118,6 +143,17 @@ export async function PATCH(
             } catch (e) {
                 console.error('Booking WhatsApp notification error (non-blocking):', e)
             }
+        }
+
+        const shouldClearRestaurantState =
+            booking.booking_source === 'restaurant' &&
+            (
+                ['paid', 'waived', 'expired'].includes(updatePayload.deposit_status || '') ||
+                ['cancelled', 'completed'].includes(finalStatus)
+            )
+
+        if (shouldClearRestaurantState) {
+            await clearRestaurantConversationState(supabase, booking.conversation_id)
         }
 
         return successResponse({

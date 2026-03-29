@@ -87,6 +87,32 @@ async function queueAssistantMessage(
     }
 }
 
+async function clearRestaurantConversationState(conversationId: string | null | undefined) {
+    if (!conversationId) {
+        return
+    }
+
+    const { data: conversation } = await getSupabase()
+        .from('conversations')
+        .select('metadata')
+        .eq('id', conversationId)
+        .single()
+
+    if (!conversation?.metadata?.restaurant) {
+        return
+    }
+
+    await getSupabase()
+        .from('conversations')
+        .update({
+            metadata: {
+                ...conversation.metadata,
+                restaurant: null,
+            }
+        })
+        .eq('id', conversationId)
+}
+
 export async function POST(request: NextRequest) {
     try {
 
@@ -222,10 +248,20 @@ export async function POST(request: NextRequest) {
                 const cinetpayStatus = await checkPaymentStatus(cpm_trans_id)
 
                 if (cinetpayStatus.status === 'ACCEPTED') {
-                    // Update order status to paid
-                    const { error: updateError } = await getSupabase().from('orders').update({
-                        status: 'paid'
-                    }).eq('id', order.id)
+                    const isRestaurantDepositPayment = order.deposit_required && order.deposit_status === 'pending'
+                    const nextStatus = isRestaurantDepositPayment
+                        ? (order.fulfillment_mode === 'delivery' ? 'pending_delivery' : 'pending_pickup')
+                        : 'paid'
+                    const orderUpdate: Record<string, unknown> = {
+                        status: nextStatus,
+                        updated_at: new Date().toISOString()
+                    }
+
+                    if (isRestaurantDepositPayment) {
+                        orderUpdate.deposit_status = 'paid'
+                    }
+
+                    const { error: updateError } = await getSupabase().from('orders').update(orderUpdate).eq('id', order.id)
 
                     if (!updateError) {
                         // 📦 Digital delivery: auto-send digital content if applicable
@@ -238,7 +274,14 @@ export async function POST(request: NextRequest) {
 
                         // Send WhatsApp notification to client
                         try {
-                            const confirmationMessage = `*Paiement recu !*\n\nMerci ! Votre paiement de ${order.total_fcfa?.toLocaleString('fr-FR')} FCFA pour la commande #${order.id.substring(0, 8)} a ete confirme.\n\nVotre commande est maintenant en cours de traitement.\n\nMerci pour votre confiance !`
+                            const paidAmount = Number(
+                                isRestaurantDepositPayment
+                                    ? (order.deposit_amount_fcfa || cinetpayStatus.amount || 0)
+                                    : (order.total_fcfa || cinetpayStatus.amount || 0)
+                            )
+                            const confirmationMessage = isRestaurantDepositPayment
+                                ? `*Acompte recu !*\n\nMerci ! Votre acompte de ${paidAmount.toLocaleString('fr-FR')} FCFA pour la commande #${order.id.substring(0, 8)} a ete confirme.\n\nVotre commande est maintenant prise en charge.\n\nMerci pour votre confiance !`
+                                : `*Paiement recu !*\n\nMerci ! Votre paiement de ${paidAmount.toLocaleString('fr-FR')} FCFA pour la commande #${order.id.substring(0, 8)} a ete confirme.\n\nVotre commande est maintenant en cours de traitement.\n\nMerci pour votre confiance !`
 
                             // HYBRID ROUTING: Check for active conversation
                             // STRATEGY: 1. Try Hard Link (conversation_id) -> 2. Try Soft Link (agent + phone)
@@ -373,14 +416,23 @@ export async function POST(request: NextRequest) {
                                     console.error('Failed to notify merchant:', notifyError)
                                 }
                             } // close if (conversation)
+                            if (isRestaurantDepositPayment) {
+                                await clearRestaurantConversationState(order.conversation_id)
+                            }
                         } catch (notifyErr) {
                             console.error('[Webhook] Failed to send WhatsApp notification:', notifyErr)
                         }
                     }
                 } else if (cinetpayStatus.status === 'REFUSED' || cinetpayStatus.status === 'CANCELLED') {
-                    await getSupabase().from('orders').update({
-                        status: 'cancelled'
-                    }).eq('id', order.id)
+                    const orderUpdate: Record<string, unknown> = {
+                        status: 'cancelled',
+                        updated_at: new Date().toISOString()
+                    }
+                    if (order.deposit_required && order.deposit_status === 'pending') {
+                        orderUpdate.deposit_status = 'expired'
+                    }
+                    await getSupabase().from('orders').update(orderUpdate).eq('id', order.id)
+                    await clearRestaurantConversationState(order.conversation_id)
                     console.log('[Webhook] Order payment REFUSED/CANCELLED')
                 } else {
                     console.log('[Webhook] Order payment status pending:', cinetpayStatus.status)
@@ -402,7 +454,10 @@ export async function POST(request: NextRequest) {
                 .single()
 
             if (booking) {
-                if (booking.deposit_status === 'paid' || booking.status === 'confirmed') {
+                const isTerminalDepositState = ['paid', 'waived', 'expired'].includes(booking.deposit_status)
+                const isTerminalBookingState = ['cancelled', 'completed'].includes(booking.status)
+
+                if (isTerminalDepositState || isTerminalBookingState || booking.status === 'confirmed') {
                     return new Response('OK', { status: 200 })
                 }
 
@@ -419,6 +474,7 @@ export async function POST(request: NextRequest) {
                         .eq('id', booking.id)
 
                     if (!updateError) {
+                        await clearRestaurantConversationState(booking.conversation_id)
                         try {
                             const amount = Number(booking.deposit_amount_fcfa || cinetpayStatus.amount || 0)
                             const serviceName = booking.service_name || 'votre reservation'
@@ -451,6 +507,7 @@ export async function POST(request: NextRequest) {
                             updated_at: new Date().toISOString()
                         })
                         .eq('id', booking.id)
+                    await clearRestaurantConversationState(booking.conversation_id)
                     console.log('[Webhook] Booking deposit REFUSED/CANCELLED')
                     try {
                         const failMessage = `*Paiement non abouti*\n\nNous n'avons pas pu traiter votre acompte pour la reservation ${booking.service_name || ''}. Votre reservation n'est pas confirmee.\n\nVeuillez reessayer ou contacter notre equipe.`

@@ -1195,7 +1195,7 @@ export default function AgentWizardPage({
                                             Acompte reservations restaurant
                                         </h3>
                                         <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>
-                                            Utilise uniquement pour les reservations restaurant avec precommande ou table.
+                                            Utilise uniquement pour les reservations restaurant avec precommande.
                                         </p>
                                     </div>
                                     <button

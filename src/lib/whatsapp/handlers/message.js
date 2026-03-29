@@ -55,6 +55,23 @@ const {
     updateRestaurantStateFromUserMessage,
 } = require('../services/restaurant-state.service')
 
+const RESTAURANT_SECTION_ORDER = ['starters', 'mains', 'extras', 'desserts', 'drinks']
+
+function sortRestaurantProducts(products = []) {
+    const sectionIndex = new Map(RESTAURANT_SECTION_ORDER.map((slug, index) => [slug, index]))
+    return [...products].sort((a, b) => {
+        const aSection = sectionIndex.has(a.menu_section_slug) ? sectionIndex.get(a.menu_section_slug) : Number.MAX_SAFE_INTEGER
+        const bSection = sectionIndex.has(b.menu_section_slug) ? sectionIndex.get(b.menu_section_slug) : Number.MAX_SAFE_INTEGER
+        if (aSection !== bSection) return aSection - bSection
+
+        const aSort = Number.isFinite(Number(a.menu_sort_order)) ? Number(a.menu_sort_order) : Number.MAX_SAFE_INTEGER
+        const bSort = Number.isFinite(Number(b.menu_sort_order)) ? Number(b.menu_sort_order) : Number.MAX_SAFE_INTEGER
+        if (aSort !== bSort) return aSort - bSort
+
+        return String(a.name || '').localeCompare(String(b.name || ''), 'fr', { sensitivity: 'base' })
+    })
+}
+
 function formatDirectToolResponse(parsedResult) {
     const parts = []
 
@@ -349,12 +366,15 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             .select('*')
             .eq('agent_id', agentId)
             .eq('is_available', true)
+            .order('menu_sort_order', { ascending: true, nullsFirst: false })
             .order('name', { ascending: true })
-            .limit(20)
 
-        const orderableProducts = (products || []).filter(product => product.product_type !== 'service')
-        const serviceProducts = (products || []).filter(product => product.product_type === 'service')
-        const restaurantProducts = serviceProducts.filter(product => product.service_subtype === 'restaurant')
+        const sortedProducts = [...(products || [])]
+        const orderableProducts = sortedProducts.filter(product => product.product_type !== 'service')
+        const serviceProducts = sortedProducts.filter(product => product.product_type === 'service')
+        const restaurantProducts = sortRestaurantProducts(
+            serviceProducts.filter(product => product.service_subtype === 'restaurant')
+        )
         const standardServiceProducts = serviceProducts.filter(product => product.service_subtype !== 'restaurant')
 
         // hasKnowledgeBase : COUNT serveur (pas déduit de relevantDocs qui peut retourner 0 sur "Bonjour")
@@ -546,7 +566,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                 message,
                 context: {
                     history: historyForAI,
-                    products: products || [],
+                    products: restaurantFlowActive ? restaurantProducts : sortedProducts,
                     orders: orders || [],
                     currency: agentCurrency,
                     conversationId: conversation.id,

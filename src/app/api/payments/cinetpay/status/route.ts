@@ -9,21 +9,38 @@ import {
 } from '@/lib/payments/finalization'
 
 export async function GET(request: NextRequest) {
-    const apiSupabase = await createApiClient()
-    const { user, error: authError } = await getAuthUser(apiSupabase)
-
-    if (authError || !user) {
-        return NextResponse.json({ error: 'Non autorise' }, { status: 401 })
-    }
-
     const { searchParams } = new URL(request.url)
     const transactionId = String(searchParams.get('transaction_id') || '').trim()
+    const isPublicCheckoutTransaction = transactionId.startsWith('ORD_') || transactionId.startsWith('BKG_')
 
     if (!transactionId) {
         return NextResponse.json({ error: 'transaction_id requis' }, { status: 400 })
     }
 
     try {
+        if (isPublicCheckoutTransaction) {
+            const result = await checkPaymentStatus(transactionId)
+
+            return NextResponse.json({
+                success: result.status === 'ACCEPTED',
+                status: result.status || 'UNKNOWN',
+                transaction_id: transactionId,
+                amount: result.amount,
+                payment_method: result.message,
+                payment_record_status: null,
+                data: {
+                    status: result.status || 'UNKNOWN',
+                },
+            })
+        }
+
+        const apiSupabase = await createApiClient()
+        const { user, error: authError } = await getAuthUser(apiSupabase)
+
+        if (authError || !user) {
+            return NextResponse.json({ error: 'Non autorise' }, { status: 401 })
+        }
+
         const adminSupabase = createAdminClient()
         const payment = await findPaymentByIdentifiers(adminSupabase, [transactionId], '*')
 

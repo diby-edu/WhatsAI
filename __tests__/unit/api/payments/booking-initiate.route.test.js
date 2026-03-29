@@ -177,6 +177,7 @@ describe('POST /api/payments/cinetpay/booking-initiate', () => {
         const booking = {
             id: 'booking_123',
             agent_id: 'agent_1',
+            status: 'pending',
             deposit_required: true,
             deposit_amount_fcfa: 5000,
             deposit_status: 'expired',
@@ -198,6 +199,35 @@ describe('POST /api/payments/cinetpay/booking-initiate', () => {
 
         expect(response.status).toBe(400)
         expect(json.error).toMatch(/not payable/i)
+        expect(mockInitializePayment).not.toHaveBeenCalled()
+    })
+
+    test('rejects terminal bookings before creating or reusing a payment link', async () => {
+        const booking = {
+            id: 'booking_123',
+            agent_id: 'agent_1',
+            status: 'cancelled',
+            deposit_required: true,
+            deposit_amount_fcfa: 5000,
+            deposit_status: 'pending',
+            payment_method: 'online',
+            transaction_id: 'BKG_existing',
+            provider_payment_url: 'https://pay.example/existing'
+        }
+
+        mockCreateAdminClient.mockReturnValue(
+            createAdminSupabase({
+                booking,
+                agent: { user_id: 'user_1' },
+                updates: []
+            })
+        )
+
+        const response = await POST(makeRequest({ booking_id: 'booking_123' }))
+        const json = await response.json()
+
+        expect(response.status).toBe(400)
+        expect(json.error).toMatch(/no longer payable/i)
         expect(mockInitializePayment).not.toHaveBeenCalled()
     })
 })
