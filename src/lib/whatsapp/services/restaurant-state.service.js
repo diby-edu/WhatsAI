@@ -786,14 +786,18 @@ function buildRestaurantStateGuidance(restaurantState = {}, options = {}) {
     }
 
     if (options.questionDetected) {
+        const contactRef = options.escalationPhone
+            ? `au *${options.escalationPhone}*`
+            : `directement au restaurant`
         lines.push('---')
         lines.push('⚠️ QUESTION HORS-PARCOURS DETECTEE :')
-        lines.push('  1. Reponds precisement a la question posee par le client (utilise la base de connaissance si disponible).')
-        lines.push('  2. Apres avoir repondu, rappelle naturellement ou on en etait dans le parcours.')
+        lines.push('  1. Si la reponse est dans la base de connaissance ou le profil → reponds precisement.')
+        lines.push(`  2. Si l information est absente → dis : "Je n ai pas cette information. Pour en savoir plus, contactez-nous ${contactRef}."`)
+        lines.push('  3. Dans tous les cas, apres avoir repondu, rappelle naturellement ou on en etait.')
         if (state.awaiting_field?.label) {
             lines.push(`     Exemple : "Pour votre commande, il me reste a confirmer : ${state.awaiting_field.label}."`)
         }
-        lines.push('  NE PAS ignorer la question. NE PAS enchaîner directement sur le champ manquant sans repondre.')
+        lines.push('  NE PAS inventer une information absente. NE PAS sauter directement au champ manquant sans repondre.')
     }
 
     return lines.join('\n')

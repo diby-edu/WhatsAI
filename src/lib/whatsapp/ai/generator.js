@@ -328,7 +328,7 @@ async function generateAIResponse(options, dependencies) {
             if (bookingStateGuidance) {
                 systemPrompt += '\n\n' + bookingStateGuidance
             }
-            const restaurantStateGuidance = buildRestaurantStateGuidance(restaurantState, { questionDetected: restaurantQuestionDetected })
+            const restaurantStateGuidance = buildRestaurantStateGuidance(restaurantState, { questionDetected: restaurantQuestionDetected, escalationPhone: agent.escalation_phone || null })
             if (restaurantStateGuidance) {
                 systemPrompt += '\n\n' + restaurantStateGuidance
             }
