@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { checkPaymentStatus, verifyWebhookSignature } from '@/lib/payments/cinetpay'
+import { checkPaymentStatusV2, isCinetPayV2WebhookPayload } from '@/lib/payments/cinetpay-v2'
 import { notify } from '@/lib/notifications/notification.service'
 import { finalizePaymentByTransaction } from '@/lib/payments/finalization'
 
@@ -113,6 +114,236 @@ async function clearRestaurantConversationState(conversationId: string | null | 
         .eq('id', conversationId)
 }
 
+async function notifyMerchantOrderPayment(order: any) {
+    try {
+        const { data: agentData } = await getSupabase()
+            .from('agents')
+            .select('user_id')
+            .eq('id', order.agent_id)
+            .single()
+
+        if (!agentData) {
+            return
+        }
+
+        const { data: profile } = await getSupabase()
+            .from('profiles')
+            .select('phone')
+            .eq('id', agentData.user_id)
+            .single()
+
+        const merchantPhone = profile?.phone
+        if (!merchantPhone) {
+            return
+        }
+
+        const itemsList = await getSupabase()
+            .from('order_items')
+            .select('product_name, quantity')
+            .eq('order_id', order.id)
+
+        const itemsSummary = itemsList.data?.map((item: any) => `- ${item.quantity}x ${item.product_name}`).join('\n') || 'Articles divers'
+
+        await getSupabase().from('outbound_messages').insert({
+            agent_id: order.agent_id,
+            recipient_phone: merchantPhone,
+            message_content: `*NOUVEAU PAIEMENT !*\n\nMontant: ${Number(order.total_fcfa || 0).toLocaleString('fr-FR')} FCFA\nCommande: #${order.id.substring(0, 8)}\nClient: ${order.customer_phone}\n\nArticles:\n${itemsSummary}\n\nMode: CinetPay`,
+            status: 'pending'
+        })
+
+        await notify(agentData.user_id, 'payment_received', {
+            orderNumber: order.id,
+            customerName: order.customer_name || order.customer_phone,
+            paymentAmount: Number(order.total_fcfa || 0),
+            paymentMethod: 'CinetPay'
+        })
+    } catch (notifyError) {
+        console.error('[Webhook V2] Failed to notify merchant:', notifyError)
+    }
+}
+
+async function handleCinetPayV2Webhook(body: {
+    notify_token: string
+    merchant_transaction_id: string
+    transaction_id?: string
+    user?: {
+        name?: string
+        email?: string
+        phone_number?: string
+    }
+}) {
+    const merchantTransactionId = String(body.merchant_transaction_id || '').trim()
+    const notifyToken = String(body.notify_token || '').trim()
+
+    if (!merchantTransactionId || !notifyToken) {
+        return new Response('Invalid v2 payload', { status: 400 })
+    }
+
+    if (merchantTransactionId.startsWith('ORD_')) {
+        const { data: order } = await getSupabase()
+            .from('orders')
+            .select('*')
+            .eq('transaction_id', merchantTransactionId)
+            .single()
+
+        if (!order) {
+            console.error('[Webhook V2] ORDER NOT FOUND! transaction_id:', merchantTransactionId)
+            return new Response('OK', { status: 200 })
+        }
+
+        if (order.payment_provider_version !== 'v2') {
+            return new Response('Version mismatch', { status: 400 })
+        }
+
+        if (!order.provider_notify_token || order.provider_notify_token !== notifyToken) {
+            return new Response('Invalid notify token', { status: 403 })
+        }
+
+        if (order.status === 'paid' || order.status === 'completed') {
+            return new Response('OK', { status: 200 })
+        }
+
+        const cinetpayStatus = await checkPaymentStatusV2(merchantTransactionId)
+
+        if (cinetpayStatus.status === 'ACCEPTED') {
+            const isRestaurantDepositPayment = order.deposit_required && order.deposit_status === 'pending'
+            const nextStatus = isRestaurantDepositPayment
+                ? (order.fulfillment_mode === 'delivery' ? 'pending_delivery' : 'pending_pickup')
+                : 'paid'
+
+            const orderUpdate: Record<string, unknown> = {
+                status: nextStatus,
+                provider_transaction_id: cinetpayStatus.providerTransactionId || order.provider_transaction_id || null,
+                updated_at: new Date().toISOString()
+            }
+
+            if (isRestaurantDepositPayment) {
+                orderUpdate.deposit_status = 'paid'
+            }
+
+            const { error: updateError } = await getSupabase()
+                .from('orders')
+                .update(orderUpdate)
+                .eq('id', order.id)
+
+            if (!updateError) {
+                const paidAmount = Number(
+                    isRestaurantDepositPayment
+                        ? (order.deposit_amount_fcfa || 0)
+                        : (order.total_fcfa || 0)
+                )
+                const confirmationMessage = isRestaurantDepositPayment
+                    ? `*Acompte recu !*\n\nMerci ! Votre acompte de ${paidAmount.toLocaleString('fr-FR')} FCFA pour la commande #${order.id.substring(0, 8)} a ete confirme.\n\nVotre commande est maintenant prise en charge.\n\nMerci pour votre confiance !`
+                    : `*Paiement recu !*\n\nMerci ! Votre paiement de ${paidAmount.toLocaleString('fr-FR')} FCFA pour la commande #${order.id.substring(0, 8)} a ete confirme.\n\nVotre commande est maintenant en cours de traitement.\n\nMerci pour votre confiance !`
+
+                await queueAssistantMessage(order.agent_id, order.conversation_id, order.customer_phone, confirmationMessage)
+
+                if (isRestaurantDepositPayment) {
+                    await clearRestaurantConversationState(order.conversation_id)
+                }
+
+                await notifyMerchantOrderPayment(order)
+            }
+        } else if (cinetpayStatus.status === 'REFUSED' || cinetpayStatus.status === 'CANCELLED') {
+            const orderUpdate: Record<string, unknown> = {
+                status: 'cancelled',
+                provider_transaction_id: cinetpayStatus.providerTransactionId || order.provider_transaction_id || null,
+                updated_at: new Date().toISOString()
+            }
+
+            if (order.deposit_required && order.deposit_status === 'pending') {
+                orderUpdate.deposit_status = 'expired'
+            }
+
+            await getSupabase().from('orders').update(orderUpdate).eq('id', order.id)
+            await clearRestaurantConversationState(order.conversation_id)
+        }
+
+        return new Response('OK', { status: 200 })
+    }
+
+    if (merchantTransactionId.startsWith('BKG_')) {
+        const { data: booking } = await getSupabase()
+            .from('bookings')
+            .select('*')
+            .eq('transaction_id', merchantTransactionId)
+            .single()
+
+        if (!booking) {
+            console.error('[Webhook V2] BOOKING NOT FOUND! transaction_id:', merchantTransactionId)
+            return new Response('OK', { status: 200 })
+        }
+
+        if (booking.payment_provider_version !== 'v2') {
+            return new Response('Version mismatch', { status: 400 })
+        }
+
+        if (!booking.provider_notify_token || booking.provider_notify_token !== notifyToken) {
+            return new Response('Invalid notify token', { status: 403 })
+        }
+
+        const isTerminalDepositState = ['paid', 'waived', 'expired'].includes(booking.deposit_status)
+        const isTerminalBookingState = ['cancelled', 'completed'].includes(booking.status)
+        if (isTerminalDepositState || isTerminalBookingState || booking.status === 'confirmed') {
+            return new Response('OK', { status: 200 })
+        }
+
+        const cinetpayStatus = await checkPaymentStatusV2(merchantTransactionId)
+
+        if (cinetpayStatus.status === 'ACCEPTED') {
+            const { error: updateError } = await getSupabase()
+                .from('bookings')
+                .update({
+                    deposit_status: 'paid',
+                    status: 'confirmed',
+                    provider_transaction_id: cinetpayStatus.providerTransactionId || booking.provider_transaction_id || null,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', booking.id)
+
+            if (!updateError) {
+                await clearRestaurantConversationState(booking.conversation_id)
+                const amount = Number(booking.deposit_amount_fcfa || 0)
+                const serviceName = booking.service_name || 'votre reservation'
+                const dateStr = booking.start_time
+                    ? new Date(booking.start_time).toLocaleDateString('fr-FR', {
+                        weekday: 'long',
+                        day: 'numeric',
+                        month: 'long',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    })
+                    : null
+                const confirmationMessage = `*Acompte recu !*\n\nMerci ! Votre acompte de ${amount.toLocaleString('fr-FR')} FCFA pour la reservation ${serviceName}${dateStr ? ` le ${dateStr}` : ''} a ete confirme.\n\nVotre reservation est maintenant confirmee.\n\nMerci pour votre confiance !`
+
+                await queueAssistantMessage(
+                    booking.agent_id,
+                    booking.conversation_id,
+                    booking.customer_phone,
+                    confirmationMessage
+                )
+            }
+        } else if (cinetpayStatus.status === 'REFUSED' || cinetpayStatus.status === 'CANCELLED') {
+            await getSupabase()
+                .from('bookings')
+                .update({
+                    deposit_status: 'expired',
+                    provider_transaction_id: cinetpayStatus.providerTransactionId || booking.provider_transaction_id || null,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', booking.id)
+            await clearRestaurantConversationState(booking.conversation_id)
+
+            const failMessage = `*Paiement non abouti*\n\nNous n'avons pas pu traiter votre acompte pour la reservation ${booking.service_name || ''}. Votre reservation n'est pas confirmee.\n\nVeuillez reessayer ou contacter notre equipe.`
+            await queueAssistantMessage(booking.agent_id, booking.conversation_id, booking.customer_phone, failMessage)
+        }
+
+        return new Response('OK', { status: 200 })
+    }
+
+    return new Response('Unsupported v2 transaction', { status: 400 })
+}
+
 export async function POST(request: NextRequest) {
     try {
 
@@ -157,6 +388,9 @@ export async function POST(request: NextRequest) {
             cpm_error_message = formData.get('cpm_error_message')?.toString() || ''
         } else if (contentType.includes('application/json')) {
             const body = await request.json()
+            if (isCinetPayV2WebhookPayload(body)) {
+                return handleCinetPayV2Webhook(body)
+            }
             cpm_site_id = body.cpm_site_id || ''
             cpm_trans_id = body.cpm_trans_id || ''
             cpm_trans_date = body.cpm_trans_date || ''

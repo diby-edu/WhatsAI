@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createApiClient, createAdminClient, errorResponse, getAuthUser } from '@/lib/api-utils'
 import { initializePayment } from '@/lib/payments/cinetpay'
+import { initializePaymentV2, shouldUseCinetPayV2ForAgent } from '@/lib/payments/cinetpay-v2'
 
 export async function POST(request: NextRequest) {
     const supabase = await createApiClient()
@@ -85,23 +86,37 @@ export async function POST(request: NextRequest) {
             return errorResponse('Invalid deposit amount', 400)
         }
 
-        const transactionId = `BKG_${booking.id.substring(0, 8)}_${Date.now()}`
         const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://wazzapai.com'
-        const result = await initializePayment({
-            amount,
-            currency: 'XOF',
-            transactionId,
-            description: `Acompte reservation #${booking.id.substring(0, 8)}`,
-            customerName: booking.customer_name || 'Client',
-            customerEmail: '',
-            customerPhone: booking.customer_phone || '',
-            returnUrl: `${baseUrl}/payment/success?transaction_id=${transactionId}`,
-            notifyUrl: `${baseUrl}/api/payments/cinetpay/webhook`,
-            metadata: {
-                booking_id: booking.id,
-                type: 'booking_deposit'
-            }
-        })
+        const transactionId = `BKG_${booking.id.substring(0, 8)}_${Date.now()}`
+        const useCinetPayV2 = shouldUseCinetPayV2ForAgent(booking.agent_id)
+
+        const result = useCinetPayV2
+            ? await initializePaymentV2({
+                amount,
+                currency: 'XOF',
+                merchantTransactionId: transactionId,
+                designation: `Acompte reservation #${booking.id.substring(0, 8)}`,
+                clientFullName: booking.customer_name || 'Client',
+                clientPhoneNumber: booking.customer_phone || '',
+                successUrl: `${baseUrl}/payment/success?transaction_id=${transactionId}`,
+                failedUrl: `${baseUrl}/payment/success?transaction_id=${transactionId}&payment=cancelled`,
+                notifyUrl: `${baseUrl}/api/payments/cinetpay/webhook`,
+            })
+            : await initializePayment({
+                amount,
+                currency: 'XOF',
+                transactionId,
+                description: `Acompte reservation #${booking.id.substring(0, 8)}`,
+                customerName: booking.customer_name || 'Client',
+                customerEmail: '',
+                customerPhone: booking.customer_phone || '',
+                returnUrl: `${baseUrl}/payment/success?transaction_id=${transactionId}`,
+                notifyUrl: `${baseUrl}/api/payments/cinetpay/webhook`,
+                metadata: {
+                    booking_id: booking.id,
+                    type: 'booking_deposit'
+                }
+            })
 
         if (!result.success || !result.paymentUrl) {
             return NextResponse.json(
@@ -110,11 +125,21 @@ export async function POST(request: NextRequest) {
             )
         }
 
+        const providerTransactionId = useCinetPayV2 && 'providerTransactionId' in result
+            ? (result.providerTransactionId || null)
+            : null
+        const providerNotifyToken = useCinetPayV2 && 'notifyToken' in result
+            ? (result.notifyToken || null)
+            : null
+
         const { error: updateError } = await adminSupabase
             .from('bookings')
             .update({
                 transaction_id: transactionId,
                 provider_payment_url: result.paymentUrl,
+                provider_transaction_id: providerTransactionId,
+                provider_notify_token: providerNotifyToken,
+                payment_provider_version: useCinetPayV2 ? 'v2' : 'v1',
                 updated_at: new Date().toISOString()
             })
             .eq('id', booking.id)

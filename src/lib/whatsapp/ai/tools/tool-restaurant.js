@@ -116,12 +116,16 @@ function buildMobileMoneyDepositMessage(agent, depositAmountFcfa, depositPercent
 
 async function initiateBookingDepositPayment({
     supabase,
+    agentId,
     bookingId,
     depositAmountFcfa,
     customerName,
     customerPhone
 }) {
-    if (!CINETPAY_API_KEY || !CINETPAY_SITE_ID) {
+    const { initializePaymentV2, shouldUseCinetPayV2ForAgent } = await import('../../../payments/cinetpay-v2')
+    const useCinetPayV2 = shouldUseCinetPayV2ForAgent(agentId)
+
+    if (!useCinetPayV2 && (!CINETPAY_API_KEY || !CINETPAY_SITE_ID)) {
         return { success: false, error: 'CinetPay non configure' }
     }
 
@@ -143,46 +147,78 @@ async function initiateBookingDepositPayment({
         }
     }
 
-    const transactionId = `BKG_${bookingId.substring(0, 8)}_${Date.now()}`
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://wazzapai.com'
-    const payload = {
-        apikey: CINETPAY_API_KEY,
-        site_id: CINETPAY_SITE_ID,
-        transaction_id: transactionId,
-        amount: depositAmountFcfa,
-        currency: 'XOF',
-        description: `Acompte reservation #${bookingId.substring(0, 8)}`,
-        notify_url: `${baseUrl}/api/payments/cinetpay/webhook`,
-        return_url: `${baseUrl}/payment/success?transaction_id=${transactionId}`,
-        cancel_url: `${baseUrl}/payment/success?payment=cancelled`,
-        channels: 'ALL',
-        customer_id: bookingId,
-        customer_name: customerName || 'Client',
-        customer_surname: '',
-        customer_phone_number: customerPhone || '',
-        metadata: JSON.stringify({
-            booking_id: bookingId,
-            type: 'booking_deposit'
+    const transactionId = `BKG_${bookingId.substring(0, 8)}_${Date.now()}`
+    let paymentUrl = null
+    let providerTransactionId = null
+    let providerNotifyToken = null
+    let providerVersion = 'v1'
+
+    if (useCinetPayV2) {
+        const result = await initializePaymentV2({
+            amount: depositAmountFcfa,
+            currency: 'XOF',
+            merchantTransactionId: transactionId,
+            designation: `Acompte reservation #${bookingId.substring(0, 8)}`,
+            clientFullName: customerName || 'Client',
+            clientPhoneNumber: customerPhone || '',
+            successUrl: `${baseUrl}/payment/success?transaction_id=${transactionId}`,
+            failedUrl: `${baseUrl}/payment/success?transaction_id=${transactionId}&payment=cancelled`,
+            notifyUrl: `${baseUrl}/api/payments/cinetpay/webhook`
         })
+
+        if (!result.success || !result.paymentUrl) {
+            return { success: false, error: result.error || 'Erreur CinetPay' }
+        }
+
+        paymentUrl = result.paymentUrl
+        providerTransactionId = result.providerTransactionId || null
+        providerNotifyToken = result.notifyToken || null
+        providerVersion = 'v2'
+    } else {
+        const payload = {
+            apikey: CINETPAY_API_KEY,
+            site_id: CINETPAY_SITE_ID,
+            transaction_id: transactionId,
+            amount: depositAmountFcfa,
+            currency: 'XOF',
+            description: `Acompte reservation #${bookingId.substring(0, 8)}`,
+            notify_url: `${baseUrl}/api/payments/cinetpay/webhook`,
+            return_url: `${baseUrl}/payment/success?transaction_id=${transactionId}`,
+            cancel_url: `${baseUrl}/payment/success?payment=cancelled`,
+            channels: 'ALL',
+            customer_id: bookingId,
+            customer_name: customerName || 'Client',
+            customer_surname: '',
+            customer_phone_number: customerPhone || '',
+            metadata: JSON.stringify({
+                booking_id: bookingId,
+                type: 'booking_deposit'
+            })
+        }
+
+        const response = await fetch(CINETPAY_BASE_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+
+        const result = await response.json()
+        if (result.code !== '201' || !result.data?.payment_url) {
+            return { success: false, error: result.message || 'Erreur CinetPay' }
+        }
+
+        paymentUrl = result.data.payment_url
     }
 
-    const response = await fetch(CINETPAY_BASE_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-    })
-
-    const result = await response.json()
-    if (result.code !== '201' || !result.data?.payment_url) {
-        return { success: false, error: result.message || 'Erreur CinetPay' }
-    }
-
-    const paymentUrl = result.data.payment_url
     const { error: updateError } = await supabase
         .from('bookings')
         .update({
             transaction_id: transactionId,
             provider_payment_url: paymentUrl,
+            provider_transaction_id: providerTransactionId,
+            provider_notify_token: providerNotifyToken,
+            payment_provider_version: providerVersion,
             updated_at: new Date().toISOString()
         })
         .eq('id', bookingId)
@@ -341,6 +377,7 @@ async function handleCreateRestaurantCheckout(args, agentId, products, conversat
             if (depositRequired && usesCinetpay && bookingId) {
                 const paymentResult = await initiateBookingDepositPayment({
                     supabase,
+                    agentId,
                     bookingId,
                     depositAmountFcfa,
                     customerName,
