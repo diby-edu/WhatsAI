@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { checkPaymentStatus } from '@/lib/payments/cinetpay'
+import { checkPaymentStatusV2 } from '@/lib/payments/cinetpay-v2'
 import { createAdminClient, createApiClient, getAuthUser, isAdminRole } from '@/lib/api-utils'
 import {
     canAccessPayment,
@@ -7,6 +8,28 @@ import {
     finalizePaymentByTransaction,
     getUserRole,
 } from '@/lib/payments/finalization'
+
+async function getPublicCheckoutProviderVersion(transactionId: string) {
+    const adminSupabase = createAdminClient()
+
+    const { data: order } = await adminSupabase
+        .from('orders')
+        .select('payment_provider_version')
+        .eq('transaction_id', transactionId)
+        .single()
+
+    if (order?.payment_provider_version) {
+        return order.payment_provider_version
+    }
+
+    const { data: booking } = await adminSupabase
+        .from('bookings')
+        .select('payment_provider_version')
+        .eq('transaction_id', transactionId)
+        .single()
+
+    return booking?.payment_provider_version || 'v1'
+}
 
 export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
@@ -19,7 +42,10 @@ export async function GET(request: NextRequest) {
 
     try {
         if (isPublicCheckoutTransaction) {
-            const result = await checkPaymentStatus(transactionId)
+            const providerVersion = await getPublicCheckoutProviderVersion(transactionId)
+            const result = providerVersion === 'v2'
+                ? await checkPaymentStatusV2(transactionId)
+                : await checkPaymentStatus(transactionId)
 
             return NextResponse.json({
                 success: result.status === 'ACCEPTED',
