@@ -21,6 +21,13 @@ function normalizeCinetPayV2Status(status: unknown): 'ACCEPTED' | 'REFUSED' | 'P
     return 'UNKNOWN'
 }
 
+function isPublicCheckoutTransactionId(transactionId: string) {
+    return transactionId.startsWith('ORD_')
+        || transactionId.startsWith('ORD-')
+        || transactionId.startsWith('BKG_')
+        || transactionId.startsWith('BKG-')
+}
+
 async function getPublicCheckoutProviderVersion(transactionId: string) {
     const adminSupabase = createAdminClient()
 
@@ -46,7 +53,7 @@ async function getPublicCheckoutProviderVersion(transactionId: string) {
 export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const transactionId = String(searchParams.get('transaction_id') || '').trim()
-    const isPublicCheckoutTransaction = transactionId.startsWith('ORD_') || transactionId.startsWith('BKG_')
+    const isPublicCheckoutTransaction = isPublicCheckoutTransactionId(transactionId)
 
     if (!transactionId) {
         return NextResponse.json({ error: 'transaction_id requis' }, { status: 400 })
