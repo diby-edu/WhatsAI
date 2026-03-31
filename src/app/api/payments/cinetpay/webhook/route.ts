@@ -32,6 +32,14 @@ function normalizeCinetPayV2Status(status: unknown): NormalizedCinetPayStatus {
     return 'UNKNOWN'
 }
 
+function isOrderTransactionId(transactionId: string) {
+    return transactionId.startsWith('ORD_') || transactionId.startsWith('ORD-')
+}
+
+function isBookingTransactionId(transactionId: string) {
+    return transactionId.startsWith('BKG_') || transactionId.startsWith('BKG-')
+}
+
 async function queueAssistantMessage(
     agentId: string | null | undefined,
     conversationId: string | null | undefined,
@@ -194,7 +202,7 @@ async function handleCinetPayV2Webhook(body: {
         return new Response('Invalid v2 payload', { status: 400 })
     }
 
-    if (merchantTransactionId.startsWith('ORD_')) {
+    if (isOrderTransactionId(merchantTransactionId)) {
         const { data: order } = await getSupabase()
             .from('orders')
             .select('*')
@@ -278,7 +286,7 @@ async function handleCinetPayV2Webhook(body: {
         return new Response('OK', { status: 200 })
     }
 
-    if (merchantTransactionId.startsWith('BKG_')) {
+    if (isBookingTransactionId(merchantTransactionId)) {
         const { data: booking } = await getSupabase()
             .from('bookings')
             .select('*')
