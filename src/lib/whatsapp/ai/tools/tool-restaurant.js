@@ -126,26 +126,28 @@ async function initiateBookingDepositPayment({
 }) {
     const { initializePaymentV2, shouldUseCinetPayV2ForAgent } = await import('../../../payments/cinetpay-v2')
     const useCinetPayV2 = shouldUseCinetPayV2ForAgent(agentId)
+    const attemptedProviderVersion = useCinetPayV2 ? 'v2' : 'v1'
 
     if (!useCinetPayV2 && (!CINETPAY_API_KEY || !CINETPAY_SITE_ID)) {
-        return { success: false, error: 'CinetPay non configure' }
+        return { success: false, error: 'CinetPay non configure', providerVersion: attemptedProviderVersion }
     }
 
     const { data: booking, error: bookingError } = await supabase
         .from('bookings')
-        .select('id, transaction_id, provider_payment_url')
+        .select('id, transaction_id, provider_payment_url, payment_provider_version')
         .eq('id', bookingId)
         .single()
 
     if (bookingError || !booking) {
-        return { success: false, error: 'Reservation introuvable pour le paiement' }
+        return { success: false, error: 'Reservation introuvable pour le paiement', providerVersion: attemptedProviderVersion }
     }
 
     if (booking.transaction_id && booking.provider_payment_url) {
         return {
             success: true,
             transactionId: booking.transaction_id,
-            paymentUrl: booking.provider_payment_url
+            paymentUrl: booking.provider_payment_url,
+            providerVersion: booking.payment_provider_version || attemptedProviderVersion
         }
     }
 
@@ -154,7 +156,19 @@ async function initiateBookingDepositPayment({
     let paymentUrl = null
     let providerTransactionId = null
     let providerNotifyToken = null
-    let providerVersion = 'v1'
+    let providerVersion = attemptedProviderVersion
+
+    const { error: versionUpdateError } = await supabase
+        .from('bookings')
+        .update({
+            payment_provider_version: attemptedProviderVersion,
+            updated_at: new Date().toISOString()
+        })
+        .eq('id', bookingId)
+
+    if (versionUpdateError) {
+        console.error('Failed to persist booking payment provider version before init:', versionUpdateError)
+    }
 
     if (useCinetPayV2) {
         const result = await initializePaymentV2({
@@ -170,7 +184,13 @@ async function initiateBookingDepositPayment({
         })
 
         if (!result.success || !result.paymentUrl) {
-            return { success: false, error: result.error || 'Erreur CinetPay' }
+            console.error('Restaurant booking deposit initiation failed:', {
+                agentId,
+                bookingId,
+                providerVersion: attemptedProviderVersion,
+                error: result.error || 'Erreur CinetPay'
+            })
+            return { success: false, error: result.error || 'Erreur CinetPay', providerVersion: attemptedProviderVersion }
         }
 
         paymentUrl = result.paymentUrl
@@ -207,7 +227,13 @@ async function initiateBookingDepositPayment({
 
         const result = await response.json()
         if (result.code !== '201' || !result.data?.payment_url) {
-            return { success: false, error: result.message || 'Erreur CinetPay' }
+            console.error('Restaurant booking deposit initiation failed:', {
+                agentId,
+                bookingId,
+                providerVersion: attemptedProviderVersion,
+                error: result.message || 'Erreur CinetPay'
+            })
+            return { success: false, error: result.message || 'Erreur CinetPay', providerVersion: attemptedProviderVersion }
         }
 
         paymentUrl = result.data.payment_url
@@ -232,7 +258,8 @@ async function initiateBookingDepositPayment({
     return {
         success: true,
         transactionId,
-        paymentUrl
+        paymentUrl,
+        providerVersion
     }
 }
 
