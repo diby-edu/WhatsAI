@@ -51,6 +51,8 @@ function findRestaurantProductByName(products, productName) {
 function normalizeRestaurantPaymentMethod(rawValue, fulfillmentMode) {
     const value = String(rawValue || '').trim().toLowerCase()
 
+    if (!value) return null
+
     if (fulfillmentMode === 'dine_in' || fulfillmentMode === 'booking_only') {
         if (['online', 'en ligne', 'payer en ligne'].includes(value)) return 'online'
         if (['onsite', 'sur place', 'au retrait', 'a l arrivee', 'a l arrivee', 'on site'].includes(value)) return 'onsite'
@@ -267,14 +269,6 @@ async function handleCreateRestaurantCheckout(args, agentId, products, conversat
             })
         }
 
-        const paymentMethod = normalizeRestaurantPaymentMethod(rawPaymentMethod, fulfillmentMode)
-        if (!paymentMethod) {
-            return JSON.stringify({
-                success: false,
-                error: 'MODE DE PAIEMENT MANQUANT OU INVALIDE. Utilisez online ou onsite.'
-            })
-        }
-
         const restaurantProducts = (products || []).filter(
             product => product.product_type === 'service' && product.service_subtype === 'restaurant'
         )
@@ -294,6 +288,28 @@ async function handleCreateRestaurantCheckout(args, agentId, products, conversat
 
         if (agentError || !agent) {
             throw new Error('Agent not found')
+        }
+
+        let paymentMethod = normalizeRestaurantPaymentMethod(rawPaymentMethod, fulfillmentMode)
+
+        if (!paymentMethod && (fulfillmentMode === 'dine_in' || fulfillmentMode === 'booking_only')) {
+            const bookingDepositEnabled = !!agent.restaurant_deposit_enabled
+            const bookingDepositPercentage = bookingDepositEnabled
+                ? Math.max(0, Math.min(100, Number(agent.restaurant_deposit_percentage || 0)))
+                : 0
+
+            if (bookingDepositEnabled && bookingDepositPercentage > 0) {
+                paymentMethod = agent.payment_mode === 'mobile_money_direct' ? 'online' : 'online'
+            } else {
+                paymentMethod = 'onsite'
+            }
+        }
+
+        if (!paymentMethod) {
+            return JSON.stringify({
+                success: false,
+                error: 'MODE DE PAIEMENT MANQUANT OU INVALIDE. Utilisez online ou onsite.'
+            })
         }
 
         if ((fulfillmentMode === 'dine_in' || fulfillmentMode === 'booking_only') && (!scheduledDate || !scheduledTime)) {
