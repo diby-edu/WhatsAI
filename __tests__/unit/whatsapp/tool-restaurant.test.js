@@ -235,6 +235,49 @@ describe('tool-restaurant', () => {
         expect(updates).toHaveLength(0)
     })
 
+    test('keeps the booking response deterministic when deposit link generation fails', async () => {
+        const { handleCreateRestaurantCheckout } = loadTool()
+        global.fetch.mockRejectedValue(new Error('cinetpay maintenance'))
+
+        const bookingRecord = {
+            id: 'booking-123',
+            transaction_id: null,
+            provider_payment_url: null
+        }
+
+        const { supabase, updates } = createSupabase({
+            agent: {
+                user_id: 'user-1',
+                name: 'Restaurant Lagoon',
+                escalation_phone: '+2250102030405',
+                restaurant_deposit_enabled: true,
+                restaurant_deposit_percentage: 30
+            },
+            bookingRecord
+        })
+
+        const rawResult = await handleCreateRestaurantCheckout({
+            fulfillment_mode: 'dine_in',
+            items: [{ product_name: 'thieb poulet', quantity: 2 }],
+            customer_name: 'Awa Konan',
+            customer_phone: '+2250701020304',
+            scheduled_date: '2026-04-05',
+            scheduled_time: '20:00',
+            party_size: 2,
+            payment_method: 'online'
+        }, 'agent-1', restaurantProducts, 'conversation-1', supabase)
+
+        const result = JSON.parse(rawResult)
+
+        expect(result.success).toBe(true)
+        expect(result.record_type).toBe('booking')
+        expect(result.payment_link).toBeNull()
+        expect(result.message).toMatch(/Acompte requis/i)
+        expect(result.message).toMatch(/n'est pas encore confirmee/i)
+        expect(result.message).toMatch(/lien de paiement est indisponible/i)
+        expect(updates).toHaveLength(0)
+    })
+
     test('creates takeaway orders with pending_pickup status and an online payment link', async () => {
         const { handleCreateRestaurantCheckout } = loadTool()
 
