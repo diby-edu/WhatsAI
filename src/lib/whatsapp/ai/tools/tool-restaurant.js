@@ -7,6 +7,77 @@ let cinetPayV2AccessTokenCache = null
 let cinetPayV2TokenExpiresAt = 0
 let cinetPayV2Ipv4Dispatcher = null
 
+function truncateCinetPayV2DebugValue(value, maxLength = 180) {
+    const text = String(value ?? '')
+    if (text.length <= maxLength) return text
+    return `${text.slice(0, maxLength)}...`
+}
+
+function maskCinetPayV2PhoneNumber(phoneNumber) {
+    const text = String(phoneNumber || '').trim()
+    if (!text) return null
+    if (text.length <= 6) return text
+    return `${text.slice(0, 4)}***${text.slice(-3)}`
+}
+
+function summarizeCinetPayV2Payload(payload) {
+    return {
+        currency: payload?.currency || null,
+        amount: payload?.amount ?? null,
+        merchant_transaction_id: payload?.merchant_transaction_id || null,
+        merchant_transaction_id_length: String(payload?.merchant_transaction_id || '').length,
+        designation: truncateCinetPayV2DebugValue(payload?.designation || ''),
+        designation_length: String(payload?.designation || '').length,
+        client_email: payload?.client_email || null,
+        client_phone_number_masked: maskCinetPayV2PhoneNumber(payload?.client_phone_number),
+        client_first_name: payload?.client_first_name || null,
+        client_last_name: payload?.client_last_name || null,
+        payment_method: payload?.payment_method || null,
+        direct_pay: payload?.direct_pay ?? null,
+        success_url: truncateCinetPayV2DebugValue(payload?.success_url || ''),
+        success_url_length: String(payload?.success_url || '').length,
+        failed_url: truncateCinetPayV2DebugValue(payload?.failed_url || ''),
+        failed_url_length: String(payload?.failed_url || '').length,
+        notify_url: truncateCinetPayV2DebugValue(payload?.notify_url || ''),
+        notify_url_length: String(payload?.notify_url || '').length
+    }
+}
+
+function summarizeCinetPayV2Response(response, payload, rawText) {
+    return {
+        http_status: Number.isFinite(Number(response?.status)) ? Number(response.status) : null,
+        ok: typeof response?.ok === 'boolean' ? response.ok : null,
+        code: payload?.code ?? null,
+        status: payload?.status ?? null,
+        message: payload?.message ?? null,
+        description: payload?.description ?? null,
+        details: payload?.details ?? null,
+        raw_text: rawText ? truncateCinetPayV2DebugValue(rawText, 320) : null
+    }
+}
+
+async function readCinetPayV2ResponseBody(response) {
+    if (typeof response?.text === 'function') {
+        const rawText = await response.text().catch(() => '')
+        try {
+            return {
+                payload: rawText ? JSON.parse(rawText) : {},
+                rawText
+            }
+        } catch (_error) {
+            return {
+                payload: {},
+                rawText
+            }
+        }
+    }
+
+    return {
+        payload: await response?.json?.().catch(() => ({})) || {},
+        rawText: null
+    }
+}
+
 function getCinetPayV2BaseUrl() {
     return String(process.env.CINETPAY_V2_BASE_URL || 'https://api.cinetpay.net')
         .trim()
@@ -117,6 +188,10 @@ async function getCinetPayV2AccessToken() {
         return cinetPayV2AccessTokenCache
     }
 
+    const loginRequestPayload = {
+        api_key: getCinetPayV2AccountKey(),
+        api_password: getCinetPayV2AccountPassword()
+    }
     const response = await fetch(`${getCinetPayV2BaseUrl()}/v1/oauth/login`, {
         method: 'POST',
         ...getCinetPayV2FetchOptions(),
@@ -124,14 +199,20 @@ async function getCinetPayV2AccessToken() {
             'Content-Type': 'application/json',
             Accept: 'application/json'
         },
-        body: JSON.stringify({
-            api_key: getCinetPayV2AccountKey(),
-            api_password: getCinetPayV2AccountPassword()
-        })
+        body: JSON.stringify(loginRequestPayload)
     })
 
-    const payload = await response.json().catch(() => ({}))
+    const { payload, rawText } = await readCinetPayV2ResponseBody(response)
     if (!response.ok || payload?.status !== 'OK' || !payload?.access_token) {
+        console.error('CinetPay v2 login failed:', {
+            endpoint: `${getCinetPayV2BaseUrl()}/v1/oauth/login`,
+            request: {
+                api_key_prefix: loginRequestPayload.api_key ? `${loginRequestPayload.api_key.slice(0, 8)}...` : null,
+                api_key_length: loginRequestPayload.api_key.length,
+                api_password_length: loginRequestPayload.api_password.length
+            },
+            response: summarizeCinetPayV2Response(response, payload, rawText)
+        })
         throw new Error(payload?.description || payload?.message || 'Echec de connexion a CinetPay v2')
     }
 
@@ -160,6 +241,22 @@ async function initializePaymentV2({
         const accessToken = await getCinetPayV2AccessToken()
         const { firstName, lastName } = splitCinetPayV2CustomerName(clientFullName)
         const paymentMethod = inferCinetPayV2PaymentMethod(clientPhoneNumber)
+        const requestPayload = {
+            currency: String(currency || 'XOF').trim(),
+            amount: Number(amount || 0),
+            merchant_transaction_id: String(merchantTransactionId || '').trim().slice(0, 30),
+            lang: 'fr',
+            designation: String(designation || 'Paiement CinetPay').trim(),
+            client_email: buildCinetPayV2ClientEmail(clientPhoneNumber),
+            client_phone_number: String(clientPhoneNumber || '').trim() || undefined,
+            client_first_name: firstName,
+            client_last_name: lastName,
+            payment_method: paymentMethod || undefined,
+            direct_pay: false,
+            success_url: String(successUrl || '').trim().slice(0, 120),
+            failed_url: String(failedUrl || '').trim().slice(0, 120),
+            notify_url: String(notifyUrl || '').trim().slice(0, 120)
+        }
         const response = await fetch(`${getCinetPayV2BaseUrl()}/v1/payment`, {
             method: 'POST',
             ...getCinetPayV2FetchOptions(),
@@ -168,25 +265,10 @@ async function initializePaymentV2({
                 Accept: 'application/json',
                 Authorization: `Bearer ${accessToken}`
             },
-            body: JSON.stringify({
-                currency: String(currency || 'XOF').trim(),
-                amount: Number(amount || 0),
-                merchant_transaction_id: String(merchantTransactionId || '').trim().slice(0, 30),
-                lang: 'fr',
-                designation: String(designation || 'Paiement CinetPay').trim(),
-                client_email: buildCinetPayV2ClientEmail(clientPhoneNumber),
-                client_phone_number: String(clientPhoneNumber || '').trim() || undefined,
-                client_first_name: firstName,
-                client_last_name: lastName,
-                payment_method: paymentMethod || undefined,
-                direct_pay: false,
-                success_url: String(successUrl || '').trim().slice(0, 120),
-                failed_url: String(failedUrl || '').trim().slice(0, 120),
-                notify_url: String(notifyUrl || '').trim().slice(0, 120)
-            })
+            body: JSON.stringify(requestPayload)
         })
 
-        const payload = await response.json().catch(() => ({}))
+        const { payload, rawText } = await readCinetPayV2ResponseBody(response)
         if (!response.ok || payload?.status !== 'OK' || !payload?.payment_url) {
             const errorSummary = [
                 payload?.description,
@@ -198,6 +280,10 @@ async function initializePaymentV2({
                 .filter(Boolean)
                 .join(' | ')
                 || 'Erreur CinetPay v2'
+            console.error('CinetPay v2 payment init failed:', {
+                request: summarizeCinetPayV2Payload(requestPayload),
+                response: summarizeCinetPayV2Response(response, payload, rawText)
+            })
             return {
                 success: false,
                 error: errorSummary
@@ -212,6 +298,11 @@ async function initializePaymentV2({
             paymentToken: payload.payment_token || null
         }
     } catch (error) {
+        console.error('CinetPay v2 payment init threw:', {
+            merchant_transaction_id: String(merchantTransactionId || '').trim().slice(0, 30),
+            client_phone_number_masked: maskCinetPayV2PhoneNumber(clientPhoneNumber),
+            error: error?.message || 'Erreur CinetPay v2'
+        })
         return {
             success: false,
             error: error?.message || 'Erreur CinetPay v2'
