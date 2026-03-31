@@ -1,7 +1,18 @@
-const CINETPAY_V2_BASE_URL = (process.env.CINETPAY_V2_BASE_URL || 'https://api.cinetpay.net').replace(/\/+$/, '')
-const CINETPAY_V2_ACCOUNT_KEY = process.env.CINETPAY_V2_ACCOUNT_KEY || ''
-const CINETPAY_V2_ACCOUNT_PASSWORD = process.env.CINETPAY_V2_ACCOUNT_PASSWORD || ''
-const CINETPAY_V2_FALLBACK_EMAIL_DOMAIN = process.env.CINETPAY_V2_FALLBACK_EMAIL_DOMAIN || 'wazzapai.com'
+function getCinetPayV2BaseUrl() {
+    return (process.env.CINETPAY_V2_BASE_URL || 'https://api.cinetpay.net').replace(/\/+$/, '')
+}
+
+function getCinetPayV2AccountKey() {
+    return process.env.CINETPAY_V2_ACCOUNT_KEY || ''
+}
+
+function getCinetPayV2AccountPassword() {
+    return process.env.CINETPAY_V2_ACCOUNT_PASSWORD || ''
+}
+
+function getCinetPayV2FallbackEmailDomain() {
+    return process.env.CINETPAY_V2_FALLBACK_EMAIL_DOMAIN || 'wazzapai.com'
+}
 
 type UnifiedPaymentStatus = 'ACCEPTED' | 'REFUSED' | 'PENDING' | 'CANCELLED' | 'UNKNOWN'
 
@@ -70,9 +81,9 @@ export function isCinetPayV2Enabled(): boolean {
 export function isCinetPayV2Configured(): boolean {
     return Boolean(
         isCinetPayV2Enabled() &&
-        CINETPAY_V2_BASE_URL &&
-        CINETPAY_V2_ACCOUNT_KEY &&
-        CINETPAY_V2_ACCOUNT_PASSWORD &&
+        getCinetPayV2BaseUrl() &&
+        getCinetPayV2AccountKey() &&
+        getCinetPayV2AccountPassword() &&
         parseAllowedAgentIds().length > 0
     )
 }
@@ -114,22 +125,22 @@ export function buildFallbackCustomerEmail(email?: string | null, phone?: string
 
     const digits = normalizePhoneDigits(phone)
     if (digits) {
-        return `wa-${digits}@${CINETPAY_V2_FALLBACK_EMAIL_DOMAIN}`
+        return `wa-${digits}@${getCinetPayV2FallbackEmailDomain()}`
     }
 
-    return `client@${CINETPAY_V2_FALLBACK_EMAIL_DOMAIN}`
+    return `client@${getCinetPayV2FallbackEmailDomain()}`
 }
 
 async function loginCinetPayV2() {
-    const response = await fetch(`${CINETPAY_V2_BASE_URL}/v1/oauth/login`, {
+    const response = await fetch(`${getCinetPayV2BaseUrl()}/v1/oauth/login`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             Accept: 'application/json'
         },
         body: JSON.stringify({
-            api_key: CINETPAY_V2_ACCOUNT_KEY,
-            api_password: CINETPAY_V2_ACCOUNT_PASSWORD
+            api_key: getCinetPayV2AccountKey(),
+            api_password: getCinetPayV2AccountPassword()
         })
     })
 
@@ -157,7 +168,7 @@ async function getCinetPayV2AccessToken(forceRefresh = false) {
 
 async function authenticatedRequest(path: string, init: RequestInit = {}, retry = true) {
     const accessToken = await getCinetPayV2AccessToken()
-    const response = await fetch(`${CINETPAY_V2_BASE_URL}${path}`, {
+    const response = await fetch(`${getCinetPayV2BaseUrl()}${path}`, {
         ...init,
         headers: {
             Accept: 'application/json',
