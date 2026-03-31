@@ -133,6 +133,26 @@ describe('Prompt Builder', () => {
             expect(prompt).toMatch(/RESTAURANT|create_restaurant_checkout|booking_only|takeaway|delivery/i)
         })
 
+        test('should forbid reopening the restaurant welcome menu for a concrete first request', () => {
+            const products = [
+                { id: '1', name: 'Plat 01', price_fcfa: 6500, product_type: 'service', service_subtype: 'restaurant' },
+                { id: '2', name: 'Dessert 01', price_fcfa: 2200, product_type: 'service', service_subtype: 'restaurant' }
+            ]
+            const prompt = buildAdaptiveSystemPrompt(
+                mockAgent,
+                products,
+                mockOrders,
+                mockDocs,
+                currency,
+                gpsLink,
+                formattedHours,
+                false,
+                'Je veux reserver une table demain a 21h pour 3 personnes avec 2 Plat 01 et 1 Dessert 01'
+            )
+            expect(prompt).toMatch(/NE RÉAFFICHE PAS le menu principal/i)
+            expect(prompt).toMatch(/demande précise/i)
+        })
+
         test('should use TABLE engine for event services', () => {
             const products = [
                 { id: '1', name: 'Concert Ticket', price_fcfa: 10000, product_type: 'service', service_subtype: 'event' }

@@ -140,7 +140,8 @@ ${activeEngine === 'RESTAURANT'
    3️⃣ Réserver une table
    Tapez un numéro ou décrivez ce que vous souhaitez.
 ⛔ NE PAS afficher la carte complète ni les prix au premier message.
-⛔ NE PAS demander le mode (sur place/emporter/livraison) au premier message.`
+⛔ NE PAS demander le mode (sur place/emporter/livraison) au premier message.
+⛔ SI le client formule déjà une demande précise (ex: "Je veux réserver une table demain à 21h pour 3 personnes avec 2 plats" ou "Je veux commander 2 plats à emporter"), NE RÉAFFICHE PAS le menu principal. Réponds directement à sa demande concrète ou laisse le système structuré poursuivre le parcours.` 
     : `2. AFFICHER LA CARTE / CATALOGUE (noms uniquement)
 3. Demander: "${isServiceOnlyAgent ? 'Quelle prestation souhaitez-vous réserver ?' : 'Quel article vous intéresse ? (répondez par nom ou numéro)'}"`}
 ⛔ INTERDIT de dire juste "Comment puis-je vous aider ?" sans afficher la carte. Tu es un VENDEUR.

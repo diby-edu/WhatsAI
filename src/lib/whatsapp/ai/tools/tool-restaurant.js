@@ -1,11 +1,11 @@
 const { normalizePhoneNumber } = require('./tool-helpers')
 const { notify } = require('../../../notifications/notify')
-
 const CINETPAY_API_KEY = process.env.CINETPAY_API_KEY
 const CINETPAY_SITE_ID = process.env.CINETPAY_SITE_ID
 const CINETPAY_BASE_URL = 'https://api-checkout.cinetpay.com/v2/payment'
 let cinetPayV2AccessTokenCache = null
 let cinetPayV2TokenExpiresAt = 0
+let cinetPayV2Ipv4Dispatcher = null
 
 function getCinetPayV2BaseUrl() {
     return String(process.env.CINETPAY_V2_BASE_URL || 'https://api.cinetpay.net')
@@ -75,6 +75,33 @@ function buildCinetPayV2ClientEmail(clientPhoneNumber) {
     return `wa-${digits || Date.now()}@${domain}`
 }
 
+function getCinetPayV2FetchOptions() {
+    try {
+        if (!cinetPayV2Ipv4Dispatcher) {
+            const { TextDecoder, TextEncoder } = require('node:util')
+            const { ReadableStream, WritableStream, TransformStream } = require('node:stream/web')
+            if (typeof global.TextDecoder === 'undefined') global.TextDecoder = TextDecoder
+            if (typeof global.TextEncoder === 'undefined') global.TextEncoder = TextEncoder
+            if (typeof global.ReadableStream === 'undefined') global.ReadableStream = ReadableStream
+            if (typeof global.WritableStream === 'undefined') global.WritableStream = WritableStream
+            if (typeof global.TransformStream === 'undefined') global.TransformStream = TransformStream
+
+            const { Agent: UndiciAgent } = require('undici')
+            cinetPayV2Ipv4Dispatcher = new UndiciAgent({
+                connect: {
+                    family: 4
+                }
+            })
+        }
+
+        return {
+            dispatcher: cinetPayV2Ipv4Dispatcher
+        }
+    } catch (_error) {
+        return {}
+    }
+}
+
 async function getCinetPayV2AccessToken() {
     if (cinetPayV2AccessTokenCache && cinetPayV2TokenExpiresAt > Date.now()) {
         return cinetPayV2AccessTokenCache
@@ -82,6 +109,7 @@ async function getCinetPayV2AccessToken() {
 
     const response = await fetch(`${getCinetPayV2BaseUrl()}/v1/oauth/login`, {
         method: 'POST',
+        ...getCinetPayV2FetchOptions(),
         headers: {
             'Content-Type': 'application/json',
             Accept: 'application/json'
@@ -123,6 +151,7 @@ async function initializePaymentV2({
         const { firstName, lastName } = splitCinetPayV2CustomerName(clientFullName)
         const response = await fetch(`${getCinetPayV2BaseUrl()}/v1/payment`, {
             method: 'POST',
+            ...getCinetPayV2FetchOptions(),
             headers: {
                 'Content-Type': 'application/json',
                 Accept: 'application/json',
