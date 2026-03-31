@@ -75,6 +75,16 @@ function buildCinetPayV2ClientEmail(clientPhoneNumber) {
     return `wa-${digits || Date.now()}@${domain}`
 }
 
+function inferCinetPayV2PaymentMethod(clientPhoneNumber) {
+    const digits = String(clientPhoneNumber || '').replace(/\D/g, '')
+
+    if (digits.startsWith('22507')) return 'OM_CI'
+    if (digits.startsWith('22505')) return 'MTN_CI'
+    if (digits.startsWith('22501')) return 'MOOV_CI'
+
+    return null
+}
+
 function getCinetPayV2FetchOptions() {
     try {
         if (!cinetPayV2Ipv4Dispatcher) {
@@ -149,6 +159,7 @@ async function initializePaymentV2({
     try {
         const accessToken = await getCinetPayV2AccessToken()
         const { firstName, lastName } = splitCinetPayV2CustomerName(clientFullName)
+        const paymentMethod = inferCinetPayV2PaymentMethod(clientPhoneNumber)
         const response = await fetch(`${getCinetPayV2BaseUrl()}/v1/payment`, {
             method: 'POST',
             ...getCinetPayV2FetchOptions(),
@@ -167,6 +178,7 @@ async function initializePaymentV2({
                 client_phone_number: String(clientPhoneNumber || '').trim() || undefined,
                 client_first_name: firstName,
                 client_last_name: lastName,
+                payment_method: paymentMethod || undefined,
                 direct_pay: false,
                 success_url: String(successUrl || '').trim().slice(0, 120),
                 failed_url: String(failedUrl || '').trim().slice(0, 120),
@@ -176,9 +188,14 @@ async function initializePaymentV2({
 
         const payload = await response.json().catch(() => ({}))
         if (!response.ok || payload?.status !== 'OK' || !payload?.payment_url) {
+            const errorSummary = payload?.description
+                || payload?.message
+                || payload?.details?.message
+                || payload?.status
+                || 'Erreur CinetPay v2'
             return {
                 success: false,
-                error: payload?.description || payload?.message || payload?.details?.message || 'Erreur CinetPay v2'
+                error: errorSummary
             }
         }
 

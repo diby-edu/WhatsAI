@@ -378,6 +378,77 @@ describe('tool-restaurant', () => {
         expect(updates[0].payload.payment_provider_version).toBe('v1')
     })
 
+    test('sends an inferred CinetPay v2 payment_method for CI test phones', async () => {
+        process.env.CINETPAY_V2_ENABLED = 'true'
+        process.env.CINETPAY_V2_BASE_URL = 'https://api.cinetpay.net'
+        process.env.CINETPAY_V2_ACCOUNT_KEY = 'sk_test_123'
+        process.env.CINETPAY_V2_ACCOUNT_PASSWORD = 'secret_123'
+        process.env.CINETPAY_V2_TEST_AGENT_IDS = 'agent-v2'
+
+        const { handleCreateRestaurantCheckout } = loadTool()
+        global.fetch
+            .mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    status: 'OK',
+                    access_token: 'token-v2',
+                    expires_in: 86400
+                })
+            })
+            .mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    status: 'OK',
+                    payment_url: 'https://pay.example/v2-bkg-123',
+                    transaction_id: 'cp-tx-123',
+                    notify_token: 'notify-v2-123'
+                })
+            })
+
+        const bookingRecord = {
+            id: 'booking-123',
+            transaction_id: null,
+            provider_payment_url: null
+        }
+
+        const { supabase, updates } = createSupabase({
+            agent: {
+                user_id: 'user-1',
+                name: 'Restaurant Lagoon',
+                escalation_phone: '+2250102030405',
+                payment_mode: 'cinetpay',
+                restaurant_deposit_enabled: true,
+                restaurant_deposit_percentage: 50
+            },
+            bookingRecord
+        })
+
+        const rawResult = await handleCreateRestaurantCheckout({
+            fulfillment_mode: 'dine_in',
+            items: [{ product_name: 'thieb poulet', quantity: 2 }],
+            customer_name: 'Koffi Test',
+            customer_phone: '+2250707070700',
+            scheduled_date: '2026-04-05',
+            scheduled_time: '21:00',
+            party_size: 3
+        }, 'agent-v2', restaurantProducts, 'conversation-1', supabase)
+
+        const result = JSON.parse(rawResult)
+        const paymentCall = global.fetch.mock.calls[1]
+        const paymentPayload = JSON.parse(paymentCall[1].body)
+
+        expect(result.success).toBe(true)
+        expect(result.payment_method).toBe('online')
+        expect(result.payment_link).toBe('https://pay.example/v2-bkg-123')
+        expect(paymentPayload.payment_method).toBe('OM_CI')
+        expect(updates).toHaveLength(2)
+        expect(updates[0].payload.payment_provider_version).toBe('v2')
+        expect(updates[1].payload.payment_provider_version).toBe('v2')
+        expect(updates[1].payload.provider_payment_url).toBe('https://pay.example/v2-bkg-123')
+        expect(updates[1].payload.provider_transaction_id).toBe('cp-tx-123')
+        expect(updates[1].payload.provider_notify_token).toBe('notify-v2-123')
+    })
+
     test('creates takeaway orders with pending_pickup status and an online payment link', async () => {
         const { handleCreateRestaurantCheckout } = loadTool()
 
