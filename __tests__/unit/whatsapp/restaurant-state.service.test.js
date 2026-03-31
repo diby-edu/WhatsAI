@@ -45,6 +45,9 @@ describe('restaurant-state.service', () => {
         expect(result.state.customer_flow.scheduled_time).toBe('20:00')
         expect(result.state.customer_flow.party_size).toBe(4)
         expect(result.state.awaiting_cf_field?.type).toBe('notes')
+        expect(result.directReply).toMatch(/bonjour/i)
+        expect(result.directReply).toMatch(/reservation de table/i)
+        expect(result.directReply).toMatch(/4 personnes/i)
         expect(result.directReply).toMatch(/demandes particuli/i)
     })
 
@@ -62,6 +65,23 @@ describe('restaurant-state.service', () => {
         expect(result.directReply).not.toMatch(/quelle date et a quelle heure/i)
     })
 
+    test('asks for the full name before the phone number when both are missing', () => {
+        let state = updateRestaurantStateFromUserMessage(
+            {},
+            'Je veux reserver une table demain a 20h pour 4 personnes',
+            restaurantProducts
+        ).state
+
+        const result = updateRestaurantStateFromUserMessage(state, 'non', restaurantProducts)
+
+        expect(result.state.customer_flow.customer_name).toBeNull()
+        expect(result.state.customer_flow.customer_phone).toBeNull()
+        expect(result.state.awaiting_cf_field?.type).toBe('customer_info')
+        expect(result.state.awaiting_cf_field?.label).toBe('nom complet')
+        expect(result.directReply).toMatch(/nom complet/i)
+        expect(result.directReply).not.toMatch(/telephone avec indicatif/i)
+    })
+
     test('asks only for the phone number after the customer name is captured', () => {
         let state = updateRestaurantStateFromUserMessage(
             {},
@@ -70,13 +90,13 @@ describe('restaurant-state.service', () => {
         ).state
 
         state = updateRestaurantStateFromUserMessage(state, 'non', restaurantProducts).state
-
         const result = updateRestaurantStateFromUserMessage(state, 'koffi diby', restaurantProducts)
 
         expect(result.state.customer_flow.customer_name).toBe('koffi diby')
         expect(result.state.customer_flow.customer_phone).toBeNull()
         expect(result.state.awaiting_cf_field?.type).toBe('customer_info')
-        expect(result.state.awaiting_cf_field?.label).toBe('numéro de téléphone')
+        expect(result.state.awaiting_cf_field?.label).toBe('numero de telephone')
+        expect(result.directReply).toMatch(/koffi diby/i)
         expect(result.directReply).toMatch(/t[eé]l[eé]phone/i)
         expect(result.directReply).not.toMatch(/nom complet et votre t[eé]l[eé]phone/i)
     })
@@ -98,6 +118,8 @@ describe('restaurant-state.service', () => {
         expect(result.state.cart_items.find(item => item.product_name === 'Boisson 01')?.quantity).toBe(2)
         expect(result.state.awaiting_cf_field?.type).toBe('notes')
         expect(result.directReply).toMatch(/2x Plat 01/i)
+        expect(result.directReply).toMatch(/bonjour/i)
+        expect(result.directReply).toMatch(/precommande/i)
         expect(result.directReply).toMatch(/demandes particuli/i)
         expect(result.directReply).not.toMatch(/\*BOISSONS\*/i)
     })
@@ -124,6 +146,37 @@ describe('restaurant-state.service', () => {
         expect(merged.payment_method).toBe('online')
         expect(merged.notes).toBe('Sans piment')
         expect(merged.items).toEqual([{ product_name: 'Plat 01', quantity: 2 }])
+    })
+
+    test('prefers collected state values over conflicting tool args at READY stage', () => {
+        const state = {
+            stage: RESTAURANT_STAGE.READY,
+            fulfillment_mode: 'booking_only',
+            cart_items: [],
+            customer_flow: {
+                customer_name: 'Koffi Test',
+                customer_phone: '+2250707070790',
+                scheduled_date: '2026-03-31',
+                scheduled_time: '20:00',
+                party_size: 4,
+                payment_method: 'onsite',
+                notes: null,
+            },
+        }
+
+        const merged = mergeRestaurantStateIntoToolArgs('create_restaurant_checkout', {
+            customer_name: 'Client Invalide',
+            customer_phone: '0707070790',
+            scheduled_date: '2026-04-01',
+            scheduled_time: '19:00',
+            party_size: 2,
+        }, state)
+
+        expect(merged.customer_name).toBe('Koffi Test')
+        expect(merged.customer_phone).toBe('+2250707070790')
+        expect(merged.scheduled_date).toBe('2026-03-31')
+        expect(merged.scheduled_time).toBe('20:00')
+        expect(merged.party_size).toBe(4)
     })
 
     test('clears the state after a successful restaurant confirmation message', () => {

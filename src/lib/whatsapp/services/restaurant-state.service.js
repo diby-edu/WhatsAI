@@ -790,6 +790,68 @@ function buildFinalRecap(state) {
     return lines.join('\n')
 }
 
+function buildCustomerFlowIntro(state) {
+    const cf = state.customer_flow || {}
+    const lines = ['Bonjour !']
+
+    if (state.fulfillment_mode === 'booking_only') {
+        const parts = ['Je vous aide pour votre reservation de table']
+        if (cf.scheduled_date) {
+            const dateStr = formatReadableDate(cf.scheduled_date)
+            const timeStr = cf.scheduled_time ? ` a ${cf.scheduled_time}` : ''
+            parts.push(`le ${dateStr}${timeStr}`)
+        }
+        if (cf.party_size) {
+            parts.push(`pour ${cf.party_size} personne${cf.party_size > 1 ? 's' : ''}`)
+        }
+        lines.push(parts.join(' ') + '.')
+        return lines.join('\n')
+    }
+
+    if (state.fulfillment_mode === 'dine_in') {
+        const parts = ['Je vous aide pour votre reservation au restaurant']
+        if (cf.scheduled_date) {
+            const dateStr = formatReadableDate(cf.scheduled_date)
+            const timeStr = cf.scheduled_time ? ` a ${cf.scheduled_time}` : ''
+            parts.push(`le ${dateStr}${timeStr}`)
+        }
+        if (cf.party_size) {
+            parts.push(`pour ${cf.party_size} personne${cf.party_size > 1 ? 's' : ''}`)
+        }
+        if (Array.isArray(state.cart_items) && state.cart_items.length > 0) {
+            parts.push('avec votre precommande')
+        }
+        lines.push(parts.join(' ') + '.')
+        return lines.join('\n')
+    }
+
+    if (state.fulfillment_mode === 'takeaway') {
+        lines.push('Je vous aide pour votre commande a emporter.')
+        return lines.join('\n')
+    }
+
+    if (state.fulfillment_mode === 'delivery') {
+        lines.push('Je vous aide pour votre commande en livraison.')
+        return lines.join('\n')
+    }
+
+    return lines.join('\n')
+}
+
+function buildCustomerFlowPromptReply(state, awaitingField, options = {}) {
+    if (!awaitingField?.prompt) return null
+
+    const parts = []
+    if (options.includeGreeting) {
+        parts.push(buildCustomerFlowIntro(state))
+    } else if (awaitingField.type === 'customer_info' && awaitingField.label === 'numero de telephone' && state.customer_flow?.customer_name) {
+        parts.push(`Parfait ${state.customer_flow.customer_name}.`)
+    }
+
+    parts.push(awaitingField.prompt)
+    return parts.filter(Boolean).join('\n\n')
+}
+
 // ═══════════════════════════════════════════════════════════════
 // CUSTOMER FLOW — CHAMP EN ATTENTE
 // ═══════════════════════════════════════════════════════════════
@@ -833,13 +895,10 @@ function buildAwaitingCfField(state) {
     }
 
     if (!cf.customer_name || !cf.customer_phone) {
-        if (!cf.customer_name && !cf.customer_phone) {
-            return { type: 'customer_info', label: 'nom et téléphone', prompt: 'Votre nom complet et votre téléphone avec indicatif ? 👤📱' }
-        }
         if (!cf.customer_name) {
             return { type: 'customer_info', label: 'nom complet', prompt: 'Quel est votre nom complet, s\'il vous plaît ? 👤' }
         }
-        return { type: 'customer_info', label: 'numéro de téléphone', prompt: 'Quel est votre numéro de téléphone avec l\'indicatif, s\'il vous plaît ? 📱' }
+        return { type: 'customer_info', label: 'numero de telephone', prompt: 'Quel est votre numéro de téléphone avec l\'indicatif, s\'il vous plaît ? 📱' }
     }
 
     return null
@@ -946,7 +1005,7 @@ function updateRestaurantStateFromUserMessage(previousState, text, restaurantPro
                 return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: buildFinalRecap(state) }
             }
             state.last_prompt_kind = RESTAURANT_STAGE.CUSTOMER_FLOW
-            return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: state.awaiting_cf_field.prompt }
+            return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: buildCustomerFlowPromptReply(state, state.awaiting_cf_field, { includeGreeting: true }) }
         }
 
         // Commande directe (sans passer par le menu)
@@ -969,7 +1028,10 @@ function updateRestaurantStateFromUserMessage(previousState, text, restaurantPro
             }
 
             state.last_prompt_kind = RESTAURANT_STAGE.CUSTOMER_FLOW
-            const parts = [buildItemsCapturedAck(itemResult.captured), state.awaiting_cf_field.prompt].filter(Boolean)
+            const parts = [
+                buildItemsCapturedAck(itemResult.captured),
+                buildCustomerFlowPromptReply(state, state.awaiting_cf_field, { includeGreeting: true })
+            ].filter(Boolean)
             return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: parts.join('\n\n') }
         }
 
@@ -990,7 +1052,10 @@ function updateRestaurantStateFromUserMessage(previousState, text, restaurantPro
                 }
 
                 state.last_prompt_kind = RESTAURANT_STAGE.CUSTOMER_FLOW
-                const parts = [buildItemsCapturedAck(itemResult.captured), state.awaiting_cf_field.prompt].filter(Boolean)
+                const parts = [
+                    buildItemsCapturedAck(itemResult.captured),
+                    buildCustomerFlowPromptReply(state, state.awaiting_cf_field, { includeGreeting: true })
+                ].filter(Boolean)
                 return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: parts.join('\n\n') }
             }
 
@@ -1014,7 +1079,7 @@ function updateRestaurantStateFromUserMessage(previousState, text, restaurantPro
                 return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: buildFinalRecap(state) }
             }
             state.last_prompt_kind = RESTAURANT_STAGE.CUSTOMER_FLOW
-            return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: state.awaiting_cf_field.prompt }
+            return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: buildCustomerFlowPromptReply(state, state.awaiting_cf_field, { includeGreeting: true }) }
         }
 
         // Laisser l'IA afficher le menu principal (premier message, bonjour, etc.)
@@ -1226,7 +1291,7 @@ function updateRestaurantStateFromUserMessage(previousState, text, restaurantPro
         if (state.awaiting_cf_field) {
             // Encore des champs → prochain champ
             state.last_prompt_kind = RESTAURANT_STAGE.CUSTOMER_FLOW
-            return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: state.awaiting_cf_field.prompt }
+            return { state, stateChanged: true, shouldBypassAI: true, questionDetected: false, directReply: buildCustomerFlowPromptReply(state, state.awaiting_cf_field) }
         }
 
         // Tous les champs collectés → RECAP
@@ -1404,14 +1469,14 @@ function mergeRestaurantStateIntoToolArgs(functionName, args = {}, restaurantSta
 
     return {
         ...args,
-        fulfillment_mode:  args.fulfillment_mode  || state.fulfillment_mode,
-        items:             mergedItems,
-        customer_name:     args.customer_name     || cf.customer_name,
-        customer_phone:    args.customer_phone    || cf.customer_phone,
-        scheduled_date:    args.scheduled_date    || cf.scheduled_date,
-        scheduled_time:    args.scheduled_time    || cf.scheduled_time,
-        party_size:        args.party_size        || cf.party_size,
-        delivery_address:  args.delivery_address  || cf.delivery_address,
+        fulfillment_mode:  state.fulfillment_mode || args.fulfillment_mode,
+        items:             state.cart_items.length > 0 ? state.cart_items.map(item => ({ product_name: item.product_name, quantity: item.quantity })) : mergedItems,
+        customer_name:     cf.customer_name    || args.customer_name,
+        customer_phone:    cf.customer_phone   || args.customer_phone,
+        scheduled_date:    cf.scheduled_date   || args.scheduled_date,
+        scheduled_time:    cf.scheduled_time   || args.scheduled_time,
+        party_size:        cf.party_size       || args.party_size,
+        delivery_address:  cf.delivery_address || args.delivery_address,
         payment_method:    args.payment_method    || cf.payment_method || 'onsite',
         notes:             args.notes !== undefined ? args.notes : cf.notes,
     }
