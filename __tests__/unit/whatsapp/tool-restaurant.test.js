@@ -12,9 +12,11 @@ function createSupabase({
     agent,
     bookingRecord = null,
     bookingRpcData = { booking_id: 'booking-123' },
+    orderRecord = null,
     orderRpcData = [{ order_id: 'order-123' }],
     rpcErrors = {},
     bookingUpdateError = null,
+    orderUpdateError = null,
 }) {
     const updates = []
     const rpcCalls = []
@@ -50,6 +52,30 @@ function createSupabase({
                                 Object.assign(bookingRecord, payload)
                             }
                             return { error: bookingUpdateError }
+                        })
+                    }))
+                }
+            }
+
+            if (table === 'orders') {
+                return {
+                    select: jest.fn(() => ({
+                        eq: jest.fn(() => ({
+                            single: async () => {
+                                if (!orderRecord) {
+                                    return { data: null, error: { message: 'not found' } }
+                                }
+                                return { data: orderRecord, error: null }
+                            }
+                        }))
+                    })),
+                    update: jest.fn((payload) => ({
+                        eq: jest.fn(async () => {
+                            updates.push({ table, payload })
+                            if (orderRecord) {
+                                Object.assign(orderRecord, payload)
+                            }
+                            return { error: orderUpdateError }
                         })
                     }))
                 }
@@ -534,6 +560,14 @@ describe('tool-restaurant', () => {
 
     test('creates takeaway orders with pending_pickup status and an online payment link', async () => {
         const { handleCreateRestaurantCheckout } = loadTool()
+        global.fetch.mockResolvedValue({
+            json: async () => ({
+                code: '201',
+                data: {
+                    payment_url: 'https://pay.example/order-456'
+                }
+            })
+        })
 
         const { supabase, rpcCalls } = createSupabase({
             agent: {
@@ -542,6 +576,12 @@ describe('tool-restaurant', () => {
                 escalation_phone: '+2250102030405',
                 restaurant_deposit_enabled: true,
                 restaurant_deposit_percentage: 30
+            },
+            orderRecord: {
+                id: 'order-456',
+                transaction_id: null,
+                provider_payment_url: null,
+                payment_provider_version: null
             },
             orderRpcData: [{ order_id: 'order-456' }]
         })
@@ -552,6 +592,8 @@ describe('tool-restaurant', () => {
                 { product_name: 'Thieb Poulet', quantity: 1 },
                 { product_name: 'Bissap', quantity: 2 }
             ],
+            scheduled_date: '2026-04-01',
+            scheduled_time: '23:00',
             customer_name: 'Awa Konan',
             customer_phone: '+2250701020304',
             payment_method: 'online'
@@ -564,7 +606,8 @@ describe('tool-restaurant', () => {
         expect(result.fulfillment_mode).toBe('takeaway')
         expect(result.total_fcfa).toBe(5500)
         expect(result.payment_method).toBe('online')
-        expect(result.payment_link).toBe('https://wazzapai.com/pay/order-456')
+        expect(result.payment_link).toBe('https://pay.example/order-456')
+        expect(result.message).toMatch(/Retrait prevu le/)
 
         expect(rpcCalls[0]).toEqual(expect.objectContaining({
             name: 'create_restaurant_order_with_items',
@@ -572,7 +615,8 @@ describe('tool-restaurant', () => {
                 p_status: 'pending_pickup',
                 p_payment_method: 'online',
                 p_total_fcfa: 5500,
-                p_fulfillment_mode: 'takeaway'
+                p_fulfillment_mode: 'takeaway',
+                p_pickup_at: expect.any(String)
             })
         }))
         expect(mockNotify).toHaveBeenCalledWith('user-1', 'new_order', expect.objectContaining({

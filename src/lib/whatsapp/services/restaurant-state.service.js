@@ -760,7 +760,9 @@ function buildModeQuestion() {
 
 function buildFinalRecap(state) {
     const cf = state.customer_flow
-    const lines = ['Récapitulatif de votre réservation :']
+    const lines = [state.fulfillment_mode === 'takeaway' || state.fulfillment_mode === 'delivery'
+        ? 'Récapitulatif de votre commande :'
+        : 'Récapitulatif de votre réservation :']
 
     if (state.cart_items.length > 0) {
         let total = 0
@@ -805,7 +807,9 @@ function buildFinalRecap(state) {
         lines.push(`📝 Notes : ${cf.notes}`)
     }
 
-    lines.push('Confirmez-vous ?')
+    lines.push(state.fulfillment_mode === 'takeaway' || state.fulfillment_mode === 'delivery'
+        ? 'Confirmez-vous cette commande ?'
+        : 'Confirmez-vous ?')
     return lines.join('\n')
 }
 
@@ -909,7 +913,7 @@ function buildAwaitingCfField(state) {
         return { type: 'delivery_address', label: 'adresse de livraison', prompt: 'Quelle est votre adresse de livraison ? 📍' }
     }
 
-    if ((mode === 'dine_in' || mode === 'booking_only') && cf.notes === null && !cf.note_declined) {
+    if ((mode === 'dine_in' || mode === 'booking_only' || mode === 'takeaway' || mode === 'delivery') && cf.notes === null && !cf.note_declined) {
         return { type: 'notes', label: 'demandes particulières', prompt: 'Avez-vous des demandes particulières ? (tapez "non" si aucune)' }
     }
 
