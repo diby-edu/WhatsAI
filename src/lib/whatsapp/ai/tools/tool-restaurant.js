@@ -156,6 +156,38 @@ function inferCinetPayV2PaymentMethod(clientPhoneNumber) {
     return null
 }
 
+function inferCinetPayV2PaymentMethodCandidates(clientPhoneNumber) {
+    const digits = String(clientPhoneNumber || '').replace(/\D/g, '')
+    const candidates = []
+
+    if (digits.startsWith('22507')) {
+        candidates.push('OM', 'OM_CI', null)
+    } else if (digits.startsWith('22505')) {
+        candidates.push('MTN', 'MTN_CI', null)
+    } else if (digits.startsWith('22501')) {
+        candidates.push('MOOV', 'MOOV_CI', null)
+    } else {
+        candidates.push(inferCinetPayV2PaymentMethod(clientPhoneNumber), null)
+    }
+
+    const unique = []
+    for (const candidate of candidates) {
+        if (!unique.some(value => value === candidate)) {
+            unique.push(candidate)
+        }
+    }
+
+    return unique
+}
+
+function buildCinetPayV2MerchantTransactionId(baseTransactionId, attemptIndex) {
+    if (attemptIndex <= 1) return baseTransactionId
+
+    const suffix = `_r${attemptIndex}`
+    const maxBaseLength = Math.max(0, 30 - suffix.length)
+    return `${String(baseTransactionId || '').slice(0, maxBaseLength)}${suffix}`
+}
+
 function getCinetPayV2FetchOptions() {
     try {
         if (!cinetPayV2Ipv4Dispatcher) {
@@ -229,6 +261,7 @@ async function initializePaymentV2({
     designation,
     clientFullName,
     clientPhoneNumber,
+    paymentMethod,
     successUrl,
     failedUrl,
     notifyUrl
@@ -240,7 +273,9 @@ async function initializePaymentV2({
     try {
         const accessToken = await getCinetPayV2AccessToken()
         const { firstName, lastName } = splitCinetPayV2CustomerName(clientFullName)
-        const paymentMethod = inferCinetPayV2PaymentMethod(clientPhoneNumber)
+        const resolvedPaymentMethod = paymentMethod === undefined
+            ? inferCinetPayV2PaymentMethod(clientPhoneNumber)
+            : paymentMethod
         const requestPayload = {
             currency: String(currency || 'XOF').trim(),
             amount: Number(amount || 0),
@@ -251,7 +286,7 @@ async function initializePaymentV2({
             client_phone_number: String(clientPhoneNumber || '').trim() || undefined,
             client_first_name: firstName,
             client_last_name: lastName,
-            payment_method: paymentMethod || undefined,
+            payment_method: resolvedPaymentMethod || undefined,
             direct_pay: false,
             success_url: String(successUrl || '').trim().slice(0, 120),
             failed_url: String(failedUrl || '').trim().slice(0, 120),
@@ -456,7 +491,8 @@ async function initiateBookingDepositPayment({
     }
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://wazzapai.com'
-    const transactionId = `BKG_${bookingId.substring(0, 8)}_${Date.now()}`
+    const baseTransactionId = `BKG_${bookingId.substring(0, 8)}_${Date.now()}`
+    let transactionId = baseTransactionId
     let paymentUrl = null
     let providerTransactionId = null
     let providerNotifyToken = null
@@ -475,32 +511,63 @@ async function initiateBookingDepositPayment({
     }
 
     if (useCinetPayV2) {
-        const result = await initializePaymentV2({
-            amount: depositAmountFcfa,
-            currency: 'XOF',
-            merchantTransactionId: transactionId,
-            designation: `Acompte reservation #${bookingId.substring(0, 8)}`,
-            clientFullName: customerName || 'Client',
-            clientPhoneNumber: customerPhone || '',
-            successUrl: `${baseUrl}/payment/success?transaction_id=${transactionId}`,
-            failedUrl: `${baseUrl}/payment/success?transaction_id=${transactionId}&payment=cancelled`,
-            notifyUrl: `${baseUrl}/api/payments/cinetpay/webhook`
-        })
+        const paymentMethodCandidates = inferCinetPayV2PaymentMethodCandidates(customerPhone || '')
+        let lastError = 'Erreur CinetPay'
 
-        if (!result.success || !result.paymentUrl) {
+        for (let attemptIndex = 0; attemptIndex < paymentMethodCandidates.length; attemptIndex += 1) {
+            const candidatePaymentMethod = paymentMethodCandidates[attemptIndex]
+            const candidateTransactionId = buildCinetPayV2MerchantTransactionId(baseTransactionId, attemptIndex + 1)
+            const result = await initializePaymentV2({
+                amount: depositAmountFcfa,
+                currency: 'XOF',
+                merchantTransactionId: candidateTransactionId,
+                designation: `Acompte reservation #${bookingId.substring(0, 8)}`,
+                clientFullName: customerName || 'Client',
+                clientPhoneNumber: customerPhone || '',
+                paymentMethod: candidatePaymentMethod,
+                successUrl: `${baseUrl}/payment/success?transaction_id=${candidateTransactionId}`,
+                failedUrl: `${baseUrl}/payment/success?transaction_id=${candidateTransactionId}&payment=cancelled`,
+                notifyUrl: `${baseUrl}/api/payments/cinetpay/webhook`
+            })
+
+            if (result.success && result.paymentUrl) {
+                transactionId = candidateTransactionId
+                paymentUrl = result.paymentUrl
+                providerTransactionId = result.providerTransactionId || null
+                providerNotifyToken = result.notifyToken || null
+                providerVersion = 'v2'
+                break
+            }
+
+            lastError = result.error || 'Erreur CinetPay'
+            console.warn('CinetPay v2 booking payment attempt failed:', {
+                agentId,
+                bookingId,
+                attempt: attemptIndex + 1,
+                paymentMethod: candidatePaymentMethod || '(omitted)',
+                merchantTransactionId: candidateTransactionId,
+                error: lastError
+            })
+
+            const normalizedError = String(lastError || '').toLowerCase()
+            const shouldRetry = normalizedError.includes('invalid_params')
+                || normalizedError.includes('params you provides are invalid')
+                || normalizedError.includes('code=1004')
+
+            if (!shouldRetry) {
+                break
+            }
+        }
+
+        if (!paymentUrl) {
             console.error('Restaurant booking deposit initiation failed:', {
                 agentId,
                 bookingId,
                 providerVersion: attemptedProviderVersion,
-                error: result.error || 'Erreur CinetPay'
+                error: lastError
             })
-            return { success: false, error: result.error || 'Erreur CinetPay', providerVersion: attemptedProviderVersion }
+            return { success: false, error: lastError, providerVersion: attemptedProviderVersion }
         }
-
-        paymentUrl = result.paymentUrl
-        providerTransactionId = result.providerTransactionId || null
-        providerNotifyToken = result.notifyToken || null
-        providerVersion = 'v2'
     } else {
         const payload = {
             apikey: CINETPAY_API_KEY,
