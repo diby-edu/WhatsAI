@@ -171,6 +171,25 @@ function detectValiderCommand(text) {
     return /\bvalider\b|\bfinaliser\b/.test(normalizeText(text))
 }
 
+function isFreshRestaurantRestartRequest(text, restaurantProducts = []) {
+    const normalized = normalizeText(text)
+    if (!normalized) return false
+
+    const explicitIntent = /\b(je veux|je voudrais|je souhaite|j aimerais|j'aimerais)\b/.test(normalized)
+    const reservationIntent = /reserver|reservation|\bune table\b/.test(normalized)
+    const inlineMode = detectFulfillmentMode(text)
+    const itemResult = extractItemsFromText(text, restaurantProducts, [])
+    const hasStructuredDetails = Boolean(
+        extractDate(text)
+        || extractTime(text)
+        || extractPartySize(text)
+        || inlineMode
+        || itemResult.captured.length > 0
+    )
+
+    return explicitIntent && hasStructuredDetails && (reservationIntent || itemResult.captured.length > 0 || inlineMode)
+}
+
 function detectRetourCommand(text) {
     return /\bretour\b|\bannuler\b/.test(normalizeText(text))
 }
@@ -961,6 +980,19 @@ function updateRestaurantStateFromUserMessage(previousState, text, restaurantPro
 
     const questionDetected = isOffTopicQuestion(text)
     const noOp = { state, stateChanged: false, shouldBypassAI: false, questionDetected, directReply: null }
+
+    if (
+        [RESTAURANT_STAGE.DEPOSIT, RESTAURANT_STAGE.READY].includes(state.stage)
+        && isFreshRestaurantRestartRequest(text, restaurantProducts)
+    ) {
+        const restartedState = cloneRestaurantState({})
+        restartedState.section_order = state.section_order.length > 0
+            ? [...state.section_order]
+            : buildSectionOrder(restaurantProducts)
+        restartedState.drinks_enabled = state.drinks_enabled === true
+            || getDrinkProducts(restaurantProducts).length > 0
+        return updateRestaurantStateFromUserMessage(restartedState, text, restaurantProducts)
+    }
 
     // ──────────────────────────────────────────────
     // STAGE: MENU_HOME
