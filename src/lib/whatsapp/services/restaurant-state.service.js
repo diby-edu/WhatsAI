@@ -1477,7 +1477,7 @@ function mergeRestaurantStateIntoToolArgs(functionName, args = {}, restaurantSta
         scheduled_time:    cf.scheduled_time   || args.scheduled_time,
         party_size:        cf.party_size       || args.party_size,
         delivery_address:  cf.delivery_address || args.delivery_address,
-        payment_method:    args.payment_method    || cf.payment_method || 'onsite',
+        payment_method:    args.payment_method    || cf.payment_method,
         notes:             args.notes !== undefined ? args.notes : cf.notes,
     }
 }

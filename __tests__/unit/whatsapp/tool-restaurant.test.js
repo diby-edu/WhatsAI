@@ -194,6 +194,53 @@ describe('tool-restaurant', () => {
         }))
     })
 
+    test('infers online payment for dine-in deposits when no explicit payment method is provided', async () => {
+        const { handleCreateRestaurantCheckout } = loadTool()
+        global.fetch.mockResolvedValue({
+            json: async () => ({
+                code: '201',
+                data: { payment_url: 'https://pay.example/bkg-auto' }
+            })
+        })
+
+        const bookingRecord = {
+            id: 'booking-123',
+            transaction_id: null,
+            provider_payment_url: null
+        }
+
+        const { supabase, updates, rpcCalls } = createSupabase({
+            agent: {
+                user_id: 'user-1',
+                name: 'Restaurant Lagoon',
+                escalation_phone: '+2250102030405',
+                payment_mode: 'cinetpay',
+                restaurant_deposit_enabled: true,
+                restaurant_deposit_percentage: 30
+            },
+            bookingRecord
+        })
+
+        const rawResult = await handleCreateRestaurantCheckout({
+            fulfillment_mode: 'dine_in',
+            items: [{ product_name: 'thieb poulet', quantity: 2 }],
+            customer_name: 'Awa Konan',
+            customer_phone: '+2250701020304',
+            scheduled_date: '2026-04-05',
+            scheduled_time: '20:00',
+            party_size: 2,
+            notes: 'Table terrasse'
+        }, 'agent-1', restaurantProducts, 'conversation-1', supabase)
+
+        const result = JSON.parse(rawResult)
+
+        expect(result.success).toBe(true)
+        expect(result.payment_method).toBe('online')
+        expect(result.payment_link).toBe('https://pay.example/bkg-auto')
+        expect(rpcCalls[0].params.p_payment_method).toBe('online')
+        expect(updates[0].payload.provider_payment_url).toBe('https://pay.example/bkg-auto')
+    })
+
     test('reuses an existing booking deposit payment link without re-initiating CinetPay', async () => {
         const { handleCreateRestaurantCheckout } = loadTool()
 
