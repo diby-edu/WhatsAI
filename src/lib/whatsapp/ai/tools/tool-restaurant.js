@@ -375,20 +375,25 @@ async function handleCreateRestaurantCheckout(args, agentId, products, conversat
             const usesMobileMoney = agent.payment_mode === 'mobile_money_direct'
 
             if (depositRequired && usesCinetpay && bookingId) {
-                const paymentResult = await initiateBookingDepositPayment({
-                    supabase,
-                    agentId,
-                    bookingId,
-                    depositAmountFcfa,
-                    customerName,
-                    customerPhone: normalizedPhone
-                })
+                try {
+                    const paymentResult = await initiateBookingDepositPayment({
+                        supabase,
+                        agentId,
+                        bookingId,
+                        depositAmountFcfa,
+                        customerName,
+                        customerPhone: normalizedPhone
+                    })
 
-                if (paymentResult.success) {
-                    paymentLink = paymentResult.paymentUrl
-                    paymentMessage = `\nAcompte requis : *${depositAmountFcfa.toLocaleString('fr-FR')} FCFA* (${depositPercentage}%).\nLien de paiement : ${paymentLink}`
-                } else {
-                    paymentMessage = `\nLa reservation est enregistree, mais le lien de paiement est indisponible pour le moment.`
+                    if (paymentResult.success) {
+                        paymentLink = paymentResult.paymentUrl
+                        paymentMessage = `\nAcompte requis : *${depositAmountFcfa.toLocaleString('fr-FR')} FCFA* (${depositPercentage}%).\nLien de paiement : ${paymentLink}`
+                    } else {
+                        paymentMessage = `\nAcompte requis : *${depositAmountFcfa.toLocaleString('fr-FR')} FCFA* (${depositPercentage}%).\nVotre reservation est bien enregistree, mais elle n'est pas encore confirmee car le lien de paiement est indisponible pour le moment.`
+                    }
+                } catch (paymentError) {
+                    console.error('Restaurant booking deposit initiation failed:', paymentError)
+                    paymentMessage = `\nAcompte requis : *${depositAmountFcfa.toLocaleString('fr-FR')} FCFA* (${depositPercentage}%).\nVotre reservation est bien enregistree, mais elle n'est pas encore confirmee car le lien de paiement est indisponible pour le moment.`
                 }
             } else if (depositRequired && usesMobileMoney) {
                 paymentMessage = buildMobileMoneyDepositMessage(agent, depositAmountFcfa, depositPercentage)
