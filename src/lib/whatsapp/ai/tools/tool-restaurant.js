@@ -361,6 +361,16 @@ async function handleCreateRestaurantCheckout(args, agentId, products, conversat
             const depositAmountFcfa = depositRequired
                 ? Math.ceil((totalFcfa * depositPercentage) / 100)
                 : 0
+            const usesCinetpay = !agent.payment_mode || agent.payment_mode === 'cinetpay'
+            const usesMobileMoney = agent.payment_mode === 'mobile_money_direct'
+
+            let bookingPaymentMethod = paymentMethod
+            if (depositRequired && (usesCinetpay || usesMobileMoney)) {
+                // A deposit always requires a remote payment step, even if the model guessed "onsite".
+                bookingPaymentMethod = 'online'
+            } else if (!bookingPaymentMethod) {
+                bookingPaymentMethod = 'onsite'
+            }
 
             const { data: bookingResult, error: bookingError } = await supabase.rpc('create_restaurant_booking', {
                 p_agent_id: agentId,
@@ -373,7 +383,7 @@ async function handleCreateRestaurantCheckout(args, agentId, products, conversat
                 p_preferred_date: scheduledDate,
                 p_preferred_time: scheduledTime,
                 p_party_size: Number(partySize),
-                p_payment_method: paymentMethod,
+                p_payment_method: bookingPaymentMethod,
                 p_notes: notes || null,
                 p_deposit_required: depositRequired,
                 p_deposit_percentage: depositPercentage,
@@ -386,9 +396,6 @@ async function handleCreateRestaurantCheckout(args, agentId, products, conversat
             const bookingId = bookingResult?.booking_id
             let paymentLink = null
             let paymentMessage = ''
-
-            const usesCinetpay = !agent.payment_mode || agent.payment_mode === 'cinetpay'
-            const usesMobileMoney = agent.payment_mode === 'mobile_money_direct'
 
             if (depositRequired && usesCinetpay && bookingId) {
                 try {
@@ -441,7 +448,7 @@ async function handleCreateRestaurantCheckout(args, agentId, products, conversat
                 deposit_required: depositRequired,
                 deposit_amount_fcfa: depositAmountFcfa,
                 deposit_status: depositRequired ? 'pending' : 'not_required',
-                payment_method: paymentMethod,
+                payment_method: bookingPaymentMethod,
                 payment_link: paymentLink,
                 message: `${bookingLabel} pour ${customerName || 'le client'} le ${scheduledDate} a ${scheduledTime}.${itemsSummary}${totalSummary}${paymentMessage}`
             })
