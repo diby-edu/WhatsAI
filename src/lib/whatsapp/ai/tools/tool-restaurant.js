@@ -124,7 +124,7 @@ async function initiateBookingDepositPayment({
     customerName,
     customerPhone
 }) {
-    const { initializePaymentV2, shouldUseCinetPayV2ForAgent } = await import('../../../payments/cinetpay-v2')
+    const { initializePaymentV2, shouldUseCinetPayV2ForAgent } = require('../../../payments/cinetpay-v2.runtime')
     const useCinetPayV2 = shouldUseCinetPayV2ForAgent(agentId)
     const attemptedProviderVersion = useCinetPayV2 ? 'v2' : 'v1'
 
