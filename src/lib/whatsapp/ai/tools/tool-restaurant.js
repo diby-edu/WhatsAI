@@ -644,6 +644,186 @@ async function initiateBookingDepositPayment({
     }
 }
 
+async function initiateOrderOnlinePayment({
+    supabase,
+    agentId,
+    orderId,
+    amountFcfa,
+    customerName,
+    customerPhone,
+    isDepositPayment
+}) {
+    const useCinetPayV2 = shouldUseCinetPayV2ForAgent(agentId)
+    const attemptedProviderVersion = useCinetPayV2 ? 'v2' : 'v1'
+
+    if (!useCinetPayV2 && (!CINETPAY_API_KEY || !CINETPAY_SITE_ID)) {
+        return { success: false, error: 'CinetPay non configure', providerVersion: attemptedProviderVersion }
+    }
+
+    const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .select('id, transaction_id, provider_payment_url, payment_provider_version')
+        .eq('id', orderId)
+        .single()
+
+    if (orderError || !order) {
+        return { success: false, error: 'Commande introuvable pour le paiement', providerVersion: attemptedProviderVersion }
+    }
+
+    if (order.transaction_id && order.provider_payment_url) {
+        return {
+            success: true,
+            transactionId: order.transaction_id,
+            paymentUrl: order.provider_payment_url,
+            providerVersion: order.payment_provider_version || attemptedProviderVersion
+        }
+    }
+
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://wazzapai.com'
+    const safeOrderSlug = buildCinetPayV2SafeSlug(orderId.substring(0, 8), 'order')
+    const baseTransactionId = `ORD-${safeOrderSlug}-${Date.now()}`
+    let transactionId = baseTransactionId
+    let paymentUrl = null
+    let providerTransactionId = null
+    let providerNotifyToken = null
+    let providerVersion = attemptedProviderVersion
+
+    const { error: versionUpdateError } = await supabase
+        .from('orders')
+        .update({
+            payment_provider_version: attemptedProviderVersion,
+            updated_at: new Date().toISOString()
+        })
+        .eq('id', orderId)
+
+    if (versionUpdateError) {
+        console.error('Failed to persist order payment provider version before init:', versionUpdateError)
+    }
+
+    if (useCinetPayV2) {
+        const paymentMethodCandidates = inferCinetPayV2PaymentMethodCandidates(customerPhone || '')
+        let lastError = 'Erreur CinetPay'
+
+        for (let attemptIndex = 0; attemptIndex < paymentMethodCandidates.length; attemptIndex += 1) {
+            const candidatePaymentMethod = paymentMethodCandidates[attemptIndex]
+            const candidateTransactionId = buildCinetPayV2MerchantTransactionId(baseTransactionId, attemptIndex + 1)
+            const result = await initializePaymentV2({
+                amount: amountFcfa,
+                currency: 'XOF',
+                merchantTransactionId: candidateTransactionId,
+                designation: isDepositPayment ? `Acompte commande ${safeOrderSlug}` : `Commande ${safeOrderSlug}`,
+                clientFullName: customerName || 'Client',
+                clientPhoneNumber: customerPhone || '',
+                paymentMethod: candidatePaymentMethod,
+                successUrl: `${baseUrl}/pay/${orderId}?status=success`,
+                failedUrl: `${baseUrl}/pay/${orderId}?status=cancelled`,
+                notifyUrl: `${baseUrl}/api/payments/cinetpay/webhook`
+            })
+
+            if (result.success && result.paymentUrl) {
+                transactionId = candidateTransactionId
+                paymentUrl = result.paymentUrl
+                providerTransactionId = result.providerTransactionId || null
+                providerNotifyToken = result.notifyToken || null
+                providerVersion = 'v2'
+                break
+            }
+
+            lastError = result.error || 'Erreur CinetPay'
+            console.warn('CinetPay v2 order payment attempt failed:', {
+                agentId,
+                orderId,
+                attempt: attemptIndex + 1,
+                paymentMethod: candidatePaymentMethod || '(omitted)',
+                merchantTransactionId: candidateTransactionId,
+                error: lastError
+            })
+
+            const normalizedError = String(lastError || '').toLowerCase()
+            const shouldRetry = normalizedError.includes('invalid_params')
+                || normalizedError.includes('params you provides are invalid')
+                || normalizedError.includes('code=1004')
+
+            if (!shouldRetry) {
+                break
+            }
+        }
+
+        if (!paymentUrl) {
+            console.error('Restaurant order payment initiation failed:', {
+                agentId,
+                orderId,
+                providerVersion: attemptedProviderVersion,
+                error: lastError
+            })
+            return { success: false, error: lastError, providerVersion: attemptedProviderVersion }
+        }
+    } else {
+        const payload = {
+            apikey: CINETPAY_API_KEY,
+            site_id: CINETPAY_SITE_ID,
+            transaction_id: transactionId,
+            amount: amountFcfa,
+            currency: 'XOF',
+            description: isDepositPayment ? `Acompte commande #${orderId.substring(0, 8)}` : `Commande #${orderId.substring(0, 8)}`,
+            notify_url: `${baseUrl}/api/payments/cinetpay/webhook`,
+            return_url: `${baseUrl}/pay/${orderId}?status=success`,
+            cancel_url: `${baseUrl}/pay/${orderId}?status=cancelled`,
+            channels: 'ALL',
+            customer_id: orderId,
+            customer_name: customerName || 'Client',
+            customer_surname: '',
+            customer_phone_number: customerPhone || '',
+            metadata: JSON.stringify({
+                order_id: orderId,
+                type: isDepositPayment ? 'order_deposit' : 'order_payment'
+            })
+        }
+
+        const response = await fetch(CINETPAY_BASE_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+
+        const result = await response.json()
+        if (result.code !== '201' || !result.data?.payment_url) {
+            console.error('Restaurant order payment initiation failed:', {
+                agentId,
+                orderId,
+                providerVersion: attemptedProviderVersion,
+                error: result.message || 'Erreur CinetPay'
+            })
+            return { success: false, error: result.message || 'Erreur CinetPay', providerVersion: attemptedProviderVersion }
+        }
+
+        paymentUrl = result.data.payment_url
+    }
+
+    const { error: updateError } = await supabase
+        .from('orders')
+        .update({
+            transaction_id: transactionId,
+            provider_payment_url: paymentUrl,
+            provider_transaction_id: providerTransactionId,
+            provider_notify_token: providerNotifyToken,
+            payment_provider_version: providerVersion,
+            updated_at: new Date().toISOString()
+        })
+        .eq('id', orderId)
+
+    if (updateError) {
+        return { success: false, error: updateError.message || 'Impossible de sauvegarder le lien de paiement' }
+    }
+
+    return {
+        success: true,
+        transactionId,
+        paymentUrl,
+        providerVersion
+    }
+}
+
 async function handleCreateRestaurantCheckout(args, agentId, products, conversationId, supabase) {
     try {
         console.log('Executing tool: create_restaurant_checkout')
@@ -882,6 +1062,9 @@ async function handleCreateRestaurantCheckout(args, agentId, products, conversat
         const orderStatus = fulfillmentMode === 'delivery'
             ? (orderPaymentMethod === 'cod' ? 'pending_delivery' : 'pending')
             : 'pending_pickup'
+        const pickupAt = fulfillmentMode === 'takeaway' && scheduledDate && scheduledTime
+            ? `${scheduledDate}T${scheduledTime}:00.000Z`
+            : null
 
         const { data: orderResult, error: orderError } = await supabase.rpc('create_restaurant_order_with_items', {
             p_user_id: agent.user_id,
@@ -896,7 +1079,7 @@ async function handleCreateRestaurantCheckout(args, agentId, products, conversat
             p_status: orderStatus,
             p_items: resolvedItems,
             p_fulfillment_mode: fulfillmentMode,
-            p_pickup_at: null,
+            p_pickup_at: pickupAt,
             p_deposit_required: orderDepositRequired,
             p_deposit_percentage: orderDepositPercentage,
             p_deposit_amount_fcfa: orderDepositAmountFcfa,
@@ -911,13 +1094,42 @@ async function handleCreateRestaurantCheckout(args, agentId, products, conversat
         let orderPaymentLink = null
         let orderPaymentMessage = ''
 
-        if (orderPaymentMethod === 'online' && orderId) {
-            orderPaymentLink = `${appUrl}/pay/${orderId}`
-            if (orderDepositRequired) {
-                orderPaymentMessage = `\nAcompte requis : *${orderDepositAmountFcfa.toLocaleString('fr-FR')} FCFA* (${orderDepositPercentage}%).\nLien de paiement : ${orderPaymentLink}`
-            } else {
-                orderPaymentMessage = `\nLien de paiement : ${orderPaymentLink}`
+        if (orderPaymentMethod === 'online' && orderId && orderUsesCinetpay) {
+            const amountToCharge = orderDepositRequired ? orderDepositAmountFcfa : totalFcfa
+            try {
+                const paymentResult = await initiateOrderOnlinePayment({
+                    supabase,
+                    agentId,
+                    orderId,
+                    amountFcfa: amountToCharge,
+                    customerName,
+                    customerPhone: normalizedPhone,
+                    isDepositPayment: orderDepositRequired
+                })
+
+                if (paymentResult.success) {
+                    orderPaymentLink = paymentResult.paymentUrl
+                    if (orderDepositRequired) {
+                        orderPaymentMessage = `\nAcompte requis : *${orderDepositAmountFcfa.toLocaleString('fr-FR')} FCFA* (${orderDepositPercentage}%).\nLien de paiement : ${orderPaymentLink}`
+                    } else {
+                        orderPaymentMessage = `\nLien de paiement : ${orderPaymentLink}`
+                    }
+                } else {
+                    orderPaymentMessage = orderDepositRequired
+                        ? `\nAcompte requis : *${orderDepositAmountFcfa.toLocaleString('fr-FR')} FCFA* (${orderDepositPercentage}%).\nVotre commande est bien enregistree, mais le lien de paiement est indisponible pour le moment.`
+                        : '\nVotre commande est bien enregistree, mais le lien de paiement est indisponible pour le moment.'
+                }
+            } catch (paymentError) {
+                console.error('Restaurant order payment initiation failed:', paymentError)
+                orderPaymentMessage = orderDepositRequired
+                    ? `\nAcompte requis : *${orderDepositAmountFcfa.toLocaleString('fr-FR')} FCFA* (${orderDepositPercentage}%).\nVotre commande est bien enregistree, mais le lien de paiement est indisponible pour le moment.`
+                    : '\nVotre commande est bien enregistree, mais le lien de paiement est indisponible pour le moment.'
             }
+        } else if (orderPaymentMethod === 'online' && orderId) {
+            orderPaymentLink = `${appUrl}/pay/${orderId}`
+            orderPaymentMessage = orderDepositRequired
+                ? `\nAcompte requis : *${orderDepositAmountFcfa.toLocaleString('fr-FR')} FCFA* (${orderDepositPercentage}%).\nLien de paiement : ${orderPaymentLink}`
+                : `\nLien de paiement : ${orderPaymentLink}`
         } else if (orderPaymentMethod === 'mobile_money_direct') {
             if (orderDepositRequired) {
                 orderPaymentMessage = buildMobileMoneyDepositMessage(agent, orderDepositAmountFcfa, orderDepositPercentage)
@@ -939,6 +1151,9 @@ async function handleCreateRestaurantCheckout(args, agentId, products, conversat
         }
 
         const modeLabel = fulfillmentMode === 'delivery' ? 'livraison' : 'retrait'
+        const pickupSummary = fulfillmentMode === 'takeaway' && scheduledDate && scheduledTime
+            ? `\nRetrait prevu le ${scheduledDate} a ${scheduledTime}.`
+            : ''
 
         return JSON.stringify({
             success: true,
@@ -951,7 +1166,7 @@ async function handleCreateRestaurantCheckout(args, agentId, products, conversat
             deposit_status: orderDepositRequired ? 'pending' : 'not_required',
             payment_method: orderPaymentMethod,
             payment_link: orderPaymentLink,
-            message: `Commande restaurant enregistree pour ${modeLabel}. Total : *${totalFcfa.toLocaleString('fr-FR')} FCFA*.${orderPaymentMessage}`
+            message: `Commande restaurant enregistree pour ${modeLabel}.${pickupSummary}\nTotal : *${totalFcfa.toLocaleString('fr-FR')} FCFA*.${orderPaymentMessage}`
         })
     } catch (error) {
         console.error('Restaurant checkout error:', error)

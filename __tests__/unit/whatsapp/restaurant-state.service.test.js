@@ -124,6 +124,30 @@ describe('restaurant-state.service', () => {
         expect(result.directReply).not.toMatch(/\*BOISSONS\*/i)
     })
 
+    test('captures a takeaway order with command wording and asks for notes before customer info', () => {
+        const initial = updateRestaurantStateFromUserMessage(
+            {},
+            'Je veux commander 2 Plat 01 et 2 Boisson 01 a emporter aujourd hui a 23h',
+            restaurantProducts
+        )
+
+        expect(initial.state.stage).toBe(RESTAURANT_STAGE.CUSTOMER_FLOW)
+        expect(initial.state.fulfillment_mode).toBe('takeaway')
+        expect(initial.state.cart_items).toHaveLength(2)
+        expect(initial.state.awaiting_cf_field?.type).toBe('notes')
+        expect(initial.directReply).toMatch(/commande a emporter/i)
+        expect(initial.directReply).toMatch(/demandes particuli/i)
+
+        const recapState = updateRestaurantStateFromUserMessage(initial.state, 'non', restaurantProducts).state
+        const recapWithName = updateRestaurantStateFromUserMessage(recapState, 'koffi test', restaurantProducts).state
+        const recap = updateRestaurantStateFromUserMessage(recapWithName, '+2250707070700', restaurantProducts)
+
+        expect(recap.state.stage).toBe(RESTAURANT_STAGE.RECAP)
+        expect(recap.directReply).toMatch(/Récapitulatif de votre commande/i)
+        expect(recap.directReply).toMatch(/Confirmez-vous cette commande/i)
+        expect(recap.directReply).not.toMatch(/Récapitulatif de votre réservation/i)
+    })
+
     test('restarts a fresh restaurant reservation from DEPOSIT state when the client sends a new detailed request', () => {
         const previousState = {
             stage: RESTAURANT_STAGE.DEPOSIT,
