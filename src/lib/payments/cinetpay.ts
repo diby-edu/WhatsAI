@@ -212,3 +212,233 @@ export function formatAmount(amount: number, currency: string = 'XOF'): string {
         maximumFractionDigits: 0,
     }).format(amount)
 }
+
+export interface PaymentStatusV2Runtime {
+    status: string
+    amount: number | null
+    message: string | null
+    providerTransactionId: string | null
+}
+
+let cinetPayV2AccessTokenCache: string | null = null
+let cinetPayV2TokenExpiresAt = 0
+let cinetPayV2Ipv4Dispatcher: any = null
+
+function truncateCinetPayV2DebugValue(value: unknown, maxLength = 240) {
+    const text = String(value ?? '')
+    if (text.length <= maxLength) return text
+    return `${text.slice(0, maxLength)}...`
+}
+
+function getCinetPayV2BaseUrl() {
+    return String(process.env.CINETPAY_V2_BASE_URL || 'https://api.cinetpay.net')
+        .trim()
+        .replace(/\/+$/, '')
+}
+
+function getCinetPayV2AccountKey() {
+    return String(process.env.CINETPAY_V2_ACCOUNT_KEY || '').trim()
+}
+
+function getCinetPayV2AccountPassword() {
+    return String(process.env.CINETPAY_V2_ACCOUNT_PASSWORD || '').trim()
+}
+
+function isCinetPayV2Configured() {
+    const enabled = ['1', 'true', 'yes', 'on'].includes(
+        String(process.env.CINETPAY_V2_ENABLED || '').trim().toLowerCase()
+    )
+
+    return Boolean(
+        enabled
+        && getCinetPayV2BaseUrl()
+        && getCinetPayV2AccountKey()
+        && getCinetPayV2AccountPassword()
+    )
+}
+
+function getCinetPayV2FetchOptions() {
+    try {
+        if (!cinetPayV2Ipv4Dispatcher) {
+            const { TextDecoder, TextEncoder } = require('node:util')
+            const { ReadableStream, WritableStream, TransformStream } = require('node:stream/web')
+            if (typeof global.TextDecoder === 'undefined') global.TextDecoder = TextDecoder
+            if (typeof global.TextEncoder === 'undefined') global.TextEncoder = TextEncoder
+            if (typeof global.ReadableStream === 'undefined') global.ReadableStream = ReadableStream
+            if (typeof global.WritableStream === 'undefined') global.WritableStream = WritableStream
+            if (typeof global.TransformStream === 'undefined') global.TransformStream = TransformStream
+
+            const { Agent: UndiciAgent } = require('undici')
+            cinetPayV2Ipv4Dispatcher = new UndiciAgent({
+                connect: {
+                    family: 4
+                }
+            })
+        }
+
+        return {
+            dispatcher: cinetPayV2Ipv4Dispatcher
+        }
+    } catch (_error) {
+        return {}
+    }
+}
+
+async function readCinetPayV2ResponseBody(response: any) {
+    if (typeof response?.text === 'function') {
+        const rawText = await response.text().catch(() => '')
+        try {
+            return {
+                payload: rawText ? JSON.parse(rawText) : {},
+                rawText
+            }
+        } catch (_error) {
+            return {
+                payload: {},
+                rawText
+            }
+        }
+    }
+
+    return {
+        payload: await response?.json?.().catch(() => ({})) || {},
+        rawText: null
+    }
+}
+
+function summarizeCinetPayV2Response(response: any, payload: any, rawText: string | null) {
+    return {
+        http_status: Number.isFinite(Number(response?.status)) ? Number(response.status) : null,
+        ok: typeof response?.ok === 'boolean' ? response.ok : null,
+        code: payload?.code ?? null,
+        status: payload?.status ?? null,
+        message: payload?.message ?? null,
+        description: payload?.description ?? null,
+        details: payload?.details ?? null,
+        raw_text: rawText ? truncateCinetPayV2DebugValue(rawText, 320) : null
+    }
+}
+
+function extractStatusFromCinetPayV2Payload(payload: any) {
+    const topLevelStatus = String(payload?.status || '').trim()
+    const nestedStatus = String(payload?.details?.status || '').trim()
+
+    if (topLevelStatus.toUpperCase() === 'OK' && nestedStatus) {
+        return nestedStatus
+    }
+
+    return topLevelStatus || nestedStatus || 'UNKNOWN'
+}
+
+async function getCinetPayV2AccessToken() {
+    if (cinetPayV2AccessTokenCache && cinetPayV2TokenExpiresAt > Date.now()) {
+        return cinetPayV2AccessTokenCache
+    }
+
+    const loginRequestPayload = {
+        api_key: getCinetPayV2AccountKey(),
+        api_password: getCinetPayV2AccountPassword()
+    }
+
+    const response = await fetch(`${getCinetPayV2BaseUrl()}/v1/oauth/login`, {
+        method: 'POST',
+        ...getCinetPayV2FetchOptions(),
+        headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json'
+        },
+        body: JSON.stringify(loginRequestPayload)
+    } as any)
+
+    const { payload, rawText } = await readCinetPayV2ResponseBody(response)
+
+    if (!response.ok || payload?.status !== 'OK' || !payload?.access_token) {
+        console.error('CinetPay v2 status login failed:', {
+            endpoint: `${getCinetPayV2BaseUrl()}/v1/oauth/login`,
+            request: {
+                api_key_prefix: loginRequestPayload.api_key ? `${loginRequestPayload.api_key.slice(0, 8)}...` : null,
+                api_key_length: loginRequestPayload.api_key.length,
+                api_password_length: loginRequestPayload.api_password.length
+            },
+            response: summarizeCinetPayV2Response(response, payload, rawText)
+        })
+        throw new Error(payload?.description || payload?.message || 'Echec de connexion a CinetPay v2')
+    }
+
+    const expiresIn = Number(payload?.expires_in || 0)
+    cinetPayV2AccessTokenCache = payload.access_token
+    cinetPayV2TokenExpiresAt = Date.now() + Math.max(0, expiresIn - 60) * 1000
+    return cinetPayV2AccessTokenCache
+}
+
+export async function checkPaymentStatusV2Runtime(identifier: string): Promise<PaymentStatusV2Runtime> {
+    if (!isCinetPayV2Configured()) {
+        return {
+            status: 'UNKNOWN',
+            amount: null,
+            message: 'CinetPay v2 non configure',
+            providerTransactionId: null
+        }
+    }
+
+    const normalizedIdentifier = String(identifier || '').trim()
+    if (!normalizedIdentifier) {
+        return {
+            status: 'UNKNOWN',
+            amount: null,
+            message: 'Identifiant de transaction manquant',
+            providerTransactionId: null
+        }
+    }
+
+    try {
+        const accessToken = await getCinetPayV2AccessToken()
+        const endpoint = `${getCinetPayV2BaseUrl()}/v1/payment/${encodeURIComponent(normalizedIdentifier)}`
+        const response = await fetch(endpoint, {
+            method: 'GET',
+            ...getCinetPayV2FetchOptions(),
+            headers: {
+                Accept: 'application/json',
+                Authorization: `Bearer ${accessToken}`
+            }
+        } as any)
+
+        const { payload, rawText } = await readCinetPayV2ResponseBody(response)
+        const resolvedStatus = extractStatusFromCinetPayV2Payload(payload)
+
+        if (!response.ok) {
+            console.error('CinetPay v2 status check failed:', {
+                identifier: normalizedIdentifier,
+                endpoint,
+                response: summarizeCinetPayV2Response(response, payload, rawText)
+            })
+        }
+
+        return {
+            status: resolvedStatus,
+            amount: Number(payload?.amount || payload?.data?.amount || 0) || null,
+            message: payload?.description
+                || payload?.message
+                || payload?.details?.message
+                || truncateCinetPayV2DebugValue(rawText || '', 320)
+                || null,
+            providerTransactionId: String(
+                payload?.transaction_id
+                || payload?.data?.transaction_id
+                || ''
+            ).trim() || null
+        }
+    } catch (error: any) {
+        console.error('CinetPay v2 status check threw:', {
+            identifier: normalizedIdentifier,
+            error: error?.message || 'Erreur de verification CinetPay v2'
+        })
+
+        return {
+            status: 'UNKNOWN',
+            amount: null,
+            message: error?.message || 'Erreur de verification CinetPay v2',
+            providerTransactionId: null
+        }
+    }
+}

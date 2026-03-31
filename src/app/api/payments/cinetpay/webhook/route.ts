@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { checkPaymentStatus, verifyWebhookSignature } from '@/lib/payments/cinetpay'
-import { checkPaymentStatusV2, isCinetPayV2WebhookPayload } from '@/lib/payments/cinetpay-v2'
+import { checkPaymentStatus, checkPaymentStatusV2Runtime, verifyWebhookSignature } from '@/lib/payments/cinetpay'
+import { isCinetPayV2WebhookPayload } from '@/lib/payments/cinetpay-v2'
 import { notify } from '@/lib/notifications/notification.service'
 import { finalizePaymentByTransaction } from '@/lib/payments/finalization'
 
@@ -226,7 +226,7 @@ async function handleCinetPayV2Webhook(body: {
             return new Response('OK', { status: 200 })
         }
 
-        const cinetpayStatus = await checkPaymentStatusV2(merchantTransactionId)
+        const cinetpayStatus = await checkPaymentStatusV2Runtime(merchantTransactionId)
         const normalizedStatus = normalizeCinetPayV2Status(cinetpayStatus.status)
 
         if (normalizedStatus === 'ACCEPTED') {
@@ -312,7 +312,7 @@ async function handleCinetPayV2Webhook(body: {
             return new Response('OK', { status: 200 })
         }
 
-        const cinetpayStatus = await checkPaymentStatusV2(merchantTransactionId)
+        const cinetpayStatus = await checkPaymentStatusV2Runtime(merchantTransactionId)
         const normalizedStatus = normalizeCinetPayV2Status(cinetpayStatus.status)
 
         if (normalizedStatus === 'ACCEPTED') {
