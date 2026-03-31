@@ -53,6 +53,10 @@ function parseMaybeJson(value: unknown): Record<string, any> | null {
 
 function normalizeProviderStatus(status: unknown): ProviderStatus {
     const value = String(status || '').toUpperCase()
+    if (value === 'SUCCESS') return 'ACCEPTED'
+    if (value === 'FAILED' || value === 'INSUFFICIENT_BALANCE') return 'REFUSED'
+    if (value === 'EXPIRED') return 'CANCELLED'
+    if (value === 'INITIATED') return 'PENDING'
     if (value === 'ACCEPTED') return 'ACCEPTED'
     if (value === 'REFUSED') return 'REFUSED'
     if (value === 'CANCELLED') return 'CANCELLED'

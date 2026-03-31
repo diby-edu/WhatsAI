@@ -17,6 +17,21 @@ function verifySignature(payload: string, signature: string): boolean {
     return verifyWebhookSignature(payload, signature)
 }
 
+type NormalizedCinetPayStatus = 'ACCEPTED' | 'REFUSED' | 'PENDING' | 'CANCELLED' | 'UNKNOWN'
+
+function normalizeCinetPayV2Status(status: unknown): NormalizedCinetPayStatus {
+    const value = String(status || '').trim().toUpperCase()
+
+    if (value === 'SUCCESS') return 'ACCEPTED'
+    if (value === 'FAILED' || value === 'INSUFFICIENT_BALANCE') return 'REFUSED'
+    if (value === 'EXPIRED') return 'CANCELLED'
+    if (value === 'INITIATED' || value === 'PENDING') return 'PENDING'
+    if (value === 'ACCEPTED') return 'ACCEPTED'
+    if (value === 'REFUSED') return 'REFUSED'
+    if (value === 'CANCELLED') return 'CANCELLED'
+    return 'UNKNOWN'
+}
+
 async function queueAssistantMessage(
     agentId: string | null | undefined,
     conversationId: string | null | undefined,
@@ -204,8 +219,9 @@ async function handleCinetPayV2Webhook(body: {
         }
 
         const cinetpayStatus = await checkPaymentStatusV2(merchantTransactionId)
+        const normalizedStatus = normalizeCinetPayV2Status(cinetpayStatus.status)
 
-        if (cinetpayStatus.status === 'ACCEPTED') {
+        if (normalizedStatus === 'ACCEPTED') {
             const isRestaurantDepositPayment = order.deposit_required && order.deposit_status === 'pending'
             const nextStatus = isRestaurantDepositPayment
                 ? (order.fulfillment_mode === 'delivery' ? 'pending_delivery' : 'pending_pickup')
@@ -244,7 +260,7 @@ async function handleCinetPayV2Webhook(body: {
 
                 await notifyMerchantOrderPayment(order)
             }
-        } else if (cinetpayStatus.status === 'REFUSED' || cinetpayStatus.status === 'CANCELLED') {
+        } else if (normalizedStatus === 'REFUSED' || normalizedStatus === 'CANCELLED') {
             const orderUpdate: Record<string, unknown> = {
                 status: 'cancelled',
                 provider_transaction_id: cinetpayStatus.providerTransactionId || order.provider_transaction_id || null,
@@ -289,8 +305,9 @@ async function handleCinetPayV2Webhook(body: {
         }
 
         const cinetpayStatus = await checkPaymentStatusV2(merchantTransactionId)
+        const normalizedStatus = normalizeCinetPayV2Status(cinetpayStatus.status)
 
-        if (cinetpayStatus.status === 'ACCEPTED') {
+        if (normalizedStatus === 'ACCEPTED') {
             const { error: updateError } = await getSupabase()
                 .from('bookings')
                 .update({
@@ -323,7 +340,7 @@ async function handleCinetPayV2Webhook(body: {
                     confirmationMessage
                 )
             }
-        } else if (cinetpayStatus.status === 'REFUSED' || cinetpayStatus.status === 'CANCELLED') {
+        } else if (normalizedStatus === 'REFUSED' || normalizedStatus === 'CANCELLED') {
             await getSupabase()
                 .from('bookings')
                 .update({

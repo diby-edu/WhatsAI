@@ -9,6 +9,18 @@ import {
     getUserRole,
 } from '@/lib/payments/finalization'
 
+function normalizeCinetPayV2Status(status: unknown): 'ACCEPTED' | 'REFUSED' | 'PENDING' | 'CANCELLED' | 'UNKNOWN' {
+    const value = String(status || '').trim().toUpperCase()
+    if (value === 'SUCCESS') return 'ACCEPTED'
+    if (value === 'FAILED' || value === 'INSUFFICIENT_BALANCE') return 'REFUSED'
+    if (value === 'EXPIRED') return 'CANCELLED'
+    if (value === 'INITIATED' || value === 'PENDING') return 'PENDING'
+    if (value === 'ACCEPTED') return 'ACCEPTED'
+    if (value === 'REFUSED') return 'REFUSED'
+    if (value === 'CANCELLED') return 'CANCELLED'
+    return 'UNKNOWN'
+}
+
 async function getPublicCheckoutProviderVersion(transactionId: string) {
     const adminSupabase = createAdminClient()
 
@@ -46,16 +58,21 @@ export async function GET(request: NextRequest) {
             const result = providerVersion === 'v2'
                 ? await checkPaymentStatusV2(transactionId)
                 : await checkPaymentStatus(transactionId)
+            const normalizedStatus = providerVersion === 'v2'
+                ? normalizeCinetPayV2Status(result.status)
+                : (result.status || 'UNKNOWN')
 
             return NextResponse.json({
-                success: result.status === 'ACCEPTED',
-                status: result.status || 'UNKNOWN',
+                success: normalizedStatus === 'ACCEPTED',
+                status: normalizedStatus,
+                provider_status: result.status || 'UNKNOWN',
                 transaction_id: transactionId,
                 amount: result.amount,
                 payment_method: result.message,
                 payment_record_status: null,
                 data: {
-                    status: result.status || 'UNKNOWN',
+                    status: normalizedStatus,
+                    provider_status: result.status || 'UNKNOWN',
                 },
             })
         }
