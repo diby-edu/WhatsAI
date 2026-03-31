@@ -180,10 +180,19 @@ function inferCinetPayV2PaymentMethodCandidates(clientPhoneNumber) {
     return unique
 }
 
+function buildCinetPayV2SafeSlug(value, fallback = 'tx') {
+    const normalized = String(value || '')
+        .trim()
+        .replace(/[^a-zA-Z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+
+    return (normalized || fallback).slice(0, 20)
+}
+
 function buildCinetPayV2MerchantTransactionId(baseTransactionId, attemptIndex) {
     if (attemptIndex <= 1) return baseTransactionId
 
-    const suffix = `_r${attemptIndex}`
+    const suffix = `-r${attemptIndex}`
     const maxBaseLength = Math.max(0, 30 - suffix.length)
     return `${String(baseTransactionId || '').slice(0, maxBaseLength)}${suffix}`
 }
@@ -491,7 +500,8 @@ async function initiateBookingDepositPayment({
     }
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://wazzapai.com'
-    const baseTransactionId = `BKG_${bookingId.substring(0, 8)}_${Date.now()}`
+    const safeBookingSlug = buildCinetPayV2SafeSlug(bookingId.substring(0, 8), 'booking')
+    const baseTransactionId = `BKG-${safeBookingSlug}-${Date.now()}`
     let transactionId = baseTransactionId
     let paymentUrl = null
     let providerTransactionId = null
@@ -521,7 +531,7 @@ async function initiateBookingDepositPayment({
                 amount: depositAmountFcfa,
                 currency: 'XOF',
                 merchantTransactionId: candidateTransactionId,
-                designation: `Acompte reservation #${bookingId.substring(0, 8)}`,
+                designation: `Acompte reservation ${safeBookingSlug}`,
                 clientFullName: customerName || 'Client',
                 clientPhoneNumber: customerPhone || '',
                 paymentMethod: candidatePaymentMethod,

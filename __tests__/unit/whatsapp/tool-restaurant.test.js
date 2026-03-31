@@ -187,7 +187,7 @@ describe('tool-restaurant', () => {
         expect(global.fetch).toHaveBeenCalledTimes(1)
         expect(updates).toHaveLength(2)
         expect(updates[0].payload.payment_provider_version).toBe('v1')
-        expect(updates[1].payload.transaction_id).toMatch(/^BKG_booking-/)
+        expect(updates[1].payload.transaction_id).toMatch(/^BKG-booking-/)
         expect(updates[1].payload.provider_payment_url).toBe('https://pay.example/bkg-123')
         expect(mockNotify).toHaveBeenCalledWith('user-1', 'new_booking', expect.objectContaining({
             customerName: 'Awa Konan',
@@ -524,7 +524,7 @@ describe('tool-restaurant', () => {
         expect(result.payment_link).toBe('https://pay.example/v2-bkg-retry')
         expect(firstPaymentPayload.payment_method).toBe('OM')
         expect(secondPaymentPayload.payment_method).toBe('OM_CI')
-        expect(secondPaymentPayload.merchant_transaction_id).toMatch(/_r2$/)
+        expect(secondPaymentPayload.merchant_transaction_id).toMatch(/-r2$/)
         expect(updates).toHaveLength(2)
         expect(updates[1].payload.payment_provider_version).toBe('v2')
         expect(updates[1].payload.provider_payment_url).toBe('https://pay.example/v2-bkg-retry')
