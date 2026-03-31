@@ -330,6 +330,21 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
         }
 
         message.text = String(message.text || '').trim()
+        const incomingMessageId = message.key?.id || null
+
+        if (incomingMessageId) {
+            const { data: existingMessage } = await supabase
+                .from('messages')
+                .select('id')
+                .eq('agent_id', agentId)
+                .eq('whatsapp_message_id', incomingMessageId)
+                .maybeSingle()
+
+            if (existingMessage?.id) {
+                console.log(`⏭️ Duplicate inbound message skipped: ${incomingMessageId}`)
+                return
+            }
+        }
 
         // 2.1 Sauvegarder le vrai contenu utilisateur après transcription/traitement image
         await supabase.from('messages').insert({
@@ -337,7 +352,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             agent_id: agentId,
             role: 'user',
             content: message.text || (isVoiceMessage ? '[Message vocal non disponible]' : '[Message sans texte]'),
-            whatsapp_message_id: message.key.id,
+            whatsapp_message_id: incomingMessageId,
             status: 'received',
             metadata: {
                 is_voice: isVoiceMessage,

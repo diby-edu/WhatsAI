@@ -11,6 +11,7 @@ const fs = require('fs')
 const path = require('path')
 const useSupabaseAuthState = require('../supabase-auth')
 const { handleMessage } = require('./message')
+const { shouldProcessUpsertMessage } = require('../upsert-helpers')
 const logger = pino({ level: 'warn' })
 
 async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
@@ -339,9 +340,17 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
 
         // Handle incoming messages
         socket.ev.on('messages.upsert', async ({ messages: msgs, type }) => {
-            if (type !== 'notify') return
+            const actionableMessages = msgs.filter(msg => shouldProcessUpsertMessage(type, msg))
+            if (actionableMessages.length === 0) {
+                console.log(`⏭️ [${agentName}] Ignoring messages.upsert type=${type} (no actionable messages)`)
+                return
+            }
 
-            for (const msg of msgs) {
+            if (type !== 'notify') {
+                console.log(`📨 [${agentName}] Processing ${actionableMessages.length}/${msgs.length} ${type} message(s) after sync/reconnect`)
+            }
+
+            for (const msg of actionableMessages) {
                 if (msg.key.fromMe) continue
                 // Ignorer les messages de groupe — le bot ne répond qu'en 1-à-1
                 if (msg.key.remoteJid?.endsWith('@g.us')) continue
