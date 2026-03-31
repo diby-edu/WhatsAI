@@ -4,6 +4,169 @@ const { notify } = require('../../../notifications/notify')
 const CINETPAY_API_KEY = process.env.CINETPAY_API_KEY
 const CINETPAY_SITE_ID = process.env.CINETPAY_SITE_ID
 const CINETPAY_BASE_URL = 'https://api-checkout.cinetpay.com/v2/payment'
+let cinetPayV2AccessTokenCache = null
+let cinetPayV2TokenExpiresAt = 0
+
+function getCinetPayV2BaseUrl() {
+    return String(process.env.CINETPAY_V2_BASE_URL || 'https://api.cinetpay.net')
+        .trim()
+        .replace(/\/+$/, '')
+}
+
+function getCinetPayV2AccountKey() {
+    return String(process.env.CINETPAY_V2_ACCOUNT_KEY || '').trim()
+}
+
+function getCinetPayV2AccountPassword() {
+    return String(process.env.CINETPAY_V2_ACCOUNT_PASSWORD || '').trim()
+}
+
+function getCinetPayV2FallbackEmailDomain() {
+    return String(process.env.CINETPAY_V2_FALLBACK_EMAIL_DOMAIN || 'wazzapai.com')
+        .trim()
+        .replace(/^@+/, '')
+}
+
+function getCinetPayV2TestAgentIds() {
+    return String(process.env.CINETPAY_V2_TEST_AGENT_IDS || '')
+        .split(',')
+        .map(value => value.trim())
+        .filter(Boolean)
+}
+
+function isCinetPayV2Enabled() {
+    const value = String(process.env.CINETPAY_V2_ENABLED || '').trim().toLowerCase()
+    return ['1', 'true', 'yes', 'on'].includes(value)
+}
+
+function isCinetPayV2Configured() {
+    return Boolean(
+        isCinetPayV2Enabled()
+        && getCinetPayV2BaseUrl()
+        && getCinetPayV2AccountKey()
+        && getCinetPayV2AccountPassword()
+    )
+}
+
+function shouldUseCinetPayV2ForAgent(agentId) {
+    if (!isCinetPayV2Configured()) return false
+    return getCinetPayV2TestAgentIds().includes(String(agentId || '').trim())
+}
+
+function splitCinetPayV2CustomerName(fullName) {
+    const normalized = String(fullName || '').trim().replace(/\s+/g, ' ')
+    if (!normalized) {
+        return { firstName: 'Client', lastName: 'Wazzapai' }
+    }
+
+    const parts = normalized.split(' ')
+    const firstName = String(parts.shift() || 'Client').trim() || 'Client'
+    const lastName = String(parts.join(' ') || 'Client').trim() || 'Client'
+
+    return {
+        firstName: firstName.slice(0, 255),
+        lastName: lastName.slice(0, 255)
+    }
+}
+
+function buildCinetPayV2ClientEmail(clientPhoneNumber) {
+    const digits = String(clientPhoneNumber || '').replace(/\D/g, '')
+    const domain = getCinetPayV2FallbackEmailDomain()
+    return `wa-${digits || Date.now()}@${domain}`
+}
+
+async function getCinetPayV2AccessToken() {
+    if (cinetPayV2AccessTokenCache && cinetPayV2TokenExpiresAt > Date.now()) {
+        return cinetPayV2AccessTokenCache
+    }
+
+    const response = await fetch(`${getCinetPayV2BaseUrl()}/v1/oauth/login`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json'
+        },
+        body: JSON.stringify({
+            api_key: getCinetPayV2AccountKey(),
+            api_password: getCinetPayV2AccountPassword()
+        })
+    })
+
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok || payload?.status !== 'OK' || !payload?.access_token) {
+        throw new Error(payload?.description || payload?.message || 'Echec de connexion a CinetPay v2')
+    }
+
+    const expiresIn = Number(payload?.expires_in || 0)
+    cinetPayV2AccessTokenCache = payload.access_token
+    cinetPayV2TokenExpiresAt = Date.now() + Math.max(0, expiresIn - 60) * 1000
+    return cinetPayV2AccessTokenCache
+}
+
+async function initializePaymentV2({
+    amount,
+    currency,
+    merchantTransactionId,
+    designation,
+    clientFullName,
+    clientPhoneNumber,
+    successUrl,
+    failedUrl,
+    notifyUrl
+}) {
+    if (!isCinetPayV2Configured()) {
+        return { success: false, error: 'CinetPay v2 non configure' }
+    }
+
+    try {
+        const accessToken = await getCinetPayV2AccessToken()
+        const { firstName, lastName } = splitCinetPayV2CustomerName(clientFullName)
+        const response = await fetch(`${getCinetPayV2BaseUrl()}/v1/payment`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+                Authorization: `Bearer ${accessToken}`
+            },
+            body: JSON.stringify({
+                currency: String(currency || 'XOF').trim(),
+                amount: Number(amount || 0),
+                merchant_transaction_id: String(merchantTransactionId || '').trim().slice(0, 30),
+                lang: 'fr',
+                designation: String(designation || 'Paiement CinetPay').trim(),
+                client_email: buildCinetPayV2ClientEmail(clientPhoneNumber),
+                client_phone_number: String(clientPhoneNumber || '').trim() || undefined,
+                client_first_name: firstName,
+                client_last_name: lastName,
+                direct_pay: false,
+                success_url: String(successUrl || '').trim().slice(0, 120),
+                failed_url: String(failedUrl || '').trim().slice(0, 120),
+                notify_url: String(notifyUrl || '').trim().slice(0, 120)
+            })
+        })
+
+        const payload = await response.json().catch(() => ({}))
+        if (!response.ok || payload?.status !== 'OK' || !payload?.payment_url) {
+            return {
+                success: false,
+                error: payload?.description || payload?.message || payload?.details?.message || 'Erreur CinetPay v2'
+            }
+        }
+
+        return {
+            success: true,
+            paymentUrl: payload.payment_url,
+            providerTransactionId: payload.transaction_id || null,
+            notifyToken: payload.notify_token || null,
+            paymentToken: payload.payment_token || null
+        }
+    } catch (error) {
+        return {
+            success: false,
+            error: error?.message || 'Erreur CinetPay v2'
+        }
+    }
+}
 
 function buildRestaurantOrderPaymentLabel(paymentMethod, fulfillmentMode) {
     if (paymentMethod === 'cod') {
@@ -124,7 +287,6 @@ async function initiateBookingDepositPayment({
     customerName,
     customerPhone
 }) {
-    const { initializePaymentV2, shouldUseCinetPayV2ForAgent } = require('../../../payments/cinetpay-v2.runtime')
     const useCinetPayV2 = shouldUseCinetPayV2ForAgent(agentId)
     const attemptedProviderVersion = useCinetPayV2 ? 'v2' : 'v1'
 
