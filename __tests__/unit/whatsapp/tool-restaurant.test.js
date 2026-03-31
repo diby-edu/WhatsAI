@@ -185,9 +185,10 @@ describe('tool-restaurant', () => {
         ])
 
         expect(global.fetch).toHaveBeenCalledTimes(1)
-        expect(updates).toHaveLength(1)
-        expect(updates[0].payload.transaction_id).toMatch(/^BKG_booking-/)
-        expect(updates[0].payload.provider_payment_url).toBe('https://pay.example/bkg-123')
+        expect(updates).toHaveLength(2)
+        expect(updates[0].payload.payment_provider_version).toBe('v1')
+        expect(updates[1].payload.transaction_id).toMatch(/^BKG_booking-/)
+        expect(updates[1].payload.provider_payment_url).toBe('https://pay.example/bkg-123')
         expect(mockNotify).toHaveBeenCalledWith('user-1', 'new_booking', expect.objectContaining({
             customerName: 'Awa Konan',
             serviceName: 'Restaurant Lagoon'
@@ -238,7 +239,9 @@ describe('tool-restaurant', () => {
         expect(result.payment_method).toBe('online')
         expect(result.payment_link).toBe('https://pay.example/bkg-auto')
         expect(rpcCalls[0].params.p_payment_method).toBe('online')
-        expect(updates[0].payload.provider_payment_url).toBe('https://pay.example/bkg-auto')
+        expect(updates).toHaveLength(2)
+        expect(updates[0].payload.payment_provider_version).toBe('v1')
+        expect(updates[1].payload.provider_payment_url).toBe('https://pay.example/bkg-auto')
     })
 
     test('overrides onsite to online for dine-in deposits on cinetpay agents', async () => {
@@ -285,7 +288,9 @@ describe('tool-restaurant', () => {
         expect(result.payment_method).toBe('online')
         expect(result.payment_link).toBe('https://pay.example/bkg-forced-online')
         expect(rpcCalls[0].params.p_payment_method).toBe('online')
-        expect(updates[0].payload.provider_payment_url).toBe('https://pay.example/bkg-forced-online')
+        expect(updates).toHaveLength(2)
+        expect(updates[0].payload.payment_provider_version).toBe('v1')
+        expect(updates[1].payload.provider_payment_url).toBe('https://pay.example/bkg-forced-online')
     })
 
     test('reuses an existing booking deposit payment link without re-initiating CinetPay', async () => {
@@ -369,7 +374,8 @@ describe('tool-restaurant', () => {
         expect(result.message).toMatch(/Acompte requis/i)
         expect(result.message).toMatch(/n'est pas encore confirmee/i)
         expect(result.message).toMatch(/lien de paiement est indisponible/i)
-        expect(updates).toHaveLength(0)
+        expect(updates).toHaveLength(1)
+        expect(updates[0].payload.payment_provider_version).toBe('v1')
     })
 
     test('creates takeaway orders with pending_pickup status and an online payment link', async () => {
