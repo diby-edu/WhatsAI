@@ -241,6 +241,53 @@ describe('tool-restaurant', () => {
         expect(updates[0].payload.provider_payment_url).toBe('https://pay.example/bkg-auto')
     })
 
+    test('overrides onsite to online for dine-in deposits on cinetpay agents', async () => {
+        const { handleCreateRestaurantCheckout } = loadTool()
+        global.fetch.mockResolvedValue({
+            json: async () => ({
+                code: '201',
+                data: { payment_url: 'https://pay.example/bkg-forced-online' }
+            })
+        })
+
+        const bookingRecord = {
+            id: 'booking-123',
+            transaction_id: null,
+            provider_payment_url: null
+        }
+
+        const { supabase, updates, rpcCalls } = createSupabase({
+            agent: {
+                user_id: 'user-1',
+                name: 'Restaurant Lagoon',
+                escalation_phone: '+2250102030405',
+                payment_mode: 'cinetpay',
+                restaurant_deposit_enabled: true,
+                restaurant_deposit_percentage: 50
+            },
+            bookingRecord
+        })
+
+        const rawResult = await handleCreateRestaurantCheckout({
+            fulfillment_mode: 'dine_in',
+            items: [{ product_name: 'thieb poulet', quantity: 2 }],
+            customer_name: 'Awa Konan',
+            customer_phone: '+2250701020304',
+            scheduled_date: '2026-04-05',
+            scheduled_time: '20:00',
+            party_size: 2,
+            payment_method: 'onsite'
+        }, 'agent-1', restaurantProducts, 'conversation-1', supabase)
+
+        const result = JSON.parse(rawResult)
+
+        expect(result.success).toBe(true)
+        expect(result.payment_method).toBe('online')
+        expect(result.payment_link).toBe('https://pay.example/bkg-forced-online')
+        expect(rpcCalls[0].params.p_payment_method).toBe('online')
+        expect(updates[0].payload.provider_payment_url).toBe('https://pay.example/bkg-forced-online')
+    })
+
     test('reuses an existing booking deposit payment link without re-initiating CinetPay', async () => {
         const { handleCreateRestaurantCheckout } = loadTool()
 
