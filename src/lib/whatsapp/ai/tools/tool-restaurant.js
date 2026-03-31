@@ -78,9 +78,9 @@ function buildCinetPayV2ClientEmail(clientPhoneNumber) {
 function inferCinetPayV2PaymentMethod(clientPhoneNumber) {
     const digits = String(clientPhoneNumber || '').replace(/\D/g, '')
 
-    if (digits.startsWith('22507')) return 'OM_CI'
-    if (digits.startsWith('22505')) return 'MTN_CI'
-    if (digits.startsWith('22501')) return 'MOOV_CI'
+    if (digits.startsWith('22507')) return 'OM'
+    if (digits.startsWith('22505')) return 'MTN'
+    if (digits.startsWith('22501')) return 'MOOV'
 
     return null
 }
@@ -188,10 +188,15 @@ async function initializePaymentV2({
 
         const payload = await response.json().catch(() => ({}))
         if (!response.ok || payload?.status !== 'OK' || !payload?.payment_url) {
-            const errorSummary = payload?.description
-                || payload?.message
-                || payload?.details?.message
-                || payload?.status
+            const errorSummary = [
+                payload?.description,
+                payload?.message,
+                payload?.details?.message,
+                payload?.status,
+                payload?.code ? `code=${payload.code}` : null,
+            ]
+                .filter(Boolean)
+                .join(' | ')
                 || 'Erreur CinetPay v2'
             return {
                 success: false,

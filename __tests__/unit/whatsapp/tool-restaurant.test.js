@@ -440,7 +440,7 @@ describe('tool-restaurant', () => {
         expect(result.success).toBe(true)
         expect(result.payment_method).toBe('online')
         expect(result.payment_link).toBe('https://pay.example/v2-bkg-123')
-        expect(paymentPayload.payment_method).toBe('OM_CI')
+        expect(paymentPayload.payment_method).toBe('OM')
         expect(updates).toHaveLength(2)
         expect(updates[0].payload.payment_provider_version).toBe('v2')
         expect(updates[1].payload.payment_provider_version).toBe('v2')
