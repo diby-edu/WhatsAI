@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { checkPaymentStatus } from '@/lib/payments/cinetpay'
-import { checkPaymentStatusV2 } from '@/lib/payments/cinetpay-v2'
+import { checkPaymentStatus, checkPaymentStatusV2Runtime } from '@/lib/payments/cinetpay'
 import { createAdminClient, createApiClient, getAuthUser, isAdminRole } from '@/lib/api-utils'
 import {
     canAccessPayment,
@@ -63,7 +62,7 @@ export async function GET(request: NextRequest) {
         if (isPublicCheckoutTransaction) {
             const providerVersion = await getPublicCheckoutProviderVersion(transactionId)
             const result = providerVersion === 'v2'
-                ? await checkPaymentStatusV2(transactionId)
+                ? await checkPaymentStatusV2Runtime(transactionId)
                 : await checkPaymentStatus(transactionId)
             const normalizedStatus = providerVersion === 'v2'
                 ? normalizeCinetPayV2Status(result.status)
