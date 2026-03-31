@@ -124,6 +124,37 @@ describe('restaurant-state.service', () => {
         expect(result.directReply).not.toMatch(/\*BOISSONS\*/i)
     })
 
+    test('restarts a fresh restaurant reservation from DEPOSIT state when the client sends a new detailed request', () => {
+        const previousState = {
+            stage: RESTAURANT_STAGE.DEPOSIT,
+            fulfillment_mode: 'dine_in',
+            cart_items: [{ product_name: 'Plat 01', quantity: 1, line_total_fcfa: 6500 }],
+            customer_flow: {
+                customer_name: 'Koffi Test',
+                customer_phone: '+2250707070700',
+                scheduled_date: '2026-04-01',
+                scheduled_time: '21:00',
+                party_size: 3,
+            },
+        }
+
+        const result = updateRestaurantStateFromUserMessage(
+            previousState,
+            'Je veux reserver une table demain a 21h pour 3 personnes avec 2 Plat 01, 1 Dessert 01 et 2 Boisson 01',
+            restaurantProducts
+        )
+
+        expect(result.state.stage).toBe(RESTAURANT_STAGE.CUSTOMER_FLOW)
+        expect(result.state.fulfillment_mode).toBe('dine_in')
+        expect(result.state.cart_items).toHaveLength(3)
+        expect(result.state.cart_items.find(item => item.product_name === 'Plat 01')?.quantity).toBe(2)
+        expect(result.state.cart_items.find(item => item.product_name === 'Dessert 01')?.quantity).toBe(1)
+        expect(result.state.cart_items.find(item => item.product_name === 'Boisson 01')?.quantity).toBe(2)
+        expect(result.directReply).toMatch(/bonjour/i)
+        expect(result.directReply).toMatch(/precommande/i)
+        expect(result.directReply).not.toMatch(/bienvenue chez/i)
+    })
+
     test('merges collected state into create_restaurant_checkout args', () => {
         const state = {
             stage: RESTAURANT_STAGE.READY,
