@@ -167,6 +167,9 @@ function scheduleSessionInit(context, agent, reconnectAttempt = 0) {
         clearScheduledInit(agent.id)
         if (activeSessions.has(agent.id) || pendingConnections.has(agent.id)) return
 
+        // Restart the setup age from the moment a fresh socket attempt actually begins.
+        setupPhaseObservedAt.set(agent.id, Date.now())
+
         const delaySuffix = delay > 0 ? ` in ${Math.round(delay / 1000)}s` : ''
         console.log(`⚡ triggering initSession for ${agent.name}${delaySuffix}`)
         await initSession(context, agent.id, agent.name, reconnectAttempt)
