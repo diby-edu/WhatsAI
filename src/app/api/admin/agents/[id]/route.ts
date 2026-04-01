@@ -10,6 +10,7 @@ import {
 } from '@/lib/api-utils'
 import { resumeActiveConversationsForAgents } from '@/lib/conversations/resume-agent-conversations'
 import { shouldRequestWhatsAppReconnect } from '@/lib/whatsapp/reactivation'
+import { hasAgentConnectedBefore } from '@/lib/admin/agent-status'
 
 async function cleanupAgentDependencies(adminSupabase: ReturnType<typeof createAdminClient>, agentId: string) {
     const { error: outboundError } = await adminSupabase
@@ -21,6 +22,31 @@ async function cleanupAgentDependencies(adminSupabase: ReturnType<typeof createA
         throw outboundError
     }
 
+    const { error: bySessionIdError } = await adminSupabase
+        .from('whatsapp_sessions')
+        .delete()
+        .eq('session_id', agentId)
+
+    if (!bySessionIdError) return
+
+    if (bySessionIdError.code === '42703') {
+        const { error: byAgentIdError } = await adminSupabase
+            .from('whatsapp_sessions')
+            .delete()
+            .eq('agent_id', agentId)
+
+        if (byAgentIdError && byAgentIdError.code !== '42P01' && byAgentIdError.code !== '42703') {
+            throw byAgentIdError
+        }
+        return
+    }
+
+    if (bySessionIdError.code !== '42P01') {
+        throw bySessionIdError
+    }
+}
+
+async function clearStoredWhatsAppSession(adminSupabase: ReturnType<typeof createAdminClient>, agentId: string) {
     const { error: bySessionIdError } = await adminSupabase
         .from('whatsapp_sessions')
         .delete()
@@ -128,6 +154,41 @@ export async function PATCH(
 
             await logAdminAction(user.id, 'disconnect_whatsapp', id, 'agent', {})
             return successResponse({ message: 'Agent WhatsApp deconnecte' })
+        }
+
+        if (action === 'request_whatsapp_connect') {
+            const { data: agent } = await adminSupabase
+                .from('agents')
+                .select('is_active, whatsapp_connected, whatsapp_status, whatsapp_phone, whatsapp_ever_connected')
+                .eq('id', id)
+                .single()
+
+            if (!agent) return errorResponse('Agent non trouve', 404)
+            if (!agent.is_active) return errorResponse('Activez l agent avant de relancer WhatsApp', 409)
+
+            const forceFreshQr = body.forceFreshQr === true
+            const shouldForceFreshQr = forceFreshQr || !hasAgentConnectedBefore(agent)
+
+            if (shouldForceFreshQr) {
+                await clearStoredWhatsAppSession(adminSupabase, id)
+            }
+
+            const { error } = await adminSupabase
+                .from('agents')
+                .update({
+                    whatsapp_status: 'connecting',
+                    whatsapp_qr_code: null,
+                })
+                .eq('id', id)
+
+            if (error) throw error
+
+            await logAdminAction(user.id, 'request_whatsapp_connect', id, 'agent', { forceFreshQr: shouldForceFreshQr })
+            return successResponse({
+                message: shouldForceFreshQr
+                    ? 'Regeneration du QR WhatsApp demandee'
+                    : 'Relance de la connexion WhatsApp demandee',
+            })
         }
 
         const allowedFields = ['name', 'system_prompt', 'model', 'temperature', 'is_active']

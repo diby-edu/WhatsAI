@@ -11,6 +11,7 @@ import {
     MessageSquare,
     Power,
     RefreshCw,
+    QrCode,
     Search,
     Smartphone,
     Trash2,
@@ -36,6 +37,7 @@ type AdminAgent = {
     whatsapp_connected: boolean
     whatsapp_status?: string | null
     whatsapp_phone?: string | null
+    whatsapp_qr_code?: string | null
     whatsapp_ever_connected?: boolean | null
     operationalStatus: string
     operationalLabel: string
@@ -106,6 +108,28 @@ export default function AdminAgentsPage() {
             }
         } catch {
             setError('Erreur reseau')
+        } finally {
+            setActionLoading(null)
+        }
+    }
+
+    async function requestWhatsAppConnect(id: string, name: string, forceFreshQr = false) {
+        setActionLoading(id)
+        setError(null)
+        try {
+            const res = await fetch(`/api/admin/agents/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'request_whatsapp_connect', forceFreshQr }),
+            })
+            const json = await res.json()
+            if (res.ok && json.success) {
+                await fetchAgents()
+            } else {
+                setError(json.error || `Erreur lors de la relance WhatsApp pour "${name}"`)
+            }
+        } catch {
+            setError(`Erreur lors de la relance WhatsApp pour "${name}"`)
         } finally {
             setActionLoading(null)
         }
@@ -369,6 +393,44 @@ export default function AdminAgentsPage() {
                                     <Smartphone size={13} /> Deco. WA
                                 </button>
                             )}
+                            {!agent.whatsapp_connected && agent.is_active && (
+                                <button
+                                    onClick={() => {
+                                        if (agent.operationalStatus === 'qr_ready' && agent.whatsapp_qr_code) {
+                                            setViewAgent(agent)
+                                            return
+                                        }
+                                        requestWhatsAppConnect(agent.id, agent.name, agent.operationalStatus === 'qr_ready')
+                                    }}
+                                    disabled={actionLoading === agent.id}
+                                    style={{
+                                        flex: 1,
+                                        padding: '8px',
+                                        borderRadius: 8,
+                                        border: 'none',
+                                        fontSize: 12,
+                                        fontWeight: 600,
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: 4,
+                                        background: 'rgba(16, 185, 129, 0.12)',
+                                        color: '#34d399',
+                                        opacity: actionLoading === agent.id ? 0.5 : 1,
+                                    }}
+                                >
+                                    {agent.operationalStatus === 'qr_ready' && agent.whatsapp_qr_code ? (
+                                        <>
+                                            <QrCode size={13} /> Voir QR
+                                        </>
+                                    ) : (
+                                        <>
+                                            <RefreshCw size={13} /> Relancer WA
+                                        </>
+                                    )}
+                                </button>
+                            )}
                             <button
                                 onClick={() => setViewAgent(agent)}
                                 style={{
@@ -454,10 +516,54 @@ export default function AdminAgentsPage() {
                                 <InfoRow label="Proprietaire" value={`${viewAgent.user} (${viewAgent.userEmail})`} />
                                 <InfoRow label="Statut operationnel" value={viewAgent.operationalLabel} />
                                 <InfoRow label="WhatsApp" value={viewAgent.operationalDetail} />
+                                <InfoRow label="Statut brut" value={viewAgent.whatsapp_status || 'inconnu'} />
                                 <InfoRow label="Messages" value={viewAgent.messages.toLocaleString()} />
                                 <InfoRow label="Modele" value={viewAgent.model || 'Par defaut'} />
                                 <InfoRow label="Cree le" value={viewAgent.created} />
                                 <InfoRow label="ID" value={viewAgent.id} mono />
+                                {viewAgent.operationalStatus === 'qr_ready' && viewAgent.whatsapp_qr_code && (
+                                    <div style={{ marginTop: 8 }}>
+                                        <span style={{ color: '#64748b', fontSize: 12 }}>QR WhatsApp</span>
+                                        <div style={{
+                                            marginTop: 8,
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            alignItems: 'center',
+                                            gap: 10,
+                                            padding: 16,
+                                            borderRadius: 12,
+                                            background: 'rgba(15,23,42,0.5)',
+                                            border: '1px solid rgba(148,163,184,0.1)',
+                                        }}>
+                                            <div style={{ background: 'white', padding: 12, borderRadius: 12 }}>
+                                                <img src={viewAgent.whatsapp_qr_code} alt={`QR ${viewAgent.name}`} style={{ width: 220, height: 220 }} />
+                                            </div>
+                                            <div style={{ color: '#94a3b8', fontSize: 12, textAlign: 'center', lineHeight: 1.5 }}>
+                                                Scannez avec WhatsApp {`(Appareils connectes)`}. Si le QR expire, utilisez "Relancer WA".
+                                            </div>
+                                            <button
+                                                onClick={() => requestWhatsAppConnect(viewAgent.id, viewAgent.name, true)}
+                                                disabled={actionLoading === viewAgent.id}
+                                                style={{
+                                                    padding: '8px 12px',
+                                                    borderRadius: 8,
+                                                    border: 'none',
+                                                    fontSize: 12,
+                                                    fontWeight: 600,
+                                                    cursor: 'pointer',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: 6,
+                                                    background: 'rgba(16, 185, 129, 0.12)',
+                                                    color: '#34d399',
+                                                    opacity: actionLoading === viewAgent.id ? 0.5 : 1,
+                                                }}
+                                            >
+                                                <RefreshCw size={13} /> Regenerer le QR
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
                                 {viewAgent.system_prompt && (
                                     <div>
                                         <span style={{ color: '#64748b', fontSize: 12 }}>System Prompt</span>
