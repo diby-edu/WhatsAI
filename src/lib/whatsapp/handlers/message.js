@@ -541,6 +541,9 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                 tokensUsed: 0,
                 imageActions: []
             }
+            nextCartState = inferCartStateFromAssistantMessage(aiResponse.content, cartUpdate.state, orderableProducts)
+            nextBookingState = inferBookingStateFromAssistantMessage(aiResponse.content, bookingUpdate.state, standardServiceProducts)
+            nextRestaurantState = inferRestaurantStateFromAssistantMessage(aiResponse.content, restaurantUpdate.state)
         } else if (checkoutUpdate.shouldReturnToCart) {
             const cartReset = resetCartToRecap(cartUpdate.state, agentCurrency)
             nextCartState = cartReset.state
