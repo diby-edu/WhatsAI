@@ -116,6 +116,7 @@ const activeSessions = new Map()
 const pendingConnections = new Set()
 const scheduledConnections = new Set()
 const scheduledInitTimers = new Map() // agentId -> timeout handle
+const scheduledInitDueAt = new Map() // agentId -> timestamp when scheduled init should fire
 // Cooldown map: évite que checkAgents re-déclenche un agent récemment initialisé
 // pendant le gap entre disconnect et reconnect (race condition → boucle infinie QR)
 const recentlyProcessed = new Map() // agentId -> lastInitTimestamp
@@ -136,6 +137,7 @@ function clearScheduledInit(agentId) {
         scheduledInitTimers.delete(agentId)
     }
 
+    scheduledInitDueAt.delete(agentId)
     scheduledConnections.delete(agentId)
 }
 
@@ -159,6 +161,7 @@ function scheduleSessionInit(context, agent, reconnectAttempt = 0) {
 
     const delay = Math.max(0, startAt - now)
     scheduledConnections.add(agent.id)
+    scheduledInitDueAt.set(agent.id, now + delay)
 
     const run = async () => {
         clearScheduledInit(agent.id)
@@ -216,6 +219,8 @@ async function checkAgents() {
             const hasActiveSession = activeSessions.has(agent.id)
             const hasPendingConnection = pendingConnections.has(agent.id)
             const hasScheduledConnection = scheduledConnections.has(agent.id)
+            const scheduledDueAt = scheduledInitDueAt.get(agent.id) || 0
+            const scheduledRemainingMs = scheduledDueAt ? scheduledDueAt - now : 0
             const session = activeSessions.get(agent.id)
 
             // The database explicitly asks for a reconnect. If memory still holds a "connected"
@@ -227,7 +232,7 @@ async function checkAgents() {
                 pendingConnections.delete(agent.id)
                 clearScheduledInit(agent.id)
                 recentlyProcessed.delete(agent.id)
-            } else if ((hasActiveSession || hasPendingConnection || hasScheduledConnection) && setupAgeMs >= SETUP_PHASE_STALE_MS) {
+            } else if ((hasActiveSession || hasPendingConnection || (hasScheduledConnection && scheduledRemainingMs <= 0)) && setupAgeMs >= SETUP_PHASE_STALE_MS) {
                 console.log(`🧯 [CHECK] ${agent.name} stuck in setup for ${Math.round(setupAgeMs / 1000)}s — clearing locks (active=${hasActiveSession}, pending=${hasPendingConnection}, scheduled=${hasScheduledConnection})`)
                 try { session?.socket?.end() } catch (_) { }
                 activeSessions.delete(agent.id)
@@ -240,7 +245,10 @@ async function checkAgents() {
 
             // Skip si en cours de connexion
             if (hasBlockingState) {
-                console.log(`⏸️ [CHECK] Waiting on in-memory setup state for ${agent.name} (active=${activeSessions.has(agent.id)}, pending=${pendingConnections.has(agent.id)}, scheduled=${scheduledConnections.has(agent.id)})`)
+                const scheduledSuffix = hasScheduledConnection && scheduledRemainingMs > 0
+                    ? `, scheduled_in=${Math.ceil(scheduledRemainingMs / 1000)}s`
+                    : ''
+                console.log(`⏸️ [CHECK] Waiting on in-memory setup state for ${agent.name} (active=${activeSessions.has(agent.id)}, pending=${pendingConnections.has(agent.id)}, scheduled=${scheduledConnections.has(agent.id)}${scheduledSuffix})`)
                 continue
             }
             // Skip si initSession déclenché récemment (laisse le backoff interne gérer les retries)
