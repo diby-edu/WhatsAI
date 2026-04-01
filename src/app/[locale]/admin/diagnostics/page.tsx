@@ -458,8 +458,11 @@ export default function AdminDiagnosticsPage() {
                             <div style={{ color: '#fca5a5', fontSize: 13, marginBottom: 16 }}>
                                 Cette liste remonte les agents susceptibles de tomber dans un incident client avant meme qu une plainte arrive.
                             </div>
+                            <div style={{ color: '#fecaca', fontSize: 12, marginBottom: 16 }}>
+                                {whatsAppRiskReport.agents.length} agent(s) affiché(s), sans troncature, pour faciliter le triage.
+                            </div>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
-                                {whatsAppRiskReport.agents.slice(0, 8).map((agent) => (
+                                {whatsAppRiskReport.agents.map((agent) => (
                                     <div key={agent.id} style={{
                                         padding: 14,
                                         borderRadius: 14,
