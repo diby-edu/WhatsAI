@@ -39,8 +39,53 @@ function shouldProcessUpsertMessage(type, message, options = {}) {
     return ageMs >= -60 * 1000 && ageMs <= recentWindowMs
 }
 
+function extractInboundMessagePayload(message) {
+    if (message?.message?.conversation) {
+        return {
+            text: message.message.conversation,
+            isVoiceMessage: false,
+            audioMessage: null,
+            imageMessage: null,
+            caption: null,
+        }
+    }
+
+    if (message?.message?.extendedTextMessage?.text) {
+        return {
+            text: message.message.extendedTextMessage.text,
+            isVoiceMessage: false,
+            audioMessage: null,
+            imageMessage: null,
+            caption: null,
+        }
+    }
+
+    if (message?.message?.imageMessage) {
+        return {
+            text: message.message.imageMessage.caption || '',
+            isVoiceMessage: false,
+            audioMessage: null,
+            imageMessage: message.message.imageMessage,
+            caption: message.message.imageMessage.caption || '',
+        }
+    }
+
+    if (message?.message?.audioMessage) {
+        return {
+            text: '',
+            isVoiceMessage: true,
+            audioMessage: message.message.audioMessage,
+            imageMessage: null,
+            caption: null,
+        }
+    }
+
+    return null
+}
+
 module.exports = {
     RECENT_APPEND_WINDOW_MS,
+    extractInboundMessagePayload,
     getMessageTimestampMs,
     shouldProcessUpsertMessage,
 }
