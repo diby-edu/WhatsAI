@@ -76,6 +76,11 @@ function describeInboundMessage(message) {
     }
 }
 
+function isIgnorableIncomingMessage(message) {
+    const { content } = unwrapMessageContent(message?.message)
+    return Boolean(content?.protocolMessage)
+}
+
 function extractInboundMessagePayload(message) {
     const { content } = unwrapMessageContent(message?.message)
     if (!content) {
@@ -127,6 +132,7 @@ function extractInboundMessagePayload(message) {
 
 module.exports = {
     describeInboundMessage,
+    isIgnorableIncomingMessage,
     MESSAGE_WRAPPER_KEYS,
     RECENT_APPEND_WINDOW_MS,
     extractInboundMessagePayload,

@@ -3,6 +3,7 @@ const {
     describeInboundMessage,
     extractInboundMessagePayload,
     getMessageTimestampMs,
+    isIgnorableIncomingMessage,
     shouldProcessUpsertMessage,
     unwrapMessageContent,
 } = require('@/lib/whatsapp/upsert-helpers')
@@ -136,5 +137,15 @@ describe('upsert-helpers', () => {
         expect(extractInboundMessagePayload({
             message: { protocolMessage: { type: 1 } }
         })).toBeNull()
+    })
+
+    test('marks protocol messages as ignorable system traffic', () => {
+        expect(isIgnorableIncomingMessage({
+            message: { protocolMessage: { type: 1 } }
+        })).toBe(true)
+
+        expect(isIgnorableIncomingMessage({
+            message: { extendedTextMessage: { text: 'bonjour' } }
+        })).toBe(false)
     })
 })

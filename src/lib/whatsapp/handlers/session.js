@@ -11,8 +11,15 @@ const fs = require('fs')
 const path = require('path')
 const useSupabaseAuthState = require('../supabase-auth')
 const { handleMessage } = require('./message')
-const { shouldProcessUpsertMessage, extractInboundMessagePayload, describeInboundMessage } = require('../upsert-helpers')
+const { shouldProcessUpsertMessage, extractInboundMessagePayload, describeInboundMessage, isIgnorableIncomingMessage } = require('../upsert-helpers')
 const logger = pino({ level: 'warn' })
+const VERBOSE_WHATSAPP_TRACE = process.env.WHATSAPP_TRACE_VERBOSE === 'true'
+
+function traceWhatsApp(...args) {
+    if (VERBOSE_WHATSAPP_TRACE) {
+        console.log(...args)
+    }
+}
 
 async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
     const { supabase, activeSessions, pendingConnections, openai, CinetPay, markSetupPhaseActivity, clearSetupPhaseActivity } = context
@@ -108,11 +115,11 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
         socket.ev.on('connection.update', async (update) => {
             const { connection, lastDisconnect, qr, isNewLogin, receivedPendingNotifications, isOnline } = update
 
-            if (typeof receivedPendingNotifications !== 'undefined') {
+            if (typeof receivedPendingNotifications !== 'undefined' && (VERBOSE_WHATSAPP_TRACE || receivedPendingNotifications === true)) {
                 console.log(`📬 [${agentName}] receivedPendingNotifications=${receivedPendingNotifications}`)
             }
 
-            if (typeof isOnline !== 'undefined') {
+            if (typeof isOnline !== 'undefined' && (VERBOSE_WHATSAPP_TRACE || isOnline === false)) {
                 console.log(`🟢 [${agentName}] isOnline=${isOnline}`)
             }
 
@@ -358,12 +365,13 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
 
         // Handle incoming messages
         socket.ev.on('messaging-history.set', ({ chats, contacts, messages, isLatest, syncType, progress }) => {
-            console.log(`🗂️ [${agentName}] messaging-history.set chats=${chats?.length || 0} contacts=${contacts?.length || 0} messages=${messages?.length || 0} syncType=${syncType || 'unknown'} progress=${progress ?? 'n/a'} latest=${Boolean(isLatest)}`)
+            traceWhatsApp(`🗂️ [${agentName}] messaging-history.set chats=${chats?.length || 0} contacts=${contacts?.length || 0} messages=${messages?.length || 0} syncType=${syncType || 'unknown'} progress=${progress ?? 'n/a'} latest=${Boolean(isLatest)}`)
         })
 
         socket.ev.on('messages.upsert', async ({ messages: msgs, type }) => {
             const actionableMessages = msgs.filter(msg => shouldProcessUpsertMessage(type, msg))
-            const directInboundCandidates = actionableMessages.filter(msg => {
+            const processableMessages = actionableMessages.filter(msg => !isIgnorableIncomingMessage(msg))
+            const directInboundCandidates = processableMessages.filter(msg => {
                 const remoteJid = msg?.key?.remoteJid || ''
                 return !msg?.key?.fromMe &&
                     !!remoteJid &&
@@ -378,21 +386,26 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                 console.log(
                     `📨 [${agentName}] messages.upsert type=${type} raw=${msgs.length} actionable=${actionableMessages.length} direct_inbound=${directInboundCandidates.length} sample_jid=${sample.remoteJid} wrappers=${sample.wrappers.join('>') || 'none'} keys=${sample.topLevelKeys.join(',') || 'none'}`
                 )
-            } else if (msgs.length > 0 && type !== 'notify') {
+            } else if (processableMessages.length > 0 && msgs.length > 0 && type !== 'notify') {
                 console.log(`📭 [${agentName}] messages.upsert type=${type} raw=${msgs.length} actionable=${actionableMessages.length} direct_inbound=0`)
             }
 
             if (actionableMessages.length === 0) {
                 const sample = describeInboundMessage(msgs[0] || {})
-                console.log(`⏭️ [${agentName}] Ignoring messages.upsert type=${type} raw=${msgs.length} actionable=0 sample_jid=${sample.remoteJid || 'none'} wrappers=${sample.wrappers.join('>') || 'none'} keys=${sample.topLevelKeys.join(',') || 'none'}`)
+                traceWhatsApp(`⏭️ [${agentName}] Ignoring messages.upsert type=${type} raw=${msgs.length} actionable=0 sample_jid=${sample.remoteJid || 'none'} wrappers=${sample.wrappers.join('>') || 'none'} keys=${sample.topLevelKeys.join(',') || 'none'}`)
+                return
+            }
+
+            if (processableMessages.length === 0) {
+                traceWhatsApp(`⏭️ [${agentName}] Ignoring system-only ${type} batch raw=${msgs.length} actionable=${actionableMessages.length}`)
                 return
             }
 
             if (type !== 'notify') {
-                console.log(`📨 [${agentName}] Processing ${actionableMessages.length}/${msgs.length} ${type} message(s) after sync/reconnect`)
+                console.log(`📨 [${agentName}] Processing ${processableMessages.length}/${msgs.length} ${type} message(s) after sync/reconnect`)
             }
 
-            for (const msg of actionableMessages) {
+            for (const msg of processableMessages) {
                 if (msg.key.fromMe) continue
                 // Ignorer les messages de groupe — le bot ne répond qu'en 1-à-1
                 if (msg.key.remoteJid?.endsWith('@g.us')) continue
@@ -432,7 +445,7 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                     return
                 }
 
-                console.log(`📡 [${agentName}] raw CB:message from=${from} participant=${node?.attrs?.participant || 'none'} id=${node?.attrs?.id || 'none'} notify=${node?.attrs?.notify || 'none'}`)
+                traceWhatsApp(`📡 [${agentName}] raw CB:message from=${from} participant=${node?.attrs?.participant || 'none'} id=${node?.attrs?.id || 'none'} notify=${node?.attrs?.notify || 'none'}`)
             })
         }
 
