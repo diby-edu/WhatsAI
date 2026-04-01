@@ -120,7 +120,9 @@ const scheduledConnections = new Set()
 const recentlyProcessed = new Map() // agentId -> lastInitTimestamp
 const AGENT_INIT_COOLDOWN = 3 * 60 * 1000 // 3 minutes entre deux initSession pour le même agent
 const INIT_STAGGER_MS = 3000
+const SETUP_PHASE_STALE_MS = 60 * 1000
 let nextInitSlotAt = 0
+const setupPhaseObservedAt = new Map() // agentId -> firstSeenInSetupPhase
 
 // Référence au channel Realtime pour cleanup au shutdown
 let _realtimeChannel = null
@@ -169,14 +171,59 @@ async function checkAgents() {
             console.log(`🚀 Found ${connectingAgents.length} agents in setup phase: ${names}`)
         }
 
+        const connectingAgentIds = new Set((connectingAgents || []).map(agent => agent.id))
+        for (const trackedAgentId of Array.from(setupPhaseObservedAt.keys())) {
+            if (!connectingAgentIds.has(trackedAgentId)) {
+                setupPhaseObservedAt.delete(trackedAgentId)
+            }
+        }
+
         const context = { supabase, supabaseRealtime, activeSessions, pendingConnections, openai, CinetPay, scheduleSessionInit }
 
         for (const agent of connectingAgents || []) {
+            const now = Date.now()
+            if (!setupPhaseObservedAt.has(agent.id)) {
+                setupPhaseObservedAt.set(agent.id, now)
+            }
+
+            const setupSince = setupPhaseObservedAt.get(agent.id) || now
+            const setupAgeMs = now - setupSince
+            const hasActiveSession = activeSessions.has(agent.id)
+            const hasPendingConnection = pendingConnections.has(agent.id)
+            const hasScheduledConnection = scheduledConnections.has(agent.id)
+            const session = activeSessions.get(agent.id)
+
+            // The database explicitly asks for a reconnect. If memory still holds a "connected"
+            // socket, recycle it now instead of silently preferring the stale in-memory state.
+            if (agent.whatsapp_status === 'connecting' && session?.status === 'connected') {
+                console.log(`♻️ [CHECK] ${agent.name} is marked connecting in DB but still connected in memory — recycling stale socket`)
+                try { session.socket?.end() } catch (_) { }
+                activeSessions.delete(agent.id)
+                pendingConnections.delete(agent.id)
+                scheduledConnections.delete(agent.id)
+                recentlyProcessed.delete(agent.id)
+            } else if ((hasActiveSession || hasPendingConnection || hasScheduledConnection) && setupAgeMs >= SETUP_PHASE_STALE_MS) {
+                console.log(`🧯 [CHECK] ${agent.name} stuck in setup for ${Math.round(setupAgeMs / 1000)}s — clearing locks (active=${hasActiveSession}, pending=${hasPendingConnection}, scheduled=${hasScheduledConnection})`)
+                try { session?.socket?.end() } catch (_) { }
+                activeSessions.delete(agent.id)
+                pendingConnections.delete(agent.id)
+                scheduledConnections.delete(agent.id)
+                recentlyProcessed.delete(agent.id)
+            }
+
+            const hasBlockingState = activeSessions.has(agent.id) || pendingConnections.has(agent.id) || scheduledConnections.has(agent.id)
+
             // Skip si en cours de connexion
-            if (activeSessions.has(agent.id) || pendingConnections.has(agent.id) || scheduledConnections.has(agent.id)) continue
+            if (hasBlockingState) {
+                console.log(`⏸️ [CHECK] Waiting on in-memory setup state for ${agent.name} (active=${activeSessions.has(agent.id)}, pending=${pendingConnections.has(agent.id)}, scheduled=${scheduledConnections.has(agent.id)})`)
+                continue
+            }
             // Skip si initSession déclenché récemment (laisse le backoff interne gérer les retries)
             const lastInit = recentlyProcessed.get(agent.id)
-            if (lastInit && Date.now() - lastInit < AGENT_INIT_COOLDOWN) continue
+            if (lastInit && Date.now() - lastInit < AGENT_INIT_COOLDOWN) {
+                console.log(`⏳ [CHECK] Cooldown active for ${agent.name} (${Math.round((AGENT_INIT_COOLDOWN - (Date.now() - lastInit)) / 1000)}s remaining)`)
+                continue
+            }
 
             scheduleSessionInit(context, agent)
         }
@@ -199,6 +246,8 @@ async function checkAgents() {
                 // Une notification "connecté" au démarrage du bot serait du spam pour l'utilisateur
                 scheduleSessionInit(context, agent, 99)
             }
+
+            setupPhaseObservedAt.delete(agent.id)
         }
     } catch (error) {
         console.error('Error checking agents:', error)
