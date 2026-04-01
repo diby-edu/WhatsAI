@@ -1,4 +1,12 @@
 const RECENT_APPEND_WINDOW_MS = 10 * 60 * 1000
+const MESSAGE_WRAPPER_KEYS = [
+    'ephemeralMessage',
+    'viewOnceMessage',
+    'viewOnceMessageV2',
+    'viewOnceMessageV2Extension',
+    'documentWithCaptionMessage',
+    'deviceSentMessage',
+]
 
 function getMessageTimestampMs(message) {
     const rawTimestamp = message?.messageTimestamp
@@ -39,10 +47,44 @@ function shouldProcessUpsertMessage(type, message, options = {}) {
     return ageMs >= -60 * 1000 && ageMs <= recentWindowMs
 }
 
+function unwrapMessageContent(messageContent) {
+    const wrappers = []
+    let current = messageContent || null
+
+    for (let depth = 0; depth < MESSAGE_WRAPPER_KEYS.length && current; depth++) {
+        const wrapperKey = MESSAGE_WRAPPER_KEYS.find(key => current?.[key]?.message)
+        if (!wrapperKey) break
+
+        wrappers.push(wrapperKey)
+        current = current[wrapperKey].message
+    }
+
+    return {
+        content: current,
+        wrappers,
+    }
+}
+
+function describeInboundMessage(message) {
+    const { content, wrappers } = unwrapMessageContent(message?.message)
+
+    return {
+        remoteJid: message?.key?.remoteJid || '',
+        fromMe: Boolean(message?.key?.fromMe),
+        wrappers,
+        topLevelKeys: content ? Object.keys(content) : [],
+    }
+}
+
 function extractInboundMessagePayload(message) {
-    if (message?.message?.conversation) {
+    const { content } = unwrapMessageContent(message?.message)
+    if (!content) {
+        return null
+    }
+
+    if (content.conversation) {
         return {
-            text: message.message.conversation,
+            text: content.conversation,
             isVoiceMessage: false,
             audioMessage: null,
             imageMessage: null,
@@ -50,9 +92,9 @@ function extractInboundMessagePayload(message) {
         }
     }
 
-    if (message?.message?.extendedTextMessage?.text) {
+    if (content.extendedTextMessage?.text) {
         return {
-            text: message.message.extendedTextMessage.text,
+            text: content.extendedTextMessage.text,
             isVoiceMessage: false,
             audioMessage: null,
             imageMessage: null,
@@ -60,21 +102,21 @@ function extractInboundMessagePayload(message) {
         }
     }
 
-    if (message?.message?.imageMessage) {
+    if (content.imageMessage) {
         return {
-            text: message.message.imageMessage.caption || '',
+            text: content.imageMessage.caption || '',
             isVoiceMessage: false,
             audioMessage: null,
-            imageMessage: message.message.imageMessage,
-            caption: message.message.imageMessage.caption || '',
+            imageMessage: content.imageMessage,
+            caption: content.imageMessage.caption || '',
         }
     }
 
-    if (message?.message?.audioMessage) {
+    if (content.audioMessage) {
         return {
             text: '',
             isVoiceMessage: true,
-            audioMessage: message.message.audioMessage,
+            audioMessage: content.audioMessage,
             imageMessage: null,
             caption: null,
         }
@@ -84,8 +126,11 @@ function extractInboundMessagePayload(message) {
 }
 
 module.exports = {
+    describeInboundMessage,
+    MESSAGE_WRAPPER_KEYS,
     RECENT_APPEND_WINDOW_MS,
     extractInboundMessagePayload,
     getMessageTimestampMs,
     shouldProcessUpsertMessage,
+    unwrapMessageContent,
 }

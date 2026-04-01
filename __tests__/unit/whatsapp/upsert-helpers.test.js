@@ -1,8 +1,10 @@
 const {
     RECENT_APPEND_WINDOW_MS,
+    describeInboundMessage,
     extractInboundMessagePayload,
     getMessageTimestampMs,
     shouldProcessUpsertMessage,
+    unwrapMessageContent,
 } = require('@/lib/whatsapp/upsert-helpers')
 
 describe('upsert-helpers', () => {
@@ -75,6 +77,59 @@ describe('upsert-helpers', () => {
             isVoiceMessage: true,
             audioMessage,
         }))
+    })
+
+    test('unwraps common WhatsApp message wrappers', () => {
+        const message = {
+            message: {
+                ephemeralMessage: {
+                    message: {
+                        viewOnceMessageV2: {
+                            message: {
+                                extendedTextMessage: {
+                                    text: 'bonjour reprise',
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        }
+
+        expect(unwrapMessageContent(message.message)).toEqual({
+            content: {
+                extendedTextMessage: {
+                    text: 'bonjour reprise',
+                },
+            },
+            wrappers: ['ephemeralMessage', 'viewOnceMessageV2'],
+        })
+
+        expect(extractInboundMessagePayload(message)).toEqual(expect.objectContaining({
+            text: 'bonjour reprise',
+            isVoiceMessage: false,
+        }))
+    })
+
+    test('describes inbound message shape for targeted logging', () => {
+        expect(describeInboundMessage({
+            key: {
+                fromMe: false,
+                remoteJid: '22547094746@s.whatsapp.net',
+            },
+            message: {
+                deviceSentMessage: {
+                    message: {
+                        conversation: 'bonjour reprise',
+                    },
+                },
+            },
+        })).toEqual({
+            fromMe: false,
+            remoteJid: '22547094746@s.whatsapp.net',
+            wrappers: ['deviceSentMessage'],
+            topLevelKeys: ['conversation'],
+        })
     })
 
     test('returns null for unsupported incoming message shapes', () => {
