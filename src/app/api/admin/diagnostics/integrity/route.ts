@@ -1,118 +1,118 @@
 import { NextRequest } from 'next/server'
 import { successResponse, errorResponse } from '@/lib/api-utils'
 import { requireAdminAccess } from '@/lib/admin/auth'
+import { buildIntegrityDiagnostics } from '@/lib/admin/integrity'
 
 export async function GET(request: NextRequest) {
     const { response, adminSupabase } = await requireAdminAccess()
     if (response || !adminSupabase) return response!
 
-    const results: any = {
-        tables: [],
-        issues: [],
-        stats: {
-            totalUsers: 0,
-            totalAgents: 0,
-            totalConversations: 0,
-            totalPayments: 0,
-            orphanedRecords: 0,
-        },
-        overallStatus: 'ok',
-    }
-
     try {
-        const [usersResult, agentsResult, conversationsResult, paymentsResult, messagesResult] = await Promise.all([
+        const weekAgo = new Date()
+        weekAgo.setDate(weekAgo.getDate() - 7)
+
+        const [
+            usersResult,
+            agentsResult,
+            conversationsResult,
+            paymentsResult,
+            messagesResult,
+            profilesDataResult,
+            agentsDataResult,
+            conversationsDataResult,
+            messagesDataResult,
+            stuckPaymentsResult,
+            negativeCreditsResult,
+        ] = await Promise.all([
             adminSupabase.from('profiles').select('*', { count: 'exact', head: true }),
             adminSupabase.from('agents').select('*', { count: 'exact', head: true }),
             adminSupabase.from('conversations').select('*', { count: 'exact', head: true }),
             adminSupabase.from('payments').select('*', { count: 'exact', head: true }),
             adminSupabase.from('messages').select('*', { count: 'exact', head: true }),
+            adminSupabase.from('profiles').select('id'),
+            adminSupabase.from('agents').select('id, user_id, is_active, archived_at'),
+            adminSupabase.from('conversations').select('id, agent_id'),
+            adminSupabase.from('messages').select('id, conversation_id, agent_id'),
+            adminSupabase
+                .from('payments')
+                .select('id')
+                .eq('status', 'pending')
+                .lt('created_at', weekAgo.toISOString()),
+            adminSupabase
+                .from('profiles')
+                .select('id')
+                .lt('credits_balance', 0),
         ])
 
-        results.stats.totalUsers = usersResult.count || 0
-        results.stats.totalAgents = agentsResult.count || 0
-        results.stats.totalConversations = conversationsResult.count || 0
-        results.stats.totalPayments = paymentsResult.count || 0
+        const blockingError = [
+            usersResult.error,
+            agentsResult.error,
+            conversationsResult.error,
+            paymentsResult.error,
+            messagesResult.error,
+            profilesDataResult.error,
+            agentsDataResult.error,
+            conversationsDataResult.error,
+            messagesDataResult.error,
+            stuckPaymentsResult.error,
+            negativeCreditsResult.error,
+        ].find(Boolean)
 
-        results.tables.push(
-            { name: 'profiles', count: usersResult.count || 0, status: usersResult.error ? 'error' : 'ok' },
-            { name: 'agents', count: agentsResult.count || 0, status: agentsResult.error ? 'error' : 'ok' },
-            { name: 'conversations', count: conversationsResult.count || 0, status: conversationsResult.error ? 'error' : 'ok' },
-            { name: 'payments', count: paymentsResult.count || 0, status: paymentsResult.error ? 'error' : 'ok' },
-            { name: 'messages', count: messagesResult.count || 0, status: messagesResult.error ? 'error' : 'ok' },
-        )
-
-        const { data: orphanedAgents } = await adminSupabase
-            .from('agents')
-            .select('id')
-            .is('user_id', null)
-
-        if (orphanedAgents?.length) {
-            results.stats.orphanedRecords += orphanedAgents.length
-            results.issues.push({
-                type: 'orphaned',
-                table: 'agents',
-                count: orphanedAgents.length,
-                message: `${orphanedAgents.length} agents sans user_id`,
-            })
+        if (blockingError) {
+            throw blockingError
         }
 
-        const weekAgo = new Date()
-        weekAgo.setDate(weekAgo.getDate() - 7)
+        const profiles = profilesDataResult.data || []
+        const agents = agentsDataResult.data || []
+        const conversations = conversationsDataResult.data || []
+        const messages = messagesDataResult.data || []
 
-        const { data: stuckPayments } = await adminSupabase
-            .from('payments')
-            .select('id')
-            .eq('status', 'pending')
-            .lt('created_at', weekAgo.toISOString())
+        const profileIds = new Set(profiles.map((profile) => profile.id))
+        const agentIds = new Set(agents.map((agent) => agent.id))
+        const conversationIds = new Set(conversations.map((conversation) => conversation.id))
+        const overdueArchiveCutoffMs = Date.now() - (7 * 24 * 60 * 60 * 1000)
 
-        if (stuckPayments?.length) {
-            results.issues.push({
-                type: 'stuck',
-                table: 'payments',
-                count: stuckPayments.length,
-                message: `${stuckPayments.length} paiements en attente depuis > 7 jours`,
-            })
-        }
+        const results = buildIntegrityDiagnostics({
+            totalUsers: usersResult.count || 0,
+            totalAgents: agentsResult.count || 0,
+            totalConversations: conversationsResult.count || 0,
+            totalPayments: paymentsResult.count || 0,
+            totalMessages: messagesResult.count || 0,
+            orphanedAgentsNoUserId: agents.filter((agent) => !agent.user_id).length,
+            agentsWithoutProfile: agents.filter((agent) => agent.user_id && !profileIds.has(agent.user_id)).length,
+            conversationsWithoutAgentId: conversations.filter((conversation) => !conversation.agent_id).length,
+            conversationsMissingAgent: conversations.filter((conversation) => conversation.agent_id && !agentIds.has(conversation.agent_id)).length,
+            messagesWithoutConversationId: messages.filter((message) => !message.conversation_id).length,
+            messagesMissingConversation: messages.filter((message) => message.conversation_id && !conversationIds.has(message.conversation_id)).length,
+            messagesMissingAgent: messages.filter((message) => message.agent_id && !agentIds.has(message.agent_id)).length,
+            stuckPayments: stuckPaymentsResult.data?.length || 0,
+            negativeCredits: negativeCreditsResult.data?.length || 0,
+            archivedAgents: agents.filter((agent) => !!agent.archived_at).length,
+            overdueArchivedAgents: agents.filter((agent) => agent.archived_at && new Date(agent.archived_at).getTime() <= overdueArchiveCutoffMs).length,
+            archivedActiveAgents: agents.filter((agent) => agent.archived_at && agent.is_active !== false).length,
+        })
 
-        const { data: negativeCredits } = await adminSupabase
-            .from('profiles')
-            .select('id')
-            .lt('credits_balance', 0)
-
-        if (negativeCredits?.length) {
-            results.issues.push({
-                type: 'anomaly',
-                table: 'profiles',
-                count: negativeCredits.length,
-                message: `${negativeCredits.length} utilisateurs avec credits negatifs`,
-            })
-        }
-
-        const { data: conversationsWithoutAgent } = await adminSupabase
-            .from('conversations')
-            .select('id')
-            .is('agent_id', null)
-
-        if (conversationsWithoutAgent?.length) {
-            results.stats.orphanedRecords += conversationsWithoutAgent.length
-            results.issues.push({
-                type: 'orphaned',
-                table: 'conversations',
-                count: conversationsWithoutAgent.length,
-                message: `${conversationsWithoutAgent.length} conversations sans agent`,
-            })
-        }
-
-        if (results.stats.orphanedRecords > 10) results.overallStatus = 'error'
-        else if (results.issues.length > 0) results.overallStatus = 'warning'
+        return successResponse(results)
     } catch (err: any) {
         console.error('Data integrity check error:', err)
-        results.overallStatus = 'error'
-        results.issues.push({
-            type: 'error',
-            message: err.message || 'Erreur lors de la verification',
+        return successResponse({
+            tables: [],
+            issues: [{
+                type: 'anomaly',
+                table: 'diagnostics',
+                count: 1,
+                message: err.message || 'Erreur lors de la verification',
+            }],
+            stats: {
+                totalUsers: 0,
+                totalAgents: 0,
+                totalConversations: 0,
+                totalPayments: 0,
+                totalMessages: 0,
+                orphanedRecords: 0,
+                archivedAgents: 0,
+            },
+            overallStatus: 'error',
         })
     }
-
-    return successResponse(results)
 }
