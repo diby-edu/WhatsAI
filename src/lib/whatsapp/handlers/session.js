@@ -11,7 +11,7 @@ const fs = require('fs')
 const path = require('path')
 const useSupabaseAuthState = require('../supabase-auth')
 const { handleMessage } = require('./message')
-const { shouldProcessUpsertMessage } = require('../upsert-helpers')
+const { shouldProcessUpsertMessage, extractInboundMessagePayload } = require('../upsert-helpers')
 const logger = pino({ level: 'warn' })
 
 async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
@@ -355,33 +355,22 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                 // Ignorer les messages de groupe — le bot ne répond qu'en 1-à-1
                 if (msg.key.remoteJid?.endsWith('@g.us')) continue
 
-                let text = ''
-                let isVoiceMessage = false
-
-                // Determine message type
-                if (msg.message?.conversation) {
-                    text = msg.message.conversation
-                } else if (msg.message?.extendedTextMessage?.text) {
-                    text = msg.message.extendedTextMessage.text
-                } else if (msg.message?.imageMessage) {
-                    text = msg.message.imageMessage.caption || ''
-                } else if (msg.message?.audioMessage) {
-                    isVoiceMessage = true
-                    // Text will be transcribed in handleMessage
+                const inboundPayload = extractInboundMessagePayload(msg)
+                if (!inboundPayload) {
+                    console.log(`⏭️ [${agentName}] Skipping unsupported incoming message inside ${type} batch`)
+                    continue
                 }
-
-                if (!text && !isVoiceMessage && !msg.message?.imageMessage) return
 
                 // Construct simplified message object or pass full msg?
                 // handleMessage expects { text, from, pushName, audioMessage?, imageMessage?, key }
                 const messagePayload = {
-                    text,
+                    text: inboundPayload.text,
                     from: msg.key.remoteJid,
                     pushName: msg.pushName,
                     key: msg.key,
-                    audioMessage: msg.message?.audioMessage,
-                    imageMessage: msg.message?.imageMessage,
-                    caption: msg.message?.imageMessage?.caption
+                    audioMessage: inboundPayload.audioMessage,
+                    imageMessage: inboundPayload.imageMessage,
+                    caption: inboundPayload.caption
                 }
 
                 // Read receipt avec délai humain (1.5s) — anti-ban
@@ -389,7 +378,7 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                     try { await socket.readMessages([msg.key]) } catch { /* silencieux */ }
                 }, 1500)
 
-                await handleMessage(context, agentId, messagePayload, isVoiceMessage)
+                await handleMessage(context, agentId, messagePayload, inboundPayload.isVoiceMessage)
             }
         })
 
