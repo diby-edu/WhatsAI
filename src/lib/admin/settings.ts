@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { resumeActiveConversationsForAgents } from '@/lib/conversations/resume-agent-conversations'
 
 export const DEFAULT_ADMIN_SETTINGS = {
     appName: 'WazzapAI',
@@ -268,6 +269,8 @@ export async function setMaintenanceMode(adminSupabase: SupabaseClient, userId: 
             .in('id', ids)
 
         if (updateError) throw updateError
+
+        await resumeActiveConversationsForAgents(adminSupabase, ids)
     }
 
     await upsertAppSetting(adminSupabase, userId, 'maintenance_paused_agents', { ids: [] })

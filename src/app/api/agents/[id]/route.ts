@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
+import { resumeActiveConversationsForAgents } from '@/lib/conversations/resume-agent-conversations'
 
 function normalizeRestaurantDepositSettings(body: any) {
     const enabled = !!body.restaurant_deposit_enabled
@@ -88,6 +89,7 @@ export async function PATCH(
 ) {
     const { id } = await params
     const supabase = await createApiClient()
+    const adminSupabase = createAdminClient()
     const { user, error: authError } = await getAuthUser(supabase)
 
     if (authError) {
@@ -139,6 +141,8 @@ export async function PATCH(
                 : 0
         }
 
+        let reactivatingAgent = false
+
         // Prevent bypassing plan limits by manually activating an agent
         if (updates.is_active === true) {
             const { data: currentAgent } = await supabase
@@ -148,6 +152,7 @@ export async function PATCH(
                 .single()
 
             if (currentAgent && !currentAgent.is_active) {
+                reactivatingAgent = true
                 const { data: profile } = await supabase
                     .from('profiles')
                     .select('plan')
@@ -187,6 +192,10 @@ export async function PATCH(
 
         if (error) {
             return errorResponse('Mise a jour echouee', 500)
+        }
+
+        if (reactivatingAgent) {
+            await resumeActiveConversationsForAgents(adminSupabase, [id])
         }
 
         return successResponse({ agent })

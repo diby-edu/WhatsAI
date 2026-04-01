@@ -1,6 +1,7 @@
 import { checkPaymentStatus } from '@/lib/payments/cinetpay'
 import { isAdminRole } from '@/lib/api-utils'
 import { notifyAdmins } from '@/lib/notifications/admin-notify'
+import { resumeActiveConversationsForAgents } from '@/lib/conversations/resume-agent-conversations'
 
 export type PaymentRow = {
     id: string
@@ -365,6 +366,11 @@ export async function finalizePaymentRecord(
                     .from('agents')
                     .update({ is_active: true, archived_at: null, archived_reason: null })
                     .in('id', toReactivate.map((a: any) => a.id))
+
+                await resumeActiveConversationsForAgents(
+                    adminSupabase,
+                    toReactivate.map((a: any) => a.id)
+                )
             }
 
             // Notify Scale users of their rollover bonus

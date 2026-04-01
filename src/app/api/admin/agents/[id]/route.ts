@@ -8,6 +8,7 @@ import {
     logAdminAction,
     isAdminRole,
 } from '@/lib/api-utils'
+import { resumeActiveConversationsForAgents } from '@/lib/conversations/resume-agent-conversations'
 
 async function cleanupAgentDependencies(adminSupabase: ReturnType<typeof createAdminClient>, agentId: string) {
     const { error: outboundError } = await adminSupabase
@@ -98,6 +99,10 @@ export async function PATCH(
 
             if (error) throw error
 
+            if (!agent.is_active) {
+                await resumeActiveConversationsForAgents(adminSupabase, [id])
+            }
+
             await logAdminAction(user.id, 'toggle_agent', id, 'agent', { is_active: !agent.is_active })
             return successResponse({ message: `Agent ${agent.is_active ? 'desactive' : 'active'}`, is_active: !agent.is_active })
         }
@@ -131,12 +136,28 @@ export async function PATCH(
             return errorResponse('Aucun champ a mettre a jour', 400)
         }
 
+        let reactivatingAgent = false
+
+        if (cleanUpdate.is_active === true) {
+            const { data: currentAgent } = await adminSupabase
+                .from('agents')
+                .select('is_active')
+                .eq('id', id)
+                .maybeSingle()
+
+            reactivatingAgent = currentAgent?.is_active === false
+        }
+
         const { error } = await adminSupabase
             .from('agents')
             .update(cleanUpdate)
             .eq('id', id)
 
         if (error) throw error
+
+        if (reactivatingAgent) {
+            await resumeActiveConversationsForAgents(adminSupabase, [id])
+        }
 
         await logAdminAction(user.id, 'update_agent', id, 'agent', cleanUpdate)
 
