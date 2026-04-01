@@ -15,7 +15,7 @@ const { shouldProcessUpsertMessage, extractInboundMessagePayload, describeInboun
 const logger = pino({ level: 'warn' })
 
 async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
-    const { supabase, activeSessions, pendingConnections, openai, CinetPay } = context
+    const { supabase, activeSessions, pendingConnections, openai, CinetPay, markSetupPhaseActivity, clearSetupPhaseActivity } = context
     const isSilentRestore = reconnectAttempt === 99
     const effectiveReconnectAttempt = isSilentRestore ? 0 : reconnectAttempt
 
@@ -119,6 +119,7 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
             if (qr) {
                 session.status = 'qr_waiting'
                 session.pairingSucceeded = false
+                markSetupPhaseActivity?.(agentId)
                 console.log(`📱 [${agentName}] QR code generated, saving to DB...`)
 
                 try {
@@ -154,6 +155,7 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
             if (isNewLogin) {
                 session.pairingSucceeded = true
                 session.status = 'pairing_waiting_open'
+                markSetupPhaseActivity?.(agentId)
                 console.log(`[${agentName}] QR scan confirmed by WhatsApp - waiting for final session open...`)
 
                 try {
@@ -170,6 +172,7 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                 clearTimeout(pendingTimeout)
                 session.status = 'connected'
                 pendingConnections.delete(agentId)
+                clearSetupPhaseActivity?.(agentId)
                 const phoneNumber = socket.user?.id.split(':')[0] || null
                 console.log(`✅ ${agentName} connected: ${phoneNumber}`)
 

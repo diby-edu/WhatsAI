@@ -127,6 +127,14 @@ const MAX_INIT_QUEUE_DELAY_MS = 15 * 1000
 let nextInitSlotAt = 0
 const setupPhaseObservedAt = new Map() // agentId -> firstSeenInSetupPhase
 
+function markSetupPhaseActivity(agentId) {
+    setupPhaseObservedAt.set(agentId, Date.now())
+}
+
+function clearSetupPhaseActivity(agentId) {
+    setupPhaseObservedAt.delete(agentId)
+}
+
 // Référence au channel Realtime pour cleanup au shutdown
 let _realtimeChannel = null
 
@@ -168,7 +176,7 @@ function scheduleSessionInit(context, agent, reconnectAttempt = 0) {
         if (activeSessions.has(agent.id) || pendingConnections.has(agent.id)) return
 
         // Restart the setup age from the moment a fresh socket attempt actually begins.
-        setupPhaseObservedAt.set(agent.id, Date.now())
+        markSetupPhaseActivity(agent.id)
 
         const delaySuffix = delay > 0 ? ` in ${Math.round(delay / 1000)}s` : ''
         console.log(`⚡ triggering initSession for ${agent.name}${delaySuffix}`)
@@ -209,7 +217,7 @@ async function checkAgents() {
             }
         }
 
-        const context = { supabase, supabaseRealtime, activeSessions, pendingConnections, openai, CinetPay, scheduleSessionInit }
+        const context = { supabase, supabaseRealtime, activeSessions, pendingConnections, openai, CinetPay, scheduleSessionInit, markSetupPhaseActivity, clearSetupPhaseActivity }
 
         for (const agent of connectingAgents || []) {
             const now = Date.now()
@@ -283,7 +291,7 @@ async function checkAgents() {
                 scheduleSessionInit(context, agent, 99)
             }
 
-            setupPhaseObservedAt.delete(agent.id)
+            clearSetupPhaseActivity(agent.id)
         }
     } catch (error) {
         console.error('Error checking agents:', error)
@@ -338,7 +346,7 @@ async function main() {
     // Context for cron jobs and Realtime
     // - supabase (alias supabaseAdmin): pour les opérations DB
     // - supabaseRealtime: pour les subscriptions Realtime
-    const context = { supabase, supabaseRealtime, activeSessions, pendingConnections, openai, CinetPay, scheduleSessionInit }
+    const context = { supabase, supabaseRealtime, activeSessions, pendingConnections, openai, CinetPay, scheduleSessionInit, markSetupPhaseActivity, clearSetupPhaseActivity }
 
     // ═══════════════════════════════════════════════════════════
     // ⚡ REALTIME & ADAPTIVE POLLING
