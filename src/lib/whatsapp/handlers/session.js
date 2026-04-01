@@ -106,7 +106,15 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
 
         // Handle connection updates
         socket.ev.on('connection.update', async (update) => {
-            const { connection, lastDisconnect, qr, isNewLogin } = update
+            const { connection, lastDisconnect, qr, isNewLogin, receivedPendingNotifications, isOnline } = update
+
+            if (typeof receivedPendingNotifications !== 'undefined') {
+                console.log(`📬 [${agentName}] receivedPendingNotifications=${receivedPendingNotifications}`)
+            }
+
+            if (typeof isOnline !== 'undefined') {
+                console.log(`🟢 [${agentName}] isOnline=${isOnline}`)
+            }
 
             if (qr) {
                 session.status = 'qr_waiting'
@@ -182,6 +190,13 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                     if (keepAliveInterval) clearInterval(keepAliveInterval)
                     try { socket.end() } catch (_) { }
                     return
+                }
+
+                try {
+                    await socket.sendPresenceUpdate('available')
+                    console.log(`🟢 [${agentName}] Presence set to available after open`)
+                } catch (presenceErr) {
+                    console.warn(`⚠️ [${agentName}] Failed to set presence to available:`, presenceErr.message)
                 }
 
                 // 💓 Démarrer le keepalive (ping toutes les 14 min)
@@ -339,6 +354,10 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
         socket.ev.on('creds.update', saveCreds)
 
         // Handle incoming messages
+        socket.ev.on('messaging-history.set', ({ chats, contacts, messages, isLatest, syncType, progress }) => {
+            console.log(`🗂️ [${agentName}] messaging-history.set chats=${chats?.length || 0} contacts=${contacts?.length || 0} messages=${messages?.length || 0} syncType=${syncType || 'unknown'} progress=${progress ?? 'n/a'} latest=${Boolean(isLatest)}`)
+        })
+
         socket.ev.on('messages.upsert', async ({ messages: msgs, type }) => {
             const actionableMessages = msgs.filter(msg => shouldProcessUpsertMessage(type, msg))
             const directInboundCandidates = actionableMessages.filter(msg => {
@@ -402,6 +421,17 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                 await handleMessage(context, agentId, messagePayload, inboundPayload.isVoiceMessage)
             }
         })
+
+        if (typeof socket.ws?.on === 'function') {
+            socket.ws.on('CB:message', (node) => {
+                const from = node?.attrs?.from || ''
+                if (!from || from.endsWith('@g.us') || from.includes('@broadcast') || from.includes('@newsletter')) {
+                    return
+                }
+
+                console.log(`📡 [${agentName}] raw CB:message from=${from} participant=${node?.attrs?.participant || 'none'} id=${node?.attrs?.id || 'none'} notify=${node?.attrs?.notify || 'none'}`)
+            })
+        }
 
     } catch (error) {
         clearTimeout(pendingTimeout)
