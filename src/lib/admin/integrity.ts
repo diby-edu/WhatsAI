@@ -23,6 +23,8 @@ export type IntegrityDiagnosticsInput = {
     archivedAgents: number
     overdueArchivedAgents: number
     archivedActiveAgents: number
+    duplicateWhatsappPhoneGroups: number
+    duplicateWhatsappPhoneAgents: number
 }
 
 export type IntegrityDiagnosticsResult = {
@@ -174,6 +176,15 @@ export function buildIntegrityDiagnostics(input: IntegrityDiagnosticsInput): Int
             table: 'agents',
             count: input.overdueArchivedAgents,
             message: `${input.overdueArchivedAgents} agents archives depuis > 7 jours sont encore presents`,
+        })
+    }
+
+    if (input.duplicateWhatsappPhoneGroups > 0) {
+        pushIssue(result.issues, result.stats, {
+            type: 'anomaly',
+            table: 'agents',
+            count: input.duplicateWhatsappPhoneAgents,
+            message: `${input.duplicateWhatsappPhoneAgents} agents partagent ${input.duplicateWhatsappPhoneGroups} numero(s) WhatsApp deja attribue(s)`,
         })
     }
 

@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
             adminSupabase.from('payments').select('*', { count: 'exact', head: true }),
             adminSupabase.from('messages').select('*', { count: 'exact', head: true }),
             adminSupabase.from('profiles').select('id'),
-            adminSupabase.from('agents').select('id, user_id, is_active, archived_at'),
+            adminSupabase.from('agents').select('id, user_id, is_active, archived_at, whatsapp_phone'),
             adminSupabase.from('conversations').select('id, agent_id'),
             adminSupabase.from('messages').select('id, conversation_id, agent_id'),
             adminSupabase
@@ -71,6 +71,15 @@ export async function GET(request: NextRequest) {
         const agentIds = new Set(agents.map((agent) => agent.id))
         const conversationIds = new Set(conversations.map((conversation) => conversation.id))
         const overdueArchiveCutoffMs = Date.now() - (7 * 24 * 60 * 60 * 1000)
+        const activePhoneUsage = agents.reduce((map, agent) => {
+            if (!agent.whatsapp_phone || agent.is_active === false || agent.archived_at) {
+                return map
+            }
+            const current = map.get(agent.whatsapp_phone) || 0
+            map.set(agent.whatsapp_phone, current + 1)
+            return map
+        }, new Map<string, number>())
+        const duplicatePhoneGroups = Array.from(activePhoneUsage.values()).filter((count) => count > 1)
 
         const results = buildIntegrityDiagnostics({
             totalUsers: usersResult.count || 0,
@@ -90,6 +99,8 @@ export async function GET(request: NextRequest) {
             archivedAgents: agents.filter((agent) => !!agent.archived_at).length,
             overdueArchivedAgents: agents.filter((agent) => agent.archived_at && new Date(agent.archived_at).getTime() <= overdueArchiveCutoffMs).length,
             archivedActiveAgents: agents.filter((agent) => agent.archived_at && agent.is_active !== false).length,
+            duplicateWhatsappPhoneGroups: duplicatePhoneGroups.length,
+            duplicateWhatsappPhoneAgents: duplicatePhoneGroups.reduce((sum, count) => sum + count, 0),
         })
 
         return successResponse(results)

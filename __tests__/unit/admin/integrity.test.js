@@ -20,6 +20,8 @@ describe('buildIntegrityDiagnostics', () => {
             archivedAgents: 0,
             overdueArchivedAgents: 0,
             archivedActiveAgents: 0,
+            duplicateWhatsappPhoneGroups: 0,
+            duplicateWhatsappPhoneAgents: 0,
         })
 
         expect(result.overallStatus).toBe('ok')
@@ -46,6 +48,8 @@ describe('buildIntegrityDiagnostics', () => {
             archivedAgents: 0,
             overdueArchivedAgents: 0,
             archivedActiveAgents: 0,
+            duplicateWhatsappPhoneGroups: 0,
+            duplicateWhatsappPhoneAgents: 0,
         })
 
         expect(result.overallStatus).toBe('warning')
@@ -78,6 +82,8 @@ describe('buildIntegrityDiagnostics', () => {
             archivedAgents: 2,
             overdueArchivedAgents: 1,
             archivedActiveAgents: 1,
+            duplicateWhatsappPhoneGroups: 1,
+            duplicateWhatsappPhoneAgents: 3,
         })
 
         expect(result.overallStatus).toBe('error')
@@ -87,6 +93,7 @@ describe('buildIntegrityDiagnostics', () => {
             '1 utilisateurs avec credits negatifs',
             '1 agents archives restent marques actifs',
             '1 agents archives depuis > 7 jours sont encore presents',
+            '3 agents partagent 1 numero(s) WhatsApp deja attribue(s)',
         ]))
     })
 })
