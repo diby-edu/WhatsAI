@@ -98,7 +98,7 @@ function setupRealtimeListeners(context) {
             if (pendingConnections.has(id)) return
 
             if (typeof context.scheduleSessionInit === 'function') {
-                context.scheduleSessionInit(context, { id, name }, 99)
+                context.scheduleSessionInit(context, { id, name, whatsapp_status }, 99)
             } else {
                 initSession(context, id, name, 99)
             }

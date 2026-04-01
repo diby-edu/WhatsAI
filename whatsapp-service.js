@@ -115,29 +115,53 @@ const openai = new OpenAI({ apiKey: OPENAI_API_KEY })
 const activeSessions = new Map()
 const pendingConnections = new Set()
 const scheduledConnections = new Set()
+const scheduledInitTimers = new Map() // agentId -> timeout handle
 // Cooldown map: évite que checkAgents re-déclenche un agent récemment initialisé
 // pendant le gap entre disconnect et reconnect (race condition → boucle infinie QR)
 const recentlyProcessed = new Map() // agentId -> lastInitTimestamp
 const AGENT_INIT_COOLDOWN = 3 * 60 * 1000 // 3 minutes entre deux initSession pour le même agent
 const INIT_STAGGER_MS = 3000
 const SETUP_PHASE_STALE_MS = 60 * 1000
+const MAX_INIT_QUEUE_DELAY_MS = 15 * 1000
 let nextInitSlotAt = 0
 const setupPhaseObservedAt = new Map() // agentId -> firstSeenInSetupPhase
 
 // Référence au channel Realtime pour cleanup au shutdown
 let _realtimeChannel = null
 
+function clearScheduledInit(agentId) {
+    const timer = scheduledInitTimers.get(agentId)
+    if (timer) {
+        clearTimeout(timer)
+        scheduledInitTimers.delete(agentId)
+    }
+
+    scheduledConnections.delete(agentId)
+}
+
 function scheduleSessionInit(context, agent, reconnectAttempt = 0) {
     if (activeSessions.has(agent.id) || pendingConnections.has(agent.id) || scheduledConnections.has(agent.id)) return
 
-    recentlyProcessed.set(agent.id, Date.now())
-    const startAt = Math.max(Date.now(), nextInitSlotAt)
-    const delay = Math.max(0, startAt - Date.now())
-    nextInitSlotAt = startAt + INIT_STAGGER_MS
+    const now = Date.now()
+    const isPriorityInit = agent.whatsapp_status === 'connecting'
+    recentlyProcessed.set(agent.id, now)
+
+    let startAt = now
+    if (!isPriorityInit) {
+        startAt = Math.max(now, nextInitSlotAt)
+        const maxQueuedStartAt = now + MAX_INIT_QUEUE_DELAY_MS
+        if (startAt > maxQueuedStartAt) {
+            console.log(`✂️ [SCHEDULER] Capping init delay for ${agent.name} from ${Math.round((startAt - now) / 1000)}s to ${Math.round(MAX_INIT_QUEUE_DELAY_MS / 1000)}s`)
+            startAt = maxQueuedStartAt
+        }
+        nextInitSlotAt = startAt + INIT_STAGGER_MS
+    }
+
+    const delay = Math.max(0, startAt - now)
     scheduledConnections.add(agent.id)
 
     const run = async () => {
-        scheduledConnections.delete(agent.id)
+        clearScheduledInit(agent.id)
         if (activeSessions.has(agent.id) || pendingConnections.has(agent.id)) return
 
         const delaySuffix = delay > 0 ? ` in ${Math.round(delay / 1000)}s` : ''
@@ -148,9 +172,10 @@ function scheduleSessionInit(context, agent, reconnectAttempt = 0) {
     if (delay === 0) {
         void run()
     } else {
-        setTimeout(() => {
+        const timer = setTimeout(() => {
             void run()
         }, delay)
+        scheduledInitTimers.set(agent.id, timer)
     }
 }
 
@@ -200,14 +225,14 @@ async function checkAgents() {
                 try { session.socket?.end() } catch (_) { }
                 activeSessions.delete(agent.id)
                 pendingConnections.delete(agent.id)
-                scheduledConnections.delete(agent.id)
+                clearScheduledInit(agent.id)
                 recentlyProcessed.delete(agent.id)
             } else if ((hasActiveSession || hasPendingConnection || hasScheduledConnection) && setupAgeMs >= SETUP_PHASE_STALE_MS) {
                 console.log(`🧯 [CHECK] ${agent.name} stuck in setup for ${Math.round(setupAgeMs / 1000)}s — clearing locks (active=${hasActiveSession}, pending=${hasPendingConnection}, scheduled=${hasScheduledConnection})`)
                 try { session?.socket?.end() } catch (_) { }
                 activeSessions.delete(agent.id)
                 pendingConnections.delete(agent.id)
-                scheduledConnections.delete(agent.id)
+                clearScheduledInit(agent.id)
                 recentlyProcessed.delete(agent.id)
             }
 
