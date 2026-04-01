@@ -11,7 +11,7 @@ const fs = require('fs')
 const path = require('path')
 const useSupabaseAuthState = require('../supabase-auth')
 const { handleMessage } = require('./message')
-const { shouldProcessUpsertMessage, extractInboundMessagePayload } = require('../upsert-helpers')
+const { shouldProcessUpsertMessage, extractInboundMessagePayload, describeInboundMessage } = require('../upsert-helpers')
 const logger = pino({ level: 'warn' })
 
 async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
@@ -341,8 +341,28 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
         // Handle incoming messages
         socket.ev.on('messages.upsert', async ({ messages: msgs, type }) => {
             const actionableMessages = msgs.filter(msg => shouldProcessUpsertMessage(type, msg))
+            const directInboundCandidates = actionableMessages.filter(msg => {
+                const remoteJid = msg?.key?.remoteJid || ''
+                return !msg?.key?.fromMe &&
+                    !!remoteJid &&
+                    !remoteJid.endsWith('@g.us') &&
+                    !remoteJid.includes('@broadcast') &&
+                    !remoteJid.includes('@newsletter') &&
+                    !remoteJid.startsWith('status@')
+            })
+
+            if (directInboundCandidates.length > 0) {
+                const sample = describeInboundMessage(directInboundCandidates[0])
+                console.log(
+                    `📨 [${agentName}] messages.upsert type=${type} raw=${msgs.length} actionable=${actionableMessages.length} direct_inbound=${directInboundCandidates.length} sample_jid=${sample.remoteJid} wrappers=${sample.wrappers.join('>') || 'none'} keys=${sample.topLevelKeys.join(',') || 'none'}`
+                )
+            } else if (msgs.length > 0 && type !== 'notify') {
+                console.log(`📭 [${agentName}] messages.upsert type=${type} raw=${msgs.length} actionable=${actionableMessages.length} direct_inbound=0`)
+            }
+
             if (actionableMessages.length === 0) {
-                console.log(`⏭️ [${agentName}] Ignoring messages.upsert type=${type} (no actionable messages)`)
+                const sample = describeInboundMessage(msgs[0] || {})
+                console.log(`⏭️ [${agentName}] Ignoring messages.upsert type=${type} raw=${msgs.length} actionable=0 sample_jid=${sample.remoteJid || 'none'} wrappers=${sample.wrappers.join('>') || 'none'} keys=${sample.topLevelKeys.join(',') || 'none'}`)
                 return
             }
 
@@ -357,7 +377,8 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
 
                 const inboundPayload = extractInboundMessagePayload(msg)
                 if (!inboundPayload) {
-                    console.log(`⏭️ [${agentName}] Skipping unsupported incoming message inside ${type} batch`)
+                    const sample = describeInboundMessage(msg)
+                    console.log(`⏭️ [${agentName}] Skipping unsupported incoming message inside ${type} batch jid=${sample.remoteJid || 'none'} wrappers=${sample.wrappers.join('>') || 'none'} keys=${sample.topLevelKeys.join(',') || 'none'}`)
                     continue
                 }
 
