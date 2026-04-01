@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { resumeActiveConversationsForAgents } from '@/lib/conversations/resume-agent-conversations'
+import { collectReconnectableAgentIds } from '@/lib/whatsapp/reactivation'
 
 export const DEFAULT_ADMIN_SETTINGS = {
     appName: 'WazzapAI',
@@ -263,12 +264,28 @@ export async function setMaintenanceMode(adminSupabase: SupabaseClient, userId: 
     const ids = Array.isArray(storedValue?.ids) ? storedValue.ids : []
 
     if (ids.length > 0) {
+        const { data: pausedAgents } = await adminSupabase
+            .from('agents')
+            .select('id, is_active, whatsapp_connected, whatsapp_status')
+            .in('id', ids)
+
+        const reconnectableIds = collectReconnectableAgentIds(pausedAgents || [])
+
         const { error: updateError } = await adminSupabase
             .from('agents')
             .update({ is_active: true })
             .in('id', ids)
 
         if (updateError) throw updateError
+
+        if (reconnectableIds.length > 0) {
+            const { error: reconnectError } = await adminSupabase
+                .from('agents')
+                .update({ whatsapp_status: 'connecting' })
+                .in('id', reconnectableIds)
+
+            if (reconnectError) throw reconnectError
+        }
 
         await resumeActiveConversationsForAgents(adminSupabase, ids)
     }

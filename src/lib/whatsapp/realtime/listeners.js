@@ -88,12 +88,19 @@ function setupRealtimeListeners(context) {
             if (whatsapp_status !== 'connecting') return
             console.log('⚡ [REALTIME] Agent connection requested:', name)
             const { initSession } = require('../handlers/session')
-            if (!activeSessions.has(id) && !pendingConnections.has(id)) {
-                if (typeof context.scheduleSessionInit === 'function') {
-                    context.scheduleSessionInit(context, { id, name })
-                } else {
-                    initSession(context, id, name)
-                }
+            const existingSession = activeSessions.get(id)
+            if (existingSession && !pendingConnections.has(id)) {
+                console.log(`♻️ [REALTIME] Recycling existing socket before reconnect (${id})`)
+                try { existingSession.socket.end() } catch (_) { }
+                activeSessions.delete(id)
+            }
+
+            if (pendingConnections.has(id)) return
+
+            if (typeof context.scheduleSessionInit === 'function') {
+                context.scheduleSessionInit(context, { id, name }, 99)
+            } else {
+                initSession(context, id, name, 99)
             }
         })
         // 4. Agents (Deletion — close orphan socket immediately, no polling needed)

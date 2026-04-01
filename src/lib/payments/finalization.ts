@@ -2,6 +2,7 @@ import { checkPaymentStatus } from '@/lib/payments/cinetpay'
 import { isAdminRole } from '@/lib/api-utils'
 import { notifyAdmins } from '@/lib/notifications/admin-notify'
 import { resumeActiveConversationsForAgents } from '@/lib/conversations/resume-agent-conversations'
+import { collectReconnectableAgentIds } from '@/lib/whatsapp/reactivation'
 
 export type PaymentRow = {
     id: string
@@ -351,7 +352,7 @@ export async function finalizePaymentRecord(
 
             const { data: deactivatedAgents } = await adminSupabase
                 .from('agents')
-                .select('id')
+                .select('id, is_active, whatsapp_connected, whatsapp_status')
                 .eq('user_id', payment.user_id)
                 .not('archived_at', 'is', null)
                 .order('whatsapp_connected', { ascending: false })
@@ -361,11 +362,19 @@ export async function finalizePaymentRecord(
                 const toReactivate = agentLimit === -1
                     ? deactivatedAgents
                     : deactivatedAgents.slice(0, agentLimit)
+                const reconnectableIds = collectReconnectableAgentIds(toReactivate)
 
                 await adminSupabase
                     .from('agents')
                     .update({ is_active: true, archived_at: null, archived_reason: null })
                     .in('id', toReactivate.map((a: any) => a.id))
+
+                if (reconnectableIds.length > 0) {
+                    await adminSupabase
+                        .from('agents')
+                        .update({ whatsapp_status: 'connecting' })
+                        .in('id', reconnectableIds)
+                }
 
                 await resumeActiveConversationsForAgents(
                     adminSupabase,
