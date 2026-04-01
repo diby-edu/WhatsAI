@@ -366,6 +366,18 @@ function buildRestaurantOrderPaymentLabel(paymentMethod, fulfillmentMode) {
     return 'Paiement en ligne.'
 }
 
+function buildRestaurantPaymentMethodError(fulfillmentMode) {
+    if (fulfillmentMode === 'takeaway') {
+        return 'MODE DE PAIEMENT MANQUANT OU INVALIDE. Pour une commande a emporter, repondez "en ligne" ou "au retrait".'
+    }
+
+    if (fulfillmentMode === 'delivery') {
+        return 'MODE DE PAIEMENT MANQUANT OU INVALIDE. Pour une commande en livraison, repondez "en ligne" ou "a la livraison".'
+    }
+
+    return 'MODE DE PAIEMENT MANQUANT OU INVALIDE. Utilisez "online" ou "onsite".'
+}
+
 function scoreRestaurantProductMatch(searchName, product) {
     const normalizedSearch = String(searchName || '').trim().toLowerCase()
     const productName = String(product.name || '').trim().toLowerCase()
@@ -409,7 +421,17 @@ function normalizeRestaurantPaymentMethod(rawValue, fulfillmentMode) {
     }
 
     if (['online', 'en ligne', 'payer en ligne'].includes(value)) return 'online'
-    if (['onsite', 'sur place', 'au retrait', 'a la livraison', 'cod', 'cash', 'cash on delivery'].includes(value)) return 'cod'
+
+    if (fulfillmentMode === 'takeaway') {
+        if (['onsite', 'sur place', 'surplace', 'au retrait', 'retrait', 'a l arrivee', 'a l\'arrivee', 'on site', 'cod', 'cash'].includes(value)) return 'cod'
+        return null
+    }
+
+    if (fulfillmentMode === 'delivery') {
+        if (['a la livraison', 'livraison', 'a domicile', 'cod', 'cash', 'cash on delivery'].includes(value)) return 'cod'
+        return null
+    }
+
     return null
 }
 
@@ -896,7 +918,7 @@ async function handleCreateRestaurantCheckout(args, agentId, products, conversat
         if (!paymentMethod) {
             return JSON.stringify({
                 success: false,
-                error: 'MODE DE PAIEMENT MANQUANT OU INVALIDE. Utilisez online ou onsite.'
+                error: buildRestaurantPaymentMethodError(fulfillmentMode)
             })
         }
 

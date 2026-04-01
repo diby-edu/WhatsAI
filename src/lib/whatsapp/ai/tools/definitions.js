@@ -175,7 +175,7 @@ IMPORTANT - VARIANTES :
                     payment_method: {
                         type: 'string',
                         enum: ['online', 'onsite'],
-                        description: 'Paiement en ligne ou sur place / au retrait / à la livraison.'
+                        description: 'Mode de paiement. Pour takeaway: online ou onsite (= au retrait). Pour delivery: online ou onsite (= a la livraison). Pour dine_in/booking_only: online ou onsite (= sur place).'
                     },
                     notes: { type: 'string', description: 'Notes ou demandes particulières.' }
                 },

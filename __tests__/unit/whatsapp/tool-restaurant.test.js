@@ -687,4 +687,33 @@ describe('tool-restaurant', () => {
         expect(rpcCalls[0].params.p_payment_method).toBe('cod')
         expect(rpcCalls[0].params.p_status).toBe('pending_pickup')
     })
+
+    test('rejects delivery-worded payment choices on takeaway orders', async () => {
+        const { handleCreateRestaurantCheckout } = loadTool()
+
+        const { supabase } = createSupabase({
+            agent: {
+                user_id: 'user-1',
+                name: 'Restaurant Lagoon',
+                escalation_phone: '+2250102030405',
+                restaurant_deposit_enabled: false,
+                restaurant_deposit_percentage: 0
+            }
+        })
+
+        const rawResult = await handleCreateRestaurantCheckout({
+            fulfillment_mode: 'takeaway',
+            items: [{ product_name: 'Thieb Poulet', quantity: 1 }],
+            customer_name: 'Awa Konan',
+            customer_phone: '+2250701020304',
+            payment_method: 'a la livraison'
+        }, 'agent-1', restaurantProducts, 'conversation-1', supabase)
+
+        const result = JSON.parse(rawResult)
+
+        expect(result.success).toBe(false)
+        expect(result.error).toMatch(/commande a emporter/i)
+        expect(result.error).toMatch(/en ligne.*au retrait/i)
+        expect(supabase.rpc).not.toHaveBeenCalled()
+    })
 })

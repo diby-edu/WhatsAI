@@ -226,6 +226,56 @@ function isNegativeReply(text) {
     return ['non', 'modifier', 'je veux modifier', 'corriger', 'pas encore'].includes(n)
 }
 
+function extractRestaurantPaymentMethod(text, fulfillmentMode) {
+    const n = normalizeText(text)
+    if (!n) return null
+
+    if (/(en ligne|payer en ligne|paiement en ligne|online)/.test(n)) return 'online'
+
+    if (fulfillmentMode === 'takeaway') {
+        if (/(au retrait|payer au retrait|retrait|sur place|surplace|on site|onsite|cod|cash)/.test(n)) return 'cod'
+        return null
+    }
+
+    if (fulfillmentMode === 'delivery') {
+        if (/(a la livraison|payer a la livraison|livraison|a domicile|cod|cash|cash on delivery)/.test(n)) return 'cod'
+        return null
+    }
+
+    if (fulfillmentMode === 'dine_in' || fulfillmentMode === 'booking_only') {
+        if (/(sur place|surplace|a l arrivee|a l'arrivee|on site|onsite)/.test(n)) return 'onsite'
+        return null
+    }
+
+    return null
+}
+
+function buildRestaurantPaymentPrompt(fulfillmentMode) {
+    if (fulfillmentMode === 'takeaway') return 'Souhaitez-vous payer en ligne ou au retrait ?'
+    if (fulfillmentMode === 'delivery') return 'Souhaitez-vous payer en ligne ou a la livraison ?'
+    return 'Souhaitez-vous payer en ligne ou sur place ?'
+}
+
+function buildRestaurantPaymentClarification(fulfillmentMode) {
+    if (fulfillmentMode === 'takeaway') {
+        return 'Pour une commande a emporter, le paiement se fait soit en ligne, soit au retrait. Repondez "en ligne" ou "au retrait".'
+    }
+
+    if (fulfillmentMode === 'delivery') {
+        return 'Pour une commande en livraison, le paiement se fait soit en ligne, soit a la livraison. Repondez "en ligne" ou "a la livraison".'
+    }
+
+    return buildRestaurantPaymentPrompt(fulfillmentMode)
+}
+
+function formatRestaurantPaymentLabel(fulfillmentMode, paymentMethod) {
+    if (!paymentMethod) return null
+    if (paymentMethod === 'online') return 'En ligne'
+    if (paymentMethod === 'onsite') return 'Sur place'
+    if (paymentMethod === 'cod') return fulfillmentMode === 'delivery' ? 'A la livraison' : 'Au retrait'
+    return paymentMethod
+}
+
 // ═══════════════════════════════════════════════════════════════
 // OFF-TOPIC QUESTION DETECTION
 // ═══════════════════════════════════════════════════════════════
@@ -607,6 +657,14 @@ function captureCustomerFlowFields(state, text, options = {}) {
         }
     }
 
+    if ((mode === 'takeaway' || mode === 'delivery') && !cf.payment_method) {
+        const paymentMethod = extractRestaurantPaymentMethod(text, mode)
+        if (paymentMethod) {
+            cf.payment_method = paymentMethod
+            captured = true
+        }
+    }
+
     state.customer_flow = cf
     return captured
 }
@@ -807,6 +865,10 @@ function buildFinalRecap(state) {
         lines.push(`📝 Notes : ${cf.notes}`)
     }
 
+    if (cf.payment_method) {
+        lines.push(`Paiement : ${formatRestaurantPaymentLabel(state.fulfillment_mode, cf.payment_method)}`)
+    }
+
     lines.push(state.fulfillment_mode === 'takeaway' || state.fulfillment_mode === 'delivery'
         ? 'Confirmez-vous cette commande ?'
         : 'Confirmez-vous ?')
@@ -922,6 +984,14 @@ function buildAwaitingCfField(state) {
             return { type: 'customer_info', label: 'nom complet', prompt: 'Quel est votre nom complet, s\'il vous plaît ? 👤' }
         }
         return { type: 'customer_info', label: 'numero de telephone', prompt: 'Quel est votre numéro de téléphone avec l\'indicatif, s\'il vous plaît ? 📱' }
+    }
+
+    if ((mode === 'takeaway' || mode === 'delivery') && !cf.payment_method) {
+        return {
+            type: 'payment_method',
+            label: 'mode de paiement',
+            prompt: buildRestaurantPaymentPrompt(mode)
+        }
     }
 
     return null
@@ -1320,6 +1390,15 @@ function updateRestaurantStateFromUserMessage(previousState, text, restaurantPro
         state.awaiting_cf_field = buildAwaitingCfField(state)
 
         if (!captured) {
+            if (awaitingType === 'payment_method') {
+                return {
+                    state,
+                    stateChanged: false,
+                    shouldBypassAI: true,
+                    questionDetected: false,
+                    directReply: buildRestaurantPaymentClarification(state.fulfillment_mode)
+                }
+            }
             // Rien capturé → AI reformule la question
             return noOp
         }
