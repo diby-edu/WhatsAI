@@ -124,7 +124,7 @@ describe('restaurant-state.service', () => {
         expect(result.directReply).not.toMatch(/\*BOISSONS\*/i)
     })
 
-    test('captures a takeaway order with command wording and asks for notes before customer info', () => {
+    test('captures a takeaway order with command wording and collects payment before the recap', () => {
         const initial = updateRestaurantStateFromUserMessage(
             {},
             'Je veux commander 2 Plat 01 et 2 Boisson 01 a emporter aujourd hui a 23h',
@@ -138,14 +138,42 @@ describe('restaurant-state.service', () => {
         expect(initial.directReply).toMatch(/commande a emporter/i)
         expect(initial.directReply).toMatch(/demandes particuli/i)
 
-        const recapState = updateRestaurantStateFromUserMessage(initial.state, 'non', restaurantProducts).state
-        const recapWithName = updateRestaurantStateFromUserMessage(recapState, 'koffi test', restaurantProducts).state
-        const recap = updateRestaurantStateFromUserMessage(recapWithName, '+2250707070700', restaurantProducts)
+        const notesDone = updateRestaurantStateFromUserMessage(initial.state, 'non', restaurantProducts).state
+        const withName = updateRestaurantStateFromUserMessage(notesDone, 'koffi test', restaurantProducts).state
+        const paymentPrompt = updateRestaurantStateFromUserMessage(withName, '+2250707070700', restaurantProducts)
+
+        expect(paymentPrompt.state.stage).toBe(RESTAURANT_STAGE.CUSTOMER_FLOW)
+        expect(paymentPrompt.state.awaiting_cf_field?.type).toBe('payment_method')
+        expect(paymentPrompt.directReply).toMatch(/en ligne ou au retrait/i)
+        expect(paymentPrompt.directReply).not.toMatch(/a la livraison/i)
+
+        const recap = updateRestaurantStateFromUserMessage(paymentPrompt.state, 'au retrait', restaurantProducts)
 
         expect(recap.state.stage).toBe(RESTAURANT_STAGE.RECAP)
+        expect(recap.state.customer_flow.payment_method).toBe('cod')
+        expect(recap.directReply).toContain('Paiement : Au retrait')
         expect(recap.directReply).toMatch(/Récapitulatif de votre commande/i)
         expect(recap.directReply).toMatch(/Confirmez-vous cette commande/i)
         expect(recap.directReply).not.toMatch(/Récapitulatif de votre réservation/i)
+    })
+
+    test('keeps asking for a takeaway payment choice when the user answers with a delivery wording', () => {
+        const initial = updateRestaurantStateFromUserMessage(
+            {},
+            'Je veux commander 2 Plat 01 et 2 Boisson 01 a emporter aujourd hui a 23h',
+            restaurantProducts
+        )
+
+        const notesDone = updateRestaurantStateFromUserMessage(initial.state, 'non', restaurantProducts).state
+        const withName = updateRestaurantStateFromUserMessage(notesDone, 'koffi test', restaurantProducts).state
+        const paymentPrompt = updateRestaurantStateFromUserMessage(withName, '+2250707070700', restaurantProducts)
+        const invalidReply = updateRestaurantStateFromUserMessage(paymentPrompt.state, 'a la livraison', restaurantProducts)
+
+        expect(invalidReply.state.stage).toBe(RESTAURANT_STAGE.CUSTOMER_FLOW)
+        expect(invalidReply.state.awaiting_cf_field?.type).toBe('payment_method')
+        expect(invalidReply.state.customer_flow.payment_method).toBeNull()
+        expect(invalidReply.directReply).toMatch(/commande a emporter/i)
+        expect(invalidReply.directReply).toMatch(/en ligne.*au retrait/i)
     })
 
     test('restarts a fresh restaurant reservation from DEPOSIT state when the client sends a new detailed request', () => {
