@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
 import { resumeActiveConversationsForAgents } from '@/lib/conversations/resume-agent-conversations'
+import { shouldRequestWhatsAppReconnect } from '@/lib/whatsapp/reactivation'
 
 function normalizeRestaurantDepositSettings(body: any) {
     const enabled = !!body.restaurant_deposit_enabled
@@ -147,12 +148,15 @@ export async function PATCH(
         if (updates.is_active === true) {
             const { data: currentAgent } = await supabase
                 .from('agents')
-                .select('is_active')
+                .select('is_active, whatsapp_connected, whatsapp_status')
                 .eq('id', id)
                 .single()
 
             if (currentAgent && !currentAgent.is_active) {
                 reactivatingAgent = true
+                if (shouldRequestWhatsAppReconnect(currentAgent)) {
+                    updates.whatsapp_status = 'connecting'
+                }
                 const { data: profile } = await supabase
                     .from('profiles')
                     .select('plan')
