@@ -1,5 +1,31 @@
 const { initAuthCreds, BufferJSON, proto } = require('@whiskeysockets/baileys')
 
+const AUTH_RETRY_DELAYS_MS = [0, 250, 750]
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+async function withRetry(operationName, fn) {
+    let lastError = null
+
+    for (let attempt = 0; attempt < AUTH_RETRY_DELAYS_MS.length; attempt++) {
+        if (AUTH_RETRY_DELAYS_MS[attempt] > 0) {
+            await sleep(AUTH_RETRY_DELAYS_MS[attempt])
+        }
+
+        try {
+            return await fn()
+        } catch (error) {
+            lastError = error
+            const retriesLeft = AUTH_RETRY_DELAYS_MS.length - attempt - 1
+            console.warn(`[SupabaseAuth] ${operationName} failed (attempt ${attempt + 1}/${AUTH_RETRY_DELAYS_MS.length}, retries left=${retriesLeft}):`, error.message || error)
+        }
+    }
+
+    throw lastError
+}
+
 /**
  * Custom Auth Adapter for Baileys using Supabase (CommonJS)
  * Stores sessions in 'whatsapp_sessions' table
@@ -8,19 +34,52 @@ const { initAuthCreds, BufferJSON, proto } = require('@whiskeysockets/baileys')
  * @param {string} sessionId 
  */
 module.exports = async function useSupabaseAuthState(supabase, sessionId) {
+    const sessionCache = new Map()
+    let cacheLoaded = false
+
+    const loadSessionCache = async ({ force = false } = {}) => {
+        if (cacheLoaded && !force) {
+            return
+        }
+
+        const rows = await withRetry(`preload session ${sessionId}`, async () => {
+            const { data, error } = await supabase
+                .from('whatsapp_sessions')
+                .select('key_id, data')
+                .eq('session_id', sessionId)
+
+            if (error) throw error
+            return data || []
+        })
+
+        sessionCache.clear()
+        for (const row of rows) {
+            try {
+                sessionCache.set(row.key_id, JSON.parse(row.data, BufferJSON.reviver))
+            } catch (error) {
+                console.error(`[SupabaseAuth] Failed to parse cached key ${row.key_id}:`, error)
+            }
+        }
+
+        cacheLoaded = true
+        console.log(`[SupabaseAuth] Preloaded ${rows.length} auth row(s) for session ${sessionId}`)
+    }
 
     // Helper to write data to DB
     const writeData = async (data, key) => {
+        sessionCache.set(key, data)
         try {
-            await supabase
-                .from('whatsapp_sessions')
-                .upsert({
-                    session_id: sessionId,
-                    key_id: key,
-                    data: JSON.stringify(data, BufferJSON.replacer),
-                    updated_at: new Date().toISOString()
-                })
-                .throwOnError()
+            await withRetry(`save key ${key}`, async () => {
+                await supabase
+                    .from('whatsapp_sessions')
+                    .upsert({
+                        session_id: sessionId,
+                        key_id: key,
+                        data: JSON.stringify(data, BufferJSON.replacer),
+                        updated_at: new Date().toISOString()
+                    })
+                    .throwOnError()
+            })
         } catch (error) {
             console.error(`[SupabaseAuth] Failed to save key ${key}:`, error)
         }
@@ -29,39 +88,34 @@ module.exports = async function useSupabaseAuthState(supabase, sessionId) {
     // Helper to read data from DB
     const readData = async (key) => {
         try {
-            const { data, error } = await supabase
-                .from('whatsapp_sessions')
-                .select('data')
-                .eq('session_id', sessionId)
-                .eq('key_id', key)
-                .maybeSingle()
-
-            if (error) throw error
-            if (!data) return null
-
-            return JSON.parse(data.data, BufferJSON.reviver)
+            await loadSessionCache()
+            return sessionCache.has(key) ? sessionCache.get(key) : null
         } catch (error) {
             console.error(`[SupabaseAuth] Failed to read key ${key}:`, error)
-            return null
+            throw error
         }
     }
 
     // Helper to delete data from DB
     const removeData = async (key) => {
+        sessionCache.delete(key)
         try {
-            await supabase
-                .from('whatsapp_sessions')
-                .delete()
-                .eq('session_id', sessionId)
-                .eq('key_id', key)
-                .throwOnError()
+            await withRetry(`remove key ${key}`, async () => {
+                await supabase
+                    .from('whatsapp_sessions')
+                    .delete()
+                    .eq('session_id', sessionId)
+                    .eq('key_id', key)
+                    .throwOnError()
+            })
         } catch (error) {
             console.error(`[SupabaseAuth] Failed to remove key ${key}:`, error)
         }
     }
 
     // 1. Load Credentials (creds.json)
-    const creds = (await readData('creds')) || initAuthCreds()
+    await loadSessionCache()
+    const creds = sessionCache.get('creds') || initAuthCreds()
 
     return {
         state: {
