@@ -1,7 +1,7 @@
 ﻿import { NextRequest } from 'next/server'
 import { errorResponse, successResponse } from '@/lib/api-utils'
 import { requireAdminAccess } from '@/lib/admin/auth'
-import { getAgentOperationalMetrics } from '@/lib/admin/monitoring'
+import { getAgentOperationalMetrics, getWhatsAppRiskReport } from '@/lib/admin/monitoring'
 
 async function probeBotService() {
     try {
@@ -37,9 +37,10 @@ export async function GET(request: NextRequest) {
     if (response || !adminSupabase) return response!
 
     try {
-        const [whatsappService, agentConnections] = await Promise.all([
+        const [whatsappService, agentConnections, riskReport] = await Promise.all([
             probeBotService(),
             getAgentOperationalMetrics(adminSupabase),
+            getWhatsAppRiskReport(adminSupabase),
         ])
 
         return successResponse({
@@ -50,6 +51,7 @@ export async function GET(request: NextRequest) {
                 details: `A connecter: ${agentConnections.qr_ready} | A reconnecter: ${agentConnections.reconnect_required} | Pause: ${agentConnections.paused}`,
                 ...agentConnections,
             },
+            riskReport,
         })
     } catch (err: any) {
         console.error('WhatsApp service diagnostics error:', err)

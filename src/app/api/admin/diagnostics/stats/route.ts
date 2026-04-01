@@ -1,6 +1,6 @@
 import { errorResponse, successResponse } from '@/lib/api-utils'
 import { requireAdminAccess } from '@/lib/admin/auth'
-import { getAgentOperationalMetrics } from '@/lib/admin/monitoring'
+import { getAgentOperationalMetrics, getWhatsAppRiskReport } from '@/lib/admin/monitoring'
 
 export async function GET() {
     const { response, adminSupabase } = await requireAdminAccess()
@@ -20,6 +20,7 @@ export async function GET() {
             ordersResult,
             pendingOrdersResult,
             agentMetrics,
+            riskReport,
         ] = await Promise.all([
             adminSupabase.from('profiles').select('*', { count: 'exact', head: true }),
             adminSupabase
@@ -33,6 +34,7 @@ export async function GET() {
             adminSupabase.from('orders').select('*', { count: 'exact', head: true }),
             adminSupabase.from('orders').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
             getAgentOperationalMetrics(adminSupabase),
+            getWhatsAppRiskReport(adminSupabase),
         ])
 
         const totalCreditsUsed = (creditsResult.data || []).reduce((sum: number, profile: any) => {
@@ -47,6 +49,7 @@ export async function GET() {
             qrReadyAgents: agentMetrics.qr_ready || 0,
             reconnectAgents: agentMetrics.reconnect_required || 0,
             pausedAgents: agentMetrics.paused || 0,
+            whatsappAtRiskAgents: riskReport.total || 0,
             totalConversations: conversationsResult.count || 0,
             totalMessages: messagesResult.count || 0,
             totalCreditsUsed,
