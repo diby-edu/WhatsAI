@@ -216,8 +216,9 @@ ${formattedHours !== 'Non spécifiés' ? `⏰ ${formattedHours}` : ''}
 - âš ï¸ N'annonce JAMAIS qu'un lien de paiement sera gÃ©nÃ©rÃ© automatiquement aprÃ¨s create_booking, sauf si le systÃ¨me l'a explicitement retournÃ©.`
     } else if (!agent.payment_mode || agent.payment_mode === 'cinetpay') {
         paymentSection = `
-💳 PAIEMENT EN LIGNE (CinetPay) :
+💳 LIEN DE PAIEMENT AUTOMATIQUE :
 Quand le client choisit "payer en ligne", le système génère automatiquement un lien de paiement sécurisé après create_order.
+Le fournisseur actif de la plateforme est utilisé automatiquement.
 ⚠️ RÈGLE : Transmets le lien de paiement au client EXACTEMENT tel que retourné par le système. Ne l'invente pas.`
     } else if (agent.payment_mode === 'mobile_money_direct') {
         const mmLines = []
@@ -236,7 +237,7 @@ Quand le client choisit "payer en ligne", le système génère automatiquement u
         }
         if (mmLines.length > 0) {
             paymentSection = `
-💳 PAIEMENT EN LIGNE (Mobile Money Direct) :
+💳 PAIEMENT MANUEL :
 Quand le client choisit "payer en ligne", réponds simplement "D'accord, les instructions de paiement vous seront envoyées avec la confirmation de commande."
 ⚠️ NE PAS lister les numéros ici — ils sont inclus automatiquement dans le message de confirmation. Ne les affiche pas avant la création de la commande.`
         }

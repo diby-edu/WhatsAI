@@ -75,6 +75,8 @@ function normalizeBookingPaymentMethod(value) {
         normalized === 'online' ||
         normalized.includes('en ligne') ||
         normalized.includes('online') ||
+        normalized.includes('lien de paiement') ||
+        normalized.includes('paiement automatique') ||
         normalized.includes('mobile money') ||
         normalized.includes('cinetpay') ||
         normalized.includes('carte') ||
