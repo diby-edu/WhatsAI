@@ -48,8 +48,12 @@ export default function OrderPaymentPage() {
             setItems(data.items || [])
 
             const isDepositPaid = data.order.deposit_required && data.order.deposit_status === 'paid'
+            const paystackReference = searchParams.get('reference') || searchParams.get('trxref')
+
             if (data.order.status === 'paid' || isDepositPaid) {
                 setStatus('success')
+            } else if (paystackReference) {
+                await verifyReturnPayment(paystackReference)
             } else if (searchParams.get('status') === 'success' && data.order.transaction_id) {
                 await verifyReturnPayment(data.order.transaction_id)
             } else if (searchParams.get('status') === 'cancelled') {

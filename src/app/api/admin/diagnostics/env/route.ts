@@ -12,6 +12,8 @@ const requiredEnvVars = [
 
 const optionalEnvVars = [
     'CINETPAY_SECRET_KEY',
+    'PAYSTACK_SECRET_KEY',
+    'PAYSTACK_PUBLIC_KEY',
     'WHATSAPP_API_URL',
     'UPSTASH_REDIS_REST_URL',
     'UPSTASH_REDIS_REST_TOKEN',

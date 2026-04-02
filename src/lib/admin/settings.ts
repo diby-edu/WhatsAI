@@ -17,6 +17,7 @@ export const DEFAULT_ADMIN_SETTINGS = {
     maxAgentsBusiness: 6,
     cinetpayMode: 'sandbox',
     cinetpaySiteId: '********',
+    defaultPaymentProvider: 'cinetpay',
     currency: 'XOF',
     defaultCommissionRate: 10,
     emailNotifications: true,

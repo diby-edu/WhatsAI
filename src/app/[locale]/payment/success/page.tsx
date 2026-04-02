@@ -8,7 +8,7 @@ import { CheckCircle2, XCircle, Loader2, ArrowRight, CreditCard, RefreshCw } fro
 
 function PaymentSuccessContent() {
     const searchParams = useSearchParams()
-    const transactionId = searchParams.get('transaction_id')
+    const transactionId = searchParams.get('transaction_id') || searchParams.get('reference') || searchParams.get('trxref')
     const transactionKind = transactionId?.startsWith('BKG_')
         ? 'booking'
         : transactionId?.startsWith('ORD_')

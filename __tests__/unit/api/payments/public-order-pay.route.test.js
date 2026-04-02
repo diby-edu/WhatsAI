@@ -25,6 +25,9 @@ const { NextRequest, NextResponse } = require('next/server')
 const mockCreateClient = jest.fn()
 const mockCheckRateLimit = jest.fn()
 const mockGetClientIdentifier = jest.fn()
+const mockGetDefaultPaymentProvider = jest.fn()
+const mockInitializeHostedPayment = jest.fn()
+const mockNormalizePaymentProvider = jest.fn((value) => value || 'cinetpay')
 
 jest.mock('@supabase/supabase-js', () => ({
     createClient: (...args) => mockCreateClient(...args)
@@ -35,6 +38,12 @@ jest.mock('@/lib/rate-limit', () => ({
     getClientIdentifier: (...args) => mockGetClientIdentifier(...args),
     RATE_LIMITS: { payment: { limit: 10, windowMs: 60_000 } },
     rateLimitResponse: (resetTime) => NextResponse.json({ error: 'rate_limited', resetTime }, { status: 429 })
+}))
+
+jest.mock('@/lib/payments/provider', () => ({
+    getDefaultPaymentProvider: (...args) => mockGetDefaultPaymentProvider(...args),
+    initializeHostedPayment: (...args) => mockInitializeHostedPayment(...args),
+    normalizePaymentProvider: (...args) => mockNormalizePaymentProvider(...args),
 }))
 
 process.env.CINETPAY_API_KEY = 'api_key'
@@ -73,16 +82,17 @@ function makeRequest() {
 }
 
 describe('POST /api/public/orders/[orderId]/pay', () => {
-    const originalFetch = global.fetch
-
     beforeEach(() => {
         jest.clearAllMocks()
         mockGetClientIdentifier.mockReturnValue('client-1')
         mockCheckRateLimit.mockResolvedValue({ success: true })
-    })
-
-    afterAll(() => {
-        global.fetch = originalFetch
+        mockGetDefaultPaymentProvider.mockResolvedValue('cinetpay')
+        mockInitializeHostedPayment.mockResolvedValue({
+            success: true,
+            paymentUrl: 'https://pay.example/order-deposit',
+            providerVersion: 'v1',
+            providerTransactionId: 'ORD_provider_tx'
+        })
     })
 
     test('charges the restaurant deposit amount instead of the full order total when deposit is pending', async () => {
@@ -99,14 +109,6 @@ describe('POST /api/public/orders/[orderId]/pay', () => {
         const updates = []
 
         mockCreateClient.mockReturnValue(createSupabaseMock({ order, updates }))
-        global.fetch = jest.fn().mockResolvedValue({
-            json: async () => ({
-                code: '201',
-                data: {
-                    payment_url: 'https://pay.example/order-deposit'
-                }
-            })
-        })
 
         const response = await POST(makeRequest(), { params: Promise.resolve({ orderId: 'order_123' }) })
         const json = await response.json()
@@ -116,13 +118,12 @@ describe('POST /api/public/orders/[orderId]/pay', () => {
             success: true,
             payment_url: 'https://pay.example/order-deposit'
         }))
-        expect(global.fetch).toHaveBeenCalledTimes(1)
-
-        const [, fetchOptions] = global.fetch.mock.calls[0]
-        const payload = JSON.parse(fetchOptions.body)
-        expect(payload.amount).toBe(6000)
-        expect(payload.description).toMatch(/Acompte commande/)
-        expect(payload.metadata).toContain('"type":"order_deposit"')
+        expect(mockInitializeHostedPayment).toHaveBeenCalledWith(expect.objectContaining({
+            provider: 'cinetpay',
+            amountFcfa: 6000,
+            description: expect.stringMatching(/Acompte commande/),
+            metadata: { order_id: 'order_123', type: 'order_deposit' }
+        }))
 
         expect(updates).toHaveLength(1)
         expect(updates[0]).toEqual(expect.objectContaining({
@@ -130,8 +131,52 @@ describe('POST /api/public/orders/[orderId]/pay', () => {
             value: 'order_123',
             payload: expect.objectContaining({
                 updated_at: expect.any(String),
-                transaction_id: expect.stringMatching(/^ORD_/)
+                transaction_id: expect.stringMatching(/^ORD_/),
+                payment_provider: 'cinetpay',
+                provider_payment_url: 'https://pay.example/order-deposit'
             })
+        }))
+    })
+
+    test('uses Paystack when the default provider is set to paystack', async () => {
+        const order = {
+            id: 'order_123',
+            status: 'pending_pickup',
+            total_fcfa: 17600,
+            deposit_required: false,
+            deposit_amount_fcfa: 0,
+            deposit_status: 'not_required',
+            payment_method: 'online',
+            customer_phone: '+2250701020304',
+            payment_provider: null
+        }
+        const updates = []
+
+        mockGetDefaultPaymentProvider.mockResolvedValue('paystack')
+        mockCreateClient.mockReturnValue(createSupabaseMock({ order, updates }))
+        mockInitializeHostedPayment.mockResolvedValue({
+            success: true,
+            paymentUrl: 'https://checkout.paystack.com/abc123',
+            providerVersion: 'v1',
+            providerTransactionId: 'ORD_paystack_ref'
+        })
+
+        const response = await POST(makeRequest(), { params: Promise.resolve({ orderId: 'order_123' }) })
+        const json = await response.json()
+
+        expect(response.status).toBe(200)
+        expect(json).toEqual(expect.objectContaining({
+            success: true,
+            payment_url: 'https://checkout.paystack.com/abc123',
+            provider: 'paystack'
+        }))
+        expect(mockInitializeHostedPayment).toHaveBeenCalledWith(expect.objectContaining({
+            provider: 'paystack',
+            amountFcfa: 17600
+        }))
+        expect(updates[0].payload).toEqual(expect.objectContaining({
+            payment_provider: 'paystack',
+            provider_payment_url: 'https://checkout.paystack.com/abc123'
         }))
     })
 })

@@ -89,7 +89,7 @@ export default function AdminPaymentPage() {
         fetchPayments()
     }
 
-    // Verify payment status via CinetPay API
+    // Verify payment status via the configured provider
     const verifyPaymentStatus = async (transactionId: string) => {
         setCheckingPayment(transactionId)
         try {
@@ -204,7 +204,7 @@ export default function AdminPaymentPage() {
                     Gestion des Paiements
                 </h1>
                 <p style={{ color: '#64748b', fontSize: 13 }}>
-                    Consultez et vérifiez les paiements CinetPay
+                    Consultez et vérifiez les paiements en ligne
                 </p>
             </div>
 
@@ -487,7 +487,7 @@ export default function AdminPaymentPage() {
                     <form onSubmit={handleManualVerify} style={{ display: 'flex', gap: 12 }}>
                         <input
                             type="text"
-                            placeholder="ID de transaction CinetPay"
+                            placeholder="ID de transaction"
                             value={verifyTransactionId}
                             onChange={(e) => setVerifyTransactionId(e.target.value)}
                             style={{

@@ -1,16 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { checkRateLimit, getClientIdentifier, RATE_LIMITS, rateLimitResponse } from '@/lib/rate-limit'
-import { initializePaymentV2, shouldUseCinetPayV2ForAgent } from '@/lib/payments/cinetpay-v2'
+import { getDefaultPaymentProvider, initializeHostedPayment, normalizePaymentProvider } from '@/lib/payments/provider'
 
 const getSupabase = () => createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
-
-const CINETPAY_API_KEY = process.env.CINETPAY_API_KEY
-const CINETPAY_SITE_ID = process.env.CINETPAY_SITE_ID
-const CINETPAY_BASE_URL = 'https://api-checkout.cinetpay.com/v2/payment'
 
 export async function POST(
     request: NextRequest,
@@ -50,106 +46,65 @@ export async function POST(
             return NextResponse.json({ error: 'Montant de paiement invalide' }, { status: 400 })
         }
 
-        const transactionId = `ORD_${orderId.substring(0, 8)}_${Date.now()}`
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://wazzapai.com'
-        const useCinetPayV2 = shouldUseCinetPayV2ForAgent(order.agent_id)
-
-        if (!useCinetPayV2 && (!CINETPAY_API_KEY || !CINETPAY_SITE_ID)) {
-            return NextResponse.json({ error: 'CinetPay non configure' }, { status: 500 })
-        }
-
-        if (useCinetPayV2) {
-            const result = await initializePaymentV2({
-                amount: amountToCharge,
-                currency: 'XOF',
-                merchantTransactionId: transactionId,
-                designation: isDepositPayment
-                    ? `Acompte commande #${orderId.substring(0, 8)}`
-                    : `Commande #${orderId.substring(0, 8)}`,
-                clientFullName: order.customer_name || 'Client',
-                clientPhoneNumber: order.customer_phone || '',
-                successUrl: `${baseUrl}/pay/${orderId}?status=success`,
-                failedUrl: `${baseUrl}/pay/${orderId}?status=cancelled`,
-                notifyUrl: `${baseUrl}/api/payments/cinetpay/webhook`,
-            })
-
-            if (!result.success || !result.paymentUrl) {
-                return NextResponse.json({
-                    error: result.error || 'Erreur CinetPay',
-                    details: result.raw || result
-                }, { status: 400 })
-            }
-
-            await getSupabase().from('orders').update({
-                transaction_id: transactionId,
-                provider_transaction_id: result.providerTransactionId || null,
-                provider_payment_url: result.paymentUrl,
-                provider_notify_token: result.notifyToken || null,
-                payment_provider_version: 'v2',
-                updated_at: new Date().toISOString()
-            }).eq('id', orderId)
-
+        if (order.transaction_id && order.provider_payment_url) {
             return NextResponse.json({
                 success: true,
-                payment_url: result.paymentUrl,
-                transaction_id: transactionId
+                payment_url: order.provider_payment_url,
+                transaction_id: order.transaction_id,
+                provider: normalizePaymentProvider(order.payment_provider)
             })
         }
 
-        const payload = {
-            apikey: CINETPAY_API_KEY,
-            site_id: CINETPAY_SITE_ID,
-            transaction_id: transactionId,
-            amount: amountToCharge,
+        const transactionId = `ORD_${orderId.substring(0, 8)}_${Date.now()}`
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://wazzapai.com'
+        const adminSupabase = getSupabase()
+        const defaultProvider = await getDefaultPaymentProvider(adminSupabase)
+        const paymentProvider = normalizePaymentProvider(order.payment_provider || defaultProvider)
+        const result = await initializeHostedPayment({
+            provider: paymentProvider,
+            amountFcfa: amountToCharge,
             currency: 'XOF',
+            transactionId,
             description: isDepositPayment
                 ? `Acompte commande #${orderId.substring(0, 8)}`
                 : `Commande #${orderId.substring(0, 8)}`,
-            notify_url: `${baseUrl}/api/payments/cinetpay/webhook`,
-            return_url: `${baseUrl}/pay/${orderId}?status=success`,
-            cancel_url: `${baseUrl}/pay/${orderId}?status=cancelled`,
-            channels: 'ALL',
-            customer_id: orderId,
-            customer_name: 'Client',
-            customer_surname: '',
-            customer_phone_number: order.customer_phone || '',
-            metadata: JSON.stringify({
+            customerName: order.customer_name || 'Client',
+            customerPhone: order.customer_phone || '',
+            returnUrl: `${baseUrl}/pay/${orderId}`,
+            failedUrl: `${baseUrl}/pay/${orderId}?payment=cancelled`,
+            notifyUrl: `${baseUrl}/api/payments/${paymentProvider}/webhook`,
+            metadata: {
                 order_id: orderId,
                 type: isDepositPayment ? 'order_deposit' : 'order_payment'
-            })
-        }
-
-        const response = await fetch(CINETPAY_BASE_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
             },
-            body: JSON.stringify(payload)
+            agentId: order.agent_id
         })
 
-        const result = await response.json()
-        console.log('CinetPay response:', result)
-
-        if (result.code === '201') {
-            await getSupabase().from('orders').update({
-                transaction_id: transactionId,
-                payment_provider_version: 'v1',
-                updated_at: new Date().toISOString()
-            }).eq('id', orderId)
-
+        if (!result.success || !result.paymentUrl) {
             return NextResponse.json({
-                success: true,
-                payment_url: result.data.payment_url,
-                transaction_id: transactionId
-            })
+                error: result.error || 'Erreur de paiement',
+                details: result.raw || result
+            }, { status: 400 })
         }
 
+        await adminSupabase.from('orders').update({
+            transaction_id: transactionId,
+            payment_provider: paymentProvider,
+            provider_transaction_id: result.providerTransactionId || null,
+            provider_payment_url: result.paymentUrl,
+            provider_notify_token: result.providerNotifyToken || null,
+            payment_provider_version: result.providerVersion || 'v1',
+            updated_at: new Date().toISOString()
+        }).eq('id', orderId)
+
         return NextResponse.json({
-            error: result.message || 'Erreur CinetPay',
-            details: result
-        }, { status: 400 })
+            success: true,
+            payment_url: result.paymentUrl,
+            transaction_id: transactionId,
+            provider: paymentProvider
+        })
     } catch (err: any) {
-        console.error('CinetPay initiation error:', err)
+        console.error('Hosted payment initiation error:', err)
         return NextResponse.json({ error: err.message || 'Erreur serveur' }, { status: 500 })
     }
 }
