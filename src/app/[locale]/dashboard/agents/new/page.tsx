@@ -22,6 +22,15 @@ import {
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { Clock, Shield, MapPin, Globe } from 'lucide-react'
+import {
+    AUTOMATIC_PAYMENT_MODE_DESCRIPTION,
+    AUTOMATIC_PAYMENT_MODE_HINT,
+    AUTOMATIC_PAYMENT_MODE_LABEL,
+    MANUAL_PAYMENT_METHODS_LABEL,
+    MANUAL_PAYMENT_MODE_DESCRIPTION,
+    MANUAL_PAYMENT_MODE_HINT,
+    MANUAL_PAYMENT_MODE_LABEL,
+} from '@/lib/payments/payment-mode-display'
 
 export default function NewAgentPage() {
     const t = useTranslations('Agents')
@@ -1463,8 +1472,9 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
                                             cursor: 'pointer'
                                         }}
                                     >
-                                        <div style={{ fontWeight: 600, color: 'white' }}>🔄 CinetPay (Automatique)</div>
-                                        <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 4 }}>Lien de paiement sécurisé</div>
+                                        <div style={{ fontWeight: 600, color: 'white' }}>{AUTOMATIC_PAYMENT_MODE_LABEL}</div>
+                                        <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 4 }}>{AUTOMATIC_PAYMENT_MODE_DESCRIPTION}</div>
+                                        <div style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>{AUTOMATIC_PAYMENT_MODE_HINT}</div>
                                     </div>
                                 )}
                                 <div
@@ -1477,9 +1487,12 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
                                         cursor: 'pointer'
                                     }}
                                 >
-                                    <div style={{ fontWeight: 600, color: 'white' }}>📱 Mobile Money / Manuel</div>
+                                    <div style={{ fontWeight: 600, color: 'white' }}>{MANUAL_PAYMENT_MODE_LABEL}</div>
                                     <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 4 }}>
-                                        {isSupportClient ? 'Seul mode disponible (Support Client)' : 'Vérification manuelle'}
+                                        {MANUAL_PAYMENT_MODE_DESCRIPTION}
+                                    </div>
+                                    <div style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
+                                        {isSupportClient ? 'Seul mode disponible (Support Client).' : MANUAL_PAYMENT_MODE_HINT}
                                     </div>
                                 </div>
                             </div>
@@ -1489,7 +1502,7 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
                         {formData.payment_mode === 'mobile_money_direct' && (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 16 }}>
                                 <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0' }}>
-                                    Vos Numéros Mobile Money
+                                    {MANUAL_PAYMENT_METHODS_LABEL}
                                 </label>
                                 <div className="agent-grid-2">
                                     <div>

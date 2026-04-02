@@ -7,6 +7,7 @@ import {
     Loader2, RefreshCw, Package, Truck, CreditCard, ArrowLeft, Download, X
 } from 'lucide-react'
 import Link from 'next/link'
+import { resolveOrderPaymentDisplay } from '@/lib/payments/payment-mode-display'
 
 interface Order {
     id: string
@@ -18,6 +19,7 @@ interface Order {
     delivery_address: string | null
     agent_name?: string
     agent_payment_mode?: string
+    payment_provider?: string | null
     user_email?: string
     items_count?: number
     payment_method?: string
@@ -111,6 +113,17 @@ export default function AdminOrdersPage() {
             case 'shipped': return { bg: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa' }
             case 'delivered': return { bg: 'rgba(16, 185, 129, 0.15)', color: '#34d399' }
             default: return { bg: 'rgba(100, 116, 139, 0.15)', color: '#94a3b8' }
+        }
+    }
+
+    const getPaymentBadgeStyle = (mode: 'online' | 'manual' | 'onsite') => {
+        switch (mode) {
+            case 'online':
+                return { background: 'rgba(52, 211, 153, 0.15)', color: '#34d399' }
+            case 'manual':
+                return { background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b' }
+            default:
+                return { background: 'rgba(251, 146, 60, 0.15)', color: '#fb923c' }
         }
     }
 
@@ -330,19 +343,28 @@ export default function AdminOrdersPage() {
                                             )}
                                         </td>
                                         <td style={{ padding: '14px 16px' }}>
-                                            {(order.payment_method === 'online' || (!order.payment_method && order.agent_payment_mode === 'cinetpay') || (!order.payment_method && !order.agent_payment_mode)) ? (
-                                                <span style={{ padding: '3px 8px', borderRadius: 100, fontSize: 11, fontWeight: 600, background: 'rgba(52, 211, 153, 0.15)', color: '#34d399' }}>
-                                                    CinetPay
-                                                </span>
-                                            ) : order.payment_method === 'mobile_money_direct' ? (
-                                                <span style={{ padding: '3px 8px', borderRadius: 100, fontSize: 11, fontWeight: 600, background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b' }}>
-                                                    Mobile Money
-                                                </span>
-                                            ) : (
-                                                <span style={{ padding: '3px 8px', borderRadius: 100, fontSize: 11, fontWeight: 600, background: 'rgba(251, 146, 60, 0.15)', color: '#fb923c' }}>
-                                                    Sur place
-                                                </span>
-                                            )}
+                                            {(() => {
+                                                const paymentDisplay = resolveOrderPaymentDisplay({
+                                                    paymentMethod: order.payment_method,
+                                                    agentPaymentMode: order.agent_payment_mode,
+                                                    fulfillmentMode: order.fulfillment_mode,
+                                                    paymentProvider: order.payment_provider,
+                                                })
+                                                const badgeStyle = getPaymentBadgeStyle(paymentDisplay.mode)
+
+                                                return (
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                                        <span style={{ padding: '3px 8px', borderRadius: 100, fontSize: 11, fontWeight: 600, background: badgeStyle.background, color: badgeStyle.color, width: 'fit-content' }}>
+                                                            {paymentDisplay.modeLabel}
+                                                        </span>
+                                                        {paymentDisplay.usesHostedProvider && (
+                                                            <div style={{ fontSize: 11, color: '#94a3b8' }}>
+                                                                {paymentDisplay.providerLabel || 'Fournisseur actif'}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )
+                                            })()}
                                         </td>
                                         <td style={{ padding: '14px 16px' }}>
                                             <span style={{
@@ -425,7 +447,12 @@ export default function AdminOrdersPage() {
                             </button>
                             <h2 style={{ fontSize: 18, fontWeight: 700, color: 'white', marginBottom: 16 }}>Commande #{viewOrder.id?.substring(0, 8)}</h2>
                             {(() => {
-                                const isCinetPay = viewOrder.payment_method === 'cinetpay' || viewOrder.agent_payment_mode === 'cinetpay' || (!viewOrder.payment_method && !viewOrder.agent_payment_mode)
+                                const paymentDisplay = resolveOrderPaymentDisplay({
+                                    paymentMethod: viewOrder.payment_method,
+                                    agentPaymentMode: viewOrder.agent_payment_mode,
+                                    fulfillmentMode: viewOrder.fulfillment_mode,
+                                    paymentProvider: viewOrder.payment_provider,
+                                })
                                 const types = (viewOrder.items || []).map((i: any) => i.product_type).filter(Boolean)
                                 const uniqueTypes = [...new Set(types)] as string[]
                                 const typeLabels: Record<string, string> = { physical: 'Physique', digital: 'Numérique', service: 'Service' }
@@ -441,11 +468,26 @@ export default function AdminOrdersPage() {
                                         <Row label="Total" value={`${viewOrder.total_fcfa?.toLocaleString('fr-FR')} FCFA`} />
                                         <Row label="Statut" value={viewOrder.status?.toUpperCase()} />
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <span style={{ color: '#64748b', fontSize: 13 }}>Paiement</span>
-                                            <span style={{ padding: '3px 8px', borderRadius: 100, fontSize: 11, fontWeight: 600, background: isCinetPay ? 'rgba(52, 211, 153, 0.15)' : 'rgba(251, 146, 60, 0.15)', color: isCinetPay ? '#34d399' : '#fb923c' }}>
-                                                {isCinetPay ? 'CinetPay' : 'Paiement direct'}
+                                            <span style={{ color: '#64748b', fontSize: 13 }}>Mode de paiement</span>
+                                            <span
+                                                style={{
+                                                    padding: '3px 8px',
+                                                    borderRadius: 100,
+                                                    fontSize: 11,
+                                                    fontWeight: 600,
+                                                    background: getPaymentBadgeStyle(paymentDisplay.mode).background,
+                                                    color: getPaymentBadgeStyle(paymentDisplay.mode).color,
+                                                }}
+                                            >
+                                                {paymentDisplay.modeLabel}
                                             </span>
                                         </div>
+                                        {paymentDisplay.usesHostedProvider && (
+                                            <Row
+                                                label="Fournisseur"
+                                                value={paymentDisplay.providerLabel || 'Selon le fournisseur actif de la plateforme'}
+                                            />
+                                        )}
                                         {orderType && <Row label="Type de commande" value={orderType} />}
                                         {viewOrder.fulfillment_mode && <Row label="Mode" value={viewOrder.fulfillment_mode === 'takeaway' ? 'A emporter' : 'Livraison'} />}
                                         {viewOrder.pickup_at && <Row label="Retrait prevu" value={viewOrder.pickup_at} />}
