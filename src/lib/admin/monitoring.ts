@@ -12,6 +12,7 @@ type AdminAlert = {
 }
 
 type WhatsAppRiskSeverity = 'critical' | 'warning'
+export type DiagnosticsStatus = 'ok' | 'warning' | 'error'
 
 type WhatsAppRiskReason =
     | 'connecting_stalled'
@@ -50,6 +51,20 @@ export const WHATSAPP_RISK_THRESHOLDS_MINUTES = {
     reconnect_required: 15,
     first_pairing_qr_ready: 30,
 } as const
+
+export type WhatsAppOperationalMetrics = {
+    total: number
+    connected: number
+    paused: number
+    qr_ready: number
+    reconnect_required: number
+}
+
+export type WhatsAppRiskSummary = {
+    total: number
+    critical: number
+    warning: number
+}
 
 function daysSince(dateValue?: string | null) {
     if (!dateValue) return 0
@@ -187,6 +202,52 @@ export function buildWhatsAppRiskSnapshot(agents: WhatsAppRiskAgent[], nowMs = D
     }
 }
 
+export function buildWhatsAppDiagnosticsSummary(
+    metrics: WhatsAppOperationalMetrics,
+    riskReport: WhatsAppRiskSummary
+) {
+    const hasCriticalRisk = (riskReport?.critical || 0) > 0
+    const hasWarningRisk = (riskReport?.warning || 0) > 0
+    const reconnectRequired = metrics?.reconnect_required || 0
+    const qrReady = metrics?.qr_ready || 0
+    const connected = metrics?.connected || 0
+    const paused = metrics?.paused || 0
+    const total = metrics?.total || 0
+
+    const status: DiagnosticsStatus = hasCriticalRisk
+        ? 'error'
+        : (hasWarningRisk || reconnectRequired > 0)
+            ? 'warning'
+            : 'ok'
+
+    const message = (() => {
+        if (hasCriticalRisk) return `${riskReport.critical} agent(s) WhatsApp en incident critique`
+        if (reconnectRequired > 0) return `${reconnectRequired} agent(s) a reconnecter`
+        if (hasWarningRisk) return `${riskReport.warning} agent(s) a surveiller`
+        if (connected > 0) return `${connected}/${total} agents connectes`
+        if (qrReady > 0) return `${qrReady}/${total} agents en attente de scan initial`
+        if (paused > 0) return `${paused}/${total} agents en pause`
+        return `${connected}/${total} agents connectes`
+    })()
+
+    const detailsParts = [
+        `A connecter: ${qrReady}`,
+        `A reconnecter: ${reconnectRequired}`,
+        `Pause: ${paused}`,
+        `A risque: ${riskReport?.total || 0}`,
+    ]
+
+    if (qrReady > 0 && reconnectRequired === 0 && !hasCriticalRisk && !hasWarningRisk) {
+        detailsParts.push('Les QR initiaux recents ne sont pas comptes comme incidents')
+    }
+
+    return {
+        status,
+        message,
+        details: detailsParts.join(' | '),
+    }
+}
+
 export async function getAgentOperationalMetrics(adminSupabase: SupabaseClient) {
     const { data: agents, error } = await adminSupabase
         .from('agents')
@@ -194,7 +255,7 @@ export async function getAgentOperationalMetrics(adminSupabase: SupabaseClient) 
 
     if (error) throw error
 
-    const counts = {
+    const counts: WhatsAppOperationalMetrics = {
         total: 0,
         connected: 0,
         paused: 0,

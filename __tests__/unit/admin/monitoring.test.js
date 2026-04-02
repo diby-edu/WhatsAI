@@ -1,4 +1,8 @@
-const { buildWhatsAppRiskSnapshot, WHATSAPP_RISK_THRESHOLDS_MINUTES } = require('../../../src/lib/admin/monitoring')
+const {
+    buildWhatsAppRiskSnapshot,
+    buildWhatsAppDiagnosticsSummary,
+    WHATSAPP_RISK_THRESHOLDS_MINUTES,
+} = require('../../../src/lib/admin/monitoring')
 
 describe('buildWhatsAppRiskSnapshot', () => {
     const now = new Date('2026-04-01T22:00:00.000Z').getTime()
@@ -75,5 +79,46 @@ describe('buildWhatsAppRiskSnapshot', () => {
 
         expect(WHATSAPP_RISK_THRESHOLDS_MINUTES.first_pairing_qr_ready).toBeGreaterThan(19)
         expect(report.total).toBe(0)
+    })
+
+    test('treats fresh qr_ready inventory as ok in diagnostics summary', () => {
+        const summary = buildWhatsAppDiagnosticsSummary(
+            {
+                total: 3,
+                connected: 0,
+                paused: 0,
+                qr_ready: 2,
+                reconnect_required: 0,
+            },
+            {
+                total: 0,
+                critical: 0,
+                warning: 0,
+            }
+        )
+
+        expect(summary.status).toBe('ok')
+        expect(summary.message).toBe('2/3 agents en attente de scan initial')
+        expect(summary.details).toContain('Les QR initiaux recents ne sont pas comptes comme incidents')
+    })
+
+    test('keeps reconnect_required as warning even without critical risk entries', () => {
+        const summary = buildWhatsAppDiagnosticsSummary(
+            {
+                total: 4,
+                connected: 2,
+                paused: 0,
+                qr_ready: 0,
+                reconnect_required: 1,
+            },
+            {
+                total: 0,
+                critical: 0,
+                warning: 0,
+            }
+        )
+
+        expect(summary.status).toBe('warning')
+        expect(summary.message).toBe('1 agent(s) a reconnecter')
     })
 })

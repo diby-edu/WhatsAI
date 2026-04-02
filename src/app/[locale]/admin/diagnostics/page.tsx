@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
+import { buildWhatsAppDiagnosticsSummary } from '@/lib/admin/monitoring'
 import {
     Activity,
     AlertTriangle,
@@ -133,14 +134,20 @@ export default function AdminDiagnosticsPage() {
             const riskReport: WhatsAppRiskReport | null =
                 whatsapp.data?.riskReport || whatsappService.data?.riskReport || null
             const hasCriticalWhatsAppRisk = (riskReport?.critical || 0) > 0
-            const hasWarningWhatsAppRisk = (riskReport?.warning || 0) > 0
-            const whatsappStatus: DiagnosticStatus = hasCriticalWhatsAppRisk
-                ? 'error'
-                : (hasWarningWhatsAppRisk || (whatsapp.data?.reconnect_required || 0) > 0 || (whatsapp.data?.qr_ready || 0) > 0)
-                    ? 'warning'
-                    : (whatsapp.data?.connected || 0) > 0
-                        ? 'ok'
-                        : 'warning'
+            const whatsappSummary = buildWhatsAppDiagnosticsSummary(
+                {
+                    total: whatsapp.data?.total || 0,
+                    connected: whatsapp.data?.connected || 0,
+                    paused: whatsapp.data?.paused || 0,
+                    qr_ready: whatsapp.data?.qr_ready || 0,
+                    reconnect_required: whatsapp.data?.reconnect_required || 0,
+                },
+                {
+                    total: riskReport?.total || 0,
+                    critical: riskReport?.critical || 0,
+                    warning: riskReport?.warning || 0,
+                }
+            )
 
             const whatsappServiceStatus = ((): DiagnosticStatus => {
                 const serviceStatus = whatsappService.data?.whatsappService?.status
@@ -199,9 +206,9 @@ export default function AdminDiagnosticsPage() {
                 {
                     name: 'Sessions WhatsApp',
                     category: 'WhatsApp',
-                    status: whatsappStatus,
-                    message: `${whatsapp.data?.connected || 0}/${whatsapp.data?.total || 0} agents connectes`,
-                    details: `A connecter: ${whatsapp.data?.qr_ready || 0} | A reconnecter: ${whatsapp.data?.reconnect_required || 0} | Pause: ${whatsapp.data?.paused || 0} | A risque: ${riskReport?.total || 0}`,
+                    status: whatsappSummary.status,
+                    message: whatsappSummary.message,
+                    details: whatsappSummary.details,
                     utility: 'Remonte les agents vraiment exploitables, a reconnecter, ou bloques en pairing avant plainte client.',
                     icon: Smartphone,
                 },
