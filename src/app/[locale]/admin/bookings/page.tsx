@@ -140,9 +140,10 @@ export default function AdminBookingsPage() {
         }
     }
 
-    const getStatusLabel = (status: string) => {
-        if (status === 'inscription_pending') return 'INSCRIPTION'
-        return status.toUpperCase()
+    const getStatusLabel = (booking: Booking) => {
+        if (booking.status === 'inscription_pending') return 'INSCRIPTION'
+        if (booking.status === 'completed' && booking.booking_source === 'restaurant') return 'HONOREE'
+        return booking.status.toUpperCase()
     }
 
     const getDepositStatusColor = (depositStatus?: string | null) => {
@@ -430,7 +431,7 @@ export default function AdminBookingsPage() {
                                                 padding: '4px 10px', fontSize: 11, fontWeight: 600,
                                                 borderRadius: 100, background: statusStyle.bg, color: statusStyle.color
                                             }}>
-                                                {getStatusLabel(booking.status)}
+                                                {getStatusLabel(booking)}
                                             </span>
                                         </td>
                                         <td style={{ padding: '14px 16px' }}>
@@ -493,7 +494,7 @@ export default function AdminBookingsPage() {
                                                 {booking.status === 'confirmed' && (
                                                     <button
                                                         onClick={() => updateBookingStatus(booking.id, 'completed')}
-                                                        title="Marquer terminée"
+                                                        title={booking.booking_source === 'restaurant' ? 'Marquer honorée' : 'Marquer terminée'}
                                                         style={{
                                                             width: 32, height: 32, borderRadius: 8,
                                                             background: 'rgba(59, 130, 246, 0.1)',

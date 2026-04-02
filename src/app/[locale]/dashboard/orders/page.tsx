@@ -75,7 +75,9 @@ export default function OrdersPage() {
     const [loading, setLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState('')
     const [filterStatus, setFilterStatus] = useState('')
-    const [activeTab, setActiveTab] = useState<'cinetpay' | 'mobile_money' | 'bookings'>('cinetpay')
+    const [filterType, setFilterType] = useState('')
+    const [filterPayment, setFilterPayment] = useState('')
+    const [activeTab, setActiveTab] = useState<'orders' | 'mobile_money' | 'bookings'>('orders')
     const [verifyingId, setVerifyingId] = useState<string | null>(null)
     const [screenshotModal, setScreenshotModal] = useState<string | null>(null)
     const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null)
@@ -85,6 +87,12 @@ export default function OrdersPage() {
         fetchOrders()
         fetchBookings()
     }, [])
+
+    useEffect(() => {
+        setFilterStatus('')
+        setFilterType('')
+        setFilterPayment('')
+    }, [activeTab])
 
     const fetchOrders = async () => {
         try {
@@ -261,8 +269,8 @@ export default function OrdersPage() {
     }
 
     // Status options for bookings
-    const getBookingStatusOptionsLegacy = (status: string) => {
-        switch (status) {
+    const getBookingStatusOptionsLegacy = (booking: Booking) => {
+        switch (booking.status) {
             case 'pending':
                 return [
                     { value: 'confirmed', label: '✅ Confirmer' },
@@ -275,7 +283,7 @@ export default function OrdersPage() {
                 ]
             case 'confirmed':
                 return [
-                    { value: 'completed', label: '🎉 Terminé' },
+                    { value: 'completed', label: booking.booking_source === 'restaurant' ? '🍽️ Client servi' : '🎉 Terminé' },
                     { value: 'cancelled', label: '❌ Annuler' }
                 ]
             default:
@@ -303,11 +311,25 @@ export default function OrdersPage() {
         }
     }
 
+    const getBookingPaymentCategory = (booking: Booking) => {
+        if (booking.payment_method === 'mobile_money_direct') return 'mobile_money_direct'
+        if (booking.payment_method === 'online') return 'online'
+        if (booking.payment_method === 'onsite') return 'onsite'
+        if (booking.payment_method === 'cod') {
+            if (booking.fulfillment_mode === 'delivery') return 'delivery'
+            if (booking.fulfillment_mode === 'takeaway') return 'pickup'
+            return 'onsite'
+        }
+        return 'unknown'
+    }
+
     const getBookingPaymentLabel = (booking: Booking) => {
-        switch (booking.payment_method) {
+        switch (getBookingPaymentCategory(booking)) {
             case 'online': return 'En ligne'
+            case 'mobile_money_direct': return 'Mobile Money'
+            case 'delivery': return 'A la livraison'
+            case 'pickup': return 'Au retrait'
             case 'onsite': return 'Sur place'
-            case 'cod': return booking.fulfillment_mode === 'delivery' ? 'A la livraison' : 'Au retrait'
             default: return 'Non defini'
         }
     }
@@ -332,6 +354,39 @@ export default function OrdersPage() {
         }
     }
 
+    const getBookingStatusBadgeLabel = (booking: Booking) => {
+        if (booking.status === 'pending') return '🟡 En attente'
+        if (booking.status === 'inscription_pending') return '📚 Inscription'
+        if (booking.status === 'confirmed') return '✅ Confirmé'
+        if (booking.status === 'completed') {
+            return booking.booking_source === 'restaurant' ? '🍽️ Honorée' : '🎉 Terminé'
+        }
+        if (booking.status === 'cancelled') return '❌ Annulé'
+        return booking.status
+    }
+
+    const getOrderPaymentCategory = (order: Order) => {
+        if (order.payment_method === 'mobile_money_direct') return 'mobile_money_direct'
+        if (order.payment_method === 'online') return 'online'
+        if (order.payment_method === 'cod') {
+            if (order.fulfillment_mode === 'delivery' || order.status === 'pending_delivery') return 'delivery'
+            if (order.fulfillment_mode === 'takeaway' || order.status === 'pending_pickup') return 'pickup'
+            return 'onsite'
+        }
+        return 'unknown'
+    }
+
+    const getOrderPaymentLabel = (order: Order) => {
+        switch (getOrderPaymentCategory(order)) {
+            case 'online': return 'En ligne'
+            case 'mobile_money_direct': return 'Mobile Money'
+            case 'delivery': return 'A la livraison'
+            case 'pickup': return 'Au retrait'
+            case 'onsite': return 'Sur place'
+            default: return 'Non defini'
+        }
+    }
+
     const getBookingStatusOptions = (booking: Booking) => {
         if (booking.deposit_required && booking.deposit_status === 'pending') {
             return [
@@ -339,7 +394,7 @@ export default function OrdersPage() {
             ]
         }
 
-        return getBookingStatusOptionsLegacy(booking.status)
+        return getBookingStatusOptionsLegacy(booking)
     }
 
     const handleVerify = async (orderId: string, action: 'verify' | 'reject') => {
@@ -479,21 +534,109 @@ export default function OrdersPage() {
         o.payment_verification_status &&
         ['awaiting_screenshot', 'awaiting_verification', 'verified', 'rejected', 'expired'].includes(o.payment_verification_status)
     )
-    const cinetpayOrders = orders.filter(o => !o.payment_verification_status)
+    const regularOrders = orders.filter(o => !o.payment_verification_status)
 
     const pendingVerificationCount = mobileMoneyOrders.filter(
         o => o.payment_verification_status === 'awaiting_verification'
     ).length
 
-    const displayOrders = activeTab === 'mobile_money' ? mobileMoneyOrders : cinetpayOrders
+    const pendingBookingsCount = bookings.filter(
+        b => b.status === 'pending' || b.status === 'inscription_pending'
+    ).length
 
-    const startFilter = displayOrders.filter(o =>
-        (o.order_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            o.customer_phone.includes(searchTerm) ||
-            (o.customer_name && o.customer_name.toLowerCase().includes(searchTerm.toLowerCase())))
-        &&
-        (filterStatus ? o.status === filterStatus : true)
-    )
+    const displayOrders = activeTab === 'mobile_money' ? mobileMoneyOrders : regularOrders
+
+    const filteredOrders = displayOrders.filter(order => {
+        const orderType = getOrderType(order)
+        const orderPaymentCategory = getOrderPaymentCategory(order)
+        const normalizedSearch = searchTerm.toLowerCase()
+
+        const matchesSearch = !searchTerm
+            || order.order_number.toLowerCase().includes(normalizedSearch)
+            || order.customer_phone.includes(searchTerm)
+            || (order.customer_name && order.customer_name.toLowerCase().includes(normalizedSearch))
+        const matchesStatus = !filterStatus || order.status === filterStatus
+        const matchesType = !filterType || orderType === filterType
+        const matchesPayment = !filterPayment || orderPaymentCategory === filterPayment
+
+        return matchesSearch && matchesStatus && matchesType && matchesPayment
+    })
+    const filteredBookings = bookings.filter(booking => {
+        const bookingKind = getBookingKind(booking)
+        const bookingPaymentCategory = getBookingPaymentCategory(booking)
+        const normalizedSearch = searchTerm.toLowerCase()
+
+        const matchesSearch = !searchTerm
+            || booking.customer_phone.includes(searchTerm)
+            || (booking.customer_name && booking.customer_name.toLowerCase().includes(normalizedSearch))
+            || (booking.service_name && booking.service_name.toLowerCase().includes(normalizedSearch))
+        const matchesStatus = !filterStatus || booking.status === filterStatus
+        const matchesType = !filterType || bookingKind === filterType
+        const matchesPayment = !filterPayment || bookingPaymentCategory === filterPayment
+
+        return matchesSearch && matchesStatus && matchesType && matchesPayment
+    })
+    const statusOptions = activeTab === 'bookings'
+        ? [
+            { value: '', label: t('filter.all') },
+            { value: 'pending', label: 'En attente' },
+            { value: 'inscription_pending', label: 'Inscription' },
+            { value: 'confirmed', label: 'Confirmé' },
+            { value: 'completed', label: 'Terminée / honorée' },
+            { value: 'cancelled', label: 'Annulée' },
+        ]
+        : [
+            { value: '', label: t('filter.all') },
+            { value: 'pending', label: t('filter.pending') },
+            { value: 'pending_delivery', label: t('filter.pending_delivery') },
+            { value: 'pending_pickup', label: 'Prête pour retrait' },
+            { value: 'paid', label: t('filter.paid') },
+            { value: 'delivered', label: t('filter.delivered') },
+            { value: 'cancelled', label: t('filter.cancelled') },
+        ]
+    const countLabel = activeTab === 'bookings'
+        ? `${filteredBookings.length} réservation${filteredBookings.length > 1 ? 's' : ''}`
+        : `${filteredOrders.length} commande${filteredOrders.length > 1 ? 's' : ''}`
+
+    const typeOptions = activeTab === 'bookings'
+        ? [
+            { value: '', label: 'Tous les types' },
+            { value: 'restaurant', label: 'Restaurant' },
+            { value: 'stay', label: 'Hebergement' },
+            { value: 'slot', label: 'Service' },
+            { value: 'inscription', label: 'Inscription' },
+            { value: 'table', label: 'Table / Event' },
+        ]
+        : [
+            { value: '', label: 'Tous les types' },
+            { value: 'physical', label: 'Physique' },
+            { value: 'digital', label: 'Numerique' },
+            { value: 'service', label: 'Service' },
+            { value: 'mixed', label: 'Mixte' },
+            { value: 'unknown', label: 'Autre' },
+        ]
+
+    const paymentOptions = activeTab === 'bookings'
+        ? [
+            { value: '', label: 'Tous les paiements' },
+            { value: 'online', label: 'En ligne' },
+            { value: 'mobile_money_direct', label: 'Mobile Money' },
+            { value: 'onsite', label: 'Sur place' },
+            { value: 'pickup', label: 'Au retrait' },
+            { value: 'delivery', label: 'A la livraison' },
+        ]
+        : activeTab === 'mobile_money'
+            ? [
+                { value: '', label: 'Tous les paiements' },
+                { value: 'mobile_money_direct', label: 'Mobile Money' },
+            ]
+            : [
+                { value: '', label: 'Tous les paiements' },
+                { value: 'online', label: 'En ligne' },
+                { value: 'onsite', label: 'Sur place' },
+                { value: 'pickup', label: 'Au retrait' },
+                { value: 'delivery', label: 'A la livraison' },
+            ]
 
     const formatPrice = formatFromFcfa
 
@@ -515,9 +658,9 @@ export default function OrdersPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
                 <div>
                     <h1 style={{ fontSize: 'clamp(20px, 5vw, 28px)', fontWeight: 700, color: 'white', marginBottom: 8 }}>{t('title')}</h1>
-                    <p style={{ color: '#94a3b8' }}>{t('count', { count: orders.length })}</p>
+                    <p style={{ color: '#94a3b8' }}>{countLabel}</p>
                 </div>
-                <div style={{ display: 'flex', gap: 12 }}>
+                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                     <div style={{ position: 'relative' }}>
                         <Search style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', width: 18, height: 18, color: '#64748b' }} />
                         <input
@@ -536,7 +679,7 @@ export default function OrdersPage() {
                             }}
                         />
                     </div>
-                    <div style={{ position: 'relative' }}>
+                    <div style={{ position: 'relative', display: 'none' }}>
                         <Filter style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', width: 18, height: 18, color: '#64748b', pointerEvents: 'none' }} />
                         <select
                             value={filterStatus}
@@ -563,19 +706,94 @@ export default function OrdersPage() {
                             <option value="cancelled">{t('filter.cancelled')}</option>
                         </select>
                     </div>
+                    <div style={{ position: 'relative' }}>
+                        <Filter style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', width: 18, height: 18, color: '#64748b', pointerEvents: 'none' }} />
+                        <select
+                            value={filterStatus}
+                            onChange={(e) => setFilterStatus(e.target.value)}
+                            style={{
+                                padding: '12px 12px 12px 44px',
+                                borderRadius: 12,
+                                background: 'rgba(30, 41, 59, 0.5)',
+                                border: '1px solid rgba(148, 163, 184, 0.1)',
+                                color: 'white',
+                                width: '100%',
+                                maxWidth: 180,
+                                minWidth: 140,
+                                appearance: 'none',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            {statusOptions.map((option) => (
+                                <option key={`status-${option.value || 'all'}`} value={option.value}>
+                                    {option.label}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <div style={{ position: 'relative' }}>
+                        <Layers style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', width: 18, height: 18, color: '#64748b', pointerEvents: 'none' }} />
+                        <select
+                            value={filterType}
+                            onChange={(e) => setFilterType(e.target.value)}
+                            style={{
+                                padding: '12px 12px 12px 44px',
+                                borderRadius: 12,
+                                background: 'rgba(30, 41, 59, 0.5)',
+                                border: '1px solid rgba(148, 163, 184, 0.1)',
+                                color: 'white',
+                                width: '100%',
+                                maxWidth: 180,
+                                minWidth: 140,
+                                appearance: 'none',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            {typeOptions.map((option) => (
+                                <option key={`type-${option.value || 'all'}`} value={option.value}>
+                                    {option.label}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <div style={{ position: 'relative' }}>
+                        <CheckCircle style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', width: 18, height: 18, color: '#64748b', pointerEvents: 'none' }} />
+                        <select
+                            value={filterPayment}
+                            onChange={(e) => setFilterPayment(e.target.value)}
+                            style={{
+                                padding: '12px 12px 12px 44px',
+                                borderRadius: 12,
+                                background: 'rgba(30, 41, 59, 0.5)',
+                                border: '1px solid rgba(148, 163, 184, 0.1)',
+                                color: 'white',
+                                width: '100%',
+                                maxWidth: 190,
+                                minWidth: 150,
+                                appearance: 'none',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            {paymentOptions.map((option) => (
+                                <option key={`payment-${option.value || 'all'}`} value={option.value}>
+                                    {option.label}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
                 </div>
             </div>
 
             {/* Tabs */}
             <div style={{ display: 'flex', gap: 8, borderBottom: '1px solid rgba(148, 163, 184, 0.1)', paddingBottom: 16 }}>
                 <button
-                    onClick={() => setActiveTab('cinetpay')}
+                    onClick={() => setActiveTab('orders')}
                     style={{
                         padding: '12px 20px',
                         borderRadius: 10,
                         border: 'none',
-                        background: activeTab === 'cinetpay' ? 'rgba(16, 185, 129, 0.15)' : 'transparent',
-                        color: activeTab === 'cinetpay' ? '#10b981' : '#94a3b8',
+                        background: activeTab === 'orders' ? 'rgba(16, 185, 129, 0.15)' : 'transparent',
+                        color: activeTab === 'orders' ? '#10b981' : '#94a3b8',
                         fontWeight: 600,
                         cursor: 'pointer',
                         display: 'flex',
@@ -583,7 +801,7 @@ export default function OrdersPage() {
                         gap: 8
                     }}
                 >
-                    🔄 CinetPay ({cinetpayOrders.length})
+                    🧾 Commandes ({regularOrders.length})
                 </button>
                 <button
                     onClick={() => setActiveTab('mobile_money')}
@@ -630,7 +848,7 @@ export default function OrdersPage() {
                     }}
                 >
                     🛎️ Réservations ({bookings.length})
-                    {bookings.filter(b => b.status === 'pending' || b.status === 'inscription_pending').length > 0 && (
+                    {pendingBookingsCount > 0 && (
                         <span style={{
                             background: '#8b5cf6',
                             color: 'white',
@@ -639,7 +857,7 @@ export default function OrdersPage() {
                             fontSize: 12,
                             fontWeight: 700
                         }}>
-                            {bookings.filter(b => b.status === 'pending' || b.status === 'inscription_pending').length}
+                            {pendingBookingsCount}
                         </span>
                     )}
                 </button>
@@ -669,7 +887,7 @@ export default function OrdersPage() {
             )}
 
             {/* Orders List - Show only when NOT on bookings tab */}
-            {activeTab !== 'bookings' && (startFilter.length === 0 ? (
+            {activeTab !== 'bookings' && (filteredOrders.length === 0 ? (
                 <div style={{
                     background: 'rgba(30, 41, 59, 0.5)',
                     border: '1px solid rgba(148, 163, 184, 0.1)',
@@ -682,12 +900,12 @@ export default function OrdersPage() {
                     <p style={{ color: '#64748b', fontSize: 14 }}>
                         {activeTab === 'mobile_money'
                             ? "Aucune commande Mobile Money pour le moment."
-                            : t('empty.message')}
+                            : 'Aucune commande pour le moment.'}
                     </p>
                 </div>
             ) : (
                 <div style={{ display: 'grid', gap: 16 }}>
-                    {startFilter.map((order, i) => (
+                    {filteredOrders.map((order, i) => (
                         <motion.div
                             key={order.id}
                             initial={{ opacity: 0, y: 10 }}
@@ -808,6 +1026,9 @@ export default function OrdersPage() {
                                     </div>
                                     <div style={{ color: '#64748b', fontSize: 13 }}>
                                         {order.items_count} articles
+                                    </div>
+                                    <div style={{ color: '#94a3b8', fontSize: 12, marginTop: 4 }}>
+                                        Paiement: {getOrderPaymentLabel(order)}
                                     </div>
                                     {order.deposit_required && (
                                         <div style={{ color: '#94a3b8', fontSize: 12, marginTop: 4 }}>
@@ -939,7 +1160,7 @@ export default function OrdersPage() {
 
             {/* Bookings List - Show only on bookings tab */}
             {activeTab === 'bookings' && (
-                bookings.length === 0 ? (
+                filteredBookings.length === 0 ? (
                     <div style={{
                         background: 'rgba(30, 41, 59, 0.5)',
                         border: '1px solid rgba(148, 163, 184, 0.1)',
@@ -955,7 +1176,7 @@ export default function OrdersPage() {
                     </div>
                 ) : (
                     <div style={{ display: 'grid', gap: 16 }}>
-                        {bookings.map((booking, i) => (
+                        {filteredBookings.map((booking, i) => (
                             <motion.div
                                 key={booking.id}
                                 initial={{ opacity: 0, y: 10 }}
@@ -1021,11 +1242,7 @@ export default function OrdersPage() {
                                                     : booking.status === 'completed' ? '#60a5fa'
                                                     : '#ef4444'
                                             }}>
-                                                {booking.status === 'pending' && '🟡 En attente'}
-                                                {booking.status === 'inscription_pending' && '📚 Inscription'}
-                                                {booking.status === 'confirmed' && '✅ Confirmé'}
-                                                {booking.status === 'completed' && '🎉 Terminé'}
-                                                {booking.status === 'cancelled' && '❌ Annulé'}
+                                                {getBookingStatusBadgeLabel(booking)}
                                             </span>
                                         </div>
                                         <p style={{ color: '#94a3b8', fontSize: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
