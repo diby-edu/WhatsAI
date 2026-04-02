@@ -261,7 +261,10 @@ describe('POST /api/payments/paystack/webhook', () => {
             expect.any(Object),
             'PAY_123',
             'ACCEPTED',
-            payload
+            expect.objectContaining({
+                webhook: payload,
+                verification: expect.anything()
+            })
         )
     })
 })

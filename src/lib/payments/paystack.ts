@@ -33,6 +33,11 @@ export interface PaystackStatus {
     raw?: unknown
 }
 
+export interface PaystackChannelInfo {
+    paymentChannel: string | null
+    paymentChannelDetail: string | null
+}
+
 function buildFallbackEmail(reference: string, phone?: string | null) {
     const normalizedPhone = String(phone || '')
         .replace(/\D+/g, '')
@@ -67,6 +72,171 @@ function normalizePaystackStatus(status: unknown): PaystackStatus['status'] {
     }
 
     return 'UNKNOWN'
+}
+
+function isRecord(value: unknown): value is Record<string, any> {
+    return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+}
+
+function normalizePaystackChannel(value: unknown): string | null {
+    const raw = String(value || '').trim()
+    if (!raw) return null
+
+    const normalized = raw
+        .toLowerCase()
+        .replace(/[^\w\s-]+/g, '')
+        .replace(/[\s-]+/g, '_')
+
+    if (normalized === 'mobilemoney') return 'mobile_money'
+    if (normalized === 'banktransfer') return 'bank_transfer'
+    if (normalized === 'qr_code') return 'qr'
+    if (normalized === 'pay_with_bank' || normalized === 'bank_account') return 'bank'
+    if (normalized === 'applepay') return 'apple_pay'
+    if (normalized === 'directdebit') return 'direct_debit'
+
+    return normalized || null
+}
+
+function cleanChannelDetail(value: unknown): string | null {
+    const raw = String(value || '').trim()
+    if (!raw) return null
+    return raw
+}
+
+function normalizeComparableLabel(value: string) {
+    return value
+        .trim()
+        .toLowerCase()
+        .replace(/[^\w\s-]+/g, '')
+        .replace(/[\s-]+/g, '_')
+}
+
+function pushCandidate(queue: unknown[], value: unknown) {
+    if (value) {
+        queue.push(value)
+    }
+}
+
+function collectPaystackPayloadRecords(payload: unknown): Record<string, any>[] {
+    const records: Record<string, any>[] = []
+    const queue: unknown[] = [payload]
+    const seen = new Set<Record<string, any>>()
+
+    while (queue.length > 0) {
+        const current = queue.shift()
+        if (Array.isArray(current)) {
+            current.forEach((entry) => pushCandidate(queue, entry))
+            continue
+        }
+        if (!isRecord(current) || seen.has(current)) {
+            continue
+        }
+
+        seen.add(current)
+        records.push(current)
+
+        pushCandidate(queue, current.data)
+        pushCandidate(queue, current.raw)
+        pushCandidate(queue, current.webhook)
+        pushCandidate(queue, current.verification)
+        pushCandidate(queue, current.last_verification_payload)
+        pushCandidate(queue, current.authorization)
+        pushCandidate(queue, current.mobile_money)
+        pushCandidate(queue, current.metadata)
+    }
+
+    return records
+}
+
+function firstNonEmptyDetail(candidates: unknown[]) {
+    for (const candidate of candidates) {
+        const detail = cleanChannelDetail(candidate)
+        if (detail) {
+            return detail
+        }
+    }
+    return null
+}
+
+function extractChannelDetail(records: Record<string, any>[], channel: string | null) {
+    const candidates: unknown[] = []
+
+    for (const record of records) {
+        if (channel === 'mobile_money') {
+            candidates.push(
+                record.mobile_money?.provider,
+                record.mobile_money?.network,
+                record.authorization?.bank,
+                record.authorization?.brand,
+                record.channel_detail,
+                record.channelDetail,
+                record.metadata?.payment_channel_detail
+            )
+            continue
+        }
+
+        if (channel === 'card') {
+            candidates.push(
+                record.authorization?.brand,
+                record.authorization?.card_type,
+                record.authorization?.bank,
+                record.channel_detail,
+                record.channelDetail,
+                record.metadata?.payment_channel_detail
+            )
+            continue
+        }
+
+        if (channel === 'bank' || channel === 'bank_transfer') {
+            candidates.push(
+                record.authorization?.bank,
+                record.bank?.name,
+                record.channel_detail,
+                record.channelDetail,
+                record.metadata?.payment_channel_detail
+            )
+            continue
+        }
+
+        candidates.push(
+            record.channel_detail,
+            record.channelDetail,
+            record.mobile_money?.provider,
+            record.mobile_money?.network,
+            record.authorization?.brand,
+            record.authorization?.bank,
+            record.metadata?.payment_channel_detail
+        )
+    }
+
+    return firstNonEmptyDetail(candidates)
+}
+
+export function extractPaystackChannelInfo(payload: unknown): PaystackChannelInfo {
+    const records = collectPaystackPayloadRecords(payload)
+    let paymentChannel: string | null = null
+
+    for (const record of records) {
+        paymentChannel = normalizePaystackChannel(record.channel || record.authorization?.channel)
+        if (paymentChannel) {
+            break
+        }
+    }
+
+    let paymentChannelDetail = extractChannelDetail(records, paymentChannel)
+
+    if (
+        paymentChannel
+        && paymentChannelDetail
+        && normalizeComparableLabel(paymentChannelDetail) === normalizeComparableLabel(paymentChannel)
+    ) {
+        paymentChannelDetail = null
+    }
+
+    return {
+        paymentChannel,
+        paymentChannelDetail,
+    }
 }
 
 export async function initializePaystackPayment(data: PaystackInitData): Promise<PaystackInitResponse> {

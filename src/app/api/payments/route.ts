@@ -22,6 +22,8 @@ export async function GET(_request: NextRequest) {
                 description,
                 credits_purchased,
                 provider_transaction_id,
+                payment_channel,
+                payment_channel_detail,
                 created_at,
                 completed_at
             `)
@@ -44,6 +46,8 @@ export async function GET(_request: NextRequest) {
             ),
             status: payment.status,
             payment_provider: payment.payment_provider,
+            payment_channel: payment.payment_channel,
+            payment_channel_detail: payment.payment_channel_detail,
             credits: payment.credits_purchased,
             reference: payment.provider_transaction_id,
             created_at: payment.created_at,
