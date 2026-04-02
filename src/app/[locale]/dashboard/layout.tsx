@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
     MessageCircle,
@@ -43,6 +43,16 @@ import { CurrencyProvider } from '@/contexts/CurrencyContext'
 import { useSessionTimeout } from '@/hooks/useSessionTimeout'
 import { useNativeDeviceTokenSync } from '@/hooks/useNativeDeviceTokenSync'
 import { unregisterCurrentDeviceToken } from '@/lib/notifications/device-token-client'
+import { TestAccountCountdownBanner } from '@/components/dashboard/TestAccountCountdownBanner'
+
+type TestAccountBannerState = {
+    isTestAccount: boolean
+    showCountdown: boolean
+    isExpired: boolean
+    cleanupDeadline: string | null
+    remainingMs: number | null
+    graceDays: number
+}
 
 export default function DashboardLayout({
     children,
@@ -52,6 +62,7 @@ export default function DashboardLayout({
     const t = useTranslations('Dashboard.sidebar')
     const pathname = usePathname()
     const router = useRouter()
+    const searchParams = useSearchParams()
     const isNativeApp = useNativeDeviceTokenSync()
 
     // Handle Android hardware back button
@@ -66,6 +77,7 @@ export default function DashboardLayout({
     const [userAvatar, setUserAvatar] = useState<string | null>(null)
     const [userName, setUserName] = useState<string>('')
     const [sessionTimeoutHours, setSessionTimeoutHours] = useState<number | null>(null)
+    const [testAccountBanner, setTestAccountBanner] = useState<TestAccountBannerState | null>(null)
     const notifRef = useRef<HTMLDivElement>(null)
     const mobileNotifBtnRef = useRef<HTMLDivElement>(null)
     const mobileNotifDropdownRef = useRef<HTMLDivElement>(null)
@@ -107,6 +119,37 @@ export default function DashboardLayout({
         }
 
         loadRuntimeConfig()
+    }, [])
+
+    useEffect(() => {
+        let alive = true
+
+        const fetchTestAccountBanner = async () => {
+            try {
+                const res = await fetch('/api/dashboard/test-account-status', { cache: 'no-store' })
+                const payload = await res.json()
+                if (!alive) return
+
+                if (payload?.success && payload?.data) {
+                    setTestAccountBanner(payload.data)
+                }
+            } catch (err) {
+                if (alive) {
+                    console.error('Error fetching test account banner:', err)
+                }
+            }
+        }
+
+        void fetchTestAccountBanner()
+        const interval = window.setInterval(fetchTestAccountBanner, 30000)
+        const handleFocus = () => { void fetchTestAccountBanner() }
+        window.addEventListener('focus', handleFocus)
+
+        return () => {
+            alive = false
+            window.clearInterval(interval)
+            window.removeEventListener('focus', handleFocus)
+        }
     }, [])
     // Fetch user notifications
     useEffect(() => {
@@ -935,6 +978,16 @@ export default function DashboardLayout({
                     boxSizing: 'border-box',
                     paddingBottom: isMobile ? '100px' : '40px'
                 }}>
+                    {testAccountBanner?.isTestAccount && (testAccountBanner.showCountdown || testAccountBanner.isExpired) && (
+                        <TestAccountCountdownBanner
+                            cleanupDeadline={testAccountBanner.cleanupDeadline}
+                            isExpired={testAccountBanner.isExpired}
+                            showCountdown={testAccountBanner.showCountdown}
+                            graceDays={testAccountBanner.graceDays}
+                            emphasizeWelcome={searchParams.get('welcome') === 'test-account'}
+                        />
+                    )}
+
                     <CurrencyProvider>
                         <BiometricLock>
                             {children}

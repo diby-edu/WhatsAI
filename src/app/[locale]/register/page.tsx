@@ -256,6 +256,21 @@ function RegisterForm() {
                         Cliquez sur le lien dans l'email pour activer votre compte
                     </p>
 
+                    <div style={{
+                        marginBottom: 18,
+                        padding: '12px 14px',
+                        borderRadius: 12,
+                        border: '1px solid rgba(251, 191, 36, 0.18)',
+                        background: 'rgba(120, 53, 15, 0.18)',
+                        color: '#fde68a',
+                        fontSize: 13,
+                        lineHeight: 1.6
+                    }}>
+                        Les comptes gratuits sans paiement valide et sans agent WhatsApp completement connecte peuvent etre
+                        supprimes automatiquement apres 7 jours. Un compte a rebours apparaitra dans votre dashboard si votre
+                        compte est concerne.
+                    </div>
+
                     <Link
                         href="/"
                         style={{
