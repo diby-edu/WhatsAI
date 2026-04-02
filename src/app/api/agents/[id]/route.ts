@@ -5,14 +5,22 @@ import { shouldRequestWhatsAppReconnect } from '@/lib/whatsapp/reactivation'
 
 function normalizeRestaurantDepositSettings(body: any) {
     const enabled = !!body.restaurant_deposit_enabled
+    const rawMode = String(body.restaurant_deposit_mode ?? 'percentage').trim().toLowerCase()
+    const depositMode = rawMode === 'fixed' ? 'fixed' : 'percentage'
     const rawPercentage = Number(body.restaurant_deposit_percentage ?? 0)
     const boundedPercentage = Number.isFinite(rawPercentage)
         ? Math.max(0, Math.min(100, rawPercentage))
         : 0
+    const rawFixedAmount = Number(body.restaurant_deposit_fixed_amount_fcfa ?? 0)
+    const boundedFixedAmount = Number.isFinite(rawFixedAmount)
+        ? Math.max(0, Math.round(rawFixedAmount))
+        : 0
 
     return {
         restaurant_deposit_enabled: enabled,
-        restaurant_deposit_percentage: enabled ? boundedPercentage : 0
+        restaurant_deposit_mode: enabled ? depositMode : 'percentage',
+        restaurant_deposit_percentage: enabled && depositMode === 'percentage' ? boundedPercentage : 0,
+        restaurant_deposit_fixed_amount_fcfa: enabled && depositMode === 'fixed' ? boundedFixedAmount : 0
     }
 }
 
@@ -115,7 +123,8 @@ export async function PATCH(
             // Payment settings
             'payment_mode', 'mobile_money_orange', 'mobile_money_mtn',
             'mobile_money_wave', 'custom_payment_methods', 'escalation_phone',
-            'restaurant_deposit_enabled', 'restaurant_deposit_percentage',
+            'restaurant_deposit_enabled', 'restaurant_deposit_mode',
+            'restaurant_deposit_percentage', 'restaurant_deposit_fixed_amount_fcfa',
             // Support Client
             'agent_context', 'welcome_message'
         ]
@@ -127,31 +136,55 @@ export async function PATCH(
             }
         }
 
-        if (body.restaurant_deposit_enabled !== undefined) {
+        let reactivatingAgent = false
+        const depositSettingsTouched = body.restaurant_deposit_enabled !== undefined
+            || body.restaurant_deposit_mode !== undefined
+            || body.restaurant_deposit_percentage !== undefined
+            || body.restaurant_deposit_fixed_amount_fcfa !== undefined
+        let currentAgent: any = null
+
+        if (updates.is_active === true || depositSettingsTouched) {
+            const { data } = await supabase
+                .from('agents')
+                .select(`
+                    is_active,
+                    whatsapp_connected,
+                    whatsapp_status,
+                    restaurant_deposit_enabled,
+                    restaurant_deposit_mode,
+                    restaurant_deposit_percentage,
+                    restaurant_deposit_fixed_amount_fcfa
+                `)
+                .eq('id', id)
+                .eq('user_id', user!.id)
+                .single()
+
+            currentAgent = data
+        }
+
+        if (depositSettingsTouched) {
             Object.assign(updates, normalizeRestaurantDepositSettings({
-                restaurant_deposit_enabled: body.restaurant_deposit_enabled,
+                restaurant_deposit_enabled:
+                    body.restaurant_deposit_enabled !== undefined
+                        ? body.restaurant_deposit_enabled
+                        : currentAgent?.restaurant_deposit_enabled,
+                restaurant_deposit_mode:
+                    body.restaurant_deposit_mode !== undefined
+                        ? body.restaurant_deposit_mode
+                        : currentAgent?.restaurant_deposit_mode,
                 restaurant_deposit_percentage:
                     body.restaurant_deposit_percentage !== undefined
                         ? body.restaurant_deposit_percentage
-                        : updates.restaurant_deposit_percentage
+                        : currentAgent?.restaurant_deposit_percentage,
+                restaurant_deposit_fixed_amount_fcfa:
+                    body.restaurant_deposit_fixed_amount_fcfa !== undefined
+                        ? body.restaurant_deposit_fixed_amount_fcfa
+                        : currentAgent?.restaurant_deposit_fixed_amount_fcfa
             }))
-        } else if (body.restaurant_deposit_percentage !== undefined) {
-            const rawPercentage = Number(body.restaurant_deposit_percentage)
-            updates.restaurant_deposit_percentage = Number.isFinite(rawPercentage)
-                ? Math.max(0, Math.min(100, rawPercentage))
-                : 0
         }
-
-        let reactivatingAgent = false
 
         // Prevent bypassing plan limits by manually activating an agent
         if (updates.is_active === true) {
-            const { data: currentAgent } = await supabase
-                .from('agents')
-                .select('is_active, whatsapp_connected, whatsapp_status')
-                .eq('id', id)
-                .single()
-
             if (currentAgent && !currentAgent.is_active) {
                 reactivatingAgent = true
                 if (shouldRequestWhatsAppReconnect(currentAgent)) {

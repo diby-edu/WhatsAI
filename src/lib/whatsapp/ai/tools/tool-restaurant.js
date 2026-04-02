@@ -366,6 +366,59 @@ function buildRestaurantOrderPaymentLabel(paymentMethod, fulfillmentMode) {
     return 'Paiement en ligne.'
 }
 
+function normalizeRestaurantDepositMode(rawValue) {
+    return String(rawValue || 'percentage').trim().toLowerCase() === 'fixed'
+        ? 'fixed'
+        : 'percentage'
+}
+
+function hasRestaurantDepositConfigured(agent) {
+    if (!agent?.restaurant_deposit_enabled) return false
+
+    const mode = normalizeRestaurantDepositMode(agent.restaurant_deposit_mode)
+    if (mode === 'fixed') {
+        return Math.max(0, Math.round(Number(agent.restaurant_deposit_fixed_amount_fcfa || 0))) > 0
+    }
+
+    return Math.max(0, Math.min(100, Number(agent.restaurant_deposit_percentage || 0))) > 0
+}
+
+function resolveRestaurantDeposit(agent, totalFcfa) {
+    const enabled = !!agent?.restaurant_deposit_enabled && totalFcfa > 0
+    const mode = normalizeRestaurantDepositMode(agent?.restaurant_deposit_mode)
+    const percentage = enabled && mode === 'percentage'
+        ? Math.max(0, Math.min(100, Number(agent.restaurant_deposit_percentage || 0)))
+        : 0
+    const fixedAmountFcfa = enabled && mode === 'fixed'
+        ? Math.max(0, Math.round(Number(agent.restaurant_deposit_fixed_amount_fcfa || 0)))
+        : 0
+    const amountFcfa = !enabled
+        ? 0
+        : mode === 'fixed'
+            ? Math.min(totalFcfa, fixedAmountFcfa)
+            : Math.ceil((totalFcfa * percentage) / 100)
+    const required = enabled && amountFcfa > 0
+
+    return {
+        enabled,
+        mode,
+        percentage: required && mode === 'percentage' ? percentage : 0,
+        fixedAmountFcfa: required && mode === 'fixed' ? fixedAmountFcfa : 0,
+        amountFcfa,
+        required
+    }
+}
+
+function formatRestaurantDepositRequirement(deposit) {
+    if (!deposit?.required || !deposit.amountFcfa) return ''
+
+    if (deposit.mode === 'fixed') {
+        return `Acompte requis : *${deposit.amountFcfa.toLocaleString('fr-FR')} FCFA* (montant fixe).`
+    }
+
+    return `Acompte requis : *${deposit.amountFcfa.toLocaleString('fr-FR')} FCFA* (${deposit.percentage}%).`
+}
+
 function buildRestaurantPaymentMethodError(fulfillmentMode) {
     if (fulfillmentMode === 'takeaway') {
         return 'MODE DE PAIEMENT MANQUANT OU INVALIDE. Pour une commande a emporter, repondez "en ligne" ou "au retrait".'
@@ -468,7 +521,7 @@ function buildRestaurantItems(items, restaurantProducts) {
     return { resolvedItems, total }
 }
 
-function buildMobileMoneyDepositMessage(agent, depositAmountFcfa, depositPercentage) {
+function buildMobileMoneyDepositMessage(agent, deposit) {
     const mmLines = []
     if (agent.mobile_money_orange) mmLines.push(`📱 Orange Money : ${agent.mobile_money_orange}`)
     if (agent.mobile_money_mtn)    mmLines.push(`📱 MTN Money : ${agent.mobile_money_mtn}`)
@@ -484,7 +537,7 @@ function buildMobileMoneyDepositMessage(agent, depositAmountFcfa, depositPercent
         } catch (_e) {}
     }
     if (mmLines.length === 0) return ''
-    return `\nAcompte requis : *${depositAmountFcfa.toLocaleString('fr-FR')} FCFA* (${depositPercentage}%).\nVersez via :\n${mmLines.join('\n')}\nEnvoyez votre reçu pour valider.`
+    return `\n${formatRestaurantDepositRequirement(deposit)}\nVersez via :\n${mmLines.join('\n')}\nEnvoyez votre reçu pour valider.`
 }
 
 async function initiateBookingDepositPayment({
@@ -892,7 +945,7 @@ async function handleCreateRestaurantCheckout(args, agentId, products, conversat
 
         const { data: agent, error: agentError } = await supabase
             .from('agents')
-            .select('user_id, name, escalation_phone, payment_mode, restaurant_deposit_enabled, restaurant_deposit_percentage, mobile_money_orange, mobile_money_mtn, mobile_money_wave, custom_payment_methods')
+            .select('user_id, name, escalation_phone, payment_mode, restaurant_deposit_enabled, restaurant_deposit_mode, restaurant_deposit_percentage, restaurant_deposit_fixed_amount_fcfa, mobile_money_orange, mobile_money_mtn, mobile_money_wave, custom_payment_methods')
             .eq('id', agentId)
             .single()
 
@@ -902,24 +955,15 @@ async function handleCreateRestaurantCheckout(args, agentId, products, conversat
 
         let paymentMethod = normalizeRestaurantPaymentMethod(rawPaymentMethod, fulfillmentMode)
 
-        if (!paymentMethod && (fulfillmentMode === 'dine_in' || fulfillmentMode === 'booking_only')) {
-            const bookingDepositEnabled = !!agent.restaurant_deposit_enabled
-            const bookingDepositPercentage = bookingDepositEnabled
-                ? Math.max(0, Math.min(100, Number(agent.restaurant_deposit_percentage || 0)))
-                : 0
-
-            if (bookingDepositEnabled && bookingDepositPercentage > 0) {
-                paymentMethod = agent.payment_mode === 'mobile_money_direct' ? 'online' : 'online'
-            } else {
-                paymentMethod = 'onsite'
-            }
-        }
-
         if (!paymentMethod) {
-            return JSON.stringify({
-                success: false,
-                error: buildRestaurantPaymentMethodError(fulfillmentMode)
-            })
+            if (fulfillmentMode === 'dine_in' || fulfillmentMode === 'booking_only') {
+                paymentMethod = hasRestaurantDepositConfigured(agent) ? 'online' : 'onsite'
+            } else {
+                return JSON.stringify({
+                    success: false,
+                    error: buildRestaurantPaymentMethodError(fulfillmentMode)
+                })
+            }
         }
 
         if ((fulfillmentMode === 'dine_in' || fulfillmentMode === 'booking_only') && (!scheduledDate || !scheduledTime)) {
@@ -963,19 +1007,12 @@ async function handleCreateRestaurantCheckout(args, agentId, products, conversat
         const serviceName = agent.name || 'Restaurant'
 
         if (fulfillmentMode === 'dine_in' || fulfillmentMode === 'booking_only') {
-            const depositEnabled = !!agent.restaurant_deposit_enabled
-            const depositPercentage = depositEnabled && totalFcfa > 0
-                ? Math.max(0, Math.min(100, Number(agent.restaurant_deposit_percentage || 0)))
-                : 0
-            const depositRequired = depositEnabled && depositPercentage > 0 && totalFcfa > 0
-            const depositAmountFcfa = depositRequired
-                ? Math.ceil((totalFcfa * depositPercentage) / 100)
-                : 0
+            const bookingDeposit = resolveRestaurantDeposit(agent, totalFcfa)
             const usesCinetpay = !agent.payment_mode || agent.payment_mode === 'cinetpay'
             const usesMobileMoney = agent.payment_mode === 'mobile_money_direct'
 
             let bookingPaymentMethod = paymentMethod
-            if (depositRequired && (usesCinetpay || usesMobileMoney)) {
+            if (bookingDeposit.required && (usesCinetpay || usesMobileMoney)) {
                 // A deposit always requires a remote payment step, even if the model guessed "onsite".
                 bookingPaymentMethod = 'online'
             } else if (!bookingPaymentMethod) {
@@ -995,9 +1032,9 @@ async function handleCreateRestaurantCheckout(args, agentId, products, conversat
                 p_party_size: Number(partySize),
                 p_payment_method: bookingPaymentMethod,
                 p_notes: notes || null,
-                p_deposit_required: depositRequired,
-                p_deposit_percentage: depositPercentage,
-                p_deposit_amount_fcfa: depositAmountFcfa,
+                p_deposit_required: bookingDeposit.required,
+                p_deposit_percentage: bookingDeposit.percentage,
+                p_deposit_amount_fcfa: bookingDeposit.amountFcfa,
                 p_items: resolvedItems
             })
 
@@ -1007,29 +1044,29 @@ async function handleCreateRestaurantCheckout(args, agentId, products, conversat
             let paymentLink = null
             let paymentMessage = ''
 
-            if (depositRequired && usesCinetpay && bookingId) {
+            if (bookingDeposit.required && usesCinetpay && bookingId) {
                 try {
                     const paymentResult = await initiateBookingDepositPayment({
                         supabase,
                         agentId,
                         bookingId,
-                        depositAmountFcfa,
+                        depositAmountFcfa: bookingDeposit.amountFcfa,
                         customerName,
                         customerPhone: normalizedPhone
                     })
 
                     if (paymentResult.success) {
                         paymentLink = paymentResult.paymentUrl
-                        paymentMessage = `\nAcompte requis : *${depositAmountFcfa.toLocaleString('fr-FR')} FCFA* (${depositPercentage}%).\nLien de paiement : ${paymentLink}`
+                        paymentMessage = `\n${formatRestaurantDepositRequirement(bookingDeposit)}\nLien de paiement : ${paymentLink}`
                     } else {
-                        paymentMessage = `\nAcompte requis : *${depositAmountFcfa.toLocaleString('fr-FR')} FCFA* (${depositPercentage}%).\nVotre reservation est bien enregistree, mais elle n'est pas encore confirmee car le lien de paiement est indisponible pour le moment.`
+                        paymentMessage = `\n${formatRestaurantDepositRequirement(bookingDeposit)}\nVotre reservation est bien enregistree, mais elle n'est pas encore confirmee car le lien de paiement est indisponible pour le moment.`
                     }
                 } catch (paymentError) {
                     console.error('Restaurant booking deposit initiation failed:', paymentError)
-                    paymentMessage = `\nAcompte requis : *${depositAmountFcfa.toLocaleString('fr-FR')} FCFA* (${depositPercentage}%).\nVotre reservation est bien enregistree, mais elle n'est pas encore confirmee car le lien de paiement est indisponible pour le moment.`
+                    paymentMessage = `\n${formatRestaurantDepositRequirement(bookingDeposit)}\nVotre reservation est bien enregistree, mais elle n'est pas encore confirmee car le lien de paiement est indisponible pour le moment.`
                 }
-            } else if (depositRequired && usesMobileMoney) {
-                paymentMessage = buildMobileMoneyDepositMessage(agent, depositAmountFcfa, depositPercentage)
+            } else if (bookingDeposit.required && usesMobileMoney) {
+                paymentMessage = buildMobileMoneyDepositMessage(agent, bookingDeposit)
             }
 
             try {
@@ -1055,9 +1092,9 @@ async function handleCreateRestaurantCheckout(args, agentId, products, conversat
                 record_id: bookingId,
                 fulfillment_mode: fulfillmentMode,
                 total_fcfa: totalFcfa,
-                deposit_required: depositRequired,
-                deposit_amount_fcfa: depositAmountFcfa,
-                deposit_status: depositRequired ? 'pending' : 'not_required',
+                deposit_required: bookingDeposit.required,
+                deposit_amount_fcfa: bookingDeposit.amountFcfa,
+                deposit_status: bookingDeposit.required ? 'pending' : 'not_required',
                 payment_method: bookingPaymentMethod,
                 payment_link: paymentLink,
                 message: `${bookingLabel} pour ${customerName || 'le client'} le ${scheduledDate} a ${scheduledTime}.${itemsSummary}${totalSummary}${paymentMessage}`
@@ -1065,14 +1102,7 @@ async function handleCreateRestaurantCheckout(args, agentId, products, conversat
         }
 
         // Calcul acompte (même logique que pour les bookings)
-        const orderDepositEnabled = !!agent.restaurant_deposit_enabled
-        const orderDepositPercentage = orderDepositEnabled && totalFcfa > 0
-            ? Math.max(0, Math.min(100, Number(agent.restaurant_deposit_percentage || 0)))
-            : 0
-        const orderDepositRequired = orderDepositEnabled && orderDepositPercentage > 0 && totalFcfa > 0
-        const orderDepositAmountFcfa = orderDepositRequired
-            ? Math.ceil((totalFcfa * orderDepositPercentage) / 100)
-            : 0
+        const orderDeposit = resolveRestaurantDeposit(agent, totalFcfa)
 
         const orderUsesCinetpay = paymentMethod === 'online' && (!agent.payment_mode || agent.payment_mode === 'cinetpay')
         const orderUsesMobileMoney = paymentMethod === 'online' && agent.payment_mode === 'mobile_money_direct'
@@ -1102,10 +1132,10 @@ async function handleCreateRestaurantCheckout(args, agentId, products, conversat
             p_items: resolvedItems,
             p_fulfillment_mode: fulfillmentMode,
             p_pickup_at: pickupAt,
-            p_deposit_required: orderDepositRequired,
-            p_deposit_percentage: orderDepositPercentage,
-            p_deposit_amount_fcfa: orderDepositAmountFcfa,
-            p_deposit_status: orderDepositRequired ? 'pending' : 'not_required'
+            p_deposit_required: orderDeposit.required,
+            p_deposit_percentage: orderDeposit.percentage,
+            p_deposit_amount_fcfa: orderDeposit.amountFcfa,
+            p_deposit_status: orderDeposit.required ? 'pending' : 'not_required'
         })
 
         if (orderError) throw orderError
@@ -1117,7 +1147,7 @@ async function handleCreateRestaurantCheckout(args, agentId, products, conversat
         let orderPaymentMessage = ''
 
         if (orderPaymentMethod === 'online' && orderId && orderUsesCinetpay) {
-            const amountToCharge = orderDepositRequired ? orderDepositAmountFcfa : totalFcfa
+            const amountToCharge = orderDeposit.required ? orderDeposit.amountFcfa : totalFcfa
             try {
                 const paymentResult = await initiateOrderOnlinePayment({
                     supabase,
@@ -1126,35 +1156,35 @@ async function handleCreateRestaurantCheckout(args, agentId, products, conversat
                     amountFcfa: amountToCharge,
                     customerName,
                     customerPhone: normalizedPhone,
-                    isDepositPayment: orderDepositRequired
+                    isDepositPayment: orderDeposit.required
                 })
 
                 if (paymentResult.success) {
                     orderPaymentLink = paymentResult.paymentUrl
-                    if (orderDepositRequired) {
-                        orderPaymentMessage = `\nAcompte requis : *${orderDepositAmountFcfa.toLocaleString('fr-FR')} FCFA* (${orderDepositPercentage}%).\nLien de paiement : ${orderPaymentLink}`
+                    if (orderDeposit.required) {
+                        orderPaymentMessage = `\n${formatRestaurantDepositRequirement(orderDeposit)}\nLien de paiement : ${orderPaymentLink}`
                     } else {
                         orderPaymentMessage = `\nLien de paiement : ${orderPaymentLink}`
                     }
                 } else {
-                    orderPaymentMessage = orderDepositRequired
-                        ? `\nAcompte requis : *${orderDepositAmountFcfa.toLocaleString('fr-FR')} FCFA* (${orderDepositPercentage}%).\nVotre commande est bien enregistree, mais le lien de paiement est indisponible pour le moment.`
+                    orderPaymentMessage = orderDeposit.required
+                        ? `\n${formatRestaurantDepositRequirement(orderDeposit)}\nVotre commande est bien enregistree, mais le lien de paiement est indisponible pour le moment.`
                         : '\nVotre commande est bien enregistree, mais le lien de paiement est indisponible pour le moment.'
                 }
             } catch (paymentError) {
                 console.error('Restaurant order payment initiation failed:', paymentError)
-                orderPaymentMessage = orderDepositRequired
-                    ? `\nAcompte requis : *${orderDepositAmountFcfa.toLocaleString('fr-FR')} FCFA* (${orderDepositPercentage}%).\nVotre commande est bien enregistree, mais le lien de paiement est indisponible pour le moment.`
+                orderPaymentMessage = orderDeposit.required
+                    ? `\n${formatRestaurantDepositRequirement(orderDeposit)}\nVotre commande est bien enregistree, mais le lien de paiement est indisponible pour le moment.`
                     : '\nVotre commande est bien enregistree, mais le lien de paiement est indisponible pour le moment.'
             }
         } else if (orderPaymentMethod === 'online' && orderId) {
             orderPaymentLink = `${appUrl}/pay/${orderId}`
-            orderPaymentMessage = orderDepositRequired
-                ? `\nAcompte requis : *${orderDepositAmountFcfa.toLocaleString('fr-FR')} FCFA* (${orderDepositPercentage}%).\nLien de paiement : ${orderPaymentLink}`
+            orderPaymentMessage = orderDeposit.required
+                ? `\n${formatRestaurantDepositRequirement(orderDeposit)}\nLien de paiement : ${orderPaymentLink}`
                 : `\nLien de paiement : ${orderPaymentLink}`
         } else if (orderPaymentMethod === 'mobile_money_direct') {
-            if (orderDepositRequired) {
-                orderPaymentMessage = buildMobileMoneyDepositMessage(agent, orderDepositAmountFcfa, orderDepositPercentage)
+            if (orderDeposit.required) {
+                orderPaymentMessage = buildMobileMoneyDepositMessage(agent, orderDeposit)
             } else {
                 orderPaymentMessage = `\n${buildRestaurantOrderPaymentLabel(orderPaymentMethod, fulfillmentMode)}`
             }
@@ -1183,9 +1213,9 @@ async function handleCreateRestaurantCheckout(args, agentId, products, conversat
             record_id: orderId,
             fulfillment_mode: fulfillmentMode,
             total_fcfa: totalFcfa,
-            deposit_required: orderDepositRequired,
-            deposit_amount_fcfa: orderDepositAmountFcfa,
-            deposit_status: orderDepositRequired ? 'pending' : 'not_required',
+            deposit_required: orderDeposit.required,
+            deposit_amount_fcfa: orderDeposit.amountFcfa,
+            deposit_status: orderDeposit.required ? 'pending' : 'not_required',
             payment_method: orderPaymentMethod,
             payment_link: orderPaymentLink,
             message: `Commande restaurant enregistree pour ${modeLabel}.${pickupSummary}\nTotal : *${totalFcfa.toLocaleString('fr-FR')} FCFA*.${orderPaymentMessage}`

@@ -5,14 +5,22 @@ import { getAIRuntimeSettings } from '@/lib/admin/settings'
 
 function normalizeRestaurantDepositSettings(body: any) {
     const enabled = !!body.restaurant_deposit_enabled
+    const rawMode = String(body.restaurant_deposit_mode ?? 'percentage').trim().toLowerCase()
+    const depositMode = rawMode === 'fixed' ? 'fixed' : 'percentage'
     const rawPercentage = Number(body.restaurant_deposit_percentage ?? 0)
     const boundedPercentage = Number.isFinite(rawPercentage)
         ? Math.max(0, Math.min(100, rawPercentage))
         : 0
+    const rawFixedAmount = Number(body.restaurant_deposit_fixed_amount_fcfa ?? 0)
+    const boundedFixedAmount = Number.isFinite(rawFixedAmount)
+        ? Math.max(0, Math.round(rawFixedAmount))
+        : 0
 
     return {
         restaurant_deposit_enabled: enabled,
-        restaurant_deposit_percentage: enabled ? boundedPercentage : 0
+        restaurant_deposit_mode: enabled ? depositMode : 'percentage',
+        restaurant_deposit_percentage: enabled && depositMode === 'percentage' ? boundedPercentage : 0,
+        restaurant_deposit_fixed_amount_fcfa: enabled && depositMode === 'fixed' ? boundedFixedAmount : 0
     }
 }
 

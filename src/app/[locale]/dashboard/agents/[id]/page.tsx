@@ -168,7 +168,9 @@ export default function AgentWizardPage({
         mobile_money_wave: '',
         custom_payment_methods: [] as { name: string; details: string }[],
         restaurant_deposit_enabled: false,
+        restaurant_deposit_mode: 'percentage' as 'percentage' | 'fixed',
         restaurant_deposit_percentage: 30,
+        restaurant_deposit_fixed_amount_fcfa: 0,
         escalation_phone: '',  // Phone number to display when escalating to human
         agent_context: '',
         welcome_message: '',
@@ -254,7 +256,9 @@ export default function AgentWizardPage({
                 mobile_money_wave: agent.mobile_money_wave || '',
                 custom_payment_methods: agent.custom_payment_methods || [],
                 restaurant_deposit_enabled: agent.restaurant_deposit_enabled ?? false,
+                restaurant_deposit_mode: agent.restaurant_deposit_mode || 'percentage',
                 restaurant_deposit_percentage: agent.restaurant_deposit_percentage ?? 30,
+                restaurant_deposit_fixed_amount_fcfa: agent.restaurant_deposit_fixed_amount_fcfa ?? 0,
                 escalation_phone: agent.escalation_phone || '',
                 agent_context: agent.agent_context || '',
                 welcome_message: agent.welcome_message || '',
@@ -1229,30 +1233,90 @@ export default function AgentWizardPage({
                                     <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
                                         <div>
                                             <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                                Pourcentage d&apos;acompte: {formData.restaurant_deposit_percentage}%
+                                                Type d&apos;acompte
                                             </label>
-                                            <input
-                                                type="range"
-                                                min="0"
-                                                max="100"
-                                                step="5"
-                                                value={formData.restaurant_deposit_percentage}
-                                                onChange={e => setFormData({ ...formData, restaurant_deposit_percentage: parseInt(e.target.value) })}
-                                                style={{ width: '100%', accentColor: '#10b981' }}
-                                            />
+                                            <div className="agent-grid-2" style={{ gap: 12 }}>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setFormData({ ...formData, restaurant_deposit_mode: 'percentage' })}
+                                                    style={{
+                                                        padding: '12px 14px',
+                                                        borderRadius: 10,
+                                                        border: formData.restaurant_deposit_mode === 'percentage' ? '1px solid #10b981' : '1px solid rgba(148, 163, 184, 0.15)',
+                                                        background: formData.restaurant_deposit_mode === 'percentage' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(15, 23, 42, 0.35)',
+                                                        color: formData.restaurant_deposit_mode === 'percentage' ? '#d1fae5' : '#cbd5e1',
+                                                        fontWeight: 600,
+                                                        cursor: 'pointer'
+                                                    }}
+                                                >
+                                                    Pourcentage
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setFormData({ ...formData, restaurant_deposit_mode: 'fixed' })}
+                                                    style={{
+                                                        padding: '12px 14px',
+                                                        borderRadius: 10,
+                                                        border: formData.restaurant_deposit_mode === 'fixed' ? '1px solid #10b981' : '1px solid rgba(148, 163, 184, 0.15)',
+                                                        background: formData.restaurant_deposit_mode === 'fixed' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(15, 23, 42, 0.35)',
+                                                        color: formData.restaurant_deposit_mode === 'fixed' ? '#d1fae5' : '#cbd5e1',
+                                                        fontWeight: 600,
+                                                        cursor: 'pointer'
+                                                    }}
+                                                >
+                                                    Montant fixe
+                                                </button>
+                                            </div>
                                         </div>
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            max="100"
-                                            step="1"
-                                            value={formData.restaurant_deposit_percentage}
-                                            onChange={e => setFormData({ ...formData, restaurant_deposit_percentage: Math.max(0, Math.min(100, parseInt(e.target.value || '0'))) })}
-                                            style={selectStyle}
-                                        />
-                                        <p style={{ fontSize: 12, color: '#94a3b8' }}>
-                                            Exemple: 30% demande un acompte de 30% avant confirmation finale de la reservation.
-                                        </p>
+                                        {formData.restaurant_deposit_mode === 'percentage' ? (
+                                            <>
+                                                <div>
+                                                    <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
+                                                        Pourcentage d&apos;acompte: {formData.restaurant_deposit_percentage}%
+                                                    </label>
+                                                    <input
+                                                        type="range"
+                                                        min="0"
+                                                        max="100"
+                                                        step="5"
+                                                        value={formData.restaurant_deposit_percentage}
+                                                        onChange={e => setFormData({ ...formData, restaurant_deposit_percentage: parseInt(e.target.value) })}
+                                                        style={{ width: '100%', accentColor: '#10b981' }}
+                                                    />
+                                                </div>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    max="100"
+                                                    step="1"
+                                                    value={formData.restaurant_deposit_percentage}
+                                                    onChange={e => setFormData({ ...formData, restaurant_deposit_percentage: Math.max(0, Math.min(100, parseInt(e.target.value || '0'))) })}
+                                                    style={selectStyle}
+                                                />
+                                                <p style={{ fontSize: 12, color: '#94a3b8' }}>
+                                                    Exemple: 30% demande un acompte de 30% avant confirmation finale de la reservation.
+                                                </p>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <div>
+                                                    <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
+                                                        Montant fixe de l&apos;acompte (FCFA)
+                                                    </label>
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        step="500"
+                                                        value={formData.restaurant_deposit_fixed_amount_fcfa}
+                                                        onChange={e => setFormData({ ...formData, restaurant_deposit_fixed_amount_fcfa: Math.max(0, parseInt(e.target.value || '0')) })}
+                                                        style={selectStyle}
+                                                    />
+                                                </div>
+                                                <p style={{ fontSize: 12, color: '#94a3b8' }}>
+                                                    Exemple: 5000 demande toujours 5 000 FCFA d&apos;acompte. Si le total est inferieur, l&apos;acompte sera plafonne au total.
+                                                </p>
+                                            </>
+                                        )}
                                     </div>
                                 )}
                             </div>
