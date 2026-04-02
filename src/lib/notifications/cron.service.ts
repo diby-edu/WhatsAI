@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { notify } from './notification.service'
 import { notifyAdmins } from './admin-notify'
 import nodemailer from 'nodemailer'
+import { fetchUserTestAccountState, listUsersWithExpiredTestCleanupDeadline } from '@/lib/test-account'
 
 // =============================================
 // Cron Service - Scheduled tasks (runs in PM2 process)
@@ -621,6 +622,62 @@ async function checkHighCreditUsage(): Promise<void> {
 }
 
 /**
+ * Delete only genuinely expired test accounts.
+ * Safety rules:
+ * - deadline must be expired
+ * - user must still match the test-account criteria at deletion time
+ * - protected roles are skipped
+ */
+async function handleTestAccountCleanup(): Promise<void> {
+    console.log('⏰ [CRON] Handling expired test-account cleanup...')
+
+    try {
+        const supabase = getAdminSupabase()
+        const nowMs = Date.now()
+        const expiredProfiles = await listUsersWithExpiredTestCleanupDeadline(supabase, nowMs)
+
+        if (!expiredProfiles.length) {
+            console.log('⏰ [CRON] No expired test accounts to delete.')
+            return
+        }
+
+        let deleted = 0
+        let skipped = 0
+        let failed = 0
+
+        for (const profile of expiredProfiles) {
+            try {
+                const liveState = await fetchUserTestAccountState(supabase, profile.id, nowMs)
+
+                if (!liveState?.shouldDelete) {
+                    skipped += 1
+                    console.log(`⏭️ [CRON] Skip test-account cleanup for ${profile.email || profile.id} — user no longer qualifies`)
+                    continue
+                }
+
+                const { error: deleteError } = await supabase.auth.admin.deleteUser(profile.id)
+
+                if (deleteError) {
+                    failed += 1
+                    console.error(`❌ [CRON] Failed to delete expired test account ${profile.email || profile.id}:`, deleteError.message)
+                    continue
+                }
+
+                deleted += 1
+                console.log(`🗑️ [CRON] Deleted expired test account ${profile.email || profile.id}`)
+            } catch (userError) {
+                failed += 1
+                console.error(`❌ [CRON] Error while processing expired test account ${profile.email || profile.id}:`, userError)
+            }
+        }
+
+        console.log(`⏰ [CRON] Test-account cleanup finished — deleted=${deleted}, skipped=${skipped}, failed=${failed}`)
+    } catch (error) {
+        console.error('⏰ [CRON] Error in test-account cleanup:', error)
+    }
+}
+
+/**
  * Initialize all cron jobs.
  * Should be called once at app startup.
  * Safe to call multiple times (idempotent).
@@ -651,6 +708,7 @@ export function initCronJobs(): void {
         handleArchivedAgentLifecycle()
         handleCreditExpiry()
         checkHighCreditUsage()
+        handleTestAccountCleanup()
     }, {
         timezone: 'UTC'
     })
@@ -663,8 +721,8 @@ export function initCronJobs(): void {
     })
 
     cronInitialized = true
-    console.log('⏰ [CRON] Cron jobs initialized — daily tasks at 8:00 AM + WhatsApp monitor every 5 min')
+    console.log('⏰ [CRON] Cron jobs initialized — daily tasks at 8:00/9:00 AM + WhatsApp monitor every 5 min')
 }
 
 // Also export the check functions for manual testing
-export { checkExpiringSubscriptions, checkExpiredSubscriptions, sendDailySummary, handleArchivedAgentLifecycle, handleCreditExpiry, checkHighCreditUsage }
+export { checkExpiringSubscriptions, checkExpiredSubscriptions, sendDailySummary, handleArchivedAgentLifecycle, handleCreditExpiry, checkHighCreditUsage, handleTestAccountCleanup }

@@ -4,6 +4,7 @@ import { resumeActiveConversationsForAgents } from '@/lib/conversations/resume-a
 import { collectReconnectableAgentIds } from '@/lib/whatsapp/reactivation'
 import { checkHostedPaymentStatus, normalizePaymentProvider } from '@/lib/payments/provider'
 import { extractPaystackChannelInfo } from '@/lib/payments/paystack'
+import { markUserAsQualified } from '@/lib/test-account'
 
 export type PaymentRow = {
     id: string
@@ -260,6 +261,12 @@ export async function finalizePaymentRecord(
 
     if (providerStatus === 'ACCEPTED') {
         if (payment.status === 'completed') {
+            try {
+                await markUserAsQualified(adminSupabase, payment.user_id)
+            } catch (qualificationError) {
+                console.error('Failed to clear test-account deadline for already completed payment:', qualificationError)
+            }
+
             return {
                 ok: true,
                 state: 'already_completed',
@@ -469,6 +476,12 @@ export async function finalizePaymentRecord(
                 planUpdated: false,
                 message: 'Echec mise a jour paiement',
             }
+        }
+
+        try {
+            await markUserAsQualified(adminSupabase, payment.user_id)
+        } catch (qualificationError) {
+            console.error('Failed to clear test-account deadline after payment:', qualificationError)
         }
 
         // Notify admins of successful payment

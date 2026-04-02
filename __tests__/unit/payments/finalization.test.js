@@ -21,6 +21,10 @@ jest.mock('@/lib/payments/provider', () => ({
     normalizePaymentProvider: jest.fn((value) => String(value || '').trim().toLowerCase() === 'paystack' ? 'paystack' : 'cinetpay')
 }))
 
+jest.mock('@/lib/test-account', () => ({
+    markUserAsQualified: jest.fn(() => Promise.resolve())
+}))
+
 describe('payment finalization', () => {
     beforeEach(() => {
         jest.clearAllMocks()

@@ -202,6 +202,37 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                     return
                 }
 
+                let agentOwnerUserId = null
+                try {
+                    const { data: agentRecord, error: agentLookupError } = await supabase
+                        .from('agents')
+                        .select('user_id')
+                        .eq('id', agentId)
+                        .single()
+
+                    if (agentLookupError) {
+                        throw agentLookupError
+                    }
+
+                    agentOwnerUserId = agentRecord?.user_id || null
+
+                    if (agentOwnerUserId) {
+                        const { error: qualificationError } = await supabase
+                            .from('profiles')
+                            .update({
+                                test_account_cleanup_deadline: null,
+                                test_account_qualified_at: new Date().toISOString(),
+                            })
+                            .eq('id', agentOwnerUserId)
+
+                        if (qualificationError) {
+                            console.warn(`⚠️ [${agentName}] Failed to clear test-account deadline after WhatsApp connection:`, qualificationError.message)
+                        }
+                    }
+                } catch (agentLookupError) {
+                    console.warn(`⚠️ [${agentName}] Failed to fetch owner user after connection:`, agentLookupError.message || agentLookupError)
+                }
+
                 try {
                     await socket.sendPresenceUpdate('available')
                     console.log(`🟢 [${agentName}] Presence set to available after open`)
@@ -225,10 +256,9 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                 // reconnectAttempt > 0  = reconnexion automatique après coupure → pas de notification
                 if (!session.isSilentRestore && effectiveReconnectAttempt === 0) {
                     try {
-                        const { data: agent } = await supabase.from('agents').select('user_id').eq('id', agentId).single()
-                        if (agent?.user_id) {
+                        if (agentOwnerUserId) {
                             const { notify } = require('../../notifications/notify')
-                            notify(agent.user_id, 'agent_status_change', { agentName, agentStatus: 'connected' })
+                            notify(agentOwnerUserId, 'agent_status_change', { agentName, agentStatus: 'connected' })
                             // Notify admins too
                             const { notifyAdmins } = require('../../notifications/admin-notify')
                             notifyAdmins('agent_connected', { agentName, agentId })

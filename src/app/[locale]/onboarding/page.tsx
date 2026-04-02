@@ -93,8 +93,8 @@ export default function OnboardingPage() {
                 return
             }
 
-            // Redirect to dashboard in the selected language
-            router.push(`/${language}/dashboard`)
+            // Redirect to dashboard in the selected language with a one-time test-account notice.
+            router.push(`/${language}/dashboard?welcome=test-account`)
         } catch {
             setError('Une erreur est survenue. Réessayez.')
             setLoading(false)
@@ -171,6 +171,21 @@ export default function OnboardingPage() {
                     </div>
 
                     {/* ── Section 1 : Devise ── */}
+                    <div style={{
+                        marginBottom: 24,
+                        padding: '14px 16px',
+                        borderRadius: 14,
+                        border: '1px solid rgba(251, 191, 36, 0.22)',
+                        background: 'rgba(120, 53, 15, 0.22)',
+                        color: '#fef3c7',
+                        fontSize: 13,
+                        lineHeight: 1.6
+                    }}>
+                        Information importante : les comptes gratuits sans paiement valide et sans agent WhatsApp completement connecte
+                        peuvent etre supprimes automatiquement apres 7 jours. Si votre compte est encore considere comme compte test,
+                        un compte a rebours apparaitra dans votre dashboard.
+                    </div>
+
                     {sectionLabel(1, 'Votre devise de travail')}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 28 }}>
                         {currencies.map((c) => {
