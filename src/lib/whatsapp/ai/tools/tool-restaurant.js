@@ -548,21 +548,32 @@ async function initiateBookingDepositPayment({
     customerName,
     customerPhone
 }) {
-    const useCinetPayV2 = shouldUseCinetPayV2ForAgent(agentId)
-    const attemptedProviderVersion = useCinetPayV2 ? 'v2' : 'v1'
+    const {
+        getDefaultPaymentProvider,
+        initializeHostedPayment,
+        normalizePaymentProvider
+    } = await import('@/lib/payments/provider')
 
-    if (!useCinetPayV2 && (!CINETPAY_API_KEY || !CINETPAY_SITE_ID)) {
-        return { success: false, error: 'CinetPay non configure', providerVersion: attemptedProviderVersion }
-    }
+    const defaultPaymentProvider = await getDefaultPaymentProvider(supabase)
+    const useCinetPayV2 = shouldUseCinetPayV2ForAgent(agentId)
 
     const { data: booking, error: bookingError } = await supabase
         .from('bookings')
-        .select('id, transaction_id, provider_payment_url, payment_provider_version')
+        .select('id, transaction_id, provider_payment_url, payment_provider_version, payment_provider')
         .eq('id', bookingId)
         .single()
 
     if (bookingError || !booking) {
-        return { success: false, error: 'Reservation introuvable pour le paiement', providerVersion: attemptedProviderVersion }
+        return { success: false, error: 'Reservation introuvable pour le paiement', providerVersion: useCinetPayV2 ? 'v2' : 'v1' }
+    }
+
+    const paymentProvider = normalizePaymentProvider(booking.payment_provider || defaultPaymentProvider)
+    const attemptedProviderVersion = paymentProvider === 'paystack'
+        ? 'v1'
+        : (useCinetPayV2 ? 'v2' : 'v1')
+
+    if (paymentProvider === 'cinetpay' && !useCinetPayV2 && (!CINETPAY_API_KEY || !CINETPAY_SITE_ID)) {
+        return { success: false, error: 'CinetPay non configure', providerVersion: attemptedProviderVersion }
     }
 
     if (booking.transaction_id && booking.provider_payment_url) {
@@ -586,6 +597,7 @@ async function initiateBookingDepositPayment({
     const { error: versionUpdateError } = await supabase
         .from('bookings')
         .update({
+            payment_provider: paymentProvider,
             payment_provider_version: attemptedProviderVersion,
             updated_at: new Date().toISOString()
         })
@@ -593,6 +605,54 @@ async function initiateBookingDepositPayment({
 
     if (versionUpdateError) {
         console.error('Failed to persist booking payment provider version before init:', versionUpdateError)
+    }
+
+    if (paymentProvider === 'paystack') {
+        const result = await initializeHostedPayment({
+            provider: 'paystack',
+            amountFcfa: depositAmountFcfa,
+            currency: 'XOF',
+            transactionId,
+            description: `Acompte reservation #${bookingId.substring(0, 8)}`,
+            customerName: customerName || 'Client',
+            customerPhone: customerPhone || '',
+            returnUrl: `${baseUrl}/payment/success?transaction_id=${transactionId}`,
+            failedUrl: `${baseUrl}/payment/success?transaction_id=${transactionId}&payment=cancelled`,
+            notifyUrl: `${baseUrl}/api/payments/paystack/webhook`,
+            metadata: {
+                booking_id: bookingId,
+                type: 'booking_deposit'
+            },
+            agentId
+        })
+
+        if (!result.success || !result.paymentUrl) {
+            return { success: false, error: result.error || 'Erreur Paystack', providerVersion: attemptedProviderVersion }
+        }
+
+        const { error: updateError } = await supabase
+            .from('bookings')
+            .update({
+                transaction_id: transactionId,
+                payment_provider: 'paystack',
+                provider_payment_url: result.paymentUrl,
+                provider_transaction_id: result.providerTransactionId || transactionId,
+                provider_notify_token: null,
+                payment_provider_version: result.providerVersion || 'v1',
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', bookingId)
+
+        if (updateError) {
+            return { success: false, error: updateError.message || 'Impossible de sauvegarder le lien de paiement' }
+        }
+
+        return {
+            success: true,
+            transactionId,
+            paymentUrl: result.paymentUrl,
+            providerVersion: result.providerVersion || 'v1'
+        }
     }
 
     if (useCinetPayV2) {
@@ -699,6 +759,7 @@ async function initiateBookingDepositPayment({
         .from('bookings')
         .update({
             transaction_id: transactionId,
+            payment_provider: 'cinetpay',
             provider_payment_url: paymentUrl,
             provider_transaction_id: providerTransactionId,
             provider_notify_token: providerNotifyToken,
@@ -728,21 +789,32 @@ async function initiateOrderOnlinePayment({
     customerPhone,
     isDepositPayment
 }) {
-    const useCinetPayV2 = shouldUseCinetPayV2ForAgent(agentId)
-    const attemptedProviderVersion = useCinetPayV2 ? 'v2' : 'v1'
+    const {
+        getDefaultPaymentProvider,
+        initializeHostedPayment,
+        normalizePaymentProvider
+    } = await import('@/lib/payments/provider')
 
-    if (!useCinetPayV2 && (!CINETPAY_API_KEY || !CINETPAY_SITE_ID)) {
-        return { success: false, error: 'CinetPay non configure', providerVersion: attemptedProviderVersion }
-    }
+    const defaultPaymentProvider = await getDefaultPaymentProvider(supabase)
+    const useCinetPayV2 = shouldUseCinetPayV2ForAgent(agentId)
 
     const { data: order, error: orderError } = await supabase
         .from('orders')
-        .select('id, transaction_id, provider_payment_url, payment_provider_version')
+        .select('id, transaction_id, provider_payment_url, payment_provider_version, payment_provider')
         .eq('id', orderId)
         .single()
 
     if (orderError || !order) {
-        return { success: false, error: 'Commande introuvable pour le paiement', providerVersion: attemptedProviderVersion }
+        return { success: false, error: 'Commande introuvable pour le paiement', providerVersion: useCinetPayV2 ? 'v2' : 'v1' }
+    }
+
+    const paymentProvider = normalizePaymentProvider(order.payment_provider || defaultPaymentProvider)
+    const attemptedProviderVersion = paymentProvider === 'paystack'
+        ? 'v1'
+        : (useCinetPayV2 ? 'v2' : 'v1')
+
+    if (paymentProvider === 'cinetpay' && !useCinetPayV2 && (!CINETPAY_API_KEY || !CINETPAY_SITE_ID)) {
+        return { success: false, error: 'CinetPay non configure', providerVersion: attemptedProviderVersion }
     }
 
     if (order.transaction_id && order.provider_payment_url) {
@@ -766,6 +838,7 @@ async function initiateOrderOnlinePayment({
     const { error: versionUpdateError } = await supabase
         .from('orders')
         .update({
+            payment_provider: paymentProvider,
             payment_provider_version: attemptedProviderVersion,
             updated_at: new Date().toISOString()
         })
@@ -773,6 +846,54 @@ async function initiateOrderOnlinePayment({
 
     if (versionUpdateError) {
         console.error('Failed to persist order payment provider version before init:', versionUpdateError)
+    }
+
+    if (paymentProvider === 'paystack') {
+        const result = await initializeHostedPayment({
+            provider: 'paystack',
+            amountFcfa: amountFcfa,
+            currency: 'XOF',
+            transactionId,
+            description: isDepositPayment ? `Acompte commande #${orderId.substring(0, 8)}` : `Commande #${orderId.substring(0, 8)}`,
+            customerName: customerName || 'Client',
+            customerPhone: customerPhone || '',
+            returnUrl: `${baseUrl}/pay/${orderId}`,
+            failedUrl: `${baseUrl}/pay/${orderId}?payment=cancelled`,
+            notifyUrl: `${baseUrl}/api/payments/paystack/webhook`,
+            metadata: {
+                order_id: orderId,
+                type: isDepositPayment ? 'order_deposit' : 'order_payment'
+            },
+            agentId
+        })
+
+        if (!result.success || !result.paymentUrl) {
+            return { success: false, error: result.error || 'Erreur Paystack', providerVersion: attemptedProviderVersion }
+        }
+
+        const { error: updateError } = await supabase
+            .from('orders')
+            .update({
+                transaction_id: transactionId,
+                payment_provider: 'paystack',
+                provider_payment_url: result.paymentUrl,
+                provider_transaction_id: result.providerTransactionId || transactionId,
+                provider_notify_token: null,
+                payment_provider_version: result.providerVersion || 'v1',
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', orderId)
+
+        if (updateError) {
+            return { success: false, error: updateError.message || 'Impossible de sauvegarder le lien de paiement' }
+        }
+
+        return {
+            success: true,
+            transactionId,
+            paymentUrl: result.paymentUrl,
+            providerVersion: result.providerVersion || 'v1'
+        }
     }
 
     if (useCinetPayV2) {
@@ -879,6 +1000,7 @@ async function initiateOrderOnlinePayment({
         .from('orders')
         .update({
             transaction_id: transactionId,
+            payment_provider: 'cinetpay',
             provider_payment_url: paymentUrl,
             provider_transaction_id: providerTransactionId,
             provider_notify_token: providerNotifyToken,

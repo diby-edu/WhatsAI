@@ -208,6 +208,7 @@ export default function AdminSettingsPage() {
         // Payment
         cinetpayMode: 'sandbox',
         cinetpaySiteId: '********',
+        defaultPaymentProvider: 'cinetpay',
         currency: 'XOF',
         defaultCommissionRate: 10,
 
@@ -538,6 +539,30 @@ export default function AdminSettingsPage() {
                                         : 'Les paiements réels sont activés.'}
                                 </div>
                             </div>
+                        </div>
+
+                        <div>
+                            <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
+                                Fournisseur de paiement par defaut
+                            </label>
+                            <select
+                                value={settings.defaultPaymentProvider}
+                                onChange={(e) => setSettings({ ...settings, defaultPaymentProvider: e.target.value })}
+                                style={{
+                                    width: '100%',
+                                    padding: 14,
+                                    borderRadius: 10,
+                                    background: 'rgba(15, 23, 42, 0.5)',
+                                    border: '1px solid rgba(148, 163, 184, 0.1)',
+                                    color: 'white'
+                                }}
+                            >
+                                <option value="cinetpay">CinetPay</option>
+                                <option value="paystack">Paystack</option>
+                            </select>
+                            <p style={{ fontSize: 13, color: '#64748b', marginTop: 6 }}>
+                                Ce choix pilote les nouveaux paiements en ligne crees par la plateforme. Les transactions deja lancees conservent leur fournisseur d origine.
+                            </p>
                         </div>
 
                         <div>
@@ -981,7 +1006,7 @@ export default function AdminSettingsPage() {
                                 <NotificationItem label="Nouvel utilisateur inscrit" description="Alerte quand un nouveau compte est créé" emailKey="email_new_user" pushKey="push_new_user" />
                                 <NotificationItem label="Upgrade de plan" description="Un utilisateur passe à un plan supérieur" emailKey="email_plan_upgrade" pushKey="push_plan_upgrade" />
                                 <NotificationItem label="Downgrade de plan" description="Un utilisateur passe à un plan inférieur" emailKey="email_plan_downgrade" pushKey="push_plan_downgrade" />
-                                <NotificationItem label="Paiement reçu" description="Confirmation de paiement CinetPay" emailKey="email_payment_received" pushKey="push_payment_received" />
+                                <NotificationItem label="Paiement reçu" description="Confirmation de paiement en ligne" emailKey="email_payment_received" pushKey="push_payment_received" />
                                 <NotificationItem label="Paiement échoué" description="Échec d'un paiement" emailKey="email_payment_failed" pushKey="push_payment_failed" critical />
                                 <NotificationItem label="Abonnement annulé" description="Un utilisateur annule son abonnement" emailKey="email_subscription_cancelled" pushKey="push_subscription_cancelled" />
                             </div>

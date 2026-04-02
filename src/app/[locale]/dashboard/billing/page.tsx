@@ -88,6 +88,7 @@ function BillingContent() {
     useEffect(() => {
         const paymentParam = searchParams.get('payment')
         const transactionId = searchParams.get('transaction_id')
+        const paystackReference = searchParams.get('reference') || searchParams.get('trxref')
 
         // CinetPay specific params
         const cpmTransId = searchParams.get('cpm_trans_id')
@@ -105,6 +106,9 @@ function BillingContent() {
             }
         } else if (paymentParam === 'cancelled') {
             setPaymentStatus('failed')
+        } else if (paystackReference) {
+            setPaymentStatus('success')
+            checkPaymentStatus(paystackReference)
         } else if (transactionId) {
             // Check specific transaction
             checkPaymentStatus(transactionId)
@@ -226,7 +230,7 @@ function BillingContent() {
 
     const checkPaymentStatus = async (paymentId: string) => {
         try {
-            // Call verify API which checks with CinetPay directly and credits user
+            // Call verify API which checks with the configured provider and credits user
             const res = await fetch('/api/payments/verify', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

@@ -1,8 +1,8 @@
-import { checkPaymentStatus } from '@/lib/payments/cinetpay'
 import { isAdminRole } from '@/lib/api-utils'
 import { notifyAdmins } from '@/lib/notifications/admin-notify'
 import { resumeActiveConversationsForAgents } from '@/lib/conversations/resume-agent-conversations'
 import { collectReconnectableAgentIds } from '@/lib/whatsapp/reactivation'
+import { checkHostedPaymentStatus, normalizePaymentProvider } from '@/lib/payments/provider'
 
 export type PaymentRow = {
     id: string
@@ -11,6 +11,7 @@ export type PaymentRow = {
     payment_type?: string | null
     provider_transaction_id?: string | null
     transaction_id?: string | null
+    payment_provider?: string | null
     amount_fcfa?: number | null
     credits_purchased?: number | null
     provider_response?: unknown
@@ -533,7 +534,10 @@ export async function finalizePaymentByTransaction(
 
     let providerStatus = normalizeProviderStatus(providerStatusInput)
     if (!providerStatusInput) {
-        const providerResult = await checkPaymentStatus(transactionId)
+        const providerResult = await checkHostedPaymentStatus(
+            normalizePaymentProvider(payment.payment_provider),
+            transactionId
+        )
         if (!providerResult.success) {
             return {
                 ok: false,

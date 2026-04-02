@@ -22,7 +22,6 @@ global.FormData = FormData
 
 const { NextRequest } = require('next/server')
 
-const mockCheckPaymentStatus = jest.fn()
 const mockCreateApiClient = jest.fn()
 const mockGetAuthUser = jest.fn()
 const mockCreateAdminClient = jest.fn()
@@ -31,9 +30,12 @@ const mockFindPaymentByIdentifiers = jest.fn()
 const mockFinalizePaymentByTransaction = jest.fn()
 const mockGetUserRole = jest.fn()
 const mockIsAdminRole = jest.fn()
+const mockCheckHostedPaymentStatus = jest.fn()
+const mockNormalizePaymentProvider = jest.fn((value) => value || 'cinetpay')
 
-jest.mock('@/lib/payments/cinetpay', () => ({
-    checkPaymentStatus: (...args) => mockCheckPaymentStatus(...args)
+jest.mock('@/lib/payments/provider', () => ({
+    checkHostedPaymentStatus: (...args) => mockCheckHostedPaymentStatus(...args),
+    normalizePaymentProvider: (...args) => mockNormalizePaymentProvider(...args)
 }))
 
 jest.mock('@/lib/api-utils', () => ({
@@ -58,7 +60,17 @@ describe('GET /api/payments/cinetpay/status', () => {
     })
 
     test('allows public verification for booking transactions without requiring auth', async () => {
-        mockCheckPaymentStatus.mockResolvedValue({
+        mockCreateAdminClient.mockReturnValue({
+            from: jest.fn(() => ({
+                select: jest.fn(() => ({
+                    eq: jest.fn(() => ({
+                        single: jest.fn(async () => ({ data: null }))
+                    }))
+                }))
+            }))
+        })
+        mockCheckHostedPaymentStatus.mockResolvedValue({
+            success: true,
             status: 'ACCEPTED',
             amount: 5000,
             message: 'MOMO'
@@ -75,7 +87,7 @@ describe('GET /api/payments/cinetpay/status', () => {
             transaction_id: 'BKG_demo_123',
             amount: 5000
         }))
-        expect(mockCheckPaymentStatus).toHaveBeenCalledWith('BKG_demo_123')
+        expect(mockCheckHostedPaymentStatus).toHaveBeenCalledWith('cinetpay', 'BKG_demo_123', { providerVersion: 'v1' })
         expect(mockCreateApiClient).not.toHaveBeenCalled()
         expect(mockGetAuthUser).not.toHaveBeenCalled()
     })

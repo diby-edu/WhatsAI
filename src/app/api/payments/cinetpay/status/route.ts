@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { checkPaymentStatus, checkPaymentStatusV2Runtime } from '@/lib/payments/cinetpay'
 import { createAdminClient, createApiClient, getAuthUser, isAdminRole } from '@/lib/api-utils'
 import {
     canAccessPayment,
@@ -7,18 +6,7 @@ import {
     finalizePaymentByTransaction,
     getUserRole,
 } from '@/lib/payments/finalization'
-
-function normalizeCinetPayV2Status(status: unknown): 'ACCEPTED' | 'REFUSED' | 'PENDING' | 'CANCELLED' | 'UNKNOWN' {
-    const value = String(status || '').trim().toUpperCase()
-    if (value === 'SUCCESS') return 'ACCEPTED'
-    if (value === 'FAILED' || value === 'INSUFFICIENT_BALANCE') return 'REFUSED'
-    if (value === 'EXPIRED') return 'CANCELLED'
-    if (value === 'INITIATED' || value === 'PENDING') return 'PENDING'
-    if (value === 'ACCEPTED') return 'ACCEPTED'
-    if (value === 'REFUSED') return 'REFUSED'
-    if (value === 'CANCELLED') return 'CANCELLED'
-    return 'UNKNOWN'
-}
+import { checkHostedPaymentStatus, normalizePaymentProvider } from '@/lib/payments/provider'
 
 function isPublicCheckoutTransactionId(transactionId: string) {
     return transactionId.startsWith('ORD_')
@@ -27,26 +15,32 @@ function isPublicCheckoutTransactionId(transactionId: string) {
         || transactionId.startsWith('BKG-')
 }
 
-async function getPublicCheckoutProviderVersion(transactionId: string) {
+async function getPublicCheckoutProviderConfig(transactionId: string) {
     const adminSupabase = createAdminClient()
 
     const { data: order } = await adminSupabase
         .from('orders')
-        .select('payment_provider_version')
+        .select('payment_provider, payment_provider_version')
         .eq('transaction_id', transactionId)
         .single()
 
-    if (order?.payment_provider_version) {
-        return order.payment_provider_version
+    if (order) {
+        return {
+            provider: normalizePaymentProvider(order.payment_provider),
+            providerVersion: order.payment_provider_version || 'v1',
+        }
     }
 
     const { data: booking } = await adminSupabase
         .from('bookings')
-        .select('payment_provider_version')
+        .select('payment_provider, payment_provider_version')
         .eq('transaction_id', transactionId)
         .single()
 
-    return booking?.payment_provider_version || 'v1'
+    return {
+        provider: normalizePaymentProvider(booking?.payment_provider),
+        providerVersion: booking?.payment_provider_version || 'v1',
+    }
 }
 
 export async function GET(request: NextRequest) {
@@ -60,18 +54,15 @@ export async function GET(request: NextRequest) {
 
     try {
         if (isPublicCheckoutTransaction) {
-            const providerVersion = await getPublicCheckoutProviderVersion(transactionId)
-            const result = providerVersion === 'v2'
-                ? await checkPaymentStatusV2Runtime(transactionId)
-                : await checkPaymentStatus(transactionId)
-            const normalizedStatus = providerVersion === 'v2'
-                ? normalizeCinetPayV2Status(result.status)
-                : (result.status || 'UNKNOWN')
+            const { provider, providerVersion } = await getPublicCheckoutProviderConfig(transactionId)
+            const result = await checkHostedPaymentStatus(provider, transactionId, { providerVersion })
+            const normalizedStatus = result.status || 'UNKNOWN'
 
             return NextResponse.json({
                 success: normalizedStatus === 'ACCEPTED',
                 status: normalizedStatus,
-                provider_status: result.status || 'UNKNOWN',
+                provider,
+                provider_status: normalizedStatus,
                 transaction_id: transactionId,
                 amount: result.amount,
                 payment_method: result.message,
@@ -105,11 +96,15 @@ export async function GET(request: NextRequest) {
             }
         }
 
-        const result = await checkPaymentStatus(transactionId)
+        const result = await checkHostedPaymentStatus(
+            normalizePaymentProvider(payment?.payment_provider),
+            transactionId
+        )
 
         return NextResponse.json({
             success: result.status === 'ACCEPTED',
             status: result.status || 'UNKNOWN',
+            provider: normalizePaymentProvider(payment?.payment_provider),
             transaction_id: transactionId,
             amount: result.amount,
             payment_method: result.message,

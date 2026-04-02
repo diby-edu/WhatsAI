@@ -2,10 +2,9 @@ import { NextRequest } from 'next/server'
 import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
 import { checkRateLimit, getClientIdentifier, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 import {
-    initializePayment,
     generateTransactionId,
-    PaymentInitData
 } from '@/lib/payments/cinetpay'
+import { getDefaultPaymentProvider, initializeHostedPayment } from '@/lib/payments/provider'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
@@ -124,6 +123,7 @@ export async function POST(request: NextRequest) {
 
         // Create payment record in database
         const adminSupabase = createAdminClient()
+        const defaultProvider = await getDefaultPaymentProvider(adminSupabase)
         const { data: payment, error: paymentError } = await adminSupabase
             .from('payments')
             .insert({
@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
                 payment_type: type,
                 description,
                 status: 'pending',
-                payment_provider: 'cinetpay',
+                payment_provider: defaultProvider,
                 provider_transaction_id: transactionId,
                 customer_phone: profile.phone,
                 customer_email: profile.email,
@@ -149,24 +149,24 @@ export async function POST(request: NextRequest) {
 
         // Initialize payment with CinetPay
         // Prices are stored in FCFA — send directly as XOF (no conversion needed)
-        const paymentData: PaymentInitData = {
-            amount: amountFCFA,
+        const result = await initializeHostedPayment({
+            provider: defaultProvider,
+            amountFcfa: amountFCFA,
             currency: 'XOF',
             transactionId,
             description,
             customerName: profile.full_name || profile.email,
             customerEmail: profile.email,
             customerPhone: profile.phone || '',
-            returnUrl: `${APP_URL}/dashboard/billing?payment=${payment.id}`,
-            notifyUrl: `${APP_URL}/api/payments/cinetpay/webhook`,
+            returnUrl: `${APP_URL}/dashboard/billing`,
+            failedUrl: `${APP_URL}/dashboard/billing?payment=cancelled`,
+            notifyUrl: `${APP_URL}/api/payments/${defaultProvider}/webhook`,
             metadata: {
                 ...metadata,
                 payment_id: payment.id,
                 amount_fcfa: amount,
             },
-        }
-
-        const result = await initializePayment(paymentData)
+        })
 
         if (!result.success) {
             // Update payment as failed
@@ -183,7 +183,15 @@ export async function POST(request: NextRequest) {
             .from('payments')
             .update({
                 status: 'processing',
+                payment_provider: defaultProvider,
+                provider_transaction_id: result.providerTransactionId || transactionId,
                 provider_payment_url: result.paymentUrl,
+                provider_response: {
+                    ...metadata,
+                    amount_fcfa: amount,
+                    provider: defaultProvider,
+                    provider_version: result.providerVersion || null,
+                },
             })
             .eq('id', payment.id)
 
@@ -191,6 +199,7 @@ export async function POST(request: NextRequest) {
             paymentId: payment.id,
             paymentUrl: result.paymentUrl,
             transactionId,
+            provider: defaultProvider,
         })
     } catch (err) {
         console.error('Payment init error:', err)

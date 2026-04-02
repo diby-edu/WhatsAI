@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { checkPaymentStatus } from '@/lib/payments/cinetpay'
 import { createAdminClient, createApiClient, getAuthUser, isAdminRole } from '@/lib/api-utils'
 import {
     canAccessPayment,
@@ -8,6 +7,7 @@ import {
     getPaymentTransactionId,
     getUserRole,
 } from '@/lib/payments/finalization'
+import { checkHostedPaymentStatus, normalizePaymentProvider } from '@/lib/payments/provider'
 
 // POST - Verify one payment and finalize through central pipeline
 export async function POST(request: NextRequest) {
@@ -44,12 +44,15 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Transaction ID introuvable' }, { status: 400 })
         }
 
-        const cinetpayStatus = await checkPaymentStatus(txToCheck)
-        if (!cinetpayStatus.success) {
+        const providerStatus = await checkHostedPaymentStatus(
+            normalizePaymentProvider(payment.payment_provider),
+            txToCheck
+        )
+        if (!providerStatus.success) {
             return NextResponse.json(
                 {
                     error: 'Failed to check payment status',
-                    cinetpay_response: cinetpayStatus,
+                    provider_response: providerStatus,
                 },
                 { status: 400 }
             )
@@ -58,7 +61,7 @@ export async function POST(request: NextRequest) {
         const finalized = await finalizePaymentRecord(
             adminSupabase,
             payment,
-            cinetpayStatus.status
+            providerStatus.status
         )
 
         if (!finalized.ok) {
@@ -73,6 +76,7 @@ export async function POST(request: NextRequest) {
             plan_updated: finalized.planUpdated,
             current_status: finalized.payment?.status || payment.status,
             cinetpay_status: finalized.providerStatus,
+            provider_status: finalized.providerStatus,
             finalization_state: finalized.state,
         })
     } catch (error) {
