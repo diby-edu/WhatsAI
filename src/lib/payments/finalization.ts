@@ -3,6 +3,7 @@ import { notifyAdmins } from '@/lib/notifications/admin-notify'
 import { resumeActiveConversationsForAgents } from '@/lib/conversations/resume-agent-conversations'
 import { collectReconnectableAgentIds } from '@/lib/whatsapp/reactivation'
 import { checkHostedPaymentStatus, normalizePaymentProvider } from '@/lib/payments/provider'
+import { extractPaystackChannelInfo } from '@/lib/payments/paystack'
 
 export type PaymentRow = {
     id: string
@@ -16,6 +17,8 @@ export type PaymentRow = {
     credits_purchased?: number | null
     provider_response?: unknown
     metadata?: unknown
+    payment_channel?: string | null
+    payment_channel_detail?: string | null
 }
 
 type SupabaseClientLike = any
@@ -82,6 +85,29 @@ function getMetadata(payment: PaymentRow) {
         providerResponse,
         metadata: providerResponse.metadata || rawMetadata || {},
     }
+}
+
+function buildPaymentProviderUpdate(payment: PaymentRow, providerPayload?: unknown) {
+    const currentProviderResponse = parseMaybeJson(payment.provider_response) || {}
+    const mergedProviderResponse = providerPayload
+        ? { ...currentProviderResponse, last_verification_payload: providerPayload }
+        : currentProviderResponse
+
+    const update: Record<string, unknown> = {
+        provider_response: mergedProviderResponse,
+    }
+
+    if (normalizePaymentProvider(payment.payment_provider) === 'paystack' && providerPayload) {
+        const channelInfo = extractPaystackChannelInfo(providerPayload)
+        if (channelInfo.paymentChannel) {
+            update.payment_channel = channelInfo.paymentChannel
+        }
+        if (channelInfo.paymentChannelDetail) {
+            update.payment_channel_detail = channelInfo.paymentChannelDetail
+        }
+    }
+
+    return update
 }
 
 async function resolveCreditsToAdd(adminSupabase: SupabaseClientLike, payment: PaymentRow): Promise<number> {
@@ -421,18 +447,13 @@ export async function finalizePaymentRecord(
             }
         }
 
-        const currentProviderResponse = parseMaybeJson(payment.provider_response) || {}
-        const mergedProviderResponse = providerPayload
-            ? { ...currentProviderResponse, last_verification_payload: providerPayload }
-            : currentProviderResponse
-
         const { error: updatePaymentError } = await adminSupabase
             .from('payments')
             .update({
                 status: 'completed',
                 credits_purchased: creditsAdded > 0 ? creditsAdded : payment.credits_purchased,
                 completed_at: new Date().toISOString(),
-                provider_response: mergedProviderResponse,
+                ...buildPaymentProviderUpdate(payment, providerPayload),
             })
             .eq('id', payment.id)
 
@@ -478,7 +499,10 @@ export async function finalizePaymentRecord(
         if (payment.status !== 'failed') {
             await adminSupabase
                 .from('payments')
-                .update({ status: 'failed' })
+                .update({
+                    status: 'failed',
+                    ...buildPaymentProviderUpdate(payment, providerPayload),
+                })
                 .eq('id', payment.id)
 
             // Notify admins of failed payment
@@ -551,6 +575,7 @@ export async function finalizePaymentByTransaction(
             }
         }
         providerStatus = normalizeProviderStatus(providerResult.status)
+        providerPayload = providerPayload || providerResult.raw || providerResult
     }
 
     return finalizePaymentRecord(adminSupabase, payment, providerStatus, providerPayload)

@@ -156,6 +156,8 @@ export type Database = {
                     credits_purchased: number | null
                     status: 'pending' | 'completed' | 'failed' | 'refunded'
                     payment_provider: string
+                    payment_channel: string | null
+                    payment_channel_detail: string | null
                     provider_transaction_id: string | null
                     provider_response: any
                     created_at: string

@@ -79,4 +79,46 @@ describe('paystack helpers', () => {
             amount: 5000
         }))
     })
+
+    test('extracts a mobile money channel with provider detail from nested payloads', () => {
+        const { extractPaystackChannelInfo } = require('@/lib/payments/paystack')
+
+        const result = extractPaystackChannelInfo({
+            webhook: {
+                data: {
+                    channel: 'mobile_money'
+                }
+            },
+            verification: {
+                data: {
+                    authorization: {
+                        bank: 'Wave'
+                    }
+                }
+            }
+        })
+
+        expect(result).toEqual({
+            paymentChannel: 'mobile_money',
+            paymentChannelDetail: 'Wave'
+        })
+    })
+
+    test('extracts card brand as display detail when available', () => {
+        const { extractPaystackChannelInfo } = require('@/lib/payments/paystack')
+
+        const result = extractPaystackChannelInfo({
+            data: {
+                channel: 'card',
+                authorization: {
+                    brand: 'Visa'
+                }
+            }
+        })
+
+        expect(result).toEqual({
+            paymentChannel: 'card',
+            paymentChannelDetail: 'Visa'
+        })
+    })
 })

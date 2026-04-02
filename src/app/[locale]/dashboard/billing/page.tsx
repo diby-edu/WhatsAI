@@ -52,6 +52,8 @@ interface Payment {
     description: string
     status: string
     payment_provider?: string | null
+    payment_channel?: string | null
+    payment_channel_detail?: string | null
     reference?: string | null
     created_at: string
     completed_at?: string | null
@@ -122,6 +124,54 @@ function BillingContent() {
             hour: '2-digit',
             minute: '2-digit',
         })
+    }
+
+    const formatHistoryProvider = (provider?: string | null) => {
+        const normalized = String(provider || '').trim().toLowerCase()
+        if (normalized === 'paystack') return 'Paystack'
+        if (normalized === 'cinetpay') return 'CinetPay'
+        return provider || 'Paiement'
+    }
+
+    const formatHistoryChannel = (value?: string | null) => {
+        const raw = String(value || '').trim()
+        if (!raw) return null
+
+        const normalized = raw.toLowerCase().replace(/[\s-]+/g, '_')
+        const mapped: Record<string, string> = {
+            mobile_money: 'Mobile Money',
+            bank_transfer: 'Bank Transfer',
+            direct_debit: 'Direct Debit',
+            apple_pay: 'Apple Pay',
+            ussd: 'USSD',
+            qr: 'QR',
+            card: 'Card',
+            bank: 'Bank',
+        }
+
+        if (mapped[normalized]) {
+            return mapped[normalized]
+        }
+
+        if (normalized === raw.toLowerCase()) {
+            return raw
+                .split(/[_\s-]+/)
+                .filter(Boolean)
+                .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+                .join(' ')
+        }
+
+        return raw
+    }
+
+    const getHistoryProviderLine = (payment: Payment) => {
+        const providerLabel = formatHistoryProvider(payment.payment_provider)
+        const detailLabel = formatHistoryChannel(payment.payment_channel_detail)
+            || formatHistoryChannel(payment.payment_channel)
+
+        return detailLabel
+            ? `${providerLabel} - ${detailLabel}`
+            : providerLabel
     }
 
     // Check for payment return
@@ -855,6 +905,9 @@ function BillingContent() {
                                             <div style={{ fontWeight: 500, color: 'white', fontSize: 14 }}>{payment.description}</div>
                                             <div style={{ fontSize: 12, color: '#64748b' }}>
                                                 {getHistoryTimestamp(payment)}
+                                            </div>
+                                            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
+                                                {getHistoryProviderLine(payment)}
                                             </div>
                                             {payment.reference && (
                                                 <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>

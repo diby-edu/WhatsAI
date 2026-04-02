@@ -61,7 +61,8 @@ export async function POST(request: NextRequest) {
         const finalized = await finalizePaymentRecord(
             adminSupabase,
             payment,
-            providerStatus.status
+            providerStatus.status,
+            providerStatus.raw || providerStatus
         )
 
         if (!finalized.ok) {

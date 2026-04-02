@@ -332,7 +332,10 @@ export async function POST(request: NextRequest) {
             getSupabase(),
             reference,
             verified.status,
-            body
+            {
+                webhook: body,
+                verification: verified.raw || verified,
+            }
         )
 
         if (!finalized.ok && finalized.state !== 'not_found') {
