@@ -70,6 +70,7 @@ export default function AdminAgentsPage() {
     const [searchQuery, setSearchQuery] = useState('')
     const [actionLoading, setActionLoading] = useState<string | null>(null)
     const [viewAgent, setViewAgent] = useState<AdminAgent | null>(null)
+    const [showSupportQr, setShowSupportQr] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
     useEffect(() => {
@@ -133,6 +134,11 @@ export default function AdminAgentsPage() {
         } finally {
             setActionLoading(null)
         }
+    }
+
+    function openAgentDetails(agent: AdminAgent) {
+        setShowSupportQr(false)
+        setViewAgent(agent)
     }
 
     async function toggleAgent(id: string) {
@@ -395,13 +401,7 @@ export default function AdminAgentsPage() {
                             )}
                             {!agent.whatsapp_connected && agent.is_active && (
                                 <button
-                                    onClick={() => {
-                                        if (agent.operationalStatus === 'qr_ready' && agent.whatsapp_qr_code) {
-                                            setViewAgent(agent)
-                                            return
-                                        }
-                                        requestWhatsAppConnect(agent.id, agent.name, agent.operationalStatus === 'qr_ready')
-                                    }}
+                                    onClick={() => requestWhatsAppConnect(agent.id, agent.name, agent.operationalStatus === 'qr_ready')}
                                     disabled={actionLoading === agent.id}
                                     style={{
                                         flex: 1,
@@ -420,19 +420,11 @@ export default function AdminAgentsPage() {
                                         opacity: actionLoading === agent.id ? 0.5 : 1,
                                     }}
                                 >
-                                    {agent.operationalStatus === 'qr_ready' && agent.whatsapp_qr_code ? (
-                                        <>
-                                            <QrCode size={13} /> Voir QR
-                                        </>
-                                    ) : (
-                                        <>
-                                            <RefreshCw size={13} /> Relancer WA
-                                        </>
-                                    )}
+                                    <RefreshCw size={13} /> Relancer WA
                                 </button>
                             )}
                             <button
-                                onClick={() => setViewAgent(agent)}
+                                onClick={() => openAgentDetails(agent)}
                                 style={{
                                     flex: 1,
                                     padding: '8px',
@@ -508,7 +500,10 @@ export default function AdminAgentsPage() {
                                 boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
                             }}
                         >
-                            <button onClick={() => setViewAgent(null)} style={{ position: 'absolute', top: 12, right: 12, background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}>
+                            <button onClick={() => {
+                                setShowSupportQr(false)
+                                setViewAgent(null)
+                            }} style={{ position: 'absolute', top: 12, right: 12, background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}>
                                 <X size={18} />
                             </button>
                             <h2 style={{ fontSize: 18, fontWeight: 700, color: 'white', marginBottom: 16 }}>{viewAgent.name}</h2>
@@ -523,7 +518,7 @@ export default function AdminAgentsPage() {
                                 <InfoRow label="ID" value={viewAgent.id} mono />
                                 {viewAgent.operationalStatus === 'qr_ready' && viewAgent.whatsapp_qr_code && (
                                     <div style={{ marginTop: 8 }}>
-                                        <span style={{ color: '#64748b', fontSize: 12 }}>QR WhatsApp</span>
+                                        <span style={{ color: '#64748b', fontSize: 12 }}>Connexion WhatsApp</span>
                                         <div style={{
                                             marginTop: 8,
                                             display: 'flex',
@@ -535,32 +530,61 @@ export default function AdminAgentsPage() {
                                             background: 'rgba(15,23,42,0.5)',
                                             border: '1px solid rgba(148,163,184,0.1)',
                                         }}>
-                                            <div style={{ background: 'white', padding: 12, borderRadius: 12 }}>
-                                                <img src={viewAgent.whatsapp_qr_code} alt={`QR ${viewAgent.name}`} style={{ width: 220, height: 220 }} />
-                                            </div>
                                             <div style={{ color: '#94a3b8', fontSize: 12, textAlign: 'center', lineHeight: 1.5 }}>
-                                                Scannez avec WhatsApp {`(Appareils connectes)`}. Si le QR expire, utilisez "Relancer WA".
+                                                Un QR est pret pour cet agent, mais le scan doit etre fait par le proprietaire du numero.
+                                                <br />
+                                                Utilisez "Relancer WA" si le QR doit etre regenere ou si la reconnexion silencieuse n aboutit pas.
                                             </div>
-                                            <button
-                                                onClick={() => requestWhatsAppConnect(viewAgent.id, viewAgent.name, true)}
-                                                disabled={actionLoading === viewAgent.id}
-                                                style={{
-                                                    padding: '8px 12px',
-                                                    borderRadius: 8,
-                                                    border: 'none',
-                                                    fontSize: 12,
-                                                    fontWeight: 600,
-                                                    cursor: 'pointer',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: 6,
-                                                    background: 'rgba(16, 185, 129, 0.12)',
-                                                    color: '#34d399',
-                                                    opacity: actionLoading === viewAgent.id ? 0.5 : 1,
-                                                }}
-                                            >
-                                                <RefreshCw size={13} /> Regenerer le QR
-                                            </button>
+                                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+                                                <button
+                                                    onClick={() => requestWhatsAppConnect(viewAgent.id, viewAgent.name, true)}
+                                                    disabled={actionLoading === viewAgent.id}
+                                                    style={{
+                                                        padding: '8px 12px',
+                                                        borderRadius: 8,
+                                                        border: 'none',
+                                                        fontSize: 12,
+                                                        fontWeight: 600,
+                                                        cursor: 'pointer',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: 6,
+                                                        background: 'rgba(16, 185, 129, 0.12)',
+                                                        color: '#34d399',
+                                                        opacity: actionLoading === viewAgent.id ? 0.5 : 1,
+                                                    }}
+                                                >
+                                                    <RefreshCw size={13} /> Regenerer le QR
+                                                </button>
+                                                <button
+                                                    onClick={() => setShowSupportQr((current) => !current)}
+                                                    style={{
+                                                        padding: '8px 12px',
+                                                        borderRadius: 8,
+                                                        border: '1px solid rgba(59, 130, 246, 0.25)',
+                                                        fontSize: 12,
+                                                        fontWeight: 600,
+                                                        cursor: 'pointer',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: 6,
+                                                        background: 'rgba(59, 130, 246, 0.12)',
+                                                        color: '#60a5fa',
+                                                    }}
+                                                >
+                                                    <QrCode size={13} /> {showSupportQr ? 'Masquer QR support' : 'Afficher QR support'}
+                                                </button>
+                                            </div>
+                                            {showSupportQr && (
+                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                                                    <div style={{ color: '#fbbf24', fontSize: 12, textAlign: 'center', lineHeight: 1.5 }}>
+                                                        Mode support uniquement. Ce QR ne doit pas devenir le flux normal de reconnexion client.
+                                                    </div>
+                                                    <div style={{ background: 'white', padding: 12, borderRadius: 12 }}>
+                                                        <img src={viewAgent.whatsapp_qr_code} alt={`QR ${viewAgent.name}`} style={{ width: 220, height: 220 }} />
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 )}
