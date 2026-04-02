@@ -1,58 +1,57 @@
-
 /**
- * Workflow pour PRODUITS NUMÉRIQUES uniquement (💻)
+ * Workflow pour PRODUITS NUMERIQUES uniquement.
  */
 function buildDigitalWorkflow(orders) {
     return `
-📋 FLUX DE COMMANDE (MODE PRODUIT NUMÉRIQUE 💻):
+FLUX DE COMMANDE (MODE PRODUIT NUMERIQUE):
 
-⚠️ RÈGLES STRICTES :
+REGLES STRICTES :
 - PAS d'adresse de livraison (c'est virtuel).
 - PAIEMENT EN LIGNE OBLIGATOIRE (pas de cash).
 
-ÉTAPE 1 - PRODUIT ET QUANTITÉ:
-    - Quantité : "Combien de licences/ebooks ?"
-    - Variantes : Scan catalogue (souvent aucune pour le numérique).
+ETAPE 1 - PRODUIT ET QUANTITE:
+    - Quantite : "Combien de licences/ebooks ?"
+    - Variantes : Scan catalogue (souvent aucune pour le numerique).
 
-ÉTAPE 2 - MINI-RÉCAP PANIER:
-    - Afficher : Qté x Prix.
+ETAPE 2 - MINI-RECAP PANIER:
+    - Afficher : Qte x Prix.
     - Demander "On continue ?"
 
-ÉTAPE 3 - INFOS CLIENT (EMAIL CRITIQUE):
+ETAPE 3 - INFOS CLIENT (EMAIL CRITIQUE):
 ${(orders && orders.length > 0) ? `
-    👉 CLIENT CONNU :
+    CLIENT CONNU :
       "Souhaitez-vous utiliser ces infos ?
-      • Nom : ${orders[0].customer_name || 'Inconnu'}
-      • Tél : ${orders[0].customer_phone || 'Inconnu'}"
-      + "Quel est votre 📧 EMAIL pour la réception ?"
+      - Nom : ${orders[0].customer_name || 'Inconnu'}
+      - Tel : ${orders[0].customer_phone || 'Inconnu'}"
+      + "Quel est votre EMAIL pour la reception ?"
 ` : `
-    👉 NOUVEAU CLIENT : Demander :
-      • Nom complet
-      • Téléphone (avec indicatif)
-      • 📧 EMAIL (Obligatoire pour l'envoi)
+    NOUVEAU CLIENT : Demander :
+      - Nom complet
+      - Telephone (avec indicatif)
+      - EMAIL (Obligatoire pour l'envoi)
 `}
-    🚫 NE DEMANDE PAS D'ADRESSE PHYSIQUE !
+    NE DEMANDE PAS D'ADRESSE PHYSIQUE !
 
-ÉTAPE 4 - PAIEMENT (AUTOMATIQUE):
-    - 🚫 Ne pose PAS de question "Comment payer ?".
-    - Dis juste : "Le paiement se fera en ligne sécurisé (CinetPay/Mobile Money)."
+ETAPE 4 - PAIEMENT (AUTOMATIQUE):
+    - Ne pose PAS de question "Comment payer ?".
+    - Dis juste : "Le paiement se fera via un lien de paiement securise."
     - payment_method sera toujours 'online'.
 
-ÉTAPE 5 - NOTES:
+ETAPE 5 - NOTES:
     - "Une note ou instruction pour cette commande ?"
 
-ÉTAPE 6 - RÉCAP FINAL:
-    "Récapitulatif :
-    💻 *[Produits]* (Total: [Prix] FCFA)
-    📧 Envoi à : [Email]
-    💳 Paiement : En ligne (Automatique)
-    📝 Note : [Note]
-    
+ETAPE 6 - RECAP FINAL:
+    "Recapitulatif :
+    *[Produits]* (Total: [Prix] FCFA)
+    Envoi a : [Email]
+    Paiement : Lien de paiement automatique
+    Note : [Note]
+
     Confirmez-vous ?"
 
-ÉTAPE 7 - CONFIRMATION:
-    - "Oui" → create_order(payment_method: 'online', email: ...)
-    - 🛑 FIN DU FLUX.
+ETAPE 7 - CONFIRMATION:
+    - "Oui" -> create_order(payment_method: 'online', email: ...)
+    - FIN DU FLUX.
 `.trim()
 }
 

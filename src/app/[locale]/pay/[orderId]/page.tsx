@@ -21,7 +21,7 @@ export default function OrderPaymentPage() {
 
     const verifyReturnPayment = async (transactionId: string) => {
         try {
-            const response = await fetch(`/api/payments/cinetpay/status?transaction_id=${encodeURIComponent(transactionId)}`)
+            const response = await fetch(`/api/payments/status?transaction_id=${encodeURIComponent(transactionId)}`)
             const data = await response.json()
 
             if (data.success && data.status === 'ACCEPTED') {

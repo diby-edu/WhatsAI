@@ -102,8 +102,8 @@ function normalizeBookingPaymentMethod(value) {
 }
 
 function formatBookingPaymentLabel(paymentMethod) {
-    if (paymentMethod === 'online') return 'en ligne'
-    if (paymentMethod === 'onsite') return 'sur place'
+    if (paymentMethod === 'online') return 'lien de paiement automatique'
+    if (paymentMethod === 'onsite') return 'paiement manuel sur place'
     return 'non precise'
 }
 

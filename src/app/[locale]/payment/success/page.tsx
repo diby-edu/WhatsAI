@@ -32,8 +32,8 @@ function PaymentSuccessContent() {
                 const isPublicCheckoutTransaction = txnId.startsWith('BKG_') || txnId.startsWith('ORD_')
                 const response = await fetch(
                     isPublicCheckoutTransaction
-                        ? `/api/payments/cinetpay/status?transaction_id=${encodeURIComponent(txnId)}`
-                        : '/api/payments/cinetpay/status',
+                        ? `/api/payments/status?transaction_id=${encodeURIComponent(txnId)}`
+                        : '/api/payments/status',
                     isPublicCheckoutTransaction
                         ? { method: 'GET' }
                         : {

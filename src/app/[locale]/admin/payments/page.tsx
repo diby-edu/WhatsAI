@@ -14,6 +14,8 @@ interface Payment {
     currency: string
     status: string
     payment_method?: string
+    payment_channel?: string | null
+    payment_channel_detail?: string | null
     transaction_id?: string
     created_at: string
     updated_at: string
@@ -35,7 +37,16 @@ export default function AdminPaymentPage() {
     const [verifyTransactionId, setVerifyTransactionId] = useState('')
     const [verifyResult, setVerifyResult] = useState<any>(null)
     const [verifying, setVerifying] = useState(false)
-    const [cinetpayConfig, setCinetpayConfig] = useState<{ apiKey: boolean, siteId: boolean }>({ apiKey: false, siteId: false })
+    const [providerConfig, setProviderConfig] = useState({
+        cinetpayApiKey: false,
+        cinetpaySiteId: false,
+        paystackSecretKey: false,
+        paystackPublicKey: false,
+    })
+    const cinetpayConfig = {
+        apiKey: providerConfig.cinetpayApiKey,
+        siteId: providerConfig.cinetpaySiteId,
+    }
     const [isMobile, setIsMobile] = useState(false)
 
     useEffect(() => {
@@ -47,18 +58,20 @@ export default function AdminPaymentPage() {
 
     useEffect(() => {
         fetchPayments()
-        fetchCinetpayConfig()
+        fetchProviderConfig()
     }, [])
 
-    const fetchCinetpayConfig = async () => {
+    const fetchProviderConfig = async () => {
         try {
             const res = await fetch('/api/admin/diagnostics/env')
             const data = await res.json()
-            // Check if CINETPAY vars are in configured list (not in missing)
             const missing = data.data?.missing || []
-            setCinetpayConfig({
-                apiKey: !missing.includes('CINETPAY_API_KEY'),
-                siteId: !missing.includes('CINETPAY_SITE_ID')
+            const optionalConfigured = data.data?.optionalConfigured || []
+            setProviderConfig({
+                cinetpayApiKey: !missing.includes('CINETPAY_API_KEY'),
+                cinetpaySiteId: !missing.includes('CINETPAY_SITE_ID'),
+                paystackSecretKey: optionalConfigured.includes('PAYSTACK_SECRET_KEY'),
+                paystackPublicKey: optionalConfigured.includes('PAYSTACK_PUBLIC_KEY'),
             })
         } catch (err) {
             console.error('Error checking config:', err)
@@ -93,7 +106,7 @@ export default function AdminPaymentPage() {
     const verifyPaymentStatus = async (transactionId: string) => {
         setCheckingPayment(transactionId)
         try {
-            const res = await fetch('/api/payments/cinetpay/status', {
+            const res = await fetch('/api/payments/status', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ transaction_id: transactionId })
@@ -104,7 +117,7 @@ export default function AdminPaymentPage() {
             if (data.data?.status) {
                 setPayments(prev => prev.map(p =>
                     p.transaction_id === transactionId
-                        ? { ...p, status: mapCinetPayStatus(data.data.status) }
+                        ? { ...p, status: mapHostedPaymentStatus(data.data.status) }
                         : p
                 ))
             }
@@ -126,7 +139,7 @@ export default function AdminPaymentPage() {
         setVerifyResult(null)
 
         try {
-            const res = await fetch('/api/payments/cinetpay/status', {
+            const res = await fetch('/api/payments/status', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ transaction_id: verifyTransactionId.trim() })
@@ -140,8 +153,8 @@ export default function AdminPaymentPage() {
         }
     }
 
-    const mapCinetPayStatus = (cinetpayStatus: string): string => {
-        switch (cinetpayStatus) {
+    const mapHostedPaymentStatus = (providerStatus: string): string => {
+        switch (providerStatus) {
             case 'ACCEPTED': return 'completed'
             case 'REFUSED': return 'failed'
             case 'CANCELLED': return 'cancelled'
@@ -416,6 +429,14 @@ export default function AdminPaymentPage() {
                                                 <div style={{ fontFamily: 'monospace', fontSize: 12, color: '#e2e8f0' }}>
                                                     {payment.transaction_id?.slice(0, 16) || 'N/A'}...
                                                 </div>
+                                                <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
+                                                    {(payment.payment_method || 'provider').toUpperCase()}
+                                                    {payment.payment_channel_detail
+                                                        ? ` - ${payment.payment_channel_detail}`
+                                                        : payment.payment_channel
+                                                            ? ` - ${payment.payment_channel}`
+                                                            : ''}
+                                                </div>
                                             </td>
                                             <td style={{ padding: '12px 14px' }}>
                                                 <div style={{ fontSize: 13, color: 'white' }}>
@@ -547,8 +568,11 @@ export default function AdminPaymentPage() {
                     border: '1px solid rgba(148, 163, 184, 0.1)'
                 }}>
                     <h3 style={{ fontSize: 16, fontWeight: 600, color: 'white', marginBottom: 16 }}>
-                        Configuration CinetPay
+                        Fournisseurs de paiement
                     </h3>
+                    <p style={{ color: '#64748b', fontSize: 13, marginBottom: 16 }}>
+                        Les paiements en ligne utilisent le fournisseur actif choisi dans les reglages admin. Ces indicateurs verifient seulement la presence des cles cote serveur.
+                    </p>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', padding: 12, background: 'rgba(15, 23, 42, 0.3)', borderRadius: 8 }}>
                             <span style={{ color: '#94a3b8', fontSize: 13 }}>CINETPAY_API_KEY</span>
