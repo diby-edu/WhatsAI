@@ -51,7 +51,10 @@ interface Payment {
     amount_fcfa: number
     description: string
     status: string
+    payment_provider?: string | null
+    reference?: string | null
     created_at: string
+    completed_at?: string | null
 }
 
 export default function BillingPage() {
@@ -83,6 +86,43 @@ function BillingContent() {
     const [creditPacks, setCreditPacks] = useState<CreditPack[]>([])
     const [loading, setLoading] = useState(true)
     const [paymentStatus, setPaymentStatus] = useState<'success' | 'failed' | null>(null)
+
+    const getHistoryStatusMeta = (status: string) => {
+        const normalized = String(status || '').trim().toLowerCase()
+
+        if (normalized === 'completed') {
+            return {
+                color: '#34d399',
+                label: t('History.status.completed'),
+            }
+        }
+
+        if (normalized === 'processing' || normalized === 'pending') {
+            return {
+                color: '#fbbf24',
+                label: 'En cours',
+            }
+        }
+
+        return {
+            color: '#f87171',
+            label: t('History.status.failed'),
+        }
+    }
+
+    const getHistoryTimestamp = (payment: Payment) => {
+        const dateSource = payment.status === 'completed' && payment.completed_at
+            ? payment.completed_at
+            : payment.created_at
+
+        return format.dateTime(new Date(dateSource), {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+        })
+    }
 
     // Check for payment return
     useEffect(() => {
@@ -241,11 +281,14 @@ function BillingContent() {
             if (data.success && data.credits_added) {
                 setPaymentStatus('success')
                 fetchData() // Refresh user data to show new balance
+                fetchPayments()
             } else if (data.cinetpay_status === 'REFUSED' || data.cinetpay_status === 'CANCELLED') {
                 setPaymentStatus('failed')
+                fetchPayments()
             } else if (data.current_status === 'completed') {
                 setPaymentStatus('success')
                 fetchData()
+                fetchPayments()
             } else {
                 // Payment still pending, check again in 3 seconds
                 setTimeout(() => checkPaymentStatus(paymentId), 3000)
@@ -793,37 +836,46 @@ function BillingContent() {
                         </div>
                     ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                            {payments.map((payment) => (
-                                <div
-                                    key={payment.id}
-                                    style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'space-between',
-                                        padding: 12,
-                                        borderRadius: 8,
-                                        background: 'rgba(51, 65, 85, 0.3)'
-                                    }}
-                                >
-                                    <div>
-                                        <div style={{ fontWeight: 500, color: 'white', fontSize: 14 }}>{payment.description}</div>
-                                        <div style={{ fontSize: 12, color: '#64748b' }}>
-                                            {format.dateTime(new Date(payment.created_at), { year: 'numeric', month: 'long', day: 'numeric' })}
+                            {payments.map((payment) => {
+                                const statusMeta = getHistoryStatusMeta(payment.status)
+
+                                return (
+                                    <div
+                                        key={payment.id}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                            padding: 12,
+                                            borderRadius: 8,
+                                            background: 'rgba(51, 65, 85, 0.3)'
+                                        }}
+                                    >
+                                        <div>
+                                            <div style={{ fontWeight: 500, color: 'white', fontSize: 14 }}>{payment.description}</div>
+                                            <div style={{ fontSize: 12, color: '#64748b' }}>
+                                                {getHistoryTimestamp(payment)}
+                                            </div>
+                                            {payment.reference && (
+                                                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
+                                                    Ref: {payment.reference}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div style={{ textAlign: 'right' }}>
+                                            <div style={{ fontWeight: 600, color: 'white', fontSize: 14 }}>
+                                                {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF', maximumFractionDigits: 0 }).format(payment.amount_fcfa)}
+                                            </div>
+                                            <div style={{
+                                                fontSize: 11,
+                                                color: statusMeta.color
+                                            }}>
+                                                {statusMeta.label}
+                                            </div>
                                         </div>
                                     </div>
-                                    <div style={{ textAlign: 'right' }}>
-                                        <div style={{ fontWeight: 600, color: 'white', fontSize: 14 }}>
-                                            {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF', maximumFractionDigits: 0 }).format(payment.amount_fcfa)}
-                                        </div>
-                                        <div style={{
-                                            fontSize: 11,
-                                            color: payment.status === 'completed' ? '#34d399' : '#f87171'
-                                        }}>
-                                            {payment.status === 'completed' ? t('History.status.completed') : t('History.status.failed')}
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
+                                )
+                            })}
                         </div>
                     )}
                 </div>
