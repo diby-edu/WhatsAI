@@ -1,8 +1,8 @@
 import { Metadata } from 'next'
 
 export const metadata: Metadata = {
-    title: 'Conditions Générales d\'Utilisation - WazzapAI',
-    description: 'Conditions générales d\'utilisation du service WazzapAI.',
+    title: "Conditions Generales d'Utilisation - WazzapAI",
+    description: "Conditions generales d'utilisation du service WazzapAI.",
 }
 
 export default function TermsPage() {
@@ -22,10 +22,10 @@ export default function TermsPage() {
                     WebkitBackgroundClip: 'text',
                     WebkitTextFillColor: 'transparent'
                 }}>
-                    Conditions Générales d'Utilisation
+                    Conditions Generales d'Utilisation
                 </h1>
                 <p style={{ fontSize: 14, color: '#64748b', marginBottom: 40 }}>
-                    Dernière mise à jour : Mars 2026
+                    Derniere mise a jour : Avril 2026
                 </p>
 
                 <section style={{ marginBottom: 32 }}>
@@ -33,7 +33,7 @@ export default function TermsPage() {
                         1. Acceptation des conditions
                     </h2>
                     <p style={{ fontSize: 15, lineHeight: 1.8, color: '#94a3b8' }}>
-                        En utilisant WazzapAI, vous acceptez ces conditions générales d'utilisation.
+                        En utilisant WazzapAI, vous acceptez ces conditions generales d'utilisation.
                         Si vous n'acceptez pas ces conditions, veuillez ne pas utiliser notre service.
                     </p>
                 </section>
@@ -43,8 +43,8 @@ export default function TermsPage() {
                         2. Description du service
                     </h2>
                     <p style={{ fontSize: 15, lineHeight: 1.8, color: '#94a3b8' }}>
-                        WazzapAI est une plateforme d'automatisation qui permet de gérer vos conversations
-                        WhatsApp à l'aide de l'intelligence artificielle. Le service inclut la création
+                        WazzapAI est une plateforme d'automatisation qui permet de gerer vos conversations
+                        WhatsApp a l'aide de l'intelligence artificielle. Le service inclut la creation
                         d'agents IA, la gestion des conversations et des outils d'analytics.
                     </p>
                 </section>
@@ -54,8 +54,8 @@ export default function TermsPage() {
                         3. Compte utilisateur
                     </h2>
                     <p style={{ fontSize: 15, lineHeight: 1.8, color: '#94a3b8' }}>
-                        Vous êtes responsable de la confidentialité de vos identifiants de connexion.
-                        Vous devez nous informer immédiatement de toute utilisation non autorisée de votre compte.
+                        Vous etes responsable de la confidentialite de vos identifiants de connexion.
+                        Vous devez nous informer immediatement de toute utilisation non autorisee de votre compte.
                     </p>
                 </section>
 
@@ -64,11 +64,11 @@ export default function TermsPage() {
                         4. Utilisation acceptable
                     </h2>
                     <p style={{ fontSize: 15, lineHeight: 1.8, color: '#94a3b8' }}>
-                        Vous vous engagez à ne pas utiliser WazzapAI pour :<br />
-                        • Envoyer du spam ou des messages non sollicités<br />
+                        Vous vous engagez a ne pas utiliser WazzapAI pour :<br />
+                        • Envoyer du spam ou des messages non sollicites<br />
                         • Harceler ou menacer d'autres utilisateurs<br />
                         • Violer les conditions d'utilisation de WhatsApp<br />
-                        • Toute activité illégale
+                        • Toute activite illegale
                     </p>
                 </section>
 
@@ -77,20 +77,20 @@ export default function TermsPage() {
                         5. Paiement et remboursement
                     </h2>
                     <p style={{ fontSize: 15, lineHeight: 1.8, color: '#94a3b8' }}>
-                        Les paiements sont traités via CinetPay. Les abonnements sont renouvelés automatiquement
-                        sauf annulation. Les crédits non utilisés ne sont pas remboursables mais restent
-                        disponibles jusqu'à la fin de votre période d'abonnement.
+                        Les paiements en ligne sont traites via le fournisseur de paiement actif de la plateforme.
+                        Les abonnements sont renouveles automatiquement sauf annulation. Les credits non utilises
+                        ne sont pas remboursables mais restent disponibles jusqu'a la fin de votre periode d'abonnement.
                     </p>
                 </section>
 
                 <section style={{ marginBottom: 32 }}>
                     <h2 style={{ fontSize: 20, fontWeight: 600, marginBottom: 12, color: '#e2e8f0' }}>
-                        6. Limitation de responsabilité
+                        6. Limitation de responsabilite
                     </h2>
                     <p style={{ fontSize: 15, lineHeight: 1.8, color: '#94a3b8' }}>
                         WazzapAI est fourni "tel quel". Nous ne garantissons pas que le service sera
                         ininterrompu ou exempt d'erreurs. Nous ne sommes pas responsables des pertes
-                        indirectes résultant de l'utilisation de notre service.
+                        indirectes resultant de l'utilisation de notre service.
                     </p>
                 </section>
 

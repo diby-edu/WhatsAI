@@ -198,17 +198,31 @@ export async function DELETE(
             return errorResponse('Impossible de supprimer votre propre compte', 400)
         }
 
-        // Soft delete — just deactivate
-        const { error } = await adminSupabase
+        const { data: targetProfile, error: targetError } = await adminSupabase
             .from('profiles')
-            .update({ is_active: false, role: 'user' })
+            .select('id, email, role')
             .eq('id', id)
+            .single()
 
-        if (error) throw error
+        if (targetError || !targetProfile) {
+            return errorResponse('Utilisateur introuvable', 404)
+        }
 
-        await logAdminAction(user.id, 'delete_user', id, 'profile')
+        const { error: deleteAuthError } = await adminSupabase.auth.admin.deleteUser(id)
 
-        return successResponse({ message: 'Utilisateur supprimé' })
+        if (deleteAuthError) {
+            throw deleteAuthError
+        }
+
+        await logAdminAction(user.id, 'delete_user', id, 'profile', {
+            email: targetProfile.email || null,
+            deleted_via: 'auth.admin.deleteUser',
+        })
+
+        return successResponse({
+            message: 'Utilisateur et donnees liees supprimes',
+            deleted_user_id: id,
+        })
     } catch (err) {
         console.error('Delete user error:', err)
         return errorResponse('Erreur serveur', 500)
