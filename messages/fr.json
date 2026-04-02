@@ -893,6 +893,7 @@
     "History": {
       "title": "Historique des paiements",
       "empty": "Aucun paiement pour le moment",
+      "reference": "Référence",
       "status": {
         "completed": "Réussi",
         "failed": "Échoué"

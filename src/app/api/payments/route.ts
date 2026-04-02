@@ -2,12 +2,12 @@ import { NextRequest } from 'next/server'
 import { createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
 
 // GET - Get user's payment history
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
     const supabase = await createApiClient()
     const { user, error: authError } = await getAuthUser(supabase)
 
     if (authError || !user) {
-        return errorResponse('Non autorisé', 401)
+        return errorResponse('Non autorise', 401)
     }
 
     try {
@@ -17,9 +17,11 @@ export async function GET(request: NextRequest) {
                 id,
                 amount_fcfa,
                 status,
+                payment_provider,
                 payment_type,
                 description,
                 credits_purchased,
+                provider_transaction_id,
                 created_at,
                 completed_at
             `)
@@ -32,14 +34,20 @@ export async function GET(request: NextRequest) {
             return successResponse({ payments: [] })
         }
 
-        // Transform for frontend
-        const formattedPayments = (payments || []).map((p: any) => ({
-            id: p.id,
-            amount_fcfa: p.amount_fcfa,
-            description: p.description || (p.payment_type === 'subscription' ? 'Abonnement' : 'Achat de crédits'),
-            status: p.status,
-            credits: p.credits_purchased,
-            created_at: p.created_at
+        const formattedPayments = (payments || []).map((payment: any) => ({
+            id: payment.id,
+            amount_fcfa: payment.amount_fcfa,
+            description: payment.description || (
+                payment.payment_type === 'subscription'
+                    ? 'Abonnement'
+                    : 'Achat de credits'
+            ),
+            status: payment.status,
+            payment_provider: payment.payment_provider,
+            credits: payment.credits_purchased,
+            reference: payment.provider_transaction_id,
+            created_at: payment.created_at,
+            completed_at: payment.completed_at,
         }))
 
         return successResponse({ payments: formattedPayments })
