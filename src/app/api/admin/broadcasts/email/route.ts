@@ -155,6 +155,7 @@ export async function POST(request: NextRequest) {
                         await transporter.sendMail({
                             from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
                             to: p.email,
+                            bcc: FROM_EMAIL,
                             subject: subject.trim(),
                             html,
                         })
