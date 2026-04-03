@@ -1,9 +1,10 @@
 ﻿'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import {
     Send, Users, MessageSquare, Loader2, CheckCircle,
-    ArrowLeft, AlertTriangle, Clock, Mail, Search, Bell
+    ArrowLeft, AlertTriangle, Clock, Mail, Search, Bell,
+    Sparkles, SpellCheck, Bold, Italic, Link2, History, Trash2
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -20,7 +21,15 @@ interface UserOption {
     plan: string
 }
 
-type TabId = 'whatsapp' | 'email' | 'push'
+type TabId = 'whatsapp' | 'email' | 'push' | 'ai'
+
+interface AiDraftEntry {
+    id: string
+    prompt: string
+    channel: 'email' | 'push' | 'whatsapp'
+    generated: Record<string, string>
+    createdAt: string
+}
 
 const SEGMENT_OPTIONS = [
     { value: 'all', label: 'Tous les utilisateurs' },
@@ -107,16 +116,34 @@ export default function AdminBroadcastsPage() {
     const [selectedPushUserIds, setSelectedPushUserIds] = useState<Set<string>>(new Set())
     const [pushUserSearch, setPushUserSearch] = useState('')
 
+    // AI draft state
+    const [aiPrompt, setAiPrompt] = useState('')
+    const [aiChannel, setAiChannel] = useState<'email' | 'push' | 'whatsapp'>('email')
+    const [aiLoading, setAiLoading] = useState(false)
+    const [aiGenerated, setAiGenerated] = useState<Record<string, string> | null>(null)
+    const [aiError, setAiError] = useState<string | null>(null)
+    const [aiHistory, setAiHistory] = useState<AiDraftEntry[]>([])
+
+    // Spell check state
+    const [spellChecking, setSpellChecking] = useState<string | null>(null) // field being checked
+
+    // Email rich text ref
+    const emailBodyRef = useRef<HTMLTextAreaElement>(null)
+
     useEffect(() => {
         fetchAgents()
         fetchHistory().then((broadcasts: any[]) => {
-            // Reprendre le suivi si un broadcast est toujours en cours
             const inProgress = broadcasts?.find((b: any) => b.status === 'sending' && b.id)
             if (inProgress) {
                 setActiveBroadcastId(inProgress.id)
                 setBroadcastProgress({ total: inProgress.recipients_count || 0, sent: 0, failed: 0, pending: inProgress.recipients_count || 0 })
             }
         })
+        // Charger historique IA depuis localStorage
+        try {
+            const stored = localStorage.getItem('broadcast_ai_history')
+            if (stored) setAiHistory(JSON.parse(stored))
+        } catch { /* ignore */ }
     }, [])
 
     // Comptage escalation_phones quand le type change
@@ -395,6 +422,94 @@ export default function AdminBroadcastsPage() {
         }
     }
 
+    // IA — générer un brouillon
+    const generateAiDraft = async () => {
+        if (!aiPrompt.trim()) return
+        setAiLoading(true)
+        setAiError(null)
+        setAiGenerated(null)
+        try {
+            const res = await fetch('/api/admin/broadcasts/ai-draft', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt: aiPrompt, channel: aiChannel })
+            })
+            const data = await res.json()
+            if (res.ok && data.data?.generated) {
+                const generated = data.data.generated
+                setAiGenerated(generated)
+                // Sauvegarder dans l'historique
+                const entry: AiDraftEntry = {
+                    id: Date.now().toString(),
+                    prompt: aiPrompt,
+                    channel: aiChannel,
+                    generated,
+                    createdAt: new Date().toISOString()
+                }
+                const updated = [entry, ...aiHistory].slice(0, 30)
+                setAiHistory(updated)
+                try { localStorage.setItem('broadcast_ai_history', JSON.stringify(updated)) } catch { /* ignore */ }
+            } else {
+                setAiError(data.error || 'Erreur de génération')
+            }
+        } catch {
+            setAiError('Erreur réseau')
+        } finally {
+            setAiLoading(false)
+        }
+    }
+
+    // IA — utiliser un brouillon généré (injecter dans l'onglet correspondant)
+    const useAiDraft = (entry?: AiDraftEntry) => {
+        const src = entry || (aiGenerated ? { channel: aiChannel, generated: aiGenerated } : null)
+        if (!src) return
+        if (src.channel === 'email') {
+            if (src.generated.subject) setEmailSubject(src.generated.subject)
+            if (src.generated.body) setEmailMessage(src.generated.body)
+            setActiveTab('email')
+        } else if (src.channel === 'push') {
+            if (src.generated.title) setPushTitle(src.generated.title)
+            if (src.generated.body) setPushBody(src.generated.body)
+            setActiveTab('push')
+        } else {
+            if (src.generated.body) setWaMessage(src.generated.body)
+            setActiveTab('whatsapp')
+        }
+    }
+
+    // IA — correcteur orthographique
+    const spellCheck = async (field: string, text: string, setter: (v: string) => void) => {
+        if (!text.trim() || spellChecking) return
+        setSpellChecking(field)
+        try {
+            const res = await fetch('/api/admin/broadcasts/ai-draft', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ spellcheck: true, text })
+            })
+            const data = await res.json()
+            if (res.ok && data.data?.corrected) setter(data.data.corrected)
+        } catch { /* silencieux */ } finally {
+            setSpellChecking(null)
+        }
+    }
+
+    // Éditeur riche — insérer formatage autour de la sélection
+    const insertFormat = (format: 'bold' | 'italic' | 'link') => {
+        const ta = emailBodyRef.current
+        if (!ta) return
+        const start = ta.selectionStart
+        const end = ta.selectionEnd
+        const selected = emailMessage.slice(start, end)
+        let replacement = ''
+        if (format === 'bold') replacement = `**${selected || 'texte'}**`
+        else if (format === 'italic') replacement = `_${selected || 'texte'}_`
+        else if (format === 'link') replacement = `[${selected || 'texte'}](https://)`
+        const next = emailMessage.slice(0, start) + replacement + emailMessage.slice(end)
+        setEmailMessage(next)
+        setTimeout(() => { ta.focus(); ta.setSelectionRange(start + replacement.length, start + replacement.length) }, 0)
+    }
+
     const inputStyle = {
         width: '100%', padding: '12px 14px',
         background: 'rgba(15, 23, 42, 0.5)',
@@ -425,6 +540,7 @@ export default function AdminBroadcastsPage() {
                     { id: 'whatsapp' as TabId, label: 'WhatsApp', icon: MessageSquare, color: '#34d399' },
                     { id: 'email' as TabId, label: 'Email', icon: Mail, color: '#60a5fa' },
                     { id: 'push' as TabId, label: 'Push', icon: Bell, color: '#f59e0b' },
+                    { id: 'ai' as TabId, label: 'Rédiger avec l\'IA', icon: Sparkles, color: '#a78bfa' },
                 ]).map(tab => (
                     <button key={tab.id} onClick={() => setActiveTab(tab.id)}
                         style={{
@@ -499,7 +615,14 @@ export default function AdminBroadcastsPage() {
                         )}
 
                         <div style={{ marginBottom: 16 }}>
-                            <label style={{ display: 'block', color: '#94a3b8', fontSize: 13, marginBottom: 8 }}>Message (max 500 car.)</label>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                                <label style={{ color: '#94a3b8', fontSize: 13 }}>Message (max 500 car.)</label>
+                                <button onClick={() => spellCheck('wa', waMessage, setWaMessage)}
+                                    disabled={!waMessage.trim() || spellChecking === 'wa'}
+                                    style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: '1px solid rgba(148,163,184,0.2)', borderRadius: 6, color: spellChecking === 'wa' ? '#64748b' : '#94a3b8', padding: '3px 8px', fontSize: 11, cursor: 'pointer' }}>
+                                    {spellChecking === 'wa' ? <Loader2 size={11} style={{ animation: 'spin 1s linear infinite' }} /> : <SpellCheck size={11} />} Corriger
+                                </button>
+                            </div>
                             <textarea value={waMessage} onChange={(e) => setWaMessage(e.target.value.slice(0, 500))}
                                 placeholder="Votre message WhatsApp..." rows={5} style={{ ...inputStyle, resize: 'none' }} />
                             <div style={{ textAlign: 'right', color: '#64748b', fontSize: 12, marginTop: 4 }}>{waMessage.length}/500</div>
@@ -688,19 +811,47 @@ export default function AdminBroadcastsPage() {
 
                         {/* Subject */}
                         <div style={{ marginBottom: 16 }}>
-                            <label style={{ display: 'block', color: '#94a3b8', fontSize: 13, marginBottom: 8 }}>Sujet</label>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                                <label style={{ color: '#94a3b8', fontSize: 13 }}>Sujet</label>
+                                <button onClick={() => spellCheck('emailSubject', emailSubject, setEmailSubject)}
+                                    disabled={!emailSubject.trim() || spellChecking === 'emailSubject'}
+                                    style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: '1px solid rgba(148,163,184,0.2)', borderRadius: 6, color: spellChecking === 'emailSubject' ? '#64748b' : '#94a3b8', padding: '3px 8px', fontSize: 11, cursor: 'pointer' }}>
+                                    {spellChecking === 'emailSubject' ? <Loader2 size={11} style={{ animation: 'spin 1s linear infinite' }} /> : <SpellCheck size={11} />} Corriger
+                                </button>
+                            </div>
                             <input type="text" value={emailSubject} onChange={(e) => setEmailSubject(e.target.value)}
-                                placeholder="Ex: Nouveauté WazzapAI — Ã€ ne pas manquer !" style={inputStyle} />
+                                placeholder="Ex: Nouveauté WazzapAI — À ne pas manquer !" style={inputStyle} />
                         </div>
 
                         {/* Body */}
                         <div style={{ marginBottom: 16 }}>
-                            <label style={{ display: 'block', color: '#94a3b8', fontSize: 13, marginBottom: 8 }}>Corps du message</label>
-                            <textarea value={emailMessage} onChange={(e) => setEmailMessage(e.target.value)}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                                <label style={{ color: '#94a3b8', fontSize: 13 }}>Corps du message</label>
+                                <div style={{ display: 'flex', gap: 4 }}>
+                                    <button onClick={() => insertFormat('bold')} title="Gras"
+                                        style={{ display: 'flex', alignItems: 'center', background: 'none', border: '1px solid rgba(148,163,184,0.2)', borderRadius: 6, color: '#94a3b8', padding: '3px 8px', fontSize: 11, cursor: 'pointer', fontWeight: 700 }}>
+                                        <Bold size={11} />
+                                    </button>
+                                    <button onClick={() => insertFormat('italic')} title="Italique"
+                                        style={{ display: 'flex', alignItems: 'center', background: 'none', border: '1px solid rgba(148,163,184,0.2)', borderRadius: 6, color: '#94a3b8', padding: '3px 8px', fontSize: 11, cursor: 'pointer', fontStyle: 'italic' }}>
+                                        <Italic size={11} />
+                                    </button>
+                                    <button onClick={() => insertFormat('link')} title="Lien"
+                                        style={{ display: 'flex', alignItems: 'center', background: 'none', border: '1px solid rgba(148,163,184,0.2)', borderRadius: 6, color: '#94a3b8', padding: '3px 8px', fontSize: 11, cursor: 'pointer' }}>
+                                        <Link2 size={11} />
+                                    </button>
+                                    <button onClick={() => spellCheck('emailBody', emailMessage, setEmailMessage)}
+                                        disabled={!emailMessage.trim() || spellChecking === 'emailBody'}
+                                        style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: '1px solid rgba(148,163,184,0.2)', borderRadius: 6, color: spellChecking === 'emailBody' ? '#64748b' : '#94a3b8', padding: '3px 8px', fontSize: 11, cursor: 'pointer' }}>
+                                        {spellChecking === 'emailBody' ? <Loader2 size={11} style={{ animation: 'spin 1s linear infinite' }} /> : <SpellCheck size={11} />} Corriger
+                                    </button>
+                                </div>
+                            </div>
+                            <textarea ref={emailBodyRef} value={emailMessage} onChange={(e) => setEmailMessage(e.target.value)}
                                 placeholder={'Voici notre annonce...\n\nCordialement,\nL\'équipe WazzapAI'}
                                 rows={8} style={{ ...inputStyle, resize: 'vertical' }} />
                             <div style={{ color: '#475569', fontSize: 11, marginTop: 4 }}>
-                                "Bonjour [Nom]" est ajouté automatiquement. Les sauts de ligne sont conservés.
+                                "Bonjour [Nom]" est ajouté automatiquement. **texte** = gras · _texte_ = italique
                             </div>
                         </div>
 
@@ -884,9 +1035,16 @@ export default function AdminBroadcastsPage() {
 
                         {/* Title */}
                         <div style={{ marginBottom: 16 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                                 <label style={{ color: '#94a3b8', fontSize: 13 }}>Titre</label>
-                                <span style={{ color: '#475569', fontSize: 11 }}>{pushTitle.length}/65</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <span style={{ color: '#475569', fontSize: 11 }}>{pushTitle.length}/65</span>
+                                    <button onClick={() => spellCheck('pushTitle', pushTitle, setPushTitle)}
+                                        disabled={!pushTitle.trim() || spellChecking === 'pushTitle'}
+                                        style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: '1px solid rgba(148,163,184,0.2)', borderRadius: 6, color: spellChecking === 'pushTitle' ? '#64748b' : '#94a3b8', padding: '3px 8px', fontSize: 11, cursor: 'pointer' }}>
+                                        {spellChecking === 'pushTitle' ? <Loader2 size={11} style={{ animation: 'spin 1s linear infinite' }} /> : <SpellCheck size={11} />} Corriger
+                                    </button>
+                                </div>
                             </div>
                             <input type="text" value={pushTitle} onChange={(e) => setPushTitle(e.target.value.slice(0, 65))}
                                 placeholder="Ex: Nouvelle fonctionnalité disponible !" style={inputStyle} />
@@ -894,9 +1052,16 @@ export default function AdminBroadcastsPage() {
 
                         {/* Body */}
                         <div style={{ marginBottom: 16 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                                 <label style={{ color: '#94a3b8', fontSize: 13 }}>Message</label>
-                                <span style={{ color: '#475569', fontSize: 11 }}>{pushBody.length}/240</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <span style={{ color: '#475569', fontSize: 11 }}>{pushBody.length}/240</span>
+                                    <button onClick={() => spellCheck('pushBody', pushBody, setPushBody)}
+                                        disabled={!pushBody.trim() || spellChecking === 'pushBody'}
+                                        style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: '1px solid rgba(148,163,184,0.2)', borderRadius: 6, color: spellChecking === 'pushBody' ? '#64748b' : '#94a3b8', padding: '3px 8px', fontSize: 11, cursor: 'pointer' }}>
+                                        {spellChecking === 'pushBody' ? <Loader2 size={11} style={{ animation: 'spin 1s linear infinite' }} /> : <SpellCheck size={11} />} Corriger
+                                    </button>
+                                </div>
                             </div>
                             <textarea value={pushBody} onChange={(e) => setPushBody(e.target.value.slice(0, 240))}
                                 placeholder="Découvrez ce qui est nouveau sur WazzapAI..." rows={4}
@@ -946,6 +1111,166 @@ export default function AdminBroadcastsPage() {
                     </div>
 
                     <HistoryPanel history={history} activeTab="push" />
+                </div>
+            )}
+
+            {/* IA Tab */}
+            {activeTab === 'ai' && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20 }}>
+                    {/* Formulaire génération */}
+                    <div style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(148, 163, 184, 0.1)', borderRadius: 14, padding: 20 }}>
+                        <h2 style={{ fontSize: 16, fontWeight: 600, color: 'white', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <Sparkles size={18} style={{ color: '#a78bfa' }} /> Rédiger avec l'IA
+                        </h2>
+                        <p style={{ color: '#64748b', fontSize: 13, marginBottom: 20 }}>
+                            Décrivez ce que vous voulez envoyer. L'IA rédige, vous relisez, vous envoyez.
+                        </p>
+
+                        {/* Canal */}
+                        <div style={{ marginBottom: 16 }}>
+                            <label style={{ display: 'block', color: '#94a3b8', fontSize: 13, marginBottom: 8 }}>Canal</label>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                                {([
+                                    { value: 'email', label: 'Email', color: '#60a5fa' },
+                                    { value: 'push', label: 'Push', color: '#f59e0b' },
+                                    { value: 'whatsapp', label: 'WhatsApp', color: '#34d399' },
+                                ] as const).map(opt => (
+                                    <button key={opt.value} onClick={() => { setAiChannel(opt.value); setAiGenerated(null) }}
+                                        style={{
+                                            flex: 1, padding: '8px 10px', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer',
+                                            border: aiChannel === opt.value ? `1px solid ${opt.color}` : '1px solid rgba(148,163,184,0.2)',
+                                            background: aiChannel === opt.value ? `rgba(${opt.color === '#60a5fa' ? '96,165,250' : opt.color === '#f59e0b' ? '245,158,11' : '52,211,153'},0.1)` : 'rgba(15,23,42,0.5)',
+                                            color: aiChannel === opt.value ? opt.color : '#94a3b8',
+                                        }}>
+                                        {opt.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Prompt */}
+                        <div style={{ marginBottom: 16 }}>
+                            <label style={{ display: 'block', color: '#94a3b8', fontSize: 13, marginBottom: 8 }}>Votre instruction</label>
+                            <textarea value={aiPrompt} onChange={e => setAiPrompt(e.target.value)}
+                                placeholder={
+                                    aiChannel === 'email'
+                                        ? 'Ex: informe les utilisateurs que le paiement est de nouveau fonctionnel'
+                                        : aiChannel === 'push'
+                                        ? 'Ex: annonce une nouvelle fonctionnalité de tableau de bord'
+                                        : 'Ex: rappelle aux utilisateurs de reconnecter leur agent WhatsApp'
+                                }
+                                rows={4} style={{ ...inputStyle, resize: 'none' }}
+                                onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) generateAiDraft() }}
+                            />
+                            <div style={{ color: '#475569', fontSize: 11, marginTop: 4 }}>Ctrl+Entrée pour générer</div>
+                        </div>
+
+                        {aiError && (
+                            <div style={{ padding: '10px 14px', marginBottom: 16, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10, color: '#f87171', fontSize: 13 }}>
+                                {aiError}
+                            </div>
+                        )}
+
+                        <button onClick={generateAiDraft} disabled={!aiPrompt.trim() || aiLoading}
+                            style={{
+                                width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                                padding: '13px 20px', background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
+                                border: 'none', borderRadius: 10, color: 'white', cursor: 'pointer', fontSize: 14, fontWeight: 600,
+                                opacity: (!aiPrompt.trim() || aiLoading) ? 0.5 : 1, marginBottom: 20
+                            }}>
+                            {aiLoading ? <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />Génération en cours...</> : <><Sparkles size={16} />Générer</>}
+                        </button>
+
+                        {/* Résultat généré */}
+                        {aiGenerated && (
+                            <div style={{ padding: 16, background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.25)', borderRadius: 12 }}>
+                                <div style={{ color: '#a78bfa', fontSize: 13, fontWeight: 600, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <CheckCircle size={14} /> Brouillon généré
+                                </div>
+                                {aiGenerated.subject && (
+                                    <div style={{ marginBottom: 10 }}>
+                                        <div style={{ color: '#64748b', fontSize: 11, marginBottom: 4 }}>SUJET</div>
+                                        <textarea value={aiGenerated.subject} onChange={e => setAiGenerated(prev => ({ ...prev!, subject: e.target.value }))}
+                                            rows={2} style={{ ...inputStyle, fontSize: 13, resize: 'none' }} />
+                                    </div>
+                                )}
+                                {aiGenerated.title && (
+                                    <div style={{ marginBottom: 10 }}>
+                                        <div style={{ color: '#64748b', fontSize: 11, marginBottom: 4 }}>TITRE</div>
+                                        <input value={aiGenerated.title} onChange={e => setAiGenerated(prev => ({ ...prev!, title: e.target.value }))}
+                                            style={{ ...inputStyle, fontSize: 13 }} />
+                                    </div>
+                                )}
+                                {aiGenerated.body && (
+                                    <div style={{ marginBottom: 12 }}>
+                                        <div style={{ color: '#64748b', fontSize: 11, marginBottom: 4 }}>MESSAGE</div>
+                                        <textarea value={aiGenerated.body} onChange={e => setAiGenerated(prev => ({ ...prev!, body: e.target.value }))}
+                                            rows={6} style={{ ...inputStyle, fontSize: 13, resize: 'vertical' }} />
+                                    </div>
+                                )}
+                                <button onClick={() => useAiDraft()}
+                                    style={{
+                                        width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                                        padding: '11px 16px', background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
+                                        border: 'none', borderRadius: 10, color: 'white', cursor: 'pointer', fontSize: 14, fontWeight: 600
+                                    }}>
+                                    <Send size={14} /> Utiliser ce brouillon → aller dans {aiChannel === 'email' ? 'Email' : aiChannel === 'push' ? 'Push' : 'WhatsApp'}
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Historique IA */}
+                    <div style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(148, 163, 184, 0.1)', borderRadius: 14, padding: 20 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                            <h2 style={{ fontSize: 16, fontWeight: 600, color: 'white', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <History size={18} style={{ color: '#a78bfa' }} /> Historique IA
+                            </h2>
+                            {aiHistory.length > 0 && (
+                                <button onClick={() => { setAiHistory([]); localStorage.removeItem('broadcast_ai_history') }}
+                                    style={{ background: 'none', border: '1px solid rgba(148,163,184,0.2)', borderRadius: 6, color: '#64748b', padding: '3px 8px', fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                    <Trash2 size={11} /> Vider
+                                </button>
+                            )}
+                        </div>
+                        {aiHistory.length === 0 ? (
+                            <div style={{ textAlign: 'center', padding: 40, color: '#64748b' }}>
+                                <Sparkles size={36} style={{ marginBottom: 12, opacity: 0.3 }} />
+                                <p style={{ fontSize: 13 }}>Aucun brouillon généré</p>
+                            </div>
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                {aiHistory.map(entry => (
+                                    <div key={entry.id} style={{ padding: 12, background: 'rgba(15,23,42,0.4)', border: '1px solid rgba(148,163,184,0.08)', borderRadius: 10 }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                                            <span style={{
+                                                fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 5,
+                                                background: entry.channel === 'email' ? 'rgba(96,165,250,0.15)' : entry.channel === 'push' ? 'rgba(245,158,11,0.15)' : 'rgba(52,211,153,0.15)',
+                                                color: entry.channel === 'email' ? '#60a5fa' : entry.channel === 'push' ? '#f59e0b' : '#34d399'
+                                            }}>
+                                                {entry.channel.toUpperCase()}
+                                            </span>
+                                            <span style={{ color: '#475569', fontSize: 11 }}>
+                                                {new Date(entry.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                                            </span>
+                                        </div>
+                                        <p style={{ color: '#94a3b8', fontSize: 12, marginBottom: 8, fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                            "{entry.prompt}"
+                                        </p>
+                                        {(entry.generated.subject || entry.generated.title) && (
+                                            <p style={{ color: 'white', fontSize: 12, fontWeight: 500, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                {entry.generated.subject || entry.generated.title}
+                                            </p>
+                                        )}
+                                        <button onClick={() => useAiDraft(entry)}
+                                            style={{ background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: 6, color: '#a78bfa', padding: '4px 10px', fontSize: 11, cursor: 'pointer', fontWeight: 500 }}>
+                                            Réutiliser
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
         </div>
