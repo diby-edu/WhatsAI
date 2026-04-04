@@ -37,7 +37,8 @@ import {
     Send,
     Wallet,
     Download,
-    Clock
+    Clock,
+    Code2
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useAndroidBackButton } from '@/hooks/useAndroidBackButton'
@@ -58,6 +59,7 @@ const adminLinks = [
     { href: '/admin/subscriptions', label: 'Abonnements', icon: CreditCard },
     { href: '/admin/payments', label: 'Test Paiement', icon: TestTube2 },
     { href: '/admin/payouts', label: 'Reversements', icon: Wallet },
+    { href: '/admin/api-monitoring', label: 'API Monitoring', icon: Code2 },
     { href: '/admin/features', label: 'Feature Flags', icon: ToggleRight },
     { href: '/admin/broadcasts', label: 'Broadcasts', icon: Send },
     { href: '/admin/diagnostics', label: 'Diagnostic', icon: Activity },
