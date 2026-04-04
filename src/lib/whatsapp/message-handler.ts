@@ -239,7 +239,7 @@ export function initializeMessageHandler() {
                     if (func.name === 'send_image') {
                         console.log('📸 send_image tool called for:', args.product_name)
                         const { handleSendImage } = require('./ai/tools/tool-images')
-                        const result = JSON.parse(await handleSendImage(args, products || []))
+                        const result = JSON.parse(await handleSendImage(args, products || [], null))
                         if (result.success && result.image_url) {
                             pendingImages.push({ image_url: result.image_url, caption: result.caption || '' })
                             console.log('✅ Image queued:', result.image_url)
