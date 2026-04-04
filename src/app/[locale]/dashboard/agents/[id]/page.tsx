@@ -31,6 +31,7 @@ import {
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import {
+    type AgentPaymentMode,
     AUTOMATIC_PAYMENT_MODE_DESCRIPTION,
     AUTOMATIC_PAYMENT_MODE_HINT,
     AUTOMATIC_PAYMENT_MODE_LABEL,
@@ -38,6 +39,7 @@ import {
     MANUAL_PAYMENT_MODE_DESCRIPTION,
     MANUAL_PAYMENT_MODE_HINT,
     MANUAL_PAYMENT_MODE_LABEL,
+    normalizeAgentPaymentMode,
 } from '@/lib/payments/payment-mode-display'
 
 // Wizard Steps - Matching the new wizard design exactly
@@ -171,7 +173,7 @@ export default function AgentWizardPage({
         system_prompt: '', // Legacy/Internal use
 
         // Step 5: Payment Settings
-        payment_mode: 'cinetpay' as 'cinetpay' | 'mobile_money_direct',
+        payment_mode: 'cinetpay' as AgentPaymentMode,
         mobile_money_orange: '',
         mobile_money_mtn: '',
         mobile_money_wave: '',
@@ -259,7 +261,7 @@ export default function AgentWizardPage({
                 system_prompt: agent.system_prompt || '',
 
                 // Payment Settings
-                payment_mode: agent.payment_mode || 'cinetpay',
+                payment_mode: normalizeAgentPaymentMode(agent.payment_mode),
                 mobile_money_orange: agent.mobile_money_orange || '',
                 mobile_money_mtn: agent.mobile_money_mtn || '',
                 mobile_money_wave: agent.mobile_money_wave || '',
@@ -847,69 +849,73 @@ export default function AgentWizardPage({
                                 <span>En mode Support Client, la personnalité s'active automatiquement si vous ajoutez des produits à cet agent.</span>
                             </div>
                         )}
-                        <div>
-                            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 16 }}>
-                                Personnalité de l'agent
-                            </label>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
-                                {personalities.map((p) => (
+                        {!isSupportClient && (
+                            <>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 16 }}>
+                                        Personnalité de l'agent
+                                    </label>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
+                                        {personalities.map((p) => (
+                                            <button
+                                                key={p.id}
+                                                onClick={() => setFormData({ ...formData, agent_tone: p.id })}
+                                                style={{
+                                                    padding: 20,
+                                                    border: `2px solid ${formData.agent_tone === p.id ? '#10b981' : 'rgba(148, 163, 184, 0.1)'}`,
+                                                    borderRadius: 12,
+                                                    textAlign: 'center',
+                                                    background: formData.agent_tone === p.id ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
+                                                    cursor: 'pointer'
+                                                }}
+                                            >
+                                                <div style={{ fontSize: 32, marginBottom: 8 }}>{p.emoji}</div>
+                                                <h3 style={{ fontWeight: 600, color: 'white' }}>{p.name}</h3>
+                                                <p style={{ fontSize: 12, color: '#64748b' }}>{p.description}</p>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Emoji Toggle with animated switch */}
+                                <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    padding: 16,
+                                    border: '1px solid rgba(148, 163, 184, 0.1)',
+                                    borderRadius: 12
+                                }}>
+                                    <div>
+                                        <h3 style={{ fontWeight: 500, color: 'white' }}>Utiliser des emojis</h3>
+                                        <p style={{ fontSize: 13, color: '#64748b' }}>L'agent utilisera des emojis dans ses réponses</p>
+                                    </div>
                                     <button
-                                        key={p.id}
-                                        onClick={() => setFormData({ ...formData, agent_tone: p.id })}
+                                        onClick={() => setFormData({ ...formData, use_emojis: !formData.use_emojis })}
                                         style={{
-                                            padding: 20,
-                                            border: `2px solid ${formData.agent_tone === p.id ? '#10b981' : 'rgba(148, 163, 184, 0.1)'}`,
-                                            borderRadius: 12,
-                                            textAlign: 'center',
-                                            background: formData.agent_tone === p.id ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
-                                            cursor: 'pointer'
+                                            width: 48,
+                                            height: 28,
+                                            borderRadius: 14,
+                                            background: formData.use_emojis ? '#10b981' : '#334155',
+                                            border: 'none',
+                                            cursor: 'pointer',
+                                            position: 'relative'
                                         }}
                                     >
-                                        <div style={{ fontSize: 32, marginBottom: 8 }}>{p.emoji}</div>
-                                        <h3 style={{ fontWeight: 600, color: 'white' }}>{p.name}</h3>
-                                        <p style={{ fontSize: 12, color: '#64748b' }}>{p.description}</p>
+                                        <div style={{
+                                            width: 22,
+                                            height: 22,
+                                            borderRadius: '50%',
+                                            background: 'white',
+                                            position: 'absolute',
+                                            top: 3,
+                                            left: formData.use_emojis ? 23 : 3,
+                                            transition: 'left 0.2s'
+                                        }} />
                                     </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Emoji Toggle with animated switch */}
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            padding: 16,
-                            border: '1px solid rgba(148, 163, 184, 0.1)',
-                            borderRadius: 12
-                        }}>
-                            <div>
-                                <h3 style={{ fontWeight: 500, color: 'white' }}>Utiliser des emojis</h3>
-                                <p style={{ fontSize: 13, color: '#64748b' }}>L'agent utilisera des emojis dans ses réponses</p>
-                            </div>
-                            <button
-                                onClick={() => setFormData({ ...formData, use_emojis: !formData.use_emojis })}
-                                style={{
-                                    width: 48,
-                                    height: 28,
-                                    borderRadius: 14,
-                                    background: formData.use_emojis ? '#10b981' : '#334155',
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    position: 'relative'
-                                }}
-                            >
-                                <div style={{
-                                    width: 22,
-                                    height: 22,
-                                    borderRadius: '50%',
-                                    background: 'white',
-                                    position: 'absolute',
-                                    top: 3,
-                                    left: formData.use_emojis ? 23 : 3,
-                                    transition: 'left 0.2s'
-                                }} />
-                            </button>
-                        </div>
+                                </div>
+                            </>
+                        )}
                     </motion.div>
                 )
 
@@ -1036,48 +1042,61 @@ export default function AgentWizardPage({
                         {/* Payment Settings */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                             <div>
-                                <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
+                                <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 12 }}>
                                     Mode de Paiement
                                 </label>
-                                <div className="agent-grid-2" style={{ gap: 12 }}>
-                                    {!isSupportClient && (
-                                        <div
-                                            onClick={() => setFormData({ ...formData, payment_mode: 'cinetpay' })}
+                                {isSupportClient ? (
+                                    <div style={{ fontSize: 13, color: '#94a3b8', padding: '10px 14px', background: 'rgba(30,41,59,0.5)', borderRadius: 10, border: '1px solid rgba(148,163,184,0.1)' }}>
+                                        Paiement manuel activé automatiquement (mode Support Client).
+                                    </div>
+                                ) : (
+                                    <div style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        padding: 16,
+                                        border: '1px solid rgba(148,163,184,0.1)',
+                                        borderRadius: 12,
+                                        background: 'rgba(30,41,59,0.5)'
+                                    }}>
+                                        <div>
+                                            <div style={{ fontWeight: 500, color: 'white', fontSize: 14 }}>Activer le paiement manuel</div>
+                                            <div style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>
+                                                {formData.payment_mode === 'mobile_money_direct'
+                                                    ? 'Les clients envoient une capture après paiement mobile.'
+                                                    : 'Par défaut : lien de paiement sécurisé en ligne.'}
+                                            </div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setFormData({ ...formData, payment_mode: formData.payment_mode === 'mobile_money_direct' ? 'cinetpay' : 'mobile_money_direct' })}
                                             style={{
-                                                padding: 16,
-                                                borderRadius: 12,
-                                                border: formData.payment_mode === 'cinetpay' ? '2px solid #10b981' : '1px solid rgba(148,163,184,0.1)',
-                                                background: formData.payment_mode === 'cinetpay' ? 'rgba(16,185,129,0.1)' : 'rgba(30, 41, 59, 0.5)',
-                                                cursor: 'pointer'
+                                                width: 48,
+                                                height: 28,
+                                                borderRadius: 14,
+                                                background: formData.payment_mode === 'mobile_money_direct' ? '#10b981' : '#334155',
+                                                border: 'none',
+                                                cursor: 'pointer',
+                                                position: 'relative',
+                                                flexShrink: 0
                                             }}
                                         >
-                                            <div style={{ fontWeight: 600, color: 'white' }}>{AUTOMATIC_PAYMENT_MODE_LABEL}</div>
-                                            <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 4 }}>{AUTOMATIC_PAYMENT_MODE_DESCRIPTION}</div>
-                                            <div style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>{AUTOMATIC_PAYMENT_MODE_HINT}</div>
-                                        </div>
-                                    )}
-                                    <div
-                                        onClick={() => setFormData({ ...formData, payment_mode: 'mobile_money_direct' })}
-                                        style={{
-                                            padding: 16,
-                                            borderRadius: 12,
-                                            border: (isSupportClient || formData.payment_mode === 'mobile_money_direct') ? '2px solid #10b981' : '1px solid rgba(148,163,184,0.1)',
-                                            background: (isSupportClient || formData.payment_mode === 'mobile_money_direct') ? 'rgba(16,185,129,0.1)' : 'rgba(30, 41, 59, 0.5)',
-                                            cursor: 'pointer'
-                                        }}
-                                    >
-                                        <div style={{ fontWeight: 600, color: 'white' }}>{MANUAL_PAYMENT_MODE_LABEL}</div>
-                                        <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 4 }}>
-                                            {MANUAL_PAYMENT_MODE_DESCRIPTION}
-                                        </div>
-                                        <div style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
-                                            {isSupportClient ? 'Seul mode disponible (Support Client).' : MANUAL_PAYMENT_MODE_HINT}
-                                        </div>
+                                            <div style={{
+                                                width: 22,
+                                                height: 22,
+                                                borderRadius: '50%',
+                                                background: 'white',
+                                                position: 'absolute',
+                                                top: 3,
+                                                left: formData.payment_mode === 'mobile_money_direct' ? 23 : 3,
+                                                transition: 'left 0.2s'
+                                            }} />
+                                        </button>
                                     </div>
-                                </div>
+                                )}
                             </div>
 
-                            {formData.payment_mode === 'mobile_money_direct' && (
+                            {(formData.payment_mode === 'mobile_money_direct' || isSupportClient) && (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                                     <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0' }}>
                                         {MANUAL_PAYMENT_METHODS_LABEL}

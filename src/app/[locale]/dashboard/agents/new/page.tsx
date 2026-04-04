@@ -23,6 +23,7 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { Clock, Shield, MapPin, Globe } from 'lucide-react'
 import {
+    type AgentPaymentMode,
     AUTOMATIC_PAYMENT_MODE_DESCRIPTION,
     AUTOMATIC_PAYMENT_MODE_HINT,
     AUTOMATIC_PAYMENT_MODE_LABEL,
@@ -114,7 +115,7 @@ export default function NewAgentPage() {
             sunday: { open: '00:00', close: '00:00', closed: true }
         },
         // PAYMENT SETTINGS
-        payment_mode: 'cinetpay' as 'cinetpay' | 'mobile_money_direct',
+        payment_mode: 'cinetpay' as AgentPaymentMode,
         mobile_money_orange: '',
         mobile_money_mtn: '',
         mobile_money_wave: '',
@@ -1042,68 +1043,72 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
                                 <span>En mode Support Client, la personnalité s'active automatiquement si vous ajoutez des produits à cet agent.</span>
                             </div>
                         )}
-                        <div>
-                            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 16 }}>
-                                {t('Form.personality.label')}
-                            </label>
-                            <div className="agent-grid-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
-                                {personalities.map((p) => (
+                        {!isSupportClient && (
+                            <>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 16 }}>
+                                        {t('Form.personality.label')}
+                                    </label>
+                                    <div className="agent-grid-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
+                                        {personalities.map((p) => (
+                                            <button
+                                                key={p.id}
+                                                onClick={() => updateFormData('personality', p.id)}
+                                                style={{
+                                                    padding: 20,
+                                                    border: `2px solid ${formData.personality === p.id ? '#10b981' : 'rgba(148, 163, 184, 0.1)'}`,
+                                                    borderRadius: 12,
+                                                    textAlign: 'center',
+                                                    background: formData.personality === p.id ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
+                                                    cursor: 'pointer'
+                                                }}
+                                            >
+                                                <div style={{ fontSize: 32, marginBottom: 8 }}>{p.emoji}</div>
+                                                <h3 style={{ fontWeight: 600, color: 'white' }}>{p.name}</h3>
+                                                <p style={{ fontSize: 12, color: '#64748b' }}>{p.description}</p>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    padding: 16,
+                                    border: '1px solid rgba(148, 163, 184, 0.1)',
+                                    borderRadius: 12
+                                }}>
+                                    <div>
+                                        <h3 style={{ fontWeight: 500, color: 'white' }}>{t('Form.personality.emojis')}</h3>
+                                        <p style={{ fontSize: 13, color: '#64748b' }}>{t('Form.personality.emojisHint')}</p>
+                                    </div>
                                     <button
-                                        key={p.id}
-                                        onClick={() => updateFormData('personality', p.id)}
+                                        onClick={() => updateFormData('useEmojis', !formData.useEmojis)}
                                         style={{
-                                            padding: 20,
-                                            border: `2px solid ${formData.personality === p.id ? '#10b981' : 'rgba(148, 163, 184, 0.1)'}`,
-                                            borderRadius: 12,
-                                            textAlign: 'center',
-                                            background: formData.personality === p.id ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
-                                            cursor: 'pointer'
+                                            width: 48,
+                                            height: 28,
+                                            borderRadius: 14,
+                                            background: formData.useEmojis ? '#10b981' : '#334155',
+                                            border: 'none',
+                                            cursor: 'pointer',
+                                            position: 'relative'
                                         }}
                                     >
-                                        <div style={{ fontSize: 32, marginBottom: 8 }}>{p.emoji}</div>
-                                        <h3 style={{ fontWeight: 600, color: 'white' }}>{p.name}</h3>
-                                        <p style={{ fontSize: 12, color: '#64748b' }}>{p.description}</p>
+                                        <div style={{
+                                            width: 22,
+                                            height: 22,
+                                            borderRadius: '50%',
+                                            background: 'white',
+                                            position: 'absolute',
+                                            top: 3,
+                                            left: formData.useEmojis ? 23 : 3,
+                                            transition: 'left 0.2s'
+                                        }} />
                                     </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            padding: 16,
-                            border: '1px solid rgba(148, 163, 184, 0.1)',
-                            borderRadius: 12
-                        }}>
-                            <div>
-                                <h3 style={{ fontWeight: 500, color: 'white' }}>{t('Form.personality.emojis')}</h3>
-                                <p style={{ fontSize: 13, color: '#64748b' }}>{t('Form.personality.emojisHint')}</p>
-                            </div>
-                            <button
-                                onClick={() => updateFormData('useEmojis', !formData.useEmojis)}
-                                style={{
-                                    width: 48,
-                                    height: 28,
-                                    borderRadius: 14,
-                                    background: formData.useEmojis ? '#10b981' : '#334155',
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    position: 'relative'
-                                }}
-                            >
-                                <div style={{
-                                    width: 22,
-                                    height: 22,
-                                    borderRadius: '50%',
-                                    background: 'white',
-                                    position: 'absolute',
-                                    top: 3,
-                                    left: formData.useEmojis ? 23 : 3,
-                                    transition: 'left 0.2s'
-                                }} />
-                            </button>
-                        </div>
+                                </div>
+                            </>
+                        )}
                     </div>
                 )
 
@@ -1184,24 +1189,6 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
             case 5: // SETTINGS
                 return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                        <div>
-                            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                {t('Form.settings.responseDelay')}: {formData.responseDelay}s
-                            </label>
-                            <input
-                                type="range"
-                                min="1"
-                                max="10"
-                                value={formData.responseDelay}
-                                onChange={(e) => updateFormData('responseDelay', parseInt(e.target.value))}
-                                style={{ width: '100%', accentColor: '#10b981' }}
-                            />
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#64748b', marginTop: 4 }}>
-                                <span>1s ({t('Form.settings.fast')})</span>
-                                <span>10s ({t('Form.settings.natural')})</span>
-                            </div>
-                        </div>
-
                         <div>
                             <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
                                 {t('Form.settings.language')}
@@ -1289,7 +1276,7 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
                             )}
                         </div>
 
-                        <div style={{
+                        {formData.mission === 'restaurant' && <div style={{
                             padding: 16,
                             borderRadius: 12,
                             border: '1px solid rgba(16, 185, 129, 0.2)',
@@ -1438,68 +1425,83 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
                                     <span style={{ color: '#64748b' }}>{t('Form.summary.name')}</span>
                                     <span style={{ color: 'white', fontWeight: 500 }}>{formData.name}</span>
                                 </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <span style={{ color: '#64748b' }}>{t('Form.summary.personality')}</span>
-                                    <span style={{ color: 'white', fontWeight: 500 }}>
-                                        {personalities.find(p => p.id === formData.personality)?.name}
-                                    </span>
-                                </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <span style={{ color: '#64748b' }}>{t('Form.summary.emojis')}</span>
-                                    <span style={{ color: 'white', fontWeight: 500 }}>{formData.useEmojis ? 'Oui' : 'Non'}</span>
-                                </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <span style={{ color: '#64748b' }}>{t('Form.summary.delay')}</span>
-                                    <span style={{ color: 'white', fontWeight: 500 }}>{formData.responseDelay}s</span>
-                                </div>
+                                {!isSupportClient && (
+                                    <>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                            <span style={{ color: '#64748b' }}>{t('Form.summary.personality')}</span>
+                                            <span style={{ color: 'white', fontWeight: 500 }}>
+                                                {personalities.find(p => p.id === formData.personality)?.name}
+                                            </span>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                            <span style={{ color: '#64748b' }}>{t('Form.summary.emojis')}</span>
+                                            <span style={{ color: 'white', fontWeight: 500 }}>{formData.useEmojis ? 'Oui' : 'Non'}</span>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         </div>
 
                         {/* Payment Settings Section */}
                         <div>
-                            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
+                            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 12 }}>
                                 Mode de Paiement
                             </label>
-                            <div className="agent-grid-2" style={{ gap: 12 }}>
-                                {!isSupportClient && (
-                                    <div
-                                        onClick={() => updateFormData('payment_mode', 'cinetpay')}
-                                        style={{
-                                            padding: 16,
-                                            borderRadius: 12,
-                                            border: formData.payment_mode === 'cinetpay' ? '2px solid #10b981' : '1px solid rgba(148,163,184,0.1)',
-                                            background: formData.payment_mode === 'cinetpay' ? 'rgba(16,185,129,0.1)' : 'rgba(30, 41, 59, 0.5)',
-                                            cursor: 'pointer'
-                                        }}
-                                    >
-                                        <div style={{ fontWeight: 600, color: 'white' }}>{AUTOMATIC_PAYMENT_MODE_LABEL}</div>
-                                        <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 4 }}>{AUTOMATIC_PAYMENT_MODE_DESCRIPTION}</div>
-                                        <div style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>{AUTOMATIC_PAYMENT_MODE_HINT}</div>
-                                    </div>
-                                )}
+                            {isSupportClient ? (
+                                <div style={{ fontSize: 13, color: '#94a3b8', padding: '10px 14px', background: 'rgba(30,41,59,0.5)', borderRadius: 10, border: '1px solid rgba(148,163,184,0.1)' }}>
+                                    Paiement manuel activé automatiquement (mode Support Client).
+                                </div>
+                            ) : (
                                 <div
-                                    onClick={() => updateFormData('payment_mode', 'mobile_money_direct')}
                                     style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
                                         padding: 16,
+                                        border: '1px solid rgba(148,163,184,0.1)',
                                         borderRadius: 12,
-                                        border: (isSupportClient || formData.payment_mode === 'mobile_money_direct') ? '2px solid #10b981' : '1px solid rgba(148,163,184,0.1)',
-                                        background: (isSupportClient || formData.payment_mode === 'mobile_money_direct') ? 'rgba(16,185,129,0.1)' : 'rgba(30, 41, 59, 0.5)',
-                                        cursor: 'pointer'
+                                        background: 'rgba(30,41,59,0.5)'
                                     }}
                                 >
-                                    <div style={{ fontWeight: 600, color: 'white' }}>{MANUAL_PAYMENT_MODE_LABEL}</div>
-                                    <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 4 }}>
-                                        {MANUAL_PAYMENT_MODE_DESCRIPTION}
+                                    <div>
+                                        <div style={{ fontWeight: 500, color: 'white', fontSize: 14 }}>Activer le paiement manuel</div>
+                                        <div style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>
+                                            {formData.payment_mode === 'mobile_money_direct'
+                                                ? 'Les clients envoient une capture après paiement mobile.'
+                                                : 'Par défaut : lien de paiement sécurisé en ligne.'}
+                                        </div>
                                     </div>
-                                    <div style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
-                                        {isSupportClient ? 'Seul mode disponible (Support Client).' : MANUAL_PAYMENT_MODE_HINT}
-                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => updateFormData('payment_mode', formData.payment_mode === 'mobile_money_direct' ? 'cinetpay' : 'mobile_money_direct')}
+                                        style={{
+                                            width: 48,
+                                            height: 28,
+                                            borderRadius: 14,
+                                            background: formData.payment_mode === 'mobile_money_direct' ? '#10b981' : '#334155',
+                                            border: 'none',
+                                            cursor: 'pointer',
+                                            position: 'relative',
+                                            flexShrink: 0
+                                        }}
+                                    >
+                                        <div style={{
+                                            width: 22,
+                                            height: 22,
+                                            borderRadius: '50%',
+                                            background: 'white',
+                                            position: 'absolute',
+                                            top: 3,
+                                            left: formData.payment_mode === 'mobile_money_direct' ? 23 : 3,
+                                            transition: 'left 0.2s'
+                                        }} />
+                                    </button>
                                 </div>
-                            </div>
+                            )}
                         </div>
 
-                        {/* Mobile Money Numbers (only if direct mode) */}
-                        {formData.payment_mode === 'mobile_money_direct' && (
+                        {/* Mobile Money Numbers (only if direct mode or support client) */}
+                        {(formData.payment_mode === 'mobile_money_direct' || isSupportClient) && (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 16 }}>
                                 <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0' }}>
                                     {MANUAL_PAYMENT_METHODS_LABEL}
