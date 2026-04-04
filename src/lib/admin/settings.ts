@@ -8,7 +8,7 @@ export const DEFAULT_ADMIN_SETTINGS = {
     appDescription: "Plateforme d'automatisation WhatsApp avec IA",
     maintenanceMode: false,
     allowRegistrations: true,
-    defaultCredits: 100,
+    defaultCredits: 10,
     openaiModel: 'gpt-4o-mini',
     maxTokensPerMessage: 500,
     temperatureDefault: 0.7,

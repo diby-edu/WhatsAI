@@ -207,7 +207,7 @@ export default function AdminSettingsPage() {
         appDescription: 'Plateforme d\'automatisation WhatsApp avec IA',
         maintenanceMode: false,
         allowRegistrations: true,
-        defaultCredits: 100,
+        defaultCredits: 10,
 
         // AI
         openaiModel: 'gpt-4o-mini',
