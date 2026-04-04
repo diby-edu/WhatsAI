@@ -79,6 +79,7 @@ export default function ApiMonitoringPage() {
     const [globalEnabled, setGlobalEnabled] = useState<boolean | null>(null)
     const [savingGlobal, setSavingGlobal] = useState(false)
     const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set())
+    const [dailyPeriod, setDailyPeriod] = useState<7 | 14 | 30>(14)
 
     const fetchStats = useCallback(async () => {
         setLoading(true)
@@ -409,14 +410,32 @@ export default function ApiMonitoringPage() {
                         {/* Volume par jour */}
                         {card(
                             <>
-                                <h3 style={{ margin: '0 0 14px', fontSize: 14, fontWeight: 600, color: 'var(--text-primary, #fff)' }}>
-                                    Volume par jour (30j)
-                                </h3>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                                    <h3 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: 'var(--text-primary, #fff)' }}>
+                                        Volume par jour
+                                    </h3>
+                                    <div style={{ display: 'flex', gap: 4 }}>
+                                        {([7, 14, 30] as const).map(p => (
+                                            <button
+                                                key={p}
+                                                onClick={() => setDailyPeriod(p)}
+                                                style={{
+                                                    padding: '3px 10px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                                                    fontSize: 11, fontWeight: 600,
+                                                    background: dailyPeriod === p ? '#25d366' : 'rgba(255,255,255,0.07)',
+                                                    color: dailyPeriod === p ? '#fff' : 'var(--text-secondary, #9ca3af)',
+                                                }}
+                                            >
+                                                {p}j
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
                                 {stats.daily_stats.length === 0 ? (
                                     <p style={{ color: 'var(--text-secondary, #9ca3af)', fontSize: 13 }}>Aucune donnée</p>
                                 ) : (
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 5, maxHeight: 260, overflowY: 'auto' }}>
-                                        {stats.daily_stats.slice(-14).reverse().map(day => (
+                                        {stats.daily_stats.slice(-dailyPeriod).reverse().map(day => (
                                             <div key={day.date} style={{ display: 'grid', gridTemplateColumns: '90px 1fr auto auto', gap: 7, alignItems: 'center', fontSize: 12 }}>
                                                 <span style={{ color: 'var(--text-secondary, #9ca3af)' }}>{day.date}</span>
                                                 <div style={{
