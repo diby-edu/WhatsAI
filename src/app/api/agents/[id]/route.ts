@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
 import { resumeActiveConversationsForAgents } from '@/lib/conversations/resume-agent-conversations'
 import { shouldRequestWhatsAppReconnect } from '@/lib/whatsapp/reactivation'
-import { coerceAgentPaymentModeOrThrow } from '@/lib/payments/payment-mode-display'
+import { normalizeAgentPaymentMode } from '@/lib/payments/payment-mode-display'
 
 function normalizeRestaurantDepositSettings(body: any) {
     const enabled = !!body.restaurant_deposit_enabled
@@ -140,7 +140,7 @@ export async function PATCH(
         }
 
         if (Object.prototype.hasOwnProperty.call(updates, 'payment_mode')) {
-            updates.payment_mode = coerceAgentPaymentModeOrThrow(updates.payment_mode)
+            updates.payment_mode = normalizeAgentPaymentMode(updates.payment_mode)
         }
 
         let reactivatingAgent = false

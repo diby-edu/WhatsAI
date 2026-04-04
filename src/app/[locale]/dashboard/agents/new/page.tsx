@@ -1421,7 +1421,7 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
                                     )}
                                 </div>
                             )}
-                        </div>
+                        </div>}
 
                         {/* Summary */}
                         <div style={{

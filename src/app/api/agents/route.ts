@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient, createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
 import { notifyAdmins } from '@/lib/notifications/admin-notify'
 import { getAIRuntimeSettings } from '@/lib/admin/settings'
-import { coerceAgentPaymentModeOrThrow } from '@/lib/payments/payment-mode-display'
+import { normalizeAgentPaymentMode } from '@/lib/payments/payment-mode-display'
 
 function normalizeRestaurantDepositSettings(body: any) {
     const enabled = !!body.restaurant_deposit_enabled
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
         const adminSupabase = createAdminClient()
         const aiDefaults = await getAIRuntimeSettings(adminSupabase)
         const restaurantDepositSettings = normalizeRestaurantDepositSettings(body)
-        const paymentMode = coerceAgentPaymentModeOrThrow(body.payment_mode)
+        const paymentMode = normalizeAgentPaymentMode(body.payment_mode)
 
         // Validate required fields
         if (!body.name) {
