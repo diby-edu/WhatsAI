@@ -362,7 +362,8 @@ export default function ApiMonitoringPage() {
                                 icon: Clock,
                                 color: stats.overview.avg_response_ms > 2000 ? '#ef4444' : stats.overview.avg_response_ms > 800 ? '#f59e0b' : '#06b6d4'
                             },
-                            { label: 'Clés actives', value: `${stats.overview.active_keys} / ${stats.overview.total_keys}`, icon: Key, color: '#f59e0b' },
+                            { label: 'Clés créées', value: stats.overview.total_keys.toString(), icon: Key, color: '#f59e0b' },
+                            { label: 'Clés activées', value: stats.overview.active_keys.toString(), icon: Key, color: '#22c55e' },
                             { label: 'Users avec accès', value: `${stats.overview.users_with_access} / ${stats.overview.total_users}`, icon: Users, color: '#06b6d4' },
                             { label: 'Webhooks actifs', value: stats.overview.webhooks_active.toString(), icon: Zap, color: '#a855f7' },
                             { label: 'Données synchronisées', value: stats.overview.synced_data_count.toLocaleString('fr-FR'), icon: Database, color: '#14b8a6' },
