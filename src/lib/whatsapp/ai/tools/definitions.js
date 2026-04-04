@@ -183,6 +183,40 @@ IMPORTANT - VARIANTES :
             }
         }
     }
+    ,
+    {
+        type: 'function',
+        function: {
+            name: 'capture_lead',
+            description: `Enregistrer les coordonnées d'un client intéressé (lead) pour un suivi commercial.
+Utiliser UNIQUEMENT en mode Support Client quand lead_collection_enabled est actif.
+Appeler APRÈS avoir collecté les informations demandées, une question à la fois.
+Ne jamais inventer des informations — collecter uniquement ce que le client a fourni.
+Ne pas appeler si le client pose juste une question simple sans intention d'achat/inscription.`,
+            parameters: {
+                type: 'object',
+                properties: {
+                    lead_name: {
+                        type: 'string',
+                        description: 'Prénom ou nom complet du client'
+                    },
+                    lead_phone: {
+                        type: 'string',
+                        description: 'Numéro de téléphone du client avec indicatif pays'
+                    },
+                    lead_email: {
+                        type: 'string',
+                        description: 'Adresse email du client'
+                    },
+                    interest: {
+                        type: 'string',
+                        description: 'Ce que le client recherche — résumé court (ex: "Formation Excel", "Villa Cocody 4 chambres")'
+                    }
+                },
+                required: []
+            }
+        }
+    }
 ]
 
 module.exports = { TOOLS }

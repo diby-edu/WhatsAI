@@ -43,6 +43,7 @@ export default function NewAgentPage() {
     const [generating, setGenerating] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [createdAgent, setCreatedAgent] = useState<any>(null)
+    const [showSupportModal, setShowSupportModal] = useState(false)
 
     // WhatsApp connection state
     const [qrCode, setQrCode] = useState<string | null>(null)
@@ -125,7 +126,11 @@ export default function NewAgentPage() {
         restaurant_deposit_percentage: 30,
         restaurant_deposit_fixed_amount_fcfa: 0,
         agent_context: '',
-        welcome_message: ''
+        welcome_message: '',
+        // LEADS
+        lead_collection_enabled: false,
+        lead_redirect_message: '',
+        lead_collect_fields: ['name', 'phone'] as string[]
     })
 
     const steps = [
@@ -497,7 +502,11 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
                         ? formData.restaurant_deposit_fixed_amount_fcfa
                         : 0,
                     agent_context: formData.agent_context || null,
-                    welcome_message: formData.welcome_message || null
+                    welcome_message: formData.welcome_message || null,
+                    // Leads
+                    lead_collection_enabled: formData.lead_collection_enabled,
+                    lead_redirect_message: formData.lead_redirect_message || null,
+                    lead_collect_fields: formData.lead_collect_fields
                 }),
             })
 
@@ -530,6 +539,7 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
 
             setCreatedAgent(agent)
             setCurrentStep(6) // Move to WhatsApp step
+            if (formData.mission === 'support_client') setShowSupportModal(true)
         } catch (err) {
             console.error('[ERROR] Agent creation error:', err)
             setError((err as Error).message)
@@ -1624,6 +1634,83 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
                                 </div>
                             </div>
                         )}
+
+                        {/* Section Collecte de Leads (support client uniquement) */}
+                        {isSupportClient && (
+                            <div style={{ borderTop: '1px solid rgba(148,163,184,0.1)', paddingTop: 24 }}>
+                                <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 12 }}>
+                                    Collecte de leads
+                                </label>
+                                <div style={{
+                                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                    padding: 16, border: '1px solid rgba(148,163,184,0.1)', borderRadius: 12, background: 'rgba(30,41,59,0.5)', marginBottom: 16
+                                }}>
+                                    <div>
+                                        <div style={{ fontWeight: 500, color: 'white', fontSize: 14 }}>Activer la collecte de leads</div>
+                                        <div style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>
+                                            L'agent collecte le contact du client intéressé et vous notifie
+                                        </div>
+                                    </div>
+                                    <button type="button"
+                                        onClick={() => updateFormData('lead_collection_enabled', !formData.lead_collection_enabled)}
+                                        style={{ width: 48, height: 28, borderRadius: 14, background: formData.lead_collection_enabled ? '#10b981' : '#334155', border: 'none', cursor: 'pointer', position: 'relative', flexShrink: 0 }}
+                                    >
+                                        <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'white', position: 'absolute', top: 3, left: formData.lead_collection_enabled ? 23 : 3, transition: 'left 0.2s' }} />
+                                    </button>
+                                </div>
+
+                                {formData.lead_collection_enabled && (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
+                                                Informations à collecter
+                                            </label>
+                                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                                {[{ key: 'name', label: 'Prénom/Nom' }, { key: 'phone', label: 'Téléphone' }, { key: 'email', label: 'Email' }].map(f => (
+                                                    <button key={f.key} type="button"
+                                                        onClick={() => {
+                                                            const cur = formData.lead_collect_fields
+                                                            updateFormData('lead_collect_fields', cur.includes(f.key) ? cur.filter(x => x !== f.key) : [...cur, f.key])
+                                                        }}
+                                                        style={{
+                                                            padding: '8px 16px', borderRadius: 20, fontSize: 13, cursor: 'pointer', border: 'none',
+                                                            background: formData.lead_collect_fields.includes(f.key) ? '#10b981' : 'rgba(30,41,59,0.8)',
+                                                            color: formData.lead_collect_fields.includes(f.key) ? 'white' : '#94a3b8'
+                                                        }}
+                                                    >{f.label}</button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
+                                                Message après enregistrement du lead
+                                            </label>
+                                            <input type="text" value={formData.lead_redirect_message}
+                                                onChange={e => updateFormData('lead_redirect_message', e.target.value)}
+                                                placeholder="Ex: Merci ! Nos équipes vous recontacteront sous 24h."
+                                                style={{ width: '100%', background: '#1e293b', border: '1px solid #334155', padding: 12, borderRadius: 12, color: 'white', outline: 'none', fontSize: 14 }}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
+                                {!formData.lead_collection_enabled && (
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
+                                            Message de redirection (optionnel)
+                                        </label>
+                                        <input type="text" value={formData.lead_redirect_message}
+                                            onChange={e => updateFormData('lead_redirect_message', e.target.value)}
+                                            placeholder="Ex: Pour commander, appelez le +225 07 00 00 00"
+                                            style={{ width: '100%', background: '#1e293b', border: '1px solid #334155', padding: 12, borderRadius: 12, color: 'white', outline: 'none', fontSize: 14 }}
+                                        />
+                                        <p style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
+                                            Ce message sera affiché si un client exprime un intérêt commercial.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 )
 
@@ -1952,6 +2039,66 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
                     </button>
                 ) : null}
             </div>
+
+            {/* Modal post-création agent Support Client */}
+            {showSupportModal && createdAgent && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+                    <div style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 24, padding: 32, maxWidth: 540, width: '100%', display: 'flex', flexDirection: 'column', gap: 20 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <h2 style={{ color: 'white', fontWeight: 700, fontSize: 20, margin: 0 }}>Votre agent support est prêt</h2>
+                            <button onClick={() => setShowSupportModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 4 }}>
+                                <Check size={20} />
+                            </button>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                                <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(16,185,129,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 18 }}>📚</div>
+                                <div>
+                                    <div style={{ color: 'white', fontWeight: 600, fontSize: 14, marginBottom: 4 }}>Réponses par base de connaissance</div>
+                                    <div style={{ color: '#94a3b8', fontSize: 13 }}>Votre agent répond uniquement à partir des documents que vous ajoutez. Il ne peut pas inventer d'information.</div>
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                                <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(99,102,241,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 18 }}>🖼️</div>
+                                <div>
+                                    <div style={{ color: 'white', fontWeight: 600, fontSize: 14, marginBottom: 4 }}>Documents avec ou sans image</div>
+                                    <div style={{ color: '#94a3b8', fontSize: 13 }}>Associez une image à un document (voiture, produit, lieu...) : l'agent pourra l'envoyer si le client la demande. Uploader ou coller une URL.</div>
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                                <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(251,191,36,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 18 }}>📋</div>
+                                <div>
+                                    <div style={{ color: 'white', fontWeight: 600, fontSize: 14, marginBottom: 4 }}>Collecte de leads (optionnel)</div>
+                                    <div style={{ color: '#94a3b8', fontSize: 13 }}>Activez l'option dans les paramètres : l'agent collecte le nom et le contact des clients intéressés. Vous les retrouvez dans "Leads".</div>
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                                <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(239,68,68,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 18 }}>🚫</div>
+                                <div>
+                                    <div style={{ color: 'white', fontWeight: 600, fontSize: 14, marginBottom: 4 }}>Aucun catalogue produits</div>
+                                    <div style={{ color: '#94a3b8', fontSize: 13 }}>Ce mode ne prend pas de commandes. Ajoutez uniquement des documents dans la base de connaissance.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                            <button
+                                onClick={() => { setShowSupportModal(false); router.push(`/dashboard/agents/${createdAgent.id}/knowledge`) }}
+                                style={{ flex: 1, padding: '14px 20px', background: '#10b981', color: 'white', border: 'none', borderRadius: 12, fontWeight: 600, cursor: 'pointer', fontSize: 14 }}
+                            >
+                                Aller à la base de connaissance
+                            </button>
+                            <button
+                                onClick={() => setShowSupportModal(false)}
+                                style={{ padding: '14px 20px', background: 'transparent', color: '#94a3b8', border: '1px solid #334155', borderRadius: 12, cursor: 'pointer', fontSize: 14 }}
+                            >
+                                Plus tard
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

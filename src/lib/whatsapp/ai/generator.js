@@ -360,13 +360,18 @@ async function generateAIResponse(options, dependencies) {
 
         // En mode Support Client (KB-only), désactiver tous les tools transactionnels
         // send_image est conservé : l'agent support peut envoyer des images depuis la KB
-        const SUPPORT_CLIENT_DISABLED_TOOLS = ['create_order', 'check_payment_status', 'create_booking', 'find_order']
+        // capture_lead est conservé uniquement si lead_collection_enabled
+        const SUPPORT_CLIENT_DISABLED_TOOLS = ['create_order', 'check_payment_status', 'create_booking', 'find_order', 'create_restaurant_checkout']
         const RESTAURANT_DISABLED_TOOLS = ['create_order', 'create_booking']
         const activeTools = isSupportClientMode
-            ? TOOLS.filter(t => !SUPPORT_CLIENT_DISABLED_TOOLS.includes(t.function?.name))
+            ? TOOLS.filter(t => {
+                if (SUPPORT_CLIENT_DISABLED_TOOLS.includes(t.function?.name)) return false
+                if (t.function?.name === 'capture_lead' && !agent.lead_collection_enabled) return false
+                return true
+            })
             : isRestaurantMode
                 ? TOOLS.filter(t => !RESTAURANT_DISABLED_TOOLS.includes(t.function?.name))
-                : TOOLS
+                : TOOLS.filter(t => t.function?.name !== 'capture_lead') // capture_lead uniquement en mode support
         const toolsConfig = activeTools.length > 0
             ? { tools: activeTools, tool_choice: 'auto' }
             : {}

@@ -4,6 +4,7 @@ import { useState, useEffect, use, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Plus, Trash2, FileText, Loader2, Upload, Link2, AlignLeft, Eye, X, ChevronDown, ChevronUp, ImageIcon } from 'lucide-react'
 import Link from 'next/link'
+import { createBrowserClient } from '@supabase/ssr'
 
 interface Document {
     id: string
@@ -56,6 +57,31 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
     const [pdfFile, setPdfFile] = useState<File | null>(null)
     const [pdfTitle, setPdfTitle] = useState('')
     const fileInputRef = useRef<HTMLInputElement>(null)
+
+    // Image upload
+    const [imageUploading, setImageUploading] = useState(false)
+    const imageUploadRef = useRef<HTMLInputElement>(null)
+
+    const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+
+    const uploadImageToStorage = async (file: File) => {
+        setImageUploading(true)
+        try {
+            const ext = file.name.split('.').pop()
+            const path = `agents/${id}/${Date.now()}.${ext}`
+            const { error } = await supabase.storage.from('images').upload(path, file, { upsert: true })
+            if (error) throw error
+            const { data } = supabase.storage.from('images').getPublicUrl(path)
+            setNewDoc(prev => ({ ...prev, image_url: data.publicUrl }))
+        } catch (e) {
+            console.error('Image upload error:', e)
+        } finally {
+            setImageUploading(false)
+        }
+    }
 
     // URL mode
     const [urlInput, setUrlInput] = useState('')
@@ -461,23 +487,58 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
                                         Image <span style={{ color: '#475569', fontSize: 12 }}>(optionnel)</span>
                                     </label>
                                     <p style={{ color: '#475569', fontSize: 12, marginBottom: 8 }}>
-                                        Si ce document représente un élément visuel (voiture, produit, lieu...), collez l'URL de l'image. L'agent pourra l'envoyer quand le client la demande.
+                                        Si ce document représente un élément visuel (voiture, produit, lieu...), ajoutez une image. L'agent pourra l'envoyer quand le client la demande.
                                     </p>
-                                    <input
-                                        type="url"
-                                        value={newDoc.image_url}
-                                        onChange={e => setNewDoc({ ...newDoc, image_url: e.target.value })}
-                                        style={inputStyle}
-                                        placeholder="https://exemple.com/image.jpg"
-                                    />
+                                    <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                                        <input
+                                            type="url"
+                                            value={newDoc.image_url}
+                                            onChange={e => setNewDoc({ ...newDoc, image_url: e.target.value })}
+                                            style={{ ...inputStyle, flex: 1 }}
+                                            placeholder="https://exemple.com/image.jpg"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => imageUploadRef.current?.click()}
+                                            disabled={imageUploading}
+                                            style={{
+                                                padding: '0 16px',
+                                                background: 'rgba(16,185,129,0.1)',
+                                                border: '1px solid rgba(16,185,129,0.3)',
+                                                borderRadius: 12,
+                                                color: '#10b981',
+                                                cursor: imageUploading ? 'not-allowed' : 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 6,
+                                                fontSize: 13,
+                                                whiteSpace: 'nowrap'
+                                            }}
+                                        >
+                                            {imageUploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                                            {imageUploading ? 'Upload...' : 'Uploader'}
+                                        </button>
+                                        <input
+                                            ref={imageUploadRef}
+                                            type="file"
+                                            accept="image/*"
+                                            style={{ display: 'none' }}
+                                            onChange={e => { const f = e.target.files?.[0]; if (f) uploadImageToStorage(f) }}
+                                        />
+                                    </div>
                                     {newDoc.image_url && (
-                                        <div style={{ marginTop: 8 }}>
+                                        <div style={{ position: 'relative', display: 'inline-block' }}>
                                             <img
                                                 src={newDoc.image_url}
                                                 alt="Aperçu"
                                                 style={{ maxWidth: '100%', maxHeight: 160, borderRadius: 8, objectFit: 'cover', border: '1px solid #334155' }}
                                                 onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
                                             />
+                                            <button
+                                                type="button"
+                                                onClick={() => setNewDoc(prev => ({ ...prev, image_url: '' }))}
+                                                style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '50%', width: 22, height: 22, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}
+                                            ><X size={12} /></button>
                                         </div>
                                     )}
                                 </div>
