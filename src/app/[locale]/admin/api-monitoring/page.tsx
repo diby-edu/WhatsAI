@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import {
     Activity, Key, Users, AlertTriangle, CheckCircle,
     RefreshCw, Search, Power, ChevronDown, ChevronUp,
-    BarChart3, Globe, TrendingUp, Shield, Clock
+    BarChart3, Globe, TrendingUp, Shield, Clock, Zap, Database
 } from 'lucide-react'
 
 interface Stats {
@@ -12,11 +12,19 @@ interface Stats {
         total_calls: number
         calls_today: number
         calls_last_7_days: number
+        calls_last_30_days: number
         total_keys: number
         active_keys: number
         users_with_access: number
+        total_users: number
+        webhooks_active: number
+        synced_data_count: number
         error_rate_percent: number
+        success_rate_percent: number
+        avg_response_ms: number
+        last_call: { created_at: string; endpoint: string; status_code: number } | null
     }
+    top_endpoints: { endpoint: string; count: number; percent: number }[]
     top_users: { user_id: string; count: number }[]
     daily_stats: { date: string; total: number; errors: number }[]
 }
@@ -310,88 +318,184 @@ export default function ApiMonitoringPage() {
             {/* ── TAB : VUE D'ENSEMBLE ────────────────────────────────────── */}
             {!loading && tab === 'overview' && stats && (
                 <div>
-                    {/* Stats cards */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 24 }}>
+                    {/* Ligne 1 — Volumes */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 12 }}>
                         {[
                             { label: 'Appels total', value: stats.overview.total_calls.toLocaleString('fr-FR'), icon: Activity, color: '#25d366' },
-                            { label: 'Appels aujourd\'hui', value: stats.overview.calls_today.toLocaleString('fr-FR'), icon: TrendingUp, color: '#3b82f6' },
-                            { label: 'Appels 7 jours', value: stats.overview.calls_last_7_days.toLocaleString('fr-FR'), icon: BarChart3, color: '#8b5cf6' },
-                            { label: 'Clés actives', value: `${stats.overview.active_keys} / ${stats.overview.total_keys}`, icon: Key, color: '#f59e0b' },
-                            { label: 'Users avec accès', value: stats.overview.users_with_access.toString(), icon: Users, color: '#06b6d4' },
-                            { label: 'Taux d\'erreur (7j)', value: `${stats.overview.error_rate_percent}%`, icon: AlertTriangle, color: stats.overview.error_rate_percent > 10 ? '#ef4444' : '#22c55e' },
+                            { label: 'Aujourd\'hui', value: stats.overview.calls_today.toLocaleString('fr-FR'), icon: TrendingUp, color: '#3b82f6' },
+                            { label: '7 derniers jours', value: stats.overview.calls_last_7_days.toLocaleString('fr-FR'), icon: BarChart3, color: '#8b5cf6' },
+                            { label: '30 derniers jours', value: stats.overview.calls_last_30_days.toLocaleString('fr-FR'), icon: BarChart3, color: '#6366f1' },
                         ].map(item => (
                             <div key={item.label} style={{
                                 background: 'var(--card-bg, #1a1a2e)',
                                 border: '1px solid var(--border, #2a2a3e)',
-                                borderRadius: 12, padding: '16px 18px'
+                                borderRadius: 12, padding: '14px 16px'
                             }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                                    <item.icon size={14} color={item.color} />
-                                    <span style={{ fontSize: 12, color: 'var(--text-secondary, #9ca3af)' }}>{item.label}</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
+                                    <item.icon size={13} color={item.color} />
+                                    <span style={{ fontSize: 11, color: 'var(--text-secondary, #9ca3af)' }}>{item.label}</span>
                                 </div>
-                                <div style={{ fontSize: 22, fontWeight: 700, color: item.color }}>{item.value}</div>
+                                <div style={{ fontSize: 20, fontWeight: 700, color: item.color }}>{item.value}</div>
                             </div>
                         ))}
                     </div>
 
-                    {/* Volume par jour */}
-                    {stats.daily_stats.length > 0 && (
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-                            {card(
-                                <>
-                                    <h3 style={{ margin: '0 0 16px', fontSize: 14, fontWeight: 600, color: 'var(--text-primary, #fff)' }}>
-                                        Volume par jour (30j)
-                                    </h3>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 280, overflowY: 'auto' }}>
+                    {/* Ligne 2 — Santé + Infra */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 20 }}>
+                        {[
+                            {
+                                label: 'Taux de succès (7j)',
+                                value: `${stats.overview.success_rate_percent}%`,
+                                icon: CheckCircle,
+                                color: stats.overview.success_rate_percent >= 90 ? '#22c55e' : stats.overview.success_rate_percent >= 70 ? '#f59e0b' : '#ef4444'
+                            },
+                            {
+                                label: 'Taux d\'erreur (7j)',
+                                value: `${stats.overview.error_rate_percent}%`,
+                                icon: AlertTriangle,
+                                color: stats.overview.error_rate_percent > 10 ? '#ef4444' : '#22c55e'
+                            },
+                            {
+                                label: 'Latence moyenne (30j)',
+                                value: stats.overview.avg_response_ms > 0 ? `${stats.overview.avg_response_ms} ms` : '— ms',
+                                icon: Clock,
+                                color: stats.overview.avg_response_ms > 2000 ? '#ef4444' : stats.overview.avg_response_ms > 800 ? '#f59e0b' : '#06b6d4'
+                            },
+                            { label: 'Clés actives', value: `${stats.overview.active_keys} / ${stats.overview.total_keys}`, icon: Key, color: '#f59e0b' },
+                            { label: 'Users avec accès', value: `${stats.overview.users_with_access} / ${stats.overview.total_users}`, icon: Users, color: '#06b6d4' },
+                            { label: 'Webhooks actifs', value: stats.overview.webhooks_active.toString(), icon: Zap, color: '#a855f7' },
+                            { label: 'Données synchronisées', value: stats.overview.synced_data_count.toLocaleString('fr-FR'), icon: Database, color: '#14b8a6' },
+                        ].map(item => (
+                            <div key={item.label} style={{
+                                background: 'var(--card-bg, #1a1a2e)',
+                                border: '1px solid var(--border, #2a2a3e)',
+                                borderRadius: 12, padding: '14px 16px'
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
+                                    <item.icon size={13} color={item.color} />
+                                    <span style={{ fontSize: 11, color: 'var(--text-secondary, #9ca3af)' }}>{item.label}</span>
+                                </div>
+                                <div style={{ fontSize: 20, fontWeight: 700, color: item.color }}>{item.value}</div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Dernier appel */}
+                    {stats.overview.last_call && (
+                        <div style={{
+                            background: 'var(--card-bg, #1a1a2e)',
+                            border: '1px solid var(--border, #2a2a3e)',
+                            borderRadius: 12, padding: '12px 16px',
+                            display: 'flex', alignItems: 'center', gap: 12,
+                            marginBottom: 20, fontSize: 13
+                        }}>
+                            <Clock size={14} color="#9ca3af" />
+                            <span style={{ color: 'var(--text-secondary, #9ca3af)' }}>Dernier appel :</span>
+                            <span style={{ fontFamily: 'monospace', color: 'var(--text-primary, #fff)', fontSize: 12 }}>
+                                {stats.overview.last_call.endpoint}
+                            </span>
+                            <span style={{ fontWeight: 700, color: stats.overview.last_call.status_code < 400 ? '#22c55e' : '#ef4444' }}>
+                                {stats.overview.last_call.status_code}
+                            </span>
+                            <span style={{ color: 'var(--text-secondary, #9ca3af)', marginLeft: 'auto', whiteSpace: 'nowrap' }}>
+                                {new Date(stats.overview.last_call.created_at).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                        </div>
+                    )}
+
+                    {/* Grille inférieure */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+
+                        {/* Volume par jour */}
+                        {card(
+                            <>
+                                <h3 style={{ margin: '0 0 14px', fontSize: 14, fontWeight: 600, color: 'var(--text-primary, #fff)' }}>
+                                    Volume par jour (30j)
+                                </h3>
+                                {stats.daily_stats.length === 0 ? (
+                                    <p style={{ color: 'var(--text-secondary, #9ca3af)', fontSize: 13 }}>Aucune donnée</p>
+                                ) : (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 5, maxHeight: 260, overflowY: 'auto' }}>
                                         {stats.daily_stats.slice(-14).reverse().map(day => (
-                                            <div key={day.date} style={{ display: 'grid', gridTemplateColumns: '100px 1fr auto auto', gap: 8, alignItems: 'center', fontSize: 12 }}>
+                                            <div key={day.date} style={{ display: 'grid', gridTemplateColumns: '90px 1fr auto auto', gap: 7, alignItems: 'center', fontSize: 12 }}>
                                                 <span style={{ color: 'var(--text-secondary, #9ca3af)' }}>{day.date}</span>
                                                 <div style={{
-                                                    height: 6, borderRadius: 3,
+                                                    height: 5, borderRadius: 3,
                                                     background: `linear-gradient(to right, #25d366 ${100 - (day.errors / Math.max(day.total, 1) * 100)}%, #ef4444 0%)`,
                                                     opacity: 0.7
                                                 }} />
-                                                <span style={{ color: '#25d366', minWidth: 40, textAlign: 'right' }}>{day.total}</span>
+                                                <span style={{ color: '#25d366', minWidth: 36, textAlign: 'right' }}>{day.total}</span>
                                                 {day.errors > 0 && (
-                                                    <span style={{ color: '#ef4444', minWidth: 30, textAlign: 'right' }}>-{day.errors}</span>
+                                                    <span style={{ color: '#ef4444', minWidth: 28, textAlign: 'right' }}>-{day.errors}</span>
                                                 )}
                                             </div>
                                         ))}
                                     </div>
-                                </>
-                            )}
+                                )}
+                            </>
+                        )}
 
-                            {card(
-                                <>
-                                    <h3 style={{ margin: '0 0 16px', fontSize: 14, fontWeight: 600, color: 'var(--text-primary, #fff)' }}>
-                                        Top utilisateurs (30j)
-                                    </h3>
-                                    {stats.top_users.length === 0 ? (
-                                        <p style={{ color: 'var(--text-secondary, #9ca3af)', fontSize: 13 }}>Aucune donnée</p>
-                                    ) : (
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                            {stats.top_users.map((u, i) => (
-                                                <div key={u.user_id} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13 }}>
-                                                    <span style={{
-                                                        width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center',
-                                                        justifyContent: 'center', fontSize: 11, fontWeight: 700,
-                                                        background: i === 0 ? '#f59e0b' : i === 1 ? '#9ca3af' : 'rgba(255,255,255,0.1)',
-                                                        color: '#fff', flexShrink: 0
-                                                    }}>
-                                                        {i + 1}
+                        {/* Top endpoints */}
+                        {card(
+                            <>
+                                <h3 style={{ margin: '0 0 14px', fontSize: 14, fontWeight: 600, color: 'var(--text-primary, #fff)' }}>
+                                    Top endpoints (30j)
+                                </h3>
+                                {stats.top_endpoints.length === 0 ? (
+                                    <p style={{ color: 'var(--text-secondary, #9ca3af)', fontSize: 13 }}>Aucune donnée</p>
+                                ) : (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                        {stats.top_endpoints.map((ep, i) => (
+                                            <div key={ep.endpoint}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                                                    <span style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--text-primary, #fff)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' }}>
+                                                        {ep.endpoint}
                                                     </span>
-                                                    <span style={{ flex: 1, color: 'var(--text-primary, #fff)', fontFamily: 'monospace', fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                        {u.user_id.slice(0, 16)}...
+                                                    <span style={{ fontSize: 12, fontWeight: 700, color: '#25d366', flexShrink: 0 }}>
+                                                        {ep.count.toLocaleString('fr-FR')}
                                                     </span>
-                                                    <span style={{ color: '#25d366', fontWeight: 600 }}>{u.count.toLocaleString('fr-FR')}</span>
                                                 </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </>
-                            )}
-                        </div>
-                    )}
+                                                <div style={{ height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.07)' }}>
+                                                    <div style={{ height: '100%', borderRadius: 2, background: i === 0 ? '#25d366' : i === 1 ? '#3b82f6' : i === 2 ? '#8b5cf6' : '#6b7280', width: `${ep.percent}%` }} />
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </>
+                        )}
+
+                        {/* Top utilisateurs */}
+                        {card(
+                            <>
+                                <h3 style={{ margin: '0 0 14px', fontSize: 14, fontWeight: 600, color: 'var(--text-primary, #fff)' }}>
+                                    Top utilisateurs (30j)
+                                </h3>
+                                {stats.top_users.length === 0 ? (
+                                    <p style={{ color: 'var(--text-secondary, #9ca3af)', fontSize: 13 }}>Aucune donnée</p>
+                                ) : (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                                        {stats.top_users.slice(0, 8).map((u, i) => (
+                                            <div key={u.user_id} style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 13 }}>
+                                                <span style={{
+                                                    width: 20, height: 20, borderRadius: '50%', display: 'flex', alignItems: 'center',
+                                                    justifyContent: 'center', fontSize: 10, fontWeight: 700,
+                                                    background: i === 0 ? '#f59e0b' : i === 1 ? '#9ca3af' : 'rgba(255,255,255,0.1)',
+                                                    color: '#fff', flexShrink: 0
+                                                }}>
+                                                    {i + 1}
+                                                </span>
+                                                <span style={{ flex: 1, color: 'var(--text-secondary, #9ca3af)', fontFamily: 'monospace', fontSize: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                    {u.user_id.slice(0, 18)}…
+                                                </span>
+                                                <span style={{ color: '#25d366', fontWeight: 600, fontSize: 12, flexShrink: 0 }}>{u.count.toLocaleString('fr-FR')}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </>
+                        )}
+                    </div>
                 </div>
             )}
 
