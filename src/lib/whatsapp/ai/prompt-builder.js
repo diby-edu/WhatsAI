@@ -101,6 +101,33 @@ function buildAdaptiveSystemPrompt(agent, products, orders, relevantDocs, curren
 
         const agentContext = agent.agent_context ? `\n\n📋 CONTEXTE SUPPLÉMENTAIRE :\n${agent.agent_context}` : ''
 
+        // Règles collecte de leads
+        let leadSection = ''
+        if (agent.lead_collection_enabled) {
+            const fields = Array.isArray(agent.lead_collect_fields)
+                ? agent.lead_collect_fields
+                : (typeof agent.lead_collect_fields === 'string' ? JSON.parse(agent.lead_collect_fields) : ['name', 'phone'])
+            const fieldLabels = fields.map(f => f === 'name' ? 'prénom/nom' : f === 'phone' ? 'numéro de téléphone' : f === 'email' ? 'email' : f).join(', ')
+            const redirectMsg = agent.lead_redirect_message || 'Merci ! Nos équipes vous recontacteront très bientôt.'
+            leadSection = `
+
+📋 COLLECTE DE LEADS (ACTIF) :
+Si le client exprime un intérêt concret (achat, inscription, visite, commande, devis...) :
+1. Pose les questions une par une, naturellement : ${fieldLabels}
+2. Déduis aussi le sujet d'intérêt (ex: "Formation Excel", "Villa Cocody")
+3. Une fois toutes les infos collectées → appelle capture_lead
+4. Après l'appel réussi, réponds EXACTEMENT : "${redirectMsg}"
+⛔ Ne collecte PAS si le client pose juste une question informative sans intention d'achat/inscription.
+⛔ Ne collecte PAS les mêmes infos deux fois dans la même conversation.`
+        } else if (agent.lead_redirect_message) {
+            leadSection = `
+
+📋 REDIRECTION COMMERCIALE :
+Si le client exprime un souhait d'achat, d'inscription ou une demande commerciale → réponds EXACTEMENT :
+"${agent.lead_redirect_message}"
+Puis ne répète pas ce message si le client continue à poser des questions informatives.`
+        }
+
         return `Tu es l'assistant IA de ${agent.name}.
 Langue: ${agent.language || 'français'}.
 ${agent.use_emojis ? 'Utilise des emojis modérément.' : ''}
@@ -114,7 +141,7 @@ RÈGLES DE SALUTATION :
 ✅ Si le client envoie UNIQUEMENT une salutation (bonjour, salut, bonsoir, hello...) sans exprimer de besoin → réponds EXACTEMENT : "${agent.welcome_message ? agent.welcome_message : `Bonjour ! Je suis l'assistant de ${agent.name}. Comment puis-je vous aider ?`}"
 ✅ Si le client exprime un besoin directement sans salutation → commence par "Bonjour !" puis réponds immédiatement au besoin. Ne récite pas le message d'accueil.
 ✅ Si le client salue ET exprime un besoin dans le même message → salutation courte naturelle + réponse au besoin immédiatement. Ne récite pas le message d'accueil.
-✅ Si info absente → ${escalationRule}${agentContext}${supportPaymentSection}
+✅ Si info absente → ${escalationRule}${agentContext}${supportPaymentSection}${leadSection}
 
 ${knowledgeSection}`.trim()
     }

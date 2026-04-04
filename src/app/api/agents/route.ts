@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient, createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
 import { notifyAdmins } from '@/lib/notifications/admin-notify'
 import { getAIRuntimeSettings } from '@/lib/admin/settings'
+import { coerceAgentPaymentModeOrThrow } from '@/lib/payments/payment-mode-display'
 
 function normalizeRestaurantDepositSettings(body: any) {
     const enabled = !!body.restaurant_deposit_enabled
@@ -68,6 +69,7 @@ export async function POST(request: NextRequest) {
         const adminSupabase = createAdminClient()
         const aiDefaults = await getAIRuntimeSettings(adminSupabase)
         const restaurantDepositSettings = normalizeRestaurantDepositSettings(body)
+        const paymentMode = coerceAgentPaymentModeOrThrow(body.payment_mode)
 
         // Validate required fields
         if (!body.name) {
@@ -139,8 +141,11 @@ export async function POST(request: NextRequest) {
                 // Agent context (Support Client)
                 agent_context: body.agent_context || null,
                 welcome_message: body.welcome_message || null,
+                lead_collection_enabled: body.lead_collection_enabled ?? false,
+                lead_redirect_message: body.lead_redirect_message || null,
+                lead_collect_fields: body.lead_collect_fields || ['name', 'phone'],
                 // Payment & escalation (Support Client + transactionnel)
-                payment_mode: body.payment_mode || null,
+                payment_mode: paymentMode,
                 mobile_money_orange: body.mobile_money_orange || null,
                 mobile_money_mtn: body.mobile_money_mtn || null,
                 mobile_money_wave: body.mobile_money_wave || null,

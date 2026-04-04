@@ -26,7 +26,8 @@ import {
     Phone,
     ChevronRight,
     ChevronLeft,
-    BookOpen
+    BookOpen,
+    Users
 } from 'lucide-react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
@@ -185,6 +186,10 @@ export default function AgentWizardPage({
         escalation_phone: '',  // Phone number to display when escalating to human
         agent_context: '',
         welcome_message: '',
+        // Leads
+        lead_collection_enabled: false,
+        lead_redirect_message: '',
+        lead_collect_fields: ['name', 'phone'] as string[],
     })
 
     useEffect(() => {
@@ -273,6 +278,9 @@ export default function AgentWizardPage({
                 escalation_phone: agent.escalation_phone || '',
                 agent_context: agent.agent_context || '',
                 welcome_message: agent.welcome_message || '',
+                lead_collection_enabled: agent.lead_collection_enabled ?? false,
+                lead_redirect_message: agent.lead_redirect_message || '',
+                lead_collect_fields: Array.isArray(agent.lead_collect_fields) ? agent.lead_collect_fields : ['name', 'phone'],
             })
 
             // Detect mission type for UX (Support Client = has agent_context or KB-only system_prompt)
@@ -1352,6 +1360,83 @@ export default function AgentWizardPage({
                                     </div>
                                 )}
                             </div>
+
+                            {/* Section Collecte de Leads (support client uniquement) */}
+                            {isSupportClient && (
+                                <div style={{ borderTop: '1px solid rgba(148,163,184,0.1)', paddingTop: 24, marginTop: 8 }}>
+                                    <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 12 }}>
+                                        Collecte de leads
+                                    </label>
+                                    <div style={{
+                                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                        padding: 16, border: '1px solid rgba(148,163,184,0.1)', borderRadius: 12, background: 'rgba(30,41,59,0.5)', marginBottom: 16
+                                    }}>
+                                        <div>
+                                            <div style={{ fontWeight: 500, color: 'white', fontSize: 14 }}>Activer la collecte de leads</div>
+                                            <div style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>
+                                                L'agent collecte le contact du client intéressé
+                                            </div>
+                                        </div>
+                                        <button type="button"
+                                            onClick={() => setFormData({ ...formData, lead_collection_enabled: !formData.lead_collection_enabled })}
+                                            style={{ width: 48, height: 28, borderRadius: 14, background: formData.lead_collection_enabled ? '#10b981' : '#334155', border: 'none', cursor: 'pointer', position: 'relative', flexShrink: 0 }}
+                                        >
+                                            <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'white', position: 'absolute', top: 3, left: formData.lead_collection_enabled ? 23 : 3, transition: 'left 0.2s' }} />
+                                        </button>
+                                    </div>
+
+                                    {formData.lead_collection_enabled && (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 16 }}>
+                                            <div>
+                                                <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
+                                                    Informations à collecter
+                                                </label>
+                                                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                                    {[{ key: 'name', label: 'Prénom/Nom' }, { key: 'phone', label: 'Téléphone' }, { key: 'email', label: 'Email' }].map(f => (
+                                                        <button key={f.key} type="button"
+                                                            onClick={() => {
+                                                                const cur = formData.lead_collect_fields
+                                                                setFormData({ ...formData, lead_collect_fields: cur.includes(f.key) ? cur.filter((x: string) => x !== f.key) : [...cur, f.key] })
+                                                            }}
+                                                            style={{
+                                                                padding: '8px 16px', borderRadius: 20, fontSize: 13, cursor: 'pointer', border: 'none',
+                                                                background: formData.lead_collect_fields.includes(f.key) ? '#10b981' : 'rgba(30,41,59,0.8)',
+                                                                color: formData.lead_collect_fields.includes(f.key) ? 'white' : '#94a3b8'
+                                                            }}
+                                                        >{f.label}</button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
+                                                    Message après enregistrement du lead
+                                                </label>
+                                                <input type="text" value={formData.lead_redirect_message}
+                                                    onChange={e => setFormData({ ...formData, lead_redirect_message: e.target.value })}
+                                                    placeholder="Ex: Merci ! Nos équipes vous recontacteront sous 24h."
+                                                    style={{ width: '100%', background: '#1e293b', border: '1px solid #334155', padding: 12, borderRadius: 12, color: 'white', outline: 'none', fontSize: 14 }}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {!formData.lead_collection_enabled && (
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
+                                                Message de redirection (optionnel)
+                                            </label>
+                                            <input type="text" value={formData.lead_redirect_message}
+                                                onChange={e => setFormData({ ...formData, lead_redirect_message: e.target.value })}
+                                                placeholder="Ex: Pour commander, appelez le +225 07 00 00 00"
+                                                style={{ width: '100%', background: '#1e293b', border: '1px solid #334155', padding: 12, borderRadius: 12, color: 'white', outline: 'none', fontSize: 14 }}
+                                            />
+                                            <p style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
+                                                Ce message sera affiché si un client exprime un intérêt commercial.
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </motion.div>
                 )
@@ -1433,6 +1518,15 @@ export default function AgentWizardPage({
                             <BookOpen size={16} />
                             Base de connaissance
                         </Link>
+                        {isSupportClient && (
+                            <Link
+                                href={`/dashboard/agents/${agentId}/leads`}
+                                className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 transition-all"
+                            >
+                                <Users size={16} />
+                                Leads
+                            </Link>
+                        )}
                         <button
                             onClick={() => handleSave(false)}
                             disabled={saving}

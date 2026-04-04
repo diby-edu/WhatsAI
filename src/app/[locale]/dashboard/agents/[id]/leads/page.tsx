@@ -1,0 +1,146 @@
+'use client'
+
+import { useState, useEffect, use } from 'react'
+import { ArrowLeft, Trash2, Users, Phone, Mail, Tag, Calendar } from 'lucide-react'
+import Link from 'next/link'
+
+interface Lead {
+    id: string
+    customer_phone: string | null
+    lead_name: string | null
+    lead_phone: string | null
+    lead_email: string | null
+    interest: string | null
+    created_at: string
+}
+
+export default function AgentLeadsPage({ params }: { params: Promise<{ id: string, locale: string }> }) {
+    const { id, locale } = use(params)
+    const [leads, setLeads] = useState<Lead[]>([])
+    const [loading, setLoading] = useState(true)
+    const [deleting, setDeleting] = useState<string | null>(null)
+
+    useEffect(() => { fetchLeads() }, [id])
+
+    const fetchLeads = async () => {
+        setLoading(true)
+        try {
+            const res = await fetch(`/api/leads?agentId=${id}`)
+            const data = await res.json()
+            if (res.ok) setLeads(data.data?.leads || [])
+        } catch (e) {
+            console.error(e)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const deleteLead = async (leadId: string) => {
+        if (!confirm('Supprimer ce lead ?')) return
+        setDeleting(leadId)
+        try {
+            await fetch(`/api/leads?id=${leadId}`, { method: 'DELETE' })
+            setLeads(prev => prev.filter(l => l.id !== leadId))
+        } finally {
+            setDeleting(null)
+        }
+    }
+
+    const formatDate = (d: string) => {
+        const date = new Date(d)
+        return date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    }
+
+    return (
+        <div style={{ maxWidth: 800, margin: '0 auto', padding: '32px 16px' }}>
+            <div style={{ marginBottom: 32 }}>
+                <Link
+                    href={`/${locale}/dashboard/agents/${id}`}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 8, color: '#94a3b8', textDecoration: 'none', marginBottom: 16 }}
+                >
+                    <ArrowLeft size={16} />
+                    Retour à l'agent
+                </Link>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(16,185,129,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Users size={22} color="#10b981" />
+                    </div>
+                    <div>
+                        <h1 style={{ fontSize: 24, fontWeight: 700, color: 'white', margin: 0 }}>Leads collectés</h1>
+                        <p style={{ color: '#94a3b8', fontSize: 14, margin: 0 }}>{leads.length} lead{leads.length !== 1 ? 's' : ''}</p>
+                    </div>
+                </div>
+            </div>
+
+            {loading ? (
+                <div style={{ color: '#94a3b8', textAlign: 'center', padding: 48 }}>Chargement...</div>
+            ) : leads.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: 64, color: '#475569' }}>
+                    <Users size={48} style={{ margin: '0 auto 16px', opacity: 0.3 }} />
+                    <p style={{ fontSize: 16, marginBottom: 8 }}>Aucun lead pour l'instant</p>
+                    <p style={{ fontSize: 13 }}>Les leads apparaîtront ici quand des clients exprimeront un intérêt commercial.</p>
+                </div>
+            ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {leads.map(lead => (
+                        <div key={lead.id} style={{
+                            background: 'rgba(15,23,42,0.8)',
+                            border: '1px solid #1e293b',
+                            borderRadius: 16,
+                            padding: 20,
+                            display: 'flex',
+                            gap: 16,
+                            alignItems: 'flex-start'
+                        }}>
+                            <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(16,185,129,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                <Users size={18} color="#10b981" />
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
+                                    <span style={{ color: 'white', fontWeight: 600, fontSize: 15 }}>
+                                        {lead.lead_name || lead.customer_phone || 'Client anonyme'}
+                                    </span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <span style={{ color: '#64748b', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                            <Calendar size={12} />
+                                            {formatDate(lead.created_at)}
+                                        </span>
+                                        <button
+                                            onClick={() => deleteLead(lead.id)}
+                                            disabled={deleting === lead.id}
+                                            style={{ background: 'rgba(239,68,68,0.1)', border: 'none', borderRadius: 8, padding: '6px 10px', color: '#f87171', cursor: 'pointer' }}
+                                        >
+                                            <Trash2 size={14} />
+                                        </button>
+                                    </div>
+                                </div>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, fontSize: 13 }}>
+                                    {lead.lead_phone && (
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#94a3b8' }}>
+                                            <Phone size={13} color="#10b981" /> {lead.lead_phone}
+                                        </span>
+                                    )}
+                                    {lead.lead_email && (
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#94a3b8' }}>
+                                            <Mail size={13} color="#6366f1" /> {lead.lead_email}
+                                        </span>
+                                    )}
+                                    {lead.customer_phone && lead.customer_phone !== lead.lead_phone && (
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#94a3b8' }}>
+                                            <Phone size={13} color="#f59e0b" /> WhatsApp : {lead.customer_phone}
+                                        </span>
+                                    )}
+                                    {lead.interest && (
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'rgba(99,102,241,0.1)', color: '#a5b4fc', padding: '2px 10px', borderRadius: 20 }}>
+                                            <Tag size={11} /> {lead.interest}
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    )
+}
