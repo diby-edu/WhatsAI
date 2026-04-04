@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
 
     const { data: agent } = await supabaseAdmin
         .from('agents')
-        .select('id, name, is_active, whatsapp_connected, whatsapp_phone, created_at')
+        .select('id, user_id, name, is_active, whatsapp_connected, whatsapp_phone, created_at')
         .eq('id', agentId)
         .single()
 
