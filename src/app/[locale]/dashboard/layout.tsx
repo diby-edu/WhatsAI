@@ -77,6 +77,7 @@ export default function DashboardLayout({
     const [unreadCount, setUnreadCount] = useState(0)
     const [userAvatar, setUserAvatar] = useState<string | null>(null)
     const [userName, setUserName] = useState<string>('')
+    const [apiAccessEnabled, setApiAccessEnabled] = useState(false)
     const [sessionTimeoutHours, setSessionTimeoutHours] = useState<number | null>(null)
     const [testAccountBanner, setTestAccountBanner] = useState<TestAccountBannerState | null>(null)
     const notifRef = useRef<HTMLDivElement>(null)
@@ -121,6 +122,23 @@ export default function DashboardLayout({
         }
 
         loadRuntimeConfig()
+    }, [])
+
+    useEffect(() => {
+        const checkApiAccess = async () => {
+            try {
+                const supabase = createClient()
+                const { data: { user } } = await supabase.auth.getUser()
+                if (!user) return
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('api_access_enabled')
+                    .eq('id', user.id)
+                    .single()
+                setApiAccessEnabled(profile?.api_access_enabled ?? false)
+            } catch (_) {}
+        }
+        checkApiAccess()
     }, [])
 
     useEffect(() => {
@@ -561,6 +579,35 @@ export default function DashboardLayout({
                             <nav style={{ flex: 1, padding: 16, display: 'flex', flexDirection: 'column', gap: 4, overflowY: 'auto' }}>
                                 {sidebarLinks.map((link) => {
                                     const isActive = pathname === link.href || (link.href !== '/dashboard' && pathname.startsWith(link.href))
+                                    const isApiLocked = link.href === '/dashboard/developers' && !apiAccessEnabled
+                                    if (isApiLocked) {
+                                        return (
+                                            <div
+                                                key={link.href}
+                                                title="Bientôt disponible"
+                                                style={{
+                                                    display: 'flex', alignItems: 'center', gap: 12,
+                                                    padding: '12px 14px', borderRadius: 12,
+                                                    color: '#4b5563', fontWeight: 500,
+                                                    cursor: 'not-allowed', userSelect: 'none',
+                                                    justifyContent: 'space-between'
+                                                }}
+                                            >
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                                    <link.icon style={{ width: 20, height: 20 }} />
+                                                    <span>{link.label}</span>
+                                                </div>
+                                                <span style={{
+                                                    fontSize: 9, fontWeight: 700, padding: '2px 5px',
+                                                    borderRadius: 4, background: 'rgba(245,158,11,0.15)',
+                                                    color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.05em',
+                                                    whiteSpace: 'nowrap'
+                                                }}>
+                                                    Bientôt
+                                                </span>
+                                            </div>
+                                        )
+                                    }
                                     return (
                                         <Link
                                             key={link.href}
@@ -670,6 +717,38 @@ export default function DashboardLayout({
                     <nav style={{ flex: 1, padding: 12, display: 'flex', flexDirection: 'column', gap: 4, overflowY: 'auto' }}>
                         {sidebarLinks.map((link) => {
                             const isActive = pathname === link.href || (link.href !== '/dashboard' && pathname.startsWith(link.href))
+                            const isApiLocked = link.href === '/dashboard/developers' && !apiAccessEnabled
+                            if (isApiLocked) {
+                                return (
+                                    <div
+                                        key={link.href}
+                                        title={collapsed ? 'Bientôt disponible' : undefined}
+                                        style={{
+                                            display: 'flex', alignItems: 'center',
+                                            gap: 12, padding: collapsed ? '12px' : '12px 14px',
+                                            borderRadius: 12, color: '#4b5563', fontWeight: 500,
+                                            cursor: 'not-allowed', userSelect: 'none',
+                                            justifyContent: collapsed ? 'center' : 'space-between',
+                                            transition: 'all 0.2s ease'
+                                        }}
+                                    >
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                            <link.icon style={{ width: 20, height: 20, flexShrink: 0 }} />
+                                            {!collapsed && <span>{link.label}</span>}
+                                        </div>
+                                        {!collapsed && (
+                                            <span style={{
+                                                fontSize: 9, fontWeight: 700, padding: '2px 5px',
+                                                borderRadius: 4, background: 'rgba(245,158,11,0.15)',
+                                                color: '#f59e0b', textTransform: 'uppercase',
+                                                letterSpacing: '0.05em', whiteSpace: 'nowrap'
+                                            }}>
+                                                Bientôt
+                                            </span>
+                                        )}
+                                    </div>
+                                )
+                            }
                             return (
                                 <Link
                                     key={link.href}
