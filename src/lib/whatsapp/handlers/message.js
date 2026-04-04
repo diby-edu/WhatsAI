@@ -337,6 +337,32 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             message.text = `[En réponse à: "${quotedPreview}"]\n${message.text}`
         }
 
+        // Injecter le contexte métier externe (panier abandonné, commande, etc.)
+        // Stocké dans conversation.metadata.external_context par /trigger ou /send
+        // Guard strict : si absent ou en erreur → aucun impact sur le flux existant
+        try {
+            const ec = conversation.metadata?.external_context
+            if (ec) {
+                const lines = []
+                if (ec.event) lines.push(`[Événement: ${String(ec.event).replace(/_/g, ' ')}]`)
+                if (ec.cart?.items?.length > 0) {
+                    const items = ec.cart.items.map(i => `${i.name}${i.variant ? ' ' + i.variant : ''} ×${i.qty || 1}`).join(', ')
+                    lines.push(`[Panier: ${items} — Total: ${(ec.cart.total || 0).toLocaleString('fr-FR')} FCFA]`)
+                }
+                if (ec.order?.reference || ec.order?.id) lines.push(`[Commande: #${ec.order.reference || ec.order.id}]`)
+                if (ec.customer?.name) lines.push(`[Client: ${ec.customer.name}]`)
+                if (ec.data && typeof ec.data === 'object') {
+                    const extra = Object.entries(ec.data).map(([k, v]) => `${k}: ${v}`).join(', ')
+                    if (extra) lines.push(`[Données: ${extra}]`)
+                }
+                if (lines.length > 0) {
+                    message.text = lines.join('\n') + '\n' + message.text
+                }
+            }
+        } catch (_) {
+            // Silencieux — l'agent continue normalement sans ce contexte
+        }
+
         const incomingMessageId = message.key?.id || null
 
         if (incomingMessageId) {
