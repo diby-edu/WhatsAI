@@ -4,7 +4,7 @@
 
 ### Statut : Implémenté
 
-**Accès :** Menu latéral → Développeurs (lien à ajouter dans layout.tsx)
+**Accès :** Menu latéral → "API" (lien grisé "Bientôt disponible" si api_access_enabled = false)
 
 **Fonctionnalités disponibles :**
 
@@ -19,48 +19,64 @@
 | Filtrer les logs par clé | Implémenté |
 | Guide de démarrage rapide (curl exemple) | Implémenté |
 
-**Ce qui manque :**
+**Ce qui manque (non prioritaire) :**
 
 | Fonctionnalité | Priorité |
 |---|---|
 | Graphique d'usage (appels / jour) | Moyen |
 | Filtres sur les logs (par date, par statut) | Moyen |
-| Gestion des webhooks sortants (UI) | Moyen |
+| UI gestion webhooks (créer / supprimer) | Moyen |
 | Tester un endpoint directement depuis l'UI | Bas |
+
+**Note webhooks :** Les routes `/api/developer/webhooks` (GET/POST) et `/api/developer/webhooks/[id]` (PATCH/DELETE) sont implémentées. Seule l'UI dashboard n'existe pas encore — les clients peuvent gérer leurs webhooks via l'API directement.
 
 ---
 
-## DASHBOARD ADMIN — /admin
+## DASHBOARD ADMIN — /admin/api-monitoring
 
-### Statut : Non implémenté pour l'API
+### Statut : Implémenté
 
-**Ce qui existe déjà dans /admin :**
-- Gestion des agents, utilisateurs, commandes, analytics, etc.
-- Aucune section API pour l'instant
+**Accès :** Menu admin → "API Monitoring" (icône Code2)
 
-**Ce qu'il faut ajouter :**
+**Fonctionnalités disponibles :**
 
-### Page /admin/api-monitoring (à créer)
-
-| Fonctionnalité | Description |
+| Fonctionnalité | Statut |
 |---|---|
-| Volume total d'appels | Graphique appels/jour sur 30 jours |
-| Top utilisateurs par volume | Qui appelle le plus l'API |
-| Taux d'erreur global | % de requêtes en erreur |
-| Clés actives / inactives | Nombre total de clés |
-| Détection d'abus | Utilisateurs dépassant régulièrement le rate limit |
-| Révocation administrative | Désactiver une clé d'un utilisateur |
-| Vue de tous les logs | Sans filtre user_id (vue admin) |
+| Kill switch global (api_public_enabled) | Implémenté |
+| Stats overview (appels total/today/7j, clés actives, users, taux erreur) | Implémenté |
+| Volume par jour sur 14 jours | Implémenté |
+| Top 10 utilisateurs (30 jours) | Implémenté |
+| Liste utilisateurs + statut accès API | Implémenté |
+| Toggle accès par utilisateur (individuel) | Implémenté |
+| Toggle accès en masse (bulk select) | Implémenté |
+| Filtre utilisateurs (search + accès enabled/disabled) | Implémenté |
+| Liste toutes les clés API (tous users) | Implémenté |
+| Révocation admin d'une clé | Implémenté |
+| Logs globaux (100 derniers appels) | Implémenté |
 
-**Route API admin nécessaire :**
+**Routes admin utilisées :**
 ```
-GET /api/admin/api-stats      → statistiques globales
-GET /api/admin/api-keys       → toutes les clés (tous utilisateurs)
-GET /api/admin/api-logs       → tous les logs (tous utilisateurs)
-PATCH /api/admin/api-keys/[id] → révoquer une clé
+GET  /api/admin/api-stats            → statistiques globales
+GET  /api/admin/api-keys-admin       → toutes les clés (tous utilisateurs)
+PATCH /api/admin/api-keys-admin/[id] → révoquer / réactiver une clé
+GET  /api/admin/api-logs-admin       → tous les logs (tous utilisateurs)
+GET  /api/admin/api-users-access     → liste users + statut api_access_enabled
+PATCH /api/admin/api-users-access    → toggle accès (user_id ou user_ids[])
 ```
 
-Ces routes doivent vérifier que l'utilisateur est admin (via `is_admin` ou rôle Supabase).
+---
+
+## CONTRÔLE D'ACCÈS — 3 NIVEAUX
+
+| Niveau | Mécanisme | Où configurer |
+|---|---|---|
+| Kill switch global | `feature_flags.api_public_enabled = false` | /admin/features OU /admin/api-monitoring |
+| Par utilisateur | `profiles.api_access_enabled = false` | /admin/api-monitoring → onglet Accès utilisateurs |
+| Par clé | `api_keys.is_active = false` | /admin/api-monitoring → onglet Clés API |
+
+**Comportement sidebar utilisateur :**
+- `api_access_enabled = false` → lien "API" grisé, badge orange "Bientôt", non cliquable
+- `api_access_enabled = true` → lien actif normalement
 
 ---
 
@@ -71,16 +87,15 @@ Utilisateur (/dashboard/developers)
   → Clés API           ✅ Implémenté
   → Logs d'usage       ✅ Implémenté
   → Guide rapide       ✅ Implémenté
-  → Webhooks UI        ❌ À implémenter
-  → Graphiques usage   ❌ À implémenter
+  → Contrôle d'accès  ✅ Lien grisé si accès fermé
+  → Webhooks UI        ⏳ Routes OK, UI à faire
+  → Graphiques usage   ⏳ Non prioritaire
 
 Admin (/admin/api-monitoring)
-  → Monitoring global  ❌ À implémenter
-  → Vue toutes clés    ❌ À implémenter
-  → Révocation admin   ❌ À implémenter
+  → Kill switch global ✅ Implémenté
+  → Accès par user     ✅ Implémenté (toggle + bulk)
+  → Monitoring global  ✅ Implémenté
+  → Vue toutes clés    ✅ Implémenté
+  → Révocation admin   ✅ Implémenté
+  → Logs globaux       ✅ Implémenté
 ```
-
-**Priorité recommandée :**
-1. Lien sidebar "Développeurs" dans layout.tsx (si pas encore fait)
-2. UI webhooks dans le dashboard utilisateur
-3. Page admin /admin/api-monitoring

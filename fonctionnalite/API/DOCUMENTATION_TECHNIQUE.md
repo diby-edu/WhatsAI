@@ -14,8 +14,13 @@ Toutes les requêtes doivent inclure un header `Authorization` avec une clé Bea
 Authorization: Bearer sk_live_VOTRE_CLE_API
 ```
 
-La clé est générée depuis le dashboard → Développeurs → Nouvelle clé.
-Elle n'est affichée qu'une seule fois à la création. En cas de perte, il faut en créer une nouvelle.
+La clé est générée depuis le dashboard → API → Nouvelle clé.
+Elle n'est affichée qu'une seule fois à la création. En cas de perte, créer une nouvelle clé.
+
+**Contrôle d'accès :**
+- Si `api_public_enabled = false` (kill switch admin) → `503` pour tous
+- Si `profiles.api_access_enabled = false` (accès non activé) → `403` pour cet utilisateur
+- Si la clé est révoquée ou expirée → `401`
 
 ---
 
@@ -23,23 +28,31 @@ Elle n'est affichée qu'une seule fois à la création. En cas de perte, il faut
 
 ### POST /api/public/v1/send
 
-**Rôle** : envoyer un message WhatsApp simple depuis un agent.
+**Rôle :** envoyer un message WhatsApp simple depuis un agent.
 
-**Cas d'usage** : notification ponctuelle, test rapide, message one-shot.
-
-**Requête :**
+**Body :**
 ```json
-POST /api/public/v1/send
-Authorization: Bearer sk_live_xxxx
-Content-Type: application/json
-
 {
   "agent_id": "uuid-de-votre-agent",
   "to": "+22507000000",
   "message": "Bonjour Awa, votre commande #1234 est expédiée.",
-  "idempotency_key": "commande-1234-notif-expedition"
+  "idempotency_key": "commande-1234-notif-expedition",
+  "context": {
+    "event": "order_shipped",
+    "order": { "id": "1234", "total": 18000 }
+  },
+  "metadata": { "source": "shopify", "campaign": "retention" }
 }
 ```
+
+| Champ | Type | Obligatoire | Description |
+|---|---|---|---|
+| `agent_id` | string | Oui | UUID de l'agent |
+| `to` | string | Oui | Numéro international (`+22507000000`) |
+| `message` | string | Oui | Texte du message |
+| `idempotency_key` | string | Non | Déduplication sur 24h |
+| `context` | object | Non | Contexte métier stocké dans la conversation |
+| `metadata` | object | Non | Métadonnées libres (non affichées au client) |
 
 **Réponse succès (200) :**
 ```json
@@ -54,18 +67,11 @@ Content-Type: application/json
 }
 ```
 
-**Notes importantes :**
-- `idempotency_key` : optionnel mais recommandé. Si la même clé est envoyée deux fois dans les 24h, WazzapAI retourne le résultat du premier appel sans renvoyer le message.
-- `to` : format international avec indicatif pays (`+225`, `+33`, `+1`, etc.)
-- L'agent doit être connecté à WhatsApp pour que l'envoi fonctionne.
-
 ---
 
 ### POST /api/public/v1/trigger
 
-**Rôle** : déclencher une action métier typée. WazzapAI génère le message automatiquement depuis un template et stocke le contexte pour toute la durée de la conversation.
-
-**Cas d'usage** : abandon de panier, confirmation de commande, rappel de rendez-vous.
+**Rôle :** déclencher un événement métier typé. WazzapAI génère le message automatiquement et stocke le contexte pour toute la durée de la conversation.
 
 **Événements supportés :**
 
@@ -77,16 +83,13 @@ Content-Type: application/json
 | `order_delivered` | Commande livrée |
 | `payment_failed` | Paiement échoué |
 | `appointment_reminder` | Rappel de rendez-vous |
-| `custom` | Événement personnalisé |
+| `welcome` | Message de bienvenue |
+| `custom` | Message libre (champ `message` requis) |
 
-**Exemple — abandon de panier Shopify :**
+**Body — exemple abandon de panier :**
 ```json
-POST /api/public/v1/trigger
-Authorization: Bearer sk_live_xxxx
-Content-Type: application/json
-
 {
-  "agent_id": "uuid-de-votre-agent",
+  "agent_id": "uuid-agent",
   "event": "cart_abandoned",
   "idempotency_key": "shopify_cart_abc123_relance_1",
   "customer": {
@@ -103,7 +106,7 @@ Content-Type: application/json
         "quantity": 1,
         "price": 18000,
         "currency": "XOF",
-        "image_url": "https://monshop.com/images/robe-noire.jpg"
+        "image_url": "https://monshop.com/robe-noire.jpg"
       }
     ],
     "total": 18000,
@@ -113,17 +116,12 @@ Content-Type: application/json
 }
 ```
 
-**Message WhatsApp généré automatiquement :**
-> Bonjour Awa ! Vous avez laissé des articles dans votre panier 🛍️
-> Robe de soirée noire (Taille M) — 18 000 XOF
-> Votre panier vous attend ici : https://monshop.com/checkout/abc123
-
-**Exemple — commande expédiée :**
+**Body — exemple commande expédiée :**
 ```json
 {
   "agent_id": "uuid-agent",
   "event": "order_shipped",
-  "idempotency_key": "order-1234-shipped-notif",
+  "idempotency_key": "order-1234-shipped",
   "customer": { "name": "Kouamé", "phone": "+22501000000" },
   "order": {
     "id": "order_1234",
@@ -135,24 +133,71 @@ Content-Type: application/json
 }
 ```
 
-**Réponse :**
+**Body — event custom :**
+```json
+{
+  "agent_id": "uuid-agent",
+  "event": "custom",
+  "customer": { "name": "Marie", "phone": "+22505000000" },
+  "message": "Votre rendez-vous de demain a été confirmé.",
+  "data": { "appointment_id": "appt_123" }
+}
+```
+
+**Réponse (200) :**
 ```json
 {
   "success": true,
   "data": {
     "message_id": "msg_uuid",
     "conversation_id": "conv_uuid",
-    "event": "order_shipped",
+    "event": "cart_abandoned",
     "status": "sent",
     "sent_at": "2026-04-04T10:00:00Z"
   }
 }
 ```
 
-**Pourquoi utiliser /trigger plutôt que /send ?**
-- Le message est généré automatiquement (pas besoin de le construire)
-- Le contexte (panier, commande) est stocké dans la conversation
-- L'agent peut y répondre intelligemment : "Vous avez en rouge ?" → l'agent connaît déjà les variantes
+---
+
+### GET /api/public/v1/status
+
+**Rôle :** vérifier si un agent est connecté et prêt à envoyer des messages.
+
+**Query params :**
+
+| Paramètre | Obligatoire | Description |
+|---|---|---|
+| `agent_id` | Oui | UUID de l'agent |
+
+**Exemple :**
+```bash
+GET /api/public/v1/status?agent_id=uuid-agent
+Authorization: Bearer sk_live_xxxx
+```
+
+**Réponse (200) :**
+```json
+{
+  "success": true,
+  "data": {
+    "agent_id": "uuid-agent",
+    "name": "Mon Agent Boutique",
+    "is_active": true,
+    "whatsapp_connected": true,
+    "whatsapp_phone": "+22507000000",
+    "status": "ready"
+  }
+}
+```
+
+**Valeurs de `status` :**
+
+| status | Signification |
+|---|---|
+| `ready` | Agent actif et connecté → envoi possible |
+| `disconnected` | Agent actif mais WhatsApp déconnecté |
+| `paused` | Agent mis en pause manuellement |
 
 ---
 
@@ -160,50 +205,23 @@ Content-Type: application/json
 
 ### POST /api/public/v1/sync
 
-**Rôle** : synchroniser les données métier de votre plateforme vers WazzapAI. L'agent les utilise pour répondre aux questions clients sans avoir à appeler votre système externe à chaque fois.
+**Rôle :** synchroniser les données métier vers WazzapAI. L'agent les utilise pour répondre aux questions sans interroger le système externe.
 
-**Types de données supportés :**
-
-| data_type | Description |
-|---|---|
-| `product` | Fiche produit (nom, variantes, prix, stock) |
-| `customer` | Profil client |
-| `catalog` | Catalogue complet |
-| `faq` | Questions/réponses fréquentes |
-| `custom` | Données métier libres |
-
-**Exemple — synchroniser un catalogue produits :**
+**Body :**
 ```json
-POST /api/public/v1/sync
-Authorization: Bearer sk_live_xxxx
-Content-Type: application/json
-
 {
   "agent_id": "uuid-agent",
   "data_type": "product",
   "items": [
     {
-      "external_id": "prod_001",
+      "id": "prod_001",
       "data": {
         "name": "Robe de soirée noire",
-        "description": "Robe élégante pour soirées et événements",
-        "category": "Robes",
         "variants": [
-          { "size": "S", "price": 18000, "stock": 3, "currency": "XOF" },
-          { "size": "M", "price": 18000, "stock": 5, "currency": "XOF" },
-          { "size": "L", "price": 18000, "stock": 0, "currency": "XOF" }
+          { "size": "M", "price": 18000, "stock": 5 },
+          { "size": "L", "price": 18000, "stock": 0 }
         ],
-        "colors": ["Noir", "Rouge", "Bleu marine"],
-        "images": ["https://monshop.com/robe-noire.jpg"],
-        "in_stock": true
-      }
-    },
-    {
-      "external_id": "prod_002",
-      "data": {
-        "name": "Sac à main cuir",
-        "price": 35000,
-        "currency": "XOF",
+        "colors": ["Noir", "Rouge"],
         "in_stock": true
       }
     }
@@ -211,137 +229,147 @@ Content-Type: application/json
 }
 ```
 
-**Réponse :**
+| Champ | Description |
+|---|---|
+| `data_type` | `product`, `customer`, `catalog`, `faq`, `custom` |
+| `items[].id` | Identifiant externe — utilisé pour l'upsert |
+| `items[].data` | Données libres en JSON |
+
+**Comportement :** si `items[].id` existe déjà → mise à jour. Sinon → insertion.
+
+**Réponse (200) :**
 ```json
 {
   "success": true,
   "data": {
-    "upserted": 2,
+    "synced": 2,
     "data_type": "product",
     "agent_id": "uuid-agent"
   }
 }
 ```
 
-**Comportement :**
-- Si `external_id` existe déjà → mise à jour (upsert)
-- Si `external_id` est nouveau → insertion
-- L'opération est idempotente par design
+### DELETE /api/public/v1/sync
 
-**Après synchronisation, l'agent peut répondre à :**
-- "Vous avez la robe noire en taille L ?" → "La taille L est actuellement en rupture de stock. Nous avons S et M disponibles."
-- "Quel est le prix du sac ?" → "Le sac à main cuir est à 35 000 XOF."
-- "C'est quoi les couleurs disponibles ?" → "Noir, Rouge et Bleu marine."
+**Rôle :** supprimer des données synchronisées.
 
-**Exemple — synchroniser une FAQ :**
+**Body :**
 ```json
 {
   "agent_id": "uuid-agent",
-  "data_type": "faq",
-  "items": [
-    {
-      "external_id": "faq_livraison",
-      "data": {
-        "question": "Quels sont les délais de livraison ?",
-        "answer": "Abidjan : 24-48h. Intérieur : 3-5 jours ouvrables. Livraison gratuite dès 20 000 XOF."
-      }
-    },
-    {
-      "external_id": "faq_retour",
-      "data": {
-        "question": "Comment retourner un article ?",
-        "answer": "Retour sous 7 jours, article non porté. Remboursement sous 5 jours ouvrables."
-      }
-    }
-  ]
+  "data_type": "product",
+  "ids": ["prod_001", "prod_002"]
 }
 ```
 
 ---
 
-## TIER 3 — LIVE QUERY API
+## TIER 3 — LECTURE
 
-### Configuration (dashboard agent)
+### GET /api/public/v1/conversations
 
-La Live Query permet à l'agent d'appeler votre système en temps réel pendant une conversation.
+**Rôle :** lister les conversations d'un agent.
 
-Dans les paramètres de l'agent :
-- **Live Query URL** : votre endpoint qui recevra les requêtes
-- **Live Query Secret** : secret pour vérifier la signature HMAC-SHA256
+**Query params :**
 
-### Comment ça fonctionne
+| Paramètre | Obligatoire | Description |
+|---|---|---|
+| `agent_id` | Oui | UUID de l'agent |
+| `phone` | Non | Filtrer par numéro client |
+| `status` | Non | `active` ou `closed` |
+| `limit` | Non | Défaut 20, max 100 |
+| `offset` | Non | Pagination |
 
-1. Un client envoie un message à l'agent
-2. Avant de générer la réponse IA, WazzapAI envoie une requête à votre URL
-3. Votre système retourne des données en temps réel
-4. L'agent les intègre dans sa réponse
-
-**Requête envoyée par WazzapAI à votre URL :**
-```json
-POST https://votre-systeme.com/wazzap-query
-X-Wazzap-Signature: sha256=abc123...
-Content-Type: application/json
-
-{
-  "customer_phone": "+22507000000",
-  "message": "Où est ma commande ?",
-  "conversation_id": "conv_uuid",
-  "agent_id": "uuid-agent",
-  "timestamp": "2026-04-04T10:00:00Z"
-}
-```
-
-**Votre système répond (dans les 3 secondes) :**
+**Réponse (200) :**
 ```json
 {
-  "answer": "Votre commande #1234 est en cours de livraison. Livraison prévue aujourd'hui avant 18h."
-}
-```
-
-**OU en format structuré :**
-```json
-{
-  "data": {
-    "order_id": "1234",
-    "status": "en_livraison",
-    "eta": "2026-04-04T18:00:00Z",
-    "carrier": "Chronopost CI",
-    "tracking_url": "https://track.chronopost.ci/xyz"
+  "success": true,
+  "data": [
+    {
+      "id": "conv_uuid",
+      "customer_phone": "+22507000000",
+      "status": "active",
+      "created_at": "2026-04-04T10:00:00Z",
+      "updated_at": "2026-04-04T11:00:00Z",
+      "metadata": { "external_context": { "event": "cart_abandoned" } }
+    }
+  ],
+  "pagination": {
+    "total": 42,
+    "limit": 20,
+    "offset": 0,
+    "has_more": true
   }
 }
 ```
 
-**Vérification de la signature :**
-```javascript
-// Node.js
-const crypto = require('crypto')
-const signature = req.headers['x-wazzap-signature']
-const expected = 'sha256=' + crypto
-  .createHmac('sha256', 'VOTRE_LIVE_QUERY_SECRET')
-  .update(JSON.stringify(req.body))
-  .digest('hex')
-if (signature !== expected) return res.status(401).json({ error: 'Invalid signature' })
-```
+---
 
-**Comportement en cas d'échec :**
-- Timeout (>3s) → l'agent répond avec ses données connues
-- Erreur HTTP → idem, fail silencieux
-- La conversation continue normalement dans tous les cas
+### GET /api/public/v1/conversation
+
+**Rôle :** récupérer le détail d'une conversation avec ses messages.
+
+**Query params :**
+
+| Paramètre | Obligatoire | Description |
+|---|---|---|
+| `conversation_id` | Oui | UUID de la conversation |
+| `messages` | Non | `true` (défaut) ou `false` |
+| `msg_limit` | Non | Défaut 50, max 200 |
+
+**Réponse (200) :**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "conv_uuid",
+    "agent_id": "uuid-agent",
+    "customer_phone": "+22507000000",
+    "status": "active",
+    "created_at": "2026-04-04T10:00:00Z",
+    "updated_at": "2026-04-04T11:00:00Z",
+    "metadata": { "external_context": { "event": "cart_abandoned", "cart": {} } },
+    "messages": [
+      {
+        "id": "msg_uuid",
+        "role": "assistant",
+        "content": "Bonjour Awa ! Votre panier vous attend...",
+        "created_at": "2026-04-04T10:00:00Z",
+        "status": "sent"
+      },
+      {
+        "id": "msg_uuid2",
+        "role": "user",
+        "content": "Vous avez en rouge ?",
+        "created_at": "2026-04-04T10:05:00Z",
+        "status": "received"
+      }
+    ],
+    "message_count": 2
+  }
+}
+```
 
 ---
 
 ## CODES D'ERREUR
 
-| Code | Raison | Solution |
-|---|---|---|
-| `401 UNAUTHORIZED` | Clé API invalide ou expirée | Vérifier la clé dans le dashboard |
-| `403 FORBIDDEN` | Agent non autorisé pour cette clé | Vérifier les agents autorisés |
-| `404 NOT_FOUND` | Agent introuvable | Vérifier l'agent_id |
-| `409 IDEMPOTENCY_CONFLICT` | Clé idempotency déjà utilisée | Normal — retourner le résultat original |
-| `422 VALIDATION_ERROR` | Champs manquants ou invalides | Vérifier le format JSON |
-| `429 RATE_LIMIT` | Trop de requêtes | Attendre `X-RateLimit-Reset` |
-| `503 WHATSAPP_DISCONNECTED` | Agent non connecté à WhatsApp | Reconnecter l'agent dans le dashboard |
-| `500 SERVER_ERROR` | Erreur interne | Contacter le support |
+| Code HTTP | code | Cause | Solution |
+|---|---|---|---|
+| 401 | `UNAUTHORIZED` | Clé invalide, expirée ou mal formatée | Vérifier la clé dans le dashboard |
+| 403 | `UNAUTHORIZED_AGENT` | Agent non autorisé pour cette clé | Vérifier les agents autorisés |
+| 403 | `API_ACCESS_DISABLED` | Accès API non activé pour ce compte | Contacter l'administrateur |
+| 404 | `AGENT_NOT_FOUND` | Agent introuvable | Vérifier l'agent_id |
+| 404 | `NOT_FOUND` | Ressource introuvable | Vérifier l'id passé |
+| 400 | `AGENT_INACTIVE` | Agent mis en pause | Réactiver l'agent dans le dashboard |
+| 400 | `AGENT_DISCONNECTED` | WhatsApp non connecté | Reconnecter l'agent dans le dashboard |
+| 400 | `INVALID_PHONE` | Format numéro invalide | Utiliser le format international `+22507000000` |
+| 409 | `IDEMPOTENCY_CONFLICT` | Clé idempotency déjà utilisée | Normal — retourner le résultat original |
+| 422 | `BAD_REQUEST` | Champs manquants ou invalides | Vérifier le format JSON |
+| 429 | `RATE_LIMIT` | Trop de requêtes | Attendre `X-RateLimit-Reset` |
+| 500 | `SEND_FAILED` | Échec envoi WhatsApp | Réessayer, contacter le support si persistant |
+| 500 | `SERVER_ERROR` | Erreur interne | Contacter le support |
+| 503 | `API_DISABLED` | API globalement désactivée | Contacter l'administrateur |
 
 ---
 
@@ -349,9 +377,42 @@ if (signature !== expected) return res.status(401).json({ error: 'Invalid signat
 
 WazzapAI peut notifier votre système lorsqu'un événement se produit.
 
-### Configuration (dashboard développeurs)
+### Gestion via API
 
-URL de destination + secret HMAC.
+```bash
+# Créer un webhook
+POST /api/developer/webhooks
+Authorization: Bearer sk_live_xxxx
+{
+  "url": "https://votre-systeme.com/webhook",
+  "events": ["message.received", "lead.collected"],
+  "description": "Webhook production"
+}
+
+# Réponse — secret affiché une seule fois
+{
+  "data": {
+    "id": "wh_uuid",
+    "url": "https://votre-systeme.com/webhook",
+    "events": ["message.received", "lead.collected"],
+    "secret": "whsec_abc123...",
+    "is_active": true
+  },
+  "notice": "Copiez le secret maintenant — il ne sera plus affiché."
+}
+
+# Lister les webhooks
+GET /api/developer/webhooks
+
+# Désactiver un webhook
+PATCH /api/developer/webhooks/[id]
+{ "is_active": false }
+
+# Supprimer un webhook
+DELETE /api/developer/webhooks/[id]
+```
+
+**Limite :** 10 webhooks maximum par compte.
 
 ### Événements disponibles
 
@@ -367,8 +428,7 @@ URL de destination + secret HMAC.
 
 ```json
 POST https://votre-systeme.com/webhook
-X-Wazzap-Signature: sha256=...
-Content-Type: application/json
+X-Wazzap-Signature: sha256=abc123...
 
 {
   "event": "message.received",
@@ -383,6 +443,18 @@ Content-Type: application/json
 }
 ```
 
+### Vérification de la signature
+
+```javascript
+const crypto = require('crypto')
+const signature = req.headers['x-wazzap-signature']
+const expected = 'sha256=' + crypto
+  .createHmac('sha256', 'VOTRE_WEBHOOK_SECRET')
+  .update(JSON.stringify(req.body))
+  .digest('hex')
+if (signature !== expected) return res.status(401).end()
+```
+
 ---
 
 ## LIMITES ET QUOTAS
@@ -390,8 +462,11 @@ Content-Type: application/json
 | Ressource | Limite |
 |---|---|
 | Messages par numéro / 24h | 5 |
-| Requêtes par minute (par clé) | 60 (configurable) |
+| Requêtes par minute (par clé) | 60 (configurable jusqu'à 1000) |
 | Requêtes par minute (par compte) | 200 |
+| Clés API par compte | 10 |
+| Webhooks par compte | 10 |
 | Taille maximale du body | 1 MB |
 | Timeout Live Query | 3 secondes |
 | Rétention logs | 30 jours |
+| TTL idempotency | 24 heures |
