@@ -98,12 +98,23 @@ function extractInboundMessagePayload(message) {
     }
 
     if (content.extendedTextMessage?.text) {
+        // Extraire le texte de la réponse citée (quoted reply)
+        let quotedText = null
+        const ctx = content.extendedTextMessage.contextInfo
+        if (ctx?.quotedMessage) {
+            const qm = ctx.quotedMessage
+            quotedText = qm.conversation
+                || qm.extendedTextMessage?.text
+                || qm.imageMessage?.caption
+                || null
+        }
         return {
             text: content.extendedTextMessage.text,
             isVoiceMessage: false,
             audioMessage: null,
             imageMessage: null,
             caption: null,
+            quotedText,
         }
     }
 

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, use } from 'react'
-import { ArrowLeft, Trash2, Users, Phone, Mail, Tag, Calendar } from 'lucide-react'
+import { ArrowLeft, Trash2, Users, Phone, Mail, Tag, Calendar, MapPin, Building2 } from 'lucide-react'
 import Link from 'next/link'
 
 interface Lead {
@@ -10,6 +10,8 @@ interface Lead {
     lead_name: string | null
     lead_phone: string | null
     lead_email: string | null
+    lead_location: string | null
+    lead_company: string | null
     interest: string | null
     created_at: string
 }
@@ -123,6 +125,16 @@ export default function AgentLeadsPage({ params }: { params: Promise<{ id: strin
                                     {lead.lead_email && (
                                         <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#94a3b8' }}>
                                             <Mail size={13} color="#6366f1" /> {lead.lead_email}
+                                        </span>
+                                    )}
+                                    {lead.lead_location && (
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#94a3b8' }}>
+                                            <MapPin size={13} color="#f59e0b" /> {lead.lead_location}
+                                        </span>
+                                    )}
+                                    {lead.lead_company && (
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#94a3b8' }}>
+                                            <Building2 size={13} color="#a78bfa" /> {lead.lead_company}
                                         </span>
                                     )}
                                     {lead.customer_phone && lead.customer_phone !== lead.lead_phone && (

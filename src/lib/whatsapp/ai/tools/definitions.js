@@ -208,6 +208,14 @@ Ne pas appeler si le client pose juste une question simple sans intention d'acha
                         type: 'string',
                         description: 'Adresse email du client'
                     },
+                    lead_location: {
+                        type: 'string',
+                        description: 'Localisation / quartier / ville du client'
+                    },
+                    lead_company: {
+                        type: 'string',
+                        description: 'Nom de l\'entreprise ou société du client'
+                    },
                     interest: {
                         type: 'string',
                         description: 'Ce que le client recherche — résumé court (ex: "Formation Excel", "Villa Cocody 4 chambres")'

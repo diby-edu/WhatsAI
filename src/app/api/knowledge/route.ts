@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     // Retourner uniquement le chunk 0 de chaque source (un enregistrement par document source)
     const { data, error } = await supabase
         .from('knowledge_base')
-        .select('id, title, created_at, source_id, chunk_index, image_url')
+        .select('id, title, created_at, source_id, chunk_index, image_url, extra_image_urls')
         .eq('agent_id', agentId)
         .eq('user_id', user.id)
         .eq('chunk_index', 0)
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
 
     try {
         const body = await request.json()
-        const { agentId, title, content, image_url } = body
+        const { agentId, title, content, image_url, extra_image_urls } = body
 
         if (!agentId || !title || !content) {
             return errorResponse('Missing required fields', 400)
@@ -146,8 +146,9 @@ export async function POST(request: NextRequest) {
                     source_id: sourceId,
                     chunk_index: index,
                     embedding,
-                    // image_url uniquement sur le premier chunk
-                    ...(index === 0 && image_url?.trim() ? { image_url: image_url.trim() } : {})
+                    // image_url et extra_image_urls uniquement sur le premier chunk
+                    ...(index === 0 && image_url?.trim() ? { image_url: image_url.trim() } : {}),
+                    ...(index === 0 && Array.isArray(extra_image_urls) && extra_image_urls.length > 0 ? { extra_image_urls } : {})
                 }
             })
         )

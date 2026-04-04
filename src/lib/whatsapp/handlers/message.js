@@ -330,6 +330,13 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
         }
 
         message.text = String(message.text || '').trim()
+
+        // Enrichir le texte avec le contexte de la réponse citée (quoted reply)
+        if (message.quotedText) {
+            const quotedPreview = String(message.quotedText).trim().slice(0, 300)
+            message.text = `[En réponse à: "${quotedPreview}"]\n${message.text}`
+        }
+
         const incomingMessageId = message.key?.id || null
 
         if (incomingMessageId) {
