@@ -25,7 +25,8 @@ import {
     AlertCircle,
     ShoppingCart,
     Coins,
-    TrendingUp
+    TrendingUp,
+    Code2
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { initWebPush } from '@/lib/notifications/web-push'
@@ -93,6 +94,7 @@ export default function DashboardLayout({
         { href: '/dashboard/orders', label: t('orders'), icon: ShoppingBag },
         { href: '/dashboard/analytics', label: t('analytics'), icon: TrendingUp },
         { href: '/dashboard/playground', label: t('playground'), icon: Zap },
+        { href: '/dashboard/developers', label: 'API', icon: Code2 },
         { href: '/dashboard/billing', label: t('billing'), icon: CreditCard },
         { href: '/dashboard/settings', label: t('settings'), icon: Settings },
         { href: '/dashboard/help', label: t('help'), icon: HelpCircle },
