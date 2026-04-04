@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
         const ordersWithDetails = (orders || []).map((order: any) => ({
             ...order,
             agent_name: order.agent?.name || null,
-            agent_payment_mode: order.agent?.payment_mode || 'cinetpay',
+            agent_payment_mode: order.agent?.payment_mode || null,
             payment_provider: order.payment_provider || null,
             user_email: order.profile?.email || null,
             items_count: order.order_items?.length || 0,

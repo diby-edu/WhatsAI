@@ -14,6 +14,7 @@ function createSupabase({
     bookingRpcData = { booking_id: 'booking-123' },
     orderRecord = null,
     orderRpcData = [{ order_id: 'order-123' }],
+    appSettings = [{ key: 'defaultPaymentProvider', value: 'cinetpay' }],
     rpcErrors = {},
     bookingUpdateError = null,
     orderUpdateError = null,
@@ -77,6 +78,14 @@ function createSupabase({
                             }
                             return { error: orderUpdateError }
                         })
+                    }))
+                }
+            }
+
+            if (table === 'app_settings') {
+                return {
+                    select: jest.fn(() => ({
+                        in: jest.fn(async () => ({ data: appSettings, error: null }))
                     }))
                 }
             }
@@ -321,6 +330,16 @@ describe('tool-restaurant', () => {
 
     test('reuses an existing booking deposit payment link without re-initiating CinetPay', async () => {
         const { handleCreateRestaurantCheckout } = loadTool()
+        global.fetch.mockResolvedValue({
+            json: async () => ({
+                code: '00',
+                data: {
+                    status: 'PENDING',
+                    amount: 500,
+                    payment_method: 'MOBILE_MONEY',
+                }
+            })
+        })
 
         const bookingRecord = {
             id: 'booking-123',
@@ -356,7 +375,7 @@ describe('tool-restaurant', () => {
         expect(result.deposit_required).toBe(true)
         expect(result.deposit_amount_fcfa).toBe(500)
         expect(result.payment_link).toBe('https://pay.example/existing')
-        expect(global.fetch).not.toHaveBeenCalled()
+        expect(global.fetch).toHaveBeenCalledTimes(1)
         expect(updates).toHaveLength(0)
     })
 
@@ -491,6 +510,75 @@ describe('tool-restaurant', () => {
         expect(result.message).toMatch(/montant fixe/i)
         expect(result.message).not.toMatch(/\(\d+%\)/)
         expect(rpcCalls[0].params.p_deposit_required).toBe(true)
+        expect(rpcCalls[0].params.p_deposit_percentage).toBe(0)
+        expect(rpcCalls[0].params.p_deposit_amount_fcfa).toBe(5000)
+    })
+
+    test('uses the admin default Paystack provider for a fixed dine-in deposit', async () => {
+        const { handleCreateRestaurantCheckout } = loadTool()
+        process.env.PAYSTACK_SECRET_KEY = 'sk_test_123'
+        global.fetch.mockResolvedValue({
+            ok: true,
+            json: async () => ({
+                status: true,
+                data: {
+                    authorization_url: 'https://checkout.paystack.com/bkg-fixed-paystack',
+                    access_code: 'ACCESS_BKG_FIXED',
+                    reference: 'BKG-booking-123'
+                }
+            })
+        })
+
+        const bookingRecord = {
+            id: 'booking-123',
+            transaction_id: null,
+            provider_payment_url: null,
+            payment_provider: null
+        }
+
+        const { supabase, rpcCalls, updates } = createSupabase({
+            agent: {
+                user_id: 'user-1',
+                name: 'Restaurant Lagoon',
+                escalation_phone: '+2250102030405',
+                payment_mode: 'cinetpay',
+                restaurant_deposit_enabled: true,
+                restaurant_deposit_mode: 'fixed',
+                restaurant_deposit_fixed_amount_fcfa: 5000
+            },
+            bookingRecord,
+            appSettings: [{ key: 'defaultPaymentProvider', value: 'paystack' }]
+        })
+
+        const rawResult = await handleCreateRestaurantCheckout({
+            fulfillment_mode: 'dine_in',
+            items: [{ product_name: 'thieb poulet', quantity: 2 }],
+            customer_name: 'Awa Konan',
+            customer_phone: '+2250701020304',
+            scheduled_date: '2026-04-05',
+            scheduled_time: '20:00',
+            party_size: 2,
+            payment_method: 'online'
+        }, 'agent-1', restaurantProducts, 'conversation-1', supabase)
+
+        const result = JSON.parse(rawResult)
+        const paystackPayload = JSON.parse(global.fetch.mock.calls[0][1].body)
+
+        expect(result.success).toBe(true)
+        expect(result.deposit_required).toBe(true)
+        expect(result.deposit_amount_fcfa).toBe(5000)
+        expect(result.payment_method).toBe('online')
+        expect(result.payment_link).toBe('https://checkout.paystack.com/bkg-fixed-paystack')
+        expect(paystackPayload.amount).toBe(500000)
+        expect(paystackPayload.currency).toBe('XOF')
+        expect(updates[0].payload).toEqual(expect.objectContaining({
+            payment_provider: 'paystack',
+            payment_provider_version: 'v1'
+        }))
+        expect(updates[1].payload).toEqual(expect.objectContaining({
+            payment_provider: 'paystack',
+            provider_payment_url: 'https://checkout.paystack.com/bkg-fixed-paystack'
+        }))
         expect(rpcCalls[0].params.p_deposit_percentage).toBe(0)
         expect(rpcCalls[0].params.p_deposit_amount_fcfa).toBe(5000)
     })
@@ -820,6 +908,77 @@ describe('tool-restaurant', () => {
         expect(rpcCalls[0].params.p_deposit_required).toBe(true)
         expect(rpcCalls[0].params.p_deposit_percentage).toBe(0)
         expect(rpcCalls[0].params.p_deposit_amount_fcfa).toBe(2500)
+    })
+
+    test('uses the admin default Paystack provider for a percentage takeaway deposit', async () => {
+        const { handleCreateRestaurantCheckout } = loadTool()
+        process.env.PAYSTACK_SECRET_KEY = 'sk_test_123'
+        global.fetch.mockResolvedValue({
+            ok: true,
+            json: async () => ({
+                status: true,
+                data: {
+                    authorization_url: 'https://checkout.paystack.com/order-paystack',
+                    access_code: 'ACCESS_ORDER_PAYSTACK',
+                    reference: 'ORD-order-456'
+                }
+            })
+        })
+
+        const { supabase, rpcCalls, updates } = createSupabase({
+            agent: {
+                user_id: 'user-1',
+                name: 'Restaurant Lagoon',
+                escalation_phone: '+2250102030405',
+                payment_mode: 'cinetpay',
+                restaurant_deposit_enabled: true,
+                restaurant_deposit_percentage: 30
+            },
+            orderRecord: {
+                id: 'order-456',
+                transaction_id: null,
+                provider_payment_url: null,
+                payment_provider_version: null,
+                payment_provider: null
+            },
+            orderRpcData: [{ order_id: 'order-456' }],
+            appSettings: [{ key: 'defaultPaymentProvider', value: 'paystack' }]
+        })
+
+        const rawResult = await handleCreateRestaurantCheckout({
+            fulfillment_mode: 'takeaway',
+            items: [
+                { product_name: 'Thieb Poulet', quantity: 1 },
+                { product_name: 'Bissap', quantity: 2 }
+            ],
+            scheduled_date: '2026-04-01',
+            scheduled_time: '23:00',
+            customer_name: 'Awa Konan',
+            customer_phone: '+2250701020304',
+            payment_method: 'online'
+        }, 'agent-1', restaurantProducts, 'conversation-1', supabase)
+
+        const result = JSON.parse(rawResult)
+        const paystackPayload = JSON.parse(global.fetch.mock.calls[0][1].body)
+
+        expect(result.success).toBe(true)
+        expect(result.total_fcfa).toBe(5500)
+        expect(result.deposit_required).toBe(true)
+        expect(result.deposit_amount_fcfa).toBe(1650)
+        expect(result.payment_link).toBe('https://checkout.paystack.com/order-paystack')
+        expect(result.payment_method).toBe('online')
+        expect(paystackPayload.amount).toBe(165000)
+        expect(paystackPayload.currency).toBe('XOF')
+        expect(updates[0].payload).toEqual(expect.objectContaining({
+            payment_provider: 'paystack',
+            payment_provider_version: 'v1'
+        }))
+        expect(updates[1].payload).toEqual(expect.objectContaining({
+            payment_provider: 'paystack',
+            provider_payment_url: 'https://checkout.paystack.com/order-paystack'
+        }))
+        expect(rpcCalls[0].params.p_deposit_percentage).toBe(30)
+        expect(rpcCalls[0].params.p_deposit_amount_fcfa).toBe(1650)
     })
 
     test('rejects delivery checkout when the delivery address is missing', async () => {

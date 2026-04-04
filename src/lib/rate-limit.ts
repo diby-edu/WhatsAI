@@ -27,16 +27,19 @@ export const RATE_LIMITS = {
 
 // Fallback for local dev without Redis (Memory)
 const cache = new Map()
+const IS_BUILD_COMMAND = process.env.npm_lifecycle_event === 'build'
 
 let redis: Redis | undefined
 try {
     if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
         redis = Redis.fromEnv()
-    } else {
+    } else if (!IS_BUILD_COMMAND) {
         console.warn('⚠️ Redis not configured, falling back to in-memory rate limiting')
     }
 } catch (error) {
-    console.error('❌ Failed to initialize Redis:', error)
+    if (!IS_BUILD_COMMAND) {
+        console.error('❌ Failed to initialize Redis:', error)
+    }
 }
 
 // --- CORE LOGIC ---
@@ -70,7 +73,9 @@ export async function checkRateLimit(
                 resetTime: reset
             }
         } catch (error) {
-            console.error('🔥 Redis RateLimit Error:', error)
+            if (!IS_BUILD_COMMAND) {
+                console.error('🔥 Redis RateLimit Error:', error)
+            }
             // Fallback to allow if Redis fails? Or block?
             // Let's fallback to allow to not break uptime, but log big error
             return checkInMemoryRateLimit(identifier, config)

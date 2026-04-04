@@ -36,7 +36,7 @@ function redirectTo(request: NextRequest, locale: string, path: string) {
     return NextResponse.redirect(new URL(`/${locale}${path}`, request.url))
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
     const pathname = request.nextUrl.pathname
     let response = handleI18n(request)
 
@@ -92,7 +92,7 @@ export async function middleware(request: NextRequest) {
 
     let profileRole: string | null = null
     let profilePhone: string | null = null
-    let profileOnboardingCompleted: boolean = false
+    let profileOnboardingCompleted = false
 
     if (needsProfileState) {
         const { data: profile } = await supabase

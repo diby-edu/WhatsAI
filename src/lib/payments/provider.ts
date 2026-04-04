@@ -9,6 +9,7 @@ import {
 
 export type SupportedPaymentProvider = 'cinetpay' | 'paystack'
 export type ProviderStatus = 'ACCEPTED' | 'REFUSED' | 'PENDING' | 'CANCELLED' | 'UNKNOWN'
+export type HostedPaymentReuseAction = 'reuse' | 'regenerate' | 'accepted'
 
 type SupabaseLike = SupabaseClient | any
 
@@ -49,6 +50,21 @@ export interface HostedPaymentStatusResult {
     raw?: unknown
 }
 
+export interface PaymentProviderReadiness {
+    provider: SupportedPaymentProvider
+    ready: boolean
+    requiredKeys: string[]
+    missingKeys: string[]
+    warnings: string[]
+}
+
+export interface ExistingHostedPaymentDecision {
+    provider: SupportedPaymentProvider
+    action: HostedPaymentReuseAction
+    providerStatus: ProviderStatus
+    error?: string | null
+}
+
 function normalizeProviderStatus(status: unknown): ProviderStatus {
     const value = String(status || '').trim().toUpperCase()
     if (value === 'SUCCESS') return 'ACCEPTED'
@@ -63,22 +79,93 @@ function normalizeProviderStatus(status: unknown): ProviderStatus {
     return 'UNKNOWN'
 }
 
-export function normalizePaymentProvider(value: unknown): SupportedPaymentProvider {
-    return String(value || '').trim().toLowerCase() === 'paystack'
-        ? 'paystack'
-        : 'cinetpay'
+export function parsePaymentProvider(value: unknown): SupportedPaymentProvider | null {
+    const normalized = String(value || '').trim().toLowerCase()
+    if (!normalized) return null
+    if (normalized === 'paystack' || normalized === 'cinetpay') {
+        return normalized
+    }
+    return null
+}
+
+export function normalizePaymentProvider(
+    value: unknown,
+    fallback: SupportedPaymentProvider = 'cinetpay'
+): SupportedPaymentProvider {
+    const parsed = parsePaymentProvider(value)
+    if (parsed) {
+        return parsed
+    }
+
+    const normalized = String(value || '').trim()
+    if (normalized) {
+        throw new Error(`Unsupported payment provider: ${normalized}`)
+    }
+
+    return fallback
+}
+
+export function getPaymentProviderReadiness(providerInput: unknown): PaymentProviderReadiness {
+    const provider = normalizePaymentProvider(providerInput)
+
+    if (provider === 'paystack') {
+        const requiredKeys = ['PAYSTACK_SECRET_KEY', 'NEXT_PUBLIC_APP_URL']
+        const missingKeys = requiredKeys.filter((key) => !String(process.env[key] || '').trim())
+        const warnings: string[] = []
+
+        if (!String(process.env.PAYSTACK_PUBLIC_KEY || '').trim()) {
+            warnings.push('PAYSTACK_PUBLIC_KEY is not configured')
+        }
+
+        return {
+            provider,
+            ready: missingKeys.length === 0,
+            requiredKeys,
+            missingKeys,
+            warnings,
+        }
+    }
+
+    const requiredKeys = ['CINETPAY_API_KEY', 'CINETPAY_SITE_ID', 'NEXT_PUBLIC_APP_URL']
+    const missingKeys = requiredKeys.filter((key) => !String(process.env[key] || '').trim())
+
+    return {
+        provider,
+        ready: missingKeys.length === 0,
+        requiredKeys,
+        missingKeys,
+        warnings: [],
+    }
+}
+
+export function ensurePaymentProviderReady(providerInput: unknown): SupportedPaymentProvider {
+    const readiness = getPaymentProviderReadiness(providerInput)
+    if (!readiness.ready) {
+        throw new Error(
+            `${readiness.provider} is not ready: missing ${readiness.missingKeys.join(', ')}`
+        )
+    }
+    return readiness.provider
 }
 
 export async function getDefaultPaymentProvider(adminSupabase: SupabaseLike): Promise<SupportedPaymentProvider> {
-    const { data } = await adminSupabase
+    const { data, error } = await adminSupabase
         .from('app_settings')
         .select('key, value')
         .in('key', ['defaultPaymentProvider', 'default_payment_provider'])
 
+    if (error) {
+        throw new Error(`Unable to load default payment provider: ${error.message || 'unknown error'}`)
+    }
+
     const explicit = (data || []).find((row: any) => row.key === 'defaultPaymentProvider')
         || (data || []).find((row: any) => row.key === 'default_payment_provider')
 
-    return normalizePaymentProvider(explicit?.value)
+    if (explicit?.value === null || explicit?.value === undefined || String(explicit.value).trim() === '') {
+        return 'cinetpay'
+    }
+
+    return normalizePaymentProvider(explicit.value)
 }
 
 function buildCinetPayFallbackEmail(customerEmail: string | undefined, transactionId: string, customerPhone: string | undefined) {
@@ -108,6 +195,7 @@ function normalizeCinetPayV2Currency(currency?: string): 'XOF' | 'XAF' | 'GNF' |
 
 export async function initializeHostedPayment(input: HostedPaymentInitInput): Promise<HostedPaymentInitResult> {
     const provider = normalizePaymentProvider(input.provider)
+    ensurePaymentProviderReady(provider)
 
     if (provider === 'paystack') {
         const result = await initializePaystackPayment({
@@ -219,5 +307,48 @@ export async function checkHostedPaymentStatus(
         amount: result.amount ?? null,
         message: result.message ?? null,
         raw: result,
+    }
+}
+
+export async function inspectExistingHostedPayment(
+    providerInput: unknown,
+    transactionId: string,
+    options?: { providerVersion?: string | null }
+): Promise<ExistingHostedPaymentDecision> {
+    const provider = normalizePaymentProvider(providerInput)
+    const providerResult = await checkHostedPaymentStatus(provider, transactionId, options)
+
+    if (!providerResult.success) {
+        return {
+            provider,
+            action: 'regenerate',
+            providerStatus: 'UNKNOWN',
+            error: providerResult.message || 'provider status check failed',
+        }
+    }
+
+    if (providerResult.status === 'PENDING') {
+        return {
+            provider,
+            action: 'reuse',
+            providerStatus: providerResult.status,
+            error: null,
+        }
+    }
+
+    if (providerResult.status === 'ACCEPTED') {
+        return {
+            provider,
+            action: 'accepted',
+            providerStatus: providerResult.status,
+            error: null,
+        }
+    }
+
+    return {
+        provider,
+        action: 'regenerate',
+        providerStatus: providerResult.status,
+        error: null,
     }
 }

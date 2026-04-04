@@ -27,6 +27,7 @@ const mockCreateAdminClient = jest.fn()
 const mockGetAuthUser = jest.fn()
 const mockGetDefaultPaymentProvider = jest.fn()
 const mockInitializeHostedPayment = jest.fn()
+const mockInspectExistingHostedPayment = jest.fn()
 const mockNormalizePaymentProvider = jest.fn((value) => value || 'cinetpay')
 
 jest.mock('@/lib/api-utils', () => ({
@@ -39,6 +40,7 @@ jest.mock('@/lib/api-utils', () => ({
 jest.mock('@/lib/payments/provider', () => ({
     getDefaultPaymentProvider: (...args) => mockGetDefaultPaymentProvider(...args),
     initializeHostedPayment: (...args) => mockInitializeHostedPayment(...args),
+    inspectExistingHostedPayment: (...args) => mockInspectExistingHostedPayment(...args),
     normalizePaymentProvider: (...args) => mockNormalizePaymentProvider(...args),
 }))
 
@@ -91,6 +93,13 @@ describe('POST /api/payments/cinetpay/booking-initiate', () => {
         mockCreateApiClient.mockResolvedValue({})
         mockGetAuthUser.mockResolvedValue({ user: { id: 'user_1' }, error: null })
         mockGetDefaultPaymentProvider.mockResolvedValue('cinetpay')
+        mockNormalizePaymentProvider.mockImplementation((value) => value || 'cinetpay')
+        mockInspectExistingHostedPayment.mockResolvedValue({
+            action: 'reuse',
+            provider: 'cinetpay',
+            providerStatus: 'PENDING',
+            error: null,
+        })
         mockInitializeHostedPayment.mockResolvedValue({
             success: true,
             paymentUrl: 'https://pay.example/new-link',
@@ -127,10 +136,51 @@ describe('POST /api/payments/cinetpay/booking-initiate', () => {
         expect(json).toEqual({
             success: true,
             payment_url: 'https://pay.example/existing',
-            transaction_id: 'BKG_existing'
+            transaction_id: 'BKG_existing',
+            provider: 'cinetpay',
         })
+        expect(mockInspectExistingHostedPayment).toHaveBeenCalledWith('cinetpay', 'BKG_existing', { providerVersion: null })
         expect(mockInitializeHostedPayment).not.toHaveBeenCalled()
         expect(updates).toHaveLength(0)
+    })
+
+    test('returns 409 when the existing booking payment is already accepted', async () => {
+        const booking = {
+            id: 'booking_123',
+            agent_id: 'agent_1',
+            booking_source: 'slot',
+            price_fcfa: 5000,
+            deposit_required: true,
+            deposit_amount_fcfa: 5000,
+            deposit_status: 'pending',
+            payment_method: 'online',
+            transaction_id: 'BKG_existing',
+            provider_payment_url: 'https://pay.example/existing',
+            payment_provider: 'paystack',
+            payment_provider_version: 'v1',
+        }
+
+        mockNormalizePaymentProvider.mockReturnValue('paystack')
+        mockInspectExistingHostedPayment.mockResolvedValue({
+            action: 'accepted',
+            provider: 'paystack',
+            providerStatus: 'ACCEPTED',
+            error: null,
+        })
+        mockCreateAdminClient.mockReturnValue(
+            createAdminSupabase({
+                booking,
+                agent: { user_id: 'user_1' },
+                updates: [],
+            })
+        )
+
+        const response = await POST(makeRequest({ booking_id: 'booking_123' }))
+        const json = await response.json()
+
+        expect(response.status).toBe(409)
+        expect(json.error).toMatch(/deja ete valide/i)
+        expect(mockInitializeHostedPayment).not.toHaveBeenCalled()
     })
 
     test('creates a new hosted payment and persists transaction_id + provider_payment_url', async () => {
@@ -139,6 +189,8 @@ describe('POST /api/payments/cinetpay/booking-initiate', () => {
             agent_id: 'agent_1',
             customer_name: 'Awa Konan',
             customer_phone: '+2250701020304',
+            booking_source: 'restaurant',
+            price_fcfa: 17600,
             deposit_required: true,
             deposit_amount_fcfa: 5000,
             deposit_status: 'pending',
@@ -186,6 +238,8 @@ describe('POST /api/payments/cinetpay/booking-initiate', () => {
         const booking = {
             id: 'booking_123',
             agent_id: 'agent_1',
+            booking_source: 'restaurant',
+            price_fcfa: 17600,
             status: 'pending',
             deposit_required: true,
             deposit_amount_fcfa: 5000,
@@ -215,6 +269,8 @@ describe('POST /api/payments/cinetpay/booking-initiate', () => {
         const booking = {
             id: 'booking_123',
             agent_id: 'agent_1',
+            booking_source: 'restaurant',
+            price_fcfa: 17600,
             status: 'cancelled',
             deposit_required: true,
             deposit_amount_fcfa: 5000,
@@ -246,6 +302,8 @@ describe('POST /api/payments/cinetpay/booking-initiate', () => {
             agent_id: 'agent_1',
             customer_name: 'Awa Konan',
             customer_phone: '+2250701020304',
+            booking_source: 'restaurant',
+            price_fcfa: 17600,
             deposit_required: true,
             deposit_amount_fcfa: 5000,
             deposit_status: 'pending',
@@ -283,6 +341,42 @@ describe('POST /api/payments/cinetpay/booking-initiate', () => {
         expect(updates[0].payload).toEqual(expect.objectContaining({
             payment_provider: 'paystack',
             provider_payment_url: 'https://checkout.paystack.com/booking123'
+        }))
+    })
+
+    test('uses a full payment description for non-restaurant service bookings paid online', async () => {
+        const booking = {
+            id: 'booking_123',
+            agent_id: 'agent_1',
+            customer_name: 'Awa Konan',
+            customer_phone: '+2250701020304',
+            booking_source: 'slot',
+            price_fcfa: 5000,
+            deposit_required: true,
+            deposit_amount_fcfa: 5000,
+            deposit_status: 'pending',
+            payment_method: 'online',
+            transaction_id: null,
+            provider_payment_url: null,
+            payment_provider: 'paystack',
+        }
+
+        mockNormalizePaymentProvider.mockReturnValue('paystack')
+        mockGetDefaultPaymentProvider.mockResolvedValue('paystack')
+        mockCreateAdminClient.mockReturnValue(
+            createAdminSupabase({
+                booking,
+                agent: { user_id: 'user_1' },
+                updates: [],
+            })
+        )
+
+        const response = await POST(makeRequest({ booking_id: 'booking_123' }))
+
+        expect(response.status).toBe(200)
+        expect(mockInitializeHostedPayment).toHaveBeenCalledWith(expect.objectContaining({
+            description: 'Paiement reservation #booking_',
+            provider: 'paystack',
         }))
     })
 })

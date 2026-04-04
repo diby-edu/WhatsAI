@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
-import { createApiClient, successResponse, errorResponse, getAuthUser } from '@/lib/api-utils'
+import { createAdminClient, createApiClient, successResponse, errorResponse, getAuthUser } from '@/lib/api-utils'
+import { queueOutboundWhatsAppMessage } from '@/lib/whatsapp/outbound'
 
 async function clearRestaurantConversationState(
     supabase: Awaited<ReturnType<typeof createApiClient>>,
@@ -21,7 +22,7 @@ async function clearRestaurantConversationState(
             metadata: {
                 ...conversation.metadata,
                 restaurant: null,
-            }
+            },
         })
         .eq('id', conversationId)
 }
@@ -69,7 +70,7 @@ export async function PATCH(
         const currentDepositStatus = booking.deposit_status || 'not_required'
         const requiresDepositConfirmation = booking.deposit_required && currentDepositStatus === 'pending'
         if ((status === 'confirmed' || status === 'completed') && requiresDepositConfirmation) {
-            return errorResponse('Acompte en attente - confirmez d abord le paiement ou faites lever l acompte', 400)
+            return errorResponse("Acompte en attente - confirmez d'abord le paiement ou faites lever l'acompte", 400)
         }
 
         const { data: agent } = await supabase
@@ -79,7 +80,7 @@ export async function PATCH(
             .single()
 
         if (!agent || agent.user_id !== user.id) {
-            return errorResponse('Vous n etes pas autorise a modifier cette reservation', 403)
+            return errorResponse("Vous n'etes pas autorise a modifier cette reservation", 403)
         }
 
         if (depositStatus) {
@@ -94,7 +95,7 @@ export async function PATCH(
         }
 
         const updatePayload: Record<string, string> = {
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
         }
 
         if (status) {
@@ -123,7 +124,6 @@ export async function PATCH(
         const statusChanged = finalStatus !== booking.status
         if (statusChanged && (finalStatus === 'confirmed' || finalStatus === 'completed') && booking.customer_phone) {
             try {
-                const { sendWhatsAppMessage } = await import('@/lib/whatsapp/baileys')
                 const serviceName = booking.service_name || 'votre reservation'
                 const dateStr = booking.start_time
                     ? new Date(booking.start_time).toLocaleDateString('fr-FR', {
@@ -131,15 +131,20 @@ export async function PATCH(
                         day: 'numeric',
                         month: 'long',
                         hour: '2-digit',
-                        minute: '2-digit'
+                        minute: '2-digit',
                     })
                     : null
 
                 const msg = finalStatus === 'confirmed'
                     ? `Reservation confirmee !\n\nBonjour ${booking.customer_name || ''} !\n\nVotre reservation pour *${serviceName}*${dateStr ? ` le ${dateStr}` : ''} est confirmee.\n\nMerci pour votre confiance !`
-                    : `Merci de votre visite !\n\nBonjour ${booking.customer_name || ''} !\n\nNous esperons que vous avez apprecie *${serviceName}*.\n\nN hesitez pas a reserver a nouveau !`
+                    : `Merci de votre visite !\n\nBonjour ${booking.customer_name || ''} !\n\nNous esperons que vous avez apprecie *${serviceName}*.\n\nN'hesitez pas a reserver a nouveau !`
 
-                await sendWhatsAppMessage(booking.agent_id, booking.customer_phone, msg)
+                const adminSupabase = createAdminClient()
+                await queueOutboundWhatsAppMessage(adminSupabase, {
+                    agentId: booking.agent_id,
+                    to: booking.customer_phone,
+                    message: msg,
+                })
             } catch (e) {
                 console.error('Booking WhatsApp notification error (non-blocking):', e)
             }
@@ -159,7 +164,7 @@ export async function PATCH(
         return successResponse({
             message: `Statut mis a jour: ${finalStatus}`,
             newStatus: finalStatus,
-            depositStatus: updatePayload.deposit_status || currentDepositStatus
+            depositStatus: updatePayload.deposit_status || currentDepositStatus,
         })
     } catch (err) {
         console.error('Booking status update error:', err)

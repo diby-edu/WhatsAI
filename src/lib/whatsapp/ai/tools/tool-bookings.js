@@ -14,6 +14,112 @@ const {
     parseIsoDateOnly,
 } = require('../../services/booking-utils')
 
+async function initiateServiceBookingOnlinePayment({
+    supabase,
+    agentId,
+    bookingId,
+    amountFcfa,
+    customerName,
+    customerPhone,
+    serviceName,
+}) {
+    const {
+        getDefaultPaymentProvider,
+        initializeHostedPayment,
+        inspectExistingHostedPayment,
+        normalizePaymentProvider,
+    } = await import('@/lib/payments/provider')
+
+    const { data: booking, error: bookingError } = await supabase
+        .from('bookings')
+        .select('id, transaction_id, provider_payment_url, payment_provider, payment_provider_version')
+        .eq('id', bookingId)
+        .single()
+
+    if (bookingError || !booking) {
+        return { success: false, error: 'Reservation introuvable pour le paiement' }
+    }
+
+    const defaultPaymentProvider = await getDefaultPaymentProvider(supabase)
+    const paymentProvider = normalizePaymentProvider(booking.payment_provider || defaultPaymentProvider)
+
+    if (booking.transaction_id && booking.provider_payment_url) {
+        const existingPayment = await inspectExistingHostedPayment(
+            paymentProvider,
+            booking.transaction_id,
+            { providerVersion: booking.payment_provider_version || null }
+        )
+
+        if (existingPayment.action === 'reuse') {
+            return {
+                success: true,
+                transactionId: booking.transaction_id,
+                paymentUrl: booking.provider_payment_url,
+                provider: paymentProvider,
+                providerVersion: booking.payment_provider_version || 'v1',
+            }
+        }
+
+        if (existingPayment.action === 'accepted') {
+            return {
+                success: true,
+                alreadyPaid: true,
+                provider: paymentProvider,
+                providerVersion: booking.payment_provider_version || 'v1',
+            }
+        }
+    }
+
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://wazzapai.com'
+    const transactionId = `BKG_${bookingId.substring(0, 8)}_${Date.now()}`
+    const result = await initializeHostedPayment({
+        provider: paymentProvider,
+        amountFcfa,
+        currency: 'XOF',
+        transactionId,
+        description: `Paiement reservation #${bookingId.substring(0, 8)}`,
+        customerName: customerName || 'Client',
+        customerPhone: customerPhone || '',
+        returnUrl: `${baseUrl}/payment/success?transaction_id=${transactionId}`,
+        failedUrl: `${baseUrl}/payment/success?transaction_id=${transactionId}&payment=cancelled`,
+        notifyUrl: `${baseUrl}/api/payments/${paymentProvider}/webhook`,
+        metadata: {
+            booking_id: bookingId,
+            type: 'booking_payment',
+        },
+        agentId,
+    })
+
+    if (!result.success || !result.paymentUrl) {
+        return { success: false, error: result.error || 'Lien de paiement indisponible' }
+    }
+
+    const { error: updateError } = await supabase
+        .from('bookings')
+        .update({
+            transaction_id: transactionId,
+            payment_provider: paymentProvider,
+            provider_payment_url: result.paymentUrl,
+            provider_transaction_id: result.providerTransactionId || null,
+            provider_notify_token: result.providerNotifyToken || null,
+            payment_provider_version: result.providerVersion || 'v1',
+            updated_at: new Date().toISOString(),
+        })
+        .eq('id', bookingId)
+
+    if (updateError) {
+        return { success: false, error: updateError.message || 'Impossible de sauvegarder le lien de paiement' }
+    }
+
+    return {
+        success: true,
+        transactionId,
+        paymentUrl: result.paymentUrl,
+        provider: paymentProvider,
+        providerVersion: result.providerVersion || 'v1',
+    }
+}
+
 async function handleCreateBooking(args, agentId, products, conversationId, supabase) {
     try {
         console.log('Executing tool: create_booking')
@@ -195,6 +301,7 @@ async function handleCreateBooking(args, agentId, products, conversationId, supa
         }
 
         const finalPrice = pricing.price
+        const requiresHostedPayment = normalizedPaymentMethod === 'online' && finalPrice > 0
         const variantDetails = pricing.fixedSelections.length === 0
             ? null
             : (pricing.fixedSelections.length === 1
@@ -232,7 +339,13 @@ async function handleCreateBooking(args, agentId, products, conversationId, supa
                 party_size: Number.isFinite(normalizedPartySize) ? normalizedPartySize : 1,
                 payment_method: normalizedPaymentMethod,
                 notes: notes || null,
-                status: isInscription ? 'inscription_pending' : 'confirmed',
+                status: requiresHostedPayment
+                    ? (isInscription ? 'inscription_pending' : 'pending')
+                    : (isInscription ? 'inscription_pending' : 'confirmed'),
+                deposit_required: requiresHostedPayment,
+                deposit_percentage: requiresHostedPayment ? 100 : 0,
+                deposit_amount_fcfa: requiresHostedPayment ? finalPrice : 0,
+                deposit_status: requiresHostedPayment ? 'pending' : 'not_required',
                 conversation_id: conversationId
             })
             .select()
@@ -243,6 +356,12 @@ async function handleCreateBooking(args, agentId, products, conversationId, supa
         let confirmMsg = isInscription
             ? `Inscription enregistree ! Vous etes inscrit(e) a *${service.name}*.`
             : `Reservation confirmee ! ${service.name} le ${preferred_date}`
+
+        if (requiresHostedPayment) {
+            confirmMsg = isInscription
+                ? `Inscription enregistree ! Votre inscription a *${service.name}* sera confirmee apres reception du paiement.`
+                : `Reservation enregistree ! ${service.name}${preferred_date ? ` le ${preferred_date}` : ''} sera confirmee apres reception du paiement.`
+        }
 
         if (!isInscription && preferred_time) confirmMsg += ` a ${preferred_time}`
         if (!isInscription && end_date) {
@@ -271,8 +390,37 @@ async function handleCreateBooking(args, agentId, products, conversationId, supa
         }
         confirmMsg += '.'
 
-        if (isInscription && finalPrice > 0) {
+        if (isInscription && finalPrice > 0 && !requiresHostedPayment) {
             confirmMsg += `\nVotre inscription sera confirmee des reception du paiement.`
+        }
+
+        let paymentLink = null
+        let paymentProvider = null
+        if (requiresHostedPayment) {
+            try {
+                const paymentResult = await initiateServiceBookingOnlinePayment({
+                    supabase,
+                    agentId,
+                    bookingId: booking.id,
+                    amountFcfa: finalPrice,
+                    customerName: customer_name,
+                    customerPhone: normalizedPhone,
+                    serviceName: service.name,
+                })
+
+                if (paymentResult.success && paymentResult.paymentUrl) {
+                    paymentLink = paymentResult.paymentUrl
+                    paymentProvider = paymentResult.provider || null
+                    confirmMsg += `\nLien de paiement : ${paymentLink}`
+                } else if (paymentResult.success && paymentResult.alreadyPaid) {
+                    confirmMsg += `\nPaiement deja recu. Actualisez la reservation dans quelques secondes.`
+                } else {
+                    confirmMsg += `\nLe lien de paiement est temporairement indisponible. Votre reservation reste en attente de paiement.`
+                }
+            } catch (paymentError) {
+                console.error('Service booking payment initiation failed:', paymentError)
+                confirmMsg += `\nLe lien de paiement est temporairement indisponible. Votre reservation reste en attente de paiement.`
+            }
         }
 
         if (agent.escalation_phone) {
@@ -301,6 +449,8 @@ async function handleCreateBooking(args, agentId, products, conversationId, supa
             nights: resolvedBookingType === 'stay' ? durationDays : null,
             party_size: Number.isFinite(normalizedPartySize) ? normalizedPartySize : null,
             payment_method: normalizedPaymentMethod,
+            payment_link: paymentLink,
+            payment_provider: paymentProvider,
             price_fcfa: finalPrice,
             message: confirmMsg
         })

@@ -80,12 +80,25 @@ interface AdminNotificationSettings {
     push_escalation: boolean
 }
 
+interface PaymentProviderReadiness {
+    provider: 'cinetpay' | 'paystack'
+    ready: boolean
+    requiredKeys: string[]
+    missingKeys: string[]
+    warnings: string[]
+}
+
 export default function AdminSettingsPage() {
     const [activeTab, setActiveTab] = useState<TabId>('general')
     const [saving, setSaving] = useState(false)
     const [saved, setSaved] = useState(false)
     const [saveError, setSaveError] = useState<string | null>(null)
     const [isCompact, setIsCompact] = useState(false)
+    const [providerReadiness, setProviderReadiness] = useState<{
+        current: PaymentProviderReadiness
+        cinetpay: PaymentProviderReadiness
+        paystack: PaymentProviderReadiness
+    } | null>(null)
 
     const [notificationSettings, setNotificationSettings] = useState<AdminNotificationSettings>({
         // Legacy fields
@@ -231,7 +244,6 @@ export default function AdminSettingsPage() {
         enableMetrics: true,
         apiRateLimit: 100,
     })
-    const paymentBannerMode = settings.defaultPaymentProvider === 'paystack' ? 'live' : settings.cinetpayMode
 
     useEffect(() => {
         fetchSettings()
@@ -242,7 +254,14 @@ export default function AdminSettingsPage() {
             const res = await fetch('/api/admin/settings')
             const data = await res.json()
             if (data.data?.settings) {
-                setSettings(prev => ({ ...prev, ...data.data.settings }))
+                const fetchedSettings = { ...data.data.settings }
+                if (fetchedSettings.defaultPaymentProvider !== 'paystack' && fetchedSettings.defaultPaymentProvider !== 'cinetpay') {
+                    fetchedSettings.defaultPaymentProvider = 'cinetpay'
+                }
+                setSettings(prev => ({ ...prev, ...fetchedSettings }))
+            }
+            if (data.data?.providerReadiness) {
+                setProviderReadiness(data.data.providerReadiness)
             }
         } catch (err) {
             console.error('Error fetching admin settings:', err)
@@ -321,6 +340,11 @@ export default function AdminSettingsPage() {
             <div style={{ marginLeft: 20 }}>{children}</div>
         </div>
     )
+
+    const activeProviderReadiness =
+        settings.defaultPaymentProvider === 'paystack'
+            ? providerReadiness?.paystack || null
+            : providerReadiness?.cinetpay || null
 
     const renderTabContent = () => {
         switch (activeTab) {
@@ -516,8 +540,8 @@ export default function AdminSettingsPage() {
                         <div style={{
                             padding: 16,
                             borderRadius: 12,
-                            background: settings.defaultPaymentProvider === 'paystack' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(34, 197, 94, 0.1)',
-                            border: `1px solid ${settings.defaultPaymentProvider === 'paystack' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(34, 197, 94, 0.2)'}`,
+                            background: activeProviderReadiness?.ready ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                            border: `1px solid ${activeProviderReadiness?.ready ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`,
                             display: 'flex',
                             alignItems: 'center',
                             gap: 12
@@ -525,22 +549,32 @@ export default function AdminSettingsPage() {
                             <AlertTriangle style={{
                                 width: 20,
                                 height: 20,
-                                color: settings.defaultPaymentProvider === 'paystack' ? '#60a5fa' : '#4ade80'
+                                color: activeProviderReadiness?.ready ? '#4ade80' : '#f87171'
                             }} />
                             <div>
                                 <div style={{
                                     fontWeight: 600,
-                                    color: settings.defaultPaymentProvider === 'paystack' ? '#60a5fa' : '#4ade80'
+                                    color: activeProviderReadiness?.ready ? '#4ade80' : '#f87171'
                                 }}>
-                                    {settings.defaultPaymentProvider === 'paystack'
-                                        ? 'Paystack pilote actuellement les nouveaux paiements en ligne'
-                                        : 'CinetPay pilote actuellement les nouveaux paiements en ligne'}
+                                    {activeProviderReadiness?.ready
+                                        ? `${settings.defaultPaymentProvider === 'paystack' ? 'Paystack' : 'CinetPay'} pilote actuellement les nouveaux paiements en ligne`
+                                        : `${settings.defaultPaymentProvider === 'paystack' ? 'Paystack' : 'CinetPay'} n est pas pret pour les nouveaux paiements en ligne`}
                                 </div>
                                 <div style={{ fontSize: 13, color: '#94a3b8' }}>
-                                    {paymentBannerMode === 'sandbox'
-                                        ? 'Les paiements sont en mode test. Aucun vrai paiement ne sera effectué.'
-                                        : 'Les paiements réels sont activés.'}
+                                    {activeProviderReadiness?.ready
+                                        ? 'Les nouveaux liens de paiement en ligne peuvent etre generes normalement.'
+                                        : 'Les nouveaux paiements en ligne sont bloques tant que la configuration requise est incomplete.'}
                                 </div>
+                                {activeProviderReadiness && !activeProviderReadiness.ready && activeProviderReadiness.missingKeys.length > 0 && (
+                                    <div style={{ fontSize: 12, color: '#fca5a5', marginTop: 6 }}>
+                                        Configuration manquante : {activeProviderReadiness.missingKeys.join(', ')}
+                                    </div>
+                                )}
+                                {activeProviderReadiness && activeProviderReadiness.warnings.length > 0 && (
+                                    <div style={{ fontSize: 12, color: '#fbbf24', marginTop: 6 }}>
+                                        {activeProviderReadiness.warnings.join(' • ')}
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -560,8 +594,18 @@ export default function AdminSettingsPage() {
                                     color: 'white'
                                 }}
                             >
-                                <option value="cinetpay">CinetPay</option>
-                                <option value="paystack">Paystack</option>
+                                <option
+                                    value="cinetpay"
+                                    disabled={Boolean(providerReadiness?.cinetpay && !providerReadiness.cinetpay.ready && settings.defaultPaymentProvider !== 'cinetpay')}
+                                >
+                                    {providerReadiness?.cinetpay && !providerReadiness.cinetpay.ready ? 'CinetPay (non pret)' : 'CinetPay'}
+                                </option>
+                                <option
+                                    value="paystack"
+                                    disabled={Boolean(providerReadiness?.paystack && !providerReadiness.paystack.ready && settings.defaultPaymentProvider !== 'paystack')}
+                                >
+                                    {providerReadiness?.paystack && !providerReadiness.paystack.ready ? 'Paystack (non pret)' : 'Paystack'}
+                                </option>
                             </select>
                             <p style={{ fontSize: 13, color: '#64748b', marginTop: 6 }}>
                                 Ce choix pilote les nouveaux paiements en ligne crees par la plateforme. Les transactions deja lancees conservent leur fournisseur d origine.
@@ -583,6 +627,7 @@ export default function AdminSettingsPage() {
                                 </div>
                                 <div style={{ fontSize: 12, color: '#64748b', marginTop: 8 }}>
                                     Fournisseur actif: {settings.defaultPaymentProvider === 'paystack' ? 'Paystack' : 'CinetPay'}
+                                    {activeProviderReadiness?.ready ? ' - pret' : ' - non pret'}
                                 </div>
                             </div>
                             <div style={{

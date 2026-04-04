@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { errorResponse, logAdminAction, successResponse } from '@/lib/api-utils'
 import { requireAdminAccess } from '@/lib/admin/auth'
 import { loadAdminSettings, saveAdminSettings } from '@/lib/admin/settings'
+import { getPaymentProviderReadiness, parsePaymentProvider } from '@/lib/payments/provider'
 
 export async function GET(request: NextRequest) {
     const { response, adminSupabase } = await requireAdminAccess()
@@ -9,7 +10,22 @@ export async function GET(request: NextRequest) {
 
     try {
         const settings = await loadAdminSettings(adminSupabase)
-        return successResponse({ settings })
+        const currentProvider = parsePaymentProvider(settings.defaultPaymentProvider)
+        const providerReadiness = {
+            current: currentProvider
+                ? getPaymentProviderReadiness(currentProvider)
+                : {
+                    provider: 'cinetpay' as const,
+                    ready: false,
+                    requiredKeys: [],
+                    missingKeys: [],
+                    warnings: [`defaultPaymentProvider is invalid: ${String(settings.defaultPaymentProvider || '')}`],
+                },
+            cinetpay: getPaymentProviderReadiness('cinetpay'),
+            paystack: getPaymentProviderReadiness('paystack'),
+        }
+
+        return successResponse({ settings, providerReadiness })
     } catch (err: any) {
         console.error('Settings API error:', err)
         return errorResponse(err.message || 'Erreur serveur', 500)

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { resumeActiveConversationsForAgents } from '@/lib/conversations/resume-agent-conversations'
+import { ensurePaymentProviderReady, normalizePaymentProvider } from '@/lib/payments/provider'
 import { collectReconnectableAgentIds } from '@/lib/whatsapp/reactivation'
 
 export const DEFAULT_ADMIN_SETTINGS = {
@@ -57,6 +58,12 @@ const PLAN_LIMIT_KEYS = {
 
 const FEATURE_SETTING_KEYS = new Set(Object.keys(FEATURE_FLAG_KEYS))
 const PLAN_LIMIT_SETTING_KEYS = new Set(Object.keys(PLAN_LIMIT_KEYS))
+const READ_ONLY_APP_SETTING_KEYS = new Set(['cinetpayMode', 'cinetpaySiteId', 'currency'])
+const EDITABLE_APP_SETTING_KEYS = new Set(
+    Object.keys(DEFAULT_ADMIN_SETTINGS).filter(
+        (key) => !READ_ONLY_APP_SETTING_KEYS.has(key) && !FEATURE_SETTING_KEYS.has(key) && !PLAN_LIMIT_SETTING_KEYS.has(key)
+    )
+)
 
 function cloneDefaultSettings() {
     return { ...DEFAULT_ADMIN_SETTINGS }
@@ -314,9 +321,14 @@ export async function saveAdminSettings(
     const current = await loadAdminSettings(adminSupabase)
     const updatedKeys: string[] = []
 
+    if (Object.prototype.hasOwnProperty.call(updates, 'defaultPaymentProvider')) {
+        const requestedProvider = normalizePaymentProvider(updates.defaultPaymentProvider)
+        ensurePaymentProviderReady(requestedProvider)
+    }
+
     const appSettingsToSave = Object.entries(updates)
         .filter(([key]) => !FEATURE_SETTING_KEYS.has(key) && !PLAN_LIMIT_SETTING_KEYS.has(key))
-        .filter(([key]) => key in DEFAULT_ADMIN_SETTINGS || key in UI_TO_DB_KEY)
+        .filter(([key]) => EDITABLE_APP_SETTING_KEYS.has(key) || key in UI_TO_DB_KEY)
 
     for (const [uiKey, value] of appSettingsToSave) {
         const dbKey = getDbKeyFromUiKey(uiKey)

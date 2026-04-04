@@ -332,7 +332,7 @@ function BillingContent() {
                 setPaymentStatus('success')
                 fetchData() // Refresh user data to show new balance
                 fetchPayments()
-            } else if (data.cinetpay_status === 'REFUSED' || data.cinetpay_status === 'CANCELLED') {
+            } else if (data.provider_status === 'REFUSED' || data.provider_status === 'CANCELLED') {
                 setPaymentStatus('failed')
                 fetchPayments()
             } else if (data.current_status === 'completed') {
