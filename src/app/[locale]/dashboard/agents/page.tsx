@@ -14,7 +14,8 @@ import {
     Loader2,
     Smartphone,
     Crown,
-    BookOpen
+    BookOpen,
+    Users
 } from 'lucide-react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
@@ -40,6 +41,10 @@ interface Agent {
     created_at: string
     archived_at: string | null
     archived_reason: string | null
+    lead_collection_enabled?: boolean | null
+    agent_context?: string | null
+    fallback_contact_message?: string | null
+    system_prompt?: string | null
 }
 
 export default function AgentsPage() {
@@ -397,6 +402,34 @@ export default function AgentsPage() {
                             >
                                 <BookOpen style={{ width: 18, height: 18, color: '#10b981' }} />
                             </Link>
+                            {(agent.lead_collection_enabled || agent.agent_context || agent.fallback_contact_message || (agent.system_prompt || '').includes('en te basant uniquement')) && (
+                                <Link
+                                    href={`/dashboard/agents/${agent.id}/leads`}
+                                    title="Leads"
+                                    style={{
+                                        width: 40,
+                                        height: 40,
+                                        borderRadius: 10,
+                                        backgroundColor: 'rgba(139, 92, 246, 0.15)',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        transition: 'all 0.2s'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.backgroundColor = 'rgba(139, 92, 246, 0.3)'
+                                        e.currentTarget.style.transform = 'scale(1.05)'
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.backgroundColor = 'rgba(139, 92, 246, 0.15)'
+                                        e.currentTarget.style.transform = 'scale(1)'
+                                    }}
+                                >
+                                    <Users style={{ width: 18, height: 18, color: '#8b5cf6' }} />
+                                </Link>
+                            )}
                             <button
                                 onClick={() => toggleAgentStatus(agent.id)}
                                 disabled={actionLoading === agent.id}
