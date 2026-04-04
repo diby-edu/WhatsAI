@@ -91,7 +91,7 @@ export default function ApiMonitoringPage() {
             if (accessFilter !== 'all') params.set('access', accessFilter)
             const res = await fetch(`/api/admin/api-users-access?${params}`)
             const result = await res.json()
-            setUsers(result.data || [])
+            setUsers(result.data?.data || [])
         } finally {
             setLoading(false)
         }
@@ -102,7 +102,7 @@ export default function ApiMonitoringPage() {
         try {
             const res = await fetch('/api/admin/api-keys-admin?limit=100')
             const result = await res.json()
-            setKeys(result.data || [])
+            setKeys(result.data?.data || [])
         } finally {
             setLoading(false)
         }
@@ -113,7 +113,7 @@ export default function ApiMonitoringPage() {
         try {
             const res = await fetch('/api/admin/api-logs-admin?limit=100')
             const result = await res.json()
-            setLogs(result.data || [])
+            setLogs(result.data?.data || [])
         } finally {
             setLoading(false)
         }
