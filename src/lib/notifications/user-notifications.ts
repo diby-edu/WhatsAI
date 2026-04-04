@@ -240,7 +240,7 @@ export async function fetchDashboardNotifications(limit: number = 50): Promise<D
         })
     }
 
-    if (typeof profileData.creditsBalance === 'number' && profileData.creditsBalance < 50) {
+    if (typeof profileData.creditsBalance === 'number' && profileData.creditsBalance < 5) {
         const id = 'low-credits'
         notifications.push({
             id,

@@ -293,7 +293,7 @@ export async function buildAdminAlerts(adminSupabase: SupabaseClient): Promise<A
         adminSupabase
             .from('profiles')
             .select('id, full_name, credits_balance')
-            .lt('credits_balance', 10),
+            .lt('credits_balance', 3),
         adminSupabase
             .from('payments')
             .select('user_id, amount_fcfa')
