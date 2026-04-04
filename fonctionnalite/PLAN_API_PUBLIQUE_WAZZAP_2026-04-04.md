@@ -39,10 +39,10 @@ API WazzapAI (unique)
 |---|---|---|---|
 | POST | `/send` | Trigger (bas niveau) | Implémenté |
 | POST | `/trigger` | Trigger (événements typés) | Implémenté |
-| POST | `/sync` | Data Sync | Implémenté |
-| GET | `/status` | Monitoring | Implémenté |
-| GET | `/conversations` | Lecture | Implémenté |
-| POST | `/conversation` | Création manuelle | Implémenté |
+| POST/DELETE | `/sync` | Data Sync (upsert + suppression) | Implémenté |
+| GET | `/status` | Statut WhatsApp de l'agent | Implémenté |
+| GET | `/conversations` | Lister les conversations | Implémenté |
+| GET | `/conversation` | Détail conversation + messages | Implémenté |
 
 ### API Développeur (`/api/developer/`)
 
@@ -52,6 +52,7 @@ API WazzapAI (unique)
 | PATCH/DELETE | `/keys/[id]` | Modifier / supprimer une clé | Implémenté |
 | GET | `/logs` | Logs d'usage | Implémenté |
 | GET/POST | `/webhooks` | Gérer les webhooks sortants | Implémenté |
+| PATCH/DELETE | `/webhooks/[id]` | Modifier / supprimer un webhook | Implémenté |
 
 ## AUTHENTIFICATION
 
@@ -138,11 +139,12 @@ Flow :
 - Logs d'usage en temps réel
 - Guide de démarrage rapide intégré
 
-### Admin — /admin (à implémenter)
-- Vue globale de toutes les clés API
-- Volume total d'appels par utilisateur
-- Détection d'abus
-- Révocation administrative d'une clé
+### Admin — /admin/api-monitoring (Implémenté)
+- Vue d'ensemble : stats globales, volume/jour, top utilisateurs, taux d'erreur
+- Accès utilisateurs : toggle individuel + bulk, filtres
+- Clés API : liste toutes clés, révocation admin
+- Logs : 100 derniers appels globaux
+- Kill switch global (feature_flag api_public_enabled)
 
 ## FICHIERS CLÉS
 
@@ -164,12 +166,22 @@ src/app/api/developer/
 ├── keys/route.ts
 ├── keys/[id]/route.ts
 ├── logs/route.ts
-└── webhooks/route.ts
+├── webhooks/route.ts
+└── webhooks/[id]/route.ts
+
+src/app/api/admin/
+├── api-stats/route.ts
+├── api-keys-admin/route.ts
+├── api-keys-admin/[id]/route.ts
+├── api-logs-admin/route.ts
+└── api-users-access/route.ts
 
 src/app/[locale]/dashboard/developers/page.tsx
+src/app/[locale]/admin/api-monitoring/page.tsx
 
 supabase/migrations/
 ├── 20260404_api_keys.sql
 ├── 20260405_api_trigger.sql
-└── 20260406_agent_external_data.sql
+├── 20260406_agent_external_data.sql
+└── 20260407_api_access_control.sql
 ```
