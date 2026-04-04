@@ -40,7 +40,7 @@ export default function NewProductPage() {
     const [currentStep, setCurrentStep] = useState(0)
     const [loading, setLoading] = useState(false)
     const [uploading, setUploading] = useState(false)
-    const [agents, setAgents] = useState<{ id: string, name: string }[]>([])
+    const [agents, setAgents] = useState<{ id: string, name: string, mission?: string }[]>([])
     const [currency, setCurrency] = useState('USD')
     const [analyzing, setAnalyzing] = useState(false)
     const [analysisResult, setAnalysisResult] = useState<any>(null)
@@ -301,7 +301,7 @@ export default function NewProductPage() {
 
     const loadAgents = async () => {
         try {
-            const { data } = await supabase.from('agents').select('id, name')
+            const { data } = await supabase.from('agents').select('id, name, mission')
             if (data) setAgents(data)
         } catch (e) { }
     }
@@ -989,8 +989,17 @@ export default function NewProductPage() {
                                 style={inputStyle}
                             >
                                 <option value="">Tous les agents</option>
-                                {agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                                {agents.map(a => (
+                                    <option key={a.id} value={a.id} disabled={a.mission === 'support_client'}>
+                                        {a.name}{a.mission === 'support_client' ? ' (Support — KB uniquement)' : ''}
+                                    </option>
+                                ))}
                             </select>
+                            {formData.agent_id && agents.find(a => a.id === formData.agent_id)?.mission === 'support_client' && (
+                                <p style={{ marginTop: 6, fontSize: 12, color: '#f87171', background: 'rgba(239,68,68,0.08)', padding: '6px 10px', borderRadius: 8 }}>
+                                    ⛔ Les agents Support Client n'acceptent pas de produits. Utilisez la Base de Connaissances pour cet agent.
+                                </p>
+                            )}
                             {!formData.agent_id && agents.length > 1 && (
                                 <p style={{ marginTop: 6, fontSize: 12, color: '#fbbf24', background: 'rgba(251, 191, 36, 0.08)', padding: '6px 10px', borderRadius: 8 }}>
                                     ⚠️ Ce produit sera proposé par <strong>tous vos agents</strong>. Sélectionnez un agent pour le restreindre.

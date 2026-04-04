@@ -61,6 +61,19 @@ export async function POST(request: NextRequest) {
             return errorResponse('Catégorie de service obligatoire', 400)
         }
 
+        // Bloquer l'ajout de produit sur un agent Support Client
+        if (body.agent_id) {
+            const { data: agentCheck } = await supabase
+                .from('agents')
+                .select('mission')
+                .eq('id', body.agent_id)
+                .eq('user_id', user.id)
+                .single()
+            if (agentCheck?.mission === 'support_client') {
+                return errorResponse('Impossible d\'ajouter un produit à un agent Support Client. Utilisez la Base de Connaissances.', 400)
+            }
+        }
+
         const { data: product, error } = await supabase
             .from('products')
             .insert({
