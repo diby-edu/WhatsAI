@@ -131,7 +131,9 @@ export async function PATCH(
             // Leads
             'lead_collection_enabled', 'lead_redirect_message', 'lead_collect_fields',
             // Fallback contact
-            'fallback_contact_message'
+            'fallback_contact_message',
+            // Live Query API
+            'live_query_url', 'live_query_secret'
         ]
 
         const updates: Record<string, any> = {}

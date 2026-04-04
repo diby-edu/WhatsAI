@@ -192,6 +192,9 @@ export default function AgentWizardPage({
         lead_collect_fields: ['name', 'phone'] as string[],
         // Support
         fallback_contact_message: '',
+        // Live Query API
+        live_query_url: '',
+        live_query_secret: '',
     })
 
     useEffect(() => {
@@ -284,6 +287,8 @@ export default function AgentWizardPage({
                 lead_redirect_message: agent.lead_redirect_message || '',
                 lead_collect_fields: Array.isArray(agent.lead_collect_fields) ? agent.lead_collect_fields : ['name', 'phone'],
                 fallback_contact_message: agent.fallback_contact_message || '',
+                live_query_url: agent.live_query_url || '',
+                live_query_secret: agent.live_query_secret || '',
             })
 
             // Detect mission type for UX
@@ -1474,6 +1479,32 @@ export default function AgentWizardPage({
                                     )}
                                 </div>
                             )}
+                        </div>
+
+                        {/* Live Query API — section avancée */}
+                        <div style={{ borderTop: '1px solid rgba(148,163,184,0.1)', paddingTop: 24 }}>
+                            <label style={{ display: 'block', fontSize: 14, fontWeight: 600, color: '#e2e8f0', marginBottom: 4 }}>
+                                Live Query URL <span style={{ fontSize: 12, color: '#64748b', fontWeight: 400 }}>(Avancé — API)</span>
+                            </label>
+                            <p style={{ fontSize: 12, color: '#64748b', marginBottom: 12 }}>
+                                URL appelée en temps réel pour récupérer des données dynamiques (stock, statut commande...). Réponse attendue : <code style={{ background: 'rgba(255,255,255,0.05)', padding: '1px 4px', borderRadius: 3 }}>{`{ "answer": "..." }`}</code>
+                            </p>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                <input
+                                    type="url"
+                                    value={formData.live_query_url}
+                                    onChange={e => setFormData({ ...formData, live_query_url: e.target.value })}
+                                    placeholder="https://monsite.com/wazzap-live-query"
+                                    style={{ width: '100%', background: '#1e293b', border: '1px solid #334155', padding: 12, borderRadius: 12, color: 'white', outline: 'none', fontSize: 13, boxSizing: 'border-box' as const }}
+                                />
+                                <input
+                                    type="text"
+                                    value={formData.live_query_secret}
+                                    onChange={e => setFormData({ ...formData, live_query_secret: e.target.value })}
+                                    placeholder="Secret HMAC (optionnel) — pour vérifier la signature X-Wazzap-Signature"
+                                    style={{ width: '100%', background: '#1e293b', border: '1px solid #334155', padding: 12, borderRadius: 12, color: 'white', outline: 'none', fontSize: 13, boxSizing: 'border-box' as const }}
+                                />
+                            </div>
                         </div>
                     </motion.div>
                 )
