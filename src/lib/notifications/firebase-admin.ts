@@ -1,5 +1,7 @@
 import admin from 'firebase-admin';
 
+const IS_BUILD_COMMAND = process.env.npm_lifecycle_event === 'build';
+
 // Initialize Firebase Admin SDK (singleton)
 if (!admin.apps.length) {
     const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
@@ -9,11 +11,15 @@ if (!admin.apps.length) {
             admin.initializeApp({
                 credential: admin.credential.cert(JSON.parse(serviceAccount)),
             });
-            console.log('Firebase Admin initialized');
+            if (!IS_BUILD_COMMAND) {
+                console.log('Firebase Admin initialized');
+            }
         } catch (error) {
-            console.error('Error initializing Firebase Admin:', error);
+            if (!IS_BUILD_COMMAND) {
+                console.error('Error initializing Firebase Admin:', error);
+            }
         }
-    } else {
+    } else if (!IS_BUILD_COMMAND) {
         console.warn('FIREBASE_SERVICE_ACCOUNT_KEY not configured - push notifications disabled');
     }
 }

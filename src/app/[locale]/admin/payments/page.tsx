@@ -13,6 +13,7 @@ interface Payment {
     amount: number
     currency: string
     status: string
+    payment_provider?: string | null
     payment_method?: string
     payment_channel?: string | null
     payment_channel_detail?: string | null
@@ -430,7 +431,7 @@ export default function AdminPaymentPage() {
                                                     {payment.transaction_id?.slice(0, 16) || 'N/A'}...
                                                 </div>
                                                 <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
-                                                    {(payment.payment_method || 'provider').toUpperCase()}
+                                                    {(payment.payment_provider || payment.payment_method || 'provider').toUpperCase()}
                                                     {payment.payment_channel_detail
                                                         ? ` - ${payment.payment_channel_detail}`
                                                         : payment.payment_channel

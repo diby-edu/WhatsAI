@@ -27,6 +27,7 @@ const mockCheckRateLimit = jest.fn()
 const mockGetClientIdentifier = jest.fn()
 const mockGetDefaultPaymentProvider = jest.fn()
 const mockInitializeHostedPayment = jest.fn()
+const mockInspectExistingHostedPayment = jest.fn()
 const mockNormalizePaymentProvider = jest.fn((value) => value || 'cinetpay')
 
 jest.mock('@supabase/supabase-js', () => ({
@@ -43,6 +44,7 @@ jest.mock('@/lib/rate-limit', () => ({
 jest.mock('@/lib/payments/provider', () => ({
     getDefaultPaymentProvider: (...args) => mockGetDefaultPaymentProvider(...args),
     initializeHostedPayment: (...args) => mockInitializeHostedPayment(...args),
+    inspectExistingHostedPayment: (...args) => mockInspectExistingHostedPayment(...args),
     normalizePaymentProvider: (...args) => mockNormalizePaymentProvider(...args),
 }))
 
@@ -87,6 +89,13 @@ describe('POST /api/public/orders/[orderId]/pay', () => {
         mockGetClientIdentifier.mockReturnValue('client-1')
         mockCheckRateLimit.mockResolvedValue({ success: true })
         mockGetDefaultPaymentProvider.mockResolvedValue('cinetpay')
+        mockNormalizePaymentProvider.mockImplementation((value) => value || 'cinetpay')
+        mockInspectExistingHostedPayment.mockResolvedValue({
+            action: 'reuse',
+            provider: 'cinetpay',
+            providerStatus: 'PENDING',
+            error: null,
+        })
         mockInitializeHostedPayment.mockResolvedValue({
             success: true,
             paymentUrl: 'https://pay.example/order-deposit',
@@ -178,5 +187,76 @@ describe('POST /api/public/orders/[orderId]/pay', () => {
             payment_provider: 'paystack',
             provider_payment_url: 'https://checkout.paystack.com/abc123'
         }))
+    })
+
+    test('reuses an existing hosted order link only when the provider still reports it pending', async () => {
+        const order = {
+            id: 'order_123',
+            status: 'pending_pickup',
+            total_fcfa: 17600,
+            deposit_required: false,
+            deposit_amount_fcfa: 0,
+            deposit_status: 'not_required',
+            payment_method: 'online',
+            customer_phone: '+2250701020304',
+            transaction_id: 'ORD_existing',
+            provider_payment_url: 'https://pay.example/existing',
+            payment_provider: 'paystack',
+            payment_provider_version: 'v1',
+        }
+
+        mockNormalizePaymentProvider.mockReturnValue('paystack')
+        mockInspectExistingHostedPayment.mockResolvedValue({
+            action: 'reuse',
+            provider: 'paystack',
+            providerStatus: 'PENDING',
+            error: null,
+        })
+        mockCreateClient.mockReturnValue(createSupabaseMock({ order, updates: [] }))
+
+        const response = await POST(makeRequest(), { params: Promise.resolve({ orderId: 'order_123' }) })
+        const json = await response.json()
+
+        expect(response.status).toBe(200)
+        expect(json).toEqual({
+            success: true,
+            payment_url: 'https://pay.example/existing',
+            transaction_id: 'ORD_existing',
+            provider: 'paystack',
+        })
+        expect(mockInitializeHostedPayment).not.toHaveBeenCalled()
+    })
+
+    test('returns 409 when the existing hosted order payment is already accepted', async () => {
+        const order = {
+            id: 'order_123',
+            status: 'pending_pickup',
+            total_fcfa: 17600,
+            deposit_required: false,
+            deposit_amount_fcfa: 0,
+            deposit_status: 'not_required',
+            payment_method: 'online',
+            customer_phone: '+2250701020304',
+            transaction_id: 'ORD_existing',
+            provider_payment_url: 'https://pay.example/existing',
+            payment_provider: 'paystack',
+            payment_provider_version: 'v1',
+        }
+
+        mockNormalizePaymentProvider.mockReturnValue('paystack')
+        mockInspectExistingHostedPayment.mockResolvedValue({
+            action: 'accepted',
+            provider: 'paystack',
+            providerStatus: 'ACCEPTED',
+            error: null,
+        })
+        mockCreateClient.mockReturnValue(createSupabaseMock({ order, updates: [] }))
+
+        const response = await POST(makeRequest(), { params: Promise.resolve({ orderId: 'order_123' }) })
+        const json = await response.json()
+
+        expect(response.status).toBe(409)
+        expect(json.error).toMatch(/deja ete valide/i)
+        expect(mockInitializeHostedPayment).not.toHaveBeenCalled()
     })
 })

@@ -1,8 +1,8 @@
 import { NextRequest } from 'next/server'
-import { createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
-import { sendWhatsAppMessage, sendMessageWithTyping, getSessionStatus } from '@/lib/whatsapp/baileys'
+import { createAdminClient, createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
+import { queueOutboundWhatsAppMessage } from '@/lib/whatsapp/outbound'
 
-// POST /api/whatsapp/send - Send a WhatsApp message
+// POST /api/whatsapp/send - Queue a WhatsApp message for sending by the bot
 export async function POST(request: NextRequest) {
     const supabase = await createApiClient()
     const { user, error: authError } = await getAuthUser(supabase)
@@ -13,45 +13,30 @@ export async function POST(request: NextRequest) {
 
     try {
         const body = await request.json()
-        const { agentId, to, message, simulateTyping } = body
+        const { agentId, to, message } = body
 
         if (!agentId || !to || !message) {
             return errorResponse('agentId, to, and message are required', 400)
         }
 
-        // Verify agent belongs to user
         const { data: agent, error } = await supabase
             .from('agents')
-            .select('id, response_delay_seconds')
+            .select('id')
             .eq('id', agentId)
             .eq('user_id', user!.id)
             .single()
 
         if (error || !agent) {
-            return errorResponse('Agent non trouvé', 404)
+            return errorResponse('Agent non trouve', 404)
         }
 
-        // Check if connected
-        const session = getSessionStatus(agentId)
-        if (!session || session.status !== 'connected') {
-            return errorResponse('WhatsApp non connecté', 400)
-        }
+        const adminSupabase = createAdminClient()
+        await queueOutboundWhatsAppMessage(adminSupabase, {
+            agentId,
+            to,
+            message,
+        })
 
-        // Send message
-        let result
-        if (simulateTyping) {
-            const typingDuration = (agent.response_delay_seconds || 2) * 1000
-            result = await sendMessageWithTyping(agentId, to, message, typingDuration)
-        } else {
-            result = await sendWhatsAppMessage(agentId, to, message)
-        }
-
-        if (!result.success) {
-            return errorResponse(result.error || 'Échec de l\'envoi', 500)
-        }
-
-        // Log message in database
-        // First, find or create conversation
         const phoneNumber = to.replace('@s.whatsapp.net', '')
 
         let { data: conversation } = await supabase
@@ -62,7 +47,7 @@ export async function POST(request: NextRequest) {
             .single()
 
         if (!conversation) {
-            const { data: newConv } = await supabase
+            const { data: newConversation } = await supabase
                 .from('conversations')
                 .insert({
                     agent_id: agentId,
@@ -72,11 +57,11 @@ export async function POST(request: NextRequest) {
                 })
                 .select('id')
                 .single()
-            conversation = newConv
+
+            conversation = newConversation
         }
 
         if (conversation) {
-            // Insert message
             await supabase
                 .from('messages')
                 .insert({
@@ -84,17 +69,17 @@ export async function POST(request: NextRequest) {
                     agent_id: agentId,
                     role: 'assistant',
                     content: message,
-                    whatsapp_message_id: result.messageId,
-                    status: 'sent',
+                    whatsapp_message_id: null,
+                    status: 'pending',
                 })
         }
 
         return successResponse({
             success: true,
-            messageId: result.messageId,
+            queued: true,
         })
     } catch (err) {
-        console.error('Send message error:', err)
-        return errorResponse('Erreur d\'envoi', 500)
+        console.error('Queue WhatsApp message error:', err)
+        return errorResponse('Erreur d envoi', 500)
     }
 }

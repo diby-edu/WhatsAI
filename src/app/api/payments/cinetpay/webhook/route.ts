@@ -40,6 +40,16 @@ function isBookingTransactionId(transactionId: string) {
     return transactionId.startsWith('BKG_') || transactionId.startsWith('BKG-')
 }
 
+function isFullServiceBookingPayment(booking: any) {
+    const total = Number(booking?.price_fcfa || 0)
+    const charged = Number(booking?.deposit_amount_fcfa || 0)
+
+    return (booking?.booking_source || '') !== 'restaurant'
+        && String(booking?.payment_method || '').trim().toLowerCase() === 'online'
+        && total > 0
+        && charged >= total
+}
+
 async function queueAssistantMessage(
     agentId: string | null | undefined,
     conversationId: string | null | undefined,
@@ -339,7 +349,8 @@ async function handleCinetPayV2Webhook(body: {
                         minute: '2-digit'
                     })
                     : null
-                const confirmationMessage = `*Acompte recu !*\n\nMerci ! Votre acompte de ${amount.toLocaleString('fr-FR')} FCFA pour la reservation ${serviceName}${dateStr ? ` le ${dateStr}` : ''} a ete confirme.\n\nVotre reservation est maintenant confirmee.\n\nMerci pour votre confiance !`
+                const paymentLabel = isFullServiceBookingPayment(booking) ? 'Paiement' : 'Acompte'
+                const confirmationMessage = `*${paymentLabel} recu !*\n\nMerci ! Votre ${paymentLabel.toLowerCase()} de ${amount.toLocaleString('fr-FR')} FCFA pour la reservation ${serviceName}${dateStr ? ` le ${dateStr}` : ''} a ete confirme.\n\nVotre reservation est maintenant confirmee.\n\nMerci pour votre confiance !`
 
                 await queueAssistantMessage(
                     booking.agent_id,
@@ -746,7 +757,8 @@ export async function POST(request: NextRequest) {
                                     minute: '2-digit'
                                 })
                                 : null
-                            const confirmationMessage = `*Acompte recu !*\n\nMerci ! Votre acompte de ${amount.toLocaleString('fr-FR')} FCFA pour la reservation ${serviceName}${dateStr ? ` le ${dateStr}` : ''} a ete confirme.\n\nVotre reservation est maintenant confirmee.\n\nMerci pour votre confiance !`
+                            const paymentLabel = isFullServiceBookingPayment(booking) ? 'Paiement' : 'Acompte'
+                            const confirmationMessage = `*${paymentLabel} recu !*\n\nMerci ! Votre ${paymentLabel.toLowerCase()} de ${amount.toLocaleString('fr-FR')} FCFA pour la reservation ${serviceName}${dateStr ? ` le ${dateStr}` : ''} a ete confirme.\n\nVotre reservation est maintenant confirmee.\n\nMerci pour votre confiance !`
 
                             await queueAssistantMessage(
                                 booking.agent_id,

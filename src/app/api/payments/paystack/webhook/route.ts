@@ -17,6 +17,16 @@ function isBookingTransactionId(transactionId: string) {
     return transactionId.startsWith('BKG_') || transactionId.startsWith('BKG-')
 }
 
+function isFullServiceBookingPayment(booking: any) {
+    const total = Number(booking?.price_fcfa || 0)
+    const charged = Number(booking?.deposit_amount_fcfa || 0)
+
+    return (booking?.booking_source || '') !== 'restaurant'
+        && String(booking?.payment_method || '').trim().toLowerCase() === 'online'
+        && total > 0
+        && charged >= total
+}
+
 async function queueAssistantMessage(
     agentId: string | null | undefined,
     conversationId: string | null | undefined,
@@ -270,7 +280,7 @@ async function handleBookingDeposit(reference: string, amount: number | null) {
     await clearRestaurantConversationState(booking.conversation_id)
 
     try {
-        const depositAmount = Number(booking.deposit_amount_fcfa || amount || 0)
+        const chargedAmount = Number(booking.deposit_amount_fcfa || amount || 0)
         const serviceName = booking.service_name || 'votre reservation'
         const dateStr = booking.start_time
             ? new Date(booking.start_time).toLocaleDateString('fr-FR', {
@@ -281,7 +291,8 @@ async function handleBookingDeposit(reference: string, amount: number | null) {
                 minute: '2-digit'
             })
             : null
-        const confirmationMessage = `*Acompte recu !*\n\nMerci ! Votre acompte de ${depositAmount.toLocaleString('fr-FR')} FCFA pour la reservation ${serviceName}${dateStr ? ` le ${dateStr}` : ''} a ete confirme.\n\nVotre reservation est maintenant confirmee.\n\nMerci pour votre confiance !`
+        const paymentLabel = isFullServiceBookingPayment(booking) ? 'Paiement' : 'Acompte'
+        const confirmationMessage = `*${paymentLabel} recu !*\n\nMerci ! Votre ${paymentLabel.toLowerCase()} de ${chargedAmount.toLocaleString('fr-FR')} FCFA pour la reservation ${serviceName}${dateStr ? ` le ${dateStr}` : ''} a ete confirme.\n\nVotre reservation est maintenant confirmee.\n\nMerci pour votre confiance !`
 
         await queueAssistantMessage(
             booking.agent_id,

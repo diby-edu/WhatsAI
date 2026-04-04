@@ -551,6 +551,7 @@ async function initiateBookingDepositPayment({
     const {
         getDefaultPaymentProvider,
         initializeHostedPayment,
+        inspectExistingHostedPayment,
         normalizePaymentProvider
     } = await import('@/lib/payments/provider')
 
@@ -576,16 +577,32 @@ async function initiateBookingDepositPayment({
         return { success: false, error: 'CinetPay non configure', providerVersion: attemptedProviderVersion }
     }
 
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://wazzapai.com'
     if (booking.transaction_id && booking.provider_payment_url) {
-        return {
-            success: true,
-            transactionId: booking.transaction_id,
-            paymentUrl: booking.provider_payment_url,
-            providerVersion: booking.payment_provider_version || attemptedProviderVersion
+        const existingPayment = await inspectExistingHostedPayment(
+            paymentProvider,
+            booking.transaction_id,
+            { providerVersion: booking.payment_provider_version || null }
+        )
+
+        if (existingPayment.action === 'reuse') {
+            return {
+                success: true,
+                transactionId: booking.transaction_id,
+                paymentUrl: booking.provider_payment_url,
+                providerVersion: booking.payment_provider_version || attemptedProviderVersion
+            }
+        }
+
+        if (existingPayment.action === 'accepted') {
+            return {
+                success: false,
+                error: 'Paiement deja valide. Actualisez la reservation.',
+                providerVersion: booking.payment_provider_version || attemptedProviderVersion
+            }
         }
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://wazzapai.com'
     const safeBookingSlug = buildCinetPayV2SafeSlug(bookingId.substring(0, 8), 'booking')
     const baseTransactionId = `BKG-${safeBookingSlug}-${Date.now()}`
     let transactionId = baseTransactionId
@@ -792,6 +809,7 @@ async function initiateOrderOnlinePayment({
     const {
         getDefaultPaymentProvider,
         initializeHostedPayment,
+        inspectExistingHostedPayment,
         normalizePaymentProvider
     } = await import('@/lib/payments/provider')
 
@@ -817,16 +835,32 @@ async function initiateOrderOnlinePayment({
         return { success: false, error: 'CinetPay non configure', providerVersion: attemptedProviderVersion }
     }
 
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://wazzapai.com'
     if (order.transaction_id && order.provider_payment_url) {
-        return {
-            success: true,
-            transactionId: order.transaction_id,
-            paymentUrl: order.provider_payment_url,
-            providerVersion: order.payment_provider_version || attemptedProviderVersion
+        const existingPayment = await inspectExistingHostedPayment(
+            paymentProvider,
+            order.transaction_id,
+            { providerVersion: order.payment_provider_version || null }
+        )
+
+        if (existingPayment.action === 'reuse') {
+            return {
+                success: true,
+                transactionId: order.transaction_id,
+                paymentUrl: order.provider_payment_url,
+                providerVersion: order.payment_provider_version || attemptedProviderVersion
+            }
+        }
+
+        if (existingPayment.action === 'accepted') {
+            return {
+                success: false,
+                error: 'Paiement deja valide. Actualisez la commande.',
+                providerVersion: order.payment_provider_version || attemptedProviderVersion
+            }
         }
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://wazzapai.com'
     const safeOrderSlug = buildCinetPayV2SafeSlug(orderId.substring(0, 8), 'order')
     const baseTransactionId = `ORD-${safeOrderSlug}-${Date.now()}`
     let transactionId = baseTransactionId

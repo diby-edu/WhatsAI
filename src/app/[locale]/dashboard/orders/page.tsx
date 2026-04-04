@@ -174,7 +174,7 @@ export default function OrdersPage() {
                 fetchBookings()
             } else {
                 const data = await res.json()
-                alert(data.error || 'Erreur lors de la mise a jour de l acompte')
+                alert(data.error || 'Erreur lors de la mise a jour du paiement')
             }
         } catch (err) {
             console.error('Booking deposit status change error:', err)
@@ -334,13 +334,25 @@ export default function OrdersPage() {
         }
     }
 
+    const isFullBookingPayment = (booking: Booking) => {
+        const total = Number(booking.price_fcfa || 0)
+        const charged = Number(booking.deposit_amount_fcfa || 0)
+        return booking.booking_source !== 'restaurant'
+            && booking.payment_method === 'online'
+            && total > 0
+            && charged >= total
+    }
+
     const getBookingDepositLabel = (booking: Booking) => {
+        const paymentLabel = isFullBookingPayment(booking) ? 'Paiement' : 'Acompte'
         switch (booking.deposit_status) {
-            case 'paid': return 'Acompte paye'
-            case 'pending': return 'Acompte en attente'
-            case 'waived': return 'Acompte leve'
-            case 'expired': return 'Acompte expire'
-            default: return booking.deposit_required ? 'Acompte requis' : 'Sans acompte'
+            case 'paid': return `${paymentLabel} paye`
+            case 'pending': return `${paymentLabel} en attente`
+            case 'waived': return isFullBookingPayment(booking) ? 'Paiement leve' : 'Acompte leve'
+            case 'expired': return `${paymentLabel} expire`
+            default: return booking.deposit_required
+                ? (isFullBookingPayment(booking) ? 'Paiement requis' : 'Acompte requis')
+                : (isFullBookingPayment(booking) ? 'Sans paiement en ligne' : 'Sans acompte')
         }
     }
 
@@ -1266,7 +1278,7 @@ export default function OrdersPage() {
                                                     {booking.deposit_amount_fcfa ? ` • ${formatPrice(booking.deposit_amount_fcfa)}` : ''}
                                                 </span>
                                             ) : (
-                                                <span>Sans acompte</span>
+                                                <span>{isFullBookingPayment(booking) ? 'Sans paiement en ligne' : 'Sans acompte'}</span>
                                             )}
                                             {typeof booking.items_count === 'number' && booking.items_count > 0 && (
                                                 <span>{booking.items_count} article{booking.items_count > 1 ? 's' : ''} precommande{booking.items_count > 1 ? 's' : ''}</span>
@@ -1325,7 +1337,7 @@ export default function OrdersPage() {
                                                     cursor: 'pointer',
                                                     opacity: updatingStatusId === booking.id ? 0.5 : 1
                                                 }}
-                                                title="Marquer acompte paye"
+                                                title={isFullBookingPayment(booking) ? 'Marquer paiement paye' : 'Marquer acompte paye'}
                                             >
                                                 ✓
                                             </button>
@@ -1342,9 +1354,9 @@ export default function OrdersPage() {
                                                     cursor: 'pointer',
                                                     opacity: updatingStatusId === booking.id ? 0.5 : 1
                                                 }}
-                                                title="Lever l acompte"
+                                                title={isFullBookingPayment(booking) ? 'Lever le paiement' : 'Lever l acompte'}
                                             >
-                                                Sans acompte
+                                                {isFullBookingPayment(booking) ? 'Sans paiement' : 'Sans acompte'}
                                             </button>
                                             <button
                                                 onClick={() => handleBookingDepositStatusChange(booking.id, 'expired')}
@@ -1360,7 +1372,7 @@ export default function OrdersPage() {
                                                     cursor: 'pointer',
                                                     opacity: updatingStatusId === booking.id ? 0.5 : 1
                                                 }}
-                                                title="Marquer acompte expire"
+                                                title={isFullBookingPayment(booking) ? 'Marquer paiement expire' : 'Marquer acompte expire'}
                                             >
                                                 !
                                             </button>

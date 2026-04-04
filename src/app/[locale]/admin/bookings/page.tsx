@@ -156,14 +156,24 @@ export default function AdminBookingsPage() {
         }
     }
 
-    const getDepositStatusLabel = (depositStatus?: string | null) => {
-        switch (depositStatus) {
-            case 'paid': return 'Acompte paye'
-            case 'pending': return 'Acompte en attente'
-            case 'waived': return 'Acompte leve'
-            case 'expired': return 'Acompte expire'
-            case 'not_required': return 'Sans acompte'
-            default: return 'Sans acompte'
+    const isFullBookingPayment = (booking: Booking) => {
+        const total = Number(booking.price_fcfa || 0)
+        const charged = Number(booking.deposit_amount_fcfa || 0)
+        return booking.booking_source !== 'restaurant'
+            && booking.payment_method === 'online'
+            && total > 0
+            && charged >= total
+    }
+
+    const getDepositStatusLabel = (booking: Booking) => {
+        const paymentLabel = isFullBookingPayment(booking) ? 'Paiement' : 'Acompte'
+        switch (booking.deposit_status) {
+            case 'paid': return `${paymentLabel} paye`
+            case 'pending': return `${paymentLabel} en attente`
+            case 'waived': return isFullBookingPayment(booking) ? 'Paiement leve' : 'Acompte leve'
+            case 'expired': return `${paymentLabel} expire`
+            case 'not_required': return isFullBookingPayment(booking) ? 'Sans paiement en ligne' : 'Sans acompte'
+            default: return isFullBookingPayment(booking) ? 'Sans paiement en ligne' : 'Sans acompte'
         }
     }
 
@@ -405,7 +415,7 @@ export default function AdminBookingsPage() {
                                             {booking.deposit_required ? (
                                                 <>
                                                     <div style={{ color: '#94a3b8', fontSize: 11 }}>
-                                                        Acompte {Number(booking.deposit_amount_fcfa || 0).toLocaleString('fr-FR')} FCFA
+                                                        {isFullBookingPayment(booking) ? 'Paiement' : 'Acompte'} {Number(booking.deposit_amount_fcfa || 0).toLocaleString('fr-FR')} FCFA
                                                     </div>
                                                     <div style={{ marginTop: 6 }}>
                                                         <span style={{
@@ -416,13 +426,13 @@ export default function AdminBookingsPage() {
                                                             background: depositStyle.bg,
                                                             color: depositStyle.color
                                                         }}>
-                                                            {getDepositStatusLabel(booking.deposit_status)}
+                                                            {getDepositStatusLabel(booking)}
                                                         </span>
                                                     </div>
                                                 </>
                                             ) : (
                                                 <div style={{ color: '#64748b', fontSize: 11 }}>
-                                                    Sans acompte
+                                                    {isFullBookingPayment(booking) ? 'Sans paiement en ligne' : 'Sans acompte'}
                                                 </div>
                                             )}
                                         </td>
@@ -440,7 +450,7 @@ export default function AdminBookingsPage() {
                                                     <>
                                                         <button
                                                             onClick={() => updateBookingDepositStatus(booking.id, 'paid')}
-                                                            title="Marquer acompte paye"
+                                                            title={isFullBookingPayment(booking) ? 'Marquer paiement paye' : 'Marquer acompte paye'}
                                                             style={{
                                                                 width: 32, height: 32, borderRadius: 8,
                                                                 background: 'rgba(34, 197, 94, 0.1)',
@@ -452,7 +462,7 @@ export default function AdminBookingsPage() {
                                                         </button>
                                                         <button
                                                             onClick={() => updateBookingDepositStatus(booking.id, 'waived')}
-                                                            title="Lever l acompte"
+                                                            title={isFullBookingPayment(booking) ? 'Lever le paiement' : 'Lever l acompte'}
                                                             style={{
                                                                 padding: '0 10px', height: 32, borderRadius: 8,
                                                                 background: 'rgba(59, 130, 246, 0.1)',
@@ -461,11 +471,11 @@ export default function AdminBookingsPage() {
                                                                 color: '#60a5fa', fontSize: 11, fontWeight: 600
                                                             }}
                                                         >
-                                                            Sans acompte
+                                                            {isFullBookingPayment(booking) ? 'Sans paiement' : 'Sans acompte'}
                                                         </button>
                                                         <button
                                                             onClick={() => updateBookingDepositStatus(booking.id, 'expired')}
-                                                            title="Marquer acompte expire"
+                                                            title={isFullBookingPayment(booking) ? 'Marquer paiement expire' : 'Marquer acompte expire'}
                                                             style={{
                                                                 width: 32, height: 32, borderRadius: 8,
                                                                 background: 'rgba(251, 191, 36, 0.1)',

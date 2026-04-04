@@ -1,6 +1,22 @@
 export type AgentPaymentMode = 'cinetpay' | 'mobile_money_direct'
 export type OrderPaymentDisplayMode = 'online' | 'manual' | 'onsite'
 
+const HOSTED_LINK_AGENT_PAYMENT_MODE_VALUES = new Set([
+    'cinetpay',
+    'hosted_link',
+    'payment_link',
+    'automatic',
+    'automatic_link',
+    'lien_automatique',
+])
+
+const MANUAL_AGENT_PAYMENT_MODE_VALUES = new Set([
+    'mobile_money_direct',
+    'manual',
+    'manual_payment',
+    'paiement_manuel',
+])
+
 export const AUTOMATIC_PAYMENT_MODE_LABEL = 'Lien de paiement automatique'
 export const AUTOMATIC_PAYMENT_MODE_DESCRIPTION =
     "Le client recoit un lien de paiement securise. Le paiement est d'abord collecte par la plateforme, puis vous est reverse."
@@ -29,10 +45,28 @@ export interface OrderPaymentDisplay {
     usesHostedProvider: boolean
 }
 
+export function parseAgentPaymentMode(mode?: string | null): AgentPaymentMode | null {
+    const normalized = String(mode || '').trim().toLowerCase()
+
+    if (!normalized) return null
+    if (HOSTED_LINK_AGENT_PAYMENT_MODE_VALUES.has(normalized)) return 'cinetpay'
+    if (MANUAL_AGENT_PAYMENT_MODE_VALUES.has(normalized)) return 'mobile_money_direct'
+
+    return null
+}
+
 export function normalizeAgentPaymentMode(mode?: string | null): AgentPaymentMode {
-    return String(mode || '').trim().toLowerCase() === 'mobile_money_direct'
-        ? 'mobile_money_direct'
-        : 'cinetpay'
+    return parseAgentPaymentMode(mode) || 'cinetpay'
+}
+
+export function coerceAgentPaymentModeOrThrow(mode?: string | null): AgentPaymentMode | null {
+    const parsed = parseAgentPaymentMode(mode)
+    if (parsed) return parsed
+
+    const normalized = String(mode || '').trim()
+    if (!normalized) return null
+
+    throw new Error(`Unsupported agent payment mode: ${normalized}`)
 }
 
 export function formatPaymentProviderLabel(provider?: string | null): string | null {

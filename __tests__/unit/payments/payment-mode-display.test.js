@@ -50,4 +50,20 @@ describe('payment mode display helpers', () => {
             fulfillmentMode: 'takeaway',
         }).modeLabel).toBe('Au retrait')
     })
+
+    test('parses legacy and semantic agent payment modes safely', () => {
+        const {
+            parseAgentPaymentMode,
+            coerceAgentPaymentModeOrThrow,
+        } = require('@/lib/payments/payment-mode-display')
+
+        expect(parseAgentPaymentMode('cinetpay')).toBe('cinetpay')
+        expect(parseAgentPaymentMode('hosted_link')).toBe('cinetpay')
+        expect(parseAgentPaymentMode('manual')).toBe('mobile_money_direct')
+        expect(parseAgentPaymentMode('mobile_money_direct')).toBe('mobile_money_direct')
+        expect(parseAgentPaymentMode('unknown_mode')).toBeNull()
+
+        expect(coerceAgentPaymentModeOrThrow('hosted_link')).toBe('cinetpay')
+        expect(() => coerceAgentPaymentModeOrThrow('unexpected')).toThrow(/unsupported agent payment mode/i)
+    })
 })

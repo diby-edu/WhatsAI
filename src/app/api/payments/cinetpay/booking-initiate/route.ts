@@ -1,6 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createApiClient, createAdminClient, errorResponse, getAuthUser } from '@/lib/api-utils'
-import { getDefaultPaymentProvider, initializeHostedPayment, normalizePaymentProvider } from '@/lib/payments/provider'
+import {
+    getDefaultPaymentProvider,
+    initializeHostedPayment,
+    inspectExistingHostedPayment,
+    normalizePaymentProvider,
+} from '@/lib/payments/provider'
+
+function isFullBookingPayment(booking: {
+    booking_source?: string | null
+    payment_method?: string | null
+    price_fcfa?: number | null
+    deposit_amount_fcfa?: number | null
+}) {
+    const total = Number(booking.price_fcfa || 0)
+    const charged = Number(booking.deposit_amount_fcfa || 0)
+    return booking.booking_source !== 'restaurant'
+        && booking.payment_method === 'online'
+        && total > 0
+        && charged >= total
+}
 
 export async function POST(request: NextRequest) {
     const supabase = await createApiClient()
@@ -28,13 +47,16 @@ export async function POST(request: NextRequest) {
                 customer_name,
                 customer_phone,
                 service_name,
+                booking_source,
+                price_fcfa,
                 deposit_required,
                 deposit_amount_fcfa,
                 deposit_status,
                 payment_method,
                 transaction_id,
                 provider_payment_url,
-                payment_provider
+                payment_provider,
+                payment_provider_version
             `)
             .eq('id', bookingId)
             .single()
@@ -73,29 +95,45 @@ export async function POST(request: NextRequest) {
             return errorResponse('Booking deposit is not payable in its current state', 400)
         }
 
-        if (booking.transaction_id && booking.provider_payment_url) {
-            return NextResponse.json({
-                success: true,
-                payment_url: booking.provider_payment_url,
-                transaction_id: booking.transaction_id
-            })
-        }
-
         const amount = Number(booking.deposit_amount_fcfa || 0)
         if (!Number.isFinite(amount) || amount <= 0) {
             return errorResponse('Invalid deposit amount', 400)
         }
 
+        const paymentLabel = isFullBookingPayment(booking) ? 'Paiement reservation' : 'Acompte reservation'
+
         const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://wazzapai.com'
         const transactionId = `BKG_${booking.id.substring(0, 8)}_${Date.now()}`
         const defaultProvider = await getDefaultPaymentProvider(adminSupabase)
         const paymentProvider = normalizePaymentProvider(booking.payment_provider || defaultProvider)
+
+        if (booking.transaction_id && booking.provider_payment_url) {
+            const existingPayment = await inspectExistingHostedPayment(
+                paymentProvider,
+                booking.transaction_id,
+                { providerVersion: booking.payment_provider_version || null }
+            )
+
+            if (existingPayment.action === 'reuse') {
+                return NextResponse.json({
+                    success: true,
+                    payment_url: booking.provider_payment_url,
+                    transaction_id: booking.transaction_id,
+                    provider: paymentProvider,
+                })
+            }
+
+            if (existingPayment.action === 'accepted') {
+                return errorResponse('Ce paiement a deja ete valide. Actualisez la reservation dans quelques secondes.', 409)
+            }
+        }
+
         const result = await initializeHostedPayment({
             provider: paymentProvider,
             amountFcfa: amount,
             currency: 'XOF',
             transactionId,
-            description: `Acompte reservation #${booking.id.substring(0, 8)}`,
+            description: `${paymentLabel} #${booking.id.substring(0, 8)}`,
             customerName: booking.customer_name || 'Client',
             customerPhone: booking.customer_phone || '',
             returnUrl: `${baseUrl}/payment/success?transaction_id=${transactionId}`,

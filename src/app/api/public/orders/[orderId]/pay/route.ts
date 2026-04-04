@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { checkRateLimit, getClientIdentifier, RATE_LIMITS, rateLimitResponse } from '@/lib/rate-limit'
-import { getDefaultPaymentProvider, initializeHostedPayment, normalizePaymentProvider } from '@/lib/payments/provider'
+import {
+    getDefaultPaymentProvider,
+    initializeHostedPayment,
+    inspectExistingHostedPayment,
+    normalizePaymentProvider,
+} from '@/lib/payments/provider'
 
 const getSupabase = () => createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -21,7 +26,8 @@ export async function POST(
     }
 
     try {
-        const { data: order, error } = await getSupabase()
+        const adminSupabase = getSupabase()
+        const { data: order, error } = await adminSupabase
             .from('orders')
             .select('*')
             .eq('id', orderId)
@@ -46,20 +52,36 @@ export async function POST(
             return NextResponse.json({ error: 'Montant de paiement invalide' }, { status: 400 })
         }
 
-        if (order.transaction_id && order.provider_payment_url) {
-            return NextResponse.json({
-                success: true,
-                payment_url: order.provider_payment_url,
-                transaction_id: order.transaction_id,
-                provider: normalizePaymentProvider(order.payment_provider)
-            })
-        }
-
         const transactionId = `ORD_${orderId.substring(0, 8)}_${Date.now()}`
         const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://wazzapai.com'
-        const adminSupabase = getSupabase()
         const defaultProvider = await getDefaultPaymentProvider(adminSupabase)
         const paymentProvider = normalizePaymentProvider(order.payment_provider || defaultProvider)
+
+        if (order.transaction_id && order.provider_payment_url) {
+            const existingPayment = await inspectExistingHostedPayment(
+                paymentProvider,
+                order.transaction_id,
+                { providerVersion: order.payment_provider_version || null }
+            )
+
+            if (existingPayment.action === 'reuse') {
+                return NextResponse.json({
+                    success: true,
+                    payment_url: order.provider_payment_url,
+                    transaction_id: order.transaction_id,
+                    provider: paymentProvider
+                })
+            }
+
+            if (existingPayment.action === 'accepted') {
+                return NextResponse.json({
+                    error: 'Ce paiement a deja ete valide. Actualisez la commande dans quelques secondes.',
+                    provider: paymentProvider,
+                    provider_status: existingPayment.providerStatus,
+                }, { status: 409 })
+            }
+        }
+
         const result = await initializeHostedPayment({
             provider: paymentProvider,
             amountFcfa: amountToCharge,
