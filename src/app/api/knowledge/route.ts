@@ -19,7 +19,11 @@ export async function GET(request: NextRequest) {
     }
 
     // Retourner uniquement le chunk 0 de chaque source (un enregistrement par document source)
-    const { data, error } = await supabase
+    // Tentative avec extra_image_urls (disponible après migration), fallback sans si colonne absente
+    let data: any[] | null = null
+    let fetchError: any = null
+
+    const { data: dataFull, error: errorFull } = await supabase
         .from('knowledge_base')
         .select('id, title, created_at, source_id, chunk_index, image_url, extra_image_urls')
         .eq('agent_id', agentId)
@@ -27,9 +31,24 @@ export async function GET(request: NextRequest) {
         .eq('chunk_index', 0)
         .order('created_at', { ascending: false })
 
-    if (error) {
-        console.error('Error fetching knowledge:', error)
-        return errorResponse(error.message, 500)
+    if (errorFull) {
+        // Fallback : colonne extra_image_urls peut-être absente (migration non appliquée)
+        const { data: dataBasic, error: errorBasic } = await supabase
+            .from('knowledge_base')
+            .select('id, title, created_at, source_id, chunk_index, image_url')
+            .eq('agent_id', agentId)
+            .eq('user_id', user.id)
+            .eq('chunk_index', 0)
+            .order('created_at', { ascending: false })
+        data = dataBasic
+        fetchError = errorBasic
+    } else {
+        data = dataFull
+    }
+
+    if (fetchError) {
+        console.error('Error fetching knowledge:', fetchError)
+        return errorResponse(fetchError.message, 500)
     }
 
     if (!data || data.length === 0) {
