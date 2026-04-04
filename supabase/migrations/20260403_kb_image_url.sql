@@ -2,6 +2,9 @@
 ALTER TABLE public.knowledge_base
     ADD COLUMN IF NOT EXISTS image_url TEXT DEFAULT NULL;
 
+-- Drop existing function before changing return type
+DROP FUNCTION IF EXISTS match_documents(vector, float, int, uuid);
+
 -- Update match_documents to return image_url
 CREATE OR REPLACE FUNCTION match_documents (
   query_embedding vector(1536),
