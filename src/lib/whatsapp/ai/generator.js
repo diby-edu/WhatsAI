@@ -266,7 +266,37 @@ async function generateAIResponse(options, dependencies) {
         } = options
 
         // RAG - Documents pertinents
-        const relevantDocs = await findRelevantDocuments(openai, supabase, agent.id, userMessage)
+        let relevantDocs = await findRelevantDocuments(openai, supabase, agent.id, userMessage)
+
+        // Data Sync API — ajouter les données externes synchronisées (produits, FAQ, etc.)
+        // Guard strict : si table absente ou erreur → aucun impact sur le flux existant
+        try {
+            const { data: externalData } = await supabase
+                .from('agent_external_data')
+                .select('data_type, external_id, data')
+                .eq('agent_id', agent.id)
+                .limit(100)
+            if (externalData && externalData.length > 0) {
+                const extraDocs = externalData.map(entry => {
+                    const d = entry.data || {}
+                    const lines = []
+                    if (d.name) lines.push(d.name)
+                    if (d.description) lines.push(d.description)
+                    if (d.price !== undefined) lines.push(`Prix : ${d.price}`)
+                    if (d.stock !== undefined) lines.push(`Stock : ${d.stock}`)
+                    const reserved = new Set(['name', 'description', 'price', 'stock'])
+                    Object.entries(d).forEach(([k, v]) => {
+                        if (!reserved.has(k) && v !== null && v !== undefined && typeof v !== 'object') {
+                            lines.push(`${k} : ${v}`)
+                        }
+                    })
+                    return { content: lines.filter(Boolean).join(' — ') }
+                }).filter(doc => doc.content.length > 0)
+                relevantDocs = [...(relevantDocs || []), ...extraDocs]
+            }
+        } catch (_) {
+            // Silencieux — le RAG normal fonctionne sans les données externes
+        }
 
         // Formater les horaires
         let formattedHours = 'Non spécifiés'
