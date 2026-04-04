@@ -321,7 +321,7 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
         </button>
     )
 
-    // Bloc réutilisable pour la section images (ajout/édition)
+    // Bloc réutilisable pour la section images (ajout/édition) — sans barre URL
     const ImageSection = ({
         imageUrl, setImageUrl, extraUrls, setExtraUrls,
         mainUploadRef, extraUploadRef, uploading,
@@ -336,46 +336,39 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
         onExtraUpload: (f: File) => void
     }) => (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <label style={{ display: 'block', color: '#94a3b8', fontSize: 14 }}>
-                Images <span style={{ color: '#475569', fontSize: 12 }}>(optionnel — 1 principale + plusieurs supplémentaires)</span>
+            <label style={{ color: '#94a3b8', fontSize: 13, fontWeight: 500 }}>
+                Images <span style={{ color: '#475569', fontSize: 11, fontWeight: 400 }}>(optionnel)</span>
             </label>
-            <p style={{ color: '#475569', fontSize: 12, marginTop: -8 }}>
-                L'agent envoie les images quand le client en fait la demande.
-            </p>
 
             {/* Image principale */}
             <div>
-                <p style={{ color: '#64748b', fontSize: 12, marginBottom: 6 }}>Image principale</p>
-                <div style={{ display: 'flex', gap: 8 }}>
-                    <input type="url" value={imageUrl} onChange={e => setImageUrl(e.target.value)}
-                        style={{ ...inputStyle, flex: 1 }} placeholder="https://exemple.com/image.jpg" />
-                    <button type="button" onClick={() => mainUploadRef.current?.click()} disabled={uploading}
-                        style={{ padding: '0 14px', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 12, color: '#10b981', cursor: uploading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, whiteSpace: 'nowrap' }}>
-                        {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-                        Upload
-                    </button>
-                    <input ref={mainUploadRef} type="file" accept="image/*" style={{ display: 'none' }}
-                        onChange={e => { const f = e.target.files?.[0]; if (f) onMainUpload(f) }} />
-                </div>
-                {imageUrl && (
-                    <div style={{ position: 'relative', display: 'inline-block', marginTop: 8 }}>
-                        <img src={imageUrl} alt="Principale" style={{ maxWidth: 200, maxHeight: 130, borderRadius: 8, objectFit: 'cover', border: '1px solid #334155' }}
+                <p style={{ color: '#64748b', fontSize: 12, marginBottom: 6 }}>Principale</p>
+                {imageUrl ? (
+                    <div style={{ position: 'relative', display: 'inline-block' }}>
+                        <img src={imageUrl} alt="Principale" style={{ width: 140, height: 100, borderRadius: 8, objectFit: 'cover', border: '1px solid #334155', display: 'block' }}
                             onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
                         <button type="button" onClick={() => setImageUrl('')}
                             style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '50%', width: 22, height: 22, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
                             <X size={12} />
                         </button>
                     </div>
+                ) : (
+                    <button type="button" onClick={() => mainUploadRef.current?.click()} disabled={uploading}
+                        style={{ width: 140, height: 100, border: '2px dashed #334155', borderRadius: 8, background: 'transparent', color: '#475569', cursor: uploading ? 'not-allowed' : 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 12 }}>
+                        {uploading ? <Loader2 size={20} className="animate-spin" color="#10b981" /> : <><ImageIcon size={20} color="#475569" /><span>Upload</span></>}
+                    </button>
                 )}
+                <input ref={mainUploadRef} type="file" accept="image/*" style={{ display: 'none' }}
+                    onChange={e => { const f = e.target.files?.[0]; if (f) onMainUpload(f) }} />
             </div>
 
             {/* Images supplémentaires */}
             <div>
-                <p style={{ color: '#64748b', fontSize: 12, marginBottom: 6 }}>Images supplémentaires</p>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+                <p style={{ color: '#64748b', fontSize: 12, marginBottom: 6 }}>Supplémentaires</p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                     {extraUrls.map((url, idx) => (
                         <div key={idx} style={{ position: 'relative' }}>
-                            <img src={url} alt={`Extra ${idx + 1}`} style={{ width: 80, height: 80, borderRadius: 8, objectFit: 'cover', border: '1px solid #334155' }}
+                            <img src={url} alt={`Extra ${idx + 1}`} style={{ width: 64, height: 64, borderRadius: 8, objectFit: 'cover', border: '1px solid #334155' }}
                                 onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
                             <button type="button" onClick={() => setExtraUrls(extraUrls.filter((_, i) => i !== idx))}
                                 style={{ position: 'absolute', top: 2, right: 2, background: 'rgba(0,0,0,0.7)', border: 'none', borderRadius: '50%', width: 18, height: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
@@ -384,8 +377,8 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
                         </div>
                     ))}
                     <button type="button" onClick={() => extraUploadRef.current?.click()} disabled={uploading}
-                        style={{ width: 80, height: 80, border: '2px dashed #334155', borderRadius: 8, background: 'transparent', color: '#475569', cursor: uploading ? 'not-allowed' : 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, fontSize: 11 }}>
-                        <Plus size={20} color="#475569" />
+                        style={{ width: 64, height: 64, border: '2px dashed #334155', borderRadius: 8, background: 'transparent', color: '#475569', cursor: uploading ? 'not-allowed' : 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, fontSize: 10 }}>
+                        <Plus size={16} color="#475569" />
                         Ajouter
                     </button>
                     <input ref={extraUploadRef} type="file" accept="image/*" style={{ display: 'none' }}
@@ -534,9 +527,9 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
             {/* Modal Édition */}
             {editingDoc && (
                 <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-                    <div style={{ background: '#0f172a', width: '100%', maxWidth: 640, borderRadius: 24, padding: 32, border: '1px solid #334155', maxHeight: '92vh', overflowY: 'auto' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-                            <h2 style={{ color: 'white', fontSize: 22, fontWeight: 700 }}>Modifier le document</h2>
+                    <div style={{ background: '#0f172a', width: '100%', maxWidth: 860, borderRadius: 24, padding: 28, border: '1px solid #334155' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                            <h2 style={{ color: 'white', fontSize: 20, fontWeight: 700 }}>Modifier le document</h2>
                             <button onClick={() => setEditingDoc(null)} style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer' }}><X size={22} /></button>
                         </div>
                         {loadingEdit ? (
@@ -544,32 +537,39 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
                                 <Loader2 style={{ color: '#10b981', animation: 'spin 1s linear infinite' }} />
                             </div>
                         ) : (
-                            <form onSubmit={handleSaveEdit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                                <div>
-                                    <label style={{ display: 'block', color: '#94a3b8', marginBottom: 8, fontSize: 14 }}>Titre *</label>
-                                    <input type="text" required value={editData.title} onChange={e => setEditData({ ...editData, title: e.target.value })} style={inputStyle} />
+                            <form onSubmit={handleSaveEdit}>
+                                {/* Layout 2 colonnes */}
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 220px', gap: 24, alignItems: 'start' }}>
+                                    {/* Colonne gauche : titre + contenu */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                                        <div>
+                                            <label style={{ display: 'block', color: '#94a3b8', marginBottom: 6, fontSize: 13 }}>Titre *</label>
+                                            <input type="text" required value={editData.title} onChange={e => setEditData({ ...editData, title: e.target.value })} style={inputStyle} />
+                                        </div>
+                                        <div>
+                                            <label style={{ display: 'block', color: '#94a3b8', marginBottom: 6, fontSize: 13 }}>Contenu</label>
+                                            <textarea value={editData.content} onChange={e => setEditData({ ...editData, content: e.target.value })}
+                                                style={{ ...inputStyle, height: 260, resize: 'vertical' }} />
+                                            <p style={{ color: '#64748b', fontSize: 11, marginTop: 3 }}>{editData.content.length} caractères</p>
+                                        </div>
+                                    </div>
+                                    {/* Colonne droite : images */}
+                                    <ImageSection
+                                        imageUrl={editData.image_url}
+                                        setImageUrl={v => setEditData({ ...editData, image_url: v })}
+                                        extraUrls={editData.extra_image_urls}
+                                        setExtraUrls={v => setEditData({ ...editData, extra_image_urls: v })}
+                                        mainUploadRef={editImageUploadRef}
+                                        extraUploadRef={editExtraImageUploadRef}
+                                        uploading={editImageUploading}
+                                        onMainUpload={uploadEditImageToStorage}
+                                        onExtraUpload={uploadEditExtraImageToStorage}
+                                    />
                                 </div>
-                                <div>
-                                    <label style={{ display: 'block', color: '#94a3b8', marginBottom: 8, fontSize: 14 }}>Contenu</label>
-                                    <textarea value={editData.content} onChange={e => setEditData({ ...editData, content: e.target.value })}
-                                        style={{ ...inputStyle, height: 220, resize: 'vertical' }} />
-                                    <p style={{ color: '#64748b', fontSize: 12, marginTop: 4 }}>{editData.content.length} caractères</p>
-                                </div>
-                                <ImageSection
-                                    imageUrl={editData.image_url}
-                                    setImageUrl={v => setEditData({ ...editData, image_url: v })}
-                                    extraUrls={editData.extra_image_urls}
-                                    setExtraUrls={v => setEditData({ ...editData, extra_image_urls: v })}
-                                    mainUploadRef={editImageUploadRef}
-                                    extraUploadRef={editExtraImageUploadRef}
-                                    uploading={editImageUploading}
-                                    onMainUpload={uploadEditImageToStorage}
-                                    onExtraUpload={uploadEditExtraImageToStorage}
-                                />
-                                {editError && <p style={{ color: '#f87171', fontSize: 13 }}>{editError}</p>}
-                                <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 8 }}>
-                                    <button type="button" onClick={() => setEditingDoc(null)} style={{ background: 'transparent', color: 'white', border: '1px solid #334155', padding: '12px 24px', borderRadius: 12, cursor: 'pointer' }}>Annuler</button>
-                                    <button type="submit" disabled={editSubmitting} style={{ background: '#10b981', color: 'white', border: 'none', padding: '12px 24px', borderRadius: 12, fontWeight: 600, cursor: editSubmitting ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                {editError && <p style={{ color: '#f87171', fontSize: 13, marginTop: 10 }}>{editError}</p>}
+                                <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 20 }}>
+                                    <button type="button" onClick={() => setEditingDoc(null)} style={{ background: 'transparent', color: 'white', border: '1px solid #334155', padding: '11px 22px', borderRadius: 12, cursor: 'pointer' }}>Annuler</button>
+                                    <button type="submit" disabled={editSubmitting} style={{ background: '#10b981', color: 'white', border: 'none', padding: '11px 22px', borderRadius: 12, fontWeight: 600, cursor: editSubmitting ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
                                         {editSubmitting && <Loader2 size={16} className="animate-spin" />}
                                         Sauvegarder
                                     </button>
@@ -583,46 +583,56 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
             {/* Modal Ajout */}
             {isAdding && (
                 <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-                    <div style={{ background: '#0f172a', width: '100%', maxWidth: 640, borderRadius: 24, padding: 32, border: '1px solid #334155', maxHeight: '92vh', overflowY: 'auto' }}>
-                        <h2 style={{ color: 'white', fontSize: 22, fontWeight: 700, marginBottom: 20 }}>Nouveau Document</h2>
-                        <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
+                    <div style={{ background: '#0f172a', width: '100%', maxWidth: 860, borderRadius: 24, padding: 28, border: '1px solid #334155', maxHeight: '92vh', overflowY: 'auto' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                            <h2 style={{ color: 'white', fontSize: 20, fontWeight: 700 }}>Nouveau Document</h2>
+                            <button type="button" onClick={resetModal} style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer' }}><X size={22} /></button>
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
                             {modeTab('text', <AlignLeft size={14} />, 'Texte')}
                             {modeTab('pdf', <Upload size={14} />, 'Document')}
                             {modeTab('url', <Link2 size={14} />, 'URL')}
                         </div>
 
                         {importMode === 'text' && (
-                            <form onSubmit={handleAddText} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                                <div>
-                                    <label style={{ display: 'block', color: '#94a3b8', marginBottom: 8, fontSize: 14 }}>Titre *</label>
-                                    <input type="text" required value={newDoc.title} onChange={e => setNewDoc({ ...newDoc, title: e.target.value })}
-                                        style={inputStyle} placeholder="Ex: Honda Civic Rouge 2022" />
+                            <form onSubmit={handleAddText}>
+                                {/* Layout 2 colonnes */}
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 220px', gap: 24, alignItems: 'start' }}>
+                                    {/* Colonne gauche */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                                        <div>
+                                            <label style={{ display: 'block', color: '#94a3b8', marginBottom: 6, fontSize: 13 }}>Titre *</label>
+                                            <input type="text" required value={newDoc.title} onChange={e => setNewDoc({ ...newDoc, title: e.target.value })}
+                                                style={inputStyle} placeholder="Ex: Honda Civic Rouge 2022" />
+                                        </div>
+                                        <div>
+                                            <label style={{ display: 'block', color: '#94a3b8', marginBottom: 6, fontSize: 13 }}>Contenu *</label>
+                                            <textarea required value={newDoc.content} onChange={e => setNewDoc({ ...newDoc, content: e.target.value })}
+                                                style={{ ...inputStyle, height: 260, resize: 'none' }}
+                                                placeholder="Carrosserie : Berline 4 portes&#10;Couleur : Rouge passion&#10;Année : 2022&#10;Prix : 9 800 000 FCFA&#10;..." />
+                                            <p style={{ color: '#64748b', fontSize: 11, marginTop: 3 }}>
+                                                {newDoc.content.length} caractères
+                                                {newDoc.content.length > 2000 ? ` — sera découpé en ~${Math.ceil(newDoc.content.length / 1800)} segments` : ''}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    {/* Colonne droite : images */}
+                                    <ImageSection
+                                        imageUrl={newDoc.image_url}
+                                        setImageUrl={v => setNewDoc({ ...newDoc, image_url: v })}
+                                        extraUrls={newDoc.extra_image_urls}
+                                        setExtraUrls={v => setNewDoc({ ...newDoc, extra_image_urls: v })}
+                                        mainUploadRef={imageUploadRef}
+                                        extraUploadRef={extraImageUploadRef}
+                                        uploading={imageUploading}
+                                        onMainUpload={uploadImageToStorage}
+                                        onExtraUpload={uploadExtraImageToStorage}
+                                    />
                                 </div>
-                                <div>
-                                    <label style={{ display: 'block', color: '#94a3b8', marginBottom: 8, fontSize: 14 }}>Contenu *</label>
-                                    <textarea required value={newDoc.content} onChange={e => setNewDoc({ ...newDoc, content: e.target.value })}
-                                        style={{ ...inputStyle, height: 200, resize: 'none' }}
-                                        placeholder="Carrosserie : Berline 4 portes&#10;Couleur : Rouge passion&#10;Année : 2022&#10;Prix : 9 800 000 FCFA&#10;..." />
-                                    <p style={{ color: '#64748b', fontSize: 12, marginTop: 4 }}>
-                                        {newDoc.content.length} caractères
-                                        {newDoc.content.length > 2000 ? ` — sera découpé en ~${Math.ceil(newDoc.content.length / 1800)} segments` : ''}
-                                    </p>
-                                </div>
-                                <ImageSection
-                                    imageUrl={newDoc.image_url}
-                                    setImageUrl={v => setNewDoc({ ...newDoc, image_url: v })}
-                                    extraUrls={newDoc.extra_image_urls}
-                                    setExtraUrls={v => setNewDoc({ ...newDoc, extra_image_urls: v })}
-                                    mainUploadRef={imageUploadRef}
-                                    extraUploadRef={extraImageUploadRef}
-                                    uploading={imageUploading}
-                                    onMainUpload={uploadImageToStorage}
-                                    onExtraUpload={uploadExtraImageToStorage}
-                                />
-                                {importError && <p style={{ color: '#f87171', fontSize: 13 }}>{importError}</p>}
-                                <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
-                                    <button type="button" onClick={resetModal} style={{ background: 'transparent', color: 'white', border: '1px solid #334155', padding: '12px 24px', borderRadius: 12, cursor: 'pointer' }}>Annuler</button>
-                                    <button type="submit" disabled={submitting} style={{ background: '#10b981', color: 'white', border: 'none', padding: '12px 24px', borderRadius: 12, fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                {importError && <p style={{ color: '#f87171', fontSize: 13, marginTop: 10 }}>{importError}</p>}
+                                <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 20 }}>
+                                    <button type="button" onClick={resetModal} style={{ background: 'transparent', color: 'white', border: '1px solid #334155', padding: '11px 22px', borderRadius: 12, cursor: 'pointer' }}>Annuler</button>
+                                    <button type="submit" disabled={submitting} style={{ background: '#10b981', color: 'white', border: 'none', padding: '11px 22px', borderRadius: 12, fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
                                         {submitting && <Loader2 size={16} className="animate-spin" />}
                                         Apprendre
                                     </button>
