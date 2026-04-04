@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use, useRef } from 'react'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Plus, Trash2, FileText, Loader2, Upload, Link2, AlignLeft, Eye, X, ChevronDown, ChevronUp } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, FileText, Loader2, Upload, Link2, AlignLeft, Eye, X, ChevronDown, ChevronUp, ImageIcon } from 'lucide-react'
 import Link from 'next/link'
 
 interface Document {
@@ -12,6 +12,7 @@ interface Document {
     source_id: string | null
     chunk_index?: number
     chunks_count?: number
+    image_url?: string | null
 }
 
 interface Segment {
@@ -49,7 +50,7 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
     const [importError, setImportError] = useState<string | null>(null)
 
     // Text mode
-    const [newDoc, setNewDoc] = useState({ title: '', content: '' })
+    const [newDoc, setNewDoc] = useState({ title: '', content: '', image_url: '' })
 
     // PDF mode
     const [pdfFile, setPdfFile] = useState<File | null>(null)
@@ -84,7 +85,7 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
     const resetModal = () => {
         setIsAdding(false)
         setImportMode('text')
-        setNewDoc({ title: '', content: '' })
+        setNewDoc({ title: '', content: '', image_url: '' })
         setPdfFile(null)
         setPdfTitle('')
         setUrlInput('')
@@ -101,7 +102,7 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
             const res = await fetch('/api/knowledge', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ agentId: id, title: newDoc.title, content: newDoc.content })
+                body: JSON.stringify({ agentId: id, title: newDoc.title, content: newDoc.content, image_url: newDoc.image_url || null })
             })
             const data = await res.json()
             if (res.ok) { resetModal(); fetchDocuments() }
@@ -288,7 +289,7 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
                                 </div>
                             </div>
                             <h3 style={{ color: 'white', fontWeight: 600, marginBottom: 8 }}>{doc.title}</h3>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 'auto' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 'auto', flexWrap: 'wrap' }}>
                                 <p style={{ color: '#64748b', fontSize: 13 }}>
                                     {new Date(doc.created_at).toLocaleDateString()}
                                 </p>
@@ -299,6 +300,15 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
                                         border: '1px solid rgba(99,102,241,0.3)'
                                     }}>
                                         {doc.chunks_count} segments
+                                    </span>
+                                )}
+                                {doc.image_url && (
+                                    <span style={{
+                                        fontSize: 11, padding: '2px 8px', borderRadius: 20, display: 'flex', alignItems: 'center', gap: 4,
+                                        background: 'rgba(16,185,129,0.1)', color: '#34d399',
+                                        border: '1px solid rgba(16,185,129,0.3)'
+                                    }}>
+                                        <ImageIcon size={10} /> image
                                     </span>
                                 )}
                             </div>
@@ -433,7 +443,7 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
                                         style={inputStyle} placeholder="Ex: Politique de Livraison"
                                     />
                                 </div>
-                                <div style={{ marginBottom: 20 }}>
+                                <div style={{ marginBottom: 16 }}>
                                     <label style={{ display: 'block', color: '#94a3b8', marginBottom: 8, fontSize: 14 }}>Contenu *</label>
                                     <textarea
                                         required value={newDoc.content}
@@ -445,6 +455,31 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
                                         {newDoc.content.length} caractères
                                         {newDoc.content.length > 2000 ? ` — sera découpé en ~${Math.ceil(newDoc.content.length / 1800)} segments` : ''}
                                     </p>
+                                </div>
+                                <div style={{ marginBottom: 20 }}>
+                                    <label style={{ display: 'block', color: '#94a3b8', marginBottom: 4, fontSize: 14 }}>
+                                        Image <span style={{ color: '#475569', fontSize: 12 }}>(optionnel)</span>
+                                    </label>
+                                    <p style={{ color: '#475569', fontSize: 12, marginBottom: 8 }}>
+                                        Si ce document représente un élément visuel (voiture, produit, lieu...), collez l'URL de l'image. L'agent pourra l'envoyer quand le client la demande.
+                                    </p>
+                                    <input
+                                        type="url"
+                                        value={newDoc.image_url}
+                                        onChange={e => setNewDoc({ ...newDoc, image_url: e.target.value })}
+                                        style={inputStyle}
+                                        placeholder="https://exemple.com/image.jpg"
+                                    />
+                                    {newDoc.image_url && (
+                                        <div style={{ marginTop: 8 }}>
+                                            <img
+                                                src={newDoc.image_url}
+                                                alt="Aperçu"
+                                                style={{ maxWidth: '100%', maxHeight: 160, borderRadius: 8, objectFit: 'cover', border: '1px solid #334155' }}
+                                                onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                                 {importError && <p style={{ color: '#f87171', fontSize: 13, marginBottom: 12 }}>{importError}</p>}
                                 <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>

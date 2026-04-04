@@ -359,7 +359,8 @@ async function generateAIResponse(options, dependencies) {
         const isRestaurantMode = activeServiceEngine === 'RESTAURANT'
 
         // En mode Support Client (KB-only), désactiver tous les tools transactionnels
-        const SUPPORT_CLIENT_DISABLED_TOOLS = ['create_order', 'check_payment_status', 'send_image', 'create_booking', 'find_order']
+        // send_image est conservé : l'agent support peut envoyer des images depuis la KB
+        const SUPPORT_CLIENT_DISABLED_TOOLS = ['create_order', 'check_payment_status', 'create_booking', 'find_order']
         const RESTAURANT_DISABLED_TOOLS = ['create_order', 'create_booking']
         const activeTools = isSupportClientMode
             ? TOOLS.filter(t => !SUPPORT_CLIENT_DISABLED_TOOLS.includes(t.function?.name))
@@ -421,8 +422,7 @@ async function generateAIResponse(options, dependencies) {
                     products,
                     conversationId,
                     supabase,
-                    activeSessions,
-                    CinetPay
+                    { relevantDocs }
                 )
 
                 // Collecter les actions d'images pour envoi réel

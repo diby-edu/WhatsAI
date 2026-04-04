@@ -131,7 +131,14 @@ function buildKnowledgeSection(relevantDocs) {
         return ''
     }
 
-    const docs = relevantDocs.slice(0, 3).map(d => `• ${d.content} `).join('\n')
+    const docs = relevantDocs.slice(0, 3).map(d => {
+        let line = `• ${d.content}`
+        if (d.image_url) {
+            line += `\n  [IMAGE DISPONIBLE: ${d.image_url}] — Si le client demande une photo ou une image de cet élément, appelle send_image avec cette URL.`
+        }
+        return line
+    }).join('\n')
+
     return `
 📚 INFOS UTILES:
 ${docs}
