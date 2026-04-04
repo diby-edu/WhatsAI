@@ -144,6 +144,7 @@ export async function POST(request: NextRequest) {
                 lead_collection_enabled: body.lead_collection_enabled ?? false,
                 lead_redirect_message: body.lead_redirect_message || null,
                 lead_collect_fields: body.lead_collect_fields || ['name', 'phone'],
+                fallback_contact_message: body.fallback_contact_message || null,
                 // Payment & escalation (Support Client + transactionnel)
                 payment_mode: paymentMode,
                 mobile_money_orange: body.mobile_money_orange || null,

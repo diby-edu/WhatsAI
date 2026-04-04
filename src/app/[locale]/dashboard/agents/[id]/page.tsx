@@ -190,6 +190,8 @@ export default function AgentWizardPage({
         lead_collection_enabled: false,
         lead_redirect_message: '',
         lead_collect_fields: ['name', 'phone'] as string[],
+        // Support
+        fallback_contact_message: '',
     })
 
     useEffect(() => {
@@ -281,10 +283,16 @@ export default function AgentWizardPage({
                 lead_collection_enabled: agent.lead_collection_enabled ?? false,
                 lead_redirect_message: agent.lead_redirect_message || '',
                 lead_collect_fields: Array.isArray(agent.lead_collect_fields) ? agent.lead_collect_fields : ['name', 'phone'],
+                fallback_contact_message: agent.fallback_contact_message || '',
             })
 
-            // Detect mission type for UX (Support Client = has agent_context or KB-only system_prompt)
-            if (agent.agent_context || (agent.system_prompt || '').includes('en te basant uniquement')) {
+            // Detect mission type for UX
+            if (
+                agent.agent_context ||
+                agent.lead_collection_enabled ||
+                agent.fallback_contact_message ||
+                (agent.system_prompt || '').includes('en te basant uniquement')
+            ) {
                 setSelectedMission('support_client')
             }
 
@@ -441,12 +449,6 @@ export default function AgentWizardPage({
 
                 return (
                     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                        {isSupportClient && (
-                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px', background: 'rgba(99, 102, 241, 0.08)', border: '1px solid rgba(99, 102, 241, 0.2)', borderRadius: 10, fontSize: 13, color: '#a5b4fc' }}>
-                                <span>ℹ️</span>
-                                <span>En mode Support Client, la description et l'adresse s'activent automatiquement si vous ajoutez des produits à cet agent.</span>
-                            </div>
-                        )}
                         {/* Name */}
                         <div>
                             <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
@@ -763,7 +765,7 @@ export default function AgentWizardPage({
                             <textarea
                                 value={formData.system_prompt}
                                 onChange={e => setFormData({ ...formData, system_prompt: e.target.value })}
-                                placeholder="Tu es l'assistant commercial de [Nom de l'entreprise]..."
+                                placeholder={isSupportClient ? "Tu es l'assistant de [Nom de l'entreprise]. Ton rôle est de répondre aux questions des clients en te basant uniquement sur les informations que tu connais..." : "Tu es l'assistant commercial de [Nom de l'entreprise]..."}
                                 style={{
                                     width: '100%',
                                     padding: 16,
@@ -835,6 +837,23 @@ export default function AgentWizardPage({
                                 />
                                 <p style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
                                     Affiché après le nom de l'agent lors du premier message. Ex: "Bonjour ! Je suis l'assistant de X. <i>votre texte ici</i>"
+                                </p>
+                            </div>
+                        )}
+                        {isSupportClient && (
+                            <div>
+                                <label style={{ display: 'block', fontSize: 13, color: '#94a3b8', marginBottom: 8 }}>
+                                    Message de redirection (optionnel)
+                                </label>
+                                <input
+                                    type="text"
+                                    value={formData.fallback_contact_message}
+                                    onChange={e => setFormData({ ...formData, fallback_contact_message: e.target.value })}
+                                    placeholder="Ex: Pour plus de détails, appelez le +225 07 00 00 00 ou visitez notre site."
+                                    style={{ width: '100%', background: '#1e293b', border: '1px solid #334155', padding: 12, borderRadius: 12, color: 'white', outline: 'none', fontSize: 13 }}
+                                />
+                                <p style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
+                                    Ajoutée automatiquement quand l'agent n'a pas l'information. Laissez vide pour un comportement par défaut.
                                 </p>
                             </div>
                         )}
@@ -938,7 +957,10 @@ export default function AgentWizardPage({
                         )}
                         <p style={{ fontSize: 14, color: '#94a3b8' }}>
                             Ajoutez ici TOUTES vos règles spécifiques que le bot doit respecter absolument.
-                            <br />Politique de retour, Livraison, Paiement, Promos...
+                            {isSupportClient
+                                ? <><br />Périmètre d&apos;intervention, Procédures, Restrictions, Escalade...</>
+                                : <><br />Politique de retour, Livraison, Paiement, Promos...</>
+                            }
                         </p>
 
                         <textarea
@@ -947,7 +969,22 @@ export default function AgentWizardPage({
                                 setFormData({ ...formData, custom_rules: e.target.value })
                                 setConflictStatus('idle')
                             }}
-                            placeholder={`Exemples de règles que l'IA doit respecter:
+                            placeholder={isSupportClient ? `Exemples de règles que l'IA doit respecter:
+
+🔍 PÉRIMÈTRE:
+- Répondre uniquement aux questions liées à nos véhicules/produits/services
+- Ne pas donner d'avis personnel sur la concurrence
+
+📋 PROCÉDURES:
+- Pour un essai: demander nom, téléphone et disponibilité
+- Pour un devis: orienter vers notre formulaire en ligne
+
+🚫 RESTRICTIONS:
+- Ne pas promettre de prix sans validation du responsable
+- Ne pas communiquer les stocks exacts
+
+📞 ESCALADE:
+- Renvoyer vers le conseiller au +225 07 XX XX XX XX pour toute demande complexe` : `Exemples de règles que l'IA doit respecter:
 
 📦 LIVRAISON:
 - Livraison gratuite à partir de 50.000 FCFA
@@ -1464,9 +1501,13 @@ export default function AgentWizardPage({
                             )}
 
                             {whatsappStatus === 'connecting' && (
-                                <div className="text-emerald-400 flex flex-col items-center gap-2">
+                                <div className="text-emerald-400 flex flex-col items-center gap-4">
                                     <Loader2 className="w-10 h-10 animate-spin" />
-                                    <span>Préparation...</span>
+                                    <span>Démarrage du service WhatsApp...</span>
+                                    <div className="text-sm text-slate-400 bg-slate-800/60 border border-slate-700/50 rounded-xl px-4 py-3 max-w-xs text-center">
+                                        La première connexion peut prendre jusqu&apos;à <strong className="text-amber-400">60 secondes</strong>.<br />
+                                        Patientez, le QR code apparaîtra automatiquement.
+                                    </div>
                                 </div>
                             )}
 

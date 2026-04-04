@@ -8,7 +8,7 @@
 async function handleCaptureLead(args, agentId, customerPhone, supabase) {
     try {
         console.log('Executing tool: capture_lead', args)
-        const { lead_name, lead_phone, lead_email, interest } = args
+        const { lead_name, lead_phone, lead_email, lead_location, lead_company, interest } = args
 
         // Récupérer le user_id de l'agent
         const { data: agent, error: agentErr } = await supabase
@@ -26,10 +26,12 @@ async function handleCaptureLead(args, agentId, customerPhone, supabase) {
             agent_id:       agentId,
             user_id:        agent.user_id,
             customer_phone: customerPhone || null,
-            lead_name:      lead_name  || null,
-            lead_phone:     lead_phone || null,
-            lead_email:     lead_email || null,
-            interest:       interest   || null,
+            lead_name:      lead_name     || null,
+            lead_phone:     lead_phone    || null,
+            lead_email:     lead_email    || null,
+            lead_location:  lead_location || null,
+            lead_company:   lead_company  || null,
+            interest:       interest      || null,
         })
 
         if (error) {

@@ -130,7 +130,9 @@ export default function NewAgentPage() {
         // LEADS
         lead_collection_enabled: false,
         lead_redirect_message: '',
-        lead_collect_fields: ['name', 'phone'] as string[]
+        lead_collect_fields: ['name', 'phone'] as string[],
+        // SUPPORT
+        fallback_contact_message: ''
     })
 
     const steps = [
@@ -506,7 +508,8 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
                     // Leads
                     lead_collection_enabled: formData.lead_collection_enabled,
                     lead_redirect_message: formData.lead_redirect_message || null,
-                    lead_collect_fields: formData.lead_collect_fields
+                    lead_collect_fields: formData.lead_collect_fields,
+                    fallback_contact_message: formData.fallback_contact_message || null,
                 }),
             })
 
@@ -791,6 +794,23 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
                                 </p>
                             </div>
                         )}
+                        {isSupportClient && (
+                            <div>
+                                <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
+                                    Message de redirection (optionnel)
+                                </label>
+                                <input
+                                    type="text"
+                                    value={formData.fallback_contact_message}
+                                    onChange={(e) => updateFormData('fallback_contact_message', e.target.value)}
+                                    placeholder="Ex: Pour plus de détails, appelez le +225 07 00 00 00 ou visitez notre site."
+                                    style={{ width: '100%', background: '#1e293b', border: '1px solid #334155', padding: 12, borderRadius: 12, color: 'white', outline: 'none', fontSize: 14 }}
+                                />
+                                <p style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
+                                    Phrase ajoutée automatiquement quand l'agent n'a pas l'information. Laissez vide pour un comportement par défaut.
+                                </p>
+                            </div>
+                        )}
                     </div>
                 )
 
@@ -1047,12 +1067,6 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
             case 3: // PERSONALITY
                 return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                        {isSupportClient && (
-                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px', background: 'rgba(99, 102, 241, 0.08)', border: '1px solid rgba(99, 102, 241, 0.2)', borderRadius: 10, fontSize: 13, color: '#a5b4fc' }}>
-                                <span>ℹ️</span>
-                                <span>En mode Support Client, la personnalité s'active automatiquement si vous ajoutez des produits à cet agent.</span>
-                            </div>
-                        )}
                         {!isSupportClient && (
                             <>
                                 <div>
@@ -1125,12 +1139,6 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
             case 4: // RULES
                 return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                        {isSupportClient && (
-                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px', background: 'rgba(99, 102, 241, 0.08)', border: '1px solid rgba(99, 102, 241, 0.2)', borderRadius: 10, fontSize: 13, color: '#a5b4fc' }}>
-                                <span>ℹ️</span>
-                                <span>En mode Support Client, les règles s'activent automatiquement si vous ajoutez des produits à cet agent.</span>
-                            </div>
-                        )}
                         <div>
                             <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
                                 Règles spécifiques
@@ -1138,7 +1146,22 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
                             <textarea
                                 value={formData.custom_rules}
                                 onChange={(e) => updateFormData('custom_rules', e.target.value)}
-                                placeholder={`Exemples de règles que l'IA doit respecter:
+                                placeholder={isSupportClient ? `Exemples de règles que l'IA doit respecter:
+
+🔍 PÉRIMÈTRE:
+- Répondre uniquement aux questions liées à nos véhicules/produits/services
+- Ne pas donner d'avis personnel sur la concurrence
+
+📋 PROCÉDURES:
+- Pour un essai: demander nom, téléphone et disponibilité
+- Pour un devis: orienter vers notre formulaire en ligne
+
+🚫 RESTRICTIONS:
+- Ne pas promettre de prix sans validation du responsable
+- Ne pas communiquer les stocks exacts
+
+📞 ESCALADE:
+- Renvoyer vers le conseiller au +225 07 XX XX XX XX pour toute demande complexe` : `Exemples de règles que l'IA doit respecter:
 
 📦 LIVRAISON:
 - Livraison gratuite à partir de 50.000 FCFA
@@ -1457,57 +1480,51 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
                             <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 12 }}>
                                 Mode de Paiement
                             </label>
-                            {isSupportClient ? (
-                                <div style={{ fontSize: 13, color: '#94a3b8', padding: '10px 14px', background: 'rgba(30,41,59,0.5)', borderRadius: 10, border: '1px solid rgba(148,163,184,0.1)' }}>
-                                    Paiement manuel activé automatiquement (mode Support Client).
+                            <div
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    padding: 16,
+                                    border: '1px solid rgba(148,163,184,0.1)',
+                                    borderRadius: 12,
+                                    background: 'rgba(30,41,59,0.5)'
+                                }}
+                            >
+                                <div>
+                                    <div style={{ fontWeight: 500, color: 'white', fontSize: 14 }}>Activer le paiement manuel</div>
+                                    <div style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>
+                                        {formData.payment_mode === 'mobile_money_direct'
+                                            ? 'Les clients envoient une capture après paiement mobile.'
+                                            : 'Par défaut : lien de paiement sécurisé en ligne.'}
+                                    </div>
                                 </div>
-                            ) : (
-                                <div
+                                <button
+                                    type="button"
+                                    onClick={() => updateFormData('payment_mode', formData.payment_mode === 'mobile_money_direct' ? 'cinetpay' : 'mobile_money_direct')}
                                     style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'space-between',
-                                        padding: 16,
-                                        border: '1px solid rgba(148,163,184,0.1)',
-                                        borderRadius: 12,
-                                        background: 'rgba(30,41,59,0.5)'
+                                        width: 48,
+                                        height: 28,
+                                        borderRadius: 14,
+                                        background: formData.payment_mode === 'mobile_money_direct' ? '#10b981' : '#334155',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        position: 'relative',
+                                        flexShrink: 0
                                     }}
                                 >
-                                    <div>
-                                        <div style={{ fontWeight: 500, color: 'white', fontSize: 14 }}>Activer le paiement manuel</div>
-                                        <div style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>
-                                            {formData.payment_mode === 'mobile_money_direct'
-                                                ? 'Les clients envoient une capture après paiement mobile.'
-                                                : 'Par défaut : lien de paiement sécurisé en ligne.'}
-                                        </div>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => updateFormData('payment_mode', formData.payment_mode === 'mobile_money_direct' ? 'cinetpay' : 'mobile_money_direct')}
-                                        style={{
-                                            width: 48,
-                                            height: 28,
-                                            borderRadius: 14,
-                                            background: formData.payment_mode === 'mobile_money_direct' ? '#10b981' : '#334155',
-                                            border: 'none',
-                                            cursor: 'pointer',
-                                            position: 'relative',
-                                            flexShrink: 0
-                                        }}
-                                    >
-                                        <div style={{
-                                            width: 22,
-                                            height: 22,
-                                            borderRadius: '50%',
-                                            background: 'white',
-                                            position: 'absolute',
-                                            top: 3,
-                                            left: formData.payment_mode === 'mobile_money_direct' ? 23 : 3,
-                                            transition: 'left 0.2s'
-                                        }} />
-                                    </button>
-                                </div>
-                            )}
+                                    <div style={{
+                                        width: 22,
+                                        height: 22,
+                                        borderRadius: '50%',
+                                        background: 'white',
+                                        position: 'absolute',
+                                        top: 3,
+                                        left: formData.payment_mode === 'mobile_money_direct' ? 23 : 3,
+                                        transition: 'left 0.2s'
+                                    }} />
+                                </button>
+                            </div>
                         </div>
 
                         {/* Mobile Money Numbers (only if direct mode or support client) */}
@@ -1666,7 +1683,7 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
                                                 Informations à collecter
                                             </label>
                                             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                                                {[{ key: 'name', label: 'Prénom/Nom' }, { key: 'phone', label: 'Téléphone' }, { key: 'email', label: 'Email' }].map(f => (
+                                                {[{ key: 'name', label: 'Prénom/Nom' }, { key: 'phone', label: 'Téléphone' }, { key: 'email', label: 'Email' }, { key: 'location', label: 'Localisation' }, { key: 'company', label: 'Entreprise' }].map(f => (
                                                     <button key={f.key} type="button"
                                                         onClick={() => {
                                                             const cur = formData.lead_collect_fields
@@ -1761,26 +1778,47 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
                                 <p style={{ color: '#94a3b8', textAlign: 'center', maxWidth: 400 }}>
                                     {t('connect.scanPrompt')}
                                 </p>
-                                <button
-                                    onClick={connectWhatsApp}
-                                    style={buttonPrimaryStyle}
-                                >
-                                    <QrCode style={{ width: 20, height: 20 }} />
-                                    {t('Wizard.buttons.generateQr')}
-                                </button>
-                                <button
-                                    onClick={goToKnowledgeBase}
-                                    style={buttonSecondaryStyle}
-                                >
-                                    <Bot style={{ width: 18, height: 18 }} />
-                                    {isSupportClient ? 'Configurer la base de connaissance' : 'Ajouter une base de connaissance'}
-                                </button>
-                                <button
-                                    onClick={handleFinish}
-                                    style={{ ...buttonSecondaryStyle, marginTop: 8 }}
-                                >
-                                    {isSupportClient ? 'Plus tard' : t('Wizard.buttons.skip')}
-                                </button>
+                                {isSupportClient ? (
+                                    <>
+                                        <button
+                                            onClick={goToKnowledgeBase}
+                                            style={buttonPrimaryStyle}
+                                        >
+                                            <Bot style={{ width: 18, height: 18 }} />
+                                            Configurer la base de connaissance
+                                        </button>
+                                        <button
+                                            onClick={connectWhatsApp}
+                                            style={buttonSecondaryStyle}
+                                        >
+                                            <QrCode style={{ width: 20, height: 20 }} />
+                                            {t('Wizard.buttons.generateQr')}
+                                        </button>
+                                    </>
+                                ) : (
+                                    <>
+                                        <button
+                                            onClick={connectWhatsApp}
+                                            style={buttonPrimaryStyle}
+                                        >
+                                            <QrCode style={{ width: 20, height: 20 }} />
+                                            {t('Wizard.buttons.generateQr')}
+                                        </button>
+                                        <button
+                                            onClick={goToKnowledgeBase}
+                                            style={buttonSecondaryStyle}
+                                        >
+                                            <Bot style={{ width: 18, height: 18 }} />
+                                            Ajouter une base de connaissance
+                                        </button>
+                                        <button
+                                            onClick={handleFinish}
+                                            style={{ ...buttonSecondaryStyle, marginTop: 8 }}
+                                        >
+                                            {t('Wizard.buttons.skip')}
+                                        </button>
+                                    </>
+                                )}
                             </>
                         )}
 
@@ -1788,6 +1826,10 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
                             <>
                                 <Loader2 style={{ width: 48, height: 48, color: '#34d399', animation: 'spin 1s linear infinite' }} />
                                 <p style={{ color: '#94a3b8' }}>{t('connect.initialization')}</p>
+                                <div style={{ background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: 12, padding: '12px 20px', fontSize: 13, color: '#fcd34d', maxWidth: 300, textAlign: 'center', lineHeight: 1.6 }}>
+                                    La première connexion peut prendre jusqu&apos;à <strong>60 secondes</strong>.<br />
+                                    Le QR code apparaîtra automatiquement.
+                                </div>
                             </>
                         )}
 

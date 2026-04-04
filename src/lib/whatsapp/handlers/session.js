@@ -456,7 +456,8 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                     key: msg.key,
                     audioMessage: inboundPayload.audioMessage,
                     imageMessage: inboundPayload.imageMessage,
-                    caption: inboundPayload.caption
+                    caption: inboundPayload.caption,
+                    quotedText: inboundPayload.quotedText || null,
                 }
 
                 // Read receipt avec délai humain (1.5s) — anti-ban

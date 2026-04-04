@@ -72,7 +72,8 @@ function buildAdaptiveSystemPrompt(agent, products, orders, relevantDocs, curren
     const isServiceFlow = conversationIntent === 'service_booking' && !!activeEngine
 
     if (products.length === 0 && hasKnowledgeBase) {
-        const knowledgeSection = buildKnowledgeSection(relevantDocs)
+        // Passer TOUS les docs sans limitation (maxDocs = null)
+        const knowledgeSection = buildKnowledgeSection(relevantDocs, null)
 
         // Construire la section paiement manuel (si configurée)
         let supportPaymentLines = []
@@ -93,11 +94,17 @@ function buildAdaptiveSystemPrompt(agent, products, orders, relevantDocs, curren
             ? `\n\n💳 PAIEMENT :\n${supportPaymentLines.join('\n')}`
             : ''
 
-        const escalationRule = agent.escalation_phone
-            ? `Si l'info est dans ton domaine mais absente de ta base de connaissance → réponds : "Pour plus de détails, vous pouvez contacter directement au *${agent.escalation_phone}*."
-✅ Si la question concerne un service ou sujet hors de ton domaine → réponds poliment que ce n'est pas proposé et redirige vers ce que tu couvres. N'escalade JAMAIS vers le numéro pour quelque chose hors domaine.`
-            : `Si l'info est dans ton domaine mais absente de ta base de connaissance → indique poliment que tu n'as pas l'information.
-✅ Si la question concerne un service ou sujet hors domaine → réponds poliment que ce n'est pas proposé et redirige vers ce que tu couvres.`
+        // Message de contact configurable (2e phrase quand info absente)
+        const contactSuffix = agent.fallback_contact_message
+            ? ` ${agent.fallback_contact_message}`
+            : agent.escalation_phone
+                ? ` Pour plus de détails, vous pouvez contacter directement au *${agent.escalation_phone}*.`
+                : ''
+
+        const escalationRule = `Si le client pose une question dont la réponse N'EST PAS dans ta base de connaissance → réponds honnêtement que tu n'as pas cette information précise.${contactSuffix}
+✅ Si la question concerne un sujet totalement hors de ton domaine (ex: religion, politique, images personnelles...) → ignore poliment le contenu et ramène la conversation à ton domaine : "Je suis l'assistant de ${agent.name}, je suis là pour vous aider sur [domaine]. Comment puis-je vous aider ?"
+⛔ Ne fournis JAMAIS le numéro de contact pour des questions hors domaine.
+⛔ Si un client envoie une image sans rapport avec ton domaine → ne commente PAS l'image. Redirige vers ton domaine.`
 
         const agentContext = agent.agent_context ? `\n\n📋 CONTEXTE SUPPLÉMENTAIRE :\n${agent.agent_context}` : ''
 
@@ -211,7 +218,7 @@ Si le client dit "Salut", "Bonjour", "Menu", "Catalogue", ou demande un produit 
 
     // Section 4: Contexte & Business Info
     const clientHistory = buildClientHistory(orders)
-    const knowledgeSection = buildKnowledgeSection(relevantDocs)
+    const knowledgeSection = buildKnowledgeSection(relevantDocs, 3)
 
     const businessInfo = (agent.business_address || gpsLink || formattedHours !== 'Non spécifiés')
         ? `

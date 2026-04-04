@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use, useRef } from 'react'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Plus, Trash2, FileText, Loader2, Upload, Link2, AlignLeft, Eye, X, ChevronDown, ChevronUp, ImageIcon } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, FileText, Loader2, Upload, Link2, AlignLeft, Eye, X, ChevronDown, ChevronUp, ImageIcon, Pencil, QrCode } from 'lucide-react'
 import Link from 'next/link'
 import { createBrowserClient } from '@supabase/ssr'
 
@@ -14,6 +14,7 @@ interface Document {
     chunk_index?: number
     chunks_count?: number
     image_url?: string | null
+    extra_image_urls?: string[]
 }
 
 interface Segment {
@@ -50,8 +51,15 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
     const [submitting, setSubmitting] = useState(false)
     const [importError, setImportError] = useState<string | null>(null)
 
-    // Text mode
-    const [newDoc, setNewDoc] = useState({ title: '', content: '', image_url: '' })
+    // Text mode (add)
+    const [newDoc, setNewDoc] = useState({ title: '', content: '', image_url: '', extra_image_urls: [] as string[] })
+
+    // Edit mode
+    const [editingDoc, setEditingDoc] = useState<Document | null>(null)
+    const [editData, setEditData] = useState({ title: '', content: '', image_url: '', extra_image_urls: [] as string[] })
+    const [loadingEdit, setLoadingEdit] = useState(false)
+    const [editSubmitting, setEditSubmitting] = useState(false)
+    const [editError, setEditError] = useState<string | null>(null)
 
     // PDF mode
     const [pdfFile, setPdfFile] = useState<File | null>(null)
@@ -60,27 +68,52 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
 
     // Image upload
     const [imageUploading, setImageUploading] = useState(false)
+    const [editImageUploading, setEditImageUploading] = useState(false)
     const imageUploadRef = useRef<HTMLInputElement>(null)
+    const editImageUploadRef = useRef<HTMLInputElement>(null)
+    const extraImageUploadRef = useRef<HTMLInputElement>(null)
+    const editExtraImageUploadRef = useRef<HTMLInputElement>(null)
 
     const supabase = createBrowserClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     )
 
+    const uploadImage = async (file: File): Promise<string | null> => {
+        const ext = file.name.split('.').pop()
+        const path = `agents/${id}/${Date.now()}.${ext}`
+        const { error } = await supabase.storage.from('images').upload(path, file, { upsert: true })
+        if (error) { console.error('Image upload error:', error); return null }
+        const { data } = supabase.storage.from('images').getPublicUrl(path)
+        return data.publicUrl
+    }
+
     const uploadImageToStorage = async (file: File) => {
         setImageUploading(true)
-        try {
-            const ext = file.name.split('.').pop()
-            const path = `agents/${id}/${Date.now()}.${ext}`
-            const { error } = await supabase.storage.from('images').upload(path, file, { upsert: true })
-            if (error) throw error
-            const { data } = supabase.storage.from('images').getPublicUrl(path)
-            setNewDoc(prev => ({ ...prev, image_url: data.publicUrl }))
-        } catch (e) {
-            console.error('Image upload error:', e)
-        } finally {
-            setImageUploading(false)
-        }
+        const url = await uploadImage(file)
+        if (url) setNewDoc(prev => ({ ...prev, image_url: url }))
+        setImageUploading(false)
+    }
+
+    const uploadExtraImageToStorage = async (file: File) => {
+        setImageUploading(true)
+        const url = await uploadImage(file)
+        if (url) setNewDoc(prev => ({ ...prev, extra_image_urls: [...prev.extra_image_urls, url] }))
+        setImageUploading(false)
+    }
+
+    const uploadEditImageToStorage = async (file: File) => {
+        setEditImageUploading(true)
+        const url = await uploadImage(file)
+        if (url) setEditData(prev => ({ ...prev, image_url: url }))
+        setEditImageUploading(false)
+    }
+
+    const uploadEditExtraImageToStorage = async (file: File) => {
+        setEditImageUploading(true)
+        const url = await uploadImage(file)
+        if (url) setEditData(prev => ({ ...prev, extra_image_urls: [...prev.extra_image_urls, url] }))
+        setEditImageUploading(false)
     }
 
     // URL mode
@@ -111,7 +144,7 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
     const resetModal = () => {
         setIsAdding(false)
         setImportMode('text')
-        setNewDoc({ title: '', content: '', image_url: '' })
+        setNewDoc({ title: '', content: '', image_url: '', extra_image_urls: [] })
         setPdfFile(null)
         setPdfTitle('')
         setUrlInput('')
@@ -128,7 +161,13 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
             const res = await fetch('/api/knowledge', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ agentId: id, title: newDoc.title, content: newDoc.content, image_url: newDoc.image_url || null })
+                body: JSON.stringify({
+                    agentId: id,
+                    title: newDoc.title,
+                    content: newDoc.content,
+                    image_url: newDoc.image_url || null,
+                    extra_image_urls: newDoc.extra_image_urls.length > 0 ? newDoc.extra_image_urls : null
+                })
             })
             const data = await res.json()
             if (res.ok) { resetModal(); fetchDocuments() }
@@ -184,6 +223,60 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
         }
     }
 
+    // Ouvrir l'édition — charger le contenu du chunk 0
+    const handleOpenEdit = async (doc: Document) => {
+        setEditingDoc(doc)
+        setEditError(null)
+        setLoadingEdit(true)
+        try {
+            const sourceId = doc.source_id || doc.id
+            const res = await fetch(`/api/knowledge/${sourceId}`)
+            const data = await res.json()
+            const chunk0 = (data.data?.segments || []).find((s: Segment) => s.chunk_index === 0)
+            setEditData({
+                title: doc.title,
+                content: chunk0?.content || '',
+                image_url: doc.image_url || '',
+                extra_image_urls: Array.isArray(doc.extra_image_urls) ? doc.extra_image_urls : []
+            })
+        } catch (e) {
+            setEditError('Impossible de charger le document')
+        } finally {
+            setLoadingEdit(false)
+        }
+    }
+
+    // Sauvegarder l'édition
+    const handleSaveEdit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        if (!editingDoc) return
+        setEditSubmitting(true)
+        setEditError(null)
+        try {
+            const sourceId = editingDoc.source_id || editingDoc.id
+            const res = await fetch(`/api/knowledge/${sourceId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title: editData.title,
+                    content: editData.content,
+                    image_url: editData.image_url || null,
+                    extra_image_urls: editData.extra_image_urls.length > 0 ? editData.extra_image_urls : []
+                })
+            })
+            if (res.ok) {
+                setEditingDoc(null)
+                fetchDocuments()
+            } else {
+                setEditError('Erreur lors de la sauvegarde')
+            }
+        } catch (e) {
+            setEditError('Erreur réseau')
+        } finally {
+            setEditSubmitting(false)
+        }
+    }
+
     const handleViewSegments = async (doc: Document) => {
         setViewingDoc(doc)
         setExpandedSegment(null)
@@ -216,14 +309,11 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
             type="button"
             onClick={() => setImportMode(mode)}
             style={{
-                flex: 1,
-                padding: '10px 16px',
-                borderRadius: 10,
+                flex: 1, padding: '10px 16px', borderRadius: 10,
                 border: importMode === mode ? '2px solid #10b981' : '1px solid #334155',
                 background: importMode === mode ? 'rgba(16,185,129,0.1)' : 'transparent',
                 color: importMode === mode ? '#34d399' : '#94a3b8',
-                cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                 fontSize: 13, fontWeight: 600
             }}
         >
@@ -231,34 +321,94 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
         </button>
     )
 
+    // Bloc réutilisable pour la section images (ajout/édition)
+    const ImageSection = ({
+        imageUrl, setImageUrl, extraUrls, setExtraUrls,
+        mainUploadRef, extraUploadRef, uploading,
+        onMainUpload, onExtraUpload
+    }: {
+        imageUrl: string, setImageUrl: (v: string) => void,
+        extraUrls: string[], setExtraUrls: (v: string[]) => void,
+        mainUploadRef: React.RefObject<HTMLInputElement | null>,
+        extraUploadRef: React.RefObject<HTMLInputElement | null>,
+        uploading: boolean,
+        onMainUpload: (f: File) => void,
+        onExtraUpload: (f: File) => void
+    }) => (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <label style={{ display: 'block', color: '#94a3b8', fontSize: 14 }}>
+                Images <span style={{ color: '#475569', fontSize: 12 }}>(optionnel — 1 principale + plusieurs supplémentaires)</span>
+            </label>
+            <p style={{ color: '#475569', fontSize: 12, marginTop: -8 }}>
+                L'agent envoie les images quand le client en fait la demande.
+            </p>
+
+            {/* Image principale */}
+            <div>
+                <p style={{ color: '#64748b', fontSize: 12, marginBottom: 6 }}>Image principale</p>
+                <div style={{ display: 'flex', gap: 8 }}>
+                    <input type="url" value={imageUrl} onChange={e => setImageUrl(e.target.value)}
+                        style={{ ...inputStyle, flex: 1 }} placeholder="https://exemple.com/image.jpg" />
+                    <button type="button" onClick={() => mainUploadRef.current?.click()} disabled={uploading}
+                        style={{ padding: '0 14px', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 12, color: '#10b981', cursor: uploading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, whiteSpace: 'nowrap' }}>
+                        {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                        Upload
+                    </button>
+                    <input ref={mainUploadRef} type="file" accept="image/*" style={{ display: 'none' }}
+                        onChange={e => { const f = e.target.files?.[0]; if (f) onMainUpload(f) }} />
+                </div>
+                {imageUrl && (
+                    <div style={{ position: 'relative', display: 'inline-block', marginTop: 8 }}>
+                        <img src={imageUrl} alt="Principale" style={{ maxWidth: 200, maxHeight: 130, borderRadius: 8, objectFit: 'cover', border: '1px solid #334155' }}
+                            onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                        <button type="button" onClick={() => setImageUrl('')}
+                            style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '50%', width: 22, height: 22, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+                            <X size={12} />
+                        </button>
+                    </div>
+                )}
+            </div>
+
+            {/* Images supplémentaires */}
+            <div>
+                <p style={{ color: '#64748b', fontSize: 12, marginBottom: 6 }}>Images supplémentaires</p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+                    {extraUrls.map((url, idx) => (
+                        <div key={idx} style={{ position: 'relative' }}>
+                            <img src={url} alt={`Extra ${idx + 1}`} style={{ width: 80, height: 80, borderRadius: 8, objectFit: 'cover', border: '1px solid #334155' }}
+                                onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                            <button type="button" onClick={() => setExtraUrls(extraUrls.filter((_, i) => i !== idx))}
+                                style={{ position: 'absolute', top: 2, right: 2, background: 'rgba(0,0,0,0.7)', border: 'none', borderRadius: '50%', width: 18, height: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+                                <X size={10} />
+                            </button>
+                        </div>
+                    ))}
+                    <button type="button" onClick={() => extraUploadRef.current?.click()} disabled={uploading}
+                        style={{ width: 80, height: 80, border: '2px dashed #334155', borderRadius: 8, background: 'transparent', color: '#475569', cursor: uploading ? 'not-allowed' : 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, fontSize: 11 }}>
+                        <Plus size={20} color="#475569" />
+                        Ajouter
+                    </button>
+                    <input ref={extraUploadRef} type="file" accept="image/*" style={{ display: 'none' }}
+                        onChange={e => { const f = e.target.files?.[0]; if (f) onExtraUpload(f); if (e.target) e.target.value = '' }} />
+                </div>
+            </div>
+        </div>
+    )
+
     return (
         <div style={{ padding: 40, maxWidth: 1200, margin: '0 auto', minHeight: '100vh', background: '#0f172a' }}>
             {/* Header */}
             <div style={{ marginBottom: 40 }}>
-                <Link
-                    href={backHref}
-                    style={{ display: 'inline-flex', alignItems: 'center', color: '#94a3b8', marginBottom: 16, textDecoration: 'none' }}
-                >
+                <Link href={backHref} style={{ display: 'inline-flex', alignItems: 'center', color: '#94a3b8', marginBottom: 16, textDecoration: 'none' }}>
                     <ArrowLeft style={{ width: 16, height: 16, marginRight: 8 }} />
                     Retour à l'agent
                 </Link>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
-                        <h1 style={{ fontSize: 32, fontWeight: 700, color: 'white', marginBottom: 8 }}>
-                            Base de Connaissances
-                        </h1>
-                        <p style={{ color: '#94a3b8' }}>
-                            Apprenez à votre agent tout ce qu'il doit savoir — texte, PDF, ou page web.
-                        </p>
+                        <h1 style={{ fontSize: 32, fontWeight: 700, color: 'white', marginBottom: 8 }}>Base de Connaissances</h1>
+                        <p style={{ color: '#94a3b8' }}>Apprenez à votre agent tout ce qu'il doit savoir — texte, PDF, ou page web.</p>
                     </div>
-                    <button
-                        onClick={() => setIsAdding(true)}
-                        style={{
-                            background: '#10b981', color: 'white', border: 'none',
-                            padding: '12px 24px', borderRadius: 12, fontWeight: 600,
-                            display: 'flex', alignItems: 'center', cursor: 'pointer', gap: 8
-                        }}
-                    >
+                    <button onClick={() => setIsAdding(true)} style={{ background: '#10b981', color: 'white', border: 'none', padding: '12px 24px', borderRadius: 12, fontWeight: 600, display: 'flex', alignItems: 'center', cursor: 'pointer', gap: 8 }}>
                         <Plus size={20} />
                         Ajouter un document
                     </button>
@@ -271,10 +421,7 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
                     <Loader2 style={{ color: '#10b981', animation: 'spin 1s linear infinite' }} />
                 </div>
             ) : documents.length === 0 ? (
-                <div style={{
-                    textAlign: 'center', padding: 60,
-                    background: '#1e293b', borderRadius: 20, border: '1px dashed #334155'
-                }}>
+                <div style={{ textAlign: 'center', padding: 60, background: '#1e293b', borderRadius: 20, border: '1px dashed #334155' }}>
                     <FileText size={48} style={{ color: '#334155', marginBottom: 16 }} />
                     <h3 style={{ color: 'white', fontSize: 18, marginBottom: 8 }}>Le cerveau est vide</h3>
                     <p style={{ color: '#64748b' }}>Commencez par ajouter votre premier document.</p>
@@ -282,59 +429,39 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
             ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 24 }}>
                     {documents.map(doc => (
-                        <motion.div
-                            key={doc.id}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            style={{
-                                background: '#1e293b', borderRadius: 16, padding: 24,
-                                border: '1px solid #334155', display: 'flex', flexDirection: 'column'
-                            }}
-                        >
+                        <motion.div key={doc.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+                            style={{ background: '#1e293b', borderRadius: 16, padding: 24, border: '1px solid #334155', display: 'flex', flexDirection: 'column' }}>
                             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
-                                <div style={{
-                                    width: 40, height: 40, background: 'rgba(16,185,129,0.1)',
-                                    borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center'
-                                }}>
+                                <div style={{ width: 40, height: 40, background: 'rgba(16,185,129,0.1)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                     <FileText size={20} style={{ color: '#10b981' }} />
                                 </div>
                                 <div style={{ display: 'flex', gap: 8 }}>
-                                    <button
-                                        onClick={() => handleViewSegments(doc)}
-                                        title="Consulter le contenu"
-                                        style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer' }}
-                                    >
+                                    <button onClick={() => handleViewSegments(doc)} title="Consulter"
+                                        style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer' }}>
                                         <Eye size={18} />
                                     </button>
-                                    <button
-                                        onClick={() => handleDelete(doc)}
-                                        style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer' }}
-                                    >
+                                    <button onClick={() => handleOpenEdit(doc)} title="Modifier"
+                                        style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer' }}>
+                                        <Pencil size={18} />
+                                    </button>
+                                    <button onClick={() => handleDelete(doc)}
+                                        style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer' }}>
                                         <Trash2 size={18} />
                                     </button>
                                 </div>
                             </div>
                             <h3 style={{ color: 'white', fontWeight: 600, marginBottom: 8 }}>{doc.title}</h3>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 'auto', flexWrap: 'wrap' }}>
-                                <p style={{ color: '#64748b', fontSize: 13 }}>
-                                    {new Date(doc.created_at).toLocaleDateString()}
-                                </p>
+                                <p style={{ color: '#64748b', fontSize: 13 }}>{new Date(doc.created_at).toLocaleDateString()}</p>
                                 {doc.chunks_count && doc.chunks_count > 1 && (
-                                    <span style={{
-                                        fontSize: 11, padding: '2px 8px', borderRadius: 20,
-                                        background: 'rgba(99,102,241,0.15)', color: '#a5b4fc',
-                                        border: '1px solid rgba(99,102,241,0.3)'
-                                    }}>
+                                    <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: 'rgba(99,102,241,0.15)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.3)' }}>
                                         {doc.chunks_count} segments
                                     </span>
                                 )}
                                 {doc.image_url && (
-                                    <span style={{
-                                        fontSize: 11, padding: '2px 8px', borderRadius: 20, display: 'flex', alignItems: 'center', gap: 4,
-                                        background: 'rgba(16,185,129,0.1)', color: '#34d399',
-                                        border: '1px solid rgba(16,185,129,0.3)'
-                                    }}>
-                                        <ImageIcon size={10} /> image
+                                    <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, display: 'flex', alignItems: 'center', gap: 4, background: 'rgba(16,185,129,0.1)', color: '#34d399', border: '1px solid rgba(16,185,129,0.3)' }}>
+                                        <ImageIcon size={10} />
+                                        {(doc.extra_image_urls?.length || 0) > 0 ? `${1 + doc.extra_image_urls!.length} images` : 'image'}
                                     </span>
                                 )}
                             </div>
@@ -343,86 +470,40 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
                 </div>
             )}
 
-            {/* Modal Consultation Segments */}
+            {/* Modal Consultation */}
             {viewingDoc && (
-                <div style={{
-                    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)',
-                    zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20
-                }}>
-                    <div style={{
-                        background: '#0f172a', width: '100%', maxWidth: 700,
-                        borderRadius: 24, border: '1px solid #334155',
-                        maxHeight: '88vh', display: 'flex', flexDirection: 'column'
-                    }}>
-                        {/* Header fixe */}
-                        <div style={{
-                            padding: '24px 28px', borderBottom: '1px solid #1e293b',
-                            display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0
-                        }}>
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+                    <div style={{ background: '#0f172a', width: '100%', maxWidth: 700, borderRadius: 24, border: '1px solid #334155', maxHeight: '88vh', display: 'flex', flexDirection: 'column' }}>
+                        <div style={{ padding: '24px 28px', borderBottom: '1px solid #1e293b', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
                             <div>
-                                <h2 style={{ color: 'white', fontSize: 20, fontWeight: 700, marginBottom: 4 }}>
-                                    {viewingDoc.title}
-                                </h2>
-                                <p style={{ color: '#64748b', fontSize: 13 }}>
-                                    {new Date(viewingDoc.created_at).toLocaleDateString()} — {viewingDoc.chunks_count} segment{(viewingDoc.chunks_count || 1) > 1 ? 's' : ''}
-                                </p>
+                                <h2 style={{ color: 'white', fontSize: 20, fontWeight: 700, marginBottom: 4 }}>{viewingDoc.title}</h2>
+                                <p style={{ color: '#64748b', fontSize: 13 }}>{new Date(viewingDoc.created_at).toLocaleDateString()} — {viewingDoc.chunks_count} segment{(viewingDoc.chunks_count || 1) > 1 ? 's' : ''}</p>
                             </div>
-                            <button
-                                onClick={() => { setViewingDoc(null); setSegments([]) }}
-                                style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', padding: 8 }}
-                            >
+                            <button onClick={() => { setViewingDoc(null); setSegments([]) }}
+                                style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', padding: 8 }}>
                                 <X size={22} />
                             </button>
                         </div>
-
-                        {/* Corps scrollable */}
                         <div style={{ overflowY: 'auto', padding: '20px 28px', flex: 1 }}>
                             {loadingSegments ? (
                                 <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}>
                                     <Loader2 style={{ color: '#10b981', animation: 'spin 1s linear infinite' }} />
                                 </div>
-                            ) : segments.length === 0 ? (
-                                <p style={{ color: '#64748b', textAlign: 'center', padding: 40 }}>Aucun segment trouvé.</p>
                             ) : (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                                    {segments.map((seg) => (
-                                        <div
-                                            key={seg.id}
-                                            style={{
-                                                background: '#1e293b', borderRadius: 12,
-                                                border: '1px solid #334155', overflow: 'hidden'
-                                            }}
-                                        >
-                                            <button
-                                                onClick={() => setExpandedSegment(expandedSegment === seg.chunk_index ? null : seg.chunk_index)}
-                                                style={{
-                                                    width: '100%', background: 'transparent', border: 'none',
-                                                    padding: '12px 16px', display: 'flex', alignItems: 'center',
-                                                    justifyContent: 'space-between', cursor: 'pointer', color: 'white'
-                                                }}
-                                            >
+                                    {segments.map(seg => (
+                                        <div key={seg.id} style={{ background: '#1e293b', borderRadius: 12, border: '1px solid #334155', overflow: 'hidden' }}>
+                                            <button onClick={() => setExpandedSegment(expandedSegment === seg.chunk_index ? null : seg.chunk_index)}
+                                                style={{ width: '100%', background: 'transparent', border: 'none', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', color: 'white' }}>
                                                 <span style={{ fontSize: 13, fontWeight: 600, color: '#94a3b8' }}>
                                                     Segment {seg.chunk_index + 1}
-                                                    <span style={{ marginLeft: 10, fontWeight: 400, color: '#475569', fontSize: 12 }}>
-                                                        {seg.content.length} car.
-                                                    </span>
+                                                    <span style={{ marginLeft: 10, fontWeight: 400, color: '#475569', fontSize: 12 }}>{seg.content.length} car.</span>
                                                 </span>
-                                                {expandedSegment === seg.chunk_index
-                                                    ? <ChevronUp size={16} style={{ color: '#64748b', flexShrink: 0 }} />
-                                                    : <ChevronDown size={16} style={{ color: '#64748b', flexShrink: 0 }} />
-                                                }
+                                                {expandedSegment === seg.chunk_index ? <ChevronUp size={16} style={{ color: '#64748b', flexShrink: 0 }} /> : <ChevronDown size={16} style={{ color: '#64748b', flexShrink: 0 }} />}
                                             </button>
                                             {expandedSegment === seg.chunk_index && (
-                                                <div style={{
-                                                    padding: '0 16px 16px',
-                                                    borderTop: '1px solid #334155',
-                                                    paddingTop: 12
-                                                }}>
-                                                    <pre style={{
-                                                        color: '#cbd5e1', fontSize: 13, lineHeight: 1.7,
-                                                        whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-                                                        margin: 0, fontFamily: 'inherit'
-                                                    }}>
+                                                <div style={{ padding: '0 16px 16px', borderTop: '1px solid #334155', paddingTop: 12 }}>
+                                                    <pre style={{ color: '#cbd5e1', fontSize: 13, lineHeight: 1.7, whiteSpace: 'pre-wrap', wordBreak: 'break-word', margin: 0, fontFamily: 'inherit' }}>
                                                         {seg.content}
                                                     </pre>
                                                 </div>
@@ -436,113 +517,109 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
                 </div>
             )}
 
-            {/* Modal */}
-            {isAdding && (
-                <div style={{
-                    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)',
-                    zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20
-                }}>
-                    <div style={{
-                        background: '#0f172a', width: '100%', maxWidth: 600,
-                        borderRadius: 24, padding: 32, border: '1px solid #334155',
-                        maxHeight: '90vh', overflowY: 'auto'
-                    }}>
-                        <h2 style={{ color: 'white', fontSize: 22, fontWeight: 700, marginBottom: 20 }}>
-                            Nouveau Document
-                        </h2>
+            {/* CTA Connecter WhatsApp (flux depuis wizard) */}
+            {sp?.from === 'whatsapp' && !loading && documents.length > 0 && (
+                <div style={{ marginTop: 40, padding: 24, background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+                    <div>
+                        <h3 style={{ color: 'white', fontWeight: 600, fontSize: 16, marginBottom: 4 }}>Base de connaissances prête</h3>
+                        <p style={{ color: '#94a3b8', fontSize: 14 }}>Connectez maintenant votre numéro WhatsApp pour activer l&apos;agent.</p>
+                    </div>
+                    <Link href={backHref} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#10b981', color: 'white', padding: '12px 24px', borderRadius: 12, fontWeight: 600, textDecoration: 'none', fontSize: 14 }}>
+                        <QrCode size={18} />
+                        Connecter WhatsApp
+                    </Link>
+                </div>
+            )}
 
-                        {/* Onglets mode */}
+            {/* Modal Édition */}
+            {editingDoc && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+                    <div style={{ background: '#0f172a', width: '100%', maxWidth: 640, borderRadius: 24, padding: 32, border: '1px solid #334155', maxHeight: '92vh', overflowY: 'auto' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+                            <h2 style={{ color: 'white', fontSize: 22, fontWeight: 700 }}>Modifier le document</h2>
+                            <button onClick={() => setEditingDoc(null)} style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer' }}><X size={22} /></button>
+                        </div>
+                        {loadingEdit ? (
+                            <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}>
+                                <Loader2 style={{ color: '#10b981', animation: 'spin 1s linear infinite' }} />
+                            </div>
+                        ) : (
+                            <form onSubmit={handleSaveEdit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                                <div>
+                                    <label style={{ display: 'block', color: '#94a3b8', marginBottom: 8, fontSize: 14 }}>Titre *</label>
+                                    <input type="text" required value={editData.title} onChange={e => setEditData({ ...editData, title: e.target.value })} style={inputStyle} />
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', color: '#94a3b8', marginBottom: 8, fontSize: 14 }}>Contenu</label>
+                                    <textarea value={editData.content} onChange={e => setEditData({ ...editData, content: e.target.value })}
+                                        style={{ ...inputStyle, height: 220, resize: 'vertical' }} />
+                                    <p style={{ color: '#64748b', fontSize: 12, marginTop: 4 }}>{editData.content.length} caractères</p>
+                                </div>
+                                <ImageSection
+                                    imageUrl={editData.image_url}
+                                    setImageUrl={v => setEditData({ ...editData, image_url: v })}
+                                    extraUrls={editData.extra_image_urls}
+                                    setExtraUrls={v => setEditData({ ...editData, extra_image_urls: v })}
+                                    mainUploadRef={editImageUploadRef}
+                                    extraUploadRef={editExtraImageUploadRef}
+                                    uploading={editImageUploading}
+                                    onMainUpload={uploadEditImageToStorage}
+                                    onExtraUpload={uploadEditExtraImageToStorage}
+                                />
+                                {editError && <p style={{ color: '#f87171', fontSize: 13 }}>{editError}</p>}
+                                <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 8 }}>
+                                    <button type="button" onClick={() => setEditingDoc(null)} style={{ background: 'transparent', color: 'white', border: '1px solid #334155', padding: '12px 24px', borderRadius: 12, cursor: 'pointer' }}>Annuler</button>
+                                    <button type="submit" disabled={editSubmitting} style={{ background: '#10b981', color: 'white', border: 'none', padding: '12px 24px', borderRadius: 12, fontWeight: 600, cursor: editSubmitting ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        {editSubmitting && <Loader2 size={16} className="animate-spin" />}
+                                        Sauvegarder
+                                    </button>
+                                </div>
+                            </form>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Ajout */}
+            {isAdding && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+                    <div style={{ background: '#0f172a', width: '100%', maxWidth: 640, borderRadius: 24, padding: 32, border: '1px solid #334155', maxHeight: '92vh', overflowY: 'auto' }}>
+                        <h2 style={{ color: 'white', fontSize: 22, fontWeight: 700, marginBottom: 20 }}>Nouveau Document</h2>
                         <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
                             {modeTab('text', <AlignLeft size={14} />, 'Texte')}
                             {modeTab('pdf', <Upload size={14} />, 'Document')}
                             {modeTab('url', <Link2 size={14} />, 'URL')}
                         </div>
 
-                        {/* Mode TEXTE */}
                         {importMode === 'text' && (
-                            <form onSubmit={handleAddText}>
-                                <div style={{ marginBottom: 16 }}>
+                            <form onSubmit={handleAddText} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                                <div>
                                     <label style={{ display: 'block', color: '#94a3b8', marginBottom: 8, fontSize: 14 }}>Titre *</label>
-                                    <input
-                                        type="text" required value={newDoc.title}
-                                        onChange={e => setNewDoc({ ...newDoc, title: e.target.value })}
-                                        style={inputStyle} placeholder="Ex: Politique de Livraison"
-                                    />
+                                    <input type="text" required value={newDoc.title} onChange={e => setNewDoc({ ...newDoc, title: e.target.value })}
+                                        style={inputStyle} placeholder="Ex: Honda Civic Rouge 2022" />
                                 </div>
-                                <div style={{ marginBottom: 16 }}>
+                                <div>
                                     <label style={{ display: 'block', color: '#94a3b8', marginBottom: 8, fontSize: 14 }}>Contenu *</label>
-                                    <textarea
-                                        required value={newDoc.content}
-                                        onChange={e => setNewDoc({ ...newDoc, content: e.target.value })}
+                                    <textarea required value={newDoc.content} onChange={e => setNewDoc({ ...newDoc, content: e.target.value })}
                                         style={{ ...inputStyle, height: 200, resize: 'none' }}
-                                        placeholder="Collez ici le texte que l'IA doit apprendre..."
-                                    />
+                                        placeholder="Carrosserie : Berline 4 portes&#10;Couleur : Rouge passion&#10;Année : 2022&#10;Prix : 9 800 000 FCFA&#10;..." />
                                     <p style={{ color: '#64748b', fontSize: 12, marginTop: 4 }}>
                                         {newDoc.content.length} caractères
                                         {newDoc.content.length > 2000 ? ` — sera découpé en ~${Math.ceil(newDoc.content.length / 1800)} segments` : ''}
                                     </p>
                                 </div>
-                                <div style={{ marginBottom: 20 }}>
-                                    <label style={{ display: 'block', color: '#94a3b8', marginBottom: 4, fontSize: 14 }}>
-                                        Image <span style={{ color: '#475569', fontSize: 12 }}>(optionnel)</span>
-                                    </label>
-                                    <p style={{ color: '#475569', fontSize: 12, marginBottom: 8 }}>
-                                        Si ce document représente un élément visuel (voiture, produit, lieu...), ajoutez une image. L'agent pourra l'envoyer quand le client la demande.
-                                    </p>
-                                    <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-                                        <input
-                                            type="url"
-                                            value={newDoc.image_url}
-                                            onChange={e => setNewDoc({ ...newDoc, image_url: e.target.value })}
-                                            style={{ ...inputStyle, flex: 1 }}
-                                            placeholder="https://exemple.com/image.jpg"
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => imageUploadRef.current?.click()}
-                                            disabled={imageUploading}
-                                            style={{
-                                                padding: '0 16px',
-                                                background: 'rgba(16,185,129,0.1)',
-                                                border: '1px solid rgba(16,185,129,0.3)',
-                                                borderRadius: 12,
-                                                color: '#10b981',
-                                                cursor: imageUploading ? 'not-allowed' : 'pointer',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: 6,
-                                                fontSize: 13,
-                                                whiteSpace: 'nowrap'
-                                            }}
-                                        >
-                                            {imageUploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-                                            {imageUploading ? 'Upload...' : 'Uploader'}
-                                        </button>
-                                        <input
-                                            ref={imageUploadRef}
-                                            type="file"
-                                            accept="image/*"
-                                            style={{ display: 'none' }}
-                                            onChange={e => { const f = e.target.files?.[0]; if (f) uploadImageToStorage(f) }}
-                                        />
-                                    </div>
-                                    {newDoc.image_url && (
-                                        <div style={{ position: 'relative', display: 'inline-block' }}>
-                                            <img
-                                                src={newDoc.image_url}
-                                                alt="Aperçu"
-                                                style={{ maxWidth: '100%', maxHeight: 160, borderRadius: 8, objectFit: 'cover', border: '1px solid #334155' }}
-                                                onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={() => setNewDoc(prev => ({ ...prev, image_url: '' }))}
-                                                style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '50%', width: 22, height: 22, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}
-                                            ><X size={12} /></button>
-                                        </div>
-                                    )}
-                                </div>
-                                {importError && <p style={{ color: '#f87171', fontSize: 13, marginBottom: 12 }}>{importError}</p>}
+                                <ImageSection
+                                    imageUrl={newDoc.image_url}
+                                    setImageUrl={v => setNewDoc({ ...newDoc, image_url: v })}
+                                    extraUrls={newDoc.extra_image_urls}
+                                    setExtraUrls={v => setNewDoc({ ...newDoc, extra_image_urls: v })}
+                                    mainUploadRef={imageUploadRef}
+                                    extraUploadRef={extraImageUploadRef}
+                                    uploading={imageUploading}
+                                    onMainUpload={uploadImageToStorage}
+                                    onExtraUpload={uploadExtraImageToStorage}
+                                />
+                                {importError && <p style={{ color: '#f87171', fontSize: 13 }}>{importError}</p>}
                                 <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
                                     <button type="button" onClick={resetModal} style={{ background: 'transparent', color: 'white', border: '1px solid #334155', padding: '12px 24px', borderRadius: 12, cursor: 'pointer' }}>Annuler</button>
                                     <button type="submit" disabled={submitting} style={{ background: '#10b981', color: 'white', border: 'none', padding: '12px 24px', borderRadius: 12, fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -553,42 +630,23 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
                             </form>
                         )}
 
-                        {/* Mode PDF */}
                         {importMode === 'pdf' && (
                             <form onSubmit={handleAddPdf}>
                                 <div style={{ marginBottom: 16 }}>
                                     <label style={{ display: 'block', color: '#94a3b8', marginBottom: 8, fontSize: 14 }}>Titre *</label>
-                                    <input
-                                        type="text" required value={pdfTitle}
-                                        onChange={e => setPdfTitle(e.target.value)}
-                                        style={inputStyle} placeholder="Ex: Catalogue Produits 2026"
-                                    />
+                                    <input type="text" required value={pdfTitle} onChange={e => setPdfTitle(e.target.value)}
+                                        style={inputStyle} placeholder="Ex: Catalogue Véhicules 2026" />
                                 </div>
                                 <div style={{ marginBottom: 20 }}>
                                     <label style={{ display: 'block', color: '#94a3b8', marginBottom: 8, fontSize: 14 }}>Fichier *</label>
-                                    <input
-                                        ref={fileInputRef}
-                                        type="file" accept=".pdf,.docx,.doc"
-                                        onChange={e => setPdfFile(e.target.files?.[0] || null)}
-                                        style={{ display: 'none' }}
-                                    />
-                                    <div
-                                        onClick={() => !pdfFile && fileInputRef.current?.click()}
-                                        style={{
-                                            border: '2px dashed #334155', borderRadius: 12,
-                                            padding: 32, textAlign: 'center', cursor: pdfFile ? 'default' : 'pointer',
-                                            background: pdfFile ? 'rgba(16,185,129,0.05)' : 'transparent',
-                                            borderColor: pdfFile ? '#10b981' : '#334155',
-                                            position: 'relative'
-                                        }}
-                                    >
+                                    <input ref={fileInputRef} type="file" accept=".pdf,.docx,.doc"
+                                        onChange={e => setPdfFile(e.target.files?.[0] || null)} style={{ display: 'none' }} />
+                                    <div onClick={() => !pdfFile && fileInputRef.current?.click()}
+                                        style={{ border: '2px dashed #334155', borderRadius: 12, padding: 32, textAlign: 'center', cursor: pdfFile ? 'default' : 'pointer', background: pdfFile ? 'rgba(16,185,129,0.05)' : 'transparent', borderColor: pdfFile ? '#10b981' : '#334155', position: 'relative' }}>
                                         {pdfFile ? (
                                             <div>
-                                                <button
-                                                    type="button"
-                                                    onClick={e => { e.stopPropagation(); setPdfFile(null); if (fileInputRef.current) fileInputRef.current.value = '' }}
-                                                    style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(239,68,68,0.15)', border: 'none', borderRadius: 6, width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#f87171' }}
-                                                >
+                                                <button type="button" onClick={e => { e.stopPropagation(); setPdfFile(null); if (fileInputRef.current) fileInputRef.current.value = '' }}
+                                                    style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(239,68,68,0.15)', border: 'none', borderRadius: 6, width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#f87171' }}>
                                                     <X size={14} />
                                                 </button>
                                                 <FileText size={32} style={{ color: '#10b981', marginBottom: 8, margin: '0 auto 8px' }} />
@@ -615,28 +673,21 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
                             </form>
                         )}
 
-                        {/* Mode URL */}
                         {importMode === 'url' && (
                             <form onSubmit={handleAddUrl}>
                                 <div style={{ marginBottom: 16 }}>
                                     <label style={{ display: 'block', color: '#94a3b8', marginBottom: 8, fontSize: 14 }}>Titre *</label>
-                                    <input
-                                        type="text" required value={urlTitle}
-                                        onChange={e => setUrlTitle(e.target.value)}
-                                        style={inputStyle} placeholder="Ex: FAQ Site Officiel"
-                                    />
+                                    <input type="text" required value={urlTitle} onChange={e => setUrlTitle(e.target.value)}
+                                        style={inputStyle} placeholder="Ex: FAQ Site Officiel" />
                                 </div>
                                 <div style={{ marginBottom: 20 }}>
                                     <label style={{ display: 'block', color: '#94a3b8', marginBottom: 8, fontSize: 14 }}>URL *</label>
-                                    <input
-                                        type="url" required value={urlInput}
-                                        onChange={e => setUrlInput(e.target.value)}
-                                        style={inputStyle} placeholder="https://exemple.com/faq"
-                                    />
+                                    <input type="url" required value={urlInput} onChange={e => setUrlInput(e.target.value)}
+                                        style={inputStyle} placeholder="https://exemple.com/faq" />
                                     <div style={{ marginTop: 8, fontSize: 12, display: 'flex', flexDirection: 'column', gap: 4 }}>
                                         <p style={{ color: '#34d399' }}>✅ Fonctionne : pages web publiques, articles de blog, WordPress, Wix, Google Sites, fichiers PDF ou Word hébergés publiquement</p>
                                         <p style={{ color: '#f87171' }}>❌ Ne fonctionne pas : pages privées (connexion requise), Google Drive, Notion, Dropbox, applications web dynamiques (React, Angular…)</p>
-                                        <p style={{ color: '#f59e0b' }}>⚠️ Seuls les 50 000 premiers caractères sont traités — les pages très longues seront tronquées</p>
+                                        <p style={{ color: '#f59e0b' }}>⚠️ Seuls les 50 000 premiers caractères sont traités</p>
                                     </div>
                                 </div>
                                 {importError && <p style={{ color: '#f87171', fontSize: 13, marginBottom: 12 }}>{importError}</p>}

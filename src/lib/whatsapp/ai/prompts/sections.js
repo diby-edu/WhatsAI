@@ -126,18 +126,35 @@ ${lastPhone ? `📞 Tél: ${lastPhone.slice(0, 8)}****` : ''}
  * BASE DE CONNAISSANCES (RAG)
  * ═══════════════════════════════════════════════════════════════
  */
-function buildKnowledgeSection(relevantDocs) {
+function buildKnowledgeSection(relevantDocs, maxDocs = null) {
     if (!relevantDocs || relevantDocs.length === 0) {
         return ''
     }
 
-    const docs = relevantDocs.slice(0, 3).map(d => {
+    // maxDocs = null → afficher tous les docs (mode support)
+    // maxDocs = N    → limiter à N (mode mixte avec produits)
+    const docsToUse = maxDocs !== null ? relevantDocs.slice(0, maxDocs) : relevantDocs
+
+    const docs = docsToUse.map(d => {
         let line = `• ${d.content}`
-        if (d.image_url) {
-            line += `\n  [IMAGE DISPONIBLE: ${d.image_url}] — Si le client demande une photo ou une image de cet élément, appelle send_image avec cette URL.`
+        // Image principale
+        const allImages = []
+        if (d.image_url) allImages.push(d.image_url)
+        // Images supplémentaires (extra_image_urls est un tableau JSON)
+        const extras = Array.isArray(d.extra_image_urls) ? d.extra_image_urls : []
+        extras.forEach(url => { if (url) allImages.push(url) })
+
+        if (allImages.length === 1) {
+            line += `\n  [IMAGE DISPONIBLE: ${allImages[0]}] — Si le client demande une photo ou une image de cet élément, appelle send_image avec cette URL et caption = titre de l'élément.`
+        } else if (allImages.length > 1) {
+            line += `\n  [${allImages.length} IMAGES DISPONIBLES] — Si le client demande des photos/images de cet élément, envoie-les une par une avec send_image :`
+            allImages.forEach((url, i) => {
+                line += `\n    - Image ${i + 1}: ${url}`
+            })
+            line += `\n  (caption = titre de l'élément pour chaque image)`
         }
         return line
-    }).join('\n')
+    }).join('\n\n')
 
     return `
 📚 INFOS UTILES:
