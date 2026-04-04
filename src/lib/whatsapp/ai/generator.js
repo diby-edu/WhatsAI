@@ -298,6 +298,55 @@ async function generateAIResponse(options, dependencies) {
             // Silencieux — le RAG normal fonctionne sans les données externes
         }
 
+        // Live Query API — appel sortant en temps réel (stock, statut commande, etc.)
+        // Guard strict : timeout 3s, fail silencieux, zéro impact si absent
+        if (agent.live_query_url) {
+            try {
+                const lqBody = JSON.stringify({
+                    customer_phone: customerPhone,
+                    message: userMessage,
+                    conversation_id: conversationId,
+                    agent_id: agent.id,
+                })
+
+                const headers = { 'Content-Type': 'application/json' }
+
+                // Signature HMAC-SHA256 optionnelle si live_query_secret configuré
+                if (agent.live_query_secret) {
+                    const { createHmac } = require('node:crypto')
+                    const sig = createHmac('sha256', agent.live_query_secret).update(lqBody).digest('hex')
+                    headers['X-Wazzap-Signature'] = `sha256=${sig}`
+                }
+
+                const controller = new AbortController()
+                const lqTimeout = setTimeout(() => controller.abort(), 3000)
+
+                const lqResponse = await fetch(agent.live_query_url, {
+                    method: 'POST',
+                    headers,
+                    body: lqBody,
+                    signal: controller.signal,
+                })
+                clearTimeout(lqTimeout)
+
+                if (lqResponse.ok) {
+                    const lqData = await lqResponse.json().catch(() => null)
+                    if (lqData) {
+                        const lqContent = lqData.answer
+                            || (lqData.data ? JSON.stringify(lqData.data) : null)
+                            || (lqData.result ? JSON.stringify(lqData.result) : null)
+                        if (lqContent) {
+                            relevantDocs = [...(relevantDocs || []), {
+                                content: `[Données temps réel]: ${lqContent}`
+                            }]
+                        }
+                    }
+                }
+            } catch (_) {
+                // Timeout ou erreur réseau → l'agent répond sans live data
+            }
+        }
+
         // Formater les horaires
         let formattedHours = 'Non spécifiés'
         if (agent.business_hours) {
