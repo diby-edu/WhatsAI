@@ -204,6 +204,9 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
         return
     }
 
+    // 🔍 MOUCHARD #4 — entrée handleMessage
+    console.log(`🔍 [handleMessage] agentId=${agentId} from=${message.from} text="${String(message.text || '').slice(0, 50)}"`)
+
     if (isRateLimited(message.from)) {
         // Informer le client du rate limit
         const session = activeSessions.get(agentId)
@@ -232,18 +235,21 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             .single()
 
         if (!agent) {
-            console.error(`Agent not found: ${agentId}`)
+            console.error(`🔍 [handleMessage] BLOCKED: agent not found agentId=${agentId}`)
             return
         }
 
         if (!agent.is_active) {
-            console.log(`⏸️ Agent inactive (${agentId}), skipping auto-response`)
+            console.log(`🔍 [handleMessage] BLOCKED: agent inactive agentId=${agentId}`)
             return
         }
+
+        console.log(`🔍 [handleMessage] agent OK: ${agent.name} user_id=${agent.user_id}`)
 
         // 1.2 Vérifier les crédits
         const hasCredits = await CreditsService.check(supabase, agent.user_id)
         if (!hasCredits) {
+            console.log(`🔍 [handleMessage] BLOCKED: no credits user_id=${agent.user_id}`)
             console.log(`⚠️ Insufficient credits for user ${agent.user_id}`)
             // Informer le client que le service est indisponible
             const session = activeSessions.get(agentId)
@@ -276,9 +282,11 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
 
         // 1.4 Vérifier si conversation active
         if (!conversation.isActive()) {
-            console.log('Conversation paused or escalated, skipping')
+            console.log(`🔍 [handleMessage] BLOCKED: conversation not active id=${conversation.id} status=${conversation.status} bot_paused=${conversation.bot_paused}`)
             return
         }
+
+        console.log(`🔍 [handleMessage] conversation OK id=${conversation.id}`)
 
         // ═══════════════════════════════════════════════════════════
         // PHASE 2 : TRAITEMENT DU MESSAGE ENTRANT

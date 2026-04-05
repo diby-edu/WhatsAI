@@ -137,7 +137,8 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                     const QR_SAVE_TIMEOUT_MS = 5000
                     const saveQR = supabase.from('agents').update({
                         whatsapp_qr_code: qrDataUrl,
-                        whatsapp_status: 'qr_ready'
+                        whatsapp_status: 'qr_ready',
+                        whatsapp_connected: false
                     }).eq('id', agentId)
 
                     const { error: qrError } = await Promise.race([
@@ -399,7 +400,22 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
         })
 
         socket.ev.on('messages.upsert', async ({ messages: msgs, type }) => {
+            // 🔍 MOUCHARD #1 — événement brut reçu
+            console.log(`🔍 [${agentName}] messages.upsert FIRED type=${type} count=${msgs.length}`)
+
             const actionableMessages = msgs.filter(msg => shouldProcessUpsertMessage(type, msg))
+
+            // 🔍 MOUCHARD #2 — après filtre shouldProcess
+            if (actionableMessages.length !== msgs.length) {
+                msgs.forEach((msg, i) => {
+                    const ok = shouldProcessUpsertMessage(type, msg)
+                    if (!ok) {
+                        const ts = msg?.messageTimestamp
+                        console.log(`🔍 [${agentName}] msg[${i}] DROPPED by shouldProcess type=${type} ts=${ts} fromMe=${msg?.key?.fromMe} jid=${msg?.key?.remoteJid}`)
+                    }
+                })
+            }
+
             const processableMessages = actionableMessages.filter(msg => !isIgnorableIncomingMessage(msg))
             const directInboundCandidates = processableMessages.filter(msg => {
                 const remoteJid = msg?.key?.remoteJid || ''
@@ -410,6 +426,9 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                     !remoteJid.includes('@newsletter') &&
                     !remoteJid.startsWith('status@')
             })
+
+            // 🔍 MOUCHARD #3 — résumé des filtres
+            console.log(`🔍 [${agentName}] upsert pipeline: raw=${msgs.length} actionable=${actionableMessages.length} processable=${processableMessages.length} direct_inbound=${directInboundCandidates.length}`)
 
             if (directInboundCandidates.length > 0) {
                 const sample = describeInboundMessage(directInboundCandidates[0])
