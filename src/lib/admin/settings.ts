@@ -234,21 +234,23 @@ export async function getPublicRuntimeConfig(adminSupabase: SupabaseClient) {
 
 export async function setMaintenanceMode(adminSupabase: SupabaseClient, userId: string, enabled: boolean) {
     if (enabled) {
-        const { data: activeAgents, error: agentsError } = await adminSupabase
+        // Seulement les agents réellement connectés à WhatsApp
+        const { data: connectedAgents, error: agentsError } = await adminSupabase
             .from('agents')
             .select('id')
             .eq('is_active', true)
+            .eq('whatsapp_connected', true)
 
         if (agentsError) throw agentsError
 
-        const agentIds = (activeAgents || []).map((agent: any) => agent.id)
+        const agentIds = (connectedAgents || []).map((agent: any) => agent.id)
 
         await upsertAppSetting(adminSupabase, userId, 'maintenance_paused_agents', { ids: agentIds })
 
         if (agentIds.length > 0) {
             const { error: updateError } = await adminSupabase
                 .from('agents')
-                .update({ is_active: false })
+                .update({ is_active: false, whatsapp_connected: false, whatsapp_status: 'disconnected' })
                 .in('id', agentIds)
 
             if (updateError) throw updateError
@@ -272,28 +274,13 @@ export async function setMaintenanceMode(adminSupabase: SupabaseClient, userId: 
     const ids = Array.isArray(storedValue?.ids) ? storedValue.ids : []
 
     if (ids.length > 0) {
-        const { data: pausedAgents } = await adminSupabase
-            .from('agents')
-            .select('id, is_active, whatsapp_connected, whatsapp_status')
-            .in('id', ids)
-
-        const reconnectableIds = collectReconnectableAgentIds(pausedAgents || [])
-
+        // Restaurer uniquement les agents mis en pause pour maintenance (ils étaient connectés)
         const { error: updateError } = await adminSupabase
             .from('agents')
-            .update({ is_active: true })
+            .update({ is_active: true, whatsapp_status: 'connecting' })
             .in('id', ids)
 
         if (updateError) throw updateError
-
-        if (reconnectableIds.length > 0) {
-            const { error: reconnectError } = await adminSupabase
-                .from('agents')
-                .update({ whatsapp_status: 'connecting' })
-                .in('id', reconnectableIds)
-
-            if (reconnectError) throw reconnectError
-        }
 
         await resumeActiveConversationsForAgents(adminSupabase, ids)
     }

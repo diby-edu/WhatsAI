@@ -392,17 +392,6 @@ export default function AdminSettingsPage() {
                         </div>
 
                         <SettingRow
-                            label="Mode maintenance"
-                            description="Désactive l'accès au site pour les utilisateurs"
-                        >
-                            <ToggleSwitch
-                                value={settings.maintenanceMode}
-                                onChange={() => handleToggle('maintenanceMode')}
-                                color="#ef4444"
-                            />
-                        </SettingRow>
-
-                        <SettingRow
                             label="Autoriser les inscriptions"
                             description="Permet aux nouveaux utilisateurs de s'inscrire"
                         >
