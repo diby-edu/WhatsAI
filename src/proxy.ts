@@ -48,6 +48,50 @@ export async function proxy(request: NextRequest) {
         return response
     }
 
+    // ── Mode Maintenance ──────────────────────────────────────────────────────
+    // Exempté : /api, /admin, /maintenance, /_next
+    const pathnameBase = pathname.replace(/^\/(fr|en)(?=\/|$)/, '') || '/'
+    const isMaintenanceExempt =
+        pathname.startsWith('/api') ||
+        pathname.startsWith('/_next') ||
+        isWithinPath(pathnameBase, '/admin') ||
+        isWithinPath(pathnameBase, '/maintenance')
+
+    if (!isMaintenanceExempt) {
+        // Cache cookie 30s pour éviter une requête DB à chaque page
+        const cached = request.cookies.get('__maint')
+        let maintenanceActive = cached?.value === '1'
+
+        if (!cached) {
+            try {
+                const maintClient = createServerClient(
+                    process.env.NEXT_PUBLIC_SUPABASE_URL,
+                    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+                    { cookies: { getAll: () => [], setAll: () => {} } }
+                )
+                const { data } = await maintClient
+                    .from('feature_flags')
+                    .select('enabled')
+                    .eq('key', 'maintenance_mode')
+                    .maybeSingle()
+                maintenanceActive = data?.enabled === true
+            } catch { /* silencieux */ }
+        }
+
+        if (maintenanceActive) {
+            const locale = getLocale(pathname)
+            const res = redirectTo(request, locale, '/maintenance')
+            res.cookies.set('__maint', '1', { maxAge: 30, path: '/' })
+            return res
+        }
+
+        // Invalider le cache si maintenance désactivée
+        if (cached?.value === '1') {
+            response.cookies.set('__maint', '0', { maxAge: 30, path: '/' })
+        }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
