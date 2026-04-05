@@ -163,8 +163,8 @@ async function processOutboundMessage(supabase, activeSessions, agentStateCache,
     }
 
     const session = activeSessions.get(msg.agent_id)
-    if (!session?.socket) {
-        console.log(`Agent ${msg.agent_id} offline, keeping in queue`)
+    if (!session?.socket || !session.socket.user) {
+        console.log(`Agent ${msg.agent_id} socket not ready (disconnected or QR pending), keeping in queue`)
         return
     }
 
