@@ -39,6 +39,7 @@ type AdminAgent = {
     whatsapp_phone?: string | null
     whatsapp_qr_code?: string | null
     whatsapp_ever_connected?: boolean | null
+    whatsapp_disconnected_by?: 'user' | 'system' | null
     operationalStatus: string
     operationalLabel: string
     operationalDetail: string
@@ -421,7 +422,19 @@ export default function AdminAgentsPage() {
                                 }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                         <span style={{ color: '#64748b' }}>Etat DB</span>
-                                        <span style={{ color: dbColor, fontWeight: 600 }}>{dbDisplayLabel}</span>
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                                            {agent.is_active && !agent.whatsapp_connected && agent.whatsapp_disconnected_by === 'user' && (
+                                                <span style={{ fontSize: 10, background: 'rgba(148,163,184,0.12)', color: '#94a3b8', borderRadius: 4, padding: '1px 5px', fontWeight: 600 }}>
+                                                    volontaire
+                                                </span>
+                                            )}
+                                            {agent.is_active && !agent.whatsapp_connected && agent.whatsapp_disconnected_by === 'system' && (
+                                                <span style={{ fontSize: 10, background: 'rgba(248,113,113,0.12)', color: '#f87171', borderRadius: 4, padding: '1px 5px', fontWeight: 600 }}>
+                                                    perte signal
+                                                </span>
+                                            )}
+                                            <span style={{ color: dbColor, fontWeight: 600 }}>{dbDisplayLabel}</span>
+                                        </span>
                                     </div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                         <span style={{ color: '#64748b' }}>Etat Bot</span>
@@ -517,7 +530,7 @@ export default function AdminAgentsPage() {
                             </button>
                             <button
                                 onClick={() => canRelancer && !busy && requestWhatsAppConnect(agent.id, agent.name, agent.operationalStatus === 'qr_ready')}
-                                title={!canRelancer ? (agent.whatsapp_connected ? 'Deja connecte' : 'Activez l agent d abord') : undefined}
+                                title={!canRelancer ? (agent.whatsapp_connected ? 'Deja connecte' : 'Activez l agent d abord') : agent.whatsapp_disconnected_by === 'user' ? 'Deconnexion volontaire — relancer le scan QR' : agent.whatsapp_disconnected_by === 'system' ? 'Perte de signal — relancer la connexion' : undefined}
                                 style={{ ...btnBase,
                                     cursor: canRelancer && !busy ? 'pointer' : 'not-allowed',
                                     background: 'rgba(16,185,129,0.12)',

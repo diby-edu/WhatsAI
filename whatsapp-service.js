@@ -318,7 +318,7 @@ async function reconcileSessions() {
             console.warn(`🔄 [RECONCILE] ${zombies.length} agent(s) connecté(s) en DB mais absents du bot: ${names}`)
             await supabase
                 .from('agents')
-                .update({ whatsapp_connected: false, whatsapp_status: 'disconnected' })
+                .update({ whatsapp_connected: false, whatsapp_status: 'disconnected', whatsapp_disconnected_by: 'system' })
                 .in('id', ids)
             console.log(`✅ [RECONCILE] Corrigé ${zombies.length} agent(s) zombie(s)`)
         }
