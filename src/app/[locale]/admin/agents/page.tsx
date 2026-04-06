@@ -346,43 +346,45 @@ export default function AdminAgentsPage() {
 
                         {(() => {
                             const bot = botState[agent.id]
-                            if (!bot && Object.keys(botState).length === 0) return null
+                            if (Object.keys(botState).length === 0) return null
                             const dbConnected = agent.whatsapp_connected
                             const botActive = bot?.active ?? false
                             const botPending = bot?.pending ?? false
                             const botScheduled = bot?.scheduled ?? false
                             const desync = dbConnected !== botActive
                             const dbLabel: Record<string, string> = {
-                                connected: 'connecte', connecting: 'connexion...', qr_ready: 'QR pret',
-                                disconnected: 'deconnecte', reconnect_required: 'a reconnecter', paused: 'en pause',
+                                connected: 'Connecte', connecting: 'Connexion...', qr_ready: 'QR pret',
+                                disconnected: 'Deconnecte', reconnect_required: 'A reconnecter', paused: 'En pause',
                             }
+                            const botLabel = botActive ? 'Actif' : botPending ? 'En attente' : botScheduled ? 'Planifie' : 'Absent'
+                            const botColor = botActive ? '#34d399' : botPending ? '#f59e0b' : botScheduled ? '#a78bfa' : '#64748b'
                             return (
                                 <div style={{
                                     display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'space-between',
-                                    padding: '5px 10px',
+                                    flexDirection: 'column',
+                                    gap: 4,
+                                    padding: '7px 10px',
                                     borderRadius: 8,
                                     marginBottom: 8,
                                     background: desync ? 'rgba(248,113,113,0.08)' : 'rgba(15,23,42,0.4)',
                                     border: `1px solid ${desync ? 'rgba(248,113,113,0.25)' : 'rgba(148,163,184,0.07)'}`,
-                                    fontSize: 11,
-                                    gap: 8,
+                                    fontSize: 12,
                                 }}>
-                                    <span>
-                                        <span style={{ color: '#64748b' }}>DB </span>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <span style={{ color: '#64748b' }}>Etat DB</span>
                                         <span style={{ color: dbConnected ? '#34d399' : '#94a3b8', fontWeight: 600 }}>
-                                            {dbLabel[agent.whatsapp_status || ''] || (dbConnected ? 'connecte' : 'deconnecte')}
+                                            {dbLabel[agent.whatsapp_status || ''] || (dbConnected ? 'Connecte' : 'Deconnecte')}
                                         </span>
-                                        <span style={{ color: '#475569', margin: '0 6px' }}>|</span>
-                                        <span style={{ color: '#64748b' }}>Bot </span>
-                                        <span style={{ color: botActive ? '#34d399' : botPending ? '#f59e0b' : botScheduled ? '#a78bfa' : '#64748b', fontWeight: 600 }}>
-                                            {botActive ? 'actif' : botPending ? 'en attente' : botScheduled ? 'planifie' : 'absent'}
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <span style={{ color: '#64748b' }}>Etat Bot</span>
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                            <span style={{ color: botColor, fontWeight: 600 }}>{botLabel}</span>
+                                            {desync && (
+                                                <span style={{ color: '#f87171', fontWeight: 700, fontSize: 10 }}>DESYNC</span>
+                                            )}
                                         </span>
-                                    </span>
-                                    {desync && (
-                                        <span style={{ color: '#f87171', fontWeight: 700, fontSize: 10, whiteSpace: 'nowrap' }}>DESYNC</span>
-                                    )}
+                                    </div>
                                 </div>
                             )
                         })()}
