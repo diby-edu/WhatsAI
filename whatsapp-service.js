@@ -256,14 +256,20 @@ async function checkAgents() {
             const session = activeSessions.get(agent.id)
 
             // The database explicitly asks for a reconnect. If memory still holds a "connected"
-            // socket, recycle it now instead of silently preferring the stale in-memory state.
+            // socket, recycle it — UNLESS the socket connected recently (< 60s) in which case
+            // the DB update is simply lagging behind and killing the socket would cause a loop.
             if (agent.whatsapp_status === 'connecting' && session?.status === 'connected') {
-                console.log(`♻️ [CHECK] ${agent.name} is marked connecting in DB but still connected in memory — recycling stale socket`)
-                try { session.socket?.end() } catch (_) { }
-                activeSessions.delete(agent.id)
-                pendingConnections.delete(agent.id)
-                clearScheduledInit(agent.id)
-                recentlyProcessed.delete(agent.id)
+                const connectedAgeMs = session.connectedAt ? Date.now() - session.connectedAt : Infinity
+                if (connectedAgeMs < 60000) {
+                    console.log(`⏳ [CHECK] ${agent.name} is connected in memory but DB not yet updated (${Math.round(connectedAgeMs / 1000)}s ago) — skipping recycle to avoid loop`)
+                } else {
+                    console.log(`♻️ [CHECK] ${agent.name} is marked connecting in DB but still connected in memory — recycling stale socket`)
+                    try { session.socket?.end() } catch (_) { }
+                    activeSessions.delete(agent.id)
+                    pendingConnections.delete(agent.id)
+                    clearScheduledInit(agent.id)
+                    recentlyProcessed.delete(agent.id)
+                }
             } else if ((hasActiveSession || hasPendingConnection || (hasScheduledConnection && scheduledRemainingMs <= 0)) && setupAgeMs >= SETUP_PHASE_STALE_MS) {
                 console.log(`🧯 [CHECK] ${agent.name} stuck in setup for ${Math.round(setupAgeMs / 1000)}s — clearing locks (active=${hasActiveSession}, pending=${hasPendingConnection}, scheduled=${hasScheduledConnection})`)
                 try { session?.socket?.end() } catch (_) { }
@@ -446,6 +452,7 @@ async function main() {
                 activeSessions: Array.from(activeSessions.entries()).map(([id, session]) => ({
                     id,
                     status: session.status, // 'connected' | 'connecting' | 'qr_waiting' | 'pairing_waiting_open' | 'error'
+                    connectedAt: session.connectedAt || null, // timestamp ms — null si pas encore connecté
                 })),
                 pendingConnections: Array.from(pendingConnections),
                 scheduledConnections: Array.from(scheduledConnections),

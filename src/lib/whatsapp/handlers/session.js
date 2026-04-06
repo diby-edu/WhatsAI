@@ -207,6 +207,7 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                 }
                 clearTimeout(pendingTimeout)
                 session.status = 'connected'
+                session.connectedAt = Date.now()
                 pendingConnections.delete(agentId)
                 clearSetupPhaseActivity?.(agentId)
                 const phoneNumber = socket.user?.id.split(':')[0] || null
