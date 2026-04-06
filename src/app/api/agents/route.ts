@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
 
     const { data: agents, error } = await supabase
         .from('agents')
-        .select('*, conversations(count)')
+        .select('*, conversations(count), products(product_type)')
         .eq('user_id', user!.id)
         .order('created_at', { ascending: false })
 
@@ -46,10 +46,11 @@ export async function GET(request: NextRequest) {
         return errorResponse(error.message, 500)
     }
 
-    // Map the result to flatten conversations count
+    // Map the result to flatten conversations count and product types
     const agentsWithCount = agents.map((agent: any) => ({
         ...agent,
-        total_conversations: agent.conversations?.[0]?.count || 0
+        total_conversations: agent.conversations?.[0]?.count || 0,
+        product_types: [...new Set((agent.products || []).map((p: any) => p.product_type).filter(Boolean))]
     }))
 
     return successResponse({ agents: agentsWithCount })
@@ -145,6 +146,7 @@ export async function POST(request: NextRequest) {
                 lead_redirect_message: body.lead_redirect_message || null,
                 lead_collect_fields: body.lead_collect_fields || ['name', 'phone'],
                 fallback_contact_message: body.fallback_contact_message || null,
+                mission: body.mission || null,
                 // Payment & escalation (Support Client + transactionnel)
                 payment_mode: paymentMode,
                 mobile_money_orange: body.mobile_money_orange || null,
