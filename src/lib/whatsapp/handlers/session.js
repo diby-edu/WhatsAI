@@ -494,11 +494,8 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                     quotedText: inboundPayload.quotedText || null,
                 }
 
-                // Read receipt avec délai humain (1.5s) — anti-ban
-                setTimeout(async () => {
-                    try { await socket.readMessages([msg.key]) } catch { /* silencieux */ }
-                }, 1500)
-
+                // Le read receipt est géré dans handleMessage après vérification is_active / bot_paused
+                // (évite les doubles ticks bleus sur agents en pause ou conversations bot_paused)
                 await handleMessage(context, agentId, messagePayload, inboundPayload.isVoiceMessage)
             }
         })

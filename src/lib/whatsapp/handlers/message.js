@@ -288,6 +288,15 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
 
         console.log(`🔍 [handleMessage] conversation OK id=${conversation.id}`)
 
+        // 1.5 Read receipt — uniquement si l'agent est actif et la conversation active
+        // (évite les doubles ticks bleus sur agents en pause ou conversations bot_paused)
+        const activeSession = activeSessions.get(agentId)
+        if (activeSession?.socket && message.key) {
+            setTimeout(async () => {
+                try { await activeSession.socket.readMessages([message.key]) } catch { /* silencieux */ }
+            }, 1500)
+        }
+
         // ═══════════════════════════════════════════════════════════
         // PHASE 2 : TRAITEMENT DU MESSAGE ENTRANT
         // ═══════════════════════════════════════════════════════════
