@@ -193,7 +193,8 @@ export async function DELETE(request: NextRequest) {
             whatsapp_connected: false,
             whatsapp_phone: null,
             whatsapp_status: 'disconnected',
-            whatsapp_qr_code: null
+            whatsapp_qr_code: null,
+            whatsapp_disconnected_by: 'user'
         })
         .eq('id', agentId)
 

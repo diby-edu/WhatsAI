@@ -143,7 +143,8 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                         await supabase.from('agents').update({
                             whatsapp_connected: false,
                             whatsapp_status: 'disconnected',
-                            whatsapp_qr_code: null
+                            whatsapp_qr_code: null,
+                            whatsapp_disconnected_by: 'system'
                         }).eq('id', agentId)
                         return
                     }
@@ -217,7 +218,8 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                     whatsapp_connected: true,
                     whatsapp_qr_code: null,
                     whatsapp_status: 'connected',
-                    whatsapp_ever_connected: true
+                    whatsapp_ever_connected: true,
+                    whatsapp_disconnected_by: null
                 }
                 if (phoneNumber) updateData.whatsapp_phone = phoneNumber
 
@@ -327,7 +329,8 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                         console.error(`🛑 [${agentName}] Reconnexion abandonnée après ${MAX_RECONNECT_ATTEMPTS} tentatives. Intervention manuelle requise.`)
                         await supabase.from('agents').update({
                             whatsapp_connected: false,
-                            whatsapp_status: 'disconnected'
+                            whatsapp_status: 'disconnected',
+                            whatsapp_disconnected_by: 'system'
                         }).eq('id', agentId)
                         return
                     }
@@ -397,7 +400,8 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                     await supabase.from('agents').update({
                         whatsapp_connected: false,
                         whatsapp_qr_code: null,
-                        whatsapp_status: 'disconnected'
+                        whatsapp_status: 'disconnected',
+                        whatsapp_disconnected_by: 'system'
                         // whatsapp_phone conservé intentionnellement pour affichage dashboard
                     }).eq('id', agentId)
 
