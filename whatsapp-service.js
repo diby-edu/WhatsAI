@@ -443,7 +443,10 @@ async function main() {
         } else if (req.url === '/sessions') {
             res.writeHead(200, { 'Content-Type': 'application/json' })
             res.end(JSON.stringify({
-                activeSessions: Array.from(activeSessions.keys()),
+                activeSessions: Array.from(activeSessions.entries()).map(([id, session]) => ({
+                    id,
+                    status: session.status, // 'connected' | 'connecting' | 'qr_waiting' | 'pairing_waiting_open' | 'error'
+                })),
                 pendingConnections: Array.from(pendingConnections),
                 scheduledConnections: Array.from(scheduledConnections),
             }))

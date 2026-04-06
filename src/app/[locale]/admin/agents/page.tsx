@@ -64,7 +64,7 @@ function normalizeAgent(agent: any): AdminAgent {
     }
 }
 
-type BotStateMap = Record<string, { active: boolean; pending: boolean; scheduled: boolean }>
+type BotStateMap = Record<string, { active: boolean; connecting: boolean; botSocketStatus: string | null; pending: boolean; scheduled: boolean }>
 
 export default function AdminAgentsPage() {
     const [agents, setAgents] = useState<AdminAgent[]>([])
@@ -87,7 +87,13 @@ export default function AdminAgentsPage() {
             if (data?.data?.agents) {
                 const map: BotStateMap = {}
                 for (const a of data.data.agents) {
-                    map[a.id] = { active: a.bot_active, pending: a.bot_pending, scheduled: a.bot_scheduled }
+                    map[a.id] = {
+                        active: a.bot_active,
+                        connecting: a.bot_connecting ?? false,
+                        botSocketStatus: a.bot_socket_status ?? null,
+                        pending: a.bot_pending,
+                        scheduled: a.bot_scheduled,
+                    }
                 }
                 setBotState(map)
             }
@@ -122,6 +128,7 @@ export default function AdminAgentsPage() {
             const json = await res.json()
             if (res.ok && json.success) {
                 await fetchAgents()
+                setTimeout(fetchAgents, 4000)
             } else {
                 setError(json.error || 'Erreur lors de la deconnexion WhatsApp')
             }
@@ -171,11 +178,36 @@ export default function AdminAgentsPage() {
             const json = await res.json()
             if (res.ok && json.success) {
                 await fetchAgents()
+                setTimeout(fetchAgents, 4000)
             } else {
                 setError(json.error || 'Erreur lors de la modification de l agent')
             }
         } catch {
             setError('Erreur lors de la modification de l agent')
+        } finally {
+            setActionLoading(null)
+        }
+    }
+
+    async function forceResyncAgent(id: string, name: string) {
+        setActionLoading(id)
+        setError(null)
+        try {
+            // Déconnecter proprement (supprime session DB + reset statut)
+            const res = await fetch(`/api/admin/agents/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'disconnect_whatsapp' }),
+            })
+            const json = await res.json()
+            if (!res.ok || !json.success) {
+                setError(json.error || `Erreur resync pour "${name}"`)
+                return
+            }
+            await fetchAgents()
+            setTimeout(fetchAgents, 4000)
+        } catch {
+            setError(`Erreur reseau lors du resync de "${name}"`)
         } finally {
             setActionLoading(null)
         }
@@ -345,19 +377,29 @@ export default function AdminAgentsPage() {
                         </div>
 
                         {(() => {
-                            const bot = botState[agent.id]
                             if (Object.keys(botState).length === 0) return null
+                            const bot = botState[agent.id]
                             const dbConnected = agent.whatsapp_connected
                             const botActive = bot?.active ?? false
+                            const botConnecting = bot?.connecting ?? false
                             const botPending = bot?.pending ?? false
                             const botScheduled = bot?.scheduled ?? false
-                            const desync = dbConnected !== botActive
+                            const desync = dbConnected && !botActive && !botConnecting && !botPending && !botScheduled
+
+                            // DB label : si l'agent est en pause, on le dit clairement
                             const dbLabel: Record<string, string> = {
                                 connected: 'Connecte', connecting: 'Connexion...', qr_ready: 'QR pret',
                                 disconnected: 'Deconnecte', reconnect_required: 'A reconnecter', paused: 'En pause',
                             }
-                            const botLabel = botActive ? 'Actif' : botPending ? 'En attente' : botScheduled ? 'Planifie' : 'Absent'
-                            const botColor = botActive ? '#34d399' : botPending ? '#f59e0b' : botScheduled ? '#a78bfa' : '#64748b'
+                            const dbDisplayLabel = !agent.is_active
+                                ? 'En pause'
+                                : (dbLabel[agent.whatsapp_status || ''] || (dbConnected ? 'Connecte' : 'Deconnecte'))
+                            const dbColor = !agent.is_active ? '#f59e0b' : dbConnected ? '#34d399' : '#94a3b8'
+
+                            // Bot label : distingue vraiment connecté de en cours
+                            const botLabel = botActive ? 'Actif' : botConnecting ? 'Connexion...' : botPending ? 'En attente' : botScheduled ? 'Planifie' : 'Absent'
+                            const botColor = botActive ? '#34d399' : botConnecting ? '#60a5fa' : botPending ? '#f59e0b' : botScheduled ? '#a78bfa' : '#64748b'
+
                             return (
                                 <div style={{
                                     display: 'flex',
@@ -372,16 +414,30 @@ export default function AdminAgentsPage() {
                                 }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                         <span style={{ color: '#64748b' }}>Etat DB</span>
-                                        <span style={{ color: dbConnected ? '#34d399' : '#94a3b8', fontWeight: 600 }}>
-                                            {dbLabel[agent.whatsapp_status || ''] || (dbConnected ? 'Connecte' : 'Deconnecte')}
-                                        </span>
+                                        <span style={{ color: dbColor, fontWeight: 600 }}>{dbDisplayLabel}</span>
                                     </div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                         <span style={{ color: '#64748b' }}>Etat Bot</span>
                                         <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                             <span style={{ color: botColor, fontWeight: 600 }}>{botLabel}</span>
                                             {desync && (
-                                                <span style={{ color: '#f87171', fontWeight: 700, fontSize: 10 }}>DESYNC</span>
+                                                <button
+                                                    onClick={() => forceResyncAgent(agent.id, agent.name)}
+                                                    disabled={actionLoading === agent.id}
+                                                    title="Forcer la resynchronisation"
+                                                    style={{
+                                                        background: 'rgba(248,113,113,0.15)',
+                                                        border: '1px solid rgba(248,113,113,0.3)',
+                                                        color: '#f87171',
+                                                        fontWeight: 700,
+                                                        fontSize: 10,
+                                                        padding: '1px 6px',
+                                                        borderRadius: 4,
+                                                        cursor: 'pointer',
+                                                    }}
+                                                >
+                                                    DESYNC — Resync
+                                                </button>
                                             )}
                                         </span>
                                     </div>
