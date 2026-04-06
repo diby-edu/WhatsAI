@@ -396,9 +396,14 @@ export default function AdminAgentsPage() {
                                 : (dbLabel[agent.whatsapp_status || ''] || (dbConnected ? 'Connecte' : 'Deconnecte'))
                             const dbColor = !agent.is_active ? '#f59e0b' : dbConnected ? '#34d399' : '#94a3b8'
 
-                            // Bot label : distingue vraiment connecté de en cours
-                            const botLabel = botActive ? 'Actif' : botConnecting ? 'Connexion...' : botPending ? 'En attente' : botScheduled ? 'Planifie' : 'Absent'
-                            const botColor = botActive ? '#34d399' : botConnecting ? '#60a5fa' : botPending ? '#f59e0b' : botScheduled ? '#a78bfa' : '#64748b'
+                            // Bot label : si l'agent est en pause + socket ouvert → "Socket ouvert (en pause)"
+                            const isPaused = !agent.is_active
+                            const botLabel = botActive
+                                ? (isPaused ? 'Socket ouvert (en pause)' : 'Actif')
+                                : botConnecting ? 'Connexion...' : botPending ? 'En attente' : botScheduled ? 'Planifie' : 'Absent'
+                            const botColor = botActive
+                                ? (isPaused ? '#f59e0b' : '#34d399')
+                                : botConnecting ? '#60a5fa' : botPending ? '#f59e0b' : botScheduled ? '#a78bfa' : '#64748b'
 
                             return (
                                 <div style={{
