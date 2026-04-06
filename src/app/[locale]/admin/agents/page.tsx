@@ -384,7 +384,9 @@ export default function AdminAgentsPage() {
                             const botConnecting = bot?.connecting ?? false
                             const botPending = bot?.pending ?? false
                             const botScheduled = bot?.scheduled ?? false
-                            const desync = dbConnected && !botActive && !botConnecting && !botPending && !botScheduled
+                            // DESYNC uniquement si l'agent est actif ET DB dit connecté ET bot absent
+                            // Un agent en pause n'est jamais DESYNC (le bot n'est pas censé avoir de socket)
+                            const desync = agent.is_active && dbConnected && !botActive && !botConnecting && !botPending && !botScheduled
 
                             // DB label : si l'agent est en pause, on le dit clairement
                             const dbLabel: Record<string, string> = {
