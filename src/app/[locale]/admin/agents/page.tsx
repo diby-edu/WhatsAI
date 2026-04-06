@@ -477,78 +477,56 @@ export default function AdminAgentsPage() {
                             </div>
                         )}
 
+                        {(() => {
+                            const canPause    = agent.is_active && agent.whatsapp_connected
+                            const canActivate = !agent.is_active
+                            const canDecoWA   = agent.whatsapp_connected
+                            const canRelancer = agent.is_active && !agent.whatsapp_connected
+                            const busy        = actionLoading === agent.id
+
+                            const btnBase: React.CSSProperties = {
+                                flex: 1, padding: '8px', borderRadius: 8, border: 'none',
+                                fontSize: 12, fontWeight: 600,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+                            }
+                            return (
                         <div style={{ display: 'flex', gap: 6, borderTop: '1px solid rgba(148, 163, 184, 0.08)', paddingTop: 12 }}>
                             <button
-                                onClick={() => toggleAgent(agent.id)}
-                                disabled={actionLoading === agent.id}
-                                style={{
-                                    flex: 1,
-                                    padding: '8px',
-                                    borderRadius: 8,
-                                    border: 'none',
-                                    fontSize: 12,
-                                    fontWeight: 600,
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: 4,
-                                    background: agent.is_active ? 'rgba(245, 158, 11, 0.1)' : 'rgba(34, 197, 94, 0.1)',
+                                onClick={() => (canPause || canActivate) && !busy && toggleAgent(agent.id)}
+                                title={!canPause && agent.is_active ? 'Disponible uniquement sur un agent connecte' : undefined}
+                                style={{ ...btnBase,
+                                    cursor: (canPause || canActivate) && !busy ? 'pointer' : 'not-allowed',
+                                    background: agent.is_active ? 'rgba(245,158,11,0.1)' : 'rgba(34,197,94,0.1)',
                                     color: agent.is_active ? '#fbbf24' : '#4ade80',
-                                    opacity: actionLoading === agent.id ? 0.5 : 1,
+                                    opacity: busy || (!canPause && !canActivate) ? 0.3 : 1,
                                 }}
                             >
                                 <Power size={13} /> {agent.is_active ? 'Pause' : 'Activer'}
                             </button>
-                            {agent.whatsapp_connected && (
-                                <button
-                                    onClick={() => disconnectWhatsApp(agent.id, agent.name)}
-                                    disabled={actionLoading === agent.id}
-                                    title="Deconnecter WhatsApp"
-                                    style={{
-                                        flex: 1,
-                                        padding: '8px',
-                                        borderRadius: 8,
-                                        border: 'none',
-                                        fontSize: 12,
-                                        fontWeight: 600,
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        gap: 4,
-                                        background: 'rgba(249, 115, 22, 0.1)',
-                                        color: '#f97316',
-                                        opacity: actionLoading === agent.id ? 0.5 : 1,
-                                    }}
-                                >
-                                    <Smartphone size={13} /> Deco. WA
-                                </button>
-                            )}
-                            {!agent.whatsapp_connected && agent.is_active && (
-                                <button
-                                    onClick={() => requestWhatsAppConnect(agent.id, agent.name, agent.operationalStatus === 'qr_ready')}
-                                    disabled={actionLoading === agent.id}
-                                    style={{
-                                        flex: 1,
-                                        padding: '8px',
-                                        borderRadius: 8,
-                                        border: 'none',
-                                        fontSize: 12,
-                                        fontWeight: 600,
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        gap: 4,
-                                        background: 'rgba(16, 185, 129, 0.12)',
-                                        color: '#34d399',
-                                        opacity: actionLoading === agent.id ? 0.5 : 1,
-                                    }}
-                                >
-                                    <RefreshCw size={13} /> Relancer WA
-                                </button>
-                            )}
+                            <button
+                                onClick={() => canDecoWA && !busy && disconnectWhatsApp(agent.id, agent.name)}
+                                title={!canDecoWA ? 'Agent non connecte a WhatsApp' : 'Deconnecter WhatsApp'}
+                                style={{ ...btnBase,
+                                    cursor: canDecoWA && !busy ? 'pointer' : 'not-allowed',
+                                    background: 'rgba(249,115,22,0.1)',
+                                    color: '#f97316',
+                                    opacity: busy || !canDecoWA ? 0.3 : 1,
+                                }}
+                            >
+                                <Smartphone size={13} /> Deco. WA
+                            </button>
+                            <button
+                                onClick={() => canRelancer && !busy && requestWhatsAppConnect(agent.id, agent.name, agent.operationalStatus === 'qr_ready')}
+                                title={!canRelancer ? (agent.whatsapp_connected ? 'Deja connecte' : 'Activez l agent d abord') : undefined}
+                                style={{ ...btnBase,
+                                    cursor: canRelancer && !busy ? 'pointer' : 'not-allowed',
+                                    background: 'rgba(16,185,129,0.12)',
+                                    color: '#34d399',
+                                    opacity: busy || !canRelancer ? 0.3 : 1,
+                                }}
+                            >
+                                <RefreshCw size={13} /> Relancer WA
+                            </button>
                             <button
                                 onClick={() => openAgentDetails(agent)}
                                 style={{
@@ -585,6 +563,8 @@ export default function AdminAgentsPage() {
                                 <Trash2 size={13} />
                             </button>
                         </div>
+                            )
+                        })()}
                     </motion.div>
                 ))}
             </div>
