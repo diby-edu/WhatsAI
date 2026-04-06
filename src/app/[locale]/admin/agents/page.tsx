@@ -85,22 +85,28 @@ export default function AdminAgentsPage() {
     }, [])
 
     async function fetchBotState() {
+        // Endpoint léger : proxy pur /sessions sans requête DB
         try {
-            const res = await fetch('/api/admin/diagnostics/whatsapp-state')
+            const res = await fetch('/api/admin/diagnostics/bot-sessions')
+            if (!res.ok) return
             const data = await res.json()
-            if (data?.data?.agents) {
-                const map: BotStateMap = {}
-                for (const a of data.data.agents) {
-                    map[a.id] = {
-                        active: a.bot_active,
-                        connecting: a.bot_connecting ?? false,
-                        botSocketStatus: a.bot_socket_status ?? null,
-                        pending: a.bot_pending,
-                        scheduled: a.bot_scheduled,
-                    }
+            const sessions: { id: string; status: string }[] = data?.data?.activeSessions || []
+            const pending: string[] = data?.data?.pendingConnections || []
+            const scheduled: string[] = data?.data?.scheduledConnections || []
+            const pendingSet = new Set(pending)
+            const scheduledSet = new Set(scheduled)
+            const map: BotStateMap = {}
+            for (const s of sessions) {
+                const botActive = s.status === 'connected'
+                map[s.id] = {
+                    active: botActive,
+                    connecting: !botActive,
+                    botSocketStatus: s.status,
+                    pending: pendingSet.has(s.id),
+                    scheduled: scheduledSet.has(s.id),
                 }
-                setBotState(map)
             }
+            setBotState(map)
         } catch { /* silencieux */ }
     }
 
