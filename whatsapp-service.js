@@ -372,12 +372,12 @@ async function main() {
         console.error('❌ Failed during initial agent check:', err.message)
     }
 
-    // Réconciliation 3 min après démarrage (laisse le temps aux agents de se restaurer)
+    // Réconciliation : 60s après démarrage (agents déjà dans le scheduler)
+    // puis toutes les 10 min (1 requête légère, filtre pending/scheduled intégré)
     setTimeout(() => {
         reconcileSessions()
-        // Puis toutes les 10 minutes
         setInterval(reconcileSessions, 10 * 60 * 1000)
-    }, 3 * 60 * 1000)
+    }, 60 * 1000)
 
     // Context for cron jobs and Realtime
     // - supabase (alias supabaseAdmin): pour les opérations DB
