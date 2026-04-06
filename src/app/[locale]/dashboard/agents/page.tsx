@@ -26,6 +26,22 @@ import {
     getAgentOperationalStatus,
 } from '@/lib/admin/agent-status'
 
+const MISSION_LABELS: Record<string, string> = {
+    ecommerce: 'E-commerce / Boutique',
+    restaurant: 'Restaurant / Fast-food',
+    hotel: 'Hotel / Hebergement',
+    salon: 'Salon / Beaute',
+    services: 'Services / Artisan',
+    support_client: 'Support Client',
+    custom: 'Personnalise',
+}
+
+const PRODUCT_TYPE_LABELS: Record<string, string> = {
+    physical: 'Physique',
+    digital: 'Numerique',
+    service: 'Service',
+}
+
 interface Agent {
     id: string
     name: string
@@ -45,6 +61,8 @@ interface Agent {
     agent_context?: string | null
     fallback_contact_message?: string | null
     system_prompt?: string | null
+    mission?: string | null
+    product_types?: string[]
 }
 
 export default function AgentsPage() {
@@ -59,6 +77,8 @@ export default function AgentsPage() {
     useEffect(() => {
         fetchAgents()
         fetchPlanLimit()
+        const interval = setInterval(fetchAgents, 30000)
+        return () => clearInterval(interval)
     }, [])
 
     const fetchAgents = async () => {
@@ -276,16 +296,36 @@ export default function AgentsPage() {
                                 <Bot style={{ width: 28, height: 28, color: 'white' }} />
                             </div>
                             <div style={{ minWidth: 0, flex: 1 }}>
-                                <h3 style={{ fontSize: 18, fontWeight: 600, color: 'white', marginBottom: 4 }}>
+                                <h3 style={{ fontSize: 18, fontWeight: 600, color: 'white', marginBottom: 2 }}>
                                     {agent.name}
                                 </h3>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 4 }}>
+                                    {agent.mission && MISSION_LABELS[agent.mission] && (
+                                        <span style={{
+                                            fontSize: 11, fontWeight: 500,
+                                            color: '#34d399', background: 'rgba(52,211,153,0.1)',
+                                            padding: '2px 6px', borderRadius: 4
+                                        }}>
+                                            {MISSION_LABELS[agent.mission]}
+                                        </span>
+                                    )}
+                                    {(agent.product_types || []).map(type => (
+                                        <span key={type} style={{
+                                            fontSize: 11, fontWeight: 500,
+                                            color: '#94a3b8', background: 'rgba(148,163,184,0.1)',
+                                            padding: '2px 6px', borderRadius: 4
+                                        }}>
+                                            {PRODUCT_TYPE_LABELS[type] || type}
+                                        </span>
+                                    ))}
+                                </div>
                                 <p style={{
-                                    fontSize: 14,
-                                    color: '#94a3b8',
+                                    fontSize: 13,
+                                    color: '#64748b',
                                     overflow: 'hidden',
                                     textOverflow: 'ellipsis',
                                     display: '-webkit-box',
-                                    WebkitLineClamp: 2,
+                                    WebkitLineClamp: 1,
                                     WebkitBoxOrient: 'vertical'
                                 }}>
                                     {agent.description || ''}

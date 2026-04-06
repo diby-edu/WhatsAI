@@ -510,6 +510,7 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
                     lead_redirect_message: formData.lead_redirect_message || null,
                     lead_collect_fields: formData.lead_collect_fields,
                     fallback_contact_message: formData.fallback_contact_message || null,
+                    mission: formData.mission || null,
                 }),
             })
 
