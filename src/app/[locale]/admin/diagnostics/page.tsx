@@ -77,6 +77,26 @@ type WhatsAppRiskReport = {
     agents: WhatsAppRiskEntry[]
 }
 
+type WhatsAppStateEntry = {
+    id: string
+    name: string
+    is_active: boolean
+    db_connected: boolean
+    db_status: string
+    phone: string | null
+    bot_active: boolean
+    bot_pending: boolean
+    bot_scheduled: boolean
+    coherent: boolean
+}
+
+type WhatsAppStateMatrix = {
+    botReachable: boolean
+    totalAgents: number
+    incoherentCount: number
+    agents: WhatsAppStateEntry[]
+}
+
 async function getJson(url: string) {
     const res = await fetch(url)
     const json = await res.json().catch(() => ({}))
@@ -90,6 +110,7 @@ export default function AdminDiagnosticsPage() {
     const [diagnostics, setDiagnostics] = useState<DiagnosticItem[]>([])
     const [stats, setStats] = useState<StatsPayload | null>(null)
     const [whatsAppRiskReport, setWhatsAppRiskReport] = useState<WhatsAppRiskReport | null>(null)
+    const [whatsAppStateMatrix, setWhatsAppStateMatrix] = useState<WhatsAppStateMatrix | null>(null)
     const [loading, setLoading] = useState(true)
     const [lastCheck, setLastCheck] = useState<Date | null>(null)
 
@@ -113,6 +134,7 @@ export default function AdminDiagnosticsPage() {
                 dns,
                 ratelimit,
                 statsResponse,
+                whatsappState,
             ] = await Promise.all([
                 getJson('/api/admin/diagnostics/database'),
                 getJson('/api/health'),
@@ -129,6 +151,7 @@ export default function AdminDiagnosticsPage() {
                 getJson('/api/admin/diagnostics/dns'),
                 getJson('/api/admin/diagnostics/ratelimit'),
                 getJson('/api/admin/diagnostics/stats'),
+                getJson('/api/admin/diagnostics/whatsapp-state').catch(() => ({ data: null })),
             ])
 
             const riskReport: WhatsAppRiskReport | null =
@@ -289,6 +312,7 @@ export default function AdminDiagnosticsPage() {
             setDiagnostics(results)
             setStats(statsResponse.data || null)
             setWhatsAppRiskReport(riskReport)
+            setWhatsAppStateMatrix(whatsappState?.data || null)
             setLastCheck(new Date())
         } catch (err) {
             console.error('Diagnostics run failed:', err)
@@ -488,6 +512,109 @@ export default function AdminDiagnosticsPage() {
                                         </div>
                                     </div>
                                 ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {whatsAppStateMatrix && (
+                        <div style={{
+                            padding: 20,
+                            borderRadius: 18,
+                            background: 'rgba(15, 23, 42, 0.7)',
+                            border: '1px solid rgba(148, 163, 184, 0.15)',
+                        }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
+                                <div>
+                                    <div style={{ color: 'white', fontSize: 18, fontWeight: 700, marginBottom: 4 }}>
+                                        Etat double : DB vs Bot
+                                    </div>
+                                    <div style={{ color: '#94a3b8', fontSize: 13 }}>
+                                        {whatsAppStateMatrix.totalAgents} agent(s) — {whatsAppStateMatrix.incoherentCount} desynchronise(s)
+                                        {!whatsAppStateMatrix.botReachable && (
+                                            <span style={{ color: '#f87171', marginLeft: 8 }}>(bot non joignable — etat bot inconnu)</span>
+                                        )}
+                                    </div>
+                                </div>
+                                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 12 }}>
+                                    <span style={{ color: '#34d399' }}>● DB+Bot connecte</span>
+                                    <span style={{ color: '#64748b' }}>● Deconnecte coherent</span>
+                                    <span style={{ color: '#f87171' }}>● Desynchronise</span>
+                                    <span style={{ color: '#f59e0b' }}>● En attente bot</span>
+                                </div>
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 10 }}>
+                                {whatsAppStateMatrix.agents.map((agent) => {
+                                    const isDesync = !agent.coherent
+                                    const isPending = agent.bot_pending || agent.bot_scheduled
+                                    const borderColor = isDesync
+                                        ? 'rgba(248, 113, 113, 0.35)'
+                                        : agent.db_connected && agent.bot_active
+                                            ? 'rgba(52, 211, 153, 0.25)'
+                                            : isPending
+                                                ? 'rgba(245, 158, 11, 0.25)'
+                                                : 'rgba(148, 163, 184, 0.1)'
+
+                                    const dbStatusLabel: Record<string, string> = {
+                                        connected: 'connecte',
+                                        connecting: 'connexion...',
+                                        qr_ready: 'QR pret',
+                                        disconnected: 'deconnecte',
+                                        reconnect_required: 'a reconnecter',
+                                        paused: 'en pause',
+                                        unknown: 'inconnu',
+                                    }
+
+                                    return (
+                                        <div key={agent.id} style={{
+                                            padding: '12px 14px',
+                                            borderRadius: 14,
+                                            background: 'rgba(15, 23, 42, 0.55)',
+                                            border: `1px solid ${borderColor}`,
+                                        }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
+                                                <div style={{ color: 'white', fontWeight: 600, fontSize: 13, lineHeight: 1.3 }}>{agent.name}</div>
+                                                {isDesync && (
+                                                    <span style={{
+                                                        background: 'rgba(248, 113, 113, 0.15)',
+                                                        color: '#f87171',
+                                                        fontSize: 10,
+                                                        fontWeight: 700,
+                                                        padding: '2px 7px',
+                                                        borderRadius: 6,
+                                                        whiteSpace: 'nowrap',
+                                                    }}>DESYNC</span>
+                                                )}
+                                            </div>
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px', fontSize: 12 }}>
+                                                <div>
+                                                    <span style={{ color: '#64748b' }}>DB: </span>
+                                                    <span style={{ color: agent.db_connected ? '#34d399' : '#94a3b8', fontWeight: 600 }}>
+                                                        {dbStatusLabel[agent.db_status] || agent.db_status}
+                                                    </span>
+                                                </div>
+                                                <div>
+                                                    <span style={{ color: '#64748b' }}>Bot: </span>
+                                                    <span style={{
+                                                        color: agent.bot_active ? '#34d399' : agent.bot_pending ? '#f59e0b' : agent.bot_scheduled ? '#a78bfa' : '#64748b',
+                                                        fontWeight: 600,
+                                                    }}>
+                                                        {agent.bot_active ? 'actif' : agent.bot_pending ? 'en attente' : agent.bot_scheduled ? 'planifie' : 'absent'}
+                                                    </span>
+                                                </div>
+                                                {agent.phone && (
+                                                    <div style={{ gridColumn: '1 / -1', color: '#64748b', marginTop: 2 }}>
+                                                        {agent.phone}
+                                                    </div>
+                                                )}
+                                                {!agent.is_active && (
+                                                    <div style={{ gridColumn: '1 / -1', color: '#64748b', marginTop: 2, fontSize: 11 }}>
+                                                        Agent desactive (is_active=false)
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )
+                                })}
                             </div>
                         </div>
                     )}
