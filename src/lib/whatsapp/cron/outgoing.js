@@ -93,6 +93,11 @@ async function processHistoryMessage(supabase, activeSessions, agentStateCache, 
             .eq('id', msg.id)
         return
     }
+    // Ne pas envoyer si la conversation est en pause (humain a pris la main)
+    if (msg.conversation.bot_paused) {
+        console.log(`⏸️ [HISTORY] Skipping pending msg ${msg.id}: conversation ${msg.conversation_id} is bot_paused`)
+        return
+    }
     const session = activeSessions.get(agentId)
     if (!session?.socket) return
     try {

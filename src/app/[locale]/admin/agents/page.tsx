@@ -4,7 +4,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
     Activity,
+    ArrowUpDown,
     Bot,
+    ChevronDown,
+    ChevronUp,
     Eye,
     Loader2,
     MessageCircle,
@@ -67,6 +70,8 @@ function normalizeAgent(agent: any): AdminAgent {
 
 type BotStateMap = Record<string, { active: boolean; connecting: boolean; botSocketStatus: string | null; pending: boolean; scheduled: boolean }>
 
+const STATUS_ORDER: Record<string, number> = { connected: 0, qr_ready: 1, reconnect_required: 2, paused: 3 }
+
 export default function AdminAgentsPage() {
     const [agents, setAgents] = useState<AdminAgent[]>([])
     const [loading, setLoading] = useState(true)
@@ -76,6 +81,9 @@ export default function AdminAgentsPage() {
     const [showSupportQr, setShowSupportQr] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [botState, setBotState] = useState<BotStateMap>({})
+    const [filterStatus, setFilterStatus] = useState<string>('all')
+    const [sortBy, setSortBy] = useState<'name' | 'status' | 'messages' | 'created'>('name')
+    const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
 
     useEffect(() => {
         fetchAgents()
@@ -106,6 +114,15 @@ export default function AdminAgentsPage() {
                     scheduled: scheduledSet.has(s.id),
                 }
             }
+            // Agents en file d'attente mais pas encore dans activeSessions :
+            // sans ces entrées, botPending/botScheduled resteraient false
+            // et la vérification DESYNC déclencherait une fausse alerte.
+            for (const id of pending) {
+                if (!map[id]) map[id] = { active: false, connecting: false, botSocketStatus: null, pending: true, scheduled: false }
+            }
+            for (const id of scheduled) {
+                if (!map[id]) map[id] = { active: false, connecting: false, botSocketStatus: null, pending: false, scheduled: true }
+            }
             setBotState(map)
         } catch { /* silencieux */ }
     }
@@ -126,7 +143,7 @@ export default function AdminAgentsPage() {
     }
 
     async function disconnectWhatsApp(id: string, name: string) {
-        if (!confirm(`Deconnecter WhatsApp de l'agent "${name}" ? Le bot ne repondra plus jusqu'au prochain scan QR.`)) return
+        if (!confirm(`Deconnecter WhatsApp de l'agent "${name}" ? Le bot ne repondra plus tant que vous ne relancez pas la connexion manuellement.`)) return
         setActionLoading(id)
         setError(null)
         try {
@@ -243,11 +260,22 @@ export default function AdminAgentsPage() {
     }
 
     const filtered = useMemo(() => {
-        return agents.filter((agent) =>
-            agent.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            agent.user.toLowerCase().includes(searchQuery.toLowerCase())
-        )
-    }, [agents, searchQuery])
+        const q = searchQuery.toLowerCase()
+        let list = agents.filter((agent) => {
+            const matchSearch = !q || agent.name.toLowerCase().includes(q) || agent.user.toLowerCase().includes(q)
+            const matchStatus = filterStatus === 'all' || agent.operationalStatus === filterStatus
+            return matchSearch && matchStatus
+        })
+        list = [...list].sort((a, b) => {
+            let cmp = 0
+            if (sortBy === 'name')     cmp = a.name.localeCompare(b.name, 'fr')
+            if (sortBy === 'status')   cmp = (STATUS_ORDER[a.operationalStatus] ?? 99) - (STATUS_ORDER[b.operationalStatus] ?? 99)
+            if (sortBy === 'messages') cmp = a.messages - b.messages
+            if (sortBy === 'created')  cmp = new Date((a as any).created_at).getTime() - new Date((b as any).created_at).getTime()
+            return sortDir === 'asc' ? cmp : -cmp
+        })
+        return list
+    }, [agents, searchQuery, filterStatus, sortBy, sortDir])
 
     const statusCounts = useMemo(() => {
         return agents.reduce((acc, agent) => {
@@ -312,24 +340,98 @@ export default function AdminAgentsPage() {
                 </div>
             )}
 
-            <div style={{ position: 'relative', maxWidth: 400 }}>
-                <Search style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', width: 18, height: 18, color: '#64748b' }} />
-                <input
-                    type="text"
-                    placeholder="Rechercher un agent..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    style={{
-                        width: '100%',
-                        padding: '12px 12px 12px 44px',
-                        borderRadius: 12,
-                        background: 'rgba(30, 41, 59, 0.5)',
-                        border: '1px solid rgba(148, 163, 184, 0.1)',
-                        color: 'white',
-                        fontSize: 14,
-                        outline: 'none',
-                    }}
-                />
+            {/* Barre recherche + tri */}
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                <div style={{ position: 'relative', flex: '1 1 220px', maxWidth: 380 }}>
+                    <Search style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', width: 16, height: 16, color: '#64748b' }} />
+                    <input
+                        type="text"
+                        placeholder="Rechercher un agent..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        style={{
+                            width: '100%',
+                            padding: '10px 12px 10px 40px',
+                            borderRadius: 10,
+                            background: 'rgba(30, 41, 59, 0.5)',
+                            border: '1px solid rgba(148, 163, 184, 0.1)',
+                            color: 'white',
+                            fontSize: 13,
+                            outline: 'none',
+                            boxSizing: 'border-box',
+                        }}
+                    />
+                </div>
+
+                {/* Boutons de tri */}
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {([
+                        { value: 'name',     label: 'Nom' },
+                        { value: 'status',   label: 'Statut' },
+                        { value: 'messages', label: 'Messages' },
+                        { value: 'created',  label: 'Date' },
+                    ] as { value: typeof sortBy; label: string }[]).map(({ value, label }) => {
+                        const active = sortBy === value
+                        const Icon = active ? (sortDir === 'asc' ? ChevronUp : ChevronDown) : ArrowUpDown
+                        return (
+                            <button
+                                key={value}
+                                onClick={() => {
+                                    if (active) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+                                    else { setSortBy(value); setSortDir('asc') }
+                                }}
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: 4,
+                                    padding: '8px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
+                                    fontSize: 12, fontWeight: active ? 700 : 500,
+                                    background: active ? 'rgba(52, 211, 153, 0.12)' : 'rgba(30, 41, 59, 0.5)',
+                                    color: active ? '#34d399' : '#94a3b8',
+                                    transition: 'all 0.15s',
+                                }}
+                            >
+                                <Icon size={13} />
+                                {label}
+                            </button>
+                        )
+                    })}
+                </div>
+            </div>
+
+            {/* Filtres par statut */}
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {([
+                    { value: 'all',                  label: `Tous (${agents.length})` },
+                    { value: 'connected',            label: `Connectés (${statusCounts.connected})` },
+                    { value: 'qr_ready',             label: `À connecter (${statusCounts.qr_ready})` },
+                    { value: 'reconnect_required',   label: `À reconnecter (${statusCounts.reconnect_required})` },
+                    { value: 'paused',               label: `En pause (${statusCounts.paused})` },
+                ] as { value: string; label: string }[]).map(({ value, label }) => {
+                    const active = filterStatus === value
+                    const colors: Record<string, { bg: string; text: string }> = {
+                        all:                  { bg: 'rgba(148,163,184,0.12)', text: '#94a3b8' },
+                        connected:            { bg: 'rgba(52,211,153,0.12)',  text: '#34d399' },
+                        qr_ready:             { bg: 'rgba(96,165,250,0.12)', text: '#60a5fa' },
+                        reconnect_required:   { bg: 'rgba(248,113,113,0.12)',text: '#f87171' },
+                        paused:               { bg: 'rgba(245,158,11,0.12)', text: '#fbbf24' },
+                    }
+                    const c = colors[value]
+                    return (
+                        <button
+                            key={value}
+                            onClick={() => setFilterStatus(value)}
+                            style={{
+                                padding: '5px 12px', borderRadius: 100, border: 'none', cursor: 'pointer',
+                                fontSize: 12, fontWeight: active ? 700 : 500,
+                                background: active ? c.bg : 'rgba(30,41,59,0.4)',
+                                color: active ? c.text : '#64748b',
+                                outline: active ? `1px solid ${c.text}33` : 'none',
+                                transition: 'all 0.15s',
+                            }}
+                        >
+                            {label}
+                        </button>
+                    )
+                })}
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
@@ -525,30 +627,34 @@ export default function AdminAgentsPage() {
                             >
                                 <Power size={13} /> {agent.is_active ? 'Pause' : 'Activer'}
                             </button>
+                            {canDecoWA && (
                             <button
-                                onClick={() => canDecoWA && !busy && disconnectWhatsApp(agent.id, agent.name)}
-                                title={!canDecoWA ? 'Agent non connecte a WhatsApp' : 'Deconnecter WhatsApp'}
+                                onClick={() => !busy && disconnectWhatsApp(agent.id, agent.name)}
+                                title="Deconnecter WhatsApp"
                                 style={{ ...btnBase,
-                                    cursor: canDecoWA && !busy ? 'pointer' : 'not-allowed',
+                                    cursor: busy ? 'not-allowed' : 'pointer',
                                     background: 'rgba(249,115,22,0.1)',
                                     color: '#f97316',
-                                    opacity: busy || !canDecoWA ? 0.3 : 1,
+                                    opacity: busy ? 0.3 : 1,
                                 }}
                             >
                                 <Smartphone size={13} /> Deco. WA
                             </button>
+                            )}
+                            {canRelancer && (
                             <button
-                                onClick={() => canRelancer && !busy && requestWhatsAppConnect(agent.id, agent.name, agent.operationalStatus === 'qr_ready')}
-                                title={!canRelancer ? (agent.whatsapp_connected ? 'Deja connecte' : 'Activez l agent d abord') : agent.whatsapp_disconnected_by === 'user' ? 'Deconnexion volontaire — relancer le scan QR' : agent.whatsapp_disconnected_by === 'system' ? 'Perte de signal — relancer la connexion' : undefined}
+                                onClick={() => !busy && requestWhatsAppConnect(agent.id, agent.name, agent.operationalStatus === 'qr_ready')}
+                                title={agent.whatsapp_disconnected_by === 'user' ? 'Deconnexion manuelle — relancer la connexion' : agent.whatsapp_disconnected_by === 'system' ? 'Perte de signal — relancer la connexion' : undefined}
                                 style={{ ...btnBase,
-                                    cursor: canRelancer && !busy ? 'pointer' : 'not-allowed',
+                                    cursor: busy ? 'not-allowed' : 'pointer',
                                     background: 'rgba(16,185,129,0.12)',
                                     color: '#34d399',
-                                    opacity: busy || !canRelancer ? 0.3 : 1,
+                                    opacity: busy ? 0.3 : 1,
                                 }}
                             >
                                 <RefreshCw size={13} /> Relancer WA
                             </button>
+                            )}
                             <button
                                 onClick={() => openAgentDetails(agent)}
                                 style={{
