@@ -204,14 +204,10 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
         return
     }
 
-    // 🔍 MOUCHARD #4 — entrée handleMessage
-    console.log(`🔍 [handleMessage] agentId=${agentId} from=${message.from} text="${String(message.text || '').slice(0, 50)}"`)
-
     if (isRateLimited(message.from)) {
         // Informer le client du rate limit
         const session = activeSessions.get(agentId)
         if (session) {
-            const { MessagingService } = require('../services/messaging.service')
             await MessagingService.sendText(
                 session,
                 message.from,
@@ -672,6 +668,18 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
         // ═══════════════════════════════════════════════════════════
         // PHASE 6 : ENVOI RÉPONSE
         // ═══════════════════════════════════════════════════════════
+
+        // 6.pre-check — Re-vérifier l'état de la conversation juste avant l'envoi.
+        // Un humain peut avoir pris la main pendant les ~1-3s de traitement IA ci-dessus.
+        const { data: freshConvState } = await supabase
+            .from('conversations')
+            .select('bot_paused, status')
+            .eq('id', conversation.id)
+            .single()
+        if (freshConvState?.bot_paused || freshConvState?.status === 'escalated' || freshConvState?.status === 'spam') {
+            console.log(`🚫 [${agentId}] Conversation ${conversation.id} devenue inactive pendant le traitement IA (status=${freshConvState?.status}, bot_paused=${freshConvState?.bot_paused}) — envoi annulé`)
+            return
+        }
 
         // 6.pre — Déduire 1 crédit de base AVANT tout envoi (poka-yoke)
         // Si la déduction échoue (crédits épuisés, RPC indispo), on n'envoie pas.

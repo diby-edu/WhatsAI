@@ -71,13 +71,25 @@ function setupRealtimeListeners(context) {
         })
         // 3. Agents (Connection requests OR Deactivation)
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'agents' }, async (payload) => {
-            const { whatsapp_status, name, id, is_active } = payload.new
+            const { whatsapp_status, whatsapp_connected, name, id, is_active } = payload.new
 
             // Handle deactivation mapping to disconnect zombie websockets
             if (is_active === false) {
                 const session = activeSessions.get(id)
                 if (session) {
                     console.log(`⏸️ [REALTIME] Agent deactivated — closing orphan socket (${id})`)
+                    try { session.socket.end() } catch (_) { }
+                    activeSessions.delete(id)
+                }
+                pendingConnections.delete(id)
+                return
+            }
+
+            // Handle explicit WhatsApp disconnection (owner or admin) — close orphan socket
+            if (whatsapp_connected === false && whatsapp_status === 'disconnected') {
+                const session = activeSessions.get(id)
+                if (session) {
+                    console.log(`🔌 [REALTIME] WhatsApp disconnected — closing orphan socket (${id})`)
                     try { session.socket.end() } catch (_) { }
                     activeSessions.delete(id)
                 }

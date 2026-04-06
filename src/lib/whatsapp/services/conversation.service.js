@@ -127,7 +127,7 @@ class ConversationService {
      * @param {string} conversationId - ID de la conversation
      * @param {string} reason - Raison de l'escalade
      */
-    static async escalate(supabase, conversationId, reason) {
+    static async escalate(supabase, conversationId, reason, contactPhone = null) {
         try {
             const { error } = await supabase
                 .from('conversations')
@@ -145,7 +145,7 @@ class ConversationService {
 
             // Notify admins of escalation (fire-and-forget)
             notifyAdmins('escalation', {
-                contactPhone: conversationId,
+                contactPhone: contactPhone || conversationId,
                 errorMessage: reason,
             }).catch(() => {})
         } catch (error) {
@@ -189,21 +189,13 @@ class ConversationService {
      * @param {string} conversationId - ID de la conversation
      * @param {Object} updates - Nouvelles métadonnées
      */
-    static async updateMetadata(supabase, conversationId, updates) {
+    static async updateMetadata(supabase, conversationId, mergedMetadata) {
         try {
-            // Récupérer métadonnées actuelles
-            const { data: current } = await supabase
-                .from('conversations')
-                .select('metadata')
-                .eq('id', conversationId)
-                .single()
-
-            // Merger avec nouvelles
-            const merged = { ...current?.metadata, ...updates }
-
+            // Reçoit l'objet déjà fusionné depuis l'instance (merge fait en mémoire,
+            // pas de SELECT → élimine la race condition RMW sur la DB)
             const { error } = await supabase
                 .from('conversations')
-                .update({ metadata: merged })
+                .update({ metadata: mergedMetadata })
                 .eq('id', conversationId)
 
             if (error) throw error
@@ -271,7 +263,7 @@ class Conversation {
      * @param {string} reason - Raison de l'escalade
      */
     async escalate(reason) {
-        await ConversationService.escalate(this.supabase, this.id, reason)
+        await ConversationService.escalate(this.supabase, this.id, reason, this.contact_phone)
         this.status = 'escalated'
         this.bot_paused = true
     }
@@ -295,8 +287,10 @@ class Conversation {
     }
 
     async updateMetadata(updates) {
-        await ConversationService.updateMetadata(this.supabase, this.id, updates)
+        // Merge en mémoire d'abord (source de vérité pour les appels séquentiels
+        // dans un même handleMessage), puis écriture directe sans re-fetch DB
         this.metadata = { ...(this.metadata || {}), ...(updates || {}) }
+        await ConversationService.updateMetadata(this.supabase, this.id, this.metadata)
     }
 
     /**
@@ -304,7 +298,11 @@ class Conversation {
      * @returns {boolean}
      */
     isActive() {
-        return !this.isPaused() && !this.isEscalated()
+        // 'spam' : jamais de réponse bot
+        // 'escalated' : humain a pris la main
+        // 'bot_paused' : humain a mis en pause
+        // 'active' et 'closed' : bot répond (closed = re-engagement client)
+        return this.status !== 'spam' && !this.isPaused() && !this.isEscalated()
     }
 }
 
