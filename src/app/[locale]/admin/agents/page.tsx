@@ -64,6 +64,8 @@ function normalizeAgent(agent: any): AdminAgent {
     }
 }
 
+type BotStateMap = Record<string, { active: boolean; pending: boolean; scheduled: boolean }>
+
 export default function AdminAgentsPage() {
     const [agents, setAgents] = useState<AdminAgent[]>([])
     const [loading, setLoading] = useState(true)
@@ -72,10 +74,25 @@ export default function AdminAgentsPage() {
     const [viewAgent, setViewAgent] = useState<AdminAgent | null>(null)
     const [showSupportQr, setShowSupportQr] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [botState, setBotState] = useState<BotStateMap>({})
 
     useEffect(() => {
         fetchAgents()
     }, [])
+
+    async function fetchBotState() {
+        try {
+            const res = await fetch('/api/admin/diagnostics/whatsapp-state')
+            const data = await res.json()
+            if (data?.data?.agents) {
+                const map: BotStateMap = {}
+                for (const a of data.data.agents) {
+                    map[a.id] = { active: a.bot_active, pending: a.bot_pending, scheduled: a.bot_scheduled }
+                }
+                setBotState(map)
+            }
+        } catch { /* silencieux */ }
+    }
 
     async function fetchAgents() {
         try {
@@ -89,6 +106,7 @@ export default function AdminAgentsPage() {
         } finally {
             setLoading(false)
         }
+        fetchBotState()
     }
 
     async function disconnectWhatsApp(id: string, name: string) {
@@ -317,7 +335,7 @@ export default function AdminAgentsPage() {
                             </span>
                         </div>
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: 'rgba(51, 65, 85, 0.3)', borderRadius: 8, marginBottom: 12 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: 'rgba(51, 65, 85, 0.3)', borderRadius: 8, marginBottom: 8 }}>
                             {agent.operationalStatus === 'connected' || agent.operationalStatus === 'reconnect_required' ? (
                                 <Smartphone style={{ width: 14, height: 14, color: agent.operationalColors.badgeText }} />
                             ) : (
@@ -325,6 +343,49 @@ export default function AdminAgentsPage() {
                             )}
                             <span style={{ fontSize: 12, color: agent.operationalColors.badgeText }}>{agent.operationalDetail}</span>
                         </div>
+
+                        {(() => {
+                            const bot = botState[agent.id]
+                            if (!bot && Object.keys(botState).length === 0) return null
+                            const dbConnected = agent.whatsapp_connected
+                            const botActive = bot?.active ?? false
+                            const botPending = bot?.pending ?? false
+                            const botScheduled = bot?.scheduled ?? false
+                            const desync = dbConnected !== botActive
+                            const dbLabel: Record<string, string> = {
+                                connected: 'connecte', connecting: 'connexion...', qr_ready: 'QR pret',
+                                disconnected: 'deconnecte', reconnect_required: 'a reconnecter', paused: 'en pause',
+                            }
+                            return (
+                                <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    padding: '5px 10px',
+                                    borderRadius: 8,
+                                    marginBottom: 8,
+                                    background: desync ? 'rgba(248,113,113,0.08)' : 'rgba(15,23,42,0.4)',
+                                    border: `1px solid ${desync ? 'rgba(248,113,113,0.25)' : 'rgba(148,163,184,0.07)'}`,
+                                    fontSize: 11,
+                                    gap: 8,
+                                }}>
+                                    <span>
+                                        <span style={{ color: '#64748b' }}>DB </span>
+                                        <span style={{ color: dbConnected ? '#34d399' : '#94a3b8', fontWeight: 600 }}>
+                                            {dbLabel[agent.whatsapp_status || ''] || (dbConnected ? 'connecte' : 'deconnecte')}
+                                        </span>
+                                        <span style={{ color: '#475569', margin: '0 6px' }}>|</span>
+                                        <span style={{ color: '#64748b' }}>Bot </span>
+                                        <span style={{ color: botActive ? '#34d399' : botPending ? '#f59e0b' : botScheduled ? '#a78bfa' : '#64748b', fontWeight: 600 }}>
+                                            {botActive ? 'actif' : botPending ? 'en attente' : botScheduled ? 'planifie' : 'absent'}
+                                        </span>
+                                    </span>
+                                    {desync && (
+                                        <span style={{ color: '#f87171', fontWeight: 700, fontSize: 10, whiteSpace: 'nowrap' }}>DESYNC</span>
+                                    )}
+                                </div>
+                            )
+                        })()}
 
                         <div style={{ display: 'flex', gap: 16, marginBottom: 14 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
