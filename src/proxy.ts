@@ -49,15 +49,13 @@ export async function proxy(request: NextRequest) {
     }
 
     // ── Mode Maintenance ──────────────────────────────────────────────────────
-    // Exempté : /api, /admin, /maintenance, /_next
     const pathnameBase = pathname.replace(/^\/(fr|en)(?=\/|$)/, '') || '/'
-    const isMaintenanceExempt =
+    const isMaintenanceSkip =
         pathname.startsWith('/api') ||
         pathname.startsWith('/_next') ||
-        isWithinPath(pathnameBase, '/admin') ||
-        isWithinPath(pathnameBase, '/maintenance')
+        isWithinPath(pathnameBase, '/admin')
 
-    if (!isMaintenanceExempt) {
+    if (!isMaintenanceSkip) {
         try {
             const maintClient = createServerClient(
                 process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -70,9 +68,16 @@ export async function proxy(request: NextRequest) {
                 .eq('key', 'maintenance_mode')
                 .maybeSingle()
 
-            if (data?.enabled === true) {
-                const locale = getLocale(pathname)
+            const maintenanceActive = data?.enabled === true
+            const isOnMaintenancePage = isWithinPath(pathnameBase, '/maintenance')
+            const locale = getLocale(pathname)
+
+            if (maintenanceActive && !isOnMaintenancePage) {
                 return redirectTo(request, locale, '/maintenance')
+            }
+
+            if (!maintenanceActive && isOnMaintenancePage) {
+                return redirectTo(request, locale, '/')
             }
         } catch { /* silencieux */ }
     }
