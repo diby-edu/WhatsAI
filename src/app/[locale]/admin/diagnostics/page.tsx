@@ -111,6 +111,7 @@ export default function AdminDiagnosticsPage() {
     const [stats, setStats] = useState<StatsPayload | null>(null)
     const [whatsAppRiskReport, setWhatsAppRiskReport] = useState<WhatsAppRiskReport | null>(null)
     const [whatsAppStateMatrix, setWhatsAppStateMatrix] = useState<WhatsAppStateMatrix | null>(null)
+    const [whatsAppStateError, setWhatsAppStateError] = useState<string | null>(null)
     const [loading, setLoading] = useState(true)
     const [lastCheck, setLastCheck] = useState<Date | null>(null)
 
@@ -134,7 +135,6 @@ export default function AdminDiagnosticsPage() {
                 dns,
                 ratelimit,
                 statsResponse,
-                whatsappState,
             ] = await Promise.all([
                 getJson('/api/admin/diagnostics/database'),
                 getJson('/api/health'),
@@ -151,8 +151,17 @@ export default function AdminDiagnosticsPage() {
                 getJson('/api/admin/diagnostics/dns'),
                 getJson('/api/admin/diagnostics/ratelimit'),
                 getJson('/api/admin/diagnostics/stats'),
-                getJson('/api/admin/diagnostics/whatsapp-state').catch(() => ({ data: null })),
             ])
+
+            // Fetch séparé pour la vue double état — toujours affichée même en cas d'erreur
+            try {
+                const whatsappState = await getJson('/api/admin/diagnostics/whatsapp-state')
+                setWhatsAppStateMatrix(whatsappState?.data || null)
+                setWhatsAppStateError(whatsappState?.data ? null : 'Réponse vide de l\'API')
+            } catch (stateErr: any) {
+                setWhatsAppStateMatrix(null)
+                setWhatsAppStateError(stateErr?.message || 'Erreur API whatsapp-state')
+            }
 
             const riskReport: WhatsAppRiskReport | null =
                 whatsapp.data?.riskReport || whatsappService.data?.riskReport || null
@@ -312,7 +321,6 @@ export default function AdminDiagnosticsPage() {
             setDiagnostics(results)
             setStats(statsResponse.data || null)
             setWhatsAppRiskReport(riskReport)
-            setWhatsAppStateMatrix(whatsappState?.data || null)
             setLastCheck(new Date())
         } catch (err) {
             console.error('Diagnostics run failed:', err)
@@ -516,32 +524,37 @@ export default function AdminDiagnosticsPage() {
                         </div>
                     )}
 
-                    {whatsAppStateMatrix && (
-                        <div style={{
-                            padding: 20,
-                            borderRadius: 18,
-                            background: 'rgba(15, 23, 42, 0.7)',
-                            border: '1px solid rgba(148, 163, 184, 0.15)',
-                        }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
-                                <div>
-                                    <div style={{ color: 'white', fontSize: 18, fontWeight: 700, marginBottom: 4 }}>
-                                        Etat double : DB vs Bot
-                                    </div>
-                                    <div style={{ color: '#94a3b8', fontSize: 13 }}>
-                                        {whatsAppStateMatrix.totalAgents} agent(s) — {whatsAppStateMatrix.incoherentCount} desynchronise(s)
-                                        {!whatsAppStateMatrix.botReachable && (
-                                            <span style={{ color: '#f87171', marginLeft: 8 }}>(bot non joignable — etat bot inconnu)</span>
-                                        )}
-                                    </div>
+                    <div style={{
+                        padding: 20,
+                        borderRadius: 18,
+                        background: 'rgba(15, 23, 42, 0.7)',
+                        border: '1px solid rgba(148, 163, 184, 0.15)',
+                    }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
+                            <div>
+                                <div style={{ color: 'white', fontSize: 18, fontWeight: 700, marginBottom: 4 }}>
+                                    Etat double : DB vs Bot
                                 </div>
-                                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 12 }}>
-                                    <span style={{ color: '#34d399' }}>● DB+Bot connecte</span>
-                                    <span style={{ color: '#64748b' }}>● Deconnecte coherent</span>
-                                    <span style={{ color: '#f87171' }}>● Desynchronise</span>
-                                    <span style={{ color: '#f59e0b' }}>● En attente bot</span>
+                                <div style={{ color: '#94a3b8', fontSize: 13 }}>
+                                    {whatsAppStateMatrix
+                                        ? `${whatsAppStateMatrix.totalAgents} agent(s) — ${whatsAppStateMatrix.incoherentCount} desynchronise(s)`
+                                        : 'Chargement...'}
+                                    {whatsAppStateMatrix && !whatsAppStateMatrix.botReachable && (
+                                        <span style={{ color: '#f87171', marginLeft: 8 }}>(bot non joignable — etat bot inconnu)</span>
+                                    )}
+                                    {whatsAppStateError && (
+                                        <span style={{ color: '#f87171', marginLeft: 8 }}>Erreur : {whatsAppStateError}</span>
+                                    )}
                                 </div>
                             </div>
+                            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 12 }}>
+                                <span style={{ color: '#34d399' }}>● DB+Bot connecte</span>
+                                <span style={{ color: '#64748b' }}>● Deconnecte coherent</span>
+                                <span style={{ color: '#f87171' }}>● Desynchronise</span>
+                                <span style={{ color: '#f59e0b' }}>● En attente bot</span>
+                            </div>
+                        </div>
+                        {whatsAppStateMatrix?.agents && whatsAppStateMatrix.agents.length > 0 ? (
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 10 }}>
                                 {whatsAppStateMatrix.agents.map((agent) => {
                                     const isDesync = !agent.coherent
@@ -616,8 +629,16 @@ export default function AdminDiagnosticsPage() {
                                     )
                                 })}
                             </div>
-                        </div>
-                    )}
+                        ) : (
+                            <div style={{ color: '#64748b', fontSize: 13, padding: '12px 0' }}>
+                                {whatsAppStateError
+                                    ? `Donnees non disponibles — ${whatsAppStateError}`
+                                    : whatsAppStateMatrix
+                                        ? 'Aucun agent trouve'
+                                        : 'En cours de chargement...'}
+                            </div>
+                        )}
+                    </div>
 
                     {categories.map((category) => (
                         <div key={category}>
