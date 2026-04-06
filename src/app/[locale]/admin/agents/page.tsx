@@ -79,6 +79,9 @@ export default function AdminAgentsPage() {
 
     useEffect(() => {
         fetchAgents()
+        // Polling bot state toutes les 5s — sans recharger les agents (léger)
+        const interval = setInterval(fetchBotState, 5000)
+        return () => clearInterval(interval)
     }, [])
 
     async function fetchBotState() {
