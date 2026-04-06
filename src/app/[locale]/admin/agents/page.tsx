@@ -65,7 +65,7 @@ function normalizeAgent(agent: any): AdminAgent {
     }
 }
 
-type BotStateMap = Record<string, { active: boolean; connecting: boolean; botSocketStatus: string | null; pending: boolean; scheduled: boolean }>
+type BotStateMap = Record<string, { active: boolean; stable: boolean; connecting: boolean; botSocketStatus: string | null; pending: boolean; scheduled: boolean }>
 
 export default function AdminAgentsPage() {
     const [agents, setAgents] = useState<AdminAgent[]>([])
@@ -90,6 +90,7 @@ export default function AdminAgentsPage() {
                 for (const a of data.data.agents) {
                     map[a.id] = {
                         active: a.bot_active,
+                        stable: a.bot_stable ?? a.bot_active,
                         connecting: a.bot_connecting ?? false,
                         botSocketStatus: a.bot_socket_status ?? null,
                         pending: a.bot_pending,
@@ -382,6 +383,7 @@ export default function AdminAgentsPage() {
                             const bot = botState[agent.id]
                             const dbConnected = agent.whatsapp_connected
                             const botActive = bot?.active ?? false
+                            const botStable = bot?.stable ?? false
                             const botConnecting = bot?.connecting ?? false
                             const botPending = bot?.pending ?? false
                             const botScheduled = bot?.scheduled ?? false
@@ -399,13 +401,13 @@ export default function AdminAgentsPage() {
                                 : (dbLabel[agent.whatsapp_status || ''] || (dbConnected ? 'Connecte' : 'Deconnecte'))
                             const dbColor = !agent.is_active ? '#f59e0b' : dbConnected ? '#34d399' : '#94a3b8'
 
-                            // Bot label : si l'agent est en pause + socket ouvert → "Socket ouvert (en pause)"
+                            // Bot label : "Actif" seulement si stable (connecté > 30s) — garantit que l'agent répond
                             const isPaused = !agent.is_active
                             const botLabel = botActive
-                                ? (isPaused ? 'Socket ouvert (en pause)' : 'Actif')
+                                ? (isPaused ? 'Socket ouvert (en pause)' : botStable ? 'Actif' : 'En stabilisation...')
                                 : botConnecting ? 'Connexion...' : botPending ? 'En attente' : botScheduled ? 'Planifie' : 'Absent'
                             const botColor = botActive
-                                ? (isPaused ? '#f59e0b' : '#34d399')
+                                ? (isPaused ? '#f59e0b' : botStable ? '#34d399' : '#f59e0b')
                                 : botConnecting ? '#60a5fa' : botPending ? '#f59e0b' : botScheduled ? '#a78bfa' : '#64748b'
 
                             return (

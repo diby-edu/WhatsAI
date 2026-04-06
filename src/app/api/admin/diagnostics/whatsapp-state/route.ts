@@ -2,7 +2,9 @@ import { NextRequest } from 'next/server'
 import { errorResponse, successResponse } from '@/lib/api-utils'
 import { requireAdminAccess } from '@/lib/admin/auth'
 
-type BotSession = { id: string; status: string }
+const BOT_STABLE_DELAY_MS = 30_000 // socket doit être connecté depuis > 30s pour être considéré stable
+
+type BotSession = { id: string; status: string; connectedAt: number | null }
 type BotPayload = {
     activeSessions: BotSession[]
     pendingConnections: string[]
@@ -37,23 +39,31 @@ export async function GET(_request: NextRequest) {
         if (agentsResult.error) throw agentsResult.error
 
         const agents = agentsResult.data || []
+        const now = Date.now()
 
-        // Map agentId → bot socket status ('connected' | 'connecting' | 'qr_waiting' | ...)
-        const botSessionMap = new Map<string, string>()
+        // Map agentId → session complète (status + connectedAt)
+        const botSessionMap = new Map<string, BotSession>()
         for (const s of botSessions?.activeSessions || []) {
-            botSessionMap.set(s.id, s.status)
+            botSessionMap.set(s.id, s)
         }
         const pendingSet = new Set(botSessions?.pendingConnections || [])
         const scheduledSet = new Set(botSessions?.scheduledConnections || [])
 
         const matrix = agents.map((agent) => {
-            const botSocketStatus = botSessionMap.get(agent.id) ?? null
+            const botSession = botSessionMap.get(agent.id) ?? null
+            const botSocketStatus = botSession?.status ?? null
+
             // "actif" uniquement si le socket est vraiment connecté (pas QR, pas connecting)
             const botActive = botSocketStatus === 'connected'
             const botConnecting = botSocketStatus !== null && botSocketStatus !== 'connected'
             const isPending = pendingSet.has(agent.id)
             const isScheduled = scheduledSet.has(agent.id)
             const dbConnected = agent.whatsapp_connected === true
+
+            // Stable = connecté ET connexion établie depuis > 30s (évite faux "Actif" pendant boucle de reconnexion)
+            const connectedAt = botSession?.connectedAt ?? null
+            const connectedAgeMs = connectedAt ? now - connectedAt : null
+            const botStable = botActive && (connectedAgeMs === null || connectedAgeMs > BOT_STABLE_DELAY_MS)
 
             // DESYNC = DB dit connecté mais bot n'a pas de socket vraiment connecté
             const coherent = dbConnected === botActive
@@ -66,6 +76,8 @@ export async function GET(_request: NextRequest) {
                 db_status: agent.whatsapp_status || 'unknown',
                 phone: agent.whatsapp_phone || null,
                 bot_active: botActive,
+                bot_stable: botStable,
+                bot_connected_age_ms: connectedAgeMs,
                 bot_connecting: botConnecting,
                 bot_socket_status: botSocketStatus,
                 bot_pending: isPending,
