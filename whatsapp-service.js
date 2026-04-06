@@ -117,13 +117,14 @@ const pendingConnections = new Set()
 const scheduledConnections = new Set()
 const scheduledInitTimers = new Map() // agentId -> timeout handle
 const scheduledInitDueAt = new Map() // agentId -> timestamp when scheduled init should fire
+const qrAttemptCounts = new Map() // agentId -> nombre de QR générés en mode reconnexion
 // Cooldown map: évite que checkAgents re-déclenche un agent récemment initialisé
 // pendant le gap entre disconnect et reconnect (race condition → boucle infinie QR)
 const recentlyProcessed = new Map() // agentId -> lastInitTimestamp
 const AGENT_INIT_COOLDOWN = 3 * 60 * 1000 // 3 minutes entre deux initSession pour le même agent
 const INIT_STAGGER_MS = 3000
 const SETUP_PHASE_STALE_MS = 60 * 1000
-const MAX_INIT_QUEUE_DELAY_MS = 15 * 1000
+const MAX_INIT_QUEUE_DELAY_MS = 10 * 60 * 1000 // 10 min max — plus de thundering herd
 let nextInitSlotAt = 0
 const setupPhaseObservedAt = new Map() // agentId -> firstSeenInSetupPhase
 
@@ -198,7 +199,29 @@ async function checkAgents() {
     try {
         console.log('🔄 Checking for agents...')
 
-        // 1. Check for agents requesting connection or awaiting QR scan
+        const context = { supabase, supabaseRealtime, activeSessions, pendingConnections, openai, CinetPay, scheduleSessionInit, markSetupPhaseActivity, clearSetupPhaseActivity, qrAttemptCounts }
+
+        // 1. D'abord restaurer les agents qui étaient connectés (priorité absolue)
+        const { data: connectedAgents } = await supabase
+            .from('agents')
+            .select('id, name, last_message_at')
+            .eq('is_active', true)
+            .eq('whatsapp_connected', true)
+            .order('last_message_at', { ascending: false, nullsFirst: false })
+
+        for (const agent of connectedAgents || []) {
+            if (!activeSessions.has(agent.id) && !pendingConnections.has(agent.id) && !scheduledConnections.has(agent.id)) {
+                const lastInit = recentlyProcessed.get(agent.id)
+                if (lastInit && Date.now() - lastInit < AGENT_INIT_COOLDOWN) continue
+                console.log(`🔄 Restoring session for ${agent.name} (DB Status: Connected)`)
+                // Passer reconnectAttempt=99 → restauration silencieuse (pas de notification push)
+                // Une notification "connecté" au démarrage du bot serait du spam pour l'utilisateur
+                scheduleSessionInit(context, agent, 99)
+            }
+            clearSetupPhaseActivity(agent.id)
+        }
+
+        // 2. Ensuite les agents en cours de setup (connecting/qr_ready)
         const { data: connectingAgents } = await supabase
             .from('agents')
             .select('id, name, whatsapp_status')
@@ -216,8 +239,6 @@ async function checkAgents() {
                 setupPhaseObservedAt.delete(trackedAgentId)
             }
         }
-
-        const context = { supabase, supabaseRealtime, activeSessions, pendingConnections, openai, CinetPay, scheduleSessionInit, markSetupPhaseActivity, clearSetupPhaseActivity }
 
         for (const agent of connectingAgents || []) {
             const now = Date.now()
@@ -271,30 +292,38 @@ async function checkAgents() {
 
             scheduleSessionInit(context, agent)
         }
+    } catch (error) {
+        console.error('Error checking agents:', error)
+    }
+}
 
-        // 2. Check for agents that should be connected and have session files
-        const { data: connectedAgents } = await supabase
+// Réconciliation : corrige les agents marqués connectés en DB mais absents du bot
+async function reconcileSessions() {
+    try {
+        const { data: dbConnectedAgents } = await supabase
             .from('agents')
             .select('id, name')
             .eq('is_active', true)
             .eq('whatsapp_connected', true)
 
-        for (const agent of connectedAgents || []) {
-            // STATELESS UPDATE: Rely on DB status, not local files
-            // Only restore if not already active
-            if (!activeSessions.has(agent.id) && !pendingConnections.has(agent.id) && !scheduledConnections.has(agent.id)) {
-                const lastInit = recentlyProcessed.get(agent.id)
-                if (lastInit && Date.now() - lastInit < AGENT_INIT_COOLDOWN) continue
-                console.log(`🔄 Restoring session for ${agent.name} (DB Status: Connected)`)
-                // Passer reconnectAttempt=99 → restauration silencieuse (pas de notification push)
-                // Une notification "connecté" au démarrage du bot serait du spam pour l'utilisateur
-                scheduleSessionInit(context, agent, 99)
-            }
+        const zombies = (dbConnectedAgents || []).filter(a =>
+            !activeSessions.has(a.id) &&
+            !pendingConnections.has(a.id) &&
+            !scheduledConnections.has(a.id)
+        )
 
-            clearSetupPhaseActivity(agent.id)
+        if (zombies.length > 0) {
+            const ids = zombies.map(a => a.id)
+            const names = zombies.map(a => a.name).join(', ')
+            console.warn(`🔄 [RECONCILE] ${zombies.length} agent(s) connecté(s) en DB mais absents du bot: ${names}`)
+            await supabase
+                .from('agents')
+                .update({ whatsapp_connected: false, whatsapp_status: 'disconnected' })
+                .in('id', ids)
+            console.log(`✅ [RECONCILE] Corrigé ${zombies.length} agent(s) zombie(s)`)
         }
-    } catch (error) {
-        console.error('Error checking agents:', error)
+    } catch (err) {
+        console.error('[RECONCILE] Erreur:', err.message)
     }
 }
 
@@ -343,10 +372,17 @@ async function main() {
         console.error('❌ Failed during initial agent check:', err.message)
     }
 
+    // Réconciliation 3 min après démarrage (laisse le temps aux agents de se restaurer)
+    setTimeout(() => {
+        reconcileSessions()
+        // Puis toutes les 10 minutes
+        setInterval(reconcileSessions, 10 * 60 * 1000)
+    }, 3 * 60 * 1000)
+
     // Context for cron jobs and Realtime
     // - supabase (alias supabaseAdmin): pour les opérations DB
     // - supabaseRealtime: pour les subscriptions Realtime
-    const context = { supabase, supabaseRealtime, activeSessions, pendingConnections, openai, CinetPay, scheduleSessionInit, markSetupPhaseActivity, clearSetupPhaseActivity }
+    const context = { supabase, supabaseRealtime, activeSessions, pendingConnections, openai, CinetPay, scheduleSessionInit, markSetupPhaseActivity, clearSetupPhaseActivity, qrAttemptCounts }
 
     // ═══════════════════════════════════════════════════════════
     // ⚡ REALTIME & ADAPTIVE POLLING

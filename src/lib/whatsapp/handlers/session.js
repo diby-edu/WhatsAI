@@ -127,7 +127,30 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                 session.status = 'qr_waiting'
                 session.pairingSucceeded = false
                 markSetupPhaseActivity?.(agentId)
-                console.log(`📱 [${agentName}] QR code generated, saving to DB...`)
+
+                // Limite QR pour les reconnexions (agent déjà connecté avant)
+                const isReconnection = isSilentRestore || effectiveReconnectAttempt > 0
+                if (isReconnection && context?.qrAttemptCounts) {
+                    const count = (context.qrAttemptCounts.get(agentId) || 0) + 1
+                    context.qrAttemptCounts.set(agentId, count)
+                    const MAX_QR_RECONNECT = 5
+                    if (count > MAX_QR_RECONNECT) {
+                        console.warn(`⛔ [${agentName}] Limite QR atteinte (${count}/${MAX_QR_RECONNECT}) en reconnexion — arrêt et mise en disconnected`)
+                        context.qrAttemptCounts.delete(agentId)
+                        pendingConnections.delete(agentId)
+                        clearTimeout(pendingTimeout)
+                        try { socket.end() } catch (_) {}
+                        await supabase.from('agents').update({
+                            whatsapp_connected: false,
+                            whatsapp_status: 'disconnected',
+                            whatsapp_qr_code: null
+                        }).eq('id', agentId)
+                        return
+                    }
+                    console.log(`📱 [${agentName}] QR code generated (reconnexion ${count}/${MAX_QR_RECONNECT}), saving to DB...`)
+                } else {
+                    console.log(`📱 [${agentName}] QR code generated, saving to DB...`)
+                }
 
                 try {
                     // Convert QR to data URL and store in database
@@ -177,6 +200,10 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
             }
 
             if (connection === 'open') {
+                // Réinitialiser le compteur QR sur connexion réussie
+                if (context?.qrAttemptCounts) {
+                    context.qrAttemptCounts.delete(agentId)
+                }
                 clearTimeout(pendingTimeout)
                 session.status = 'connected'
                 pendingConnections.delete(agentId)
