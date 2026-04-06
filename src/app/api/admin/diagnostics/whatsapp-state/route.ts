@@ -2,8 +2,6 @@ import { NextRequest } from 'next/server'
 import { errorResponse, successResponse } from '@/lib/api-utils'
 import { requireAdminAccess } from '@/lib/admin/auth'
 
-const BOT_STABLE_DELAY_MS = 30_000 // socket doit être connecté depuis > 30s pour être considéré stable
-
 type BotSession = { id: string; status: string; connectedAt: number | null }
 type BotPayload = {
     activeSessions: BotSession[]
@@ -25,7 +23,7 @@ async function fetchBotSessions(): Promise<BotPayload> {
 
 export async function GET(_request: NextRequest) {
     const { response, adminSupabase } = await requireAdminAccess()
-    if (response || !adminSupabase) return response!
+    if (response || !adminSupabase) return response
 
     try {
         const [agentsResult, botSessions] = await Promise.all([
@@ -39,8 +37,6 @@ export async function GET(_request: NextRequest) {
         if (agentsResult.error) throw agentsResult.error
 
         const agents = agentsResult.data || []
-        const now = Date.now()
-
         // Map agentId → session complète (status + connectedAt)
         const botSessionMap = new Map<string, BotSession>()
         for (const s of botSessions?.activeSessions || []) {
@@ -60,11 +56,6 @@ export async function GET(_request: NextRequest) {
             const isScheduled = scheduledSet.has(agent.id)
             const dbConnected = agent.whatsapp_connected === true
 
-            // Stable = connecté ET connexion établie depuis > 30s (évite faux "Actif" pendant boucle de reconnexion)
-            const connectedAt = botSession?.connectedAt ?? null
-            const connectedAgeMs = connectedAt ? now - connectedAt : null
-            const botStable = botActive && (connectedAgeMs === null || connectedAgeMs > BOT_STABLE_DELAY_MS)
-
             // DESYNC = DB dit connecté mais bot n'a pas de socket vraiment connecté
             const coherent = dbConnected === botActive
 
@@ -76,8 +67,6 @@ export async function GET(_request: NextRequest) {
                 db_status: agent.whatsapp_status || 'unknown',
                 phone: agent.whatsapp_phone || null,
                 bot_active: botActive,
-                bot_stable: botStable,
-                bot_connected_age_ms: connectedAgeMs,
                 bot_connecting: botConnecting,
                 bot_socket_status: botSocketStatus,
                 bot_pending: isPending,
