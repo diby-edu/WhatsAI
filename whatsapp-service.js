@@ -440,6 +440,13 @@ async function main() {
                 uptime: Math.floor(process.uptime()),
                 timestamp: new Date().toISOString()
             }))
+        } else if (req.url === '/sessions') {
+            res.writeHead(200, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({
+                activeSessions: Array.from(activeSessions.keys()),
+                pendingConnections: Array.from(pendingConnections),
+                scheduledConnections: Array.from(scheduledConnections),
+            }))
         } else {
             res.writeHead(404)
             res.end('Not Found')
