@@ -179,8 +179,14 @@ export async function DELETE(request: NextRequest) {
         return errorResponse('Agent non trouve', 404)
     }
 
-    // Set status to 'disconnecting' - the standalone service will handle cleanup
     const adminClient = createAdminClient()
+
+    // Supprimer les credentials pour forcer un nouveau QR à la prochaine connexion
+    await adminClient
+        .from('whatsapp_sessions')
+        .delete()
+        .eq('session_id', agentId)
+
     const { error: disconnectError } = await adminClient
         .from('agents')
         .update({
