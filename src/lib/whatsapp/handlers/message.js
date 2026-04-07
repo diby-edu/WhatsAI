@@ -541,6 +541,32 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
         // PHASE 4 : ANALYSE SENTIMENT & ESCALADE
         // ═══════════════════════════════════════════════════════════
 
+        // Demande explicite de transfert humain (priorité sur sentiment)
+        const humanKeywords = [
+            'parler à un humain', 'parler a un humain',
+            'parler à une personne', 'parler a une personne',
+            'agent humain', 'conseiller humain',
+            'je veux un humain', 'je veux parler à quelqu\'un', 'je veux parler a quelqu\'un',
+            'transfert humain', 'mettre en relation',
+            'parler à un agent', 'parler a un agent',
+        ]
+        const lowerText = (message.text || '').toLowerCase()
+        const isExplicitHumanRequest = humanKeywords.some(kw => lowerText.includes(kw))
+
+        if (isExplicitHumanRequest) {
+            console.log(`🤝 [${agentId}] Demande explicite de transfert humain`)
+            await conversation.escalate('Demande explicite de transfert humain')
+
+            let handoverMessage = "Bien sûr ! 🙏\n\n"
+            handoverMessage += "Je transfère votre conversation à un conseiller qui vous contactera très bientôt."
+            if (agent.escalation_phone) {
+                handoverMessage += `\n\n📞 Vous pouvez aussi appeler directement : ${agent.escalation_phone}`
+            }
+
+            await MessagingService.sendText(activeSessions.get(agentId), message.from, handoverMessage)
+            return
+        }
+
         const sentimentAnalysis = await analyzeSentiment(openai, message.text)
         console.log(`❤️ Sentiment: ${sentimentAnalysis.sentiment}`)
 
