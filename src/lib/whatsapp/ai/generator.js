@@ -43,6 +43,52 @@ function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms))
 }
 
+/**
+ * Supprime les doublons texte/caption après envoi d'image.
+ * Si l'IA génère "Voici Tecno Camon 20 !" alors que la caption dit déjà "Voici Tecno Camon 20 !",
+ * on retire cette répétition du texte.
+ */
+function stripImageDoublons(content, imageActions) {
+    if (!content || !imageActions || imageActions.length === 0) return content
+    let cleaned = content
+    for (const img of imageActions) {
+        const caption = (img.caption || '').trim()
+        const productName = (img.product_name || '').trim()
+        // Retirer la caption exacte si elle apparaît en début de texte
+        if (caption) {
+            const escaped = caption.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+            cleaned = cleaned.replace(new RegExp(`^\\s*${escaped}\\s*[!.]?\\s*`, 'i'), '').trim()
+        }
+        // Retirer "Voici [nom]" / "Voici le [nom]" / "Voici la [nom]"
+        if (productName) {
+            const escapedName = productName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+            cleaned = cleaned.replace(
+                new RegExp(`Voici\\s+(?:le\\s+|la\\s+|l')?${escapedName}\\s*[!.]?`, 'gi'),
+                ''
+            ).trim()
+        }
+    }
+    return cleaned.trim()
+}
+
+/**
+ * Supprime les images/liens markdown générés par l'IA à la place du tool send_image.
+ * Couvre : ![alt](url) et [texte](url_image)
+ */
+function stripMarkdownImages(content) {
+    if (!content) return content
+    // Supprimer ![alt](url)
+    let cleaned = content.replace(/!\[[^\]]*\]\(https?:\/\/[^)]+\)/g, '')
+    // Supprimer [texte](url) pointant vers une image
+    cleaned = cleaned.replace(
+        /\[[^\]]+\]\(https?:\/\/[^)]+\.(?:jpg|jpeg|png|gif|webp)[^)]*\)/gi,
+        ''
+    )
+    // Nettoyer les lignes vides consécutives laissées par les suppressions
+    cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trim()
+    return cleaned
+}
+
 function detectServiceEngine(products = [], userMessage = '') {
     const serviceProducts = products.filter(product => product.product_type === 'service')
     if (serviceProducts.length === 0) {
@@ -556,6 +602,10 @@ async function generateAIResponse(options, dependencies) {
                 content = secondCompletion.choices[0].message.content
             }
         }
+
+        // Post-processing : supprimer markdown images et doublons caption/texte
+        content = stripMarkdownImages(content)
+        content = stripImageDoublons(content, imageActions)
 
         // Vérification d'intégrité (prix)
         const integrityCheck = verifyResponseIntegrity(content, products)

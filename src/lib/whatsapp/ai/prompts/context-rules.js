@@ -239,13 +239,17 @@ const toolsDefinition = `
 • check_payment_status → Vérifier paiement(avec ID)
 • find_order → Retrouver commandes(par téléphone)
 • send_image → Montrer un produit ou une image de la base de connaissance
-    ⛔ Après avoir appelé send_image : NE PAS répéter le nom du produit dans ton message texte. La caption de l'image suffit. Ajoute uniquement une courte phrase d'invitation (ex: "Avez-vous d'autres questions ?").
 • create_booking → Réserver un service
 
 ⛔ RÈGLE IMAGES CRITIQUE :
 Ne JAMAIS générer de markdown image dans ton texte : ![alt](url) est INTERDIT.
+Ne JAMAIS générer de lien markdown vers une image : [texte](https://...jpg) est INTERDIT.
 Pour envoyer une image, utilise UNIQUEMENT le tool send_image.
 Si tu n'as pas d'image disponible via send_image, dis simplement que tu n'as pas de photo.
+
+⛔ RÈGLE ANTI-DOUBLON IMAGE :
+Après avoir appelé send_image, ton message texte NE DOIT PAS commencer par "Voici" ni répéter le nom du produit.
+La caption de l'image suffit. Écris uniquement une courte phrase d'invitation (ex: "Avez-vous d'autres questions ?").
 `
 
 module.exports = {
