@@ -357,6 +357,9 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
                             style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '50%', width: 22, height: 22, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
                             <X size={12} />
                         </button>
+                        <span style={{ position: 'absolute', bottom: 4, left: 4, background: 'rgba(0,0,0,0.65)', color: '#fff', fontSize: 9, fontWeight: 600, padding: '1px 4px', borderRadius: 3, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                            {imageUrl.split('.').pop()?.split('?')[0]?.toUpperCase() || 'IMG'}
+                        </span>
                     </div>
                 ) : (
                     <button type="button" onClick={() => mainUploadRef.current?.click()} disabled={uploading}
@@ -380,6 +383,9 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
                                 style={{ position: 'absolute', top: 2, right: 2, background: 'rgba(0,0,0,0.7)', border: 'none', borderRadius: '50%', width: 18, height: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
                                 <X size={10} />
                             </button>
+                            <span style={{ position: 'absolute', bottom: 3, left: 3, background: 'rgba(0,0,0,0.65)', color: '#fff', fontSize: 8, fontWeight: 600, padding: '1px 3px', borderRadius: 3, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                {url.split('.').pop()?.split('?')[0]?.toUpperCase() || 'IMG'}
+                            </span>
                         </div>
                     ))}
                     <button type="button" onClick={() => extraUploadRef.current?.click()} disabled={uploading}
