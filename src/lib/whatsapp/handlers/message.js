@@ -617,9 +617,14 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                         d.title?.toLowerCase().includes(searchName)
                     )
                     if (kbDoc) {
-                        preImageActions.push({ image_url: kbDoc.image_url, caption: `Voici ${name} !`, product_name: name })
-                        message.text = message.text.replace(full, '').replace(/\s*\?\s*$/, '').trim()
-                        console.log(`🖼️ Pre-extracted image: "${name}"`)
+                        // Ne pré-extraire que si le message contient d'autres questions
+                        // (sinon l'IA reçoit un texte vide → laisser l'IA gérer via tool call)
+                        const remainingText = message.text.replace(full, '').replace(/[?!\s]+$/, '').trim()
+                        if (remainingText.length >= 5) {
+                            preImageActions.push({ image_url: kbDoc.image_url, caption: `Voici ${name} !`, product_name: name })
+                            message.text = remainingText
+                            console.log(`🖼️ Pre-extracted image: "${name}"`)
+                        }
                     }
                 }
             }
