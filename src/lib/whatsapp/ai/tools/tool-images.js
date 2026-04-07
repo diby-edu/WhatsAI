@@ -60,7 +60,10 @@ async function handleSendImage(args, products, relevantDocs) {
         if (relevantDocs && relevantDocs.length > 0 && product_name) {
             const searchName = product_name.toLowerCase()
             const kbDoc = relevantDocs.find(d =>
-                d.image_url && fuzzyIncludes(d.content.toLowerCase(), searchName)
+                d.image_url && (
+                    fuzzyIncludes(d.content.toLowerCase(), searchName) ||
+                    (d.title && fuzzyIncludes(d.title.toLowerCase(), searchName))
+                )
             )
             if (kbDoc) {
                 console.log(`📸 Image trouvée dans KB pour "${product_name}"`)
