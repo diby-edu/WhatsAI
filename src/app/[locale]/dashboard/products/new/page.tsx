@@ -214,6 +214,8 @@ export default function NewProductPage() {
     const [digitalDeliveryType, setDigitalDeliveryType] = useState<'fixed_content' | 'license_keys'>('fixed_content')
     const [digitalContent, setDigitalContent] = useState('')
     const [licenseKeysInput, setLicenseKeysInput] = useState('')
+    const [uploadingDigital, setUploadingDigital] = useState(false)
+    const [digitalFileName, setDigitalFileName] = useState('')
 
     const supabase = createBrowserClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -361,6 +363,43 @@ export default function NewProductPage() {
             alert(`Erreur upload: ${error.message || 'Erreur de téléchargement'}`)
         } finally {
             setUploading(false)
+        }
+    }
+
+    const handleDigitalFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+
+        const MAX_SIZE = 50 * 1024 * 1024 // 50 MB
+        if (file.size > MAX_SIZE) {
+            alert('Fichier trop volumineux. Limite : 50 MB.')
+            e.target.value = ''
+            return
+        }
+
+        setUploadingDigital(true)
+        try {
+            const ext = file.name.split('.').pop()
+            const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${ext}`
+            const filePath = `products/${fileName}`
+
+            const { error: uploadError } = await supabase.storage
+                .from('digital-content')
+                .upload(filePath, file)
+
+            if (uploadError) throw uploadError
+
+            const { data: publicUrlData } = supabase.storage
+                .from('digital-content')
+                .getPublicUrl(filePath)
+
+            setDigitalContent(publicUrlData.publicUrl)
+            setDigitalFileName(file.name)
+        } catch (err: any) {
+            alert(`Erreur upload : ${err.message || 'Erreur inconnue'}`)
+        } finally {
+            setUploadingDigital(false)
+            e.target.value = ''
         }
     }
 
@@ -1288,15 +1327,54 @@ export default function NewProductPage() {
                                 </div>
 
                                 {digitalDeliveryType === 'fixed_content' ? (
-                                    <div>
-                                        <label style={{ ...labelStyle, marginBottom: 6 }}>Lien de téléchargement ou contenu à envoyer</label>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                        <label style={{ ...labelStyle, marginBottom: 0 }}>Lien de téléchargement ou contenu à envoyer</label>
                                         <textarea
                                             value={digitalContent}
-                                            onChange={e => setDigitalContent(e.target.value)}
+                                            onChange={e => { setDigitalContent(e.target.value); setDigitalFileName('') }}
                                             placeholder="Ex: https://drive.google.com/file/d/... ou code d'activation XXXX-YYYY-ZZZZ"
                                             style={{ ...inputStyle, minHeight: 80, fontFamily: 'inherit' }}
                                         />
-                                        <p style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>Sera envoyé tel quel à chaque acheteur.</p>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                            <span style={{ fontSize: 12, color: '#64748b' }}>— ou —</span>
+                                            <label style={{
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: 8,
+                                                padding: '8px 14px',
+                                                borderRadius: 8,
+                                                border: '1px solid rgba(16,185,129,0.3)',
+                                                background: 'rgba(16,185,129,0.08)',
+                                                color: '#34d399',
+                                                cursor: uploadingDigital ? 'not-allowed' : 'pointer',
+                                                fontSize: 13,
+                                                fontWeight: 500,
+                                                opacity: uploadingDigital ? 0.6 : 1,
+                                            }}>
+                                                {uploadingDigital
+                                                    ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
+                                                    : '📎'
+                                                }
+                                                {uploadingDigital ? 'Envoi...' : 'Uploader un fichier'}
+                                                <input
+                                                    type="file"
+                                                    style={{ display: 'none' }}
+                                                    disabled={uploadingDigital}
+                                                    onChange={handleDigitalFileUpload}
+                                                />
+                                            </label>
+                                            {digitalFileName && (
+                                                <span style={{ fontSize: 12, color: '#6ee7b7', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                    ✅ {digitalFileName}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => { setDigitalContent(''); setDigitalFileName('') }}
+                                                        style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', padding: 0 }}
+                                                    >✕</button>
+                                                </span>
+                                            )}
+                                        </div>
+                                        <p style={{ fontSize: 11, color: '#64748b' }}>Sera envoyé tel quel à chaque acheteur. Limite fichier : 50 MB.</p>
                                     </div>
                                 ) : (
                                     <div>
