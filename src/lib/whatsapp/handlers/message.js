@@ -724,9 +724,27 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
 
         const session = activeSessions.get(agentId)
         let voiceSent = false
+        const hasImages = aiResponse.imageActions && aiResponse.imageActions.length > 0
 
-        // 6.0 Envoyer les images demandées (send_image tool)
-        if (aiResponse.imageActions && aiResponse.imageActions.length > 0) {
+        // 6.0 Texte en premier (salutation visible avant l'image)
+        if (!voiceSent) {
+            let finalContent = aiResponse.content
+
+            if (hasImages) {
+                finalContent = finalContent.replace(/!\[.*?\]\(.*?\)/g, '')
+                finalContent = finalContent.replace(/\[.*?\]\(.*?https?:\/\/.*\.(?:jpg|jpeg|png|webp).*\)/gi, '')
+                finalContent = finalContent.trim()
+            }
+
+            if (finalContent) {
+                await MessagingService.sendText(session, message.from, finalContent)
+                console.log('💬 Text message sent (cleaned)')
+                voiceSent = true // flag pour éviter le double envoi texte plus bas
+            }
+        }
+
+        // 6.0b Envoyer les images après le texte
+        if (hasImages) {
             for (const imgAction of aiResponse.imageActions) {
                 try {
                     await MessagingService.sendImage(
@@ -770,24 +788,10 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             }
         }
 
-        // 6.2 Fallback texte (Nettoyé des liens d'images si images envoyées)
+        // 6.2 Fallback texte si voix échouée et texte pas encore envoyé
         if (!voiceSent) {
-            let finalContent = aiResponse.content
-
-            // Si on a envoyé des images via l'outil, on supprime les liens texte inutiles
-            if (aiResponse.imageActions && aiResponse.imageActions.length > 0) {
-                // Supprimer les patterns comme ![text](url) ou [text](url) qui contiennent des extensions d'image
-                finalContent = finalContent.replace(/!\[.*?\]\(.*?\)/g, '') // Supprimer tout markdown image
-                finalContent = finalContent.replace(/\[.*?\]\(.*?https?:\/\/.*\.(?:jpg|jpeg|png|webp).*\)/gi, '') // Supprimer liens vers images
-                finalContent = finalContent.trim()
-            }
-
-            await MessagingService.sendText(
-                session,
-                message.from,
-                finalContent
-            )
-            console.log('💬 Text message sent (cleaned)')
+            await MessagingService.sendText(session, message.from, aiResponse.content)
+            console.log('💬 Text message sent (fallback)')
         }
 
 
