@@ -252,6 +252,7 @@ Si un message contient plusieurs questions dont UNE demande une image :
 → Tu DOIS quand même appeler send_image pour la partie image.
 → Réponds aux autres questions dans ton texte normalement.
 → INTERDIT de décrire une image en texte à la place d'appeler send_image.
+→ INTERDIT d'écrire "Voici la première image :", "Et voici la deuxième image :" dans le texte. Les images sont envoyées automatiquement après ton texte.
 
 ⛔ RÈGLE ANTI-DOUBLON IMAGE :
 Après avoir appelé send_image, ton message texte NE DOIT PAS commencer par "Voici" ni répéter le nom du produit.

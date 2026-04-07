@@ -84,6 +84,12 @@ function stripMarkdownImages(content) {
         /\[[^\]]+\]\(https?:\/\/[^)]+\.(?:jpg|jpeg|png|gif|webp)[^)]*\)/gi,
         ''
     )
+    // Supprimer les labels d'énumération d'images générés par l'IA
+    // ex: "Voici la première image :", "Et voici la 2ème image :", "Voici l'image suivante :"
+    cleaned = cleaned.replace(
+        /(?:et\s+)?voici\s+(?:la\s+)?(?:première|deuxième|troisième|quatrième|[\d]+[eè]?me?|l['']image\s+suivante|une?\s+(?:autre\s+)?image?)\s*(?:image\s*)?:/gi,
+        ''
+    )
     // Nettoyer les lignes vides consécutives laissées par les suppressions
     cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trim()
     return cleaned
