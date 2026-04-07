@@ -134,6 +134,15 @@ export async function POST(request: NextRequest) {
             return errorResponse('Missing required fields', 400)
         }
 
+        // Refuser les images WebP (non supportées par Baileys)
+        const isWebp = (url: string) => url?.toLowerCase().includes('.webp')
+        if (image_url && isWebp(image_url)) {
+            return errorResponse('Format WebP non supporté. Utilisez JPG ou PNG.', 400)
+        }
+        if (Array.isArray(extra_image_urls) && extra_image_urls.some(isWebp)) {
+            return errorResponse('Format WebP non supporté pour une ou plusieurs images. Utilisez JPG ou PNG.', 400)
+        }
+
         // Vérifier que l'agent appartient bien à l'utilisateur connecté
         const { data: agentCheck } = await supabase
             .from('agents')
