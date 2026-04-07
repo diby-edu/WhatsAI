@@ -1100,48 +1100,35 @@ export default function AgentWizardPage({
                                         Paiement manuel activé automatiquement (mode Support Client).
                                     </div>
                                 ) : (
-                                    <div style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'space-between',
-                                        padding: 16,
-                                        border: '1px solid rgba(148,163,184,0.1)',
-                                        borderRadius: 12,
-                                        background: 'rgba(30,41,59,0.5)'
-                                    }}>
-                                        <div>
-                                            <div style={{ fontWeight: 500, color: 'white', fontSize: 14 }}>Activer le paiement manuel</div>
-                                            <div style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>
-                                                {formData.payment_mode === 'mobile_money_direct'
-                                                    ? 'Les clients envoient une capture après paiement mobile.'
-                                                    : 'Par défaut : lien de paiement sécurisé en ligne.'}
-                                            </div>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => setFormData({ ...formData, payment_mode: formData.payment_mode === 'mobile_money_direct' ? 'cinetpay' : 'mobile_money_direct' })}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                        <div
+                                            onClick={() => setFormData({ ...formData, payment_mode: 'cinetpay' })}
                                             style={{
-                                                width: 48,
-                                                height: 28,
-                                                borderRadius: 14,
-                                                background: formData.payment_mode === 'mobile_money_direct' ? '#10b981' : '#334155',
-                                                border: 'none',
+                                                padding: 16,
+                                                border: `1px solid ${formData.payment_mode === 'cinetpay' ? '#6366f1' : 'rgba(148,163,184,0.1)'}`,
+                                                borderRadius: 12,
+                                                background: formData.payment_mode === 'cinetpay' ? 'rgba(99,102,241,0.1)' : 'rgba(30,41,59,0.5)',
                                                 cursor: 'pointer',
-                                                position: 'relative',
-                                                flexShrink: 0
                                             }}
                                         >
-                                            <div style={{
-                                                width: 22,
-                                                height: 22,
-                                                borderRadius: '50%',
-                                                background: 'white',
-                                                position: 'absolute',
-                                                top: 3,
-                                                left: formData.payment_mode === 'mobile_money_direct' ? 23 : 3,
-                                                transition: 'left 0.2s'
-                                            }} />
-                                        </button>
+                                            <div style={{ fontWeight: 500, color: 'white', fontSize: 14 }}>{AUTOMATIC_PAYMENT_MODE_LABEL}</div>
+                                            <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 4 }}>{AUTOMATIC_PAYMENT_MODE_DESCRIPTION}</div>
+                                            <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>{AUTOMATIC_PAYMENT_MODE_HINT}</div>
+                                        </div>
+                                        <div
+                                            onClick={() => setFormData({ ...formData, payment_mode: 'mobile_money_direct' })}
+                                            style={{
+                                                padding: 16,
+                                                border: `1px solid ${formData.payment_mode === 'mobile_money_direct' ? '#10b981' : 'rgba(148,163,184,0.1)'}`,
+                                                borderRadius: 12,
+                                                background: formData.payment_mode === 'mobile_money_direct' ? 'rgba(16,185,129,0.1)' : 'rgba(30,41,59,0.5)',
+                                                cursor: 'pointer',
+                                            }}
+                                        >
+                                            <div style={{ fontWeight: 500, color: 'white', fontSize: 14 }}>{MANUAL_PAYMENT_MODE_LABEL}</div>
+                                            <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 4 }}>{MANUAL_PAYMENT_MODE_DESCRIPTION}</div>
+                                            <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>{MANUAL_PAYMENT_MODE_HINT}</div>
+                                        </div>
                                     </div>
                                 )}
                             </div>
