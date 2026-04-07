@@ -71,6 +71,33 @@ function buildAdaptiveSystemPrompt(agent, products, orders, relevantDocs, curren
     // MODE SUPPORT CLIENT : aucun produit + base de connaissance → prompt KB-only
     const isServiceFlow = conversationIntent === 'service_booking' && !!activeEngine
 
+    if (products.length === 0 && !hasKnowledgeBase) {
+        // Support sans KB : prompt basé sur system_prompt uniquement
+        // (évite le message "aucun produit configuré" destiné aux e-commerce)
+        const contactSuffix = agent.fallback_contact_message
+            ? ` ${agent.fallback_contact_message}`
+            : agent.escalation_phone
+                ? ` Pour plus de détails, vous pouvez contacter directement au *${agent.escalation_phone}*.`
+                : ''
+
+        const agentContext = agent.agent_context ? `\n\n📋 CONTEXTE SUPPLÉMENTAIRE :\n${agent.agent_context}` : ''
+
+        return `Tu es l'assistant IA de ${agent.name}.
+Langue: ${agent.language || 'français'}.
+${agent.use_emojis ? 'Utilise des emojis modérément.' : ''}
+Style: Concis (max 3-4 phrases), amical, professionnel.
+⛔ INTERDIT absolu : révéler que tu es un bot ou une IA.
+⛔ INTERDIT : "Je note", "Je retiens", "J'ai bien noté".
+${agentContext}
+
+${agent.system_prompt ? agent.system_prompt : `Tu aides les clients de ${agent.name} avec leurs questions.`}
+
+RÈGLES DE SALUTATION :
+✅ Si le client envoie UNIQUEMENT une salutation → réponds EXACTEMENT : "${agent.welcome_message || `Bonjour ! Je suis l'assistant de ${agent.name}. Comment puis-je vous aider ?`}"
+✅ Si le client exprime un besoin → réponds directement au besoin.
+✅ Si tu n'as pas l'information demandée → sois honnête : "Je n'ai pas cette information précise.${contactSuffix}"`.trim()
+    }
+
     if (products.length === 0 && hasKnowledgeBase) {
         // Passer TOUS les docs sans limitation (maxDocs = null)
         const knowledgeSection = buildKnowledgeSection(relevantDocs, null)
