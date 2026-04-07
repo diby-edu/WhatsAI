@@ -79,7 +79,13 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     )
 
+    const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif']
+
     const uploadImage = async (file: File): Promise<string | null> => {
+        if (!ALLOWED_IMAGE_TYPES.includes(file.type) || file.name.toLowerCase().endsWith('.webp')) {
+            alert('Format non supporté. Utilisez JPG, PNG ou GIF uniquement (pas de WebP).')
+            return null
+        }
         const ext = file.name.split('.').pop()
         const path = `agents/${id}/${Date.now()}.${ext}`
         const { error } = await supabase.storage.from('images').upload(path, file, { upsert: true })
@@ -358,7 +364,7 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
                         {uploading ? <Loader2 size={20} className="animate-spin" color="#10b981" /> : <><ImageIcon size={20} color="#475569" /><span>Upload</span></>}
                     </button>
                 )}
-                <input ref={mainUploadRef} type="file" accept="image/*" style={{ display: 'none' }}
+                <input ref={mainUploadRef} type="file" accept="image/jpeg,image/png,image/gif" style={{ display: 'none' }}
                     onChange={e => { const f = e.target.files?.[0]; if (f) onMainUpload(f) }} />
             </div>
 
@@ -381,7 +387,7 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
                         <Plus size={16} color="#475569" />
                         Ajouter
                     </button>
-                    <input ref={extraUploadRef} type="file" accept="image/*" style={{ display: 'none' }}
+                    <input ref={extraUploadRef} type="file" accept="image/jpeg,image/png,image/gif" style={{ display: 'none' }}
                         onChange={e => { const f = e.target.files?.[0]; if (f) onExtraUpload(f); if (e.target) e.target.value = '' }} />
                 </div>
             </div>
