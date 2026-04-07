@@ -458,6 +458,12 @@ async function generateAIResponse(options, dependencies) {
                 systemPrompt += '\n\n' + restaurantStateGuidance
             }
         }
+        // Injecter la règle de salutation si c'est le premier message
+        const isFirstMessage = !conversationHistory || conversationHistory.filter(m => m.role === 'user').length === 0
+        if (isFirstMessage) {
+            systemPrompt += '\n\n📌 PREMIER MESSAGE : Le client t\'écrit pour la première fois. Commence OBLIGATOIREMENT par le saluer chaleureusement (ex: "Bonjour ! 😊") avant de répondre à sa demande.'
+        }
+
         console.log(`📝 Prompt size: ${systemPrompt.length} chars`)
 
         // Préparer les messages
