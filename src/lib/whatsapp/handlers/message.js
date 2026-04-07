@@ -240,6 +240,11 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             return
         }
 
+        if (!agent.whatsapp_connected) {
+            console.log(`🔍 [handleMessage] BLOCKED: whatsapp disconnected agentId=${agentId}`)
+            return
+        }
+
         console.log(`🔍 [handleMessage] agent OK: ${agent.name} user_id=${agent.user_id}`)
 
         // 1.2 Vérifier les crédits
