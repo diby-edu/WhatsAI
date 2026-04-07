@@ -65,8 +65,17 @@ class MessagingService {
 
     /**
      * Envoie une image depuis une URL
+     * ⛔ WebP interdit : format non supporté par Baileys pour le thumbnail
      */
     static async sendImage(session, to, imageUrl, caption = '') {
+        if (!imageUrl) return null
+        if (imageUrl.toLowerCase().endsWith('.webp') || imageUrl.toLowerCase().includes('.webp?')) {
+            console.warn(`⚠️ Image WebP ignorée (format non supporté) : ${imageUrl}`)
+            if (caption) {
+                return await this.sendText(session, to, caption)
+            }
+            return null
+        }
         return await this.withRetry(async () => {
             if (!session || !session.socket) {
                 throw new Error('WhatsApp session or socket unavailable')

@@ -238,8 +238,13 @@ const toolsDefinition = `
     🚫 NE JAMAIS GROUPER (qty: 5) sans variantes précises.
 • check_payment_status → Vérifier paiement(avec ID)
 • find_order → Retrouver commandes(par téléphone)
-• send_image → Montrer un produit
+• send_image → Montrer un produit ou une image de la base de connaissance
 • create_booking → Réserver un service
+
+⛔ RÈGLE IMAGES CRITIQUE :
+Ne JAMAIS générer de markdown image dans ton texte : ![alt](url) est INTERDIT.
+Pour envoyer une image, utilise UNIQUEMENT le tool send_image.
+Si tu n'as pas d'image disponible via send_image, dis simplement que tu n'as pas de photo.
 `
 
 module.exports = {

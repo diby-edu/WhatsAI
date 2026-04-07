@@ -63,10 +63,14 @@ async function findRelevantDocuments(openai, supabase, agentId, userQuery) {
         // ⭐ FIX 3 : SEARCH WITH agent_id FILTER (SECURITY)
         // ═══════════════════════════════════════════════════════════
 
+        // Requêtes génériques ("catalogue", "services", "que proposez-vous"...) → plus de résultats
+        const genericPatterns = /catalogue|service|propos|offre|vend|disponib|qu.est.ce|avez.vous|que faites/i
+        const isGenericQuery = genericPatterns.test(sanitizedQuery)
+
         const { data: documents, error } = await supabase.rpc('match_documents', {
             query_embedding: embedding,
-            match_threshold: 0.30,
-            match_count: 8,
+            match_threshold: isGenericQuery ? 0.2 : 0.3,
+            match_count: isGenericQuery ? 15 : 8,
             p_agent_id: agentId  // ⭐ CRITICAL: Prevents cross-agent data leak
         })
 
