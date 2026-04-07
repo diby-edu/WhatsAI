@@ -29,8 +29,8 @@ function splitIntoSubQueries(text) {
 
     if (segments.length <= 1) return [clean]
 
-    // Limiter à 3 sous-requêtes max
-    return segments.slice(0, 3)
+    // Limiter à 5 sous-requêtes max (text-embedding-3-small est très bon marché)
+    return segments.slice(0, 5)
 }
 
 /**
