@@ -593,6 +593,39 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
         }
 
         // ═══════════════════════════════════════════════════════════
+        // PHASE 4.5 : PRÉ-EXTRACTION DES DEMANDES D'IMAGE (KB)
+        // Garantit l'envoi d'images même quand l'IA ignore les outils
+        // ═══════════════════════════════════════════════════════════
+        let preImageActions = []
+        if (hasKnowledgeBase && message.text) {
+            const imgRegex = /\b(?:image|photo|montrez?(?:\s+moi)?|voir)\s+(?:(?:du|de\s+la|des|le|la|l[''])\s+)?([^?!,\n]{3,50}?)(?=\s*(?:[?!,\n]|$))/gi
+            const imgMatches = []
+            let imgM
+            while ((imgM = imgRegex.exec(message.text)) !== null) {
+                imgMatches.push({ full: imgM[0], name: imgM[1].trim() })
+            }
+            if (imgMatches.length > 0) {
+                const { data: kbDocs } = await supabase
+                    .from('knowledge_base')
+                    .select('id, title, content, image_url')
+                    .eq('agent_id', agentId)
+                    .not('image_url', 'is', null)
+                for (const { full, name } of imgMatches) {
+                    const searchName = name.toLowerCase()
+                    const kbDoc = (kbDocs || []).find(d =>
+                        d.content?.toLowerCase().includes(searchName) ||
+                        d.title?.toLowerCase().includes(searchName)
+                    )
+                    if (kbDoc) {
+                        preImageActions.push({ image_url: kbDoc.image_url, caption: `Voici ${name} !`, product_name: name })
+                        message.text = message.text.replace(full, '').replace(/\s*\?\s*$/, '').trim()
+                        console.log(`🖼️ Pre-extracted image: "${name}"`)
+                    }
+                }
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════
         // PHASE 5 : GÉNÉRATION RÉPONSE IA
         // ═══════════════════════════════════════════════════════════
 
@@ -681,6 +714,11 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             nextCartState = inferCartStateFromAssistantMessage(aiResponse.content, cartUpdate.state, orderableProducts)
             nextBookingState = inferBookingStateFromAssistantMessage(aiResponse.content, bookingUpdate.state, standardServiceProducts)
             nextRestaurantState = inferRestaurantStateFromAssistantMessage(aiResponse.content, restaurantUpdate.state)
+        }
+
+        // Merger les images pré-extraites avec celles de l'IA (Phase 4.5)
+        if (preImageActions.length > 0) {
+            aiResponse.imageActions = [...preImageActions, ...(aiResponse.imageActions || [])]
         }
 
         if (!isSupportClientMode) {
