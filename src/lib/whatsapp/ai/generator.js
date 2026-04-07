@@ -464,6 +464,12 @@ async function generateAIResponse(options, dependencies) {
             systemPrompt += '\n\n📌 PREMIER MESSAGE : Le client t\'écrit pour la première fois. Commence OBLIGATOIREMENT par le saluer chaleureusement (ex: "Bonjour ! 😊") avant de répondre à sa demande.'
         }
 
+        // Injection dynamique si le message contient une demande d'image
+        const hasImageKeyword = /\b(montre[z]?|photo[s]?|image[s]?|voir|affiche[z]?)\b/i.test(userMessage || '')
+        if (hasImageKeyword) {
+            systemPrompt += '\n\n🚨 RAPPEL URGENT IMAGE : Ce message contient une demande d\'image. Tu DOIS appeler le tool send_image. Il est INTERDIT de décrire l\'image en texte ou de promettre de l\'envoyer sans appeler le tool send_image immédiatement.'
+        }
+
         console.log(`📝 Prompt size: ${systemPrompt.length} chars`)
 
         // Préparer les messages
