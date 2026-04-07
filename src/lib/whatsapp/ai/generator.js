@@ -467,7 +467,7 @@ async function generateAIResponse(options, dependencies) {
         // Injection dynamique si le message contient une demande d'image
         const hasImageKeyword = /\b(montre[z]?|photo[s]?|image[s]?|voir|affiche[z]?)\b/i.test(userMessage || '')
         if (hasImageKeyword) {
-            systemPrompt += '\n\n🚨 RAPPEL URGENT IMAGE : Ce message contient une demande d\'image. Tu DOIS appeler le tool send_image. Il est INTERDIT de décrire l\'image en texte ou de promettre de l\'envoyer sans appeler le tool send_image immédiatement.'
+            systemPrompt += '\n\n🚨 RAPPEL URGENT IMAGE : Ce message contient une demande d\'image. Règle STRICTE : appelle send_image UNIQUEMENT pour le(s) produit(s) où "image", "photo" ou "montrez" est explicitement demandé. Pour les questions "prix [produit]" → réponds UNIQUEMENT avec le prix en texte, AUCUNE image.'
         }
 
         console.log(`📝 Prompt size: ${systemPrompt.length} chars`)
