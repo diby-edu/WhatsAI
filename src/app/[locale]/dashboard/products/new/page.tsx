@@ -243,9 +243,13 @@ export default function NewProductPage() {
     // v2.30: Check if user already has services or products to enforce isolation
     const checkExistingProductTypes = async () => {
         try {
+            const { data: { user } } = await supabase.auth.getUser()
+            if (!user) return
+
             const { data: products } = await supabase
                 .from('products')
                 .select('product_type')
+                .eq('user_id', user.id)
                 .limit(50)
 
             if (products && products.length > 0) {
