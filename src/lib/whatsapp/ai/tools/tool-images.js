@@ -69,6 +69,7 @@ async function handleSendImage(args, products, relevantDocs) {
                     action: 'send_image',
                     image_url: kbDoc.image_url,
                     caption: `Voici ${product_name} !`,
+                    product_name: product_name,
                 })
             }
         }
