@@ -550,8 +550,8 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             'transfert humain', 'mettre en relation',
             'parler à un agent', 'parler a un agent',
         ]
-        const lowerText = (message.text || '').toLowerCase()
-        const isExplicitHumanRequest = humanKeywords.some(kw => lowerText.includes(kw))
+        const lowerText = (message.text || '').normalize('NFC').toLowerCase()
+        const isExplicitHumanRequest = humanKeywords.some(kw => lowerText.includes(kw.normalize('NFC')))
 
         if (isExplicitHumanRequest) {
             console.log(`🤝 [${agentId}] Demande explicite de transfert humain`)
