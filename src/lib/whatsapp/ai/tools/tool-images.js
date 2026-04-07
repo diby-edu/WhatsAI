@@ -1,6 +1,45 @@
 
 const { findMatchingOption, getOptionValue } = require('./tool-helpers')
 
+/**
+ * Distance de Levenshtein — mesure la similarité entre deux mots
+ * Permet de matcher "techno" ↔ "tecno", "samsug" ↔ "samsung", etc.
+ */
+function levenshtein(a, b) {
+    const m = a.length, n = b.length
+    const dp = Array.from({ length: m + 1 }, (_, i) =>
+        Array.from({ length: n + 1 }, (_, j) => {
+            if (i === 0) return j
+            if (j === 0) return i
+            return 0
+        })
+    )
+    for (let i = 1; i <= m; i++) {
+        for (let j = 1; j <= n; j++) {
+            dp[i][j] = a[i - 1] === b[j - 1]
+                ? dp[i - 1][j - 1]
+                : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1])
+        }
+    }
+    return dp[m][n]
+}
+
+/**
+ * Vérifie si needle est "fuzzy-présent" dans haystack.
+ * Priorité : match exact, puis word-by-word avec tolérance Levenshtein.
+ */
+function fuzzyIncludes(haystack, needle) {
+    if (haystack.includes(needle)) return true
+    const haystackWords = haystack.split(/\s+/)
+    const needleWords = needle.split(/\s+/).filter(w => w.length > 2)
+    return needleWords.some(nw => {
+        if (haystack.includes(nw)) return true
+        // Tolérance : 1 faute pour mots courts (≤6), 2 fautes pour mots longs
+        const maxDist = nw.length <= 6 ? 1 : 2
+        return haystackWords.some(hw => levenshtein(nw, hw) <= maxDist)
+    })
+}
+
 async function handleSendImage(args, products, relevantDocs) {
     try {
         console.log('🛠️ Executing tool: send_image')
@@ -17,14 +56,11 @@ async function handleSendImage(args, products, relevantDocs) {
             })
         }
 
-        // Cas 2 : Chercher dans la KB (mode support)
+        // Cas 2 : Chercher dans la KB (mode support) — fuzzy match pour tolérer les fautes
         if (relevantDocs && relevantDocs.length > 0 && product_name) {
             const searchName = product_name.toLowerCase()
             const kbDoc = relevantDocs.find(d =>
-                d.image_url && (
-                    d.content.toLowerCase().includes(searchName) ||
-                    searchName.split(' ').some(word => word.length > 3 && d.content.toLowerCase().includes(word))
-                )
+                d.image_url && fuzzyIncludes(d.content.toLowerCase(), searchName)
             )
             if (kbDoc) {
                 console.log(`📸 Image trouvée dans KB pour "${product_name}"`)

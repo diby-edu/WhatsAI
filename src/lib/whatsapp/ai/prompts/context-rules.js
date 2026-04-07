@@ -7,7 +7,7 @@
 function buildResetContext(orders, justOrdered) {
     // Détection robuste d'une commande récente (< 10 mn)
     const lastOrder = orders && orders.length > 0 ? orders[0] : null
-    const timeSinceLastOrder = lastOrder ? (new Date() - new Date(lastOrder.created_at)) : 99999999
+    const timeSinceLastOrder = lastOrder ? (Date.now() - new Date(lastOrder.created_at).getTime()) : 99999999
     const isRecentOrder = justOrdered || timeSinceLastOrder < (10 * 60 * 1000)
 
     if (isRecentOrder) {
@@ -239,6 +239,7 @@ const toolsDefinition = `
 • check_payment_status → Vérifier paiement(avec ID)
 • find_order → Retrouver commandes(par téléphone)
 • send_image → Montrer un produit ou une image de la base de connaissance
+    ⛔ Après avoir appelé send_image : NE PAS répéter le nom du produit dans ton message texte. La caption de l'image suffit. Ajoute uniquement une courte phrase d'invitation (ex: "Avez-vous d'autres questions ?").
 • create_booking → Réserver un service
 
 ⛔ RÈGLE IMAGES CRITIQUE :
