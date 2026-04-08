@@ -6,6 +6,8 @@
  * Solution: Utiliser anon_key via supabaseRealtime, garder service_role pour DB ops
  */
 
+const { MessagingService } = require('../services/messaging.service')
+
 const processingMessages = new Set()
 const processingOutbound = new Set()
 
@@ -224,7 +226,14 @@ async function handleOutboundMessage(context, msg) {
         let jid = msg.recipient_phone
         if (!jid.includes('@')) jid = jid.replace(/\D/g, '') + '@s.whatsapp.net'
 
-        await session.socket.sendMessage(jid, { text: msg.message_content })
+        if (msg.media_url && msg.media_type === 'document') {
+            const fileName = decodeURIComponent(msg.media_url.split('/').pop()?.split('?')[0] || 'fichier')
+            await MessagingService.sendDocument(session, jid, msg.media_url, fileName, msg.message_content)
+        } else if (msg.media_url && msg.media_type === 'image') {
+            await MessagingService.sendImage(session, jid, msg.media_url, msg.message_content)
+        } else {
+            await session.socket.sendMessage(jid, { text: msg.message_content })
+        }
 
         await supabase.from('outbound_messages')
             .update({ status: 'sent', sent_at: new Date().toISOString() })

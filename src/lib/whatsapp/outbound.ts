@@ -2,6 +2,8 @@ type QueueOutboundWhatsAppMessageParams = {
     agentId: string
     to: string
     message: string
+    mediaUrl?: string
+    mediaType?: 'document' | 'image'
 }
 
 type SupabaseLikeClient = {
@@ -16,12 +18,14 @@ function normalizeRecipientPhone(to: string): string {
 
 export async function queueOutboundWhatsAppMessage(
     supabase: SupabaseLikeClient,
-    { agentId, to, message }: QueueOutboundWhatsAppMessageParams
+    { agentId, to, message, mediaUrl, mediaType, mediaFileName }: QueueOutboundWhatsAppMessageParams
 ): Promise<{ queued: boolean; reason?: 'table_missing' }> {
     const { error } = await supabase.from('outbound_messages').insert({
         agent_id: agentId,
         recipient_phone: normalizeRecipientPhone(to),
         message_content: message,
+        media_url: mediaUrl || null,
+        media_type: mediaType || null,
         status: 'pending',
         created_at: new Date().toISOString(),
     })

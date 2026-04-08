@@ -1,3 +1,5 @@
+const { MessagingService } = require('../services/messaging.service')
+
 // Compteur horaire des broadcasts par agent (in-memory, reset auto)
 const broadcastHourlyCount = new Map() // agentId -> { count, windowStart }
 const BROADCAST_HOURLY_LIMIT = 50
@@ -153,7 +155,16 @@ async function sendOutboundMessage(supabase, session, msg) {
     if (!jid.includes('@')) jid = jid.replaceAll(/\D/gu, '') + '@s.whatsapp.net'
 
     await new Promise(resolve => setTimeout(resolve, broadcastDelay()))
-    await session.socket.sendMessage(jid, { text: msg.message_content })
+
+    if (msg.media_url && msg.media_type === 'document') {
+        const fileName = decodeURIComponent(msg.media_url.split('/').pop()?.split('?')[0] || 'fichier')
+        await MessagingService.sendDocument(session, jid, msg.media_url, fileName, msg.message_content)
+    } else if (msg.media_url && msg.media_type === 'image') {
+        await MessagingService.sendImage(session, jid, msg.media_url, msg.message_content)
+    } else {
+        await session.socket.sendMessage(jid, { text: msg.message_content })
+    }
+
     incrementBroadcastCount(msg.agent_id)
     await supabase.from('outbound_messages')
         .update({ status: 'sent', sent_at: new Date().toISOString() })

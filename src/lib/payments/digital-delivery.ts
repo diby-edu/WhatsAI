@@ -81,13 +81,21 @@ export async function deliverDigitalProducts(orderId: string, supabase: any): Pr
 
             if (!deliveryContent) continue
 
-            const message = `🎉 *Votre produit numerique est disponible !*\n\n*${product.name}* :\n${deliveryContent}\n\nMerci pour votre achat ! 🙏`
+            // Detect if content is a Supabase storage file URL → send as document
+            const isFileUrl = deliveryContent.includes('/storage/v1/object/public/digital-content/')
+            const message = isFileUrl
+                ? `🎉 *Votre produit numerique est disponible !*\n\n*${product.name}*\n\nMerci pour votre achat ! 🙏`
+                : `🎉 *Votre produit numerique est disponible !*\n\n*${product.name}* :\n${deliveryContent}\n\nMerci pour votre achat ! 🙏`
 
             try {
                 const result = await queueOutboundWhatsAppMessage(supabase, {
                     agentId: order.agent_id,
                     to: phone,
                     message,
+                    ...(isFileUrl ? {
+                        mediaUrl: deliveryContent,
+                        mediaType: 'document' as const,
+                    } : {}),
                 })
 
                 if (result.queued) {
