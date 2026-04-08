@@ -1329,52 +1329,72 @@ export default function NewProductPage() {
                                 {digitalDeliveryType === 'fixed_content' ? (
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                                         <label style={{ ...labelStyle, marginBottom: 0 }}>Lien de téléchargement ou contenu à envoyer</label>
-                                        <textarea
-                                            value={digitalContent}
-                                            onChange={e => { setDigitalContent(e.target.value); setDigitalFileName('') }}
-                                            placeholder="Ex: https://drive.google.com/file/d/... ou code d'activation XXXX-YYYY-ZZZZ"
-                                            style={{ ...inputStyle, minHeight: 80, fontFamily: 'inherit' }}
-                                        />
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                            <span style={{ fontSize: 12, color: '#64748b' }}>— ou —</span>
-                                            <label style={{
-                                                display: 'inline-flex',
+
+                                        {/* Si fichier uploadé : masquer le textarea, afficher la carte fichier */}
+                                        {digitalFileName ? (
+                                            <div style={{
+                                                display: 'flex',
                                                 alignItems: 'center',
-                                                gap: 8,
-                                                padding: '8px 14px',
-                                                borderRadius: 8,
+                                                justifyContent: 'space-between',
+                                                padding: '12px 16px',
+                                                borderRadius: 10,
                                                 border: '1px solid rgba(16,185,129,0.3)',
-                                                background: 'rgba(16,185,129,0.08)',
-                                                color: '#34d399',
-                                                cursor: uploadingDigital ? 'not-allowed' : 'pointer',
-                                                fontSize: 13,
-                                                fontWeight: 500,
-                                                opacity: uploadingDigital ? 0.6 : 1,
+                                                background: 'rgba(16,185,129,0.07)',
                                             }}>
-                                                {uploadingDigital
-                                                    ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
-                                                    : '📎'
-                                                }
-                                                {uploadingDigital ? 'Envoi...' : 'Uploader un fichier'}
-                                                <input
-                                                    type="file"
-                                                    style={{ display: 'none' }}
-                                                    disabled={uploadingDigital}
-                                                    onChange={handleDigitalFileUpload}
-                                                />
-                                            </label>
-                                            {digitalFileName && (
-                                                <span style={{ fontSize: 12, color: '#6ee7b7', display: 'flex', alignItems: 'center', gap: 6 }}>
-                                                    ✅ {digitalFileName}
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => { setDigitalContent(''); setDigitalFileName('') }}
-                                                        style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', padding: 0 }}
-                                                    >✕</button>
+                                                <span style={{ fontSize: 14, color: '#6ee7b7', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                    📄 {digitalFileName}
                                                 </span>
-                                            )}
-                                        </div>
-                                        <p style={{ fontSize: 11, color: '#64748b' }}>Sera envoyé tel quel à chaque acheteur. Limite fichier : 50 MB.</p>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => { setDigitalContent(''); setDigitalFileName('') }}
+                                                    style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 16, padding: 0 }}
+                                                >✕</button>
+                                            </div>
+                                        ) : (
+                                            <textarea
+                                                value={digitalContent}
+                                                onChange={e => setDigitalContent(e.target.value)}
+                                                placeholder="Ex: https://drive.google.com/file/d/... ou code d'activation XXXX-YYYY-ZZZZ"
+                                                style={{ ...inputStyle, minHeight: 80, fontFamily: 'inherit' }}
+                                            />
+                                        )}
+
+                                        {!digitalFileName && (
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                                <span style={{ fontSize: 12, color: '#64748b' }}>— ou —</span>
+                                                <label style={{
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    gap: 8,
+                                                    padding: '8px 14px',
+                                                    borderRadius: 8,
+                                                    border: '1px solid rgba(16,185,129,0.3)',
+                                                    background: 'rgba(16,185,129,0.08)',
+                                                    color: '#34d399',
+                                                    cursor: uploadingDigital ? 'not-allowed' : 'pointer',
+                                                    fontSize: 13,
+                                                    fontWeight: 500,
+                                                    opacity: uploadingDigital ? 0.6 : 1,
+                                                }}>
+                                                    {uploadingDigital
+                                                        ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
+                                                        : '📎'
+                                                    }
+                                                    {uploadingDigital ? 'Envoi...' : 'Uploader un fichier'}
+                                                    <input
+                                                        type="file"
+                                                        style={{ display: 'none' }}
+                                                        disabled={uploadingDigital}
+                                                        onChange={handleDigitalFileUpload}
+                                                    />
+                                                </label>
+                                            </div>
+                                        )}
+                                        <p style={{ fontSize: 11, color: '#64748b' }}>
+                                            {digitalFileName
+                                                ? 'Le fichier sera envoyé directement dans WhatsApp après le paiement.'
+                                                : 'Sera envoyé tel quel à chaque acheteur. Limite fichier : 50 MB.'}
+                                        </p>
                                     </div>
                                 ) : (
                                     <div>
