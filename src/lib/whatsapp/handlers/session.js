@@ -320,7 +320,30 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                 if (shouldReconnect) {
                     const sessionStatus = session.status // capture before activeSessions.delete
                     const pairingSucceededBeforeClose = session.pairingSucceeded === true
+                    const restartRequiredAfterPairing =
+                        sessionStatus === 'pairing_waiting_open' &&
+                        pairingSucceededBeforeClose &&
+                        statusCode === DisconnectReason.restartRequired
                     activeSessions.delete(agentId)
+
+                    if (restartRequiredAfterPairing) {
+                        const restartAttempt = session.isSilentRestore ? 99 : (session.reconnectAttempts || 0)
+                        console.log(`🔁 [${agentName}] Pairing valide, redemarrage Baileys requis (515) — conservation des credentials et reprise immediate`)
+
+                        await supabase.from('agents').update({
+                            whatsapp_connected: false,
+                            whatsapp_status: 'connecting',
+                            whatsapp_qr_code: null,
+                            whatsapp_disconnected_by: null
+                        }).eq('id', agentId)
+
+                        if (typeof context.scheduleSessionInit === 'function') {
+                            context.scheduleSessionInit(context, { id: agentId, name: agentName, whatsapp_status: 'connecting' }, restartAttempt)
+                        } else {
+                            initSession(context, agentId, agentName, restartAttempt)
+                        }
+                        return
+                    }
 
                     if (sessionStatus === 'pairing_waiting_open') {
                         console.warn(`⚠️ [${agentName}] QR scanne mais ouverture de session impossible - reinitialisation pour forcer un nouveau QR`)
