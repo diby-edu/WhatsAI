@@ -32,6 +32,34 @@ const SERVICE_ENGINE_MAP = {
     'other': 'SLOT'
 }
 
+function getOrderableProducts(products = []) {
+    return (products || []).filter(product => product?.product_type !== 'service')
+}
+
+function isDigitalOnlyCatalog(products = []) {
+    const orderableProducts = getOrderableProducts(products)
+    return products.length > 0 &&
+        orderableProducts.length === products.length &&
+        orderableProducts.every(product => product?.product_type === 'digital')
+}
+
+function buildCatalogConsistencySection(products = []) {
+    if (!isDigitalOnlyCatalog(products)) {
+        return ''
+    }
+
+    return `
+COHERENCE METIER DU CATALOGUE (PRIORITE ABSOLUE) :
+- Ce catalogue vend uniquement des produits numeriques.
+- Ignore toute ancienne instruction parlant d'adresse de livraison, de cash a la livraison, de delai de livraison, ou de choix libre du mode de paiement.
+- Pour finaliser une commande numerique, collecte uniquement : produits/quantites, nom complet, telephone, email.
+- Ne demande jamais d'adresse de livraison physique.
+- Pour les produits numeriques, payment_method est TOUJOURS "online".
+- N'annonce jamais "cash a la livraison" pour un produit numerique.
+- Si le client demande comment payer, explique simplement que le paiement se fera a distance selon le mode configure par le systeme apres confirmation.
+`.trim()
+}
+
 function buildAdaptiveSystemPrompt(agent, products, orders, relevantDocs, currency, gpsLink, formattedHours, justOrdered = false, userMessage = '', hasKnowledgeBase = false, activeEngineHint = null) {
 
     // 1. ANALYSE DU CONTEXTE AGENT & PRODUITS
@@ -61,7 +89,7 @@ function buildAdaptiveSystemPrompt(agent, products, orders, relevantDocs, curren
             .filter(p => lowerMsg.includes(p.name.toLowerCase()))
             .sort((a, b) => b.name.length - a.name.length)[0]
 
-        if (matchedProduct && matchedProduct.service_subtype) {
+        if (matchedProduct && matchedProduct.product_type === 'service' && matchedProduct.service_subtype) {
             // console.log(`🧠 INTENT DETECTED: ${matchedProduct.name} -> ${matchedProduct.service_subtype}`)
             conversationIntent = 'service_booking'
             activeEngine = SERVICE_ENGINE_MAP[matchedProduct.service_subtype] || 'SLOT'
@@ -322,6 +350,7 @@ PAIEMENT POUR LES RESERVATIONS DE SERVICE :
 ${variantsRules}
 ${identity}
 ${missionSection}
+${buildCatalogConsistencySection(products)}
 ${catalogueSection}
 ${collectOrder}
 ${antiLoopRules}

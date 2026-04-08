@@ -113,11 +113,17 @@ function detectServiceEngine(products = [], userMessage = '') {
         .filter(product => lowerMessage.includes(String(product.name || '').toLowerCase()))
         .sort((a, b) => String(b.name || '').length - String(a.name || '').length)[0]
 
-    if (matchedProduct?.service_subtype === 'restaurant') {
+    if (matchedProduct?.product_type === 'service' && matchedProduct?.service_subtype === 'restaurant') {
         return 'RESTAURANT'
     }
 
     return null
+}
+
+function hasRestaurantServiceProduct(products = []) {
+    return (products || []).some(
+        product => product?.product_type === 'service' && product?.service_subtype === 'restaurant'
+    )
 }
 
 /**
@@ -429,7 +435,10 @@ async function generateAIResponse(options, dependencies) {
 
         // 3. Construire le System Prompt
         const isSupportClientMode = (products || []).length === 0 && hasKnowledgeBase
-        const activeEngineHint = hasRestaurantStateData(restaurantState) ? 'RESTAURANT' : null
+        const activeEngineHint =
+            hasRestaurantServiceProduct(products || []) && hasRestaurantStateData(restaurantState)
+                ? 'RESTAURANT'
+                : null
         let systemPrompt = buildAdaptiveSystemPrompt(
             agent,
             products || [],
