@@ -103,7 +103,8 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
             agentName,
             reconnectAttempts: effectiveReconnectAttempt,
             isSilentRestore,
-            pairingSucceeded: false
+            pairingSucceeded: false,
+            persistedCredsClearedForQr: false,
         }
         activeSessions.set(agentId, session)
 
@@ -130,6 +131,16 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
 
                 // Limite QR pour les reconnexions (agent déjà connecté avant)
                 const isReconnection = isSilentRestore || effectiveReconnectAttempt > 0
+                if (isReconnection && !session.persistedCredsClearedForQr) {
+                    try {
+                        await supabase.from('whatsapp_sessions').delete().eq('session_id', agentId)
+                        session.persistedCredsClearedForQr = true
+                        console.log(`🧹 [${agentName}] QR requis pendant une reconnexion — anciens credentials purges pour repartir sur un pairing propre`)
+                    } catch (cleanupErr) {
+                        console.warn(`⚠️ [${agentName}] Impossible de purger les anciens credentials avant le nouveau QR:`, cleanupErr.message || cleanupErr)
+                    }
+                }
+
                 if (isReconnection && context?.qrAttemptCounts) {
                     const count = (context.qrAttemptCounts.get(agentId) || 0) + 1
                     context.qrAttemptCounts.set(agentId, count)
