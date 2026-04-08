@@ -178,6 +178,15 @@ const antiLoopRules = `
    ❌ ERREUR GRAVE : Oublier de demander l'email pour Office 365
    ❌ ERREUR GRAVE : Dire "nom, téléphone et adresse" sans mentionner l'email
 
+🚫 PRODUITS NUMÉRIQUES (💻) — RÈGLES ABSOLUES :
+   - ⛔ JAMAIS mentionner un délai de livraison ("3 à 5 jours", "délai", "expédition", "colis", etc.)
+   - ✅ La livraison est INSTANTANÉE : le produit est envoyé automatiquement après paiement
+   - ⛔ JAMAIS demander une adresse de livraison physique pour un produit numérique
+   - ⛔ JAMAIS proposer "payer à la livraison" ou "cash on delivery" pour un produit numérique
+   - ✅ Paiement TOUJOURS en ligne pour les produits numériques (payment_method: "online")
+   - ✅ Après confirmation → appeler create_order IMMÉDIATEMENT avec payment_method: "online"
+   - ✅ Le lien de paiement généré par create_order doit être envoyé au client
+
 🔢 QUANTITÉ:
     - "100", "50", "20"(nombre seul) → C'est la quantité demandée
         - "100 licence", "je veux 100", "oui 100" → Quantité = 100
