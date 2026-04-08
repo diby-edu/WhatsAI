@@ -206,4 +206,27 @@ describe('WhatsApp session handler', () => {
         }))
         expect(context.scheduleSessionInit).not.toHaveBeenCalled()
     })
+
+    test('purges stale stored credentials when a reconnecting agent falls back to a QR flow', async () => {
+        const { supabase, whatsappSessionDeletes } = createSupabaseMock()
+        const context = {
+            supabase,
+            activeSessions: new Map(),
+            pendingConnections: new Set(),
+            openai: {},
+            CinetPay: {},
+            markSetupPhaseActivity: jest.fn(),
+            clearSetupPhaseActivity: jest.fn(),
+            scheduleSessionInit: jest.fn(),
+            qrAttemptCounts: new Map(),
+        }
+
+        await initSession(context, 'agent-3', 'Agent Three', 99)
+
+        await emitConnectionUpdate({ qr: 'abc' })
+
+        expect(whatsappSessionDeletes).toEqual([
+            { field: 'session_id', value: 'agent-3' },
+        ])
+    })
 })
