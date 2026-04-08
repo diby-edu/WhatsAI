@@ -322,6 +322,22 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                     const pairingSucceededBeforeClose = session.pairingSucceeded === true
                     activeSessions.delete(agentId)
 
+                    if (sessionStatus === 'pairing_waiting_open') {
+                        console.warn(`⚠️ [${agentName}] QR scanne mais ouverture de session impossible - reinitialisation pour forcer un nouveau QR`)
+                        if (context?.qrAttemptCounts) {
+                            context.qrAttemptCounts.delete(agentId)
+                        }
+                        clearSetupPhaseActivity?.(agentId)
+                        await supabase.from('whatsapp_sessions').delete().eq('session_id', agentId)
+                        await supabase.from('agents').update({
+                            whatsapp_connected: false,
+                            whatsapp_status: 'disconnected',
+                            whatsapp_qr_code: null,
+                            whatsapp_disconnected_by: 'system'
+                        }).eq('id', agentId)
+                        return
+                    }
+
                     // ⭐ EXPONENTIAL BACKOFF avec plafond (poka-yoke)
                     const MAX_RECONNECT_ATTEMPTS = 10
                     const attempt = (session.reconnectAttempts || 0) + 1

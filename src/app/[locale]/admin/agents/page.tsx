@@ -303,7 +303,7 @@ export default function AdminAgentsPage() {
                 <div>
                     <h1 style={{ fontSize: 28, fontWeight: 700, color: 'white', marginBottom: 8 }}>Agents IA</h1>
                     <p style={{ color: '#94a3b8' }}>
-                        {agents.length} agents | {statusCounts.connected} connectes | {statusCounts.qr_ready} a connecter | {statusCounts.reconnect_required} a reconnecter | {statusCounts.paused} en pause
+                        {agents.length} agents | {statusCounts.connected} connectes | {statusCounts.qr_ready} a connecter | {statusCounts.reconnect_required} a reconnecter | {statusCounts.paused} desactives
                     </p>
                 </div>
                 <button
@@ -404,7 +404,7 @@ export default function AdminAgentsPage() {
                     { value: 'connected',            label: `Connectés (${statusCounts.connected})` },
                     { value: 'qr_ready',             label: `À connecter (${statusCounts.qr_ready})` },
                     { value: 'reconnect_required',   label: `À reconnecter (${statusCounts.reconnect_required})` },
-                    { value: 'paused',               label: `En pause (${statusCounts.paused})` },
+                    { value: 'paused',               label: `Desactives (${statusCounts.paused})` },
                 ] as { value: string; label: string }[]).map(({ value, label }) => {
                     const active = filterStatus === value
                     const colors: Record<string, { bg: string; text: string }> = {
@@ -503,21 +503,20 @@ export default function AdminAgentsPage() {
                             // DB label : si l'agent est en pause, on le dit clairement
                             const dbLabel: Record<string, string> = {
                                 connected: 'Connecte', connecting: 'Connexion...', qr_ready: 'QR pret',
-                                disconnected: 'Deconnecte', reconnect_required: 'A reconnecter', paused: 'En pause',
+                                disconnected: 'Deconnecte', reconnect_required: 'A reconnecter', paused: 'Desactive',
                             }
                             const dbDisplayLabel = !agent.is_active
-                                ? 'En pause'
+                                ? 'Desactive'
                                 : (dbLabel[agent.whatsapp_status || ''] || (dbConnected ? 'Connecte' : 'Deconnecte'))
                             const dbColor = !agent.is_active ? '#f59e0b' : dbConnected ? '#34d399' : '#94a3b8'
 
-                            // Bot label : "Actif" dès que le socket est connected
                             const isPaused = !agent.is_active
-                            const botLabel = botActive
-                                ? (isPaused ? 'Socket ouvert (en pause)' : 'Actif')
-                                : botConnecting ? 'Connexion...' : botPending ? 'En attente' : botScheduled ? 'Planifie' : 'Absent'
-                            const botColor = botActive
-                                ? (isPaused ? '#f59e0b' : '#34d399')
-                                : botConnecting ? '#60a5fa' : botPending ? '#f59e0b' : botScheduled ? '#a78bfa' : '#64748b'
+                            const botLabel = isPaused
+                                ? (botActive ? 'Fermeture en cours' : 'Arrete')
+                                : botActive ? 'Actif' : botConnecting ? 'Connexion...' : botPending ? 'En attente' : botScheduled ? 'Planifie' : 'Absent'
+                            const botColor = isPaused
+                                ? '#f59e0b'
+                                : botActive ? '#34d399' : botConnecting ? '#60a5fa' : botPending ? '#f59e0b' : botScheduled ? '#a78bfa' : '#64748b'
 
                             return (
                                 <div style={{
@@ -625,7 +624,7 @@ export default function AdminAgentsPage() {
                                     opacity: busy || (!canPause && !canActivate) ? 0.3 : 1,
                                 }}
                             >
-                                <Power size={13} /> {agent.is_active ? 'Pause' : 'Activer'}
+                                <Power size={13} /> {agent.is_active ? 'Desactiver' : 'Activer'}
                             </button>
                             {canDecoWA && (
                             <button
@@ -860,4 +859,3 @@ function InfoRow({ label, value, mono }: { label: string; value: string; mono?: 
         </div>
     )
 }
-

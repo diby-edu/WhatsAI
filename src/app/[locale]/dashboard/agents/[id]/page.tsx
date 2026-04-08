@@ -43,6 +43,8 @@ import {
     normalizeAgentPaymentMode,
 } from '@/lib/payments/payment-mode-display'
 
+const QR_CONNECTION_ERROR_MESSAGE = 'Le scan a echoue avant la fin de la connexion. Generez un nouveau QR code puis rescanez depuis WhatsApp.'
+
 // Wizard Steps - Matching the new wizard design exactly
 const STEPS = [
     { id: 'mission', title: 'Mission', icon: Target },
@@ -94,6 +96,8 @@ export default function AgentWizardPage({
     const [whatsappStatus, setWhatsappStatus] = useState<'idle' | 'connecting' | 'qr_ready' | 'connected' | 'error'>('idle')
     const [qrCode, setQrCode] = useState<string | null>(null)
     const [connectedPhone, setConnectedPhone] = useState<string | null>(null)
+    const [whatsappErrorMessage, setWhatsappErrorMessage] = useState<string | null>(null)
+    const [retryWithFreshQr, setRetryWithFreshQr] = useState(false)
 
     // Conflict Detection
     const [conflictStatus, setConflictStatus] = useState<'idle' | 'checking' | 'safe' | 'conflict' | 'error'>('idle')
@@ -214,21 +218,31 @@ export default function AgentWizardPage({
                 setWhatsappStatus('idle')
                 setQrCode(null)
                 setConnectedPhone(null)
+                setWhatsappErrorMessage(null)
+                setRetryWithFreshQr(false)
             } else if (agent.whatsapp_connected) {
                 setWhatsappStatus('connected')
                 setConnectedPhone(agent.whatsapp_phone)
+                setQrCode(null)
+                setWhatsappErrorMessage(null)
+                setRetryWithFreshQr(false)
             } else if (agent.whatsapp_status === 'qr_ready' && agent.whatsapp_qr_code) {
                 setWhatsappStatus('qr_ready')
                 setQrCode(agent.whatsapp_qr_code)
                 setConnectedPhone(null)
+                setWhatsappErrorMessage(null)
+                setRetryWithFreshQr(false)
             } else if (agent.whatsapp_status === 'connecting') {
                 setWhatsappStatus('connecting')
                 setQrCode(null)
                 setConnectedPhone(null)
+                setWhatsappErrorMessage(null)
             } else {
                 setWhatsappStatus('idle')
                 setQrCode(null)
                 setConnectedPhone(null)
+                setWhatsappErrorMessage(null)
+                setRetryWithFreshQr(false)
             }
 
             // Populate Form
@@ -354,13 +368,15 @@ export default function AgentWizardPage({
             return
         }
 
+        const shouldForceFreshQr = retryWithFreshQr || whatsappStatus === 'error'
         setWhatsappStatus('connecting')
         setQrCode(null)
+        setWhatsappErrorMessage(null)
         try {
             const response = await fetch('/api/whatsapp/connect', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ agentId }),
+                body: JSON.stringify({ agentId, forceFreshQr: shouldForceFreshQr }),
             })
             const data = await response.json()
             const result = data.data || data
@@ -369,13 +385,19 @@ export default function AgentWizardPage({
             if (result.qrCode) {
                 setQrCode(result.qrCode)
                 setWhatsappStatus('qr_ready')
+                setRetryWithFreshQr(false)
             } else if (result.status === 'connected') {
                 setWhatsappStatus('connected')
                 setConnectedPhone(result.phoneNumber)
+                setQrCode(null)
+                setRetryWithFreshQr(false)
             }
         } catch (err) {
             console.error(err)
             setWhatsappStatus('error')
+            setQrCode(null)
+            setWhatsappErrorMessage((err as Error)?.message || 'Erreur de connexion WhatsApp')
+            setRetryWithFreshQr(true)
         }
     }
 
@@ -401,18 +423,27 @@ export default function AgentWizardPage({
                     setWhatsappStatus('connected')
                     setConnectedPhone(result.phoneNumber)
                     setQrCode(null)
+                    setWhatsappErrorMessage(null)
+                    setRetryWithFreshQr(false)
                     clearInterval(interval)
                 } else if (result.status === 'paused' || result.paused) {
                     setWhatsappStatus('idle')
                     setQrCode(null)
+                    setWhatsappErrorMessage(null)
+                    setRetryWithFreshQr(false)
                     clearInterval(interval)
-                } else if (result.status === 'error') {
+                } else if (result.status === 'error' || result.status === 'disconnected' || result.status === 'reconnect_required') {
                     setWhatsappStatus('error')
                     setQrCode(null)
+                    setConnectedPhone(null)
+                    setWhatsappErrorMessage(QR_CONNECTION_ERROR_MESSAGE)
+                    setRetryWithFreshQr(true)
                     clearInterval(interval)
                 } else if (result.qrCode && result.qrCode !== qrCode) {
                     setQrCode(result.qrCode)
                     setWhatsappStatus('qr_ready')
+                    setWhatsappErrorMessage(null)
+                    setRetryWithFreshQr(false)
                 }
             } catch (err) { }
         }, 2000)
@@ -1504,7 +1535,7 @@ export default function AgentWizardPage({
 
                             {!formData.is_active && (
                                 <div className="mb-6 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
-                                    Agent en pause. Activez-le d'abord pour lancer ou reprendre un scan WhatsApp.
+                                    Agent desactive. Activez-le d'abord pour lancer ou reprendre un scan WhatsApp.
                                 </div>
                             )}
 
@@ -1533,6 +1564,28 @@ export default function AgentWizardPage({
                                 <div className="bg-white p-4 rounded-xl animate-in zoom-in duration-300">
                                     <img src={qrCode} alt="QR" className="w-64 h-64" />
                                     <p className="text-slate-500 mt-2 text-sm">Scannez avec WhatsApp (Appareils connectés)</p>
+                                </div>
+                            )}
+
+                            {whatsappStatus === 'error' && (
+                                <div className="flex flex-col items-center gap-4 text-center">
+                                    <div className="w-20 h-20 bg-red-500/20 rounded-full flex items-center justify-center text-red-400">
+                                        <AlertCircle size={40} />
+                                    </div>
+                                    <div className="text-xl font-bold text-white">Connexion interrompue</div>
+                                    <div className="max-w-md text-sm text-red-300">
+                                        {whatsappErrorMessage || QR_CONNECTION_ERROR_MESSAGE}
+                                    </div>
+                                    <div className="max-w-md rounded-xl border border-slate-700/50 bg-slate-800/60 px-4 py-3 text-sm text-slate-300">
+                                        Si WhatsApp affiche "Impossible de connecter l'appareil", regenerez un nouveau QR code puis rescanez-le.
+                                    </div>
+                                    <button
+                                        onClick={connectWhatsApp}
+                                        disabled={!formData.is_active}
+                                        className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-700 disabled:text-slate-400 disabled:cursor-not-allowed text-white rounded-xl font-bold flex items-center gap-2 transition-all"
+                                    >
+                                        <RefreshCw size={20} /> Regenerer un nouveau QR code
+                                    </button>
                                 </div>
                             )}
 

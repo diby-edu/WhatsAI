@@ -31,7 +31,7 @@ export function getAgentOperationalStatus(agent: AgentStatusLike): AgentOperatio
 export function getAgentOperationalLabel(status: AgentOperationalStatus): string {
     switch (status) {
         case 'paused':
-            return 'Pause'
+            return 'Desactive'
         case 'connected':
             return 'Connecte'
         case 'reconnect_required':
