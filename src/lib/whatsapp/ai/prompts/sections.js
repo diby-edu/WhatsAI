@@ -315,7 +315,8 @@ function buildProductsCatalogSection(products, currency) {
             variantsInfo = `\n   🎨 VARIANTES : ${vInfo}`
         }
 
-        return `🔹 ${p.name} — ${displayPrice.toLocaleString('fr-FR')} ${currencySymbol}${variantsInfo}\n   📝 ${p.description || ''}`
+        const typeTag = p.product_type === 'digital' ? ' 💻 [NUMÉRIQUE]' : ''
+        return `🔹 ${p.name}${typeTag} — ${displayPrice.toLocaleString('fr-FR')} ${currencySymbol}${variantsInfo}\n   📝 ${p.description || ''}`
     }).filter(Boolean).join('\n\n')
 
     return `

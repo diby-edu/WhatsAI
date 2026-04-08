@@ -27,18 +27,21 @@ Si un client demande des produits, des prix, ou souhaite commander, réponds EXA
   // Note: 'service' est déjà géré par les engines (STAY/TABLE...), ici on ne gère que le reste
   // 1. Analyse des types de produits disponibles dans le catalogue
   // Note: 'service' est déjà géré par les engines (STAY/TABLE...), ici on ne gère que le reste
-  const hasPhysical = products.some(p => !p.product_type || p.product_type === 'physical' || p.product_type === 'good' || p.product_type === 'product')
+  const hasPhysical = products.some(p => p.product_type === 'physical' || p.product_type === 'good' || p.product_type === 'product')
   const hasDigital = products.some(p => p.product_type === 'digital' || p.product_type === 'virtual')
 
   // 2. Dispatch intelligent
   if (hasPhysical && hasDigital) {
     // Agent mixte (vend des T-shirts et des Licences)
     return buildMixedWorkflow(orders)
-  } else if (hasDigital && !hasPhysical) {
-    // Agent 100% Numérique
+  } else if (hasDigital) {
+    // Agent 100% Numérique (ou mixte digital + service/null)
     return buildDigitalWorkflow(orders)
+  } else if (hasPhysical) {
+    // Agent 100% Physique
+    return buildPhysicalWorkflow(orders)
   } else {
-    // Agent 100% Physique (ou cas par défaut)
+    // Produits sans type explicite (legacy null / service non-engine) → workflow physique par défaut
     return buildPhysicalWorkflow(orders)
   }
 }
