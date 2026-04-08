@@ -32,6 +32,13 @@ export default function DashboardConversationsPage() {
         fetchConversations()
     }, [activeTab]) // Re-fetch when tab changes (optional, or just filter locally)
 
+    useEffect(() => {
+        const interval = setInterval(() => {
+            fetchConversations()
+        }, 5000)
+        return () => clearInterval(interval)
+    }, [activeTab])
+
     const fetchConversations = async () => {
         setLoading(true)
         try {
@@ -43,7 +50,7 @@ export default function DashboardConversationsPage() {
                 params.append('bot_paused', 'false')
             }
 
-            const res = await fetch(`/api/conversations?${params.toString()}`)
+            const res = await fetch(`/api/conversations?${params.toString()}`, { cache: 'no-store' })
             const data = await res.json()
             if (data.data?.conversations) {
                 setConversations(data.data.conversations)

@@ -11,6 +11,17 @@ const { MessagingService } = require('../services/messaging.service')
 const processingMessages = new Set()
 const processingOutbound = new Set()
 
+async function simulateRealtimeTyping(socket, jid, text) {
+    try {
+        const delay = 800 + Math.min((text || '').length * 25, 1200)
+        await socket.sendPresenceUpdate('composing', jid)
+        await new Promise((resolve) => setTimeout(resolve, delay))
+        await socket.sendPresenceUpdate('paused', jid)
+    } catch {
+        // Le typing indicator ne doit jamais bloquer l'envoi.
+    }
+}
+
 async function isAgentActive(supabase, agentId) {
     const { data, error } = await supabase
         .from('agents')
@@ -157,13 +168,14 @@ async function handlePendingMessage(context, message) {
     processingMessages.add(message.id)
 
     try {
+        const isManualResponse = message?.metadata?.manual_response === true
         const { data: conv } = await supabase
             .from('conversations')
             .select('contact_phone, contact_jid, agent_id, bot_paused')
             .eq('id', message.conversation_id)
             .single()
 
-        if (!conv || conv.bot_paused) return
+        if (!conv || (conv.bot_paused && !isManualResponse)) return
 
         const agentActive = await isAgentActive(supabase, conv.agent_id)
         if (!agentActive) {
@@ -182,6 +194,7 @@ async function handlePendingMessage(context, message) {
             jid = conv.contact_phone + (isLid ? '@lid' : '@s.whatsapp.net')
         }
 
+        await simulateRealtimeTyping(session.socket, jid, message.content)
         const result = await session.socket.sendMessage(jid, { text: message.content })
 
         await supabase.from('messages')

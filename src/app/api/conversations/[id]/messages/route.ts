@@ -77,30 +77,6 @@ export async function POST(
             }
         })
 
-        if (msgError) {
-            console.error('Error saving manual message:', msgError)
-            // Still return success if message was sent on WA, just warn
-        }
-
-        // Update conversation last message
-        await supabase
-            .from('conversations')
-            .update({
-                last_message: message,
-                last_message_at: new Date().toISOString(),
-                // Optionally pause bot on manual reply
-                bot_paused: true
-            })
-            .eq('id', conversationId)
-
-        return NextResponse.json({
-            success: true,
-            data: {
-                message: newMessage,
-                bot_paused: true
-            }
-        })
-
     } catch (error) {
         console.error('Error sending manual message:', error)
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })

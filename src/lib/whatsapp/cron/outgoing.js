@@ -88,6 +88,7 @@ async function sendHistoryMessage(supabase, session, msg) {
 
 async function processHistoryMessage(supabase, activeSessions, agentStateCache, msg) {
     const agentId = msg.conversation.agent_id
+    const isManualResponse = msg?.metadata?.manual_response === true
     const isActive = await getAgentIsActive(supabase, agentId, agentStateCache)
     if (!isActive) {
         await supabase.from('messages')
@@ -96,7 +97,7 @@ async function processHistoryMessage(supabase, activeSessions, agentStateCache, 
         return
     }
     // Ne pas envoyer si la conversation est en pause (humain a pris la main)
-    if (msg.conversation.bot_paused) {
+    if (msg.conversation.bot_paused && !isManualResponse) {
         console.log(`⏸️ [HISTORY] Skipping pending msg ${msg.id}: conversation ${msg.conversation_id} is bot_paused`)
         return
     }

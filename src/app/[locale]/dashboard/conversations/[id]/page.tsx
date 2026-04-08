@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, use } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { ArrowLeft, User, Bot, Clock, Loader2, RefreshCcw, Hand, Play, Send, Trash2, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, User, Bot, Clock, Loader2, RefreshCcw, Hand, Play, Send, Trash2, AlertTriangle, Check, CheckCheck, CircleDashed, XCircle } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 interface Message {
@@ -49,6 +49,14 @@ export default function ConversationDetailPage({ params }: { params: Promise<{ i
     }, [conversationId])
 
     useEffect(() => {
+        if (!conversationId) return
+        const interval = setInterval(() => {
+            fetchConversation()
+        }, 5000)
+        return () => clearInterval(interval)
+    }, [conversationId])
+
+    useEffect(() => {
         scrollToBottom()
     }, [messages])
 
@@ -59,7 +67,7 @@ export default function ConversationDetailPage({ params }: { params: Promise<{ i
     const fetchConversation = async () => {
         try {
             setLoading(true)
-            const res = await fetch(`/api/conversations/${conversationId}`)
+            const res = await fetch(`/api/conversations/${conversationId}`, { cache: 'no-store' })
             const data = await res.json()
 
             if (data.data) {
@@ -88,6 +96,22 @@ export default function ConversationDetailPage({ params }: { params: Promise<{ i
             day: 'numeric',
             month: 'long'
         })
+    }
+
+    const getAssistantMessageStatus = (status: string) => {
+        switch (status) {
+            case 'read':
+                return { label: 'Lu', icon: <CheckCheck style={{ width: 12, height: 12 }} /> }
+            case 'delivered':
+                return { label: 'Livre', icon: <CheckCheck style={{ width: 12, height: 12 }} /> }
+            case 'sent':
+                return { label: 'Envoye', icon: <Check style={{ width: 12, height: 12 }} /> }
+            case 'failed':
+                return { label: 'Echec', icon: <XCircle style={{ width: 12, height: 12 }} /> }
+            case 'pending':
+            default:
+                return { label: 'En attente', icon: <CircleDashed style={{ width: 12, height: 12 }} /> }
+        }
     }
 
     const toggleBotPause = async () => {
@@ -406,6 +430,13 @@ export default function ConversationDetailPage({ params }: { params: Promise<{ i
                                 }}>
                                     <Clock style={{ width: 10, height: 10 }} />
                                     {formatTime(msg.created_at)}
+                                    {msg.role === 'assistant' && (
+                                        <>
+                                            <span style={{ opacity: 0.6 }}>•</span>
+                                            {getAssistantMessageStatus(msg.status).icon}
+                                            <span>{getAssistantMessageStatus(msg.status).label}</span>
+                                        </>
+                                    )}
                                 </div>
                             </div>
 

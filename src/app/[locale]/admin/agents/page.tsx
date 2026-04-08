@@ -70,7 +70,7 @@ function normalizeAgent(agent: any): AdminAgent {
 
 type BotStateMap = Record<string, { active: boolean; connecting: boolean; botSocketStatus: string | null; pending: boolean; scheduled: boolean }>
 
-const STATUS_ORDER: Record<string, number> = { connected: 0, qr_ready: 1, reconnect_required: 2, paused: 3 }
+const STATUS_ORDER: Record<string, number> = { connected: 0, connecting: 1, qr_ready: 2, reconnect_required: 3, paused: 4 }
 
 export default function AdminAgentsPage() {
     const [agents, setAgents] = useState<AdminAgent[]>([])
@@ -87,9 +87,14 @@ export default function AdminAgentsPage() {
 
     useEffect(() => {
         fetchAgents()
+        // Polling agent DB state every 10s keeps badges honest without waiting for a full page refresh.
+        const agentsInterval = setInterval(fetchAgents, 10000)
         // Polling bot state toutes les 5s — sans recharger les agents (léger)
         const interval = setInterval(fetchBotState, 5000)
-        return () => clearInterval(interval)
+        return () => {
+            clearInterval(interval)
+            clearInterval(agentsInterval)
+        }
     }, [])
 
     async function fetchBotState() {
@@ -129,7 +134,7 @@ export default function AdminAgentsPage() {
 
     async function fetchAgents() {
         try {
-            const res = await fetch('/api/admin/agents')
+            const res = await fetch('/api/admin/agents', { cache: 'no-store' })
             const data = await res.json()
             if (data.data?.agents) {
                 setAgents(data.data.agents.map(normalizeAgent))
@@ -283,6 +288,7 @@ export default function AdminAgentsPage() {
             return acc
         }, {
             connected: 0,
+            connecting: 0,
             qr_ready: 0,
             reconnect_required: 0,
             paused: 0,
@@ -303,7 +309,7 @@ export default function AdminAgentsPage() {
                 <div>
                     <h1 style={{ fontSize: 28, fontWeight: 700, color: 'white', marginBottom: 8 }}>Agents IA</h1>
                     <p style={{ color: '#94a3b8' }}>
-                        {agents.length} agents | {statusCounts.connected} connectes | {statusCounts.qr_ready} a connecter | {statusCounts.reconnect_required} a reconnecter | {statusCounts.paused} desactives
+                        {agents.length} agents | {statusCounts.connected} connectes | {statusCounts.connecting} en connexion | {statusCounts.qr_ready} a connecter | {statusCounts.reconnect_required} a reconnecter | {statusCounts.paused} desactives
                     </p>
                 </div>
                 <button
@@ -399,21 +405,23 @@ export default function AdminAgentsPage() {
 
             {/* Filtres par statut */}
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {([
-                    { value: 'all',                  label: `Tous (${agents.length})` },
-                    { value: 'connected',            label: `Connectés (${statusCounts.connected})` },
-                    { value: 'qr_ready',             label: `À connecter (${statusCounts.qr_ready})` },
-                    { value: 'reconnect_required',   label: `À reconnecter (${statusCounts.reconnect_required})` },
-                    { value: 'paused',               label: `Desactives (${statusCounts.paused})` },
-                ] as { value: string; label: string }[]).map(({ value, label }) => {
-                    const active = filterStatus === value
-                    const colors: Record<string, { bg: string; text: string }> = {
-                        all:                  { bg: 'rgba(148,163,184,0.12)', text: '#94a3b8' },
-                        connected:            { bg: 'rgba(52,211,153,0.12)',  text: '#34d399' },
-                        qr_ready:             { bg: 'rgba(96,165,250,0.12)', text: '#60a5fa' },
-                        reconnect_required:   { bg: 'rgba(248,113,113,0.12)',text: '#f87171' },
-                        paused:               { bg: 'rgba(245,158,11,0.12)', text: '#fbbf24' },
-                    }
+                    {([
+                        { value: 'all',                  label: `Tous (${agents.length})` },
+                        { value: 'connected',            label: `Connectés (${statusCounts.connected})` },
+                        { value: 'connecting',           label: `Connexion (${statusCounts.connecting})` },
+                        { value: 'qr_ready',             label: `À connecter (${statusCounts.qr_ready})` },
+                        { value: 'reconnect_required',   label: `À reconnecter (${statusCounts.reconnect_required})` },
+                        { value: 'paused',               label: `Desactives (${statusCounts.paused})` },
+                    ] as { value: string; label: string }[]).map(({ value, label }) => {
+                        const active = filterStatus === value
+                        const colors: Record<string, { bg: string; text: string }> = {
+                            all:                  { bg: 'rgba(148,163,184,0.12)', text: '#94a3b8' },
+                            connected:            { bg: 'rgba(52,211,153,0.12)',  text: '#34d399' },
+                            connecting:           { bg: 'rgba(96,165,250,0.12)', text: '#60a5fa' },
+                            qr_ready:             { bg: 'rgba(96,165,250,0.12)', text: '#60a5fa' },
+                            reconnect_required:   { bg: 'rgba(248,113,113,0.12)',text: '#f87171' },
+                            paused:               { bg: 'rgba(245,158,11,0.12)', text: '#fbbf24' },
+                        }
                     const c = colors[value]
                     return (
                         <button
@@ -480,10 +488,10 @@ export default function AdminAgentsPage() {
                         </div>
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: 'rgba(51, 65, 85, 0.3)', borderRadius: 8, marginBottom: 8 }}>
-                            {agent.operationalStatus === 'connected' || agent.operationalStatus === 'reconnect_required' ? (
-                                <Smartphone style={{ width: 14, height: 14, color: agent.operationalColors.badgeText }} />
-                            ) : (
+                            {agent.operationalStatus === 'qr_ready' ? (
                                 <MessageSquare style={{ width: 14, height: 14, color: agent.operationalColors.badgeText }} />
+                            ) : (
+                                <Smartphone style={{ width: 14, height: 14, color: agent.operationalColors.badgeText }} />
                             )}
                             <span style={{ fontSize: 12, color: agent.operationalColors.badgeText }}>{agent.operationalDetail}</span>
                         </div>
