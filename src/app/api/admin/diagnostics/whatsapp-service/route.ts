@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
             agentConnections: {
                 status: agentConnections.connected > 0 ? 'ok' : 'warning',
                 message: `${agentConnections.connected}/${agentConnections.total} agents connectes`,
-                details: `A connecter: ${agentConnections.qr_ready} | A reconnecter: ${agentConnections.reconnect_required} | Desactives: ${agentConnections.paused}`,
+                details: `Connexion: ${agentConnections.connecting} | A connecter: ${agentConnections.qr_ready} | A reconnecter: ${agentConnections.reconnect_required} | Desactives: ${agentConnections.paused}`,
                 ...agentConnections,
             },
             riskReport,

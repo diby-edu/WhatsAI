@@ -77,13 +77,13 @@ export default function AgentsPage() {
     useEffect(() => {
         fetchAgents()
         fetchPlanLimit()
-        const interval = setInterval(fetchAgents, 30000)
+        const interval = setInterval(fetchAgents, 10000)
         return () => clearInterval(interval)
     }, [])
 
     const fetchAgents = async () => {
         try {
-            const res = await fetch('/api/agents')
+            const res = await fetch('/api/agents', { cache: 'no-store' })
             const data = await res.json()
             if (data.data?.agents) {
                 setAgents(data.data.agents)

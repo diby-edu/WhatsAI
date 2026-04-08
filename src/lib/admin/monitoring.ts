@@ -55,6 +55,7 @@ export const WHATSAPP_RISK_THRESHOLDS_MINUTES = {
 export type WhatsAppOperationalMetrics = {
     total: number
     connected: number
+    connecting: number
     paused: number
     qr_ready: number
     reconnect_required: number
@@ -211,6 +212,7 @@ export function buildWhatsAppDiagnosticsSummary(
     const reconnectRequired = metrics?.reconnect_required || 0
     const qrReady = metrics?.qr_ready || 0
     const connected = metrics?.connected || 0
+    const connecting = metrics?.connecting || 0
     const paused = metrics?.paused || 0
     const total = metrics?.total || 0
 
@@ -225,12 +227,14 @@ export function buildWhatsAppDiagnosticsSummary(
         if (reconnectRequired > 0) return `${reconnectRequired} agent(s) a reconnecter`
         if (hasWarningRisk) return `${riskReport.warning} agent(s) a surveiller`
         if (connected > 0) return `${connected}/${total} agents connectes`
+        if (connecting > 0) return `${connecting}/${total} agents en cours de connexion`
         if (qrReady > 0) return `${qrReady}/${total} agents en attente de scan initial`
         if (paused > 0) return `${paused}/${total} agents desactives`
         return `${connected}/${total} agents connectes`
     })()
 
     const detailsParts = [
+        `Connexion: ${connecting}`,
         `A connecter: ${qrReady}`,
         `A reconnecter: ${reconnectRequired}`,
         `Desactives: ${paused}`,
@@ -258,6 +262,7 @@ export async function getAgentOperationalMetrics(adminSupabase: SupabaseClient) 
     const counts: WhatsAppOperationalMetrics = {
         total: 0,
         connected: 0,
+        connecting: 0,
         paused: 0,
         qr_ready: 0,
         reconnect_required: 0,
@@ -267,6 +272,7 @@ export async function getAgentOperationalMetrics(adminSupabase: SupabaseClient) 
         const status = getAgentOperationalStatus(agent)
         counts.total += 1
         if (status === 'connected') counts.connected += 1
+        if (status === 'connecting') counts.connecting += 1
         if (status === 'paused') counts.paused += 1
         if (status === 'qr_ready') counts.qr_ready += 1
         if (status === 'reconnect_required') counts.reconnect_required += 1

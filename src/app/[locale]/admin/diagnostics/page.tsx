@@ -170,6 +170,7 @@ export default function AdminDiagnosticsPage() {
                 {
                     total: whatsapp.data?.total || 0,
                     connected: whatsapp.data?.connected || 0,
+                    connecting: whatsapp.data?.connecting || 0,
                     paused: whatsapp.data?.paused || 0,
                     qr_ready: whatsapp.data?.qr_ready || 0,
                     reconnect_required: whatsapp.data?.reconnect_required || 0,
