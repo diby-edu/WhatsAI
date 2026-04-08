@@ -18,7 +18,7 @@ function normalizeRecipientPhone(to: string): string {
 
 export async function queueOutboundWhatsAppMessage(
     supabase: SupabaseLikeClient,
-    { agentId, to, message, mediaUrl, mediaType, mediaFileName }: QueueOutboundWhatsAppMessageParams
+    { agentId, to, message, mediaUrl, mediaType }: QueueOutboundWhatsAppMessageParams
 ): Promise<{ queued: boolean; reason?: 'table_missing' }> {
     const { error } = await supabase.from('outbound_messages').insert({
         agent_id: agentId,
