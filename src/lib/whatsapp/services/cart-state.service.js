@@ -550,6 +550,18 @@ function parseBatchCombinationLines(product, text) {
             if (combo) return resolveCombinationLabel(product, combo)
             return Object.values(item.selected_variants || {}).filter(Boolean).join(' / ')
         }).filter(Boolean)
+
+        if (comboLabels.length === 0) {
+            return {
+                status: 'missing_quantities',
+                partialCombos,
+                comboLabels: [],
+                prompt: 'Combien en souhaitez-vous ? (ex : "3 articles")',
+                lines: [],
+                segments,
+            }
+        }
+
         return {
             status: 'missing_quantities',
             partialCombos,
@@ -1921,9 +1933,15 @@ function buildCartStateGuidance(cartState, products = []) {
 
     if (state.cart_items.length > 0) {
         lines.push(`- Lignes deja validees: ${state.cart_items.length}`)
+        let cartTotal = 0
         state.cart_items.forEach((item, index) => {
             lines.push(`- Ligne ${index + 1}: ${formatLineLabel(item)}`)
+            cartTotal += Number(item.line_total) || ((Number(item.unit_price) || 0) * (item.quantity || 0))
         })
+        if (cartTotal > 0) {
+            lines.push(`- Total panier: ${cartTotal.toLocaleString('fr-FR')} FCFA`)
+            lines.push('- Utiliser ce total exact dans tout recapitulatif. Ne jamais ecrire [insérer le montant].')
+        }
     }
 
     if (state.draft_item) {
