@@ -4,12 +4,13 @@ const {
 } = require('@/lib/whatsapp/reactivation')
 
 describe('whatsapp reactivation helpers', () => {
-    test('requests reconnect for previously inactive connected agents', () => {
+    test('requests reconnect for previously connected inactive agents', () => {
         expect(shouldRequestWhatsAppReconnect({
             id: 'agent-1',
             is_active: false,
-            whatsapp_connected: true,
-            whatsapp_status: 'connected',
+            whatsapp_connected: false,
+            whatsapp_status: 'disconnected',
+            whatsapp_ever_connected: true,
         })).toBe(true)
     })
 
@@ -36,8 +37,9 @@ describe('whatsapp reactivation helpers', () => {
             {
                 id: 'agent-1',
                 is_active: false,
-                whatsapp_connected: true,
-                whatsapp_status: 'connected',
+                whatsapp_connected: false,
+                whatsapp_status: 'disconnected',
+                whatsapp_phone: '22501020304',
             },
             {
                 id: 'agent-2',

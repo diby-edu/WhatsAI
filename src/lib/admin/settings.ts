@@ -1,7 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { resumeActiveConversationsForAgents } from '@/lib/conversations/resume-agent-conversations'
 import { ensurePaymentProviderReady, normalizePaymentProvider } from '@/lib/payments/provider'
-import { collectReconnectableAgentIds } from '@/lib/whatsapp/reactivation'
+import { buildAgentDeactivationUpdate } from '@/lib/whatsapp/agent-lifecycle'
 
 export const DEFAULT_ADMIN_SETTINGS = {
     appName: 'WazzapAI',
@@ -250,7 +249,7 @@ export async function setMaintenanceMode(adminSupabase: SupabaseClient, userId: 
         if (agentIds.length > 0) {
             const { error: updateError } = await adminSupabase
                 .from('agents')
-                .update({ is_active: false, whatsapp_connected: false, whatsapp_status: 'disconnected' })
+                .update(buildAgentDeactivationUpdate())
                 .in('id', agentIds)
 
             if (updateError) throw updateError
@@ -277,12 +276,16 @@ export async function setMaintenanceMode(adminSupabase: SupabaseClient, userId: 
         // Restaurer uniquement les agents mis en pause pour maintenance (ils étaient connectés)
         const { error: updateError } = await adminSupabase
             .from('agents')
-            .update({ is_active: true, whatsapp_status: 'connecting' })
+            .update({
+                is_active: true,
+                whatsapp_connected: false,
+                whatsapp_status: 'connecting',
+                whatsapp_qr_code: null,
+                whatsapp_disconnected_by: null,
+            })
             .in('id', ids)
 
         if (updateError) throw updateError
-
-        await resumeActiveConversationsForAgents(adminSupabase, ids)
     }
 
     await upsertAppSetting(adminSupabase, userId, 'maintenance_paused_agents', { ids: [] })

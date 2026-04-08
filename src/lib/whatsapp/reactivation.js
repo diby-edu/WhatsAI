@@ -1,8 +1,9 @@
+function hasAgentConnectedBefore(agent) {
+    return agent?.whatsapp_ever_connected === true || agent?.whatsapp_connected === true || !!agent?.whatsapp_phone
+}
+
 function shouldRequestWhatsAppReconnect(agent) {
-    return agent?.is_active === false && (
-        agent?.whatsapp_connected === true ||
-        agent?.whatsapp_status === 'connected'
-    )
+    return agent?.is_active === false && hasAgentConnectedBefore(agent)
 }
 
 function collectReconnectableAgentIds(agents) {

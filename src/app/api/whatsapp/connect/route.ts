@@ -91,8 +91,10 @@ export async function POST(request: NextRequest) {
         const { error: agentUpdateError } = await adminClient
             .from('agents')
             .update({
+                whatsapp_connected: false,
                 whatsapp_status: 'connecting',
-                whatsapp_qr_code: null
+                whatsapp_qr_code: null,
+                whatsapp_disconnected_by: null,
             })
             .eq('id', agentId)
 

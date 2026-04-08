@@ -1,8 +1,7 @@
 import { NextRequest } from 'next/server'
 import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
-import { resumeActiveConversationsForAgents } from '@/lib/conversations/resume-agent-conversations'
-import { shouldRequestWhatsAppReconnect } from '@/lib/whatsapp/reactivation'
 import { normalizeAgentPaymentMode } from '@/lib/payments/payment-mode-display'
+import { buildAgentDeactivationUpdate, buildAgentReactivationUpdate } from '@/lib/whatsapp/agent-lifecycle'
 
 function normalizeRestaurantDepositSettings(body: any) {
     const enabled = !!body.restaurant_deposit_enabled
@@ -99,7 +98,6 @@ export async function PATCH(
 ) {
     const { id } = await params
     const supabase = await createApiClient()
-    const adminSupabase = createAdminClient()
     const { user, error: authError } = await getAuthUser(supabase)
 
     if (authError) {
@@ -147,7 +145,6 @@ export async function PATCH(
             updates.payment_mode = normalizeAgentPaymentMode(updates.payment_mode)
         }
 
-        let reactivatingAgent = false
         const depositSettingsTouched = body.restaurant_deposit_enabled !== undefined
             || body.restaurant_deposit_mode !== undefined
             || body.restaurant_deposit_percentage !== undefined
@@ -161,6 +158,8 @@ export async function PATCH(
                     is_active,
                     whatsapp_connected,
                     whatsapp_status,
+                    whatsapp_phone,
+                    whatsapp_ever_connected,
                     restaurant_deposit_enabled,
                     restaurant_deposit_mode,
                     restaurant_deposit_percentage,
@@ -197,10 +196,7 @@ export async function PATCH(
         // Prevent bypassing plan limits by manually activating an agent
         if (updates.is_active === true) {
             if (currentAgent && !currentAgent.is_active) {
-                reactivatingAgent = true
-                if (shouldRequestWhatsAppReconnect(currentAgent)) {
-                    updates.whatsapp_status = 'connecting'
-                }
+                Object.assign(updates, buildAgentReactivationUpdate(currentAgent))
                 const { data: profile } = await supabase
                     .from('profiles')
                     .select('plan')
@@ -230,6 +226,10 @@ export async function PATCH(
             }
         }
 
+        if (updates.is_active === false) {
+            Object.assign(updates, buildAgentDeactivationUpdate())
+        }
+
         const { data: agent, error } = await supabase
             .from('agents')
             .update(updates)
@@ -240,10 +240,6 @@ export async function PATCH(
 
         if (error) {
             return errorResponse('Mise a jour echouee', 500)
-        }
-
-        if (reactivatingAgent) {
-            await resumeActiveConversationsForAgents(adminSupabase, [id])
         }
 
         return successResponse({ agent })

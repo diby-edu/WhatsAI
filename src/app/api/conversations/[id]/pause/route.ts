@@ -21,7 +21,7 @@ export async function POST(
         // Check ownership
         const { data: conversation, error: fetchError } = await supabase
             .from('conversations')
-            .select('id, user_id, bot_paused')
+            .select('id, user_id, bot_paused, status')
             .eq('id', id)
             .single()
 
@@ -33,10 +33,15 @@ export async function POST(
             return errorResponse('Accès non autorisé', 403)
         }
 
+        const updatePayload: Record<string, unknown> = { bot_paused: paused }
+        if (!paused && conversation.status === 'escalated') {
+            updatePayload.status = 'active'
+        }
+
         // Toggle pause
         const { data: updated, error: updateError } = await supabase
             .from('conversations')
-            .update({ bot_paused: paused })
+            .update(updatePayload)
             .eq('id', id)
             .select()
             .single()
@@ -45,9 +50,12 @@ export async function POST(
 
         return successResponse({
             bot_paused: updated.bot_paused,
+            status: updated.status,
             message: updated.bot_paused
                 ? 'Bot mis en pause - vous contrôlez maintenant la conversation'
-                : 'Bot réactivé - les réponses automatiques reprennent'
+                : (conversation.status === 'escalated'
+                    ? 'Escalade résolue - les réponses automatiques reprennent'
+                    : 'Bot réactivé - les réponses automatiques reprennent')
         })
     } catch (err) {
         console.error('Error toggling pause:', err)
