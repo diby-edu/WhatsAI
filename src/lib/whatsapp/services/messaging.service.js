@@ -90,6 +90,37 @@ class MessagingService {
 
 
     /**
+     * Envoie un fichier (document) depuis une URL
+     */
+    static async sendDocument(session, to, fileUrl, fileName, caption = '') {
+        return await this.withRetry(async () => {
+            if (!session || !session.socket) {
+                throw new Error('WhatsApp session or socket unavailable')
+            }
+            const ext = fileUrl.split('.').pop()?.toLowerCase().split('?')[0] || ''
+            const mimeMap = {
+                pdf: 'application/pdf',
+                zip: 'application/zip',
+                mp4: 'video/mp4',
+                mp3: 'audio/mpeg',
+                xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+                png: 'image/png',
+                jpg: 'image/jpeg',
+                jpeg: 'image/jpeg',
+            }
+            const mimetype = mimeMap[ext] || 'application/octet-stream'
+            return await session.socket.sendMessage(to, {
+                document: { url: fileUrl },
+                mimetype,
+                fileName: fileName || fileUrl.split('/').pop() || 'fichier',
+                caption,
+            })
+        }, 3)
+    }
+
+    /**
      * Retry logic (exponentiel backoff)
      */
     static async withRetry(fn, maxAttempts, baseDelay = 1000) {
