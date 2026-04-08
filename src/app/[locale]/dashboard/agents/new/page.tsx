@@ -33,6 +33,8 @@ import {
     MANUAL_PAYMENT_MODE_LABEL,
 } from '@/lib/payments/payment-mode-display'
 
+const QR_CONNECTION_ERROR_MESSAGE = 'Le scan a echoue avant la fin de la connexion. Generez un nouveau QR code puis rescanez depuis WhatsApp.'
+
 export default function NewAgentPage() {
     const t = useTranslations('Agents')
     const tCommon = useTranslations('Agents.connect') // specialized namespace if needed or just access via t('connect...')
@@ -49,6 +51,7 @@ export default function NewAgentPage() {
     const [qrCode, setQrCode] = useState<string | null>(null)
     const [whatsappStatus, setWhatsappStatus] = useState<'idle' | 'connecting' | 'qr_ready' | 'connected' | 'error'>('idle')
     const [connectedPhone, setConnectedPhone] = useState<string | null>(null)
+    const [retryWithFreshQr, setRetryWithFreshQr] = useState(false)
 
     useEffect(() => {
         const checkViewport = () => setIsCompact(window.innerWidth < 768)
@@ -565,6 +568,7 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
             return
         }
 
+        const shouldForceFreshQr = retryWithFreshQr || whatsappStatus === 'error'
         setWhatsappStatus('connecting')
         setError(null)
 
@@ -573,7 +577,7 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
             const response = await fetch('/api/whatsapp/connect', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ agentId: createdAgent.id }),
+                body: JSON.stringify({ agentId: createdAgent.id, forceFreshQr: shouldForceFreshQr }),
             })
 
             const data = await response.json()
@@ -586,6 +590,7 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
             if (data.data?.status === 'connected') {
                 setWhatsappStatus('connected')
                 setConnectedPhone(data.data.phoneNumber || '')
+                setRetryWithFreshQr(false)
                 return
             }
 
@@ -608,12 +613,15 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
                 if (status === 'connected') {
                     setWhatsappStatus('connected')
                     setConnectedPhone(phoneNumber || '')
+                    setRetryWithFreshQr(false)
                     return
-                } else if (status === 'error') {
+                } else if (status === 'error' || status === 'disconnected' || status === 'reconnect_required') {
+                    throw new Error(QR_CONNECTION_ERROR_MESSAGE)
                     throw new Error('La session WhatsApp a échoué.')
                 } else if (newQrCode) {
                     setQrCode(newQrCode)
                     setWhatsappStatus('qr_ready')
+                    setRetryWithFreshQr(false)
                     // Continuer le polling même si on a le QR code, pour détecter le scan
                     return pollForQR(attempts + 1)
                 } else {
@@ -624,6 +632,8 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
         } catch (err) {
             setError((err as Error).message)
             setWhatsappStatus('error')
+            setQrCode(null)
+            setRetryWithFreshQr(true)
         }
     }
 

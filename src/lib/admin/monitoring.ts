@@ -226,14 +226,14 @@ export function buildWhatsAppDiagnosticsSummary(
         if (hasWarningRisk) return `${riskReport.warning} agent(s) a surveiller`
         if (connected > 0) return `${connected}/${total} agents connectes`
         if (qrReady > 0) return `${qrReady}/${total} agents en attente de scan initial`
-        if (paused > 0) return `${paused}/${total} agents en pause`
+        if (paused > 0) return `${paused}/${total} agents desactives`
         return `${connected}/${total} agents connectes`
     })()
 
     const detailsParts = [
         `A connecter: ${qrReady}`,
         `A reconnecter: ${reconnectRequired}`,
-        `Pause: ${paused}`,
+        `Desactives: ${paused}`,
         `A risque: ${riskReport?.total || 0}`,
     ]
 

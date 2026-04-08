@@ -573,7 +573,7 @@ export default function AdminDiagnosticsPage() {
                                         qr_ready: 'QR pret',
                                         disconnected: 'deconnecte',
                                         reconnect_required: 'a reconnecter',
-                                        paused: 'en pause',
+                                        paused: 'desactive',
                                         unknown: 'inconnu',
                                     }
 
@@ -696,4 +696,3 @@ export default function AdminDiagnosticsPage() {
         </div>
     )
 }
-
