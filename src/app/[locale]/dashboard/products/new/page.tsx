@@ -242,6 +242,35 @@ export default function NewProductPage() {
         }
     }, [agents])
 
+    const selectProductType = (nextType: string) => {
+        setFormData(prev => {
+            const nextState = { ...prev, product_type: nextType }
+
+            if (nextType !== 'service') {
+                nextState.service_subtype = ''
+                nextState.menu_section_slug = ''
+                nextState.menu_sort_order = ''
+                return nextState
+            }
+
+            if (!nextState.service_subtype) {
+                nextState.service_subtype = localStorage.getItem('product_last_service_subtype') || ''
+            }
+
+            return nextState
+        })
+    }
+
+    const selectServiceSubtype = (subtype: string) => {
+        localStorage.setItem('product_last_service_subtype', subtype)
+        setFormData(prev => ({
+            ...prev,
+            service_subtype: subtype,
+            menu_section_slug: subtype === 'restaurant' ? prev.menu_section_slug : '',
+            menu_sort_order: subtype === 'restaurant' ? prev.menu_sort_order : '',
+        }))
+    }
+
     // v2.30: Check if user already has services or products to enforce isolation
     const checkExistingProductTypes = async () => {
         try {
@@ -457,6 +486,7 @@ export default function NewProductPage() {
                 price_fcfa: convertToFcfa(parseFloat(String(price)) || 0, currency),
                 variants: variantsInFcfa,
                 combinations: formData.combinations ?? null,
+                service_subtype: formData.product_type === 'service' ? (formData.service_subtype || null) : null,
                 menu_section_slug: isRestaurantMenuItem ? (formData.menu_section_slug || null) : null,
                 menu_sort_order:
                     isRestaurantMenuItem &&
@@ -637,7 +667,7 @@ export default function NewProductPage() {
                                             key={type.id}
                                             type="button"
                                             disabled={isDisabled}
-                                            onClick={() => !isDisabled && setFormData({ ...formData, product_type: type.id })}
+                                            onClick={() => !isDisabled && selectProductType(type.id)}
                                             style={{
                                                 padding: 16,
                                                 borderRadius: 12,
@@ -682,10 +712,7 @@ export default function NewProductPage() {
                                             <button
                                                 key={sub.id}
                                                 type="button"
-                                                onClick={() => {
-                                                    localStorage.setItem('product_last_service_subtype', sub.id)
-                                                    setFormData({ ...formData, service_subtype: sub.id })
-                                                }}
+                                                onClick={() => selectServiceSubtype(sub.id)}
                                                 style={{
                                                     padding: '10px',
                                                     borderRadius: 8,

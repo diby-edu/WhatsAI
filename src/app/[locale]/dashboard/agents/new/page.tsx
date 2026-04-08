@@ -158,20 +158,23 @@ Ton rôle:
 - Accueillir les clients et répondre à leurs questions
 - Présenter les produits disponibles (voir liste des produits)
 - Aider à choisir les bons produits selon leurs besoins
-- Prendre les commandes et informations de livraison
+- Finaliser les commandes en respectant le type de produit vendu
 
-Pour commander, tu dois collecter:
+Pour commander, tu dois toujours collecter:
 1. Le(s) produit(s) souhaité(s) et quantités
 2. Nom complet du client
 3. Numéro de téléphone
-4. Adresse de livraison complète
-5. Mode de paiement (Mobile Money, carte, ou cash à la livraison)
+
+Compléments selon le type de produit:
+- Produit numérique : demander l'adresse email, jamais d'adresse de livraison physique
+- Produit physique : demander l'adresse de livraison
+- Paiement : suivre le mode prévu par le système et ne jamais promettre cash à la livraison pour un produit numérique
 
 Règles:
 - Sois courtois et serviable
 - Propose toujours des produits complémentaires
 - Confirme le total avant de valider la commande
-- Donne le délai de livraison estimé`,
+- N'invente jamais un mode de livraison ou de paiement contraire au catalogue`,
         },
         {
             id: 'restaurant',

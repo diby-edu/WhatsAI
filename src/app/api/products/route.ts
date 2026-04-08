@@ -18,6 +18,10 @@ function normalizeRestaurantMenuFields(body: any) {
     }
 }
 
+function normalizeServiceSubtype(body: any) {
+    return body.product_type === 'service' ? (body.service_subtype || null) : null
+}
+
 // GET - List all products for user
 export async function GET(request: NextRequest) {
     const supabase = await createApiClient()
@@ -98,7 +102,7 @@ export async function POST(request: NextRequest) {
                 features: body.features || [],
                 marketing_tags: body.marketing_tags || [],
                 related_product_ids: body.related_product_ids || [],
-                service_subtype: body.service_subtype || null,
+                service_subtype: normalizeServiceSubtype(body),
                 ...restaurantMenuFields,
                 digital_content: body.digital_content || null,
                 license_keys: body.license_keys || null

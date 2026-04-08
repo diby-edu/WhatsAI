@@ -1883,6 +1883,7 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
 function inferCartStateFromAssistantMessage(content, previousState, products = []) {
     const text = normalizeText(content)
     const state = cloneCartState(previousState)
+    const hasCartLines = Array.isArray(state.cart_items) && state.cart_items.length > 0
 
     if (!text) return state
 
@@ -1890,7 +1891,7 @@ function inferCartStateFromAssistantMessage(content, previousState, products = [
         return cloneCartState({})
     }
 
-    if (/nom complet|numero de telephone|adresse de livraison|telephone \(avec indicatif\)|adresse email/i.test(text)) {
+    if (hasCartLines && /nom complet|numero de telephone|adresse de livraison|telephone \(avec indicatif\)|adresse email/i.test(text)) {
         state.stage = CART_STAGE.CHECKOUT
         state.awaiting_field = null
         state.last_prompt_kind = CART_STAGE.CHECKOUT

@@ -64,6 +64,13 @@ async function handleCreateOrder(args, agentId, products, conversationId, supaba
         }
 
         if (!normalizedPaymentMethod || !['online', 'cod'].includes(normalizedPaymentMethod)) {
+            if (hasDigitalProduct) {
+                return JSON.stringify({
+                    success: false,
+                    error: 'MODE DE PAIEMENT MANQUANT. Pour ce produit numerique, le paiement se fait uniquement en ligne.',
+                    hint: 'Utilise payment_method: "online". Ne demande pas "a la livraison" pour un produit numerique.'
+                })
+            }
             return JSON.stringify({
                 success: false,
                 error: 'MODE DE PAIEMENT MANQUANT. Demandez si le client souhaite payer en ligne ou a la livraison avant de creer la commande.',

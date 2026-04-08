@@ -48,6 +48,7 @@ const {
     updateBookingStateFromUserMessage,
 } = require('../services/booking-state.service')
 const {
+    clearRestaurantState,
     getRestaurantState,
     hasRestaurantStateData,
     inferRestaurantStateFromAssistantMessage,
@@ -442,6 +443,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             serviceProducts.filter(product => product.service_subtype === 'restaurant')
         )
         const standardServiceProducts = serviceProducts.filter(product => product.service_subtype !== 'restaurant')
+        const hasRestaurantCatalog = restaurantProducts.length > 0
 
         // hasKnowledgeBase : COUNT serveur (pas déduit de relevantDocs qui peut retourner 0 sur "Bonjour")
         const { count: kbCount } = await supabase
@@ -456,17 +458,19 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
         const previousCartState = getCartState(conversation.metadata)
         const previousCheckoutState = getCheckoutState(conversation.metadata)
         const previousBookingState = getBookingState(conversation.metadata)
-        const previousRestaurantState = getRestaurantState(conversation.metadata)
+        const previousRestaurantState = hasRestaurantCatalog
+            ? getRestaurantState(conversation.metadata)
+            : getRestaurantState(clearRestaurantState(conversation.metadata))
 
         const noopCartUpdate = { state: previousCartState, capturedFields: [], stateChanged: false, shouldBypassAI: false, directReply: null }
         const noopCheckoutUpdate = { state: previousCheckoutState, stateChanged: false, shouldBypassAI: false, directReply: null, shouldSubmitOrder: false }
         const noopBookingUpdate = { state: previousBookingState, stateChanged: false, shouldBypassAI: false, directReply: null }
         const noopRestaurantUpdate = { state: previousRestaurantState, stateChanged: false, shouldBypassAI: false, directReply: null }
 
-        const restaurantUpdate = isSupportClientMode
+        const restaurantUpdate = (isSupportClientMode || !hasRestaurantCatalog)
             ? noopRestaurantUpdate
             : updateRestaurantStateFromUserMessage(previousRestaurantState, message.text, restaurantProducts)
-        const restaurantFlowActive = !isSupportClientMode && hasRestaurantStateData(restaurantUpdate.state)
+        const restaurantFlowActive = !isSupportClientMode && hasRestaurantCatalog && hasRestaurantStateData(restaurantUpdate.state)
 
         const bookingUpdate = (isSupportClientMode || restaurantFlowActive)
             ? noopBookingUpdate
@@ -516,7 +520,10 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                 ),
                 restaurantUpdate.state
             )
-            await conversation.updateMetadata(mergedMetadata)
+            const metadataToPersist = hasRestaurantCatalog
+                ? mergedMetadata
+                : clearRestaurantState(mergedMetadata)
+            await conversation.updateMetadata(metadataToPersist)
         }
 
         // 3.3 Commandes récentes du client
@@ -658,7 +665,9 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             }
             nextCartState = inferCartStateFromAssistantMessage(aiResponse.content, cartUpdate.state, orderableProducts)
             nextBookingState = inferBookingStateFromAssistantMessage(aiResponse.content, bookingUpdate.state, standardServiceProducts)
-            nextRestaurantState = inferRestaurantStateFromAssistantMessage(aiResponse.content, restaurantUpdate.state)
+            nextRestaurantState = hasRestaurantCatalog
+                ? inferRestaurantStateFromAssistantMessage(aiResponse.content, restaurantUpdate.state)
+                : previousRestaurantState
         } else if (checkoutUpdate.shouldReturnToCart) {
             const cartReset = resetCartToRecap(cartUpdate.state, agentCurrency)
             nextCartState = cartReset.state
@@ -718,7 +727,9 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
 
             nextCartState = inferCartStateFromAssistantMessage(aiResponse.content, cartUpdate.state, orderableProducts)
             nextBookingState = inferBookingStateFromAssistantMessage(aiResponse.content, bookingUpdate.state, standardServiceProducts)
-            nextRestaurantState = inferRestaurantStateFromAssistantMessage(aiResponse.content, restaurantUpdate.state)
+            nextRestaurantState = hasRestaurantCatalog
+                ? inferRestaurantStateFromAssistantMessage(aiResponse.content, restaurantUpdate.state)
+                : previousRestaurantState
         }
 
         // Merger les images pré-extraites avec celles de l'IA (Phase 4.5)
@@ -735,7 +746,9 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                 ? clearCheckoutState(nextMetadata)
                 : setCheckoutState(nextMetadata, nextCheckoutState)
             nextMetadata = setBookingState(nextMetadata, nextBookingState)
-            nextMetadata = setRestaurantState(nextMetadata, nextRestaurantState)
+            nextMetadata = hasRestaurantCatalog
+                ? setRestaurantState(nextMetadata, nextRestaurantState)
+                : clearRestaurantState(nextMetadata)
             await conversation.updateMetadata(nextMetadata)
         }
 

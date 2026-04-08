@@ -126,6 +126,29 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     )
 
+    const selectProductType = (nextType: string) => {
+        setFormData(prev => {
+            const nextState = { ...prev, product_type: nextType }
+
+            if (nextType !== 'service') {
+                nextState.service_subtype = ''
+                nextState.menu_section_slug = ''
+                nextState.menu_sort_order = ''
+            }
+
+            return nextState
+        })
+    }
+
+    const selectServiceSubtype = (subtype: string) => {
+        setFormData(prev => ({
+            ...prev,
+            service_subtype: subtype,
+            menu_section_slug: subtype === 'restaurant' ? prev.menu_section_slug : '',
+            menu_sort_order: subtype === 'restaurant' ? prev.menu_sort_order : '',
+        }))
+    }
+
     useEffect(() => {
         loadData()
     }, [productId])
@@ -178,9 +201,9 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                     related_product_ids: p.related_product_ids || [],
 
                     product_type: p.product_type || 'product',
-                    service_subtype: p.service_subtype || '',
-                    menu_section_slug: p.menu_section_slug || '',
-                    menu_sort_order: p.menu_sort_order ?? '',
+                    service_subtype: p.product_type === 'service' ? (p.service_subtype || '') : '',
+                    menu_section_slug: p.product_type === 'service' && p.service_subtype === 'restaurant' ? (p.menu_section_slug || '') : '',
+                    menu_sort_order: p.product_type === 'service' && p.service_subtype === 'restaurant' ? (p.menu_sort_order ?? '') : '',
                     stock_quantity: p.stock_quantity ?? -1,
                     lead_fields: p.lead_fields || []
                 })
@@ -299,6 +322,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                 price_fcfa: convertToFcfa(parseFloat(String(price)) || 0, currency),
                 variants: variantsInFcfa,
                 combinations: formData.combinations ?? null,
+                service_subtype: formData.product_type === 'service' ? (formData.service_subtype || null) : null,
                 menu_section_slug: isRestaurantMenuItem ? (formData.menu_section_slug || null) : null,
                 menu_sort_order:
                     isRestaurantMenuItem &&
@@ -372,7 +396,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                                     <button
                                         key={type.id}
                                         type="button"
-                                        onClick={() => setFormData({ ...formData, product_type: type.id })}
+                                        onClick={() => selectProductType(type.id)}
                                         className={`p-4 rounded-lg border text-center transition-all ${formData.product_type === type.id ? 'bg-emerald-500/20 border-emerald-500' : 'bg-slate-900/30 border-slate-700 hover:border-slate-500'}`}
                                     >
                                         <div className="text-lg">{type.label}</div>
@@ -400,7 +424,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                                         { id: 'other', icon: '🧩', label: 'Autre Service' }
                                     ].map(sub => (
                                         <button key={sub.id} type="button"
-                                            onClick={() => setFormData({ ...formData, service_subtype: sub.id })}
+                                            onClick={() => selectServiceSubtype(sub.id)}
                                             style={{
                                                 padding: '10px', borderRadius: 8, textAlign: 'left', cursor: 'pointer',
                                                 display: 'flex', alignItems: 'center', gap: 8, color: 'white', fontSize: 13,
