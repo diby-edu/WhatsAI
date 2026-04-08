@@ -101,7 +101,11 @@ export default function ConversationDetailPage({ params }: { params: Promise<{ i
             })
             const data = await res.json()
             if (data.data) {
-                setConversation({ ...conversation, bot_paused: data.data.bot_paused })
+                setConversation({
+                    ...conversation,
+                    bot_paused: data.data.bot_paused,
+                    status: data.data.status || conversation.status,
+                })
             }
         } catch (err) {
             console.error('Error toggling pause:', err)

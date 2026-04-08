@@ -1,6 +1,5 @@
 import { isAdminRole } from '@/lib/api-utils'
 import { notifyAdmins } from '@/lib/notifications/admin-notify'
-import { resumeActiveConversationsForAgents } from '@/lib/conversations/resume-agent-conversations'
 import { collectReconnectableAgentIds } from '@/lib/whatsapp/reactivation'
 import { checkHostedPaymentStatus, normalizePaymentProvider } from '@/lib/payments/provider'
 import { extractPaystackChannelInfo } from '@/lib/payments/paystack'
@@ -386,7 +385,7 @@ export async function finalizePaymentRecord(
 
             const { data: deactivatedAgents } = await adminSupabase
                 .from('agents')
-                .select('id, is_active, whatsapp_connected, whatsapp_status')
+                .select('id, is_active, whatsapp_connected, whatsapp_status, whatsapp_phone, whatsapp_ever_connected')
                 .eq('user_id', payment.user_id)
                 .not('archived_at', 'is', null)
                 .order('whatsapp_connected', { ascending: false })
@@ -406,14 +405,14 @@ export async function finalizePaymentRecord(
                 if (reconnectableIds.length > 0) {
                     await adminSupabase
                         .from('agents')
-                        .update({ whatsapp_status: 'connecting' })
+                        .update({
+                            whatsapp_connected: false,
+                            whatsapp_status: 'connecting',
+                            whatsapp_qr_code: null,
+                            whatsapp_disconnected_by: null,
+                        })
                         .in('id', reconnectableIds)
                 }
-
-                await resumeActiveConversationsForAgents(
-                    adminSupabase,
-                    toReactivate.map((a: any) => a.id)
-                )
             }
 
             // Notify Scale users of their rollover bonus

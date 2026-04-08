@@ -601,7 +601,7 @@ export default function AdminAgentsPage() {
                         )}
 
                         {(() => {
-                            const canPause    = agent.is_active && agent.whatsapp_connected
+                            const canDeactivate = agent.is_active
                             const canActivate = !agent.is_active
                             const canDecoWA   = agent.whatsapp_connected
                             const canRelancer = agent.is_active && !agent.whatsapp_connected
@@ -615,13 +615,12 @@ export default function AdminAgentsPage() {
                             return (
                         <div style={{ display: 'flex', gap: 6, borderTop: '1px solid rgba(148, 163, 184, 0.08)', paddingTop: 12 }}>
                             <button
-                                onClick={() => (canPause || canActivate) && !busy && toggleAgent(agent.id)}
-                                title={!canPause && agent.is_active ? 'Disponible uniquement sur un agent connecte' : undefined}
+                                onClick={() => (canDeactivate || canActivate) && !busy && toggleAgent(agent.id)}
                                 style={{ ...btnBase,
-                                    cursor: (canPause || canActivate) && !busy ? 'pointer' : 'not-allowed',
+                                    cursor: (canDeactivate || canActivate) && !busy ? 'pointer' : 'not-allowed',
                                     background: agent.is_active ? 'rgba(245,158,11,0.1)' : 'rgba(34,197,94,0.1)',
                                     color: agent.is_active ? '#fbbf24' : '#4ade80',
-                                    opacity: busy || (!canPause && !canActivate) ? 0.3 : 1,
+                                    opacity: busy || (!canDeactivate && !canActivate) ? 0.3 : 1,
                                 }}
                             >
                                 <Power size={13} /> {agent.is_active ? 'Desactiver' : 'Activer'}

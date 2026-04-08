@@ -129,8 +129,10 @@ export default function AgentsPage() {
             })
 
             if (res.ok) {
+                const data = await res.json()
+                const updatedAgent = data.data?.agent
                 setAgents(agents.map(a =>
-                    a.id === id ? { ...a, is_active: !a.is_active } : a
+                    a.id === id ? { ...a, ...(updatedAgent || { is_active: !a.is_active }) } : a
                 ))
             }
         } catch (err) {

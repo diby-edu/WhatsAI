@@ -8,9 +8,8 @@ import {
     logAdminAction,
     isAdminRole,
 } from '@/lib/api-utils'
-import { resumeActiveConversationsForAgents } from '@/lib/conversations/resume-agent-conversations'
-import { shouldRequestWhatsAppReconnect } from '@/lib/whatsapp/reactivation'
 import { hasAgentConnectedBefore } from '@/lib/admin/agent-status'
+import { buildAgentDeactivationUpdate, buildAgentReactivationUpdate } from '@/lib/whatsapp/agent-lifecycle'
 
 async function cleanupAgentDependencies(adminSupabase: ReturnType<typeof createAdminClient>, agentId: string) {
     const { error: outboundError } = await adminSupabase
@@ -113,16 +112,16 @@ export async function PATCH(
         if (action === 'toggle') {
             const { data: agent } = await adminSupabase
                 .from('agents')
-                .select('is_active, whatsapp_connected, whatsapp_status')
+                .select('is_active, whatsapp_connected, whatsapp_status, whatsapp_phone, whatsapp_ever_connected')
                 .eq('id', id)
                 .single()
 
             if (!agent) return errorResponse('Agent non trouve', 404)
 
             const nextIsActive = !agent.is_active
-            const toggleUpdate = nextIsActive && shouldRequestWhatsAppReconnect(agent)
-                ? { is_active: true, whatsapp_status: 'connecting' }
-                : { is_active: nextIsActive }
+            const toggleUpdate = nextIsActive
+                ? buildAgentReactivationUpdate(agent)
+                : buildAgentDeactivationUpdate()
 
             const { error } = await adminSupabase
                 .from('agents')
@@ -130,10 +129,6 @@ export async function PATCH(
                 .eq('id', id)
 
             if (error) throw error
-
-            if (!agent.is_active) {
-                await resumeActiveConversationsForAgents(adminSupabase, [id])
-            }
 
             await logAdminAction(user.id, 'toggle_agent', id, 'agent', { is_active: !agent.is_active })
             return successResponse({ message: `Agent ${agent.is_active ? 'desactive' : 'active'}`, is_active: !agent.is_active })
@@ -177,8 +172,10 @@ export async function PATCH(
             const { error } = await adminSupabase
                 .from('agents')
                 .update({
+                    whatsapp_connected: false,
                     whatsapp_status: 'connecting',
                     whatsapp_qr_code: null,
+                    whatsapp_disconnected_by: null,
                 })
                 .eq('id', id)
 
@@ -204,19 +201,20 @@ export async function PATCH(
             return errorResponse('Aucun champ a mettre a jour', 400)
         }
 
-        let reactivatingAgent = false
-
         if (cleanUpdate.is_active === true) {
             const { data: currentAgent } = await adminSupabase
                 .from('agents')
-                .select('is_active, whatsapp_connected, whatsapp_status')
+                .select('is_active, whatsapp_connected, whatsapp_status, whatsapp_phone, whatsapp_ever_connected')
                 .eq('id', id)
                 .maybeSingle()
 
-            reactivatingAgent = currentAgent?.is_active === false
-            if (reactivatingAgent && shouldRequestWhatsAppReconnect(currentAgent)) {
-                cleanUpdate.whatsapp_status = 'connecting'
+            if (currentAgent?.is_active === false) {
+                Object.assign(cleanUpdate, buildAgentReactivationUpdate(currentAgent))
             }
+        }
+
+        if (cleanUpdate.is_active === false) {
+            Object.assign(cleanUpdate, buildAgentDeactivationUpdate())
         }
 
         const { error } = await adminSupabase
@@ -225,10 +223,6 @@ export async function PATCH(
             .eq('id', id)
 
         if (error) throw error
-
-        if (reactivatingAgent) {
-            await resumeActiveConversationsForAgents(adminSupabase, [id])
-        }
 
         await logAdminAction(user.id, 'update_agent', id, 'agent', cleanUpdate)
 

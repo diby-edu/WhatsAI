@@ -4,6 +4,7 @@ import { notify } from './notification.service'
 import { notifyAdmins } from './admin-notify'
 import nodemailer from 'nodemailer'
 import { fetchUserTestAccountState, listUsersWithExpiredTestCleanupDeadline } from '@/lib/test-account'
+import { buildAgentDeactivationUpdate } from '@/lib/whatsapp/agent-lifecycle'
 
 // =============================================
 // Cron Service - Scheduled tasks (runs in PM2 process)
@@ -209,7 +210,7 @@ async function checkExpiredSubscriptions(): Promise<void> {
                         .update({
                             archived_at: freezeDate.toISOString(),
                             archived_reason: 'subscription_expired',
-                            is_active: false
+                            ...buildAgentDeactivationUpdate(),
                         })
                         .in('id', toDeactivate)
 
