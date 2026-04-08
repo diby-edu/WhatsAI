@@ -1,6 +1,7 @@
 const { initAuthCreds, BufferJSON, proto } = require('@whiskeysockets/baileys')
 
 const AUTH_RETRY_DELAYS_MS = [0, 250, 750]
+const SESSION_PRELOAD_PAGE_SIZE = 1000
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms))
@@ -42,15 +43,33 @@ module.exports = async function useSupabaseAuthState(supabase, sessionId) {
             return
         }
 
-        const rows = await withRetry(`preload session ${sessionId}`, async () => {
-            const { data, error } = await supabase
-                .from('whatsapp_sessions')
-                .select('key_id, data')
-                .eq('session_id', sessionId)
+        const rows = []
+        let page = 0
 
-            if (error) throw error
-            return data || []
-        })
+        while (true) {
+            const from = page * SESSION_PRELOAD_PAGE_SIZE
+            const to = from + SESSION_PRELOAD_PAGE_SIZE - 1
+
+            const pageRows = await withRetry(`preload session ${sessionId} page ${page + 1}`, async () => {
+                const { data, error } = await supabase
+                    .from('whatsapp_sessions')
+                    .select('key_id, data')
+                    .eq('session_id', sessionId)
+                    .order('key_id', { ascending: true })
+                    .range(from, to)
+
+                if (error) throw error
+                return data || []
+            })
+
+            rows.push(...pageRows)
+
+            if (pageRows.length < SESSION_PRELOAD_PAGE_SIZE) {
+                break
+            }
+
+            page += 1
+        }
 
         sessionCache.clear()
         for (const row of rows) {
@@ -62,7 +81,8 @@ module.exports = async function useSupabaseAuthState(supabase, sessionId) {
         }
 
         cacheLoaded = true
-        console.log(`[SupabaseAuth] Preloaded ${rows.length} auth row(s) for session ${sessionId}`)
+        const pageCount = Math.max(1, page + 1)
+        console.log(`[SupabaseAuth] Preloaded ${rows.length} auth row(s) for session ${sessionId} across ${pageCount} page(s)`)
     }
 
     // Helper to write data to DB
