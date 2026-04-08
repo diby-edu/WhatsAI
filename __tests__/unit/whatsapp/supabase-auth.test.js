@@ -16,10 +16,33 @@ jest.mock('@whiskeysockets/baileys', () => ({
 const useSupabaseAuthState = require('@/lib/whatsapp/supabase-auth')
 
 function createSupabaseMock({ preloadRows = [], preloadError = null } = {}) {
-    const selectResult = jest.fn(async () => ({
-        data: preloadRows,
-        error: preloadError,
-    }))
+    let currentRange = null
+    let currentOrder = null
+
+    const selectResult = jest.fn(async () => {
+        if (preloadError) {
+            return {
+                data: null,
+                error: preloadError,
+            }
+        }
+
+        let data = [...preloadRows]
+        if (currentOrder?.column === 'key_id') {
+            data.sort((a, b) => a.key_id.localeCompare(b.key_id))
+            if (currentOrder.ascending === false) {
+                data.reverse()
+            }
+        }
+        if (currentRange) {
+            data = data.slice(currentRange.from, currentRange.to + 1)
+        }
+
+        return {
+            data,
+            error: null,
+        }
+    })
 
     const upsertThrowOnError = jest.fn(async () => {
         return null
@@ -30,8 +53,20 @@ function createSupabaseMock({ preloadRows = [], preloadError = null } = {}) {
     })
 
     const query = {
-        select: jest.fn(() => query),
+        select: jest.fn(() => {
+            currentRange = null
+            currentOrder = null
+            return query
+        }),
         eq: jest.fn(() => query),
+        order: jest.fn((column, options = {}) => {
+            currentOrder = { column, ascending: options.ascending !== false }
+            return query
+        }),
+        range: jest.fn((from, to) => {
+            currentRange = { from, to }
+            return query
+        }),
         upsert: jest.fn(() => ({ throwOnError: upsertThrowOnError })),
         delete: jest.fn(() => query),
         throwOnError: deleteThrowOnError,
@@ -73,6 +108,28 @@ describe('supabase-auth', () => {
         expect(first['contact-1']).toEqual({ foo: 'bar' })
         expect(second['contact-1']).toEqual({ foo: 'bar' })
         expect(query.select).toHaveBeenCalledTimes(1)
+    })
+
+    test('preloads auth rows across multiple pages when session exceeds default page size', async () => {
+        const preloadRows = [
+            {
+                key_id: 'creds',
+                data: JSON.stringify({ registered: true }),
+            },
+            ...Array.from({ length: 1204 }, (_, index) => ({
+                key_id: `session-contact-${index + 1}`,
+                data: JSON.stringify({ contactIndex: index + 1 }),
+            })),
+        ]
+        const { supabase, query } = createSupabaseMock({ preloadRows })
+
+        const auth = await useSupabaseAuthState(supabase, 'agent-paged')
+        const pagedValue = await auth.state.keys.get('session', ['contact-1204'])
+
+        expect(pagedValue['contact-1204']).toEqual({ contactIndex: 1204 })
+        expect(query.select).toHaveBeenCalledTimes(2)
+        expect(query.range).toHaveBeenNthCalledWith(1, 0, 999)
+        expect(query.range).toHaveBeenNthCalledWith(2, 1000, 1999)
     })
 
     test('fails fast when auth preload cannot be loaded', async () => {
