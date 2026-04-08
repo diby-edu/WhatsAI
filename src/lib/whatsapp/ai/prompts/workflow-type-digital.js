@@ -34,22 +34,22 @@ ${(orders && orders.length > 0) ? `
 
 ETAPE 4 - PAIEMENT (AUTOMATIQUE):
     - Ne pose PAS de question "Comment payer ?".
-    - Dis juste : "Le paiement se fera via un lien de paiement securise."
-    - payment_method sera toujours 'online'.
+    - Ne pose PAS de question de mode de paiement (Mobile Money, carte...).
+    - payment_method est TOUJOURS 'online'. Ne le demande JAMAIS au client.
+    - Le systeme genere le lien de paiement automatiquement apres create_order.
 
-ETAPE 5 - NOTES:
-    - "Une note ou instruction pour cette commande ?"
-
-ETAPE 6 - RECAP FINAL:
+ETAPE 5 - RECAP FINAL (PAS DE NOTES):
     "Recapitulatif :
-    *[Produits]* (Total: [Prix] FCFA)
-    Envoi a : [Email]
-    Paiement : Lien de paiement automatique
-    Note : [Note]
+    *[Produits]* (Total: [Prix réels en FCFA — utiliser le prix du catalogue])
+    📧 Envoi a : [Email]
+    💳 Paiement : En ligne (lien securise)
 
     Confirmez-vous ?"
+    ⛔ PAS de "Délai de livraison". La livraison est INSTANTANEE apres paiement.
+    ⛔ PAS de [prix du guide] ou [insérer le montant] — utiliser le vrai prix du catalogue.
+    ⛔ PAS de champ Adresse physique dans le recap.
 
-ETAPE 7 - CONFIRMATION:
+ETAPE 6 - CONFIRMATION:
     - "Oui" -> create_order(payment_method: 'online', email: ...)
     - FIN DU FLUX.
 `.trim()
