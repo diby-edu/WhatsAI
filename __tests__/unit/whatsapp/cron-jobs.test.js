@@ -1,106 +1,132 @@
-const { cancelExpiredBookingDeposits } = require('@/lib/whatsapp/cron/jobs')
+const {
+    cancelExpiredOrders,
+    checkPendingPayments,
+} = require('@/lib/whatsapp/cron/jobs')
 
-function createBookingSelectChain(result) {
-    const chain = {
-        select: jest.fn(() => chain),
-        eq: jest.fn(() => chain),
-        lt: jest.fn(async () => result)
-    }
+function createSupabaseMock({ updatedOrder = { id: 'order_1' } } = {}) {
+    const outboundInserts = []
+    const orderUpdates = []
 
-    return chain
-}
+    const supabase = {
+        from: jest.fn((table) => ({
+            select: jest.fn(() => ({
+                eq: jest.fn((column, value) => {
+                    const chain = {
+                        eq: jest.fn((secondColumn, secondValue) => {
+                            if (table === 'orders' && column === 'status' && value === 'pending' && secondColumn === 'payment_method' && secondValue === 'online') {
+                                return {
+                                    lt: jest.fn(() => ({
+                                        is: jest.fn(() => ([
+                                            {
+                                                id: 'order_1',
+                                                agent_id: 'agent_1',
+                                                customer_phone: '+22501020304',
+                                                total_fcfa: 150,
+                                                provider_payment_url: 'https://checkout.paystack.com/demo',
+                                            }
+                                        ]))
+                                    })),
+                                    select: undefined,
+                                }
+                            }
 
-function createBookingUpdateChain(result) {
-    const chain = {
-        update: jest.fn(() => chain),
-        eq: jest.fn(() => chain),
-        select: jest.fn(() => chain),
-        maybeSingle: jest.fn(async () => result)
-    }
-
-    return chain
-}
-
-function createOutboundInsertChain(insertMock) {
-    return {
-        insert: insertMock
-    }
-}
-
-describe('cancelExpiredBookingDeposits', () => {
-    test('expires pending restaurant deposits and queues a customer message', async () => {
-        const insertMock = jest.fn(async () => ({ error: null }))
-        const booking = {
-            id: 'booking-1',
-            agent_id: 'agent-1',
-            customer_phone: '+2250102030405',
-            customer_name: 'Awa',
-            service_name: 'Table terrasse',
-            start_time: '2026-03-31T20:00:00.000Z'
-        }
-
-        const bookingsChains = [
-            createBookingSelectChain({ data: [booking] }),
-            createBookingUpdateChain({ data: { id: 'booking-1' }, error: null })
-        ]
-
-        const supabase = {
-            from: jest.fn((table) => {
-                if (table === 'bookings') {
-                    return bookingsChains.shift()
-                }
-
+                            return chain
+                        }),
+                        lt: jest.fn(() => ({
+                            is: jest.fn(async () => ({
+                                data: [
+                                    {
+                                        id: 'order_1',
+                                        agent_id: 'agent_1',
+                                        customer_phone: '+22501020304',
+                                                total_fcfa: 150,
+                                                provider_payment_url: 'https://checkout.paystack.com/demo',
+                                    }
+                                ],
+                                error: null
+                            }))
+                        })),
+                    }
+                    return chain
+                })
+            })),
+            update: jest.fn((payload) => ({
+                eq: jest.fn(() => ({
+                    eq: jest.fn(() => ({
+                        select: jest.fn(() => ({
+                            maybeSingle: jest.fn(async () => {
+                                orderUpdates.push(payload)
+                                return { data: updatedOrder, error: updatedOrder ? null : { message: 'no row updated' } }
+                            })
+                        }))
+                    })),
+                    then: undefined,
+                }))
+            })),
+            insert: jest.fn(async (payload) => {
                 if (table === 'outbound_messages') {
-                    return createOutboundInsertChain(insertMock)
+                    outboundInserts.push(payload)
                 }
-
-                throw new Error(`Unexpected table: ${table}`)
+                return { data: { id: `${table}_1` }, error: null }
             })
-        }
+        }))
+    }
 
-        await cancelExpiredBookingDeposits(supabase)
+    return { supabase, outboundInserts, orderUpdates }
+}
 
-        expect(insertMock).toHaveBeenCalledTimes(1)
-        expect(insertMock.mock.calls[0][0]).toMatchObject({
-            agent_id: 'agent-1',
-            recipient_phone: '+2250102030405',
-            status: 'pending'
-        })
-        expect(insertMock.mock.calls[0][0].message_content).toContain('Reservation en attente expiree')
+describe('whatsapp cron jobs', () => {
+    beforeEach(() => {
+        jest.clearAllMocks()
     })
 
-    test('does not queue a message when the booking was already updated concurrently', async () => {
-        const insertMock = jest.fn(async () => ({ error: null }))
-        const booking = {
-            id: 'booking-2',
-            agent_id: 'agent-2',
-            customer_phone: '+2250708091011',
-            customer_name: 'Koffi',
-            service_name: 'Dinner',
-            start_time: null
-        }
-
-        const bookingsChains = [
-            createBookingSelectChain({ data: [booking] }),
-            createBookingUpdateChain({ data: null, error: null })
-        ]
-
+    test('uses provider payment url for reminders', async () => {
+        const outboundInserts = []
         const supabase = {
-            from: jest.fn((table) => {
-                if (table === 'bookings') {
-                    return bookingsChains.shift()
-                }
-
-                if (table === 'outbound_messages') {
-                    return createOutboundInsertChain(insertMock)
-                }
-
-                throw new Error(`Unexpected table: ${table}`)
-            })
+            from: jest.fn((table) => ({
+                select: jest.fn(() => ({
+                    eq: jest.fn(() => ({
+                        eq: jest.fn(() => ({
+                            lt: jest.fn(() => ({
+                                is: jest.fn(async () => ({
+                                    data: table === 'orders'
+                                        ? [{
+                                            id: 'order_1',
+                                            agent_id: 'agent_1',
+                                            customer_phone: '+22501020304',
+                                            total_fcfa: 150,
+                                            provider_payment_url: 'https://checkout.paystack.com/demo',
+                                        }]
+                                        : [],
+                                    error: null
+                                }))
+                            }))
+                        }))
+                    }))
+                })),
+                update: jest.fn(() => ({
+                    eq: jest.fn(async () => ({ error: null }))
+                })),
+                insert: jest.fn(async (payload) => {
+                    if (table === 'outbound_messages') {
+                        outboundInserts.push(payload)
+                    }
+                    return { data: { id: `${table}_1` }, error: null }
+                })
+            }))
         }
 
-        await cancelExpiredBookingDeposits(supabase)
+        await checkPendingPayments(supabase)
 
-        expect(insertMock).not.toHaveBeenCalled()
+        expect(outboundInserts).toHaveLength(1)
+        expect(outboundInserts[0].message_content).toContain('https://checkout.paystack.com/demo')
+    })
+
+    test('sends expiration message only when the order was actually cancelled', async () => {
+        const { supabase, outboundInserts } = createSupabaseMock({ updatedOrder: null })
+
+        await cancelExpiredOrders(supabase)
+
+        expect(outboundInserts).toHaveLength(0)
     })
 })
