@@ -55,6 +55,7 @@ export default function ConversationDetailPage({ params }: { params: Promise<{ i
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
     const [deleting, setDeleting] = useState(false)
     const lastMessageIdRef = useRef<string | null>(null)
+    const hasLoadedRef = useRef(false)
 
     useEffect(() => {
         if (conversationId) {
@@ -86,14 +87,16 @@ export default function ConversationDetailPage({ params }: { params: Promise<{ i
     }
 
     const fetchConversation = async ({ silent = false }: { silent?: boolean } = {}) => {
+        const shouldShowLoader = !silent || !hasLoadedRef.current
         try {
-            if (!silent || !conversation) {
+            if (shouldShowLoader) {
                 setLoading(true)
             }
             const res = await fetch(`/api/conversations/${conversationId}`, { cache: 'no-store' })
             const data = await res.json()
 
             if (data.data) {
+                hasLoadedRef.current = true
                 setConversation(prev => {
                     const next = data.data.conversation
                     if (!prev) return next
@@ -113,7 +116,7 @@ export default function ConversationDetailPage({ params }: { params: Promise<{ i
         } catch (err) {
             setError(t('error'))
         } finally {
-            if (!silent || !conversation) {
+            if (shouldShowLoader) {
                 setLoading(false)
             }
         }

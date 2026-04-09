@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MessageCircle, User, Clock, Search, Loader2, AlertTriangle, Bot, CheckCircle } from 'lucide-react'
@@ -27,6 +27,7 @@ export default function DashboardConversationsPage() {
     const [loading, setLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState('')
     const [activeTab, setActiveTab] = useState<Tab>('all')
+    const hasLoadedRef = useRef(false)
 
     useEffect(() => {
         fetchConversations()
@@ -40,7 +41,9 @@ export default function DashboardConversationsPage() {
     }, [activeTab])
 
     const fetchConversations = async ({ silent = false }: { silent?: boolean } = {}) => {
-        if (!silent || conversations.length === 0) {
+        const shouldShowLoader = !silent || !hasLoadedRef.current
+
+        if (shouldShowLoader) {
             setLoading(true)
         }
         try {
@@ -56,6 +59,7 @@ export default function DashboardConversationsPage() {
             const res = await fetch(`/api/conversations?${params.toString()}`, { cache: 'no-store' })
             const data = await res.json()
             if (data.data?.conversations) {
+                hasLoadedRef.current = true
                 setConversations(prev => {
                     const next = data.data.conversations
                     const unchanged =
@@ -76,7 +80,7 @@ export default function DashboardConversationsPage() {
         } catch (err) {
             console.error('Error fetching conversations:', err)
         } finally {
-            if (!silent || conversations.length === 0) {
+            if (shouldShowLoader) {
                 setLoading(false)
             }
         }
