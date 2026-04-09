@@ -1,6 +1,7 @@
 import { notify } from '@/lib/notifications/notification.service'
 import { deliverDigitalProducts } from '@/lib/payments/digital-delivery'
 import { normalizePaymentProvider, type SupportedPaymentProvider } from '@/lib/payments/provider'
+import { queueOutboundWhatsAppMessage } from '@/lib/whatsapp/outbound'
 
 type SupabaseClientLike = any
 
@@ -44,12 +45,12 @@ async function queueAssistantMessage(
         return
     }
 
-    let conversation: { id: string } | null = null
+    let conversation: { id: string, contact_phone?: string | null, contact_jid?: string | null } | null = null
 
     if (conversationId) {
         const { data: linkedConversation } = await supabase
             .from('conversations')
-            .select('id')
+            .select('id, contact_phone, contact_jid')
             .eq('id', conversationId)
             .single()
 
@@ -61,7 +62,7 @@ async function queueAssistantMessage(
     if (!conversation) {
         const { data: fallbackConversation } = await supabase
             .from('conversations')
-            .select('id')
+            .select('id, contact_phone, contact_jid')
             .eq('agent_id', agentId)
             .eq('contact_phone', customerPhone)
             .single()
@@ -69,7 +70,24 @@ async function queueAssistantMessage(
         conversation = fallbackConversation
     }
 
-    let insertedInHistory = false
+    const recipient = String(
+        conversation?.contact_jid || conversation?.contact_phone || customerPhone || ''
+    ).trim()
+
+    let queuedOutbound = false
+
+    if (recipient) {
+        try {
+            const result = await queueOutboundWhatsAppMessage(supabase, {
+                agentId,
+                to: recipient,
+                message,
+            })
+            queuedOutbound = result.queued === true
+        } catch (queueError) {
+            console.error('[Hosted Checkout Finalization] Failed to queue WhatsApp assistant message:', queueError)
+        }
+    }
 
     if (conversation) {
         const { error: insertError } = await supabase
@@ -79,12 +97,10 @@ async function queueAssistantMessage(
                 agent_id: agentId,
                 role: 'assistant',
                 content: message,
-                status: 'pending'
+                status: queuedOutbound ? 'sent' : 'pending'
             })
 
         if (!insertError) {
-            insertedInHistory = true
-
             await supabase
                 .from('conversations')
                 .update({
@@ -94,17 +110,6 @@ async function queueAssistantMessage(
                 })
                 .eq('id', conversation.id)
         }
-    }
-
-    if (!insertedInHistory) {
-        await supabase
-            .from('outbound_messages')
-            .insert({
-                agent_id: agentId,
-                recipient_phone: customerPhone,
-                message_content: message,
-                status: 'pending'
-            })
     }
 }
 
@@ -254,20 +259,14 @@ export async function finalizeHostedOrderPayment(
     }
 
     try {
-        await deliverDigitalProducts(order.id, supabase)
-    } catch (deliveryError) {
-        console.error('[Hosted Checkout Finalization] Digital delivery error (non-blocking):', deliveryError)
-    }
-
-    try {
         const paidAmount = Number(
             isRestaurantDepositPayment
                 ? (order.deposit_amount_fcfa || options.amount || 0)
                 : (order.total_fcfa || options.amount || 0)
         )
         const confirmationMessage = isRestaurantDepositPayment
-            ? `*Acompte recu !*\n\nMerci ! Votre acompte de ${paidAmount.toLocaleString('fr-FR')} FCFA pour la commande #${order.id.substring(0, 8)} a ete confirme.\n\nVotre commande est maintenant prise en charge.\n\nMerci pour votre confiance !`
-            : `*Paiement recu !*\n\nMerci ! Votre paiement de ${paidAmount.toLocaleString('fr-FR')} FCFA pour la commande #${order.id.substring(0, 8)} a ete confirme.\n\nVotre commande est maintenant en cours de traitement.\n\nMerci pour votre confiance !`
+            ? `*Acompte recu !*\n\nMerci ! Votre acompte de ${paidAmount.toLocaleString('fr-FR')} FCFA pour la commande #${order.id.substring(0, 8)} a ete confirme.\n\nVous n'avez plus rien a faire pour le moment. Inutile de renvoyer un message : la suite de votre commande vous sera envoyee ici sur WhatsApp dans quelques instants.\n\nMerci pour votre confiance !`
+            : `*Paiement recu !*\n\nMerci ! Votre paiement de ${paidAmount.toLocaleString('fr-FR')} FCFA pour la commande #${order.id.substring(0, 8)} a ete confirme.\n\nVous n'avez plus rien a faire pour le moment. Inutile de renvoyer un message : la suite de votre commande vous sera envoyee ici sur WhatsApp dans quelques instants.\n\nMerci pour votre confiance !`
 
         await queueAssistantMessage(
             supabase,
@@ -276,6 +275,15 @@ export async function finalizeHostedOrderPayment(
             order.customer_phone,
             confirmationMessage
         )
+
+        try {
+            await deliverDigitalProducts(order.id, supabase, {
+                announcePreparation: true,
+                preparationMessage: 'Votre commande numerique est en preparation. Elle va vous etre envoyee ici sur WhatsApp dans quelques instants.',
+            })
+        } catch (deliveryError) {
+            console.error('[Hosted Checkout Finalization] Digital delivery error (non-blocking):', deliveryError)
+        }
 
         await notifyMerchantOrderPayment(supabase, order, providerLabel(provider))
 

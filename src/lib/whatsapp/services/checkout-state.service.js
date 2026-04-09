@@ -107,6 +107,40 @@ function isNegativeReply(text) {
     ].includes(normalized)
 }
 
+function looksLikeKnowledgeQuestion(text) {
+    const normalized = normalizeFreeText(text).toLowerCase()
+    if (!normalized || normalized.length < 4) return false
+    if (/^\d+$/.test(normalized)) return false
+    if (isPositiveReply(normalized) || isNegativeReply(normalized)) return false
+    if (extractPhoneFromText(normalized) && normalized.split(' ').length <= 3) return false
+    if (extractEmailFromText(normalized) && normalized.split(' ').length <= 3) return false
+
+    return [
+        '?',
+        "c'est quoi",
+        'cest quoi',
+        "qu'est-ce que",
+        'quest ce que',
+        'qu est ce que',
+        'comment',
+        'pourquoi',
+        'quel ',
+        'quelle ',
+        'quels ',
+        'quelles ',
+        'est ce que',
+        'ca veut dire',
+        'explique',
+        'detail',
+        'difference',
+        'compatible',
+        'contenu',
+        'format',
+        'duree',
+        'garantie',
+    ].some(pattern => normalized.includes(pattern))
+}
+
 function detectPaymentMethod(text) {
     const normalized = normalizeFreeText(text).toLowerCase()
 
@@ -544,6 +578,7 @@ function updateCheckoutStateFromUserMessage(previousState, text, options = {}) {
         cartState = {},
         products = [],
         activateCheckout = false,
+        allowKnowledgeInterrupt = false,
     } = options
 
     const context = buildCheckoutContext(cartState, products)
@@ -556,6 +591,7 @@ function updateCheckoutStateFromUserMessage(previousState, text, options = {}) {
             shouldBypassAI: false,
             directReply: null,
             shouldSubmitOrder: false,
+            questionDetected: false,
         }
     }
 
@@ -574,6 +610,7 @@ function updateCheckoutStateFromUserMessage(previousState, text, options = {}) {
             shouldBypassAI: true,
             directReply: buildStructuredCheckoutReply(state, cartState, products, []),
             shouldSubmitOrder: false,
+            questionDetected: false,
         }
     }
 
@@ -585,11 +622,25 @@ function updateCheckoutStateFromUserMessage(previousState, text, options = {}) {
             shouldBypassAI: false,
             directReply: null,
             shouldSubmitOrder: false,
+            questionDetected: false,
         }
     }
 
     const previousAwaiting = cloneAwaitingField(state.awaiting_field)
     const previousSnapshot = JSON.stringify(state)
+    const questionDetected = allowKnowledgeInterrupt && looksLikeKnowledgeQuestion(normalizedText)
+
+    if (questionDetected) {
+        return {
+            state,
+            capturedFields,
+            stateChanged: false,
+            shouldBypassAI: false,
+            directReply: null,
+            shouldSubmitOrder: false,
+            questionDetected: true,
+        }
+    }
 
     if (state.stage === CHECKOUT_STAGE.CONFIRMATION) {
         const isReturnToCart = normalizedText === '3' || /panier|article/i.test(normalizedText)
@@ -605,6 +656,7 @@ function updateCheckoutStateFromUserMessage(previousState, text, options = {}) {
                 directReply: null,
                 shouldSubmitOrder: false,
                 shouldReturnToCart: true,
+                questionDetected: false,
             }
         }
 
@@ -618,6 +670,7 @@ function updateCheckoutStateFromUserMessage(previousState, text, options = {}) {
                 shouldBypassAI: false,
                 directReply: null,
                 shouldSubmitOrder: true,
+                questionDetected: false,
             }
         }
 
@@ -634,6 +687,7 @@ function updateCheckoutStateFromUserMessage(previousState, text, options = {}) {
                 shouldBypassAI: true,
                 directReply: buildStructuredCheckoutReply(state, cartState, products),
                 shouldSubmitOrder: false,
+                questionDetected: false,
             }
         }
 
@@ -645,6 +699,7 @@ function updateCheckoutStateFromUserMessage(previousState, text, options = {}) {
             shouldBypassAI: true,
             directReply: buildStructuredCheckoutReply(state, cartState, products),
             shouldSubmitOrder: false,
+            questionDetected: false,
         }
     }
 
@@ -662,6 +717,7 @@ function updateCheckoutStateFromUserMessage(previousState, text, options = {}) {
                 shouldBypassAI: true,
                 directReply: buildStructuredCheckoutReply(state, cartState, products),
                 shouldSubmitOrder: false,
+                questionDetected: false,
             }
         }
 
@@ -718,6 +774,7 @@ function updateCheckoutStateFromUserMessage(previousState, text, options = {}) {
                 shouldBypassAI: true,
                 directReply: buildStructuredCheckoutReply(state, cartState, products),
                 shouldSubmitOrder: false,
+                questionDetected: false,
             }
         }
 
@@ -730,12 +787,13 @@ function updateCheckoutStateFromUserMessage(previousState, text, options = {}) {
             return {
                 state,
                 capturedFields,
-                stateChanged: true,
-                shouldBypassAI: true,
-                directReply: buildStructuredCheckoutReply(state, cartState, products),
-                shouldSubmitOrder: false,
-            }
+            stateChanged: true,
+            shouldBypassAI: true,
+            directReply: buildStructuredCheckoutReply(state, cartState, products),
+            shouldSubmitOrder: false,
+            questionDetected: false,
         }
+    }
 
         // Rien compris → réafficher le récap
         return {
@@ -837,10 +895,11 @@ function updateCheckoutStateFromUserMessage(previousState, text, options = {}) {
             ? buildStructuredCheckoutReply(state, cartState, products, capturedFields)
             : null,
         shouldSubmitOrder: false,
+        questionDetected: false,
     }
 }
 
-function buildCheckoutStateGuidance(checkoutState) {
+function buildCheckoutStateGuidance(checkoutState, options = {}) {
     const state = cloneCheckoutState(checkoutState)
     const collected = state.collected || {}
     const lines = []
@@ -886,6 +945,19 @@ function buildCheckoutStateGuidance(checkoutState) {
             notes: 'instruction particuliere',
         }
         lines.push(`- Demande uniquement les champs encore manquants: ${state.pending_fields.map(field => labels[field] || field).join(', ')}`)
+    }
+
+    if (options.questionDetected) {
+        const contactRef = options.escalationPhone ? `au *${options.escalationPhone}*` : 'directement au service client'
+        lines.push('---')
+        lines.push('QUESTION HORS-PARCOURS DETECTEE :')
+        lines.push('1. Si la reponse est dans la base de connaissance, reponds d abord a la question du client.')
+        lines.push(`2. Si l information manque, dis honnetement que tu ne l as pas et oriente vers ${contactRef}.`)
+        lines.push('3. Ensuite, reviens naturellement au checkout en rappelant ce qu il reste a confirmer.')
+        if (state.awaiting_field?.label) {
+            lines.push(`4. Champ a reprendre ensuite : ${state.awaiting_field.label}.`)
+        }
+        lines.push('Ne saute pas la question. Ne relance pas create_order tant que le client n a pas reconfirme.')
     }
 
     return lines.join('\n')

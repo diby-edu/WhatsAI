@@ -45,6 +45,8 @@ class AIService {
             conversationId: context.conversationId,
             checkoutState: context.checkoutState,
             cartState: context.cartState,
+            cartQuestionDetected: context.cartQuestionDetected ?? false,
+            checkoutQuestionDetected: context.checkoutQuestionDetected ?? false,
             bookingState: context.bookingState,
             restaurantState: context.restaurantState,
             hasKnowledgeBase: context.hasKnowledgeBase ?? false,

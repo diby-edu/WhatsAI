@@ -104,4 +104,29 @@ describe('cart-state.service', () => {
         expect(next.directReply).toBeNull()
         expect(next.shouldBypassAI).toBe(false)
     })
+
+    test('lets AI answer a knowledge question without losing the digital cart step', () => {
+        const initial = updateCartStateFromUserMessage(
+            {},
+            'guide pdf',
+            [
+                { id: 'p1', name: 'Guide PDF - Trouver un emploi', product_type: 'digital', price_fcfa: 150 },
+            ]
+        )
+
+        const next = updateCartStateFromUserMessage(
+            initial.state,
+            "C'est quoi exactement ce guide ?",
+            [
+                { id: 'p1', name: 'Guide PDF - Trouver un emploi', product_type: 'digital', price_fcfa: 150 },
+            ],
+            'XOF',
+            { allowKnowledgeInterrupt: true }
+        )
+
+        expect(next.questionDetected).toBe(true)
+        expect(next.shouldBypassAI).toBe(false)
+        expect(next.state.stage).toBe(CART_STAGE.COLLECTING_ITEM)
+        expect(next.state.awaiting_field?.type).toBe('quantity')
+    })
 })
