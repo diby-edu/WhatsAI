@@ -283,7 +283,7 @@ export async function finalizeHostedOrderPayment(
         )
         const confirmationMessage = isRestaurantDepositPayment
             ? `*Acompte recu !*\n\nMerci ! Votre acompte de ${paidAmount.toLocaleString('fr-FR')} FCFA pour la commande #${order.id.substring(0, 8)} a ete confirme.\n\nVous n'avez plus rien a faire pour le moment. Inutile de renvoyer un message : la suite de votre commande vous sera envoyee ici sur WhatsApp dans quelques instants.\n\nMerci pour votre confiance !`
-            : `*Paiement recu !*\n\nMerci ! Votre paiement de ${paidAmount.toLocaleString('fr-FR')} FCFA pour la commande #${order.id.substring(0, 8)} a ete confirme.\n\nVous n'avez plus rien a faire pour le moment. Inutile de renvoyer un message : la suite de votre commande vous sera envoyee ici sur WhatsApp dans quelques instants.\n\nMerci pour votre confiance !`
+            : `*Paiement recu !*\n\nMerci ! Votre paiement de ${paidAmount.toLocaleString('fr-FR')} FCFA pour la commande #${order.id.substring(0, 8)} a ete confirme.\n\nVotre commande numerique est en preparation. Elle vous sera envoyee ici sur WhatsApp dans quelques instants.\n\nVous n'avez plus rien a faire pour le moment. Inutile de renvoyer un message.\n\nMerci pour votre confiance !`
 
         await queueAssistantMessage(
             supabase,
@@ -294,10 +294,7 @@ export async function finalizeHostedOrderPayment(
         )
 
         try {
-            await deliverDigitalProducts(order.id, supabase, {
-                announcePreparation: true,
-                preparationMessage: 'Votre commande numerique est en preparation. Elle va vous etre envoyee ici sur WhatsApp dans quelques instants.',
-            })
+            await deliverDigitalProducts(order.id, supabase)
         } catch (deliveryError) {
             console.error('[Hosted Checkout Finalization] Digital delivery error (non-blocking):', deliveryError)
         }
