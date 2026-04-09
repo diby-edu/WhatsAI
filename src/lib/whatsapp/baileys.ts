@@ -178,15 +178,7 @@ export async function initWhatsAppSession(
                     .eq('id', agentId)
                     .single()
 
-                if (agentRecord?.user_id) {
-                    await supabase
-                        .from('profiles')
-                        .update({
-                            test_account_cleanup_deadline: null,
-                            test_account_qualified_at: new Date().toISOString(),
-                        })
-                        .eq('id', agentRecord.user_id)
-                }
+                // test-account deadline intentionally NOT cleared here — only a payment qualifies a user
                 console.log(`✅ Database updated: agent ${agentId} marked as connected`)
             } catch (dbError) {
                 console.error('Failed to update database:', dbError)

@@ -264,19 +264,7 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
 
                     agentOwnerUserId = agentRecord?.user_id || null
 
-                    if (agentOwnerUserId) {
-                        const { error: qualificationError } = await supabase
-                            .from('profiles')
-                            .update({
-                                test_account_cleanup_deadline: null,
-                                test_account_qualified_at: new Date().toISOString(),
-                            })
-                            .eq('id', agentOwnerUserId)
-
-                        if (qualificationError) {
-                            console.warn(`⚠️ [${agentName}] Failed to clear test-account deadline after WhatsApp connection:`, qualificationError.message)
-                        }
-                    }
+                    // test-account deadline intentionally NOT cleared here — only a payment qualifies a user
                 } catch (agentLookupError) {
                     console.warn(`⚠️ [${agentName}] Failed to fetch owner user after connection:`, agentLookupError.message || agentLookupError)
                 }
