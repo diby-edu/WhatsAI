@@ -316,7 +316,8 @@ export function initializeMessageHandler() {
                                 notes: args.notes,
                                 total_fcfa: total,
                                 status: 'pending',
-                                conversation_id: conversation.id
+                                conversation_id: conversation.id,
+                                payment_provider: null,
                             })
                             .select()
                             .single()
@@ -336,7 +337,7 @@ export function initializeMessageHandler() {
 
                         const toolOutput = orderError
                             ? `Erreur commande: ${orderError.message}`
-                            : `Commande enregistrée (ID: ${order ? order.id.substring(0, 8) : '?'}, Total: ${total}).\nLIEN DE PAIEMENT SÉCURISÉ : ${paymentLink}\n\nINSTRUCTION : Partage ce lien EXACT au client pour qu'il règle la commande via CinetPay.`
+                            : `Commande enregistrée (ID: ${order ? order.id.substring(0, 8) : '?'}, Total: ${total}).\nLIEN DE PAIEMENT SÉCURISÉ : ${paymentLink}\n\nINSTRUCTION : Partage ce lien EXACT au client pour qu'il règle la commande en ligne.`
 
                         const newHistory = [
                             ...conversationHistory.slice(0, -1),

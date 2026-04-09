@@ -5,7 +5,7 @@ import {
     getDefaultPaymentProvider,
     initializeHostedPayment,
     inspectExistingHostedPayment,
-    normalizePaymentProvider,
+    resolveHostedPaymentProvider,
 } from '@/lib/payments/provider'
 
 const getSupabase = () => createClient(
@@ -55,7 +55,12 @@ export async function POST(
         const transactionId = `ORD_${orderId.substring(0, 8)}_${Date.now()}`
         const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://wazzapai.com'
         const defaultProvider = await getDefaultPaymentProvider(adminSupabase)
-        const paymentProvider = normalizePaymentProvider(order.payment_provider || defaultProvider)
+        const paymentProvider = resolveHostedPaymentProvider({
+            defaultProvider,
+            storedProvider: order.payment_provider,
+            transactionId: order.transaction_id,
+            providerPaymentUrl: order.provider_payment_url,
+        })
 
         if (order.transaction_id && order.provider_payment_url) {
             const existingPayment = await inspectExistingHostedPayment(

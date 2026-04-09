@@ -74,7 +74,8 @@ export async function POST(request: NextRequest) {
                 total_fcfa: total,
                 delivery_address: body.delivery_address,
                 delivery_notes: body.delivery_notes,
-                notes: body.notes
+                notes: body.notes,
+                payment_provider: null,
             })
             .select()
             .single()

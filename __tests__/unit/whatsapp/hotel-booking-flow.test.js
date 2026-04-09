@@ -6,12 +6,14 @@ const mockGetDefaultPaymentProvider = jest.fn()
 const mockInitializeHostedPayment = jest.fn()
 const mockInspectExistingHostedPayment = jest.fn()
 const mockNormalizePaymentProvider = jest.fn((value) => value || 'cinetpay')
+const mockResolveHostedPaymentProvider = jest.fn()
 
 jest.mock('@/lib/payments/provider', () => ({
     getDefaultPaymentProvider: (...args) => mockGetDefaultPaymentProvider(...args),
     initializeHostedPayment: (...args) => mockInitializeHostedPayment(...args),
     inspectExistingHostedPayment: (...args) => mockInspectExistingHostedPayment(...args),
     normalizePaymentProvider: (...args) => mockNormalizePaymentProvider(...args),
+    resolveHostedPaymentProvider: (...args) => mockResolveHostedPaymentProvider(...args),
 }))
 
 const {
@@ -34,6 +36,9 @@ describe('Hotel booking flow', () => {
         jest.clearAllMocks()
         process.env.NEXT_PUBLIC_APP_URL = 'https://wazzapai.com'
         mockGetDefaultPaymentProvider.mockResolvedValue('paystack')
+        mockResolveHostedPaymentProvider.mockImplementation(({ defaultProvider, storedProvider, transactionId, providerPaymentUrl }) => (
+            (transactionId || providerPaymentUrl) ? (storedProvider || defaultProvider) : defaultProvider
+        ))
         mockInspectExistingHostedPayment.mockResolvedValue({
             action: 'reuse',
             provider: 'paystack',

@@ -29,6 +29,7 @@ const mockGetDefaultPaymentProvider = jest.fn()
 const mockInitializeHostedPayment = jest.fn()
 const mockInspectExistingHostedPayment = jest.fn()
 const mockNormalizePaymentProvider = jest.fn((value) => value || 'cinetpay')
+const mockResolveHostedPaymentProvider = jest.fn()
 
 jest.mock('@supabase/supabase-js', () => ({
     createClient: (...args) => mockCreateClient(...args)
@@ -46,6 +47,7 @@ jest.mock('@/lib/payments/provider', () => ({
     initializeHostedPayment: (...args) => mockInitializeHostedPayment(...args),
     inspectExistingHostedPayment: (...args) => mockInspectExistingHostedPayment(...args),
     normalizePaymentProvider: (...args) => mockNormalizePaymentProvider(...args),
+    resolveHostedPaymentProvider: (...args) => mockResolveHostedPaymentProvider(...args),
 }))
 
 process.env.CINETPAY_API_KEY = 'api_key'
@@ -90,6 +92,9 @@ describe('POST /api/public/orders/[orderId]/pay', () => {
         mockCheckRateLimit.mockResolvedValue({ success: true })
         mockGetDefaultPaymentProvider.mockResolvedValue('cinetpay')
         mockNormalizePaymentProvider.mockImplementation((value) => value || 'cinetpay')
+        mockResolveHostedPaymentProvider.mockImplementation(({ defaultProvider, storedProvider, transactionId, providerPaymentUrl }) => (
+            (transactionId || providerPaymentUrl) ? (storedProvider || defaultProvider) : defaultProvider
+        ))
         mockInspectExistingHostedPayment.mockResolvedValue({
             action: 'reuse',
             provider: 'cinetpay',
@@ -186,6 +191,51 @@ describe('POST /api/public/orders/[orderId]/pay', () => {
         expect(updates[0].payload).toEqual(expect.objectContaining({
             payment_provider: 'paystack',
             provider_payment_url: 'https://checkout.paystack.com/abc123'
+        }))
+    })
+
+    test('ignores a stale stored cinetpay provider when the order has no initialized hosted payment yet', async () => {
+        const order = {
+            id: 'order_123',
+            status: 'pending_pickup',
+            total_fcfa: 17600,
+            deposit_required: false,
+            deposit_amount_fcfa: 0,
+            deposit_status: 'not_required',
+            payment_method: 'online',
+            customer_phone: '+2250701020304',
+            payment_provider: 'cinetpay',
+            transaction_id: null,
+            provider_payment_url: null,
+        }
+        const updates = []
+
+        mockGetDefaultPaymentProvider.mockResolvedValue('paystack')
+        mockCreateClient.mockReturnValue(createSupabaseMock({ order, updates }))
+        mockInitializeHostedPayment.mockResolvedValue({
+            success: true,
+            paymentUrl: 'https://checkout.paystack.com/new-order',
+            providerVersion: 'v1',
+            providerTransactionId: 'ORD_paystack_new'
+        })
+
+        const response = await POST(makeRequest(), { params: Promise.resolve({ orderId: 'order_123' }) })
+        const json = await response.json()
+
+        expect(response.status).toBe(200)
+        expect(json).toEqual(expect.objectContaining({
+            success: true,
+            payment_url: 'https://checkout.paystack.com/new-order',
+            provider: 'paystack'
+        }))
+        expect(mockResolveHostedPaymentProvider).toHaveBeenCalledWith({
+            defaultProvider: 'paystack',
+            storedProvider: 'cinetpay',
+            transactionId: null,
+            providerPaymentUrl: null,
+        })
+        expect(mockInitializeHostedPayment).toHaveBeenCalledWith(expect.objectContaining({
+            provider: 'paystack',
         }))
     })
 

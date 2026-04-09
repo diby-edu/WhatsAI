@@ -27,7 +27,7 @@ async function initiateServiceBookingOnlinePayment({
         getDefaultPaymentProvider,
         initializeHostedPayment,
         inspectExistingHostedPayment,
-        normalizePaymentProvider,
+        resolveHostedPaymentProvider,
     } = await import('@/lib/payments/provider')
 
     const { data: booking, error: bookingError } = await supabase
@@ -41,7 +41,12 @@ async function initiateServiceBookingOnlinePayment({
     }
 
     const defaultPaymentProvider = await getDefaultPaymentProvider(supabase)
-    const paymentProvider = normalizePaymentProvider(booking.payment_provider || defaultPaymentProvider)
+    const paymentProvider = resolveHostedPaymentProvider({
+        defaultProvider: defaultPaymentProvider,
+        storedProvider: booking.payment_provider,
+        transactionId: booking.transaction_id,
+        providerPaymentUrl: booking.provider_payment_url,
+    })
 
     if (booking.transaction_id && booking.provider_payment_url) {
         const existingPayment = await inspectExistingHostedPayment(
