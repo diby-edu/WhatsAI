@@ -38,13 +38,57 @@ export interface PaystackChannelInfo {
     paymentChannelDetail: string | null
 }
 
+function resolveFallbackEmailDomain() {
+    const rawBaseUrl = String(process.env.NEXT_PUBLIC_APP_URL || 'https://wazzapai.com').trim()
+
+    try {
+        const hostname = new URL(rawBaseUrl).hostname
+            .toLowerCase()
+            .replace(/^www\./, '')
+
+        if (hostname === 'localhost' || hostname.endsWith('.local')) {
+            return 'wazzapai.com'
+        }
+
+        if (/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(hostname)) {
+            return hostname
+        }
+    } catch {
+        // Fall through to the safe public domain fallback below.
+    }
+
+    return 'wazzapai.com'
+}
+
 function buildFallbackEmail(reference: string, phone?: string | null) {
     const normalizedPhone = String(phone || '')
         .replace(/\D+/g, '')
         .slice(-12)
 
-    const localPart = normalizedPhone || reference.toLowerCase().replace(/[^a-z0-9]+/g, '-')
-    return `${localPart}@pay.wazzapai.local`
+    const normalizedReference = String(reference || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 48)
+
+    const localPart = (normalizedPhone || normalizedReference || 'transaction')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 64)
+
+    return `${localPart}@${resolveFallbackEmailDomain()}`
+}
+
+function isValidPaystackEmail(email: string) {
+    const normalized = String(email || '').trim()
+    if (!normalized) return false
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) return false
+
+    const domain = normalized.split('@')[1]?.toLowerCase() || ''
+    if (!domain || domain === 'localhost' || domain.endsWith('.local')) {
+        return false
+    }
+
+    return true
 }
 
 export function resolvePaystackCustomerEmail(
@@ -53,7 +97,7 @@ export function resolvePaystackCustomerEmail(
     customerPhone?: string | null
 ) {
     const normalized = String(customerEmail || '').trim()
-    if (normalized) return normalized
+    if (isValidPaystackEmail(normalized)) return normalized
     return buildFallbackEmail(String(reference || 'transaction'), customerPhone)
 }
 
