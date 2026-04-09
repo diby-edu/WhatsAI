@@ -282,6 +282,14 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             { wa_name: message.pushName }
         )
 
+        if (conversation.status === 'closed') {
+            const reopenedConversation = await ConversationService.reopenClosedCycle(supabase, conversation.id)
+            if (reopenedConversation) {
+                Object.assign(conversation, reopenedConversation)
+                console.log(`🔄 [${agentId}] Conversation ${conversation.id} reopened for a new cycle`)
+            }
+        }
+
         // 1.4 Vérifier si conversation active
         if (!conversation.isActive()) {
             console.log(`🔍 [handleMessage] BLOCKED: conversation not active id=${conversation.id} status=${conversation.status} bot_paused=${conversation.bot_paused}`)
@@ -419,7 +427,9 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
         // ═══════════════════════════════════════════════════════════
 
         // 3.1 Historique de conversation
-        const conversationHistory = await conversation.getHistory(50)
+        const conversationHistory = await conversation.getHistory(50, {
+            since: conversation.metadata?.session_anchor_at || null,
+        })
         const historyForAI =
             conversationHistory.length > 0 && conversationHistory[conversationHistory.length - 1]?.role === 'user'
                 ? conversationHistory.slice(0, -1)

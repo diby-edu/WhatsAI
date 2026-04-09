@@ -1,7 +1,14 @@
 const mockQueueOutboundWhatsAppMessage = jest.fn()
+const mockCloseCompletedCycle = jest.fn()
 
 jest.mock('@/lib/whatsapp/outbound', () => ({
     queueOutboundWhatsAppMessage: (...args) => mockQueueOutboundWhatsAppMessage(...args)
+}))
+
+jest.mock('@/lib/whatsapp/services/conversation.service', () => ({
+    ConversationService: {
+        closeCompletedCycle: (...args) => mockCloseCompletedCycle(...args),
+    }
 }))
 
 const { deliverDigitalProducts } = require('@/lib/payments/digital-delivery')
@@ -70,6 +77,7 @@ describe('deliverDigitalProducts', () => {
     beforeEach(() => {
         jest.clearAllMocks()
         mockQueueOutboundWhatsAppMessage.mockResolvedValue({ queued: true })
+        mockCloseCompletedCycle.mockResolvedValue(undefined)
     })
 
     test('marks digital orders as completed after queueing delivery', async () => {
@@ -90,6 +98,11 @@ describe('deliverDigitalProducts', () => {
                 updated_at: expect.any(String),
             })
         ]))
+        expect(mockCloseCompletedCycle).toHaveBeenCalledWith(
+            supabase,
+            'conv_1',
+            'digital_delivery_completed'
+        )
     })
 
     test('can queue a preparation message before the digital file', async () => {
