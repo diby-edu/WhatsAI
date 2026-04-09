@@ -1988,11 +1988,22 @@ function inferCartStateFromAssistantMessage(content, previousState, products = [
     const text = normalizeText(content)
     const state = cloneCartState(previousState)
     const hasCartLines = Array.isArray(state.cart_items) && state.cart_items.length > 0
+    const isStructuredCheckoutReply = hasCartLines &&
+        state.stage === CART_STAGE.CHECKOUT &&
+        /vos informations|1\.\s*continuer|2\.\s*modifier une information|recapitulatif\s*:|1\.\s*confirmer ma commande|2\.\s*modifier mes informations|3\.\s*modifier le panier|- produit\s*:|- total\s*:/i.test(text)
 
     if (!text) return state
 
     if (/commande confirmee|commande creee|lien de paiement securise|lien de paiement|commande valid[ée]e/i.test(text)) {
         return cloneCartState({})
+    }
+
+    if (isStructuredCheckoutReply) {
+        state.stage = CART_STAGE.CHECKOUT
+        state.awaiting_field = null
+        state.last_prompt_kind = CART_STAGE.CHECKOUT
+        state.last_prompt_text = content
+        return state
     }
 
     if (hasCartLines && /nom complet|numero de telephone|adresse de livraison|telephone \(avec indicatif\)|adresse email/i.test(text)) {
