@@ -1,16 +1,19 @@
 describe('paystack helpers', () => {
     const originalFetch = global.fetch
     const originalSecret = process.env.PAYSTACK_SECRET_KEY
+    const originalAppUrl = process.env.NEXT_PUBLIC_APP_URL
 
     beforeEach(() => {
         jest.resetModules()
         process.env.PAYSTACK_SECRET_KEY = 'sk_test_123'
+        process.env.NEXT_PUBLIC_APP_URL = 'https://wazzapai.com'
         global.fetch = jest.fn()
     })
 
     afterEach(() => {
         global.fetch = originalFetch
         process.env.PAYSTACK_SECRET_KEY = originalSecret
+        process.env.NEXT_PUBLIC_APP_URL = originalAppUrl
     })
 
     test('converts FCFA major units to Paystack subunits', () => {
@@ -78,6 +81,20 @@ describe('paystack helpers', () => {
             transactionId: 'ORD_123',
             amount: 5000
         }))
+    })
+
+    test('builds a valid fallback email on the public domain when no customer email is provided', () => {
+        const { resolvePaystackCustomerEmail } = require('@/lib/payments/paystack')
+
+        expect(resolvePaystackCustomerEmail(undefined, 'ORD_123')).toBe('ord-123@wazzapai.com')
+        expect(resolvePaystackCustomerEmail(undefined, 'ORD_123', '+2250701020304')).toBe('250701020304@wazzapai.com')
+    })
+
+    test('replaces invalid or local-only emails with a valid fallback email', () => {
+        const { resolvePaystackCustomerEmail } = require('@/lib/payments/paystack')
+
+        expect(resolvePaystackCustomerEmail('not-an-email', 'ORD_456')).toBe('ord-456@wazzapai.com')
+        expect(resolvePaystackCustomerEmail('client@pay.wazzapai.local', 'ORD_456')).toBe('ord-456@wazzapai.com')
     })
 
     test('extracts a mobile money channel with provider detail from nested payloads', () => {
