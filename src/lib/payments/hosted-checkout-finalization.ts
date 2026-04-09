@@ -248,14 +248,31 @@ export async function finalizeHostedOrderPayment(
         orderUpdate.deposit_status = 'paid'
     }
 
-    const { error: updateError } = await supabase
+    const { data: updatedOrders, error: updateError } = await supabase
         .from('orders')
         .update(orderUpdate)
         .eq('id', order.id)
+        .eq('status', order.status)
+        .select('id, status')
 
     if (updateError) {
         console.error('[Hosted Checkout Finalization] Failed to update order:', updateError)
         return { ok: false, kind: 'order', state: 'error' as const, error: updateError }
+    }
+
+    if (!updatedOrders || updatedOrders.length === 0) {
+        const { data: latestOrder } = await supabase
+            .from('orders')
+            .select('*')
+            .eq('id', order.id)
+            .single()
+
+        return {
+            ok: true,
+            kind: 'order',
+            state: 'already_finalized' as const,
+            order: latestOrder || order,
+        }
     }
 
     try {
@@ -336,14 +353,32 @@ export async function finalizeHostedBookingPayment(
         bookingUpdate.provider_transaction_id = resolvedProviderTxId
     }
 
-    const { error: updateError } = await supabase
+    const { data: updatedBookings, error: updateError } = await supabase
         .from('bookings')
         .update(bookingUpdate)
         .eq('id', booking.id)
+        .eq('status', booking.status)
+        .eq('deposit_status', booking.deposit_status)
+        .select('id, status, deposit_status')
 
     if (updateError) {
         console.error('[Hosted Checkout Finalization] Failed to update booking:', updateError)
         return { ok: false, kind: 'booking', state: 'error' as const, error: updateError }
+    }
+
+    if (!updatedBookings || updatedBookings.length === 0) {
+        const { data: latestBooking } = await supabase
+            .from('bookings')
+            .select('*')
+            .eq('id', booking.id)
+            .single()
+
+        return {
+            ok: true,
+            kind: 'booking',
+            state: 'already_finalized' as const,
+            booking: latestBooking || booking,
+        }
     }
 
     await clearRestaurantConversationState(supabase, booking.conversation_id)

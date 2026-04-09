@@ -1576,6 +1576,52 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
         }
     }
 
+    const idleMultiProducts = (!state.draft_item && !(state.cart_items?.length > 0))
+        ? detectMultipleProducts(normalized, products)
+        : []
+
+    if (idleMultiProducts.length >= 2) {
+        const multiBatchParse = parseMultiProductBatchLines(idleMultiProducts, normalized)
+
+        if (multiBatchParse.status === 'success' && multiBatchParse.lines.length > 0) {
+            for (const line of multiBatchParse.lines) {
+                state.cart_items = mergeOrAppendCartLine(state.cart_items, line)
+            }
+
+            state.draft_item = null
+            state.stage = CART_STAGE.CART_RECAP
+            state.awaiting_field = buildCartActionField()
+            state.last_prompt_kind = CART_STAGE.CART_RECAP
+            state.last_prompt_text = normalized
+
+            return {
+                state,
+                capturedFields,
+                stateChanged: true,
+                shouldBypassAI: true,
+                directReply: buildBatchCartReply(state, currency),
+            }
+        }
+
+        const { prompt, overflow } = buildMultiProductPrompt(idleMultiProducts, currency)
+        state.stage = CART_STAGE.COLLECTING_ITEM
+        state.awaiting_field = {
+            type: 'multi_product_combos',
+            product_ids: idleMultiProducts.map(p => p.id),
+            overflow,
+        }
+        state.last_prompt_kind = CART_STAGE.COLLECTING_ITEM
+        state.last_prompt_text = normalized
+
+        return {
+            state,
+            capturedFields,
+            stateChanged: true,
+            shouldBypassAI: true,
+            directReply: prompt,
+        }
+    }
+
     const batchProduct = resolveBatchProduct(products, state, normalized)
     const canTryBatchParse = batchProduct && (!state.draft_item || !hasDraftSelections(state.draft_item))
     if (canTryBatchParse) {
@@ -1852,27 +1898,6 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
     // En stage CHECKOUT sans draft_item : ne pas détecter de nouveau produit, laisser le checkout gérer
     if (state.stage === CART_STAGE.CHECKOUT && !state.draft_item) {
         return { state, capturedFields, stateChanged, shouldBypassAI: false, directReply: null }
-    }
-
-    // Détection multi-produits (ex: "robe et veste") — uniquement si panier vide
-    if (!state.draft_item && !(state.cart_items?.length > 0)) {
-        const multiProducts = detectMultipleProducts(normalized, products)
-        if (multiProducts.length >= 2) {
-            const { prompt, overflow } = buildMultiProductPrompt(multiProducts, currency)
-            state.stage = CART_STAGE.COLLECTING_ITEM
-            state.awaiting_field = {
-                type: 'multi_product_combos',
-                product_ids: multiProducts.map(p => p.id),
-                overflow,
-            }
-            state.last_prompt_kind = CART_STAGE.COLLECTING_ITEM
-            state.last_prompt_text = normalized
-            return {
-                state, capturedFields,
-                stateChanged: true, shouldBypassAI: true,
-                directReply: prompt,
-            }
-        }
     }
 
     if (!state.draft_item) {

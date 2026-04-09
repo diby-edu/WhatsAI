@@ -240,4 +240,43 @@ describe('cart-state.service', () => {
         expect(nextState.cart_items[0].quantity).toBe(1)
         expect(nextState.draft_item).toBeNull()
     })
+
+    test('builds a multi-product cart directly from a natural one-line digital order', () => {
+        const update = updateCartStateFromUserMessage(
+            {},
+            "Je veux le mini-cours Excel, le pack fonds d'écran et 1 logiciel antivirus",
+            [
+                {
+                    id: 'excel',
+                    name: 'Mini-cours Excel ',
+                    product_type: 'digital',
+                    price_fcfa: 25,
+                    digital_content: 'https://example.com/excel.pdf',
+                },
+                {
+                    id: 'pack',
+                    name: 'Pack Fonds d’écran',
+                    product_type: 'digital',
+                    price_fcfa: 50,
+                    digital_content: 'https://example.com/pack.zip',
+                },
+                {
+                    id: 'antivirus',
+                    name: 'Logiciel Antivirus',
+                    product_type: 'digital',
+                    price_fcfa: 75,
+                    license_keys: [{ key: 'aaa-aaa', used: false }],
+                },
+            ]
+        )
+
+        expect(update.shouldBypassAI).toBe(true)
+        expect(update.state.stage).toBe(CART_STAGE.CART_RECAP)
+        expect(update.state.cart_items).toHaveLength(3)
+        expect(update.state.cart_items.map(item => item.product_id)).toEqual(['excel', 'pack', 'antivirus'])
+        expect(update.state.cart_items.map(item => item.quantity)).toEqual([1, 1, 1])
+        expect(update.directReply).toContain('Mini-cours Excel')
+        expect(update.directReply).toContain('Pack Fonds')
+        expect(update.directReply).toContain('Logiciel Antivirus')
+    })
 })
