@@ -38,8 +38,19 @@ echo "    $OLD_COMMIT → $NEW_COMMIT"
 echo ""
 echo "📦 [2/4] Installation des dépendances..."
 # npm ci est plus rapide que npm install (pas de résolution)
-# --prefer-offline utilise le cache local
-npm ci --prefer-offline --silent 2>/dev/null || npm install --silent
+# --include=dev garantit les dépendances nécessaires au build
+# --prefer-offline utilise le cache local quand disponible
+if ! npm ci --include=dev --prefer-offline --no-audit --no-fund; then
+    echo "⚠️ npm ci a échoué, tentative avec npm install..."
+    npm install --include=dev --no-audit --no-fund
+fi
+
+if [ ! -x node_modules/.bin/next ]; then
+    echo ""
+    echo "❌ Dépendances incomplètes : next introuvable dans node_modules/.bin"
+    echo "   Lancez : npm install --include=dev"
+    exit 1
+fi
 
 # ═══════════════════════════════════════════════════════════
 # 3. BUILD NEXT.JS (services TOUJOURS UP - ZERO DOWNTIME)
