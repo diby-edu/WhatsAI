@@ -40,6 +40,7 @@ describe('payment provider helpers', () => {
         const {
             normalizePaymentProvider,
             parsePaymentProvider,
+            resolveHostedPaymentProvider,
         } = require('@/lib/payments/provider')
 
         expect(parsePaymentProvider('paystack')).toBe('paystack')
@@ -48,6 +49,18 @@ describe('payment provider helpers', () => {
         expect(normalizePaymentProvider('')).toBe('cinetpay')
         expect(normalizePaymentProvider('paystack')).toBe('paystack')
         expect(() => normalizePaymentProvider('stripe')).toThrow(/unsupported payment provider/i)
+        expect(resolveHostedPaymentProvider({
+            defaultProvider: 'paystack',
+            storedProvider: 'cinetpay',
+            transactionId: null,
+            providerPaymentUrl: null,
+        })).toBe('paystack')
+        expect(resolveHostedPaymentProvider({
+            defaultProvider: 'paystack',
+            storedProvider: 'cinetpay',
+            transactionId: 'ORD_existing',
+            providerPaymentUrl: 'https://pay.example/existing',
+        })).toBe('cinetpay')
     })
 
     test('reports provider readiness from runtime env and blocks unsafe providers', () => {

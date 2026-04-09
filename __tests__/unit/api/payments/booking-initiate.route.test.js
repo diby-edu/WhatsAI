@@ -29,6 +29,7 @@ const mockGetDefaultPaymentProvider = jest.fn()
 const mockInitializeHostedPayment = jest.fn()
 const mockInspectExistingHostedPayment = jest.fn()
 const mockNormalizePaymentProvider = jest.fn((value) => value || 'cinetpay')
+const mockResolveHostedPaymentProvider = jest.fn()
 
 jest.mock('@/lib/api-utils', () => ({
     createApiClient: (...args) => mockCreateApiClient(...args),
@@ -42,6 +43,7 @@ jest.mock('@/lib/payments/provider', () => ({
     initializeHostedPayment: (...args) => mockInitializeHostedPayment(...args),
     inspectExistingHostedPayment: (...args) => mockInspectExistingHostedPayment(...args),
     normalizePaymentProvider: (...args) => mockNormalizePaymentProvider(...args),
+    resolveHostedPaymentProvider: (...args) => mockResolveHostedPaymentProvider(...args),
 }))
 
 const { POST } = require('@/app/api/payments/cinetpay/booking-initiate/route')
@@ -94,6 +96,9 @@ describe('POST /api/payments/cinetpay/booking-initiate', () => {
         mockGetAuthUser.mockResolvedValue({ user: { id: 'user_1' }, error: null })
         mockGetDefaultPaymentProvider.mockResolvedValue('cinetpay')
         mockNormalizePaymentProvider.mockImplementation((value) => value || 'cinetpay')
+        mockResolveHostedPaymentProvider.mockImplementation(({ defaultProvider, storedProvider, transactionId, providerPaymentUrl }) => (
+            (transactionId || providerPaymentUrl) ? (storedProvider || defaultProvider) : defaultProvider
+        ))
         mockInspectExistingHostedPayment.mockResolvedValue({
             action: 'reuse',
             provider: 'cinetpay',
@@ -232,6 +237,63 @@ describe('POST /api/payments/cinetpay/booking-initiate', () => {
         }))
         expect(updates[0].payload.transaction_id).toMatch(/^BKG_/)
         expect(updates[0].payload.transaction_id).toContain(booking.id.substring(0, 8))
+    })
+
+    test('prefers the admin default provider when a stale cinetpay value exists without any hosted payment yet', async () => {
+        const booking = {
+            id: 'booking_123',
+            agent_id: 'agent_1',
+            customer_name: 'Awa Konan',
+            customer_phone: '+2250701020304',
+            booking_source: 'restaurant',
+            price_fcfa: 17600,
+            deposit_required: true,
+            deposit_amount_fcfa: 5000,
+            deposit_status: 'pending',
+            payment_method: 'online',
+            transaction_id: null,
+            provider_payment_url: null,
+            payment_provider: 'cinetpay',
+        }
+        const updates = []
+
+        mockGetDefaultPaymentProvider.mockResolvedValue('paystack')
+        mockCreateAdminClient.mockReturnValue(
+            createAdminSupabase({
+                booking,
+                agent: { user_id: 'user_1' },
+                updates
+            })
+        )
+        mockInitializeHostedPayment.mockResolvedValue({
+            success: true,
+            paymentUrl: 'https://checkout.paystack.com/booking',
+            providerVersion: 'v1',
+            providerTransactionId: 'BKG_paystack_ref'
+        })
+
+        const response = await POST(makeRequest({ booking_id: 'booking_123' }))
+        const json = await response.json()
+
+        expect(response.status).toBe(200)
+        expect(json).toEqual(expect.objectContaining({
+            success: true,
+            payment_url: 'https://checkout.paystack.com/booking',
+            provider: 'paystack',
+        }))
+        expect(mockResolveHostedPaymentProvider).toHaveBeenCalledWith({
+            defaultProvider: 'paystack',
+            storedProvider: 'cinetpay',
+            transactionId: null,
+            providerPaymentUrl: null,
+        })
+        expect(mockInitializeHostedPayment).toHaveBeenCalledWith(expect.objectContaining({
+            provider: 'paystack',
+        }))
+        expect(updates[0].payload).toEqual(expect.objectContaining({
+            payment_provider: 'paystack',
+            provider_payment_url: 'https://checkout.paystack.com/booking'
+        }))
     })
 
     test('rejects bookings that are not payable online in their current state', async () => {

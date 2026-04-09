@@ -552,7 +552,7 @@ async function initiateBookingDepositPayment({
         getDefaultPaymentProvider,
         initializeHostedPayment,
         inspectExistingHostedPayment,
-        normalizePaymentProvider
+        resolveHostedPaymentProvider
     } = await import('@/lib/payments/provider')
 
     const defaultPaymentProvider = await getDefaultPaymentProvider(supabase)
@@ -568,7 +568,12 @@ async function initiateBookingDepositPayment({
         return { success: false, error: 'Reservation introuvable pour le paiement', providerVersion: useCinetPayV2 ? 'v2' : 'v1' }
     }
 
-    const paymentProvider = normalizePaymentProvider(booking.payment_provider || defaultPaymentProvider)
+    const paymentProvider = resolveHostedPaymentProvider({
+        defaultProvider: defaultPaymentProvider,
+        storedProvider: booking.payment_provider,
+        transactionId: booking.transaction_id,
+        providerPaymentUrl: booking.provider_payment_url,
+    })
     const attemptedProviderVersion = paymentProvider === 'paystack'
         ? 'v1'
         : (useCinetPayV2 ? 'v2' : 'v1')
@@ -810,7 +815,7 @@ async function initiateOrderOnlinePayment({
         getDefaultPaymentProvider,
         initializeHostedPayment,
         inspectExistingHostedPayment,
-        normalizePaymentProvider
+        resolveHostedPaymentProvider
     } = await import('@/lib/payments/provider')
 
     const defaultPaymentProvider = await getDefaultPaymentProvider(supabase)
@@ -826,7 +831,12 @@ async function initiateOrderOnlinePayment({
         return { success: false, error: 'Commande introuvable pour le paiement', providerVersion: useCinetPayV2 ? 'v2' : 'v1' }
     }
 
-    const paymentProvider = normalizePaymentProvider(order.payment_provider || defaultPaymentProvider)
+    const paymentProvider = resolveHostedPaymentProvider({
+        defaultProvider: defaultPaymentProvider,
+        storedProvider: order.payment_provider,
+        transactionId: order.transaction_id,
+        providerPaymentUrl: order.provider_payment_url,
+    })
     const attemptedProviderVersion = paymentProvider === 'paystack'
         ? 'v1'
         : (useCinetPayV2 ? 'v2' : 'v1')

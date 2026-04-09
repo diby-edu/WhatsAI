@@ -105,6 +105,26 @@ export function normalizePaymentProvider(
     return fallback
 }
 
+export function resolveHostedPaymentProvider(params: {
+    defaultProvider: unknown
+    storedProvider?: unknown
+    transactionId?: unknown
+    providerPaymentUrl?: unknown
+}): SupportedPaymentProvider {
+    const defaultProvider = normalizePaymentProvider(params.defaultProvider)
+    const storedProvider = parsePaymentProvider(params.storedProvider)
+    const hasPersistedHostedPayment = Boolean(
+        String(params.transactionId || '').trim()
+        || String(params.providerPaymentUrl || '').trim()
+    )
+
+    if (hasPersistedHostedPayment && storedProvider) {
+        return storedProvider
+    }
+
+    return defaultProvider
+}
+
 export function getPaymentProviderReadiness(providerInput: unknown): PaymentProviderReadiness {
     const provider = normalizePaymentProvider(providerInput)
 

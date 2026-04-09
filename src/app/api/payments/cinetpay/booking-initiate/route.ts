@@ -4,7 +4,7 @@ import {
     getDefaultPaymentProvider,
     initializeHostedPayment,
     inspectExistingHostedPayment,
-    normalizePaymentProvider,
+    resolveHostedPaymentProvider,
 } from '@/lib/payments/provider'
 
 function isFullBookingPayment(booking: {
@@ -105,7 +105,12 @@ export async function POST(request: NextRequest) {
         const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://wazzapai.com'
         const transactionId = `BKG_${booking.id.substring(0, 8)}_${Date.now()}`
         const defaultProvider = await getDefaultPaymentProvider(adminSupabase)
-        const paymentProvider = normalizePaymentProvider(booking.payment_provider || defaultProvider)
+        const paymentProvider = resolveHostedPaymentProvider({
+            defaultProvider,
+            storedProvider: booking.payment_provider,
+            transactionId: booking.transaction_id,
+            providerPaymentUrl: booking.provider_payment_url,
+        })
 
         if (booking.transaction_id && booking.provider_payment_url) {
             const existingPayment = await inspectExistingHostedPayment(
