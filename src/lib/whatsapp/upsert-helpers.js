@@ -8,6 +8,20 @@ const MESSAGE_WRAPPER_KEYS = [
     'deviceSentMessage',
 ]
 
+function isSystemOrNonDirectJid(rawJid) {
+    const jid = String(rawJid || '').trim()
+    if (!jid) return false
+
+    return jid.endsWith('@g.us')
+        || jid.includes('@broadcast')
+        || jid.includes('@newsletter')
+        || jid.startsWith('status@')
+}
+
+function isDirectUserChatJid(rawJid) {
+    return !isSystemOrNonDirectJid(rawJid)
+}
+
 function getMessageTimestampMs(message) {
     const rawTimestamp = message?.messageTimestamp
     if (rawTimestamp === null || rawTimestamp === undefined) {
@@ -78,7 +92,7 @@ function describeInboundMessage(message) {
 
 function isIgnorableIncomingMessage(message) {
     const { content } = unwrapMessageContent(message?.message)
-    return Boolean(content?.protocolMessage)
+    return isSystemOrNonDirectJid(message?.key?.remoteJid) || Boolean(content?.protocolMessage)
 }
 
 function extractInboundMessagePayload(message) {
@@ -144,6 +158,8 @@ function extractInboundMessagePayload(message) {
 module.exports = {
     describeInboundMessage,
     isIgnorableIncomingMessage,
+    isDirectUserChatJid,
+    isSystemOrNonDirectJid,
     MESSAGE_WRAPPER_KEYS,
     RECENT_APPEND_WINDOW_MS,
     extractInboundMessagePayload,

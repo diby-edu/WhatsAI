@@ -16,6 +16,7 @@
 console.log(`[FILE_VERSION] conversation.service.js v1.0.1 - ${new Date().toISOString()}`)
 const { AppError } = require('./errors')
 const { notifyAdmins } = require('../../notifications/admin-notify')
+const { normalizeWhatsAppContact } = require('../ai/tools/tool-helpers')
 
 function buildTransactionalMetadataReset(metadata = {}, options = {}) {
     const {
@@ -48,27 +49,87 @@ class ConversationService {
      */
     static async getOrCreate(supabase, agentId, userId, contactPhone, metadata = {}) {
         try {
-            // 1. Chercher conversation existante
-            const { data: existing } = await supabase
-                .from('conversations')
-                .select('*')
-                .eq('agent_id', agentId)
-                .eq('contact_phone', contactPhone)
-                .single()
+            const rawContact = String(contactPhone || '').trim()
+            const normalizedContactPhone = normalizeWhatsAppContact(rawContact)
+            const rawContactJid = rawContact.includes('@') ? rawContact : null
+
+            const lookupStrategies = [
+                rawContactJid ? { field: 'contact_jid', value: rawContactJid } : null,
+                { field: 'contact_phone', value: rawContact },
+                normalizedContactPhone ? { field: 'contact_phone', value: normalizedContactPhone } : null,
+            ].filter(Boolean)
+
+            let existing = null
+
+            for (const strategy of lookupStrategies) {
+                const { data, error } = await supabase
+                    .from('conversations')
+                    .select('*')
+                    .eq('agent_id', agentId)
+                    .eq(strategy.field, strategy.value)
+                    .maybeSingle()
+
+                if (error) {
+                    throw error
+                }
+
+                if (data) {
+                    existing = data
+                    break
+                }
+            }
 
             if (existing) {
+                const identityUpdates = {}
+                const mergedMetadata = {
+                    ...(existing.metadata || {}),
+                    ...(metadata || {}),
+                }
+
+                if (rawContactJid && existing.contact_jid !== rawContactJid) {
+                    identityUpdates.contact_jid = rawContactJid
+                }
+
+                if (normalizedContactPhone && existing.contact_phone !== normalizedContactPhone) {
+                    const existingPhoneLooksLegacyJid = typeof existing.contact_phone === 'string' && existing.contact_phone.includes('@')
+                    const existingPhoneMissing = !existing.contact_phone
+                    if (existingPhoneMissing || existingPhoneLooksLegacyJid || existing.contact_phone === rawContact) {
+                        identityUpdates.contact_phone = normalizedContactPhone
+                    }
+                }
+
+                if (JSON.stringify(existing.metadata || {}) !== JSON.stringify(mergedMetadata)) {
+                    identityUpdates.metadata = mergedMetadata
+                }
+
+                if (Object.keys(identityUpdates).length > 0) {
+                    const { data: updated, error: updateError } = await supabase
+                        .from('conversations')
+                        .update(identityUpdates)
+                        .eq('id', existing.id)
+                        .select()
+                        .single()
+
+                    if (updateError) {
+                        throw updateError
+                    }
+
+                    existing = updated || { ...existing, ...identityUpdates }
+                }
+
                 console.log(`📂 Conversation found: ${existing.id}`)
                 return new Conversation(existing, supabase)
             }
 
             // 2. Créer nouvelle conversation
-            console.log(`📂 Creating new conversation for ${contactPhone}`)
+            console.log(`📂 Creating new conversation for ${rawContact}`)
             const { data: newConv, error } = await supabase
                 .from('conversations')
                 .insert({
                     agent_id: agentId,
                     user_id: userId,
-                    contact_phone: contactPhone,
+                    contact_phone: normalizedContactPhone || rawContact,
+                    contact_jid: rawContactJid,
                     status: 'active',
                     metadata: metadata
                 })
@@ -94,8 +155,8 @@ class ConversationService {
                 notifyAdmins('new_conversation', {
                     agentName: agentData?.name || agentId,
                     agentId,
-                    contactPhone,
-                    contactName: metadata?.wa_name || contactPhone,
+                    contactPhone: normalizedContactPhone || rawContact,
+                    contactName: metadata?.wa_name || normalizedContactPhone || rawContact,
                 }).catch(() => {})
             } catch (e) { /* non-blocking */ }
 
