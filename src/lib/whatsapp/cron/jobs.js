@@ -1,5 +1,3 @@
-
-// 1. RELANCE AUTOMATIQUE DES PAIEMENTS
 async function clearRestaurantConversationState(supabase, conversationId) {
     if (!conversationId) return
 
@@ -22,28 +20,28 @@ async function clearRestaurantConversationState(supabase, conversationId) {
         .eq('id', conversationId)
 }
 
-// 1. RELANCE AUTOMATIQUE DES PAIEMENTS
+// 1. PAYMENT REMINDERS
 async function checkPendingPayments(supabase) {
     try {
         const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString()
 
         const { data: pendingOrders } = await supabase
             .from('orders')
-            .select('id, agent_id, customer_phone, total_fcfa, cinetpay_payment_url, created_at')
+            .select('id, agent_id, customer_phone, total_fcfa, provider_payment_url, created_at')
             .eq('status', 'pending')
             .eq('payment_method', 'online')
             .lt('created_at', fifteenMinutesAgo)
             .is('payment_reminder_sent', null)
 
         for (const order of pendingOrders || []) {
-            if (!order.cinetpay_payment_url) continue
+            if (!order.provider_payment_url) continue
 
-            console.log('⏰ Sending payment reminder for order:', order.id)
+            console.log('Sending payment reminder for order:', order.id)
 
             await supabase.from('outbound_messages').insert({
                 agent_id: order.agent_id,
                 recipient_phone: order.customer_phone,
-                message_content: `⏰ *Rappel de paiement*\n\nVotre commande #${order.id.substring(0, 8)} attend votre paiement.\n\n💰 Montant: ${order.total_fcfa.toLocaleString()} FCFA\n\n💳 Cliquez ici pour payer:\n${order.cinetpay_payment_url}\n\n❓ Besoin d'aide ? Répondez à ce message.`,
+                message_content: `⏰ *Rappel de paiement*\n\nVotre commande #${order.id.substring(0, 8)} attend votre paiement.\n\n💰 Montant: ${order.total_fcfa.toLocaleString()} FCFA\n\n💳 Cliquez ici pour payer:\n${order.provider_payment_url}\n\nBesoin d'aide ? Repondez a ce message.`,
                 status: 'pending'
             })
 
@@ -57,7 +55,7 @@ async function checkPendingPayments(supabase) {
     }
 }
 
-// 2. ANNULATION AUTOMATIQUE
+// 2. ORDER EXPIRATION
 async function cancelExpiredOrders(supabase) {
     try {
         const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
@@ -70,17 +68,28 @@ async function cancelExpiredOrders(supabase) {
             .lt('created_at', oneHourAgo)
 
         for (const order of expiredOrders || []) {
-            console.log('❌ Cancelling expired order:', order.id)
+            console.log('Cancelling expired order:', order.id)
 
-            await supabase.from('orders').update({
-                status: 'cancelled',
-                cancelled_reason: 'Payment timeout (1 hour)'
-            }).eq('id', order.id)
+            const { data: updatedOrder, error: updateError } = await supabase
+                .from('orders')
+                .update({
+                    status: 'cancelled',
+                    cancelled_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', order.id)
+                .eq('status', 'pending')
+                .select('id')
+                .maybeSingle()
+
+            if (updateError || !updatedOrder) {
+                continue
+            }
 
             await supabase.from('outbound_messages').insert({
                 agent_id: order.agent_id,
                 recipient_phone: order.customer_phone,
-                message_content: `⏱️ *Commande expirée*\n\nVotre commande #${order.id.substring(0, 8)} a été annulée car le paiement n'a pas été reçu dans les temps.\n\nVous pouvez repasser commande quand vous le souhaitez ! 😊`,
+                message_content: `⏱️ *Commande expiree*\n\nVotre commande #${order.id.substring(0, 8)} a ete annulee car le paiement n'a pas ete recu dans les temps.\n\nVous pouvez repasser commande quand vous le souhaitez ! 😊`,
                 status: 'pending'
             })
         }
@@ -89,7 +98,7 @@ async function cancelExpiredOrders(supabase) {
     }
 }
 
-// 3. EXPIRATION DES ACOMPTES RESTAURANT
+// 3. RESTAURANT DEPOSIT EXPIRATION
 async function cancelExpiredBookingDeposits(supabase) {
     try {
         const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
@@ -104,7 +113,7 @@ async function cancelExpiredBookingDeposits(supabase) {
             .lt('created_at', twentyFourHoursAgo)
 
         for (const booking of expiredBookings || []) {
-            console.log('⌛ Expiring pending restaurant deposit:', booking.id)
+            console.log('Expiring pending restaurant deposit:', booking.id)
 
             const { data: updatedBooking, error: updateError } = await supabase
                 .from('bookings')
@@ -148,7 +157,7 @@ async function cancelExpiredBookingDeposits(supabase) {
     }
 }
 
-// 3. DEMANDE FEEDBACK
+// 4. FEEDBACK REQUESTS
 async function requestFeedback(supabase) {
     try {
         const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
@@ -166,7 +175,7 @@ async function requestFeedback(supabase) {
             await supabase.from('outbound_messages').insert({
                 agent_id: order.agent_id,
                 recipient_phone: order.customer_phone,
-                message_content: `😊 *Livraison effectuée ?*\n\nPouvez-vous nous donner votre avis sur votre commande #${order.id.substring(0, 8)} ?\n\nRépondez simplement:\n1. Très satisfait 🌟\n2. Satisfait 🙂\n3. Déçu 😞\n\nMerci !`,
+                message_content: `😊 *Livraison effectuee ?*\n\nPouvez-vous nous donner votre avis sur votre commande #${order.id.substring(0, 8)} ?\n\nRepondez simplement:\n1. Tres satisfait 🌟\n2. Satisfait 🙂\n3. Decu 😞\n\nMerci !`,
                 status: 'pending'
             })
 
@@ -180,4 +189,9 @@ async function requestFeedback(supabase) {
     }
 }
 
-module.exports = { checkPendingPayments, cancelExpiredOrders, cancelExpiredBookingDeposits, requestFeedback }
+module.exports = {
+    checkPendingPayments,
+    cancelExpiredOrders,
+    cancelExpiredBookingDeposits,
+    requestFeedback
+}

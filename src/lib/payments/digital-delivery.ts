@@ -100,10 +100,17 @@ export async function deliverDigitalProducts(orderId: string, supabase: any): Pr
 
                 if (result.queued) {
                     console.log(`[Digital Delivery] Queued for ${order.customer_phone} - product: ${product.name}`)
-                    await supabase
+                    const { error: completionError } = await supabase
                         .from('orders')
-                        .update({ status: 'completed' })
+                        .update({
+                            status: 'completed',
+                            updated_at: new Date().toISOString(),
+                        })
                         .eq('id', order.id)
+
+                    if (completionError) {
+                        console.error('[Digital Delivery] Failed to mark order as completed:', completionError)
+                    }
                 }
             } catch (sendErr) {
                 console.error('[Digital Delivery] Failed to queue WhatsApp delivery:', sendErr)
