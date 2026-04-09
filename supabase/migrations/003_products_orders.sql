@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS public.orders (
     -- Customer info
     customer_phone TEXT NOT NULL,
     customer_name TEXT,
+    customer_email TEXT,
     
     -- Order details
     order_number TEXT UNIQUE, -- Human readable order number

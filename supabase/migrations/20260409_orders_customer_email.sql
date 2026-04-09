@@ -1,16 +1,16 @@
--- ═══════════════════════════════════════════════════════════════
--- FIX : Ambiguïté "column reference order_number is ambiguous"
--- ═══════════════════════════════════════════════════════════════
---
--- PROBLÈME :
--- Dans la fonction create_order_with_items, RETURNS TABLE(order_number TEXT)
--- crée un paramètre OUT implicite nommé "order_number".
--- PostgreSQL ne sait pas si "order_number" dans la clause RETURNING
--- désigne la colonne de la table orders ou le paramètre OUT.
---
--- FIX :
--- Qualifier explicitement avec le nom de table : orders.order_number
--- ═══════════════════════════════════════════════════════════════
+ALTER TABLE public.orders
+    ADD COLUMN IF NOT EXISTS customer_email TEXT;
+
+UPDATE public.orders
+SET customer_email = LOWER(
+    SUBSTRING(
+        notes
+        FROM '(?i)(?:📧\s*)?email\s*:\s*([A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,})'
+    )
+)
+WHERE customer_email IS NULL
+  AND notes IS NOT NULL
+  AND notes ~* '(?:📧\s*)?email\s*:';
 
 DROP FUNCTION IF EXISTS create_order_with_items(UUID, UUID, UUID, TEXT, TEXT, TEXT, TEXT, TEXT, INTEGER, TEXT, JSONB);
 DROP FUNCTION IF EXISTS create_order_with_items(UUID, UUID, UUID, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, INTEGER, TEXT, JSONB);
@@ -79,7 +79,6 @@ BEGIN
         p_total_fcfa,
         COALESCE(p_status, 'pending')
     )
-    -- FIX : qualifier "orders.order_number" pour lever l'ambiguïté avec le paramètre OUT
     RETURNING id, orders.order_number INTO v_order_id, v_order_number;
 
     FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
@@ -109,8 +108,3 @@ GRANT EXECUTE ON FUNCTION create_order_with_items(UUID, UUID, UUID, TEXT, TEXT, 
 
 GRANT EXECUTE ON FUNCTION create_order_with_items(UUID, UUID, UUID, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, INTEGER, TEXT, JSONB)
     TO authenticated;
-
-COMMENT ON FUNCTION create_order_with_items IS
-'Crée une commande et ses articles dans une seule transaction.
-Rollback automatique si l''insertion des articles échoue.
-Fix 2026-03-19 : RETURNING orders.order_number pour lever ambiguïté avec paramètre OUT.';

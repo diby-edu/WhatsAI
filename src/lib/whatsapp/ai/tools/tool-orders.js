@@ -202,6 +202,7 @@ async function handleCreateOrder(args, agentId, products, conversationId, supaba
             p_conversation_id: conversationId,
             p_customer_name:   trimmedCustomerName,
             p_customer_phone:  normalizedPhone,
+            p_customer_email:  email || null,
             p_delivery_address: trimmedDeliveryAddress || null,
             p_payment_method:  normalizedPaymentMethod,
             p_notes:           finalNotes || null,

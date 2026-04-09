@@ -96,6 +96,7 @@ export async function POST(
                 ? `Acompte commande #${orderId.substring(0, 8)}`
                 : `Commande #${orderId.substring(0, 8)}`,
             customerName: order.customer_name || 'Client',
+            customerEmail: order.customer_email || undefined,
             customerPhone: order.customer_phone || '',
             returnUrl: `${baseUrl}/pay/${orderId}`,
             failedUrl: `${baseUrl}/pay/${orderId}?payment=cancelled`,

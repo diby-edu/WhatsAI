@@ -15,6 +15,7 @@
 -- ═══════════════════════════════════════════════════════════════
 
 DROP FUNCTION IF EXISTS create_order_with_items(UUID, UUID, UUID, TEXT, TEXT, TEXT, TEXT, TEXT, INTEGER, TEXT, JSONB);
+DROP FUNCTION IF EXISTS create_order_with_items(UUID, UUID, UUID, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, INTEGER, TEXT, JSONB);
 
 CREATE OR REPLACE FUNCTION create_order_with_items(
     p_user_id          UUID,
@@ -22,6 +23,7 @@ CREATE OR REPLACE FUNCTION create_order_with_items(
     p_conversation_id  UUID,
     p_customer_name    TEXT,
     p_customer_phone   TEXT,
+    p_customer_email   TEXT,
     p_delivery_address TEXT,
     p_payment_method   TEXT,
     p_notes            TEXT,
@@ -66,6 +68,7 @@ BEGIN
         conversation_id,
         customer_name,
         customer_phone,
+        customer_email,
         delivery_address,
         payment_method,
         notes,
@@ -78,6 +81,7 @@ BEGIN
         p_conversation_id,
         COALESCE(p_customer_name, 'Non spécifié'),
         p_customer_phone,
+        NULLIF(BTRIM(p_customer_email), ''),
         COALESCE(p_delivery_address, 'Non spécifié'),
         COALESCE(p_payment_method, 'online'),
         p_notes,
@@ -118,10 +122,10 @@ $$;
 -- ═══════════════════════════════════════════════════════════════
 -- PERMISSIONS
 -- ═══════════════════════════════════════════════════════════════
-GRANT EXECUTE ON FUNCTION create_order_with_items(UUID, UUID, UUID, TEXT, TEXT, TEXT, TEXT, TEXT, INTEGER, TEXT, JSONB)
+GRANT EXECUTE ON FUNCTION create_order_with_items(UUID, UUID, UUID, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, INTEGER, TEXT, JSONB)
     TO service_role;
 
-GRANT EXECUTE ON FUNCTION create_order_with_items(UUID, UUID, UUID, TEXT, TEXT, TEXT, TEXT, TEXT, INTEGER, TEXT, JSONB)
+GRANT EXECUTE ON FUNCTION create_order_with_items(UUID, UUID, UUID, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, INTEGER, TEXT, JSONB)
     TO authenticated;
 
 COMMENT ON FUNCTION create_order_with_items IS
