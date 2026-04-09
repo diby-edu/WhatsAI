@@ -11,7 +11,13 @@ const fs = require('fs')
 const path = require('path')
 const useSupabaseAuthState = require('../supabase-auth')
 const { handleMessage } = require('./message')
-const { shouldProcessUpsertMessage, extractInboundMessagePayload, describeInboundMessage, isIgnorableIncomingMessage } = require('../upsert-helpers')
+const {
+    shouldProcessUpsertMessage,
+    extractInboundMessagePayload,
+    describeInboundMessage,
+    isIgnorableIncomingMessage,
+    isDirectUserChatJid,
+} = require('../upsert-helpers')
 const logger = pino({ level: 'warn' })
 const VERBOSE_WHATSAPP_TRACE = process.env.WHATSAPP_TRACE_VERBOSE === 'true'
 
@@ -487,12 +493,7 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
             const processableMessages = actionableMessages.filter(msg => !isIgnorableIncomingMessage(msg))
             const directInboundCandidates = processableMessages.filter(msg => {
                 const remoteJid = msg?.key?.remoteJid || ''
-                return !msg?.key?.fromMe &&
-                    !!remoteJid &&
-                    !remoteJid.endsWith('@g.us') &&
-                    !remoteJid.includes('@broadcast') &&
-                    !remoteJid.includes('@newsletter') &&
-                    !remoteJid.startsWith('status@')
+                return !msg?.key?.fromMe && isDirectUserChatJid(remoteJid)
             })
 
             if (directInboundCandidates.length > 0) {
@@ -521,8 +522,7 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
 
             for (const msg of processableMessages) {
                 if (msg.key.fromMe) continue
-                // Ignorer les messages de groupe — le bot ne répond qu'en 1-à-1
-                if (msg.key.remoteJid?.endsWith('@g.us')) continue
+                if (!isDirectUserChatJid(msg.key.remoteJid)) continue
 
                 const inboundPayload = extractInboundMessagePayload(msg)
                 if (!inboundPayload) {
@@ -553,7 +553,7 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
         if (typeof socket.ws?.on === 'function') {
             socket.ws.on('CB:message', (node) => {
                 const from = node?.attrs?.from || ''
-                if (!from || from.endsWith('@g.us') || from.includes('@broadcast') || from.includes('@newsletter')) {
+                if (!isDirectUserChatJid(from)) {
                     return
                 }
 

@@ -3,7 +3,9 @@ const {
     describeInboundMessage,
     extractInboundMessagePayload,
     getMessageTimestampMs,
+    isDirectUserChatJid,
     isIgnorableIncomingMessage,
+    isSystemOrNonDirectJid,
     shouldProcessUpsertMessage,
     unwrapMessageContent,
 } = require('@/lib/whatsapp/upsert-helpers')
@@ -147,5 +149,26 @@ describe('upsert-helpers', () => {
         expect(isIgnorableIncomingMessage({
             message: { extendedTextMessage: { text: 'bonjour' } }
         })).toBe(false)
+    })
+
+    test('treats status, newsletters, broadcasts and groups as non-direct chats', () => {
+        expect(isSystemOrNonDirectJid('status@broadcast')).toBe(true)
+        expect(isSystemOrNonDirectJid('1203631@newsletter')).toBe(true)
+        expect(isSystemOrNonDirectJid('1203631@g.us')).toBe(true)
+        expect(isSystemOrNonDirectJid('1203631@broadcast')).toBe(true)
+        expect(isDirectUserChatJid('22547094746@s.whatsapp.net')).toBe(true)
+        expect(isDirectUserChatJid('234870370529347@lid')).toBe(true)
+    })
+
+    test('ignores broadcast-like inbound messages before they can reach the handler', () => {
+        expect(isIgnorableIncomingMessage({
+            key: { remoteJid: 'status@broadcast' },
+            message: { conversation: 'Statut' },
+        })).toBe(true)
+
+        expect(isIgnorableIncomingMessage({
+            key: { remoteJid: '1203631@newsletter' },
+            message: { extendedTextMessage: { text: 'newsletter' } },
+        })).toBe(true)
     })
 })
