@@ -91,4 +91,33 @@ describe('deliverDigitalProducts', () => {
             })
         ]))
     })
+
+    test('can queue a preparation message before the digital file', async () => {
+        const { supabase } = createSupabaseMock()
+
+        await deliverDigitalProducts('order_1', supabase, {
+            announcePreparation: true,
+            preparationMessage: 'Votre commande numerique est en preparation. Elle va vous etre envoyee ici sur WhatsApp dans quelques instants.',
+        })
+
+        expect(mockQueueOutboundWhatsAppMessage).toHaveBeenNthCalledWith(
+            1,
+            supabase,
+            expect.objectContaining({
+                agentId: 'agent_1',
+                to: '123456789012345@lid',
+                message: 'Votre commande numerique est en preparation. Elle va vous etre envoyee ici sur WhatsApp dans quelques instants.',
+            })
+        )
+
+        expect(mockQueueOutboundWhatsAppMessage).toHaveBeenNthCalledWith(
+            2,
+            supabase,
+            expect.objectContaining({
+                agentId: 'agent_1',
+                to: '123456789012345@lid',
+                message: expect.stringContaining('Votre produit numerique est disponible'),
+            })
+        )
+    })
 })

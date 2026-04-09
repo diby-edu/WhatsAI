@@ -317,6 +317,8 @@ async function generateAIResponse(options, dependencies) {
             currency = 'USD',
             checkoutState,
             cartState,
+            cartQuestionDetected = false,
+            checkoutQuestionDetected = false,
             bookingState,
             restaurantState,
             restaurantQuestionDetected = false,
@@ -453,11 +455,17 @@ async function generateAIResponse(options, dependencies) {
             activeEngineHint
         )
         if (!isSupportClientMode) {
-            const checkoutStateGuidance = buildCheckoutStateGuidance(checkoutState)
+            const checkoutStateGuidance = buildCheckoutStateGuidance(checkoutState, {
+                questionDetected: checkoutQuestionDetected,
+                escalationPhone: agent.escalation_phone || null,
+            })
             if (checkoutStateGuidance) {
                 systemPrompt += '\n\n' + checkoutStateGuidance
             }
-            const cartStateGuidance = buildCartStateGuidance(cartState, products || [])
+            const cartStateGuidance = buildCartStateGuidance(cartState, products || [], {
+                questionDetected: cartQuestionDetected,
+                escalationPhone: agent.escalation_phone || null,
+            })
             if (cartStateGuidance) {
                 systemPrompt += '\n\n' + cartStateGuidance
             }

@@ -149,6 +149,36 @@ function isNegativeReply(text) {
     return ['non', 'pas maintenant', 'modifier', 'je corrige', 'je veux modifier'].includes(normalized)
 }
 
+function looksLikeKnowledgeQuestion(text) {
+    const normalized = normalizeText(text)
+    if (!normalized || normalized.length < 4) return false
+    if (/^\d+$/.test(normalized)) return false
+    if (isPositiveReply(normalized) || isNegativeReply(normalized)) return false
+
+    return [
+        '?',
+        'cest quoi',
+        'quest ce que',
+        'qu est ce que',
+        'comment',
+        'pourquoi',
+        'quel ',
+        'quelle ',
+        'quels ',
+        'quelles ',
+        'est ce que',
+        'ca veut dire',
+        'explique',
+        'detail',
+        'difference',
+        'compatible',
+        'contenu',
+        'format',
+        'duree',
+        'garantie',
+    ].some(pattern => normalized.includes(pattern))
+}
+
 function wantsAnotherCombination(text) {
     const normalized = normalizeText(text)
     if (!normalized) return false
@@ -1267,7 +1297,8 @@ function buildVariantQuestion(product, partialItem, quantity, knownLabel) {
     return `Quelle ${varLabel.toLowerCase()} pour ${quantityPrefix} ?\n(${optsStr} — répondez simplement ex : "${example}")`
 }
 
-function updateCartStateFromUserMessage(previousState, text, products = [], currency = 'XOF') {
+function updateCartStateFromUserMessage(previousState, text, products = [], currency = 'XOF', options = {}) {
+    const { allowKnowledgeInterrupt = false } = options
     const state = cloneCartState(previousState)
     const normalized = normalizeText(text)
     const capturedFields = []
@@ -1275,7 +1306,19 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
     let shouldBypassAI = false
 
     if (!normalized) {
-        return { state, capturedFields, stateChanged, shouldBypassAI, directReply: null }
+        return { state, capturedFields, stateChanged, shouldBypassAI, directReply: null, questionDetected: false }
+    }
+
+    const questionDetected = allowKnowledgeInterrupt && looksLikeKnowledgeQuestion(normalized)
+    if (questionDetected && (state.stage !== CART_STAGE.IDLE || state.draft_item || state.cart_items.length > 0 || state.awaiting_field)) {
+        return {
+            state,
+            capturedFields,
+            stateChanged: false,
+            shouldBypassAI: false,
+            directReply: null,
+            questionDetected: true,
+        }
     }
 
     // Handler "plus [produit]" : afficher les combos overflow restants
@@ -1927,6 +1970,7 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
         stateChanged: stateChanged || awaitingChanged,
         shouldBypassAI,
         directReply,
+        questionDetected: false,
     }
 }
 
@@ -1975,7 +2019,7 @@ function inferCartStateFromAssistantMessage(content, previousState, products = [
     return state
 }
 
-function buildCartStateGuidance(cartState, products = []) {
+function buildCartStateGuidance(cartState, products = [], options = {}) {
     const state = cloneCartState(cartState)
 
     if ((!state.cart_items || state.cart_items.length === 0) && !state.draft_item) return ''
@@ -2034,6 +2078,19 @@ function buildCartStateGuidance(cartState, products = []) {
 
     if (state.stage === CART_STAGE.CHECKOUT) {
         lines.push('- Le panier produit est deja verrouille. Ne redemande ni quantite ni variantes. Passe uniquement aux informations client.')
+    }
+
+    if (options.questionDetected) {
+        const contactRef = options.escalationPhone ? `au *${options.escalationPhone}*` : 'directement au service client'
+        lines.push('---')
+        lines.push('QUESTION HORS-PARCOURS DETECTEE :')
+        lines.push('1. Si la reponse est dans la base de connaissance, reponds d abord a la question.')
+        lines.push(`2. Si l information est absente, dis honnetement que tu ne l as pas et oriente vers ${contactRef}.`)
+        lines.push('3. Ensuite, reviens naturellement au tunnel de commande la ou il etait.')
+        if (state.awaiting_field?.label) {
+            lines.push(`4. Rappelle le champ encore attendu : ${state.awaiting_field.label}.`)
+        }
+        lines.push('Ne saute pas la question. Ne redemarre pas le panier.')
     }
 
     return lines.join('\n')

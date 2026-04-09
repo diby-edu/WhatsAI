@@ -462,8 +462,8 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             ? getRestaurantState(conversation.metadata)
             : getRestaurantState(clearRestaurantState(conversation.metadata))
 
-        const noopCartUpdate = { state: previousCartState, capturedFields: [], stateChanged: false, shouldBypassAI: false, directReply: null }
-        const noopCheckoutUpdate = { state: previousCheckoutState, stateChanged: false, shouldBypassAI: false, directReply: null, shouldSubmitOrder: false }
+        const noopCartUpdate = { state: previousCartState, capturedFields: [], stateChanged: false, shouldBypassAI: false, directReply: null, questionDetected: false }
+        const noopCheckoutUpdate = { state: previousCheckoutState, stateChanged: false, shouldBypassAI: false, directReply: null, shouldSubmitOrder: false, questionDetected: false }
         const noopBookingUpdate = { state: previousBookingState, stateChanged: false, shouldBypassAI: false, directReply: null }
         const noopRestaurantUpdate = { state: previousRestaurantState, stateChanged: false, shouldBypassAI: false, directReply: null }
 
@@ -479,7 +479,9 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
 
         const cartUpdate = (isSupportClientMode || restaurantFlowActive || bookingFlowActive)
             ? noopCartUpdate
-            : updateCartStateFromUserMessage(previousCartState, message.text, orderableProducts, agentCurrency)
+            : updateCartStateFromUserMessage(previousCartState, message.text, orderableProducts, agentCurrency, {
+                allowKnowledgeInterrupt: hasKnowledgeBase,
+            })
 
         const cartJustEnteredCheckout =
             !isSupportClientMode &&
@@ -494,6 +496,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                 cartState: cartUpdate.state,
                 products: orderableProducts,
                 activateCheckout: cartJustEnteredCheckout,
+                allowKnowledgeInterrupt: hasKnowledgeBase,
             })
 
         const checkoutState = checkoutUpdate.state
@@ -714,6 +717,8 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                     conversationId: conversation.id,
                     checkoutState,
                     cartState: cartUpdate.state,
+                    cartQuestionDetected: cartUpdate.questionDetected || false,
+                    checkoutQuestionDetected: checkoutUpdate.questionDetected || false,
                     bookingState: bookingUpdate.state,
                     restaurantState: restaurantUpdate.state,
                     restaurantQuestionDetected: restaurantUpdate.questionDetected || false,

@@ -6,6 +6,11 @@ interface LicenseKey {
     order_id: string | null
 }
 
+interface DeliverDigitalProductsOptions {
+    announcePreparation?: boolean
+    preparationMessage?: string
+}
+
 /**
  * Delivers digital products for a given order.
  * Called after payment is confirmed.
@@ -13,7 +18,11 @@ interface LicenseKey {
  * Delivery is now queued through outbound_messages so the production bot stack
  * sends it consistently, even if the session reconnects a few seconds later.
  */
-export async function deliverDigitalProducts(orderId: string, supabase: any): Promise<void> {
+export async function deliverDigitalProducts(
+    orderId: string,
+    supabase: any,
+    options: DeliverDigitalProductsOptions = {}
+): Promise<void> {
     try {
         const { data: order } = await supabase
             .from('orders')
@@ -61,6 +70,8 @@ export async function deliverDigitalProducts(orderId: string, supabase: any): Pr
 
         if (!products.length) return
 
+        let preparationAnnounced = false
+
         for (const item of items) {
             const baseName = item.product_name.replace(/\s*\(.*\)\s*$/, '').trim()
 
@@ -104,6 +115,18 @@ export async function deliverDigitalProducts(orderId: string, supabase: any): Pr
                 : `🎉 *Votre produit numerique est disponible !*\n\n*${product.name}* :\n${deliveryContent}\n\nMerci pour votre achat ! 🙏`
 
             try {
+                if (options.announcePreparation && !preparationAnnounced) {
+                    const preparationResult = await queueOutboundWhatsAppMessage(supabase, {
+                        agentId: order.agent_id,
+                        to: recipient,
+                        message: options.preparationMessage || 'Votre commande numerique est en preparation. Elle va vous etre envoyee ici sur WhatsApp dans quelques instants.',
+                    })
+
+                    if (preparationResult.queued) {
+                        preparationAnnounced = true
+                    }
+                }
+
                 const result = await queueOutboundWhatsAppMessage(supabase, {
                     agentId: order.agent_id,
                     to: recipient,
