@@ -70,6 +70,7 @@ export async function POST(request: NextRequest) {
                 conversation_id: body.conversation_id || null,
                 customer_phone: body.customer_phone,
                 customer_name: body.customer_name,
+                customer_email: body.customer_email || null,
                 status: 'pending',
                 total_fcfa: total,
                 delivery_address: body.delivery_address,

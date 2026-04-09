@@ -162,6 +162,7 @@ describe('POST /api/public/orders/[orderId]/pay', () => {
             deposit_status: 'not_required',
             payment_method: 'online',
             customer_phone: '+2250701020304',
+            customer_email: 'client@example.com',
             payment_provider: null
         }
         const updates = []
@@ -186,7 +187,8 @@ describe('POST /api/public/orders/[orderId]/pay', () => {
         }))
         expect(mockInitializeHostedPayment).toHaveBeenCalledWith(expect.objectContaining({
             provider: 'paystack',
-            amountFcfa: 17600
+            amountFcfa: 17600,
+            customerEmail: 'client@example.com',
         }))
         expect(updates[0].payload).toEqual(expect.objectContaining({
             payment_provider: 'paystack',

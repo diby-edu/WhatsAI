@@ -312,6 +312,7 @@ export function initializeMessageHandler() {
                                 agent_id: agentId,
                                 customer_phone: args.contact_phone || message.from,
                                 customer_name: args.customer_name,
+                                customer_email: args.email || null,
                                 delivery_address: args.delivery_address,
                                 notes: args.notes,
                                 total_fcfa: total,
