@@ -26,18 +26,17 @@ describe('Digital Workflow', () => {
             expect(workflow.length).toBeGreaterThan(100)
         })
 
-        test('should contain all 7 steps', () => {
-            expect(workflow).toContain('ÉTAPE 1')
-            expect(workflow).toContain('ÉTAPE 2')
-            expect(workflow).toContain('ÉTAPE 3')
-            expect(workflow).toContain('ÉTAPE 4')
-            expect(workflow).toContain('ÉTAPE 5')
-            expect(workflow).toContain('ÉTAPE 6')
-            expect(workflow).toContain('ÉTAPE 7')
+        test('should contain all 6 steps', () => {
+            expect(workflow).toContain('ETAPE 1')
+            expect(workflow).toContain('ETAPE 2')
+            expect(workflow).toContain('ETAPE 3')
+            expect(workflow).toContain('ETAPE 4')
+            expect(workflow).toContain('ETAPE 5')
+            expect(workflow).toContain('ETAPE 6')
         })
 
         test('should identify as DIGITAL/NUMÉRIQUE workflow', () => {
-            expect(workflow).toMatch(/NUMÉRIQUE|DIGITAL|💻/)
+            expect(workflow).toMatch(/NUMERIQUE|NUMÉRIQUE|DIGITAL|💻/)
         })
 
         // ═══════════════════════════════════════════════════════════════
@@ -46,6 +45,11 @@ describe('Digital Workflow', () => {
 
         test('CRITICAL: should request EMAIL', () => {
             expect(workflow.toLowerCase()).toMatch(/email|📧|e-mail/)
+        })
+
+        test('should use a generic quantity prompt, not a license-specific one', () => {
+            expect(workflow).toContain('Combien souhaitez-vous en commander ?')
+            expect(workflow.toLowerCase()).not.toContain('licences/ebooks')
         })
 
         test('CRITICAL: should mark email as OBLIGATOIRE', () => {

@@ -1,6 +1,7 @@
 const {
     CART_STAGE,
     inferCartStateFromAssistantMessage,
+    updateCartStateFromUserMessage,
 } = require('../../../src/lib/whatsapp/services/cart-state.service')
 
 describe('cart-state.service', () => {
@@ -64,5 +65,43 @@ describe('cart-state.service', () => {
 
         expect(nextState.stage).toBe(CART_STAGE.CHECKOUT)
         expect(nextState.last_prompt_kind).toBe(CART_STAGE.CHECKOUT)
+    })
+
+    test('matches a short product alias like "je veux le guide" without falling back to AI', () => {
+        const update = updateCartStateFromUserMessage(
+            {},
+            'je veux le guide',
+            [
+                { id: 'p1', name: 'Guide PDF - Trouver un emploi', product_type: 'digital', price_fcfa: 150 },
+                { id: 'p2', name: 'Logiciel Antivirus', product_type: 'digital', price_fcfa: 200 },
+            ]
+        )
+
+        expect(update.shouldBypassAI).toBe(true)
+        expect(update.state.stage).toBe(CART_STAGE.COLLECTING_ITEM)
+        expect(update.directReply).toContain('Combien souhaitez-vous en commander ?')
+    })
+
+    test('goes straight to checkout after quantity for a digital-only cart', () => {
+        const initial = updateCartStateFromUserMessage(
+            {},
+            'guide pdf',
+            [
+                { id: 'p1', name: 'Guide PDF - Trouver un emploi', product_type: 'digital', price_fcfa: 150 },
+            ]
+        )
+
+        const next = updateCartStateFromUserMessage(
+            initial.state,
+            '1',
+            [
+                { id: 'p1', name: 'Guide PDF - Trouver un emploi', product_type: 'digital', price_fcfa: 150 },
+            ]
+        )
+
+        expect(next.state.stage).toBe(CART_STAGE.CHECKOUT)
+        expect(next.state.cart_items).toHaveLength(1)
+        expect(next.directReply).toBeNull()
+        expect(next.shouldBypassAI).toBe(false)
     })
 })

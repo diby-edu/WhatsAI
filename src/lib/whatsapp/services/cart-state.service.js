@@ -172,8 +172,30 @@ function buildCartActionField() {
     }
 }
 
+const PRODUCT_MATCH_STOPWORDS = new Set([
+    'a', 'ai', 'au', 'aux', 'avec', 'bonjour', 'bonsoir', 'commande', 'commander',
+    'continue', 'continuer', 'de', 'des', 'du', 'je', 'la', 'le', 'les', 'mon',
+    'moi', 'pour', 'prendre', 'salut', 'svp', 'stp', 'un', 'une', 'veux', 'voudrais',
+])
+
+function getMeaningfulProductTerms(text) {
+    return normalizeText(text)
+        .split(' ')
+        .map(term => term.trim())
+        .filter(term => term.length > 2 && !PRODUCT_MATCH_STOPWORDS.has(term))
+}
+
 function findProductById(products = [], productId) {
     return (products || []).find(product => product.id === productId) || null
+}
+
+function isDigitalOnlyCartItems(cartItems = [], products = []) {
+    if (!Array.isArray(cartItems) || cartItems.length === 0) return false
+
+    return cartItems.every(item => {
+        const product = findProductById(products, item.product_id)
+        return product?.product_type === 'digital'
+    })
 }
 
 function findBestProduct(products = [], text) {
@@ -188,6 +210,8 @@ function findBestProduct(products = [], text) {
 
     let bestProduct = null
     let bestScore = 0
+    let bestScoreCount = 0
+    const queryTerms = getMeaningfulProductTerms(normalized)
 
     for (const product of products) {
         const productName = normalizeText(product.name)
@@ -197,17 +221,35 @@ function findBestProduct(products = [], text) {
         if (normalized === productName) score = 120
         else if (normalized.includes(productName) || productName.includes(normalized)) score = 70
         else {
-            const terms = normalized.split(' ').filter(term => term.length > 2)
-            score = terms.filter(term => productName.includes(term)).length * 15
+            const productTerms = getMeaningfulProductTerms(productName)
+            const directMatches = queryTerms.filter(term => productName.includes(term))
+            score = directMatches.length * 15
+
+            const strongMatches = queryTerms.filter(term =>
+                productTerms.some(productTerm =>
+                    productTerm === term ||
+                    productTerm.startsWith(term) ||
+                    term.startsWith(productTerm)
+                )
+            )
+
+            if (strongMatches.length > 0) {
+                score = Math.max(score, strongMatches.length * 20)
+            }
         }
 
         if (score > bestScore) {
             bestScore = score
             bestProduct = product
+            bestScoreCount = score > 0 ? 1 : 0
+        } else if (score > 0 && score === bestScore) {
+            bestScoreCount += 1
         }
     }
 
-    return bestScore >= 30 ? bestProduct : null
+    if (bestScore >= 30) return bestProduct
+    if (bestScore >= 20 && bestScoreCount === 1) return bestProduct
+    return null
 }
 
 function getVariantLabel(variant) {
@@ -1847,9 +1889,17 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
 
         state.cart_items = mergeOrAppendCartLine(state.cart_items, lineResult.line)
         state.draft_item = null
-        state.stage = CART_STAGE.CART_RECAP
-        state.awaiting_field = buildCartActionField()
-        shouldBypassAI = true
+
+        if (isDigitalOnlyCartItems(state.cart_items, products)) {
+            state.stage = CART_STAGE.CHECKOUT
+            state.awaiting_field = null
+            state.last_prompt_kind = CART_STAGE.CHECKOUT
+            shouldBypassAI = false
+        } else {
+            state.stage = CART_STAGE.CART_RECAP
+            state.awaiting_field = buildCartActionField()
+            shouldBypassAI = true
+        }
 
         return {
             state,

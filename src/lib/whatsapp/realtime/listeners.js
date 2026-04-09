@@ -171,11 +171,16 @@ async function handlePendingMessage(context, message) {
         const isManualResponse = message?.metadata?.manual_response === true
         const { data: conv } = await supabase
             .from('conversations')
-            .select('contact_phone, contact_jid, agent_id, bot_paused')
+            .select('contact_phone, contact_jid, agent_id, bot_paused, status')
             .eq('id', message.conversation_id)
             .single()
 
-        if (!conv || (conv.bot_paused && !isManualResponse)) return
+        const conversationBlocked =
+            conv?.bot_paused === true ||
+            conv?.status === 'escalated' ||
+            conv?.status === 'spam'
+
+        if (!conv || (conversationBlocked && !isManualResponse)) return
 
         const agentActive = await isAgentActive(supabase, conv.agent_id)
         if (!agentActive) {
@@ -186,7 +191,7 @@ async function handlePendingMessage(context, message) {
         }
 
         const session = activeSessions.get(conv.agent_id)
-        if (!session?.socket) return
+        if (!session?.socket || !session.socket.user) return
 
         let jid = conv.contact_jid || conv.contact_phone
         if (!jid.includes('@')) {
@@ -234,7 +239,7 @@ async function handleOutboundMessage(context, msg) {
         }
 
         const session = activeSessions.get(msg.agent_id)
-        if (!session?.socket) return
+        if (!session?.socket || !session.socket.user) return
 
         let jid = msg.recipient_phone
         if (!jid.includes('@')) jid = jid.replace(/\D/g, '') + '@s.whatsapp.net'

@@ -405,14 +405,20 @@ async function main() {
     async function adaptivePollingLoop() {
         try {
             // Vérifier les messages (IA & Outbound)
-            // Si Realtime est OK -> Polling lent (5 min)
+            // Si Realtime est OK -> Polling modere (30s)
+            // Si des messages pending existent, accelerer temporairement le drainage.
             // Si Realtime est KO -> Polling rapide (15 sec)
-            await checkPendingHistoryMessages(context)
-            await checkOutboundMessages(context)
+            const pendingHistoryCount = await checkPendingHistoryMessages(context)
+            const pendingOutboundCount = await checkOutboundMessages(context)
+            const hasPendingQueue = (pendingHistoryCount + pendingOutboundCount) > 0
 
-            const nextCheck = context.realtimeConnected ? 5 * 60 * 1000 : 15 * 1000
+            const nextCheck = context.realtimeConnected
+                ? (hasPendingQueue ? 5 * 1000 : 30 * 1000)
+                : 15 * 1000
             if (!context.realtimeConnected) {
                 console.log(`🛡️ [BACKUP] Realtime offline, next check in 15s...`)
+            } else if (hasPendingQueue) {
+                console.log('⚡ [BACKUP] Pending queue detected, next check in 5s...')
             }
             setTimeout(adaptivePollingLoop, nextCheck)
         } catch (err) {

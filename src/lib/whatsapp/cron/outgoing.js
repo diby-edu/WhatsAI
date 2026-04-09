@@ -97,7 +97,12 @@ async function processHistoryMessage(supabase, activeSessions, agentStateCache, 
         return
     }
     // Ne pas envoyer si la conversation est en pause (humain a pris la main)
-    if (msg.conversation.bot_paused && !isManualResponse) {
+    const conversationBlocked =
+        msg.conversation.bot_paused === true ||
+        msg.conversation.status === 'escalated' ||
+        msg.conversation.status === 'spam'
+
+    if (conversationBlocked && !isManualResponse) {
         console.log(`⏸️ [HISTORY] Skipping pending msg ${msg.id}: conversation ${msg.conversation_id} is bot_paused`)
         return
     }
@@ -117,18 +122,20 @@ async function checkPendingHistoryMessages(context) {
     try {
         const { data: pendingMessages } = await supabase
             .from('messages')
-            .select(`*, conversation:conversations!inner(contact_phone, contact_jid, agent_id, bot_paused)`)
+            .select(`*, conversation:conversations!inner(contact_phone, contact_jid, agent_id, bot_paused, status)`)
             .eq('status', 'pending')
             .eq('role', 'assistant')
             .limit(10)
 
-        if (!pendingMessages?.length) return
+        if (!pendingMessages?.length) return 0
         console.log(`Found ${pendingMessages.length} pending assistant messages (History)`)
         for (const msg of pendingMessages) {
             await processHistoryMessage(supabase, activeSessions, agentStateCache, msg)
         }
+        return pendingMessages.length
     } catch (error) {
         console.error('Error checking pending history messages:', error)
+        return 0
     }
 }
 
@@ -211,18 +218,20 @@ async function checkOutboundMessages(context) {
             .limit(10)
 
         if (error) {
-            if (error.code === '42P01') return
+            if (error.code === '42P01') return 0
             console.error('Error checking outbound messages:', error)
-            return
+            return 0
         }
 
-        if (!messages?.length) return
+        if (!messages?.length) return 0
         console.log(`Found ${messages.length} pending outbound messages`)
         for (const msg of messages) {
             await processOutboundMessage(supabase, activeSessions, agentStateCache, msg)
         }
+        return messages.length
     } catch (e) {
         console.error('Error checking outbound messages:', e)
+        return 0
     }
 }
 

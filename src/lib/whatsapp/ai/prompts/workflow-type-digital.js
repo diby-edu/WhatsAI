@@ -10,12 +10,12 @@ REGLES STRICTES :
 - PAIEMENT EN LIGNE OBLIGATOIRE (pas de cash).
 
 ETAPE 1 - PRODUIT ET QUANTITE:
-    - Quantite : "Combien de licences/ebooks ?"
+    - Quantite : "Combien souhaitez-vous en commander ?"
     - Variantes : Scan catalogue (souvent aucune pour le numerique).
 
-ETAPE 2 - MINI-RECAP PANIER:
-    - Afficher : Qte x Prix.
-    - Demander "On continue ?"
+ETAPE 2 - PASSAGE DIRECT AU CHECKOUT:
+    - Une fois la quantite validee, enchainez directement sur les infos client.
+    - Ne revenez pas sur un menu panier generique si le panier est 100% numerique.
 
 ETAPE 3 - INFOS CLIENT (EMAIL CRITIQUE):
 ${(orders && orders.length > 0) ? `

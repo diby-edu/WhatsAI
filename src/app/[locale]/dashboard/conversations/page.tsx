@@ -34,31 +34,51 @@ export default function DashboardConversationsPage() {
 
     useEffect(() => {
         const interval = setInterval(() => {
-            fetchConversations()
+            fetchConversations({ silent: true })
         }, 5000)
         return () => clearInterval(interval)
     }, [activeTab])
 
-    const fetchConversations = async () => {
-        setLoading(true)
+    const fetchConversations = async ({ silent = false }: { silent?: boolean } = {}) => {
+        if (!silent || conversations.length === 0) {
+            setLoading(true)
+        }
         try {
             // Build Query Params based on Tab
             const params = new URLSearchParams()
             if (activeTab === 'urgent') {
                 params.append('status', 'escalated')
             } else if (activeTab === 'auto') {
+                params.append('status', 'active')
                 params.append('bot_paused', 'false')
             }
 
             const res = await fetch(`/api/conversations?${params.toString()}`, { cache: 'no-store' })
             const data = await res.json()
             if (data.data?.conversations) {
-                setConversations(data.data.conversations)
+                setConversations(prev => {
+                    const next = data.data.conversations
+                    const unchanged =
+                        prev.length === next.length &&
+                        prev.every((conversation, index) => {
+                            const nextConversation = next[index]
+                            return nextConversation &&
+                                conversation.id === nextConversation.id &&
+                                conversation.last_message_at === nextConversation.last_message_at &&
+                                conversation.status === nextConversation.status &&
+                                conversation.bot_paused === nextConversation.bot_paused &&
+                                conversation.messages_count === nextConversation.messages_count
+                        })
+
+                    return unchanged ? prev : next
+                })
             }
         } catch (err) {
             console.error('Error fetching conversations:', err)
         } finally {
-            setLoading(false)
+            if (!silent || conversations.length === 0) {
+                setLoading(false)
+            }
         }
     }
 
