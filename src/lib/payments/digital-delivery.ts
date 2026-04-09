@@ -17,13 +17,29 @@ export async function deliverDigitalProducts(orderId: string, supabase: any): Pr
     try {
         const { data: order } = await supabase
             .from('orders')
-            .select('id, agent_id, customer_phone')
+            .select('id, agent_id, customer_phone, conversation_id')
             .eq('id', orderId)
             .single()
 
         if (!order?.customer_phone || !order?.agent_id) return
 
-        const phone = order.customer_phone.replace(/^\+/, '')
+        let recipient = order.customer_phone.replace(/^\+/, '')
+
+        if (order.conversation_id) {
+            const { data: conversation } = await supabase
+                .from('conversations')
+                .select('contact_jid, contact_phone')
+                .eq('id', order.conversation_id)
+                .single()
+
+            const conversationRecipient = String(
+                conversation?.contact_jid || conversation?.contact_phone || ''
+            ).trim()
+
+            if (conversationRecipient) {
+                recipient = conversationRecipient
+            }
+        }
 
         const { data: items } = await supabase
             .from('order_items')
@@ -90,7 +106,7 @@ export async function deliverDigitalProducts(orderId: string, supabase: any): Pr
             try {
                 const result = await queueOutboundWhatsAppMessage(supabase, {
                     agentId: order.agent_id,
-                    to: phone,
+                    to: recipient,
                     message,
                     ...(isFileUrl ? {
                         mediaUrl: deliveryContent,

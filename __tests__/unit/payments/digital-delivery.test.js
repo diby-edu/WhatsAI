@@ -20,6 +20,17 @@ function createSupabaseMock() {
                                     id: 'order_1',
                                     agent_id: 'agent_1',
                                     customer_phone: '+22501020304',
+                                    conversation_id: 'conv_1',
+                                },
+                                error: null
+                            }
+                        }
+
+                        if (table === 'conversations') {
+                            return {
+                                data: {
+                                    contact_jid: '123456789012345@lid',
+                                    contact_phone: '123456789012345@lid',
                                 },
                                 error: null
                             }
@@ -70,7 +81,7 @@ describe('deliverDigitalProducts', () => {
             supabase,
             expect.objectContaining({
                 agentId: 'agent_1',
-                to: '22501020304',
+                to: '123456789012345@lid',
             })
         )
         expect(orderUpdates).toEqual(expect.arrayContaining([
