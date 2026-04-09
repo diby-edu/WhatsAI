@@ -129,4 +129,46 @@ describe('cart-state.service', () => {
         expect(next.state.stage).toBe(CART_STAGE.COLLECTING_ITEM)
         expect(next.state.awaiting_field?.type).toBe('quantity')
     })
+
+    test('skips quantity for a simple digital file product and goes straight to checkout', () => {
+        const update = updateCartStateFromUserMessage(
+            {},
+            'je veux le mini-cours excel',
+            [
+                {
+                    id: 'p1',
+                    name: 'Mini-cours Excel',
+                    product_type: 'digital',
+                    price_fcfa: 25,
+                    digital_content: 'https://example.com/excel.pdf',
+                },
+            ]
+        )
+
+        expect(update.state.stage).toBe(CART_STAGE.CHECKOUT)
+        expect(update.state.cart_items).toHaveLength(1)
+        expect(update.state.cart_items[0].quantity).toBe(1)
+        expect(update.state.awaiting_field).toBeNull()
+    })
+
+    test('keeps quantity for a digital license product', () => {
+        const update = updateCartStateFromUserMessage(
+            {},
+            'je veux le logiciel antivirus',
+            [
+                {
+                    id: 'p1',
+                    name: 'Logiciel Antivirus',
+                    product_type: 'digital',
+                    price_fcfa: 75,
+                    license_keys: [{ key: 'aaa-aaa', used: false }],
+                },
+            ]
+        )
+
+        expect(update.state.stage).toBe(CART_STAGE.COLLECTING_ITEM)
+        expect(update.state.cart_items).toHaveLength(0)
+        expect(update.state.awaiting_field?.type).toBe('quantity')
+        expect(update.directReply).toContain('Combien souhaitez-vous en commander ?')
+    })
 })

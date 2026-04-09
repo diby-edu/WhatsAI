@@ -219,6 +219,16 @@ function findProductById(products = [], productId) {
     return (products || []).find(product => product.id === productId) || null
 }
 
+function hasLicenseKeyInventory(product = {}) {
+    return Array.isArray(product.license_keys) && product.license_keys.length > 0
+}
+
+function shouldAutoDefaultQuantity(product = {}) {
+    if (product?.product_type !== 'digital') return false
+    if (hasLicenseKeyInventory(product)) return false
+    return Boolean(product?.digital_content)
+}
+
 function isDigitalOnlyCartItems(cartItems = [], products = []) {
     if (!Array.isArray(cartItems) || cartItems.length === 0) return false
 
@@ -1070,7 +1080,7 @@ function createDraftItem(product) {
     return {
         product_id: product.id,
         product_name: product.name,
-        quantity: null,
+        quantity: shouldAutoDefaultQuantity(product) ? 1 : null,
         selected_variants: {},
         selected_variants_by_id: {},
         skipped_optional_variant_ids: [],
@@ -2070,7 +2080,7 @@ function buildCartStateGuidance(cartState, products = [], options = {}) {
     }
 
     lines.push('- Si le client donne une information hors ordre (ex: couleur avant quantite), memorise-la mais redemande le champ bloquant.')
-    lines.push('- Interdiction de supposer une quantite par defaut.')
+    lines.push('- Interdiction de supposer une quantite par defaut, sauf pour un produit numerique simple livre en document/lien : dans ce cas la quantite reste forcee a 1.')
 
     if (state.stage === CART_STAGE.CART_RECAP) {
         lines.push('- Le panier contient deja une ou plusieurs lignes validees. Demande seulement si le client veut ajouter un autre article.')
