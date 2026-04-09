@@ -171,4 +171,24 @@ describe('cart-state.service', () => {
         expect(update.state.awaiting_field?.type).toBe('quantity')
         expect(update.directReply).toContain('Combien souhaitez-vous en commander ?')
     })
+
+    test('does not throw when inferring a product mention from assistant text', () => {
+        const nextState = inferCartStateFromAssistantMessage(
+            'Mini-cours Excel disponible a 25 FCFA.',
+            {},
+            [
+                {
+                    id: 'p1',
+                    name: 'Mini-cours Excel',
+                    product_type: 'digital',
+                    price_fcfa: 25,
+                    digital_content: 'https://example.com/excel.pdf',
+                },
+            ]
+        )
+
+        expect(nextState.stage).toBe(CART_STAGE.COLLECTING_ITEM)
+        expect(nextState.draft_item?.product_name).toBe('Mini-cours Excel')
+        expect(nextState.draft_item?.quantity).toBe(1)
+    })
 })

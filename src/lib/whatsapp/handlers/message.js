@@ -666,7 +666,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                 tokensUsed: 0,
                 imageActions: []
             }
-            nextCartState = inferCartStateFromAssistantMessage(aiResponse.content, cartUpdate.state, orderableProducts)
+            nextCartState = inferCartStateFromAssistantMessage(aiResponse.content, cartUpdate.state, orderableProducts, agentCurrency)
             nextBookingState = inferBookingStateFromAssistantMessage(aiResponse.content, bookingUpdate.state, standardServiceProducts)
             nextRestaurantState = hasRestaurantCatalog
                 ? inferRestaurantStateFromAssistantMessage(aiResponse.content, restaurantUpdate.state)
@@ -730,7 +730,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                 openai
             })
 
-            nextCartState = inferCartStateFromAssistantMessage(aiResponse.content, cartUpdate.state, orderableProducts)
+            nextCartState = inferCartStateFromAssistantMessage(aiResponse.content, cartUpdate.state, orderableProducts, agentCurrency)
             nextBookingState = inferBookingStateFromAssistantMessage(aiResponse.content, bookingUpdate.state, standardServiceProducts)
             nextRestaurantState = hasRestaurantCatalog
                 ? inferRestaurantStateFromAssistantMessage(aiResponse.content, restaurantUpdate.state)
