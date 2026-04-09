@@ -27,7 +27,7 @@ const mockVerifyPaystackTransaction = jest.fn()
 const mockVerifyPaystackWebhookSignature = jest.fn()
 const mockNotify = jest.fn()
 const mockFinalizePaymentByTransaction = jest.fn()
-const mockDeliverDigitalProducts = jest.fn()
+const mockFinalizeHostedCheckoutTransaction = jest.fn()
 
 jest.mock('@supabase/supabase-js', () => ({
     createClient: (...args) => mockCreateClient(...args)
@@ -46,8 +46,10 @@ jest.mock('@/lib/payments/finalization', () => ({
     finalizePaymentByTransaction: (...args) => mockFinalizePaymentByTransaction(...args)
 }))
 
-jest.mock('@/lib/payments/digital-delivery', () => ({
-    deliverDigitalProducts: (...args) => mockDeliverDigitalProducts(...args)
+jest.mock('@/lib/payments/hosted-checkout-finalization', () => ({
+    finalizeHostedCheckoutTransaction: (...args) => mockFinalizeHostedCheckoutTransaction(...args),
+    isOrderTransactionId: (value) => String(value || '').startsWith('ORD_') || String(value || '').startsWith('ORD-'),
+    isBookingTransactionId: (value) => String(value || '').startsWith('BKG_') || String(value || '').startsWith('BKG-'),
 }))
 
 const { POST } = require('@/app/api/payments/paystack/webhook/route')
@@ -149,45 +151,11 @@ describe('POST /api/payments/paystack/webhook', () => {
         process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role'
         mockVerifyPaystackWebhookSignature.mockReturnValue(true)
         mockFinalizePaymentByTransaction.mockResolvedValue({ ok: true, state: 'completed' })
-        mockDeliverDigitalProducts.mockResolvedValue(undefined)
+        mockFinalizeHostedCheckoutTransaction.mockResolvedValue({ ok: true, kind: 'order', state: 'finalized' })
     })
 
-    test('marks a restaurant order deposit as paid and advances it after charge.success', async () => {
-        const order = {
-            id: 'order_123',
-            transaction_id: 'ORD_order_12_1234',
-            status: 'pending',
-            total_fcfa: 20000,
-            deposit_required: true,
-            deposit_status: 'pending',
-            deposit_amount_fcfa: 6000,
-            fulfillment_mode: 'takeaway',
-            conversation_id: 'conv_1',
-            agent_id: 'agent_1',
-            customer_phone: '+2250701020304',
-            customer_name: 'Awa Konan'
-        }
-        const linkedConversation = {
-            id: 'conv_1',
-            agent_id: 'agent_1',
-            contact_phone: '+2250701020304',
-            metadata: {
-                restaurant: {
-                    stage: 'RESTAURANT_DEPOSIT'
-                }
-            }
-        }
-        const updates = []
-        const messageInserts = []
-        const outboundInserts = []
-
-        mockCreateClient.mockReturnValue(createSupabaseMock({
-            order,
-            linkedConversation,
-            updates,
-            messageInserts,
-            outboundInserts
-        }))
+    test('finalizes hosted order references after charge.success', async () => {
+        mockCreateClient.mockReturnValue(createSupabaseMock({}))
         mockVerifyPaystackTransaction.mockResolvedValue({
             success: true,
             status: 'ACCEPTED',
@@ -204,38 +172,16 @@ describe('POST /api/payments/paystack/webhook', () => {
 
         expect(response.status).toBe(200)
         expect(mockVerifyPaystackTransaction).toHaveBeenCalledWith('ORD_order_12_1234')
-        expect(updates).toEqual(expect.arrayContaining([
+        expect(mockFinalizeHostedCheckoutTransaction).toHaveBeenCalledWith(
+            expect.any(Object),
+            'ORD_order_12_1234',
             expect.objectContaining({
-                table: 'orders',
-                value: 'order_123',
-                payload: expect.objectContaining({
-                    deposit_status: 'paid',
-                    status: 'pending_pickup',
-                    payment_provider: 'paystack'
-                })
-            }),
-            expect.objectContaining({
-                table: 'conversations',
-                value: 'conv_1',
-                payload: expect.objectContaining({
-                    metadata: expect.objectContaining({
-                        restaurant: null
-                    })
-                })
+                provider: 'paystack',
+                amount: 6000,
+                providerPayload: expect.anything(),
             })
-        ]))
-        expect(messageInserts).toHaveLength(1)
-        expect(messageInserts[0].payload.content).toMatch(/Acompte recu/i)
-        expect(outboundInserts).toEqual(expect.arrayContaining([
-            expect.objectContaining({
-                table: 'outbound_messages',
-                payload: expect.objectContaining({
-                    recipient_phone: '+2250102030405'
-                })
-            })
-        ]))
-        expect(mockNotify).toHaveBeenCalled()
-        expect(mockDeliverDigitalProducts).toHaveBeenCalledWith('order_123', expect.any(Object))
+        )
+        expect(mockNotify).not.toHaveBeenCalled()
     })
 
     test('falls back to generic finalization for non order or booking references', async () => {

@@ -6,6 +6,7 @@ import {
     finalizePaymentByTransaction,
     getUserRole,
 } from '@/lib/payments/finalization'
+import { finalizeHostedCheckoutTransaction } from '@/lib/payments/hosted-checkout-finalization'
 import { checkHostedPaymentStatus, normalizePaymentProvider } from '@/lib/payments/provider'
 
 function isPublicCheckoutTransactionId(transactionId: string) {
@@ -54,9 +55,22 @@ export async function GET(request: NextRequest) {
 
     try {
         if (isPublicCheckoutTransaction) {
+            const adminSupabase = createAdminClient()
             const { provider, providerVersion } = await getPublicCheckoutProviderConfig(transactionId)
             const result = await checkHostedPaymentStatus(provider, transactionId, { providerVersion })
             const normalizedStatus = result.status || 'UNKNOWN'
+
+            let finalizationState: string | null = null
+
+            if (normalizedStatus === 'ACCEPTED') {
+                const finalized = await finalizeHostedCheckoutTransaction(adminSupabase, transactionId, {
+                    provider,
+                    amount: result.amount ?? null,
+                    providerPayload: result.raw || result,
+                })
+
+                finalizationState = finalized.state
+            }
 
             return NextResponse.json({
                 success: normalizedStatus === 'ACCEPTED',
@@ -67,6 +81,7 @@ export async function GET(request: NextRequest) {
                 amount: result.amount,
                 payment_method: result.message,
                 payment_record_status: null,
+                finalization_state: finalizationState,
                 data: {
                     status: normalizedStatus,
                     provider_status: result.status || 'UNKNOWN',
