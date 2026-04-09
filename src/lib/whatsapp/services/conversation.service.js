@@ -17,6 +17,25 @@ console.log(`[FILE_VERSION] conversation.service.js v1.0.1 - ${new Date().toISOS
 const { AppError } = require('./errors')
 const { notifyAdmins } = require('../../notifications/admin-notify')
 
+function buildTransactionalMetadataReset(metadata = {}, options = {}) {
+    const {
+        sessionAnchorAt = null,
+        closedAt = null,
+        cycleReason = null,
+    } = options
+
+    return {
+        ...(metadata || {}),
+        cart: null,
+        checkout: null,
+        booking: null,
+        restaurant: null,
+        session_anchor_at: sessionAnchorAt,
+        last_cycle_closed_at: closedAt ?? metadata?.last_cycle_closed_at ?? null,
+        last_cycle_reason: cycleReason ?? metadata?.last_cycle_reason ?? null,
+    }
+}
+
 class ConversationService {
     /**
      * Récupère une conversation existante ou en crée une nouvelle
@@ -164,12 +183,17 @@ class ConversationService {
      * @param {number} limit - Nombre de messages max (défaut: 20)
      * @returns {Promise<Array>} Messages de la conversation
      */
-    static async getHistory(supabase, conversationId, limit = 20) {
+    static async getHistory(supabase, conversationId, limit = 20, options = {}) {
         try {
-            const { data, error } = await supabase
+            let query = supabase
                 .from('messages')
                 .select('role, content, created_at')
                 .eq('conversation_id', conversationId)
+            if (options?.since) {
+                query = query.gte('created_at', options.since)
+            }
+
+            const { data, error } = await query
                 .order('created_at', { ascending: false })
                 .limit(limit)
 
@@ -202,6 +226,94 @@ class ConversationService {
         } catch (error) {
             console.error('Failed to update conversation metadata:', error)
             // Non bloquant
+        }
+    }
+
+    static async closeCompletedCycle(supabase, conversationId, reason = 'completed_order') {
+        try {
+            const { data: conversation, error: fetchError } = await supabase
+                .from('conversations')
+                .select('*')
+                .eq('id', conversationId)
+                .single()
+
+            if (fetchError || !conversation) {
+                if (fetchError) throw fetchError
+                return null
+            }
+
+            const now = new Date().toISOString()
+            const nextMetadata = buildTransactionalMetadataReset(conversation.metadata, {
+                sessionAnchorAt: null,
+                closedAt: now,
+                cycleReason: reason,
+            })
+
+            const { data: updated, error: updateError } = await supabase
+                .from('conversations')
+                .update({
+                    status: 'closed',
+                    bot_paused: false,
+                    metadata: nextMetadata,
+                })
+                .eq('id', conversationId)
+                .select()
+                .single()
+
+            if (updateError) throw updateError
+
+            return updated || {
+                ...conversation,
+                status: 'closed',
+                bot_paused: false,
+                metadata: nextMetadata,
+            }
+        } catch (error) {
+            console.error('Failed to close completed conversation cycle:', error)
+            return null
+        }
+    }
+
+    static async reopenClosedCycle(supabase, conversationId) {
+        try {
+            const { data: conversation, error: fetchError } = await supabase
+                .from('conversations')
+                .select('*')
+                .eq('id', conversationId)
+                .single()
+
+            if (fetchError || !conversation) {
+                if (fetchError) throw fetchError
+                return null
+            }
+
+            const now = new Date().toISOString()
+            const nextMetadata = buildTransactionalMetadataReset(conversation.metadata, {
+                sessionAnchorAt: now,
+            })
+
+            const { data: updated, error: updateError } = await supabase
+                .from('conversations')
+                .update({
+                    status: 'active',
+                    bot_paused: false,
+                    metadata: nextMetadata,
+                })
+                .eq('id', conversationId)
+                .select()
+                .single()
+
+            if (updateError) throw updateError
+
+            return updated || {
+                ...conversation,
+                status: 'active',
+                bot_paused: false,
+                metadata: nextMetadata,
+            }
+        } catch (error) {
+            console.error('Failed to reopen closed conversation cycle:', error)
+            return null
         }
     }
 }
@@ -282,8 +394,8 @@ class Conversation {
      * @param {number} limit - Nombre de messages
      * @returns {Promise<Array>}
      */
-    async getHistory(limit = 20) {
-        return await ConversationService.getHistory(this.supabase, this.id, limit)
+    async getHistory(limit = 20, options = {}) {
+        return await ConversationService.getHistory(this.supabase, this.id, limit, options)
     }
 
     async updateMetadata(updates) {

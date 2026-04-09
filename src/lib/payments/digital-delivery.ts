@@ -1,4 +1,5 @@
 import { queueOutboundWhatsAppMessage } from '@/lib/whatsapp/outbound'
+const { ConversationService } = require('@/lib/whatsapp/services/conversation.service')
 
 interface LicenseKey {
     key: string
@@ -71,6 +72,8 @@ export async function deliverDigitalProducts(
         if (!products.length) return
 
         let preparationAnnounced = false
+        let deliverableItems = 0
+        let queuedDeliveries = 0
 
         for (const item of items) {
             const baseName = item.product_name.replace(/\s*\(.*\)\s*$/, '').trim()
@@ -108,6 +111,8 @@ export async function deliverDigitalProducts(
 
             if (!deliveryContent) continue
 
+            deliverableItems += 1
+
             // Detect if content is a Supabase storage file URL → send as document
             const isFileUrl = deliveryContent.includes('/storage/v1/object/public/digital-content/')
             const message = isFileUrl
@@ -138,21 +143,31 @@ export async function deliverDigitalProducts(
                 })
 
                 if (result.queued) {
+                    queuedDeliveries += 1
                     console.log(`[Digital Delivery] Queued for ${order.customer_phone} - product: ${product.name}`)
-                    const { error: completionError } = await supabase
-                        .from('orders')
-                        .update({
-                            status: 'completed',
-                            updated_at: new Date().toISOString(),
-                        })
-                        .eq('id', order.id)
-
-                    if (completionError) {
-                        console.error('[Digital Delivery] Failed to mark order as completed:', completionError)
-                    }
                 }
             } catch (sendErr) {
                 console.error('[Digital Delivery] Failed to queue WhatsApp delivery:', sendErr)
+            }
+        }
+
+        if (deliverableItems > 0 && queuedDeliveries === deliverableItems) {
+            const { error: completionError } = await supabase
+                .from('orders')
+                .update({
+                    status: 'completed',
+                    updated_at: new Date().toISOString(),
+                })
+                .eq('id', order.id)
+
+            if (completionError) {
+                console.error('[Digital Delivery] Failed to mark order as completed:', completionError)
+            } else if (order.conversation_id) {
+                await ConversationService.closeCompletedCycle(
+                    supabase,
+                    order.conversation_id,
+                    'digital_delivery_completed'
+                )
             }
         }
     } catch (err) {
