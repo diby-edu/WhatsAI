@@ -224,7 +224,11 @@ export async function initializeHostedPayment(input: HostedPaymentInitInput): Pr
             reference: input.transactionId,
             description: input.description,
             customerName: input.customerName,
-            customerEmail: input.customerEmail,
+            customerEmail: resolvePaystackCustomerEmail(
+                input.customerEmail,
+                input.transactionId,
+                input.customerPhone
+            ),
             customerPhone: input.customerPhone,
             callbackUrl: input.returnUrl,
             metadata: input.metadata,
