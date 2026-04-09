@@ -191,4 +191,53 @@ describe('cart-state.service', () => {
         expect(nextState.draft_item?.product_name).toBe('Mini-cours Excel')
         expect(nextState.draft_item?.quantity).toBe(1)
     })
+
+    test('keeps checkout state when assistant sends the final order recap menu', () => {
+        const nextState = inferCartStateFromAssistantMessage(
+            `Recapitulatif :
+
+- Produit : Mini-cours Excel x 1 = 25 FCFA
+- Nom : Kone Daouda
+- Tel : +33023255647
+- Email : koffiado@gmail.com
+- Paiement : En ligne
+- Total : 25 FCFA
+
+1. Confirmer ma commande
+2. Modifier mes informations
+3. Modifier le panier`,
+            {
+                stage: CART_STAGE.CHECKOUT,
+                cart_items: [
+                    {
+                        product_id: 'p1',
+                        product_name: 'Mini-cours Excel',
+                        quantity: 1,
+                        unit_price: 25,
+                        line_total: 25,
+                        selected_variants: {},
+                        selected_variants_by_id: {},
+                    },
+                ],
+                draft_item: null,
+                awaiting_field: null,
+                last_prompt_kind: CART_STAGE.CHECKOUT,
+                last_prompt_text: '1',
+            },
+            [
+                {
+                    id: 'p1',
+                    name: 'Mini-cours Excel',
+                    product_type: 'digital',
+                    price_fcfa: 25,
+                    digital_content: 'https://example.com/excel.pdf',
+                },
+            ]
+        )
+
+        expect(nextState.stage).toBe(CART_STAGE.CHECKOUT)
+        expect(nextState.cart_items).toHaveLength(1)
+        expect(nextState.cart_items[0].quantity).toBe(1)
+        expect(nextState.draft_item).toBeNull()
+    })
 })
