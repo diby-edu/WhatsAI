@@ -26,6 +26,19 @@ interface ConversationDetail {
     status: string
 }
 
+function areMessagesEqual(previous: Message[], next: Message[]) {
+    if (previous.length !== next.length) return false
+
+    return previous.every((message, index) => {
+        const nextMessage = next[index]
+        return nextMessage &&
+            message.id === nextMessage.id &&
+            message.status === nextMessage.status &&
+            message.content === nextMessage.content &&
+            message.created_at === nextMessage.created_at
+    })
+}
+
 export default function ConversationDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id: conversationId } = use(params)
     const t = useTranslations('Conversations.Detail')
@@ -41,6 +54,7 @@ export default function ConversationDetailPage({ params }: { params: Promise<{ i
     const [sending, setSending] = useState(false)
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
     const [deleting, setDeleting] = useState(false)
+    const lastMessageIdRef = useRef<string | null>(null)
 
     useEffect(() => {
         if (conversationId) {
@@ -51,35 +65,57 @@ export default function ConversationDetailPage({ params }: { params: Promise<{ i
     useEffect(() => {
         if (!conversationId) return
         const interval = setInterval(() => {
-            fetchConversation()
+            fetchConversation({ silent: true })
         }, 5000)
         return () => clearInterval(interval)
     }, [conversationId])
 
     useEffect(() => {
-        scrollToBottom()
+        const lastMessageId = messages[messages.length - 1]?.id || null
+        if (!lastMessageId) return
+
+        if (lastMessageIdRef.current === null || lastMessageIdRef.current !== lastMessageId) {
+            scrollToBottom()
+        }
+
+        lastMessageIdRef.current = lastMessageId
     }, [messages])
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
     }
 
-    const fetchConversation = async () => {
+    const fetchConversation = async ({ silent = false }: { silent?: boolean } = {}) => {
         try {
-            setLoading(true)
+            if (!silent || !conversation) {
+                setLoading(true)
+            }
             const res = await fetch(`/api/conversations/${conversationId}`, { cache: 'no-store' })
             const data = await res.json()
 
             if (data.data) {
-                setConversation(data.data.conversation)
-                setMessages(data.data.messages)
+                setConversation(prev => {
+                    const next = data.data.conversation
+                    if (!prev) return next
+
+                    const unchanged =
+                        prev.id === next.id &&
+                        prev.bot_paused === next.bot_paused &&
+                        prev.status === next.status &&
+                        prev.updated_at === next.updated_at
+
+                    return unchanged ? prev : next
+                })
+                setMessages(prev => areMessagesEqual(prev, data.data.messages) ? prev : data.data.messages)
             } else {
                 setError(data.error || t('notFound'))
             }
         } catch (err) {
             setError(t('error'))
         } finally {
-            setLoading(false)
+            if (!silent || !conversation) {
+                setLoading(false)
+            }
         }
     }
 
@@ -153,7 +189,7 @@ export default function ConversationDetailPage({ params }: { params: Promise<{ i
             if (res.ok) {
                 setNewMessage('')
                 // Refresh messages
-                fetchConversation()
+                fetchConversation({ silent: true })
             } else {
                 console.error(data.error)
             }
@@ -319,7 +355,7 @@ export default function ConversationDetailPage({ params }: { params: Promise<{ i
                 </div>
 
                 <button
-                    onClick={fetchConversation}
+                    onClick={() => fetchConversation()}
                     style={{
                         width: 40,
                         height: 40,
