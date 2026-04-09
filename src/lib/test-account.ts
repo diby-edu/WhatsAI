@@ -63,8 +63,7 @@ export function buildTestAccountState(
         isFreePlan &&
         !isProtectedRole &&
         !hasCompletedPayments &&
-        !hasQualifiedHistory &&
-        !hasQualifyingAgent
+        !hasQualifiedHistory
     )
 
     const cleanupDeadline = signals.cleanupDeadline || null
@@ -82,7 +81,6 @@ export function buildTestAccountState(
     else if (isProtectedRole) exitReason = 'protected_role'
     else if (hasCompletedPayments) exitReason = 'paid'
     else if (hasQualifiedHistory) exitReason = 'qualified'
-    else if (hasQualifyingAgent) exitReason = 'connected_agent'
 
     return {
         isFreePlan,
