@@ -16,10 +16,11 @@ jest.mock('@/lib/notifications/notification.service', () => ({
 
 const { finalizeHostedOrderPayment } = require('@/lib/payments/hosted-checkout-finalization')
 
-function createSupabaseMock() {
+function createSupabaseMock(options = {}) {
     const messageInserts = []
     const conversationUpdates = []
     const orderUpdates = []
+    const { simulateConcurrentOrderFinalization = false } = options
 
     const order = {
         id: 'order_1',
@@ -66,17 +67,43 @@ function createSupabaseMock() {
                         }),
                     })),
                 })),
-                update: jest.fn((payload) => ({
-                    eq: jest.fn(async (_column, value) => {
-                        if (table === 'orders') {
-                            orderUpdates.push({ value, payload })
-                        }
-                        if (table === 'conversations') {
-                            conversationUpdates.push({ value, payload })
-                        }
-                        return { error: null }
-                    }),
-                })),
+                update: jest.fn((payload) => {
+                    const eqState = []
+                    const chain = {
+                        eq: jest.fn((column, value) => {
+                            eqState.push({ column, value })
+                            return chain
+                        }),
+                        select: jest.fn(async () => {
+                            if (table === 'orders') {
+                                orderUpdates.push({ payload, filters: [...eqState] })
+                                if (simulateConcurrentOrderFinalization) {
+                                    order.status = 'completed'
+                                    return { data: [], error: null }
+                                }
+
+                                order.status = payload.status || order.status
+                                return { data: [{ id: order.id, status: order.status }], error: null }
+                            }
+
+                            if (table === 'bookings') {
+                                return { data: [{ id: 'booking_1', status: 'confirmed', deposit_status: 'paid' }], error: null }
+                            }
+
+                            return { data: [], error: null }
+                        }),
+                    }
+
+                    if (table === 'conversations') {
+                        chain.eq = jest.fn((column, value) => {
+                            eqState.push({ column, value })
+                            conversationUpdates.push({ value, payload, filters: [...eqState, { column, value }] })
+                            return Promise.resolve({ error: null })
+                        })
+                    }
+
+                    return chain
+                }),
                 insert: jest.fn(async (payload) => {
                     if (table === 'messages') {
                         messageInserts.push(payload)
@@ -130,5 +157,23 @@ describe('hosted-checkout-finalization', () => {
                 content: expect.stringContaining('Paiement recu'),
             }),
         ]))
+    })
+
+    test('returns already_finalized without notifying twice when another finalizer wins the race', async () => {
+        const { supabase, messageInserts, orderUpdates } = createSupabaseMock({
+            simulateConcurrentOrderFinalization: true,
+        })
+
+        const result = await finalizeHostedOrderPayment(supabase, 'ORD_order_1', {
+            provider: 'paystack',
+            amount: 150,
+        })
+
+        expect(result.state).toBe('already_finalized')
+        expect(orderUpdates).toHaveLength(1)
+        expect(mockQueueOutboundWhatsAppMessage).not.toHaveBeenCalled()
+        expect(mockDeliverDigitalProducts).not.toHaveBeenCalled()
+        expect(mockNotify).not.toHaveBeenCalled()
+        expect(messageInserts).toHaveLength(0)
     })
 })
