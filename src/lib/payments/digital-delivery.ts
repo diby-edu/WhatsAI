@@ -53,7 +53,7 @@ export async function deliverDigitalProducts(
 
         const { data: items } = await supabase
             .from('order_items')
-            .select('product_name')
+            .select('product_name, quantity')
             .eq('order_id', orderId)
 
         if (!items || items.length === 0) return
@@ -77,6 +77,7 @@ export async function deliverDigitalProducts(
 
         for (const item of items) {
             const baseName = item.product_name.replace(/\s*\(.*\)\s*$/, '').trim()
+            const requestedQuantity = Math.max(1, Number(item.quantity || 1))
 
             const product = products.find((candidate: any) => {
                 const productName = String(candidate.name || '').toLowerCase()
@@ -90,17 +91,26 @@ export async function deliverDigitalProducts(
 
             if (product.license_keys && Array.isArray(product.license_keys) && product.license_keys.length > 0) {
                 const keys = product.license_keys as LicenseKey[]
-                const unusedIndex = keys.findIndex((key) => !key.used)
+                const grantedKeys: string[] = []
 
-                if (unusedIndex >= 0) {
-                    deliveryContent = keys[unusedIndex].key
+                for (let index = 0; index < requestedQuantity; index += 1) {
+                    const unusedIndex = keys.findIndex((key) => !key.used)
+                    if (unusedIndex < 0) break
+
+                    grantedKeys.push(keys[unusedIndex].key)
                     keys[unusedIndex].used = true
                     keys[unusedIndex].order_id = orderId
+                }
 
+                if (grantedKeys.length > 0) {
                     await supabase
                         .from('products')
                         .update({ license_keys: keys })
                         .eq('id', product.id)
+
+                    deliveryContent = grantedKeys.length === 1
+                        ? grantedKeys[0]
+                        : grantedKeys.map((key, index) => `${index + 1}. ${key}`).join('\n')
                 } else {
                     console.warn(`[Digital Delivery] No unused keys left for product: ${product.name}`)
                     deliveryContent = "Votre commande a ete recue mais le stock de cles est epuise. Veuillez contacter le support pour recevoir votre cle."
@@ -113,11 +123,13 @@ export async function deliverDigitalProducts(
 
             deliverableItems += 1
 
-            // Detect if content is a Supabase storage file URL → send as document
             const isFileUrl = deliveryContent.includes('/storage/v1/object/public/digital-content/')
+            const formattedDeliveryContent = requestedQuantity > 1 && !isFileUrl
+                ? `Voici vos ${requestedQuantity} cles d'activation :\n${deliveryContent}`
+                : deliveryContent
             const message = isFileUrl
                 ? `🎉 *Votre produit numerique est disponible !*\n\n*${product.name}*\n\nMerci pour votre achat ! 🙏`
-                : `🎉 *Votre produit numerique est disponible !*\n\n*${product.name}* :\n${deliveryContent}\n\nMerci pour votre achat ! 🙏`
+                : `🎉 *Votre produit numerique est disponible !*\n\n*${product.name}* :\n${formattedDeliveryContent}\n\nMerci pour votre achat ! 🙏`
 
             try {
                 if (options.announcePreparation && !preparationAnnounced) {

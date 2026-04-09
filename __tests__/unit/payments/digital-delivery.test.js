@@ -13,8 +13,19 @@ jest.mock('@/lib/whatsapp/services/conversation.service', () => ({
 
 const { deliverDigitalProducts } = require('@/lib/payments/digital-delivery')
 
-function createSupabaseMock() {
+function createSupabaseMock(options = {}) {
     const orderUpdates = []
+    const productUpdates = []
+    const {
+        orderItems = [{ product_name: 'Guide PDF — Trouver un emploi', quantity: 1 }],
+        products = [{
+            id: 'product_1',
+            name: 'Guide PDF — Trouver un emploi',
+            product_type: 'digital',
+            digital_content: 'https://example.com/file.pdf',
+            license_keys: null,
+        }],
+    } = options
 
     const supabase = {
         from: jest.fn((table) => ({
@@ -47,15 +58,9 @@ function createSupabaseMock() {
                     }),
                     then: undefined,
                     data: table === 'order_items'
-                        ? [{ product_name: 'Guide PDF — Trouver un emploi' }]
+                        ? orderItems
                         : table === 'products'
-                            ? [{
-                                id: 'product_1',
-                                name: 'Guide PDF — Trouver un emploi',
-                                product_type: 'digital',
-                                digital_content: 'https://example.com/file.pdf',
-                                license_keys: null,
-                            }]
+                            ? products
                             : null,
                 }))
             })),
@@ -64,13 +69,16 @@ function createSupabaseMock() {
                     if (table === 'orders') {
                         orderUpdates.push(payload)
                     }
+                    if (table === 'products') {
+                        productUpdates.push(payload)
+                    }
                     return { error: null }
                 })
             }))
         }))
     }
 
-    return { supabase, orderUpdates }
+    return { supabase, orderUpdates, productUpdates }
 }
 
 describe('deliverDigitalProducts', () => {
@@ -130,6 +138,60 @@ describe('deliverDigitalProducts', () => {
                 agentId: 'agent_1',
                 to: '123456789012345@lid',
                 message: expect.stringContaining('Votre produit numerique est disponible'),
+            })
+        )
+    })
+
+    test('delivers one activation key per requested license quantity', async () => {
+        const { supabase, productUpdates } = createSupabaseMock({
+            orderItems: [{ product_name: 'Logiciel Antivirus', quantity: 2 }],
+            products: [{
+                id: 'product_1',
+                name: 'Logiciel Antivirus',
+                product_type: 'digital',
+                digital_content: null,
+                license_keys: [
+                    { key: 'aaa-aaa-aaa-aaa', used: false, order_id: null },
+                    { key: 'bbb-bbb-bbb-bbb', used: false, order_id: null },
+                    { key: 'ccc-ccc-ccc-ccc', used: false, order_id: null },
+                ],
+            }],
+        })
+
+        await deliverDigitalProducts('order_1', supabase, {
+            announcePreparation: true,
+        })
+
+        expect(productUpdates).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                license_keys: expect.arrayContaining([
+                    expect.objectContaining({ key: 'aaa-aaa-aaa-aaa', used: true, order_id: 'order_1' }),
+                    expect.objectContaining({ key: 'bbb-bbb-bbb-bbb', used: true, order_id: 'order_1' }),
+                ]),
+            }),
+        ]))
+
+        expect(mockQueueOutboundWhatsAppMessage).toHaveBeenNthCalledWith(
+            2,
+            supabase,
+            expect.objectContaining({
+                agentId: 'agent_1',
+                to: '123456789012345@lid',
+                message: expect.stringContaining("Voici vos 2 cles d'activation"),
+            })
+        )
+        expect(mockQueueOutboundWhatsAppMessage).toHaveBeenNthCalledWith(
+            2,
+            supabase,
+            expect.objectContaining({
+                message: expect.stringContaining('1. aaa-aaa-aaa-aaa'),
+            })
+        )
+        expect(mockQueueOutboundWhatsAppMessage).toHaveBeenNthCalledWith(
+            2,
+            supabase,
+            expect.objectContaining({
+                message: expect.stringContaining('2. bbb-bbb-bbb-bbb'),
             })
         )
     })
