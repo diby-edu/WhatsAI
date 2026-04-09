@@ -50,7 +50,7 @@ export default function OrderPaymentPage() {
             const isDepositPaid = data.order.deposit_required && data.order.deposit_status === 'paid'
             const paystackReference = searchParams.get('reference') || searchParams.get('trxref')
 
-            if (data.order.status === 'paid' || isDepositPaid) {
+            if (data.order.status === 'paid' || data.order.status === 'completed' || isDepositPaid) {
                 setStatus('success')
             } else if (paystackReference) {
                 await verifyReturnPayment(paystackReference)
