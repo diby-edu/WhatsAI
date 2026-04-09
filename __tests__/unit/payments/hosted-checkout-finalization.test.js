@@ -122,7 +122,7 @@ describe('hosted-checkout-finalization', () => {
         mockDeliverDigitalProducts.mockResolvedValue(undefined)
     })
 
-    test('queues the payment confirmation before digital delivery with reassurance text', async () => {
+    test('queues the payment confirmation with the embedded preparation notice before digital delivery', async () => {
         const { supabase, messageInserts } = createSupabaseMock()
 
         await finalizeHostedOrderPayment(supabase, 'ORD_order_1', {
@@ -135,17 +135,13 @@ describe('hosted-checkout-finalization', () => {
             expect.objectContaining({
                 agentId: 'agent_1',
                 to: '123456789012345@lid',
-                message: expect.stringContaining('Inutile de renvoyer un message'),
+                message: expect.stringContaining('Votre commande numerique est en preparation'),
             })
         )
 
         expect(mockDeliverDigitalProducts).toHaveBeenCalledWith(
             'order_1',
-            supabase,
-            expect.objectContaining({
-                announcePreparation: true,
-                preparationMessage: 'Votre commande numerique est en preparation. Elle va vous etre envoyee ici sur WhatsApp dans quelques instants.',
-            })
+            supabase
         )
 
         expect(messageInserts).toEqual(expect.arrayContaining([
