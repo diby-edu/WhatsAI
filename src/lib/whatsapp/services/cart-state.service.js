@@ -1984,7 +1984,7 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
     }
 }
 
-function inferCartStateFromAssistantMessage(content, previousState, products = []) {
+function inferCartStateFromAssistantMessage(content, previousState, products = [], currency = 'XOF') {
     const text = normalizeText(content)
     const state = cloneCartState(previousState)
     const hasCartLines = Array.isArray(state.cart_items) && state.cart_items.length > 0
