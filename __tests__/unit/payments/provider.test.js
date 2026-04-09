@@ -89,6 +89,35 @@ describe('payment provider helpers', () => {
         }))
     })
 
+    test('builds a fallback email for paystack hosted payments when no customer email is provided', async () => {
+        const { initializeHostedPayment } = require('@/lib/payments/provider')
+
+        process.env.PAYSTACK_SECRET_KEY = 'sk_live_demo'
+        process.env.NEXT_PUBLIC_APP_URL = 'https://wazzapai.com'
+
+        mockInitializePaystackPayment.mockResolvedValue({
+            success: true,
+            paymentUrl: 'https://checkout.paystack.com/fallback-email',
+            reference: 'ORD_demo_ref',
+        })
+
+        await initializeHostedPayment({
+            provider: 'paystack',
+            amountFcfa: 1500,
+            currency: 'XOF',
+            transactionId: 'ORD_demo_ref',
+            description: 'Commande de test',
+            customerName: 'Client Test',
+            customerPhone: '+2250707070707',
+            returnUrl: 'https://wazzapai.com/pay/order-1',
+            notifyUrl: 'https://wazzapai.com/api/payments/paystack/webhook',
+        })
+
+        expect(mockInitializePaystackPayment).toHaveBeenCalledWith(expect.objectContaining({
+            customerEmail: 'ORD_demo_ref@example.com',
+        }))
+    })
+
     test('loads the default provider strictly from admin settings', async () => {
         const { getDefaultPaymentProvider } = require('@/lib/payments/provider')
 
