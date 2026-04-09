@@ -704,8 +704,8 @@ export function initCronJobs(): void {
         timezone: 'UTC'
     })
 
-    // Daily at 9:00 AM UTC — agent archive lifecycle + credit expiry + 85% usage alert
-    cron.schedule('0 9 * * *', () => {
+    // Daily at 22:00 UTC — agent archive lifecycle + credit expiry + 85% usage alert
+    cron.schedule('0 22 * * *', () => {
         handleArchivedAgentLifecycle()
         handleCreditExpiry()
         checkHighCreditUsage()
