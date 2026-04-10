@@ -12,6 +12,15 @@ interface DeliverDigitalProductsOptions {
     preparationMessage?: string
 }
 
+function hasActiveTransactionalState(metadata: any): boolean {
+    return Boolean(
+        metadata?.cart ||
+        metadata?.checkout ||
+        metadata?.booking ||
+        metadata?.restaurant
+    )
+}
+
 /**
  * Delivers digital products for a given order.
  * Called after payment is confirmed.
@@ -27,7 +36,7 @@ export async function deliverDigitalProducts(
     try {
         const { data: order } = await supabase
             .from('orders')
-            .select('id, agent_id, customer_phone, conversation_id')
+            .select('id, agent_id, customer_phone, conversation_id, created_at')
             .eq('id', orderId)
             .single()
 
@@ -177,11 +186,35 @@ export async function deliverDigitalProducts(
             if (completionError) {
                 console.error('[Digital Delivery] Failed to mark order as completed:', completionError)
             } else if (order.conversation_id) {
-                await ConversationService.closeCompletedCycle(
-                    supabase,
-                    order.conversation_id,
-                    'digital_delivery_completed'
-                )
+                const { data: freshConversation } = await supabase
+                    .from('conversations')
+                    .select('status, metadata')
+                    .eq('id', order.conversation_id)
+                    .single()
+
+                const { data: recentUserMessages } = await supabase
+                    .from('messages')
+                    .select('id, created_at')
+                    .eq('conversation_id', order.conversation_id)
+                    .eq('role', 'user')
+                    .gt('created_at', order.created_at)
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+
+                const hasRecentCustomerActivity = Array.isArray(recentUserMessages) && recentUserMessages.length > 0
+                const hasNewTransactionalFlow = hasActiveTransactionalState(freshConversation?.metadata)
+
+                if (hasRecentCustomerActivity || hasNewTransactionalFlow) {
+                    console.log(
+                        `[Digital Delivery] Skipping auto-close for conversation ${order.conversation_id} because a newer cycle is already active`
+                    )
+                } else {
+                    await ConversationService.closeCompletedCycle(
+                        supabase,
+                        order.conversation_id,
+                        'digital_delivery_completed'
+                    )
+                }
             }
         }
     } catch (err) {
