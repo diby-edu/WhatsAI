@@ -22,6 +22,7 @@ Valider de bout en bout le tunnel WhatsApp des produits numeriques apres les cor
 - `19698029` - refine digital cart edits and fixed-content quantities
 - `75939f28` - ignore quoted reply text in WhatsApp state flows
 - `342baa4f` - protect WhatsApp sessions during graceful restarts
+- `b2c72723` - prevent stale digital delivery from closing new cycles
 
 Tests automatises cibles deja verts localement :
 
@@ -31,7 +32,7 @@ Tests automatises cibles deja verts localement :
 - `__tests__/unit/payments/digital-delivery.test.js`
 - `__tests__/unit/payments/hosted-checkout-finalization.test.js`
 
-Etat local actuel : `23/23` tests passes.
+Dernier run cible sur les suites critiques : `20/20` tests passes.
 
 ---
 
