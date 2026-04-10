@@ -195,4 +195,34 @@ describe('deliverDigitalProducts', () => {
             })
         )
     })
+
+    test('does not label repeated digital links as activation keys', async () => {
+        const { supabase } = createSupabaseMock({
+            orderItems: [{ product_name: "Pack Fonds d'écran", quantity: 2 }],
+            products: [{
+                id: 'product_1',
+                name: "Pack Fonds d'écran",
+                product_type: 'digital',
+                digital_content: 'https://www.test2.com',
+                license_keys: null,
+            }],
+        })
+
+        await deliverDigitalProducts('order_1', supabase)
+
+        expect(mockQueueOutboundWhatsAppMessage).toHaveBeenCalledWith(
+            supabase,
+            expect.objectContaining({
+                agentId: 'agent_1',
+                to: '123456789012345@lid',
+                message: expect.not.stringContaining("Voici vos 2 cles d'activation"),
+            })
+        )
+        expect(mockQueueOutboundWhatsAppMessage).toHaveBeenCalledWith(
+            supabase,
+            expect.objectContaining({
+                message: expect.stringContaining('https://www.test2.com'),
+            })
+        )
+    })
 })
