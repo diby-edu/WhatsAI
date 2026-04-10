@@ -423,9 +423,9 @@ function prepareCheckoutStateForCartEdit(previousState = {}, cartState = {}, pro
         return state
     }
 
-    // Returning to the cart should preserve collected customer details, but the
-    // client must reconfirm the checkout after the basket changes.
-    state.customer_recap_confirmed = false
+    // Returning to the cart should preserve the already confirmed customer
+    // information. We only need to rebuild the final order recap with the new
+    // basket contents.
 
     const nextState = recomputeCheckoutProgress(state, context)
     nextState.last_prompt_kind = nextState.stage

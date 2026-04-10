@@ -10,6 +10,16 @@ function combinationMatches(attributes = {}, expected = {}) {
     return expectedKeys.every(key => attributes[key] === expected[key])
 }
 
+function hasLicenseKeyInventory(product = {}) {
+    return Array.isArray(product?.license_keys) && product.license_keys.length > 0
+}
+
+function isSingleDeliveryDigitalProduct(product = {}) {
+    if (product?.product_type !== 'digital') return false
+    if (hasLicenseKeyInventory(product)) return false
+    return Boolean(product?.digital_content)
+}
+
 // ═══════════════════════════════════════════════════════════
 // CREATE ORDER
 // ═══════════════════════════════════════════════════════════
@@ -126,12 +136,16 @@ async function handleCreateOrder(args, agentId, products, conversationId, supaba
                 })
             }
 
+            const normalizedQuantity = isSingleDeliveryDigitalProduct(product)
+                ? 1
+                : item.quantity
+
             if (product.product_type !== 'digital') {
                 hasPhysicalProduct = true
             }
 
             // Check Stock
-            const stockCheck = checkStock(product, item.quantity)
+            const stockCheck = checkStock(product, normalizedQuantity)
             if (!stockCheck.ok) {
                 return JSON.stringify({
                     success: false,
@@ -144,7 +158,7 @@ async function handleCreateOrder(args, agentId, products, conversationId, supaba
             // Price & Variants (Refactored v4.1)
             const { calculateItemPrice } = require('./pricing-logic')
 
-            const pricingResult = calculateItemPrice(product, item.selected_variants, item.product_name, item.quantity)
+            const pricingResult = calculateItemPrice(product, item.selected_variants, item.product_name, normalizedQuantity)
 
             // Log des étapes de calcul (debug)
             if (pricingResult.logs) pricingResult.logs.forEach(l => console.log(`      ${l}`))
@@ -160,17 +174,17 @@ async function handleCreateOrder(args, agentId, products, conversationId, supaba
             let price = pricingResult.price
             let matchedVariantOption = pricingResult.variantOptionName
 
-            total += price * item.quantity
+            total += price * normalizedQuantity
             orderItems.push({
                 product_name: matchedVariantOption ? `${product.name} (${matchedVariantOption})` : product.name,
                 product_description: product.description,
-                quantity: item.quantity,
+                quantity: normalizedQuantity,
                 unit_price_fcfa: price
             })
             resolvedProducts.push({
                 id: product.id,
                 name: product.name,
-                quantity: item.quantity,
+                quantity: normalizedQuantity,
                 variantLabel: matchedVariantOption || null,
                 combinationAttributes: pricingResult.combinationAttributes || null
             })
