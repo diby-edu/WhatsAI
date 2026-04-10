@@ -28,6 +28,7 @@ const {
     clearCheckoutState,
     getCheckoutState,
     mergeCheckoutStateIntoToolArgs,
+    prepareCheckoutStateForCartEdit,
     setCheckoutState,
     updateCheckoutStateFromUserMessage,
 } = require('../services/checkout-state.service')
@@ -684,7 +685,11 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
         } else if (checkoutUpdate.shouldReturnToCart) {
             const cartReset = resetCartToRecap(cartUpdate.state, agentCurrency)
             nextCartState = cartReset.state
-            clearCheckoutAfterResponse = true
+            nextCheckoutState = prepareCheckoutStateForCartEdit(
+                checkoutState,
+                cartReset.state,
+                orderableProducts
+            )
             aiResponse = {
                 content: cartReset.directReply,
                 tokensUsed: 0,

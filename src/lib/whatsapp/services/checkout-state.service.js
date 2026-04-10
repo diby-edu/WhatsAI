@@ -415,6 +415,25 @@ function activateCheckoutState(previousState = {}, context) {
     return recomputeCheckoutProgress(state, context)
 }
 
+function prepareCheckoutStateForCartEdit(previousState = {}, cartState = {}, products = []) {
+    const context = buildCheckoutContext(cartState, products)
+    const state = cloneCheckoutState(previousState)
+
+    if (!hasCheckoutData(state)) {
+        return state
+    }
+
+    // Returning to the cart should preserve collected customer details, but the
+    // client must reconfirm the checkout after the basket changes.
+    state.customer_recap_confirmed = false
+
+    const nextState = recomputeCheckoutProgress(state, context)
+    nextState.last_prompt_kind = nextState.stage
+    nextState.last_prompt_text = null
+
+    return nextState
+}
+
 function buildOrderRecap(cartState = {}, checkoutState = {}, context) {
     const cartItems = Array.isArray(cartState.cart_items) ? cartState.cart_items : []
     if (cartItems.length === 0) {
@@ -1005,6 +1024,7 @@ module.exports = {
     getCheckoutState,
     inferCheckoutStateFromAssistantMessage,
     mergeCheckoutStateIntoToolArgs,
+    prepareCheckoutStateForCartEdit,
     setCheckoutState,
     updateCheckoutStateFromUserMessage,
 }

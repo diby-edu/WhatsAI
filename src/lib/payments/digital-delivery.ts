@@ -88,6 +88,7 @@ export async function deliverDigitalProducts(
             if (!product) continue
 
             let deliveryContent: string | null = null
+            let deliveredLicenseCount = 0
 
             if (product.license_keys && Array.isArray(product.license_keys) && product.license_keys.length > 0) {
                 const keys = product.license_keys as LicenseKey[]
@@ -103,6 +104,7 @@ export async function deliverDigitalProducts(
                 }
 
                 if (grantedKeys.length > 0) {
+                    deliveredLicenseCount = grantedKeys.length
                     await supabase
                         .from('products')
                         .update({ license_keys: keys })
@@ -124,8 +126,8 @@ export async function deliverDigitalProducts(
             deliverableItems += 1
 
             const isFileUrl = deliveryContent.includes('/storage/v1/object/public/digital-content/')
-            const formattedDeliveryContent = requestedQuantity > 1 && !isFileUrl
-                ? `Voici vos ${requestedQuantity} cles d'activation :\n${deliveryContent}`
+            const formattedDeliveryContent = deliveredLicenseCount > 1 && !isFileUrl
+                ? `Voici vos ${deliveredLicenseCount} cles d'activation :\n${deliveryContent}`
                 : deliveryContent
             const message = isFileUrl
                 ? `🎉 *Votre produit numerique est disponible !*\n\n*${product.name}*\n\nMerci pour votre achat ! 🙏`
