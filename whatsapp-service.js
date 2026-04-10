@@ -114,6 +114,7 @@ const openai = new OpenAI({ apiKey: OPENAI_API_KEY })
 // Store active sessions
 const activeSessions = new Map()
 const pendingConnections = new Set()
+const serviceState = { shuttingDown: false }
 const scheduledConnections = new Set()
 const scheduledInitTimers = new Map() // agentId -> timeout handle
 const scheduledInitDueAt = new Map() // agentId -> timestamp when scheduled init should fire
@@ -199,7 +200,7 @@ async function checkAgents() {
     try {
         console.log('🔄 Checking for agents...')
 
-        const context = { supabase, supabaseRealtime, activeSessions, pendingConnections, openai, CinetPay, scheduleSessionInit, markSetupPhaseActivity, clearSetupPhaseActivity, qrAttemptCounts }
+        const context = { supabase, supabaseRealtime, activeSessions, pendingConnections, openai, CinetPay, scheduleSessionInit, markSetupPhaseActivity, clearSetupPhaseActivity, qrAttemptCounts, serviceState }
 
         // 1. D'abord restaurer les agents qui étaient connectés (priorité absolue)
         const { data: connectedAgents } = await supabase
@@ -337,6 +338,12 @@ async function reconcileSessions() {
 const gracefulShutdown = async (signal) => {
     console.log(`📴 Received ${signal}. Shutting down WhatsApp Service gracefully...`)
 
+    serviceState.shuttingDown = true
+
+    for (const agentId of Array.from(scheduledInitTimers.keys())) {
+        clearScheduledInit(agentId)
+    }
+
     // Close all sockets
     for (const [agentId, session] of activeSessions) {
         if (session.socket) {
@@ -388,7 +395,7 @@ async function main() {
     // Context for cron jobs and Realtime
     // - supabase (alias supabaseAdmin): pour les opérations DB
     // - supabaseRealtime: pour les subscriptions Realtime
-    const context = { supabase, supabaseRealtime, activeSessions, pendingConnections, openai, CinetPay, scheduleSessionInit, markSetupPhaseActivity, clearSetupPhaseActivity, qrAttemptCounts }
+    const context = { supabase, supabaseRealtime, activeSessions, pendingConnections, openai, CinetPay, scheduleSessionInit, markSetupPhaseActivity, clearSetupPhaseActivity, qrAttemptCounts, serviceState }
 
     // ═══════════════════════════════════════════════════════════
     // ⚡ REALTIME & ADAPTIVE POLLING
