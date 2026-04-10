@@ -17,6 +17,12 @@ function createSupabaseMock(options = {}) {
     const orderUpdates = []
     const productUpdates = []
     const {
+        conversation = {
+            contact_jid: '123456789012345@lid',
+            contact_phone: '123456789012345@lid',
+            status: 'active',
+            metadata: null,
+        },
         orderItems = [{ product_name: 'Guide PDF — Trouver un emploi', quantity: 1 }],
         products = [{
             id: 'product_1',
@@ -25,12 +31,29 @@ function createSupabaseMock(options = {}) {
             digital_content: 'https://example.com/file.pdf',
             license_keys: null,
         }],
+        recentUserMessages = [],
     } = options
 
     const supabase = {
         from: jest.fn((table) => ({
-            select: jest.fn(() => ({
-                eq: jest.fn(() => ({
+            select: jest.fn(() => {
+                const filters = {}
+                const builder = {
+                    eq: jest.fn((field, value) => {
+                        filters[field] = value
+                        return builder
+                    }),
+                    gt: jest.fn((field, value) => {
+                        filters[`gt:${field}`] = value
+                        return builder
+                    }),
+                    order: jest.fn(() => builder),
+                    limit: jest.fn(async () => {
+                        if (table === 'messages') {
+                            return { data: recentUserMessages, error: null }
+                        }
+                        return { data: null, error: null }
+                    }),
                     single: jest.fn(async () => {
                         if (table === 'orders') {
                             return {
@@ -39,6 +62,7 @@ function createSupabaseMock(options = {}) {
                                     agent_id: 'agent_1',
                                     customer_phone: '+22501020304',
                                     conversation_id: 'conv_1',
+                                    created_at: '2026-04-10T20:00:00.000Z',
                                 },
                                 error: null
                             }
@@ -47,8 +71,7 @@ function createSupabaseMock(options = {}) {
                         if (table === 'conversations') {
                             return {
                                 data: {
-                                    contact_jid: '123456789012345@lid',
-                                    contact_phone: '123456789012345@lid',
+                                    ...conversation,
                                 },
                                 error: null
                             }
@@ -62,8 +85,9 @@ function createSupabaseMock(options = {}) {
                         : table === 'products'
                             ? products
                             : null,
-                }))
-            })),
+                }
+                return builder
+            }),
             update: jest.fn((payload) => ({
                 eq: jest.fn(async () => {
                     if (table === 'orders') {
@@ -224,5 +248,37 @@ describe('deliverDigitalProducts', () => {
                 message: expect.stringContaining('https://www.test2.com'),
             })
         )
+    })
+
+    test('does not auto-close a conversation when a newer user cycle already exists', async () => {
+        const { supabase, orderUpdates } = createSupabaseMock({
+            conversation: {
+                contact_jid: '123456789012345@lid',
+                contact_phone: '123456789012345@lid',
+                status: 'active',
+                metadata: {
+                    cart: {
+                        stage: 'checkout',
+                        cart_items: [{ product_id: 'p2', quantity: 4 }],
+                    },
+                    checkout: {
+                        stage: 'customer_fields',
+                    },
+                },
+            },
+            recentUserMessages: [
+                { id: 'msg_new_cycle', created_at: '2026-04-10T20:05:00.000Z' },
+            ],
+        })
+
+        await deliverDigitalProducts('order_1', supabase)
+
+        expect(orderUpdates).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                status: 'completed',
+                updated_at: expect.any(String),
+            })
+        ]))
+        expect(mockCloseCompletedCycle).not.toHaveBeenCalled()
     })
 })
