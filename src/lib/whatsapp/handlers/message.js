@@ -23,6 +23,7 @@ const { ErrorHandler } = require('../services/errors')
 const { analyzeSentiment } = require('../ai/sentiment')
 const { handleToolCall } = require('../ai/tools')
 const { downloadMediaMessage } = require('@whiskeysockets/baileys')
+const { buildInboundTextVariants } = require('./message-text')
 const { normalizeWhatsAppContact } = require('../ai/tools/tool-helpers')
 const {
     clearCheckoutState,
@@ -357,13 +358,11 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             }
         }
 
-        message.text = String(message.text || '').trim()
-
-        // Enrichir le texte avec le contexte de la réponse citée (quoted reply)
-        if (message.quotedText) {
-            const quotedPreview = String(message.quotedText).trim().slice(0, 300)
-            message.text = `[En réponse à: "${quotedPreview}"]\n${message.text}`
-        }
+        const { structuredText: structuredMessageText, aiText: aiMessageText } = buildInboundTextVariants(
+            message.text,
+            message.quotedText
+        )
+        message.text = aiMessageText
 
         // Injecter le contexte métier externe (panier abandonné, commande, etc.)
         // Stocké dans conversation.metadata.external_context par /trigger ou /send
@@ -480,17 +479,17 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
 
         const restaurantUpdate = (isSupportClientMode || !hasRestaurantCatalog)
             ? noopRestaurantUpdate
-            : updateRestaurantStateFromUserMessage(previousRestaurantState, message.text, restaurantProducts)
+            : updateRestaurantStateFromUserMessage(previousRestaurantState, structuredMessageText, restaurantProducts)
         const restaurantFlowActive = !isSupportClientMode && hasRestaurantCatalog && hasRestaurantStateData(restaurantUpdate.state)
 
         const bookingUpdate = (isSupportClientMode || restaurantFlowActive)
             ? noopBookingUpdate
-            : updateBookingStateFromUserMessage(previousBookingState, message.text, standardServiceProducts)
+            : updateBookingStateFromUserMessage(previousBookingState, structuredMessageText, standardServiceProducts)
         const bookingFlowActive = !isSupportClientMode && !!(previousBookingState.current_booking || bookingUpdate.state.current_booking)
 
         const cartUpdate = (isSupportClientMode || restaurantFlowActive || bookingFlowActive)
             ? noopCartUpdate
-            : updateCartStateFromUserMessage(previousCartState, message.text, orderableProducts, agentCurrency, {
+            : updateCartStateFromUserMessage(previousCartState, structuredMessageText, orderableProducts, agentCurrency, {
                 allowKnowledgeInterrupt: hasKnowledgeBase,
             })
 
@@ -503,7 +502,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
 
         const checkoutUpdate = (isSupportClientMode || restaurantFlowActive || bookingFlowActive)
             ? noopCheckoutUpdate
-            : updateCheckoutStateFromUserMessage(previousCheckoutState, message.text, {
+            : updateCheckoutStateFromUserMessage(previousCheckoutState, structuredMessageText, {
                 cartState: cartUpdate.state,
                 products: orderableProducts,
                 activateCheckout: cartJustEnteredCheckout,
@@ -571,7 +570,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             'transfert humain', 'mettre en relation',
             'parler à un agent', 'parler a un agent',
         ]
-        const lowerText = (message.text || '').normalize('NFC').toLowerCase()
+        const lowerText = (structuredMessageText || '').normalize('NFC').toLowerCase()
         const isExplicitHumanRequest = humanKeywords.some(kw => lowerText.includes(kw.normalize('NFC')))
 
         if (isExplicitHumanRequest) {
@@ -588,7 +587,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             return
         }
 
-        const sentimentAnalysis = await analyzeSentiment(openai, message.text)
+        const sentimentAnalysis = await analyzeSentiment(openai, structuredMessageText)
         console.log(`❤️ Sentiment: ${sentimentAnalysis.sentiment}`)
 
         if (conversation.shouldEscalate(sentimentAnalysis)) {
@@ -618,11 +617,11 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
         // Garantit l'envoi d'images même quand l'IA ignore les outils
         // ═══════════════════════════════════════════════════════════
         let preImageActions = []
-        if (hasKnowledgeBase && message.text) {
+        if (hasKnowledgeBase && structuredMessageText) {
             const imgRegex = /\b(?:image|photo|montrez?(?:\s+moi)?|voir)\s+(?:(?:du|de\s+la|des|le|la|l[''])\s+)?([^?!,\n]{3,50}?)(?=\s*(?:[?!,\n]|$))/gi
             const imgMatches = []
             let imgM
-            while ((imgM = imgRegex.exec(message.text)) !== null) {
+            while ((imgM = imgRegex.exec(structuredMessageText)) !== null) {
                 imgMatches.push({ full: imgM[0], name: imgM[1].trim() })
             }
             if (imgMatches.length > 0) {
@@ -640,7 +639,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                     if (kbDoc) {
                         // Ne pré-extraire que si le message contient d'autres questions
                         // (sinon l'IA reçoit un texte vide → laisser l'IA gérer via tool call)
-                        const remainingText = message.text.replace(full, '').replace(/[?!\s]+$/, '').trim()
+                        const remainingText = structuredMessageText.replace(full, '').replace(/[?!\s]+$/, '').trim()
                         if (remainingText.length >= 5) {
                             preImageActions.push({ image_url: kbDoc.image_url, caption: `Voici ${name} !`, product_name: name })
                             message.text = remainingText
