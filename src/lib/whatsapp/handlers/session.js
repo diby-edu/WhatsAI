@@ -312,6 +312,7 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                 clearTimeout(pendingTimeout)
                 const statusCode = lastDisconnect?.error?.output?.statusCode
                 const shouldReconnect = statusCode !== DisconnectReason.loggedOut
+                const isServiceShuttingDown = context?.serviceState?.shuttingDown === true
 
                 console.log(`❌ ${agentName} disconnected, code: ${statusCode}, reconnect: ${shouldReconnect}`)
                 pendingConnections.delete(agentId)
@@ -320,6 +321,13 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                 if (keepAliveInterval) {
                     clearInterval(keepAliveInterval)
                     keepAliveInterval = null
+                }
+
+                if (isServiceShuttingDown) {
+                    activeSessions.delete(agentId)
+                    clearSetupPhaseActivity?.(agentId)
+                    console.log(`[${agentName}] Service shutdown in progress - skipping disconnect side effects`)
+                    return
                 }
 
                 if (shouldReconnect) {

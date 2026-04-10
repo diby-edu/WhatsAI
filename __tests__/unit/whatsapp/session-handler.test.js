@@ -229,4 +229,38 @@ describe('WhatsApp session handler', () => {
             { field: 'session_id', value: 'agent-3' },
         ])
     })
+
+    test('does not mark the agent disconnected when the service is shutting down gracefully', async () => {
+        const { supabase, agentUpdates, whatsappSessionDeletes } = createSupabaseMock()
+        const context = {
+            supabase,
+            activeSessions: new Map(),
+            pendingConnections: new Set(),
+            openai: {},
+            CinetPay: {},
+            markSetupPhaseActivity: jest.fn(),
+            clearSetupPhaseActivity: jest.fn(),
+            scheduleSessionInit: jest.fn(),
+            qrAttemptCounts: new Map(),
+            serviceState: { shuttingDown: true },
+        }
+
+        await initSession(context, 'agent-4', 'Agent Four', 0)
+
+        await emitConnectionUpdate({
+            connection: 'close',
+            lastDisconnect: {
+                error: {
+                    output: {
+                        statusCode: 428,
+                    },
+                },
+            },
+        })
+
+        expect(agentUpdates).toEqual([])
+        expect(whatsappSessionDeletes).toEqual([])
+        expect(context.scheduleSessionInit).not.toHaveBeenCalled()
+        expect(context.activeSessions.has('agent-4')).toBe(false)
+    })
 })
