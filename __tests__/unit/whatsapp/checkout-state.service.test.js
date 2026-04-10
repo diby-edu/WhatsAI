@@ -59,7 +59,7 @@ describe('checkout-state.service', () => {
         expect(update.state.collected.email).toBeNull()
     })
 
-    test('preserves collected checkout fields when returning to the cart for edits', () => {
+    test('returns directly to the final order recap when cart edits keep the same confirmed customer info', () => {
         const previousState = {
             stage: CHECKOUT_STAGE.CONFIRMATION,
             pending_fields: [],
@@ -107,12 +107,12 @@ describe('checkout-state.service', () => {
             { id: 'p2', name: "Pack Fonds d'écran", product_type: 'digital', price_fcfa: 50 },
         ])
 
-        expect(nextState.stage).toBe(CHECKOUT_STAGE.CUSTOMER_RECAP)
-        expect(nextState.awaiting_field?.type).toBe('customer_recap')
+        expect(nextState.stage).toBe(CHECKOUT_STAGE.CONFIRMATION)
+        expect(nextState.awaiting_field?.type).toBe('confirmation')
         expect(nextState.collected.customer_name).toBe('Koffi Diby')
         expect(nextState.collected.customer_phone).toBe('+2250700000000')
         expect(nextState.collected.email).toBe('koffi@example.com')
-        expect(nextState.customer_recap_confirmed).toBe(false)
+        expect(nextState.customer_recap_confirmed).toBe(true)
     })
 
     test('does not treat the quantity message as a checkout menu choice when cart just re-enters checkout', () => {

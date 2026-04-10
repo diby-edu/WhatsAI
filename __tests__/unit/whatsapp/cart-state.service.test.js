@@ -151,6 +151,27 @@ describe('cart-state.service', () => {
         expect(update.state.awaiting_field).toBeNull()
     })
 
+    test('forces quantity 1 for a simple digital link product even when the customer asks for more', () => {
+        const update = updateCartStateFromUserMessage(
+            {},
+            "je veux 2 pack fonds d'écran",
+            [
+                {
+                    id: 'p1',
+                    name: "Pack Fonds d'écran",
+                    product_type: 'digital',
+                    price_fcfa: 50,
+                    digital_content: 'https://example.com/pack',
+                },
+            ]
+        )
+
+        expect(update.state.stage).toBe(CART_STAGE.CHECKOUT)
+        expect(update.state.cart_items).toHaveLength(1)
+        expect(update.state.cart_items[0].quantity).toBe(1)
+        expect(update.state.awaiting_field).toBeNull()
+    })
+
     test('keeps quantity for a digital license product', () => {
         const update = updateCartStateFromUserMessage(
             {},
@@ -239,6 +260,56 @@ describe('cart-state.service', () => {
         expect(nextState.cart_items).toHaveLength(1)
         expect(nextState.cart_items[0].quantity).toBe(1)
         expect(nextState.draft_item).toBeNull()
+    })
+
+    test('adds a simple digital product directly from cart edit without reopening a quantity step', () => {
+        const previousState = {
+            stage: CART_STAGE.CART_RECAP,
+            cart_items: [
+                {
+                    product_id: 'p1',
+                    product_name: 'Mini-cours Excel',
+                    quantity: 1,
+                    unit_price: 25,
+                    line_total: 25,
+                    selected_variants: {},
+                    selected_variants_by_id: {},
+                },
+            ],
+            draft_item: null,
+            awaiting_field: { type: 'adding_article', label: 'ajout article' },
+            last_prompt_kind: CART_STAGE.CART_RECAP,
+            last_prompt_text: '1',
+        }
+
+        const update = updateCartStateFromUserMessage(
+            previousState,
+            "pack fonds d'écran",
+            [
+                {
+                    id: 'p1',
+                    name: 'Mini-cours Excel',
+                    product_type: 'digital',
+                    price_fcfa: 25,
+                    digital_content: 'https://example.com/excel.pdf',
+                },
+                {
+                    id: 'p2',
+                    name: "Pack Fonds d'écran",
+                    product_type: 'digital',
+                    price_fcfa: 50,
+                    digital_content: 'https://example.com/pack',
+                },
+            ]
+        )
+
+        expect(update.state.stage).toBe(CART_STAGE.CHECKOUT)
+        expect(update.state.cart_items).toHaveLength(2)
+        expect(update.state.cart_items[1].product_name).toBe("Pack Fonds d'écran")
+        expect(update.state.cart_items[1].quantity).toBe(1)
+        expect(update.state.draft_item).toBeNull()
+        expect(update.state.awaiting_field).toBeNull()
+        expect(update.directReply).toBeNull()
     })
 
     test('builds a multi-product cart directly from a natural one-line digital order', () => {

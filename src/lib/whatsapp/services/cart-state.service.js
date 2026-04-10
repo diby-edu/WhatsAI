@@ -223,10 +223,24 @@ function hasLicenseKeyInventory(product = {}) {
     return Array.isArray(product.license_keys) && product.license_keys.length > 0
 }
 
-function shouldAutoDefaultQuantity(product = {}) {
+function isSingleDeliveryDigitalProduct(product = {}) {
     if (product?.product_type !== 'digital') return false
     if (hasLicenseKeyInventory(product)) return false
     return Boolean(product?.digital_content)
+}
+
+function normalizeQuantityForProduct(product = {}, quantity) {
+    if (isSingleDeliveryDigitalProduct(product)) return 1
+    return quantity
+}
+
+function normalizeDraftItemForProduct(product = {}, item = null) {
+    if (!item) return item
+    if (!isSingleDeliveryDigitalProduct(product)) return item
+    return {
+        ...item,
+        quantity: 1,
+    }
 }
 
 function isDigitalOnlyCartItems(cartItems = [], products = []) {
@@ -528,7 +542,7 @@ function parseBatchCombinationLines(product, text) {
 
     for (const segment of segments) {
         const draftItem = createDraftItem(product)
-        const quantity = extractQuantity(segment)
+        const quantity = normalizeQuantityForProduct(product, extractQuantity(segment))
 
         if (!quantity) {
             // Pas de quantité : collecter les variantes du segment
@@ -561,7 +575,7 @@ function parseBatchCombinationLines(product, text) {
 
         draftItem.quantity = quantity
         const variantCapture = extractVariantsFromText(product, segment, draftItem)
-        const completedItem = variantCapture.item
+        const completedItem = normalizeDraftItemForProduct(product, variantCapture.item)
 
         if (!hasAllRequiredVariants(product, completedItem)) {
             // Quantité présente mais variantes manquantes → collecter pour prompt ciblé
@@ -949,12 +963,12 @@ function parseMultiProductBatchLines(products, text) {
         }
 
         // Quantité : extraction intelligente (début ou fin), défaut = 1
-        const quantity = extractQuantityFromSegment(segment) || 1
+        const quantity = normalizeQuantityForProduct(targetProduct, extractQuantityFromSegment(segment) || 1)
 
         const draftItem = createDraftItem(targetProduct)
         draftItem.quantity = quantity
         const variantCapture = extractVariantsFromText(targetProduct, segment, draftItem)
-        const completedItem = variantCapture.item
+        const completedItem = normalizeDraftItemForProduct(targetProduct, variantCapture.item)
 
         // Les produits digitaux sans variante requise passent directement
         if (!hasAllRequiredVariants(targetProduct, completedItem)) {
@@ -1080,7 +1094,7 @@ function createDraftItem(product) {
     return {
         product_id: product.id,
         product_name: product.name,
-        quantity: shouldAutoDefaultQuantity(product) ? 1 : null,
+        quantity: isSingleDeliveryDigitalProduct(product) ? 1 : null,
         selected_variants: {},
         selected_variants_by_id: {},
         skipped_optional_variant_ids: [],
@@ -1100,24 +1114,25 @@ function buildCapturedSummary(captured = []) {
 }
 
 function buildLineFromDraft(product, draftItem, index = 1) {
-    const selectedVariantsMap = { ...(draftItem.selected_variants || {}) }
-    const pricing = calculateItemPrice(product, selectedVariantsMap, draftItem.product_name, draftItem.quantity)
+    const normalizedDraftItem = normalizeDraftItemForProduct(product, draftItem)
+    const selectedVariantsMap = { ...(normalizedDraftItem.selected_variants || {}) }
+    const pricing = calculateItemPrice(product, selectedVariantsMap, normalizedDraftItem.product_name, normalizedDraftItem.quantity)
     if (pricing.error) {
         return { error: pricing.error }
     }
 
     const unitPrice = pricing.price || product.price_fcfa || 0
-    const lineTotal = unitPrice * draftItem.quantity
+    const lineTotal = unitPrice * normalizedDraftItem.quantity
 
     // Variantes triées par priorité (couleur avant taille) pour l'affichage panier
     // selected_variants_by_id est keyed par UUID — correspondance correcte avec v.id
     const sortedVariantLabels = getRequiredVariants(product)
-        .map(v => (draftItem.selected_variants_by_id || {})[v.id])
+        .map(v => (normalizedDraftItem.selected_variants_by_id || {})[v.id])
         .filter(Boolean)
 
     return {
         line: {
-            ...cloneItem(draftItem),
+            ...cloneItem(normalizedDraftItem),
             line_id: `line_${Date.now()}_${index}`,
             unit_price: unitPrice,
             line_total: lineTotal,
@@ -1136,17 +1151,27 @@ function getLineSignature(line) {
     return `${line.product_id}::${signature}`
 }
 
-function mergeOrAppendCartLine(cartItems = [], newLine) {
-    const signature = getLineSignature(newLine)
+function mergeOrAppendCartLine(cartItems = [], newLine, products = []) {
+    const product = findProductById(products, newLine?.product_id)
+    const normalizedNewLine = isSingleDeliveryDigitalProduct(product)
+        ? {
+            ...cloneCartLine(newLine),
+            quantity: 1,
+            line_total: (newLine?.unit_price || 0),
+        }
+        : cloneCartLine(newLine)
+    const signature = getLineSignature(normalizedNewLine)
     let merged = false
 
     const nextItems = cartItems.map(item => {
-        if (merged || getLineSignature(item) !== signature || item.unit_price !== newLine.unit_price) {
+        if (merged || getLineSignature(item) !== signature || item.unit_price !== normalizedNewLine.unit_price) {
             return cloneCartLine(item)
         }
 
         merged = true
-        const quantity = (item.quantity || 0) + (newLine.quantity || 0)
+        const quantity = isSingleDeliveryDigitalProduct(product)
+            ? 1
+            : (item.quantity || 0) + (normalizedNewLine.quantity || 0)
         return {
             ...cloneCartLine(item),
             quantity,
@@ -1155,7 +1180,7 @@ function mergeOrAppendCartLine(cartItems = [], newLine) {
     })
 
     if (!merged) {
-        nextItems.push(cloneCartLine(newLine))
+        nextItems.push(normalizedNewLine)
     }
 
     return nextItems
@@ -1367,7 +1392,7 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
             const batchAttempt = parseBatchCombinationLines(product, normalized)
             if (batchAttempt.status === 'success') {
                 for (const line of batchAttempt.lines) {
-                    state.cart_items = mergeOrAppendCartLine(state.cart_items, line)
+                    state.cart_items = mergeOrAppendCartLine(state.cart_items, line, products)
                 }
                 state.draft_item = null
                 state.stage = CART_STAGE.CART_RECAP
@@ -1396,7 +1421,7 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
 
                 if (!buildError && lines.length > 0) {
                     for (const line of lines) {
-                        state.cart_items = mergeOrAppendCartLine(state.cart_items, line)
+                        state.cart_items = mergeOrAppendCartLine(state.cart_items, line, products)
                     }
                     state.draft_item = null
                     state.stage = CART_STAGE.CART_RECAP
@@ -1453,7 +1478,7 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
                     if (nextIndex >= queue.length) {
                         // Tous les items complétés → récap final
                         for (const line of newPendingLines) {
-                            state.cart_items = mergeOrAppendCartLine(state.cart_items, line)
+                            state.cart_items = mergeOrAppendCartLine(state.cart_items, line, products)
                         }
                         state.draft_item = null
                         state.stage = CART_STAGE.CART_RECAP
@@ -1524,7 +1549,7 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
 
                 if (allCovered) {
                     for (const line of allLines) {
-                        state.cart_items = mergeOrAppendCartLine(state.cart_items, line)
+                        state.cart_items = mergeOrAppendCartLine(state.cart_items, line, products)
                     }
                     state.draft_item = null
                     state.stage = CART_STAGE.CART_RECAP
@@ -1585,7 +1610,7 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
 
         if (multiBatchParse.status === 'success' && multiBatchParse.lines.length > 0) {
             for (const line of multiBatchParse.lines) {
-                state.cart_items = mergeOrAppendCartLine(state.cart_items, line)
+                state.cart_items = mergeOrAppendCartLine(state.cart_items, line, products)
             }
 
             state.draft_item = null
@@ -1629,7 +1654,7 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
 
         if (batchParse.status === 'success') {
             for (const line of batchParse.lines) {
-                state.cart_items = mergeOrAppendCartLine(state.cart_items, line)
+                state.cart_items = mergeOrAppendCartLine(state.cart_items, line, products)
             }
 
             state.draft_item = null
@@ -1735,7 +1760,7 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
 
                 // Somme cohérente : appliquer le batch
                 for (const line of batchParse.lines) {
-                    state.cart_items = mergeOrAppendCartLine(state.cart_items, line)
+                    state.cart_items = mergeOrAppendCartLine(state.cart_items, line, products)
                 }
                 state.draft_item = null
                 state.stage = CART_STAGE.CART_RECAP
@@ -1794,10 +1819,24 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
         if (state.awaiting_field?.type === 'cart_modify') {
             const itemIndex = detectItemToDelete(normalized, state.cart_items || [])
             if (itemIndex >= 0) {
-                state.awaiting_field = { type: 'cart_modify_qty', label: 'nouvelle quantite', item_index: itemIndex }
                 const item = state.cart_items[itemIndex]
                 const variants = Object.values(item.selected_variants || {}).filter(Boolean).join(', ')
                 const label = variants ? `${item.product_name} (${variants})` : item.product_name
+                const product = findProductById(products, item.product_id)
+                if (isSingleDeliveryDigitalProduct(product)) {
+                    state.awaiting_field = buildCartActionField()
+                    return {
+                        state,
+                        capturedFields,
+                        stateChanged: true,
+                        shouldBypassAI: true,
+                        directReply: [
+                            `${label} est un produit numerique livre via un lien ou un fichier unique : la quantite reste donc fixee a 1.`,
+                            buildCartRecap(state, currency),
+                        ].join('\n\n')
+                    }
+                }
+                state.awaiting_field = { type: 'cart_modify_qty', label: 'nouvelle quantite', item_index: itemIndex }
                 return { state, capturedFields, stateChanged: true, shouldBypassAI: true, directReply: `Quelle quantite pour ${label} ? (actuellement : ${item.quantity})` }
             }
             return { state, capturedFields, stateChanged: false, shouldBypassAI: true, directReply: buildCartModifyMenu(state) }
@@ -1809,6 +1848,22 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
             const itemIndex = state.awaiting_field.item_index
             if (newQty && newQty > 0 && itemIndex >= 0 && itemIndex < (state.cart_items || []).length) {
                 const item = state.cart_items[itemIndex]
+                const product = findProductById(products, item.product_id)
+                if (isSingleDeliveryDigitalProduct(product)) {
+                    const fixedUnitPrice = item.unit_price_fcfa || item.unit_price || (item.quantity ? (item.line_total / item.quantity) : item.line_total) || 0
+                    state.cart_items[itemIndex] = { ...item, quantity: 1, line_total: fixedUnitPrice }
+                    state.awaiting_field = buildCartActionField()
+                    return {
+                        state,
+                        capturedFields,
+                        stateChanged: true,
+                        shouldBypassAI: true,
+                        directReply: [
+                            `${item.product_name} reste a quantite 1 car il s'agit d'un produit numerique a lien/fichier unique.`,
+                            buildCartRecap(state, currency),
+                        ].join('\n\n')
+                    }
+                }
                 const unitPrice = item.unit_price_fcfa || (item.line_total / item.quantity) || 0
                 state.cart_items[itemIndex] = { ...item, quantity: newQty, line_total: unitPrice * newQty }
                 state.awaiting_field = buildCartActionField()
@@ -1845,6 +1900,46 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
                 state.awaiting_field = buildAwaitingField(productToAdd, state.draft_item, currency)
                 state.last_prompt_kind = CART_STAGE.COLLECTING_ITEM
                 state.last_prompt_text = normalized
+                if (!state.awaiting_field && state.draft_item.quantity) {
+                    const lineResult = buildLineFromDraft(productToAdd, state.draft_item, state.cart_items.length + 1)
+                    if (lineResult.error) {
+                        return {
+                            state,
+                            capturedFields,
+                            stateChanged: true,
+                            shouldBypassAI: true,
+                            directReply: lineResult.error,
+                        }
+                    }
+
+                    state.cart_items = mergeOrAppendCartLine(state.cart_items, lineResult.line, products)
+                    state.draft_item = null
+
+                    if (isDigitalOnlyCartItems(state.cart_items, products)) {
+                        state.stage = CART_STAGE.CHECKOUT
+                        state.awaiting_field = null
+                        state.last_prompt_kind = CART_STAGE.CHECKOUT
+                        return {
+                            state,
+                            capturedFields,
+                            stateChanged: true,
+                            shouldBypassAI: false,
+                            directReply: null,
+                        }
+                    }
+
+                    state.stage = CART_STAGE.CART_RECAP
+                    state.awaiting_field = buildCartActionField()
+                    state.last_prompt_kind = CART_STAGE.CART_RECAP
+                    return {
+                        state,
+                        capturedFields,
+                        stateChanged: true,
+                        shouldBypassAI: true,
+                        directReply: buildCartRecap(state, currency),
+                    }
+                }
+
                 return {
                     state, capturedFields, stateChanged: true, shouldBypassAI: true,
                     directReply: buildStructuredCartReply(state, products, capturedFields, currency),
@@ -1936,14 +2031,17 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
 
     const previousAwaiting = cloneAwaitingField(state.awaiting_field)
     const quantity = extractQuantity(normalized)
-    if (!state.draft_item.quantity && quantity) {
-        state.draft_item.quantity = quantity
+    if (!state.draft_item.quantity && isSingleDeliveryDigitalProduct(product)) {
+        state.draft_item.quantity = 1
+        stateChanged = true
+    } else if (!state.draft_item.quantity && quantity) {
+        state.draft_item.quantity = normalizeQuantityForProduct(product, quantity)
         capturedFields.push({ type: 'quantity', value: quantity })
         stateChanged = true
     }
 
     const variantCapture = extractVariantsFromText(product, normalized, state.draft_item)
-    state.draft_item = variantCapture.item
+    state.draft_item = normalizeDraftItemForProduct(product, variantCapture.item)
     if (variantCapture.captured.length > 0) {
         capturedFields.push(...variantCapture.captured)
         stateChanged = true
@@ -1965,7 +2063,7 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
             }
         }
 
-        state.cart_items = mergeOrAppendCartLine(state.cart_items, lineResult.line)
+        state.cart_items = mergeOrAppendCartLine(state.cart_items, lineResult.line, products)
         state.draft_item = null
 
         if (isDigitalOnlyCartItems(state.cart_items, products)) {
