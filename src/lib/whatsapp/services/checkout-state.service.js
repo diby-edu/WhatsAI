@@ -619,13 +619,13 @@ function updateCheckoutStateFromUserMessage(previousState, text, options = {}) {
     const normalizedText = normalizeFreeText(text)
     const capturedFields = []
 
-    if (activateCheckout && !hasCheckoutData(previousStructuredState)) {
+    if (activateCheckout) {
         state.last_prompt_kind = state.stage
         state.last_prompt_text = normalizedText
         return {
             state,
             capturedFields,
-            stateChanged: true,
+            stateChanged: !hasCheckoutData(previousStructuredState) || JSON.stringify(previousStructuredState) !== JSON.stringify(state),
             shouldBypassAI: true,
             directReply: buildStructuredCheckoutReply(state, cartState, products, []),
             shouldSubmitOrder: false,

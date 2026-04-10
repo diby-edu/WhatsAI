@@ -114,4 +114,63 @@ describe('checkout-state.service', () => {
         expect(nextState.collected.email).toBe('koffi@example.com')
         expect(nextState.customer_recap_confirmed).toBe(false)
     })
+
+    test('does not treat the quantity message as a checkout menu choice when cart just re-enters checkout', () => {
+        const previousState = {
+            stage: CHECKOUT_STAGE.CUSTOMER_RECAP,
+            pending_fields: [],
+            awaiting_field: {
+                type: 'customer_recap',
+                label: 'recap informations client',
+                prompt: null,
+            },
+            collected: {
+                customer_name: 'Koffi Diby',
+                customer_phone: '+2250700000000',
+                email: 'koffi@example.com',
+                delivery_address: null,
+                payment_method: 'online',
+                notes: null,
+            },
+            note_declined: false,
+            customer_recap_confirmed: false,
+        }
+
+        const cartState = {
+            stage: 'checkout',
+            cart_items: [
+                {
+                    product_id: 'p1',
+                    product_name: 'Mini-cours Excel',
+                    quantity: 1,
+                    unit_price: 25,
+                    line_total: 25,
+                    selected_variants: {},
+                },
+                {
+                    product_id: 'p2',
+                    product_name: "Pack Fonds d'écran",
+                    quantity: 2,
+                    unit_price: 50,
+                    line_total: 100,
+                    selected_variants: {},
+                },
+            ],
+        }
+
+        const update = updateCheckoutStateFromUserMessage(previousState, '2', {
+            cartState,
+            products: [
+                { id: 'p1', name: 'Mini-cours Excel', product_type: 'digital', price_fcfa: 25 },
+                { id: 'p2', name: "Pack Fonds d'écran", product_type: 'digital', price_fcfa: 50 },
+            ],
+            activateCheckout: true,
+        })
+
+        expect(update.shouldBypassAI).toBe(true)
+        expect(update.state.stage).toBe(CHECKOUT_STAGE.CUSTOMER_RECAP)
+        expect(update.state.awaiting_field?.type).toBe('customer_recap')
+        expect(update.directReply).toContain('Vos informations :')
+        expect(update.directReply).not.toContain('Que souhaitez-vous modifier ?')
+    })
 })
