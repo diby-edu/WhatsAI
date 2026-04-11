@@ -24,6 +24,7 @@ const { analyzeSentiment } = require('../ai/sentiment')
 const { handleToolCall } = require('../ai/tools')
 const { downloadMediaMessage } = require('@whiskeysockets/baileys')
 const { buildInboundTextVariants } = require('./message-text')
+const { recoverInterruptedCheckoutFromHistory } = require('./interrupted-checkout-recovery')
 const { normalizeWhatsAppContact } = require('../ai/tools/tool-helpers')
 const {
     clearCheckoutState,
@@ -73,6 +74,22 @@ function sortRestaurantProducts(products = []) {
 
         return String(a.name || '').localeCompare(String(b.name || ''), 'fr', { sensitivity: 'base' })
     })
+}
+
+function hasCartStateData(cartState = {}) {
+    return Boolean(
+        cartState?.draft_item ||
+        (Array.isArray(cartState?.cart_items) && cartState.cart_items.length > 0)
+    )
+}
+
+function hasCheckoutStateData(checkoutState = {}) {
+    return checkoutState?.stage && checkoutState.stage !== 'idle' ||
+        (Array.isArray(checkoutState?.pending_fields) && checkoutState.pending_fields.length > 0) ||
+        Boolean(checkoutState?.awaiting_field) ||
+        checkoutState?.note_declined === true ||
+        checkoutState?.customer_recap_confirmed === true ||
+        Object.values(checkoutState?.collected || {}).some(value => value !== null && value !== '')
 }
 
 function formatDirectToolResponse(parsedResult) {
@@ -487,7 +504,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             : updateBookingStateFromUserMessage(previousBookingState, structuredMessageText, standardServiceProducts)
         const bookingFlowActive = !isSupportClientMode && !!(previousBookingState.current_booking || bookingUpdate.state.current_booking)
 
-        const cartUpdate = (isSupportClientMode || restaurantFlowActive || bookingFlowActive)
+        let cartUpdate = (isSupportClientMode || restaurantFlowActive || bookingFlowActive)
             ? noopCartUpdate
             : updateCartStateFromUserMessage(previousCartState, structuredMessageText, orderableProducts, agentCurrency, {
                 allowKnowledgeInterrupt: hasKnowledgeBase,
@@ -500,7 +517,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             previousCartState.stage !== CART_STAGE.CHECKOUT &&
             cartUpdate.state.stage === CART_STAGE.CHECKOUT
 
-        const checkoutUpdate = (isSupportClientMode || restaurantFlowActive || bookingFlowActive)
+        let checkoutUpdate = (isSupportClientMode || restaurantFlowActive || bookingFlowActive)
             ? noopCheckoutUpdate
             : updateCheckoutStateFromUserMessage(previousCheckoutState, structuredMessageText, {
                 cartState: cartUpdate.state,
@@ -508,6 +525,36 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                 activateCheckout: cartJustEnteredCheckout,
                 allowKnowledgeInterrupt: hasKnowledgeBase,
             })
+
+        if (
+            !isSupportClientMode &&
+            !restaurantFlowActive &&
+            !bookingFlowActive &&
+            !hasCartStateData(previousCartState) &&
+            !hasCheckoutStateData(previousCheckoutState) &&
+            !cartUpdate.shouldBypassAI &&
+            !checkoutUpdate.shouldBypassAI &&
+            !checkoutUpdate.stateChanged &&
+            structuredMessageText
+        ) {
+            const fullConversationHistory = await conversation.getHistory(12)
+            const recoveredFlow = recoverInterruptedCheckoutFromHistory(
+                fullConversationHistory,
+                structuredMessageText,
+                orderableProducts,
+                agentCurrency
+            )
+
+            if (recoveredFlow) {
+                console.log(`♻️ [${agentId}] Recovered interrupted checkout flow from recent history`)
+                cartUpdate = {
+                    ...noopCartUpdate,
+                    state: recoveredFlow.cartState,
+                    stateChanged: true,
+                }
+                checkoutUpdate = recoveredFlow.checkoutUpdate
+            }
+        }
 
         const checkoutState = checkoutUpdate.state
 
