@@ -14,6 +14,7 @@ Valider de bout en bout le tunnel WhatsApp des produits numeriques apres les cor
 - protection contre les regressions dues aux reponses numeriques citees dans les menus (`1`, `2`, `3`, `4`)
 - preservation du cycle de conversation apres livraison
 - protection contre la fermeture tardive d'un ancien cycle pendant un nouveau checkout
+- reconstruction d'un checkout recent depuis l'historique si l'etat a ete perdu
 
 ---
 
@@ -23,6 +24,7 @@ Valider de bout en bout le tunnel WhatsApp des produits numeriques apres les cor
 - `75939f28` - ignore quoted reply text in WhatsApp state flows
 - `342baa4f` - protect WhatsApp sessions during graceful restarts
 - `b2c72723` - prevent stale digital delivery from closing new cycles
+- recovery locale du checkout interrompu via l'historique recent
 
 Tests automatises cibles deja verts localement :
 
@@ -32,7 +34,7 @@ Tests automatises cibles deja verts localement :
 - `__tests__/unit/payments/digital-delivery.test.js`
 - `__tests__/unit/payments/hosted-checkout-finalization.test.js`
 
-Dernier run cible sur les suites critiques : `20/20` tests passes.
+Dernier run cible sur les suites critiques : `22/22` tests passes.
 
 ---
 
