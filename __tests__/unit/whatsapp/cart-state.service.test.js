@@ -193,6 +193,30 @@ describe('cart-state.service', () => {
         expect(update.directReply).toContain('Combien souhaitez-vous en commander ?')
     })
 
+    test('supports a quantity written in letters for a digital license product', () => {
+        const update = updateCartStateFromUserMessage(
+            {},
+            'je veux trois logiciels antivirus',
+            [
+                {
+                    id: 'p1',
+                    name: 'Logiciel Antivirus',
+                    product_type: 'digital',
+                    price_fcfa: 75,
+                    license_keys: [
+                        { key: 'aaa-aaa', used: false },
+                        { key: 'bbb-bbb', used: false },
+                        { key: 'ccc-ccc', used: false },
+                    ],
+                },
+            ]
+        )
+
+        expect(update.state.stage).toBe(CART_STAGE.CHECKOUT)
+        expect(update.state.cart_items).toHaveLength(1)
+        expect(update.state.cart_items[0].quantity).toBe(3)
+    })
+
     test('does not throw when inferring a product mention from assistant text', () => {
         const nextState = inferCartStateFromAssistantMessage(
             'Mini-cours Excel disponible a 25 FCFA.',
@@ -347,6 +371,41 @@ describe('cart-state.service', () => {
         expect(update.state.cart_items.map(item => item.product_id)).toEqual(['excel', 'pack', 'antivirus'])
         expect(update.state.cart_items.map(item => item.quantity)).toEqual([1, 1, 1])
         expect(update.directReply).toContain('Mini-cours Excel')
+        expect(update.directReply).toContain('Pack Fonds')
+        expect(update.directReply).toContain('Logiciel Antivirus')
+    })
+
+    test('builds a mixed digital cart when the license quantity is written in letters', () => {
+        const update = updateCartStateFromUserMessage(
+            {},
+            "Je veux le pack fonds d'ecran et trois logiciels antivirus",
+            [
+                {
+                    id: 'pack',
+                    name: "Pack Fonds d'ecran",
+                    product_type: 'digital',
+                    price_fcfa: 50,
+                    digital_content: 'https://example.com/pack.zip',
+                },
+                {
+                    id: 'antivirus',
+                    name: 'Logiciel Antivirus',
+                    product_type: 'digital',
+                    price_fcfa: 75,
+                    license_keys: [
+                        { key: 'aaa-aaa', used: false },
+                        { key: 'bbb-bbb', used: false },
+                        { key: 'ccc-ccc', used: false },
+                    ],
+                },
+            ]
+        )
+
+        expect(update.shouldBypassAI).toBe(true)
+        expect(update.state.stage).toBe(CART_STAGE.CART_RECAP)
+        expect(update.state.cart_items).toHaveLength(2)
+        expect(update.state.cart_items.map(item => item.product_id)).toEqual(['pack', 'antivirus'])
+        expect(update.state.cart_items.map(item => item.quantity)).toEqual([1, 3])
         expect(update.directReply).toContain('Pack Fonds')
         expect(update.directReply).toContain('Logiciel Antivirus')
     })
