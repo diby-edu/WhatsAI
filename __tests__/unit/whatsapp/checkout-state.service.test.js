@@ -253,4 +253,99 @@ describe('checkout-state.service', () => {
         expect(emailUpdate.directReply).toContain('+33088483993')
         expect(emailUpdate.directReply).toContain('kondhjjz@gmail.com')
     })
+
+    test('explains that a phone number needs a country code when the client sends a local format', () => {
+        const previousState = {
+            stage: CHECKOUT_STAGE.CUSTOMER_FIELDS,
+            pending_fields: ['customer_phone', 'email'],
+            awaiting_field: {
+                type: 'customer_phone',
+                label: 'numero de telephone',
+                prompt: 'Quel est votre numero de telephone avec indicatif ? (ex : +2250700000000)',
+            },
+            collected: {
+                customer_name: 'Koffi Diby',
+                customer_phone: null,
+                email: null,
+                delivery_address: null,
+                payment_method: 'online',
+                notes: null,
+            },
+            note_declined: false,
+            customer_recap_confirmed: false,
+        }
+
+        const cartState = {
+            stage: 'checkout',
+            cart_items: [
+                {
+                    product_id: 'p1',
+                    product_name: 'Mini-cours Excel',
+                    quantity: 1,
+                    unit_price: 25,
+                    line_total: 25,
+                    selected_variants: {},
+                },
+            ],
+        }
+
+        const update = updateCheckoutStateFromUserMessage(previousState, '0788291023', {
+            cartState,
+            products: [
+                { id: 'p1', name: 'Mini-cours Excel', product_type: 'digital', price_fcfa: 25 },
+            ],
+        })
+
+        expect(update.shouldBypassAI).toBe(true)
+        expect(update.state.collected.customer_phone).toBeNull()
+        expect(update.state.awaiting_field?.type).toBe('customer_phone')
+        expect(update.directReply).toContain("indicatif pays")
+    })
+
+    test('normalizes accented email addresses when the client sends a complete email', () => {
+        const previousState = {
+            stage: CHECKOUT_STAGE.CUSTOMER_FIELDS,
+            pending_fields: ['email'],
+            awaiting_field: {
+                type: 'email',
+                label: 'adresse email',
+                prompt: 'Quelle est votre adresse email ? (ex : koffi@gmail.com)',
+            },
+            collected: {
+                customer_name: 'Koffi Diby',
+                customer_phone: '+2250700000000',
+                email: null,
+                delivery_address: null,
+                payment_method: 'online',
+                notes: null,
+            },
+            note_declined: false,
+            customer_recap_confirmed: false,
+        }
+
+        const cartState = {
+            stage: 'checkout',
+            cart_items: [
+                {
+                    product_id: 'p1',
+                    product_name: 'Mini-cours Excel',
+                    quantity: 1,
+                    unit_price: 25,
+                    line_total: 25,
+                    selected_variants: {},
+                },
+            ],
+        }
+
+        const update = updateCheckoutStateFromUserMessage(previousState, 'Touré@gmail.com', {
+            cartState,
+            products: [
+                { id: 'p1', name: 'Mini-cours Excel', product_type: 'digital', price_fcfa: 25 },
+            ],
+        })
+
+        expect(update.state.collected.email).toBe('toure@gmail.com')
+        expect(update.state.stage).toBe(CHECKOUT_STAGE.CUSTOMER_RECAP)
+        expect(update.directReply).toContain('toure@gmail.com')
+    })
 })

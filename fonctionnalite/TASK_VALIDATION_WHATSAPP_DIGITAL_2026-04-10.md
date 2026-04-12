@@ -144,6 +144,18 @@ Dernier run cible sur les suites critiques : `22/22` tests passes.
   - aucune ancienne info de checkout reinjectee de facon incoherente
   - valide sur VPS
 
+- [OK] Reponse libre pendant paiement en attente
+  Cas :
+  1. creer une commande online
+  2. s'arreter au lien de paiement sans payer
+  3. envoyer `Je veux ajouter un article` ou `Je veux encore un mini cours`
+  4. verifier `1. Continuer le paiement / 2. Annuler cette commande et recommencer`
+  Attendu :
+  - aucun nouveau tunnel ne demarre tant que la commande est `pending`
+  - `1` renvoie le lien de paiement
+  - `2` annule la commande en attente et autorise une nouvelle commande
+  - valide sur VPS
+
 ### Priorite moyenne
 
 - [ ] Produit simple digital avec formulation naturelle de quantite
@@ -162,13 +174,14 @@ Dernier run cible sur les suites critiques : `22/22` tests passes.
   - le bot doit expliquer que la quantite reste `1`
   - retour propre au panier
 
-- [ ] Mixte naturel simple + licence avec quantites differentes
-  Cas : `Je veux 2 pack fonds d'ecran et 3 logiciels antivirus`
+- [OK] Mixte naturel simple + licence avec quantites differentes
+  Cas : `Je veux le pack fonds d'ecran et trois logiciels antivirus`
   Attendu :
   - `Pack Fonds d'ecran x 1`
   - `Logiciel Antivirus x 3`
   - total coherent
   - livraison : un seul lien/fichier pour le pack et 3 cles pour l'antivirus
+  - valide sur VPS apres correctif du parseur de quantites en lettres
 
 - [ ] Question hors parcours apres paiement recu
   Cas : juste apres `Paiement recu !`, envoyer un message libre
