@@ -6,6 +6,13 @@ function normalizeGuardText(value = '') {
         .trim()
 }
 
+function normalizeGuardSearchText(value = '') {
+    return normalizeGuardText(value)
+        .replace(/[^a-z0-9]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+}
+
 function isAmbiguousPendingPaymentReply(text = '') {
     const normalized = normalizeGuardText(text)
     if (!normalized) return false
@@ -91,6 +98,20 @@ function buildPendingPaymentCancellationFailedMessage(order) {
     return `Je n'ai pas pu annuler la commande en attente #${String(order.id).substring(0, 8)} pour le moment.\n\nVeuillez reessayer dans un instant ou me dire si vous souhaitez simplement continuer le paiement.`
 }
 
+function isPendingPaymentContinueIntent(text = '') {
+    const normalized = normalizeGuardSearchText(text)
+    if (!normalized) return false
+
+    return /^(?:1|continuer|continue|je continue|continuer le paiement|continue le paiement|reprendre le paiement|poursuivre le paiement|renvoie le lien|renvoyer le lien)$/.test(normalized)
+}
+
+function isPendingPaymentCancelIntent(text = '') {
+    const normalized = normalizeGuardSearchText(text)
+    if (!normalized) return false
+
+    return /^(?:2|annuler|annule|je veux annuler|j annule|j abandonne|abandonner|laisser tomber|laisse tomber|annuler la commande|annuler cette commande|stop)$/.test(normalized)
+}
+
 function isPaymentHelpIntent(text = '') {
     const normalized = normalizeGuardText(text)
     if (!normalized) return false
@@ -99,17 +120,34 @@ function isPaymentHelpIntent(text = '') {
 }
 
 function isExplicitNewOrderIntent(text = '', productNames = []) {
-    const normalized = normalizeGuardText(text)
-    if (!normalized) return false
+    const normalized = normalizeGuardSearchText(text)
+    if (!normalized || isPendingPaymentCancelIntent(text)) return false
 
     const hasPurchaseVerb = /\b(je veux|je souhaite|ajoute|ajouter|encore|je prends|prendre|commande|commander|aussi|un autre|une autre)\b/.test(normalized)
     if (!hasPurchaseVerb) return false
 
+    const genericNewOrderCue = /\b(article|produit|panier|commande|autre chose|changer de commande|recommencer)\b/.test(normalized)
+    if (genericNewOrderCue) return true
+
     const normalizedProductNames = (productNames || [])
-        .map(name => normalizeGuardText(name))
+        .map(name => normalizeGuardSearchText(name))
         .filter(Boolean)
 
-    return normalizedProductNames.some(name => normalized.includes(name))
+    if (normalizedProductNames.some(name => normalized.includes(name))) {
+        return true
+    }
+
+    return normalizedProductNames.some(name => {
+        const tokens = name
+            .split(' ')
+            .map(token => token.trim())
+            .filter(token => token.length >= 4)
+
+        if (tokens.length === 0) return false
+
+        const matchingTokens = tokens.filter(token => normalized.includes(token))
+        return matchingTokens.length >= Math.min(2, tokens.length)
+    })
 }
 
 function resolvePendingPaymentFollowUp({
@@ -125,14 +163,14 @@ function resolvePendingPaymentFollowUp({
     const choicePromptActive = assistantPromptWasPendingChoice(lastAssistantMessage)
 
     if (choicePromptActive) {
-        if (normalized === '1') {
+        if (normalized === '1' || isPendingPaymentContinueIntent(text) || isPaymentHelpIntent(text)) {
             return {
                 type: 'reminder',
                 content: buildPendingPaymentReminder(pendingOrder, escalationPhone),
             }
         }
 
-        if (normalized === '2') {
+        if (normalized === '2' || isPendingPaymentCancelIntent(text)) {
             return {
                 type: 'cancel_pending_order',
                 content: buildPendingPaymentCancelledMessage(pendingOrder),
@@ -142,6 +180,13 @@ function resolvePendingPaymentFollowUp({
         return {
             type: 'choice',
             content: buildPendingPaymentChoicePrompt(pendingOrder, escalationPhone),
+        }
+    }
+
+    if (isPendingPaymentCancelIntent(text)) {
+        return {
+            type: 'cancel_pending_order',
+            content: buildPendingPaymentCancelledMessage(pendingOrder),
         }
     }
 
@@ -177,6 +222,8 @@ module.exports = {
     findPendingOnlineOrder,
     isAmbiguousPendingPaymentReply,
     isExplicitNewOrderIntent,
+    isPendingPaymentCancelIntent,
+    isPendingPaymentContinueIntent,
     isPaymentHelpIntent,
     resolvePendingPaymentFollowUp,
 }
