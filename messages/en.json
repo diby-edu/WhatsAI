@@ -36,7 +36,7 @@
                 "label": "Companies"
             },
             "messages": {
-                "value": "10K+",
+                "value": "100K+",
                 "label": "Messages/mo"
             },
             "satisfaction": {
@@ -88,7 +88,7 @@
                 "label": "Active Companies"
             },
             "messages": {
-                "value": "10M+",
+                "value": "100K+",
                 "label": "Messages Processed"
             },
             "satisfaction": {
@@ -273,9 +273,8 @@
                 "name": "Free",
                 "description": "To discover",
                 "features": [
-                    "100 free credits",
+                    "10 free credits",
                     "1 AI agent",
-                    "1 WhatsApp number",
                     "Community Support"
                 ]
             },
@@ -284,8 +283,7 @@
                 "description": "To start",
                 "features": [
                     "500 credits/mo",
-                    "2 AI agents",
-                    "1 WhatsApp number",
+                    "1 AI agent",
                     "Email Support",
                     "Basic Stats"
                 ]
@@ -294,9 +292,8 @@
                 "name": "Pro",
                 "description": "Most popular",
                 "features": [
-                    "2000 credits/mo",
-                    "5 AI agents",
-                    "3 WhatsApp numbers",
+                    "2,500 credits/mo",
+                    "3 AI agents",
                     "Priority Support",
                     "Advanced Analytics",
                     "Unlimited Products"
@@ -306,9 +303,8 @@
                 "name": "Business",
                 "description": "Complete Solution",
                 "features": [
-                    "10000 credits/mo",
-                    "Unlimited Agents",
-                    "10 WhatsApp numbers",
+                    "8,000 credits/mo",
+                    "6 AI agents",
                     "Dedicated 24/7 Support",
                     "Training included",
                     "Premium API"
@@ -333,22 +329,22 @@
             },
             "freeTest": {
                 "question": "Can I test for free?",
-                "answer": "Absolutely! Create an account and get 100 free credits to test all features. No credit card required. Upgrade to a paid plan when you're ready.",
+                "answer": "Absolutely! Create an account and get 10 free credits to test the platform. No credit card required. Upgrade to a paid plan when you're ready.",
                 "category": "General"
             },
             "credits": {
                 "question": "How does the credit system work?",
-                "answer": "1 credit = 1 message sent by AI. When your plan expires, your remaining credits are secured and usable for 14 days. If you don't renew within this period, they will be permanently deleted.",
+                "answer": "1 credit = 1 message sent by AI. For subscribers: when your plan expires, your remaining credits are frozen for 7 days. If you renew within that period, they are restored and added to your new plan credits. For credit-only buyers: each purchase gives 1 month of validity, renewed with each new purchase. After 7 days without renewal in either case, your account is permanently deleted.",
                 "category": "Billing"
             },
             "multiNumber": {
-                "question": "Can I use multiple WhatsApp numbers?",
-                "answer": "Yes! The number of numbers depends on your plan. Starter: 1, Pro: 2, Business: 4. Each number can have its own AI agent with different instructions.",
+                "question": "Can I connect multiple WhatsApp agents?",
+                "answer": "Yes! The number of agents depends on your plan. Starter: 1, Pro: 3, Business: 6, Scale: unlimited. Each agent has its own WhatsApp number, instructions and catalog.",
                 "category": "Features"
             },
             "appointments": {
-                "question": "Can AI take appointments?",
-                "answer": "Yes! Configure your agent to collect information and propose slots. Integration with Google Calendar is available on Pro and Business plans.",
+                "question": "How do I connect my WhatsApp number to an agent?",
+                "answer": "From your agent's page in the dashboard, click Connect WhatsApp. Two options: scan the QR code from another device, or use an 8-character pairing code if you're on the same phone (WhatsApp → Settings → Linked Devices → Link a Device → Link with phone number). The agent is operational as soon as the connection is established.",
                 "category": "Features"
             },
             "security": {
@@ -358,13 +354,23 @@
             },
             "cancel": {
                 "question": "Can I cancel anytime?",
-                "answer": "Yes, no commitment! Cancel your subscription anytime from your dashboard. Upon expiry, your credits are secured and your agents are archived for 14 days before permanent deletion.",
+                "answer": "Yes, no commitment! Cancel your subscription anytime from your dashboard. Upon expiry, all your agents are disabled and your credits are frozen. Renew within 7 days to get your credits back and reactivate your agents.",
                 "category": "Billing"
             },
-            "retention": {
-                "question": "What happens after 14 days of inactivity?",
-                "answer": "To keep our database clean, we permanently delete secured credits and archived agents after 14 days without an active subscription. An alert is sent 7 days before this deadline.",
+            "expiredSubscription": {
+                "question": "What happens when my paid subscription expires?",
+                "answer": "Upon expiry, all your agents are disabled and your unused credits are frozen. You have 7 days to renew: if you do so before the deadline, your frozen credits are fully restored and added to your new plan credits, and your agents are reactivated immediately. Without renewal after 7 days, your account is permanently deleted.",
                 "category": "Account"
+            },
+            "retention": {
+                "question": "What happens after 7 days without renewal?",
+                "answer": "Your account is permanently deleted: profile, agents, order history, all data. This action is irreversible. At day 4 (3 days before the deadline), you receive an email and push notification reminder to give you time to act.",
+                "category": "Account"
+            },
+            "creditsOnly": {
+                "question": "Can I use WazzapAI without a subscription?",
+                "answer": "Yes. You can buy credits directly without a monthly subscription. Each purchase gives you access to 1 WhatsApp agent for 1 month. Each new purchase before the deadline extends this validity by 1 additional month. If you don't renew before the deadline, your credits are frozen for 7 days and then your account is permanently deleted.",
+                "category": "Billing"
             },
             "whatsappBusiness": {
                 "question": "Does WazzapAI work with WhatsApp Business?",
@@ -409,7 +415,7 @@
             "gdpr": "GDPR",
             "community": "WhatsApp Community"
         },
-        "rights": "© 2025 WazzapAI. All rights reserved."
+        "rights": "© 2026 WazzapAI. All rights reserved."
     },
     "Auth": {
         "login": {

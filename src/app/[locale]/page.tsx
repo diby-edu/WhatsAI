@@ -101,7 +101,7 @@ export default function Home() {
             },
             "aggregateRating": {
               "@type": "AggregateRating",
-              "ratingValue": "4.8",
+              "ratingValue": "4.9",
               "ratingCount": "124"
             },
             "description": "The Ultimate WhatsApp Automation Platform powered by AI. Transform your WhatsApp into a 24/7 Sales Machine.",

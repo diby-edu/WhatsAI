@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Check, Zap, Crown, Sparkles, ArrowRight, Loader2, Rocket, Users, Smartphone, CreditCard } from 'lucide-react'
+import { Check, Zap, Crown, Sparkles, ArrowRight, Loader2, Rocket, Users, CreditCard } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
@@ -34,33 +34,33 @@ const COMMON_FEATURES = [
 // Per-plan extras — expiration, renewal and bonus behaviors
 const PLAN_SPECIFIC_FEATURES: Record<string, { text: string; highlight?: boolean }[]> = {
     free: [
-        { text: '50 crédits offerts une seule fois' },
+        { text: '10 crédits offerts une seule fois' },
         { text: 'Pas de renouvellement automatique' },
+        { text: 'Sans paiement après 7j : compte supprimé définitivement' },
     ],
     starter: [
-        { text: 'À l\'expiration : crédits protégés (non perdus)' },
+        { text: 'À l\'expiration : crédits gelés 7 jours' },
         { text: 'Au renouvellement : anciens + nouveaux crédits cumulés' },
-        { text: '1 agent réactivé, les autres désactivés 7j' },
-        { text: 'Sans renouvellement après 7j : crédits supprimés' },
+        { text: 'Agents réactivés immédiatement au renouvellement' },
+        { text: 'Sans renouvellement après 7j : compte supprimé définitivement' },
     ],
     pro: [
-        { text: 'À l\'expiration : crédits protégés (non perdus)' },
+        { text: 'À l\'expiration : crédits gelés 7 jours' },
         { text: 'Au renouvellement : anciens + nouveaux crédits cumulés' },
-        { text: 'Agents excédentaires désactivés 7j (récupérables)' },
+        { text: 'Agents réactivés immédiatement au renouvellement' },
         { text: 'Alerte à 85% de consommation mensuelle' },
-        { text: 'Sans renouvellement après 7j : crédits supprimés' },
+        { text: 'Sans renouvellement après 7j : compte supprimé définitivement' },
     ],
     business: [
-        { text: 'À l\'expiration : crédits protégés (non perdus)' },
+        { text: 'À l\'expiration : crédits gelés 7 jours' },
         { text: 'Au renouvellement : anciens + nouveaux crédits cumulés' },
-        { text: 'Agents excédentaires désactivés 7j (récupérables)' },
+        { text: 'Agents réactivés immédiatement au renouvellement' },
         { text: 'Alerte à 85% de consommation mensuelle' },
-        { text: 'Sans renouvellement après 7j : crédits supprimés' },
+        { text: 'Sans renouvellement après 7j : compte supprimé définitivement' },
     ],
     scale: [
-        { text: 'Rollover 20% des crédits non utilisés à chaque renouvellement', highlight: true },
+        { text: 'Crédits non utilisés conservés + 20% de bonus à chaque renouvellement', highlight: true },
         { text: '+2 000 crédits bonus offerts à chaque renouvellement', highlight: true },
-        { text: 'Crédits sécurisés et reportés (Scale actif)', highlight: true },
         { text: 'Agents illimités — aucun archivage possible', highlight: true },
         { text: 'Notification détaillée de votre bonus après chaque renouvellement', highlight: false },
     ],
@@ -85,11 +85,11 @@ const planGradients: Record<string, { bg: string; glow: string }> = {
 }
 
 const FALLBACK_PLANS: Plan[] = [
-    { id: 'free', name: 'Gratuit', price_fcfa: 0, credits: 50, max_agents: 1, max_whatsapp_numbers: 1, is_popular: false, description: 'Pour tester la plateforme' },
-    { id: 'starter', name: 'Starter', price_fcfa: 6900, credits: 500, max_agents: 1, max_whatsapp_numbers: 1, is_popular: false, description: '500 crédits · 1 agent · 1 numéro' },
-    { id: 'pro', name: 'Pro', price_fcfa: 19900, credits: 2500, max_agents: 3, max_whatsapp_numbers: 3, is_popular: true, description: '2 500 crédits · 3 agents · 3 numéros' },
-    { id: 'business', name: 'Business', price_fcfa: 54900, credits: 8000, max_agents: 6, max_whatsapp_numbers: 6, is_popular: false, description: '8 000 crédits · 6 agents · 6 numéros' },
-    { id: 'scale', name: 'Scale', price_fcfa: 129900, credits: 20000, max_agents: -1, max_whatsapp_numbers: -1, is_popular: false, description: '20 000 crédits · Illimité' },
+    { id: 'free', name: 'Gratuit', price_fcfa: 0, credits: 10, max_agents: 1, max_whatsapp_numbers: 1, is_popular: false, description: 'Pour tester la plateforme' },
+    { id: 'starter', name: 'Starter', price_fcfa: 6900, credits: 500, max_agents: 1, max_whatsapp_numbers: 1, is_popular: false, description: '500 crédits · 1 agent' },
+    { id: 'pro', name: 'Pro', price_fcfa: 19900, credits: 2500, max_agents: 3, max_whatsapp_numbers: 3, is_popular: true, description: '2 500 crédits · 3 agents' },
+    { id: 'business', name: 'Business', price_fcfa: 54900, credits: 8000, max_agents: 6, max_whatsapp_numbers: 6, is_popular: false, description: '8 000 crédits · 6 agents' },
+    { id: 'scale', name: 'Scale', price_fcfa: 129900, credits: 20000, max_agents: -1, max_whatsapp_numbers: -1, is_popular: false, description: '20 000 crédits · Agents illimités' },
 ]
 
 export default function Pricing() {
@@ -373,7 +373,7 @@ export default function Pricing() {
                                         alignSelf: 'flex-start'
                                     }}>
                                         <span style={{ fontSize: 11, color: '#fbbf24', fontWeight: 700 }}>
-                                            ⭐ Rollover 20% • +2 000 crédits/mois
+                                            ⭐ Crédits conservés + 20% bonus • +2 000 crédits/mois
                                         </span>
                                     </div>
                                 )}
@@ -418,7 +418,7 @@ export default function Pricing() {
                                 {/* Quotas — the only differentiators */}
                                 <div className="quota-grid" style={{
                                     display: 'grid',
-                                    gridTemplateColumns: '1fr 1fr 1fr',
+                                    gridTemplateColumns: '1fr 1fr',
                                     gap: 6,
                                     marginBottom: 14,
                                     padding: '12px 6px',
@@ -440,26 +440,17 @@ export default function Pricing() {
                                         </div>
                                         {plan.id !== 'free' && (
                                             <div style={{ fontSize: 9, color: plan.id === 'scale' ? '#a78bfa' : '#64748b', marginTop: 2 }}>
-                                                {plan.id === 'scale' ? 'Rollover 20%' : 'Protégés 7j/expir.'}
+                                                {plan.id === 'scale' ? 'Rollover 20% + bonus' : 'Gelés 7j à expir.'}
                                             </div>
                                         )}
                                     </div>
-                                    <div style={{ textAlign: 'center', borderLeft: '1px solid rgba(148,163,184,0.1)', borderRight: '1px solid rgba(148,163,184,0.1)' }}>
+                                    <div style={{ textAlign: 'center', borderLeft: '1px solid rgba(148,163,184,0.1)' }}>
                                         <div style={{ fontSize: 22, fontWeight: 800, color: 'white', lineHeight: 1.1 }}>
                                             {plan.max_agents === -1 ? '∞' : plan.max_agents}
                                         </div>
                                         <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
                                             <Users size={9} />
                                             agents
-                                        </div>
-                                    </div>
-                                    <div style={{ textAlign: 'center' }}>
-                                        <div style={{ fontSize: 22, fontWeight: 800, color: 'white', lineHeight: 1.1 }}>
-                                            {plan.max_whatsapp_numbers === -1 ? '∞' : plan.max_whatsapp_numbers}
-                                        </div>
-                                        <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
-                                            <Smartphone size={9} />
-                                            numéros
                                         </div>
                                     </div>
                                 </div>
