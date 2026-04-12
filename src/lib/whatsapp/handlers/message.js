@@ -25,6 +25,11 @@ const { handleToolCall } = require('../ai/tools')
 const { downloadMediaMessage } = require('@whiskeysockets/baileys')
 const { buildInboundTextVariants } = require('./message-text')
 const { recoverInterruptedCheckoutFromHistory } = require('./interrupted-checkout-recovery')
+const {
+    buildPendingPaymentReminder,
+    findPendingOnlineOrder,
+    shouldHandlePendingPaymentFollowUp,
+} = require('./pending-payment-guard')
 const { normalizeWhatsAppContact } = require('../ai/tools/tool-helpers')
 const {
     clearCheckoutState,
@@ -453,6 +458,27 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                 : conversationHistory
 
         const normalizedContactPhone = normalizeWhatsAppContact(message.from)
+        const previousAssistantMessage = [...historyForAI]
+            .reverse()
+            .find(entry => entry.role === 'assistant')?.content || ''
+
+        let recentOrdersForContext = []
+        if (normalizedContactPhone) {
+            const { data: recentOrders } = await supabase
+                .from('orders')
+                .select(`
+                    id, status, total_fcfa, created_at, conversation_id,
+                    customer_name, customer_phone, delivery_address,
+                    payment_method, provider_payment_url,
+                    items:order_items(product_name, quantity)
+                `)
+                .eq('user_id', agent.user_id)
+                .eq('customer_phone', normalizedContactPhone)
+                .order('created_at', { ascending: false })
+                .limit(20)
+
+            recentOrdersForContext = recentOrders || []
+        }
 
         // 3.2 Produits de l'agent (Isolation stricte par agent_id)
         const { data: products } = await supabase
@@ -494,37 +520,58 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
         const noopBookingUpdate = { state: previousBookingState, stateChanged: false, shouldBypassAI: false, directReply: null }
         const noopRestaurantUpdate = { state: previousRestaurantState, stateChanged: false, shouldBypassAI: false, directReply: null }
 
-        const restaurantUpdate = (isSupportClientMode || !hasRestaurantCatalog)
-            ? noopRestaurantUpdate
-            : updateRestaurantStateFromUserMessage(previousRestaurantState, structuredMessageText, restaurantProducts)
-        const restaurantFlowActive = !isSupportClientMode && hasRestaurantCatalog && hasRestaurantStateData(restaurantUpdate.state)
+        const pendingOnlineOrder = findPendingOnlineOrder(recentOrdersForContext, {
+            conversationId: conversation.id,
+        })
 
-        const bookingUpdate = (isSupportClientMode || restaurantFlowActive)
-            ? noopBookingUpdate
-            : updateBookingStateFromUserMessage(previousBookingState, structuredMessageText, standardServiceProducts)
-        const bookingFlowActive = !isSupportClientMode && !!(previousBookingState.current_booking || bookingUpdate.state.current_booking)
+        const pendingPaymentReminder = shouldHandlePendingPaymentFollowUp({
+            text: structuredMessageText,
+            lastAssistantMessage: previousAssistantMessage,
+            pendingOrder: pendingOnlineOrder,
+        })
+            ? buildPendingPaymentReminder(pendingOnlineOrder, agent.escalation_phone)
+            : null
 
-        let cartUpdate = (isSupportClientMode || restaurantFlowActive || bookingFlowActive)
-            ? noopCartUpdate
-            : updateCartStateFromUserMessage(previousCartState, structuredMessageText, orderableProducts, agentCurrency, {
-                allowKnowledgeInterrupt: hasKnowledgeBase,
-            })
+        let restaurantUpdate = noopRestaurantUpdate
+        let restaurantFlowActive = false
+        let bookingUpdate = noopBookingUpdate
+        let bookingFlowActive = false
+        let cartUpdate = noopCartUpdate
+        let checkoutUpdate = noopCheckoutUpdate
 
-        const cartJustEnteredCheckout =
-            !isSupportClientMode &&
-            !restaurantFlowActive &&
-            !bookingFlowActive &&
-            previousCartState.stage !== CART_STAGE.CHECKOUT &&
-            cartUpdate.state.stage === CART_STAGE.CHECKOUT
+        if (!pendingPaymentReminder) {
+            restaurantUpdate = (isSupportClientMode || !hasRestaurantCatalog)
+                ? noopRestaurantUpdate
+                : updateRestaurantStateFromUserMessage(previousRestaurantState, structuredMessageText, restaurantProducts)
+            restaurantFlowActive = !isSupportClientMode && hasRestaurantCatalog && hasRestaurantStateData(restaurantUpdate.state)
 
-        let checkoutUpdate = (isSupportClientMode || restaurantFlowActive || bookingFlowActive)
-            ? noopCheckoutUpdate
-            : updateCheckoutStateFromUserMessage(previousCheckoutState, structuredMessageText, {
-                cartState: cartUpdate.state,
-                products: orderableProducts,
-                activateCheckout: cartJustEnteredCheckout,
-                allowKnowledgeInterrupt: hasKnowledgeBase,
-            })
+            bookingUpdate = (isSupportClientMode || restaurantFlowActive)
+                ? noopBookingUpdate
+                : updateBookingStateFromUserMessage(previousBookingState, structuredMessageText, standardServiceProducts)
+            bookingFlowActive = !isSupportClientMode && !!(previousBookingState.current_booking || bookingUpdate.state.current_booking)
+
+            cartUpdate = (isSupportClientMode || restaurantFlowActive || bookingFlowActive)
+                ? noopCartUpdate
+                : updateCartStateFromUserMessage(previousCartState, structuredMessageText, orderableProducts, agentCurrency, {
+                    allowKnowledgeInterrupt: hasKnowledgeBase,
+                })
+
+            const cartJustEnteredCheckout =
+                !isSupportClientMode &&
+                !restaurantFlowActive &&
+                !bookingFlowActive &&
+                previousCartState.stage !== CART_STAGE.CHECKOUT &&
+                cartUpdate.state.stage === CART_STAGE.CHECKOUT
+
+            checkoutUpdate = (isSupportClientMode || restaurantFlowActive || bookingFlowActive)
+                ? noopCheckoutUpdate
+                : updateCheckoutStateFromUserMessage(previousCheckoutState, structuredMessageText, {
+                    cartState: cartUpdate.state,
+                    products: orderableProducts,
+                    activateCheckout: cartJustEnteredCheckout,
+                    allowKnowledgeInterrupt: hasKnowledgeBase,
+                })
+        }
 
         if (
             !isSupportClientMode &&
@@ -716,7 +763,14 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                 ? bookingUpdate.directReply
                 : (cartUpdate.directReply || checkoutUpdate.directReply)
 
-        if (structuredReply) {
+        if (pendingPaymentReminder) {
+            console.log(`⏳ [${agentId}] Pending payment reminder sent instead of reopening a new cart flow`)
+            aiResponse = {
+                content: pendingPaymentReminder,
+                tokensUsed: 0,
+                imageActions: []
+            }
+        } else if (structuredReply) {
             console.log('Structured flow reply generated')
             aiResponse = {
                 content: structuredReply,
