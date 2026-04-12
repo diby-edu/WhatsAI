@@ -50,6 +50,7 @@ const {
     updateCartStateFromUserMessage,
 } = require('../services/cart-state.service')
 const {
+    clearBookingState,
     getBookingState,
     inferBookingStateFromAssistantMessage,
     setBookingState,
@@ -128,6 +129,40 @@ async function cancelPendingOnlineOrder(supabase, orderId) {
     }
 
     return Array.isArray(data) && data.length > 0
+}
+
+function buildRecentCustomerProfile(orders = []) {
+    const profile = {
+        customer_name: null,
+        customer_phone: null,
+        email: null,
+        delivery_address: null,
+        payment_method: null,
+    }
+
+    for (const order of orders || []) {
+        if (!profile.customer_name && order?.customer_name) profile.customer_name = order.customer_name
+        if (!profile.customer_phone && order?.customer_phone) profile.customer_phone = order.customer_phone
+        if (!profile.email && order?.customer_email) profile.email = order.customer_email
+        if (!profile.delivery_address && order?.delivery_address) profile.delivery_address = order.delivery_address
+        if (!profile.payment_method && order?.payment_method) profile.payment_method = order.payment_method
+    }
+
+    return Object.values(profile).some(Boolean) ? profile : null
+}
+
+function resetTransactionalCycleMetadata(metadata = {}) {
+    return {
+        ...(metadata || {}),
+        cart: null,
+        checkout: null,
+        booking: null,
+        restaurant: null,
+        external_context: null,
+        session_anchor_at: new Date().toISOString(),
+        last_cycle_closed_at: null,
+        last_cycle_reason: null,
+    }
 }
 
 async function submitStructuredOrder({
@@ -492,6 +527,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                 .select(`
                     id, status, total_fcfa, created_at, conversation_id,
                     customer_name, customer_phone, delivery_address,
+                    customer_email,
                     payment_method, provider_payment_url,
                     items:order_items(product_name, quantity)
                 `)
@@ -546,6 +582,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
         const pendingOnlineOrder = findPendingOnlineOrder(recentOrdersForContext, {
             conversationId: conversation.id,
         })
+        const recentCustomerProfile = buildRecentCustomerProfile(recentOrdersForContext)
 
         let pendingPaymentResolution = resolvePendingPaymentFollowUp({
             text: structuredMessageText,
@@ -604,6 +641,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                     products: orderableProducts,
                     activateCheckout: cartJustEnteredCheckout,
                     allowKnowledgeInterrupt: hasKnowledgeBase,
+                    recentCustomerProfile,
                 })
         }
 
@@ -791,6 +829,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
         let nextRestaurantState = restaurantUpdate.state
         let clearCartAfterResponse = false
         let clearCheckoutAfterResponse = false
+        let resetTransactionalCycleAfterResponse = false
         const structuredReply = restaurantUpdate.shouldBypassAI && restaurantFlowActive
             ? restaurantUpdate.directReply
             : bookingUpdate.shouldBypassAI && bookingFlowActive
@@ -803,6 +842,13 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                 content: pendingPaymentResolution.content,
                 tokensUsed: 0,
                 imageActions: []
+            }
+            if (pendingPaymentResolution.type === 'cancelled') {
+                clearCartAfterResponse = true
+                clearCheckoutAfterResponse = true
+                nextBookingState = {}
+                nextRestaurantState = {}
+                resetTransactionalCycleAfterResponse = true
             }
         } else if (structuredReply) {
             console.log('Structured flow reply generated')
@@ -899,10 +945,17 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             nextMetadata = clearCheckoutAfterResponse
                 ? clearCheckoutState(nextMetadata)
                 : setCheckoutState(nextMetadata, nextCheckoutState)
-            nextMetadata = setBookingState(nextMetadata, nextBookingState)
+            nextMetadata = resetTransactionalCycleAfterResponse
+                ? clearBookingState(nextMetadata)
+                : setBookingState(nextMetadata, nextBookingState)
             nextMetadata = hasRestaurantCatalog
-                ? setRestaurantState(nextMetadata, nextRestaurantState)
+                ? (resetTransactionalCycleAfterResponse
+                    ? clearRestaurantState(nextMetadata)
+                    : setRestaurantState(nextMetadata, nextRestaurantState))
                 : clearRestaurantState(nextMetadata)
+            if (resetTransactionalCycleAfterResponse) {
+                nextMetadata = resetTransactionalCycleMetadata(nextMetadata)
+            }
             await conversation.updateMetadata(nextMetadata)
         }
 
