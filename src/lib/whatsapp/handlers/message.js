@@ -26,9 +26,9 @@ const { downloadMediaMessage } = require('@whiskeysockets/baileys')
 const { buildInboundTextVariants } = require('./message-text')
 const { recoverInterruptedCheckoutFromHistory } = require('./interrupted-checkout-recovery')
 const {
-    buildPendingPaymentReminder,
+    buildPendingPaymentCancellationFailedMessage,
     findPendingOnlineOrder,
-    shouldHandlePendingPaymentFollowUp,
+    resolvePendingPaymentFollowUp,
 } = require('./pending-payment-guard')
 const { normalizeWhatsAppContact } = require('../ai/tools/tool-helpers')
 const {
@@ -105,6 +105,29 @@ function formatDirectToolResponse(parsedResult) {
     if (parts.length === 0 && parsedResult.error) parts.push(parsedResult.error)
 
     return parts.filter(Boolean).join('\n\n')
+}
+
+async function cancelPendingOnlineOrder(supabase, orderId) {
+    if (!orderId) return false
+
+    const now = new Date().toISOString()
+    const { data, error } = await supabase
+        .from('orders')
+        .update({
+            status: 'cancelled',
+            cancelled_at: now,
+            updated_at: now,
+        })
+        .eq('id', orderId)
+        .eq('status', 'pending')
+        .select('id')
+
+    if (error) {
+        console.error(`Failed to cancel pending order ${orderId}:`, error)
+        return false
+    }
+
+    return Array.isArray(data) && data.length > 0
 }
 
 async function submitStructuredOrder({
@@ -463,7 +486,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             .find(entry => entry.role === 'assistant')?.content || ''
 
         let recentOrdersForContext = []
-        if (normalizedContactPhone) {
+        if (conversation?.id) {
             const { data: recentOrders } = await supabase
                 .from('orders')
                 .select(`
@@ -473,7 +496,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                     items:order_items(product_name, quantity)
                 `)
                 .eq('user_id', agent.user_id)
-                .eq('customer_phone', normalizedContactPhone)
+                .eq('conversation_id', conversation.id)
                 .order('created_at', { ascending: false })
                 .limit(20)
 
@@ -524,13 +547,24 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             conversationId: conversation.id,
         })
 
-        const pendingPaymentReminder = shouldHandlePendingPaymentFollowUp({
+        let pendingPaymentResolution = resolvePendingPaymentFollowUp({
             text: structuredMessageText,
             lastAssistantMessage: previousAssistantMessage,
             pendingOrder: pendingOnlineOrder,
+            productNames: orderableProducts.map(product => product.name),
+            escalationPhone: agent.escalation_phone,
         })
-            ? buildPendingPaymentReminder(pendingOnlineOrder, agent.escalation_phone)
-            : null
+
+        if (pendingPaymentResolution?.type === 'cancel_pending_order') {
+            const cancelled = await cancelPendingOnlineOrder(supabase, pendingOnlineOrder?.id)
+            pendingPaymentResolution = {
+                ...pendingPaymentResolution,
+                type: cancelled ? 'cancelled' : 'cancel_failed',
+                content: cancelled
+                    ? pendingPaymentResolution.content
+                    : buildPendingPaymentCancellationFailedMessage(pendingOnlineOrder),
+            }
+        }
 
         let restaurantUpdate = noopRestaurantUpdate
         let restaurantFlowActive = false
@@ -539,7 +573,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
         let cartUpdate = noopCartUpdate
         let checkoutUpdate = noopCheckoutUpdate
 
-        if (!pendingPaymentReminder) {
+        if (!pendingPaymentResolution) {
             restaurantUpdate = (isSupportClientMode || !hasRestaurantCatalog)
                 ? noopRestaurantUpdate
                 : updateRestaurantStateFromUserMessage(previousRestaurantState, structuredMessageText, restaurantProducts)
@@ -763,10 +797,10 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                 ? bookingUpdate.directReply
                 : (cartUpdate.directReply || checkoutUpdate.directReply)
 
-        if (pendingPaymentReminder) {
+        if (pendingPaymentResolution) {
             console.log(`⏳ [${agentId}] Pending payment reminder sent instead of reopening a new cart flow`)
             aiResponse = {
-                content: pendingPaymentReminder,
+                content: pendingPaymentResolution.content,
                 tokensUsed: 0,
                 imageActions: []
             }
