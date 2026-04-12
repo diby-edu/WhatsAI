@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, Clock4, ShieldAlert } from 'lucide-react'
+import { AlertTriangle, ArrowRight, Clock4, ShieldAlert } from 'lucide-react'
+import Link from 'next/link'
 
 type TestAccountBannerProps = {
     cleanupDeadline: string | null
@@ -147,12 +148,37 @@ export function TestAccountCountdownBanner({
                         {description}
                     </p>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
                         <AlertTriangle style={{ width: 16, height: 16, color: isExpired || isExpiredSubscriber ? '#fca5a5' : '#fbbf24' }} />
                         <span style={{ color: '#cbd5e1', fontSize: 13 }}>
                             {actionLine}
                         </span>
                     </div>
+
+                    <Link
+                        href="/dashboard/billing"
+                        style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            padding: '10px 20px',
+                            borderRadius: 10,
+                            background: isExpiredSubscriber
+                                ? 'linear-gradient(135deg, #ef4444, #dc2626)'
+                                : 'linear-gradient(135deg, #25D366, #128C7E)',
+                            color: 'white',
+                            fontWeight: 700,
+                            fontSize: 14,
+                            textDecoration: 'none',
+                            marginBottom: 16,
+                            boxShadow: isExpiredSubscriber
+                                ? '0 4px 14px rgba(239, 68, 68, 0.35)'
+                                : '0 4px 14px rgba(37, 211, 102, 0.35)',
+                        }}
+                    >
+                        {isExpiredSubscriber ? 'Renouveler mon abonnement' : 'Choisir un abonnement'}
+                        <ArrowRight style={{ width: 16, height: 16 }} />
+                    </Link>
 
                     {!isExpired && (
                         <div
