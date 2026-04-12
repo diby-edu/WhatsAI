@@ -181,9 +181,7 @@ export default function OnboardingPage() {
                         fontSize: 13,
                         lineHeight: 1.6
                     }}>
-                        Information importante : les comptes gratuits sans paiement valide et sans agent WhatsApp completement connecte
-                        peuvent etre supprimes automatiquement apres 7 jours. Si votre compte est encore considere comme compte test,
-                        un compte a rebours apparaitra dans votre dashboard.
+                        Information importante : votre compte est en période d'essai de 7 jours. Sans souscription à un abonnement ou achat de crédits avant la date limite, votre compte sera définitivement supprimé. Un compte à rebours est affiché dans votre dashboard.
                     </div>
 
                     {sectionLabel(1, 'Votre devise de travail')}

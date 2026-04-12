@@ -4,7 +4,7 @@ export const PLANS = {
         id: 'free',
         name: 'Gratuit',
         price: 0,
-        credits: 50,
+        credits: 10,
         agents: 1,
         whatsapp_connections: 1,
         model: 'gpt-4o-mini',

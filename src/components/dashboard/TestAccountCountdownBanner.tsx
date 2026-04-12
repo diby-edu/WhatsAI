@@ -9,6 +9,7 @@ type TestAccountBannerProps = {
     showCountdown: boolean
     graceDays: number
     emphasizeWelcome?: boolean
+    isExpiredSubscriber?: boolean
 }
 
 function formatRemainingDuration(ms: number) {
@@ -27,6 +28,7 @@ export function TestAccountCountdownBanner({
     showCountdown,
     graceDays,
     emphasizeWelcome = false,
+    isExpiredSubscriber = false,
 }: TestAccountBannerProps) {
     const deadlineMs = cleanupDeadline ? new Date(cleanupDeadline).getTime() : null
     const [remainingMs, setRemainingMs] = useState(() => deadlineMs ? Math.max(0, deadlineMs - Date.now()) : 0)
@@ -54,17 +56,31 @@ export function TestAccountCountdownBanner({
         })
         : null
 
-    if (!cleanupDeadline || (!showCountdown && !isExpired)) return null
+    if (!cleanupDeadline || (!showCountdown && !isExpired && !isExpiredSubscriber)) return null
 
-    const title = isExpired
-        ? 'Compte de test arrive a echeance'
-        : emphasizeWelcome
-            ? 'Bienvenue - votre compte test dispose de 7 jours'
-            : 'Compte de test en attente de validation'
+    const title = isExpiredSubscriber
+        ? `Votre abonnement a expiré — compte supprimé le ${formattedDeadline}`
+        : isExpired
+            ? 'Compte expiré — suppression imminente'
+            : emphasizeWelcome
+                ? `Bienvenue — votre compte expire le ${formattedDeadline}`
+                : `Compte en période d'essai — suppression le ${formattedDeadline}`
 
-    const description = isExpired
-        ? 'Votre delai de grace est termine. Effectuez un paiement valide ou connectez un agent WhatsApp complet pour sortir immediatement du statut test.'
-        : `Sans paiement valide ni connexion complete d'un agent WhatsApp, ce compte gratuit pourra etre supprime automatiquement dans ${graceDays} jours.`
+    const description = isExpiredSubscriber
+        ? `Tous vos agents sont désactivés et vos crédits sont gelés. Si vous renouvelez avant le ${formattedDeadline} : vos crédits gelés vous sont intégralement restitués et vos agents sont réactivés immédiatement. Après cette date, votre compte et toutes vos données sont définitivement supprimés. Cette action est irréversible.`
+        : isExpired
+            ? 'Votre délai d\'essai est écoulé. Ce compte sera supprimé très prochainement. Souscrivez immédiatement pour récupérer vos données.'
+            : `Sans paiement valide, ce compte et toutes vos données seront définitivement supprimés le ${formattedDeadline}. Cette action est irréversible.`
+
+    const actionLine = isExpiredSubscriber
+        ? 'Renouvelez votre abonnement pour récupérer vos crédits et réactiver vos agents.'
+        : 'Pour conserver votre compte et vos données, souscrivez à un abonnement ou achetez des crédits.'
+
+    const badgeLabel = isExpiredSubscriber
+        ? 'Abonnement expiré'
+        : isExpired
+            ? 'Action requise'
+            : 'Compte test'
 
     return (
         <div
@@ -72,11 +88,11 @@ export function TestAccountCountdownBanner({
                 marginBottom: 20,
                 padding: 20,
                 borderRadius: 18,
-                border: isExpired ? '1px solid rgba(248, 113, 113, 0.35)' : '1px solid rgba(251, 191, 36, 0.28)',
-                background: isExpired
+                border: (isExpired || isExpiredSubscriber) ? '1px solid rgba(248, 113, 113, 0.35)' : '1px solid rgba(251, 191, 36, 0.28)',
+                background: (isExpired || isExpiredSubscriber)
                     ? 'linear-gradient(135deg, rgba(127, 29, 29, 0.35), rgba(69, 10, 10, 0.22))'
                     : 'linear-gradient(135deg, rgba(120, 53, 15, 0.34), rgba(15, 23, 42, 0.72))',
-                boxShadow: isExpired
+                boxShadow: (isExpired || isExpiredSubscriber)
                     ? '0 10px 30px rgba(127, 29, 29, 0.18)'
                     : '0 10px 30px rgba(120, 53, 15, 0.16)',
             }}
@@ -94,14 +110,14 @@ export function TestAccountCountdownBanner({
                         width: 46,
                         height: 46,
                         borderRadius: 14,
-                        background: isExpired ? 'rgba(239, 68, 68, 0.16)' : 'rgba(251, 191, 36, 0.16)',
+                        background: (isExpired || isExpiredSubscriber) ? 'rgba(239, 68, 68, 0.16)' : 'rgba(251, 191, 36, 0.16)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         flexShrink: 0,
                     }}
                 >
-                    {isExpired ? (
+                    {(isExpired || isExpiredSubscriber) ? (
                         <ShieldAlert style={{ width: 22, height: 22, color: '#fca5a5' }} />
                     ) : (
                         <Clock4 style={{ width: 22, height: 22, color: '#fbbf24' }} />
@@ -119,11 +135,11 @@ export function TestAccountCountdownBanner({
                                 borderRadius: 999,
                                 fontSize: 12,
                                 fontWeight: 700,
-                                color: isExpired ? '#fecaca' : '#fde68a',
-                                background: isExpired ? 'rgba(153, 27, 27, 0.28)' : 'rgba(120, 53, 15, 0.4)',
+                                color: isExpired || isExpiredSubscriber ? '#fecaca' : '#fde68a',
+                                background: isExpired || isExpiredSubscriber ? 'rgba(153, 27, 27, 0.28)' : 'rgba(120, 53, 15, 0.4)',
                             }}
                         >
-                            {isExpired ? 'Action requise' : 'Compte test'}
+                            {badgeLabel}
                         </span>
                     </div>
 
@@ -132,17 +148,11 @@ export function TestAccountCountdownBanner({
                     </p>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
-                        <AlertTriangle style={{ width: 16, height: 16, color: isExpired ? '#fca5a5' : '#fbbf24' }} />
+                        <AlertTriangle style={{ width: 16, height: 16, color: isExpired || isExpiredSubscriber ? '#fca5a5' : '#fbbf24' }} />
                         <span style={{ color: '#cbd5e1', fontSize: 13 }}>
-                            Pour conserver votre espace, validez un paiement ou connectez un agent WhatsApp complet.
+                            {actionLine}
                         </span>
                     </div>
-
-                    {formattedDeadline && (
-                        <p style={{ margin: '0 0 14px 0', color: '#94a3b8', fontSize: 13 }}>
-                            Echeance : {formattedDeadline}
-                        </p>
-                    )}
 
                     {!isExpired && (
                         <div
