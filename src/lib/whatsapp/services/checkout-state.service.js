@@ -67,6 +67,13 @@ function normalizeFreeText(text) {
         .trim()
 }
 
+function normalizeComparisonText(text) {
+    return normalizeFreeText(text)
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+}
+
 function tokenizeWords(text) {
     return normalizeFreeText(text)
         .split(' ')
@@ -220,6 +227,45 @@ function extractDeliveryAddress(text) {
     if (tokens.length < 2) return null
 
     return normalized
+}
+
+function wantsPreviousCustomerValue(text, fieldType = '') {
+    const normalized = normalizeComparisonText(text)
+    if (!normalized) return false
+
+    const hasReuseCue = /\b(meme|pareil|idem|same)\b/.test(normalized)
+    if (!hasReuseCue) return false
+
+    const genericShortReply = tokenizeWords(normalized).length <= 3
+    if (genericShortReply) return true
+
+    const fieldHints = {
+        customer_name: ['nom'],
+        customer_phone: ['numero', 'telephone', 'tel', 'indicatif'],
+        email: ['email', 'mail', 'adresse'],
+        delivery_address: ['adresse', 'livraison', 'localisation', 'quartier', 'ville'],
+    }
+
+    const hints = fieldHints[fieldType] || []
+    return hints.some(hint => normalized.includes(hint))
+}
+
+function reusePreviousCustomerValue(state, field, recentCustomerProfile, capturedFields) {
+    const fieldMap = {
+        customer_name: 'customer_name',
+        customer_phone: 'customer_phone',
+        email: 'email',
+        delivery_address: 'delivery_address',
+    }
+
+    const profileKey = fieldMap[field]
+    const previousValue = profileKey ? recentCustomerProfile?.[profileKey] : null
+    if (!previousValue || state.collected[field]) return false
+
+    state.collected[field] = previousValue
+    removePendingField(state, field)
+    capturedFields.push({ type: field, value: previousValue })
+    return true
 }
 
 function removePendingField(state, field) {
@@ -598,6 +644,7 @@ function updateCheckoutStateFromUserMessage(previousState, text, options = {}) {
         products = [],
         activateCheckout = false,
         allowKnowledgeInterrupt = false,
+        recentCustomerProfile = null,
     } = options
 
     const context = buildCheckoutContext(cartState, products)
@@ -831,6 +878,27 @@ function updateCheckoutStateFromUserMessage(previousState, text, options = {}) {
         removePendingField(state, 'notes')
         capturedFields.push({ type: 'notes', value: state.note_declined ? 'Aucune' : normalizedText })
     } else if (state.stage === CHECKOUT_STAGE.CUSTOMER_FIELDS) {
+        const awaitingType = state.awaiting_field?.type
+        if (
+            awaitingType &&
+            wantsPreviousCustomerValue(normalizedText, awaitingType) &&
+            reusePreviousCustomerValue(state, awaitingType, recentCustomerProfile, capturedFields)
+        ) {
+            state = recomputeCheckoutProgress(state, context)
+            state.last_prompt_kind = state.stage
+            state.last_prompt_text = normalizedText
+
+            return {
+                state,
+                capturedFields,
+                stateChanged: true,
+                shouldBypassAI: true,
+                directReply: buildStructuredCheckoutReply(state, cartState, products, capturedFields),
+                shouldSubmitOrder: false,
+                questionDetected: false,
+            }
+        }
+
         // Split on commas/semicolons/newlines BEFORE any phone removal (removePhoneFromText
         // destroys commas, making multi-field detection fail).
         const rawSegments = normalizedText.split(/[,;\n]+/).map(s => s.trim()).filter(Boolean)

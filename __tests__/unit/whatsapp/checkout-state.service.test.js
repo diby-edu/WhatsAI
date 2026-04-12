@@ -173,4 +173,84 @@ describe('checkout-state.service', () => {
         expect(update.directReply).toContain('Vos informations :')
         expect(update.directReply).not.toContain('Que souhaitez-vous modifier ?')
     })
+
+    test('reuses the previous customer details when the client says the same name, phone and email', () => {
+        const cartState = {
+            stage: 'checkout',
+            cart_items: [
+                {
+                    product_id: 'p1',
+                    product_name: 'Licences Antivirus',
+                    quantity: 2,
+                    unit_price: 25,
+                    line_total: 50,
+                    selected_variants: {},
+                },
+            ],
+        }
+
+        const products = [
+            {
+                id: 'p1',
+                name: 'Licences Antivirus',
+                product_type: 'digital',
+                price_fcfa: 25,
+                license_keys: [{ key: 'aaa-aaa', used: false }],
+            },
+        ]
+
+        const recentCustomerProfile = {
+            customer_name: 'Alfonso diby',
+            customer_phone: '+33088483993',
+            email: 'kondhjjz@gmail.com',
+        }
+
+        const startState = {
+            stage: CHECKOUT_STAGE.CUSTOMER_FIELDS,
+            pending_fields: ['customer_name', 'customer_phone', 'email'],
+            awaiting_field: {
+                type: 'customer_name',
+                label: 'nom complet',
+                prompt: 'Quel est votre nom complet ? (ex : Koffi Diby)',
+            },
+            collected: {
+                customer_name: null,
+                customer_phone: null,
+                email: null,
+                delivery_address: null,
+                payment_method: 'online',
+                notes: null,
+            },
+            note_declined: false,
+            customer_recap_confirmed: false,
+        }
+
+        const nameUpdate = updateCheckoutStateFromUserMessage(startState, 'Le même nom', {
+            cartState,
+            products,
+            recentCustomerProfile,
+        })
+        expect(nameUpdate.state.collected.customer_name).toBe('Alfonso diby')
+        expect(nameUpdate.state.awaiting_field?.type).toBe('customer_phone')
+
+        const phoneUpdate = updateCheckoutStateFromUserMessage(nameUpdate.state, 'Le même numéro', {
+            cartState,
+            products,
+            recentCustomerProfile,
+        })
+        expect(phoneUpdate.state.collected.customer_phone).toBe('+33088483993')
+        expect(phoneUpdate.state.awaiting_field?.type).toBe('email')
+
+        const emailUpdate = updateCheckoutStateFromUserMessage(phoneUpdate.state, 'La même adresse', {
+            cartState,
+            products,
+            recentCustomerProfile,
+        })
+        expect(emailUpdate.state.collected.email).toBe('kondhjjz@gmail.com')
+        expect(emailUpdate.state.stage).toBe(CHECKOUT_STAGE.CUSTOMER_RECAP)
+        expect(emailUpdate.directReply).toContain('Vos informations :')
+        expect(emailUpdate.directReply).toContain('Alfonso diby')
+        expect(emailUpdate.directReply).toContain('+33088483993')
+        expect(emailUpdate.directReply).toContain('kondhjjz@gmail.com')
+    })
 })
