@@ -46,6 +46,32 @@ function normalizeText(value) {
         .trim()
 }
 
+const QUANTITY_WORD_VALUES = new Map([
+    ['un', 1],
+    ['une', 1],
+    ['deux', 2],
+    ['trois', 3],
+    ['quatre', 4],
+    ['cinq', 5],
+    ['six', 6],
+    ['sept', 7],
+    ['huit', 8],
+    ['neuf', 9],
+    ['dix', 10],
+    ['onze', 11],
+    ['douze', 12],
+    ['treize', 13],
+    ['quatorze', 14],
+    ['quinze', 15],
+    ['seize', 16],
+    ['dix sept', 17],
+    ['dix huit', 18],
+    ['dix neuf', 19],
+    ['vingt', 20],
+])
+
+const QUANTITY_WORD_KEYS = [...QUANTITY_WORD_VALUES.keys()].sort((a, b) => b.length - a.length)
+
 function cloneItem(item = null) {
     if (!item) return null
 
@@ -390,12 +416,20 @@ function extractQuantity(text) {
     if (!normalized) return null
 
     const numbers = normalized.match(/\b\d{1,3}\b/g) || []
-    if (numbers.length === 0) return null
+    if (numbers.length > 0) {
+        const quantity = Number(numbers[0])
+        if (Number.isFinite(quantity) && quantity > 0) return quantity
+    }
 
-    const quantity = Number(numbers[0])
-    if (!Number.isFinite(quantity) || quantity <= 0) return null
+    const normalizedWords = normalized.replace(/-/g, ' ')
+    for (const phrase of QUANTITY_WORD_KEYS) {
+        const pattern = new RegExp(`\\b${phrase.replace(/\s+/g, '\\s+')}\\b`)
+        if (pattern.test(normalizedWords)) {
+            return QUANTITY_WORD_VALUES.get(phrase) || null
+        }
+    }
 
-    return quantity
+    return null
 }
 
 /**
@@ -425,6 +459,14 @@ function extractQuantityFromSegment(text) {
     if (endMatch) {
         const qty = Number(endMatch[1])
         if (qty > 0) return qty
+    }
+
+    const normalizedWords = normalized.replace(/-/g, ' ')
+    for (const phrase of QUANTITY_WORD_KEYS) {
+        const edgePattern = new RegExp(`^(?:${phrase.replace(/\s+/g, '\\s+')})(?:\\s|$)|(?:^|\\s)(?:${phrase.replace(/\s+/g, '\\s+')})$`)
+        if (edgePattern.test(normalizedWords)) {
+            return QUANTITY_WORD_VALUES.get(phrase) || null
+        }
     }
 
     return null

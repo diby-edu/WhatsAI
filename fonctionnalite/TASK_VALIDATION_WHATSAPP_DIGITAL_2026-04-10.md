@@ -82,7 +82,7 @@ Dernier run cible sur les suites critiques : `22/22` tests passes.
 
 ### Priorite haute
 
-- [ ] Antivirus `x4` avec reponses citees WhatsApp
+- [OK] Antivirus `x4` avec reponses citees WhatsApp
   Cas :
   1. `Je veux 4 logiciels antivirus`
   2. repondre normalement aux questions WhatsApp, idealement en citant les messages du bot
@@ -91,11 +91,12 @@ Dernier run cible sur les suites critiques : `22/22` tests passes.
   - pas de perte du panier
   - recap final correct avec `Logiciel Antivirus x 4`
   - creation d'une seule commande
+  - livraison de `4` licences
   Note :
   - un incident de fermeture tardive de cycle post-livraison a ete corrige localement
-  - ce test doit etre rejoue juste apres redeploiement pour confirmer la disparition de la regression
+  - valide sur VPS apres redeploiement et reprise du checkout depuis l'historique recent
 
-- [ ] Reponses citees sur les champs checkout
+- [OK] Reponses citees sur les champs checkout
   Cas :
   1. demarrer une commande digitale
   2. repondre au nom en citant le message du bot
@@ -105,8 +106,9 @@ Dernier run cible sur les suites critiques : `22/22` tests passes.
   - le systeme doit prendre la vraie reponse utilisateur
   - il ne doit jamais reutiliser les exemples presents dans les prompts du bot
   - aucun retour au catalogue generique
+  - valide sur VPS en reponse normale et en mode `Repondre`, jusqu'a la reception des produits numeriques
 
-- [ ] Reponses citees sur les menus numeriques
+- [OK] Reponses citees sur les menus numeriques
   Cas :
   1. repondre `1`, `2`, `3` ou `4` en citant le menu precedent
   2. tester au moins une fois sur `Modifier le panier`
@@ -115,28 +117,32 @@ Dernier run cible sur les suites critiques : `22/22` tests passes.
   - le choix numerique doit etre compris correctement
   - aucune confusion avec le texte cite
   - aucune commande dupliquee
+  - valide sur VPS avec `3` puis `1` en mode `Repondre` dans les menus checkout/panier
 
-- [ ] Mixte simple + licences
+- [OK] Mixte simple + licences
   Cas : `Je veux le mini-cours Excel et 2 logiciels antivirus`
   Attendu :
   - `Mini-cours Excel x 1`
   - `Logiciel Antivirus x 2`
   - une seule commande
   - livraison de 1 document Excel + 2 cles antivirus
+  - valide sur VPS jusqu'a la reception des produits numeriques
 
-- [ ] Double confirmation rapide
+- [OK] Double confirmation rapide
   Cas : au moment de `1. Confirmer ma commande`, envoyer `1` deux fois rapidement
   Attendu :
   - une seule commande
   - un seul lien de paiement
   - une seule finalisation paiement/livraison
+  - valide sur VPS : apres reception du lien, un second `1` renvoie un rappel de paiement au lieu de relancer un nouveau tunnel
 
-- [ ] Nouveau cycle apres livraison
+- [OK] Nouveau cycle apres livraison
   Cas : apres une commande livree, envoyer `Je veux encore 1 logiciel antivirus`
   Attendu :
   - nouveau cycle propre
   - aucun ancien panier repris
   - aucune ancienne info de checkout reinjectee de facon incoherente
+  - valide sur VPS
 
 ### Priorite moyenne
 
