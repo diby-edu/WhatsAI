@@ -7,6 +7,8 @@ const {
     findPendingOnlineOrder,
     isAmbiguousPendingPaymentReply,
     isExplicitNewOrderIntent,
+    isPendingPaymentCancelIntent,
+    isPendingPaymentContinueIntent,
     isPaymentHelpIntent,
     resolvePendingPaymentFollowUp,
 } = require('../../../src/lib/whatsapp/handlers/pending-payment-guard')
@@ -62,7 +64,12 @@ describe('pending payment guard', () => {
         expect(isPaymentHelpIntent('bonjour')).toBe(false)
 
         expect(isExplicitNewOrderIntent('Je veux encore 1 logiciel antivirus', ['Logiciel Antivirus', 'Mini-cours Excel'])).toBe(true)
+        expect(isExplicitNewOrderIntent('Je veux ajouter un article', ['Logiciel Antivirus', 'Mini-cours Excel'])).toBe(true)
+        expect(isExplicitNewOrderIntent('Je veux encore un mini cours', ['Logiciel Antivirus', 'Mini-cours Excel'])).toBe(true)
         expect(isExplicitNewOrderIntent('Le logiciel antivirus est compatible ?', ['Logiciel Antivirus'])).toBe(false)
+
+        expect(isPendingPaymentContinueIntent('continuer le paiement')).toBe(true)
+        expect(isPendingPaymentCancelIntent('Annuler')).toBe(true)
     })
 
     test('returns a reminder for ambiguous replies while payment is pending', () => {
@@ -90,6 +97,28 @@ describe('pending payment guard', () => {
         expect(resolution.content).toContain('2. Annuler cette commande')
     })
 
+    test('returns a choice prompt for generic add-item attempts while payment is pending', () => {
+        const resolution = resolvePendingPaymentFollowUp({
+            text: 'Je veux ajouter un article',
+            lastAssistantMessage: 'Commande creee ! Voici le lien de paiement securise : https://wazzapai.com/pay/abcd1234-5678',
+            pendingOrder,
+            productNames: ['Logiciel Antivirus', 'Mini-cours Excel'],
+        })
+
+        expect(resolution).toEqual(expect.objectContaining({ type: 'choice' }))
+    })
+
+    test('cancels a pending order for direct cancel intents', () => {
+        const resolution = resolvePendingPaymentFollowUp({
+            text: 'Annuler',
+            lastAssistantMessage: 'Commande creee ! Voici le lien de paiement securise : https://wazzapai.com/pay/abcd1234-5678',
+            pendingOrder,
+            productNames: ['Logiciel Antivirus'],
+        })
+
+        expect(resolution).toEqual(expect.objectContaining({ type: 'cancel_pending_order' }))
+    })
+
     test('interprets the follow-up choice menu correctly', () => {
         const choicePrompt = buildPendingPaymentChoicePrompt(pendingOrder)
 
@@ -108,6 +137,22 @@ describe('pending payment guard', () => {
             productNames: ['Logiciel Antivirus'],
         })
         expect(cancelResolution).toEqual(expect.objectContaining({ type: 'cancel_pending_order' }))
+
+        const wordedContinueResolution = resolvePendingPaymentFollowUp({
+            text: 'continuer le paiement',
+            lastAssistantMessage: choicePrompt,
+            pendingOrder,
+            productNames: ['Logiciel Antivirus'],
+        })
+        expect(wordedContinueResolution).toEqual(expect.objectContaining({ type: 'reminder' }))
+
+        const wordedCancelResolution = resolvePendingPaymentFollowUp({
+            text: 'annuler',
+            lastAssistantMessage: choicePrompt,
+            pendingOrder,
+            productNames: ['Logiciel Antivirus'],
+        })
+        expect(wordedCancelResolution).toEqual(expect.objectContaining({ type: 'cancel_pending_order' }))
     })
 
     test('builds fallback texts for reminders and cancellation failures', () => {
