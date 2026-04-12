@@ -187,9 +187,52 @@ function extractPhoneFromText(text) {
     return null
 }
 
+function looksLikeLocalPhoneWithoutCountryCode(text) {
+    const compact = String(text || '')
+        .trim()
+        .replace(/[\s\-\(\)\.]/g, '')
+
+    if (!compact) return false
+    if (compact.startsWith('00') || compact.startsWith('+')) return false
+
+    return /^0\d{7,14}$/.test(compact)
+}
+
+function normalizeEmailText(text) {
+    return String(text || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+}
+
 function extractEmailFromText(text) {
-    const match = String(text || '').match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)
+    const match = normalizeEmailText(text).match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)
     return match ? match[0].toLowerCase() : null
+}
+
+function buildAwaitingFieldValidationReply(awaitingField, text) {
+    const fieldType = awaitingField?.type
+    if (!fieldType) return null
+
+    if (fieldType === 'customer_phone') {
+        if (looksLikeLocalPhoneWithoutCountryCode(text)) {
+            return "Votre numero doit inclure l'indicatif pays. Exemple : +2250700000000."
+        }
+
+        const digits = String(text || '').replace(/[^\d+]/g, '')
+        if (digits.length >= 8) {
+            return "Le format du numero semble invalide. Envoyez un numero complet avec indicatif pays. Exemple : +2250700000000."
+        }
+    }
+
+    if (fieldType === 'email') {
+        if (String(text || '').includes('@')) {
+            return "L'adresse email semble invalide. Utilisez un format comme koffi@gmail.com."
+        }
+
+        return "Envoyez une adresse email complete, par exemple : koffi@gmail.com."
+    }
+
+    return null
 }
 
 
@@ -972,15 +1015,22 @@ function updateCheckoutStateFromUserMessage(previousState, text, options = {}) {
     const awaitingChanged = JSON.stringify(previousAwaiting) !== JSON.stringify(state.awaiting_field)
     const stateChanged = previousSnapshot !== JSON.stringify(state)
     const shouldBypassAI = stateChanged || awaitingChanged
+    const validationReply = (
+        capturedFields.length === 0 &&
+        previousAwaiting?.type &&
+        previousAwaiting.type === state.awaiting_field?.type
+    )
+        ? buildAwaitingFieldValidationReply(previousAwaiting, normalizedText)
+        : null
 
     return {
         state,
         capturedFields,
         stateChanged: stateChanged || awaitingChanged,
-        shouldBypassAI,
-        directReply: shouldBypassAI
+        shouldBypassAI: shouldBypassAI || Boolean(validationReply),
+        directReply: validationReply || (shouldBypassAI
             ? buildStructuredCheckoutReply(state, cartState, products, capturedFields)
-            : null,
+            : null),
         shouldSubmitOrder: false,
         questionDetected: false,
     }
