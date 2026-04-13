@@ -6,6 +6,8 @@ import nodemailer from 'nodemailer'
 export const dynamic = 'force-dynamic'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://wazzapai.com'
+const BCC_BATCH_SIZE = 40
+const GENERIC_GREETING_NAME = 'cher partenaire'
 
 // Load SMTP config: DB settings first, fallback to env vars
 async function getSmtpConfig(adminSupabase: any) {
@@ -141,32 +143,39 @@ export async function POST(request: NextRequest) {
         const FROM_EMAIL = smtp.user
         const FROM_NAME = process.env.SMTP_FROM_NAME || 'WazzapAI'
 
-        let sent = 0
-        let failed = 0
+        const uniqueEmails = Array.from(new Set(
+            recipients
+                .map((recipient) => String(recipient?.email || '').trim().toLowerCase())
+                .filter(Boolean)
+        ))
 
-        // Send in batches of 5 with 400ms delay (Hostinger rate limit safe)
-        for (let i = 0; i < recipients.length; i += 5) {
-            const batch = recipients.slice(i, i + 5)
-            await Promise.allSettled(
-                batch.map(async (p: any) => {
-                    const userName = p.full_name || p.email.split('@')[0] || 'Utilisateur'
-                    const html = emailCampaignTemplate(userName, message.trim())
-                    try {
-                        await transporter.sendMail({
-                            from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
-                            to: p.email,
-                            bcc: FROM_EMAIL,
-                            subject: subject.trim(),
-                            html,
-                        })
-                        sent++
-                    } catch (e) {
-                        console.error(`Failed to send to ${p.email}:`, e)
-                        failed++
-                    }
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+        const validEmails = uniqueEmails.filter((email) => emailRegex.test(email))
+        const invalidCount = uniqueEmails.length - validEmails.length
+
+        let sent = 0
+        let failed = invalidCount
+        const html = emailCampaignTemplate(GENERIC_GREETING_NAME, message.trim())
+
+        // Send in grouped BCC batches to avoid one inbox copy per recipient.
+        for (let i = 0; i < validEmails.length; i += BCC_BATCH_SIZE) {
+            const bccBatch = validEmails.slice(i, i + BCC_BATCH_SIZE)
+            try {
+                await transporter.sendMail({
+                    from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
+                    to: FROM_EMAIL,
+                    replyTo: FROM_EMAIL,
+                    bcc: bccBatch.join(','),
+                    subject: subject.trim(),
+                    html,
                 })
-            )
-            if (i + 5 < recipients.length) await delay(400)
+                sent += bccBatch.length
+            } catch (e) {
+                console.error(`Failed BCC batch ${i / BCC_BATCH_SIZE + 1}:`, e)
+                failed += bccBatch.length
+            }
+
+            if (i + BCC_BATCH_SIZE < validEmails.length) await delay(400)
         }
 
         // Log to broadcasts table
@@ -180,7 +189,7 @@ export async function POST(request: NextRequest) {
             })
         } catch { /* log failure is non-blocking */ }
 
-        return successResponse({ sent, failed, total: recipients.length })
+        return successResponse({ sent, failed, total: uniqueEmails.length })
     } catch (err) {
         console.error('Email broadcast error:', err)
         return errorResponse('Erreur serveur', 500)
