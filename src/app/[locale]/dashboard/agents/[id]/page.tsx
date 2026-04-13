@@ -45,6 +45,18 @@ import {
 
 const QR_CONNECTION_ERROR_MESSAGE = 'Le scan a echoue avant la fin de la connexion. Generez un nouveau QR code puis rescanez depuis WhatsApp.'
 
+function normalizePairingPhoneInput(value: string): string | null {
+    const trimmed = (value || '').trim()
+    if (!trimmed) return null
+    let digits = trimmed.replace(/[^\d+]/g, '')
+    if (digits.startsWith('+')) digits = digits.slice(1)
+    if (digits.startsWith('00')) digits = digits.slice(2)
+    digits = digits.replace(/\D/g, '')
+    if (!digits) return null
+    if (digits.length < 8 || digits.length > 15) return null
+    return digits
+}
+
 // Wizard Steps - Matching the new wizard design exactly
 const STEPS = [
     { id: 'mission', title: 'Mission', icon: Target },
@@ -95,6 +107,9 @@ export default function AgentWizardPage({
     // WhatsApp State
     const [whatsappStatus, setWhatsappStatus] = useState<'idle' | 'connecting' | 'qr_ready' | 'connected' | 'error'>('idle')
     const [qrCode, setQrCode] = useState<string | null>(null)
+    const [pairingCode, setPairingCode] = useState<string | null>(null)
+    const [connectionMode, setConnectionMode] = useState<'qr' | 'pairing_code'>('qr')
+    const [pairingPhone, setPairingPhone] = useState('')
     const [connectedPhone, setConnectedPhone] = useState<string | null>(null)
     const [whatsappErrorMessage, setWhatsappErrorMessage] = useState<string | null>(null)
     const [retryWithFreshQr, setRetryWithFreshQr] = useState(false)
@@ -212,11 +227,15 @@ export default function AgentWizardPage({
             if (!res.ok) throw new Error(data.error)
 
             const agent = data.data?.agent || data.agent
+            const agentConnectionMode = agent.whatsapp_pairing_mode === 'pairing_code' ? 'pairing_code' : 'qr'
+            setConnectionMode(agentConnectionMode)
+            setPairingPhone(agent.whatsapp_pairing_phone ? `+${agent.whatsapp_pairing_phone}` : '')
 
             // Initial WhatsApp State
             if (!agent.is_active) {
                 setWhatsappStatus('idle')
                 setQrCode(null)
+                setPairingCode(null)
                 setConnectedPhone(null)
                 setWhatsappErrorMessage(null)
                 setRetryWithFreshQr(false)
@@ -224,22 +243,26 @@ export default function AgentWizardPage({
                 setWhatsappStatus('connected')
                 setConnectedPhone(agent.whatsapp_phone)
                 setQrCode(null)
+                setPairingCode(null)
                 setWhatsappErrorMessage(null)
                 setRetryWithFreshQr(false)
-            } else if (agent.whatsapp_status === 'qr_ready' && agent.whatsapp_qr_code) {
+            } else if (agent.whatsapp_status === 'qr_ready' && (agent.whatsapp_qr_code || agent.whatsapp_pairing_code)) {
                 setWhatsappStatus('qr_ready')
-                setQrCode(agent.whatsapp_qr_code)
+                setQrCode(agent.whatsapp_qr_code || null)
+                setPairingCode(agent.whatsapp_pairing_code || null)
                 setConnectedPhone(null)
                 setWhatsappErrorMessage(null)
                 setRetryWithFreshQr(false)
             } else if (agent.whatsapp_status === 'connecting') {
                 setWhatsappStatus('connecting')
                 setQrCode(null)
+                setPairingCode(null)
                 setConnectedPhone(null)
                 setWhatsappErrorMessage(null)
             } else {
                 setWhatsappStatus('idle')
                 setQrCode(null)
+                setPairingCode(null)
                 setConnectedPhone(null)
                 setWhatsappErrorMessage(null)
                 setRetryWithFreshQr(false)
@@ -368,15 +391,30 @@ export default function AgentWizardPage({
             return
         }
 
+        const normalizedPairingPhone = connectionMode === 'pairing_code'
+            ? normalizePairingPhoneInput(pairingPhone)
+            : null
+
+        if (connectionMode === 'pairing_code' && !normalizedPairingPhone) {
+            alert('Entrez un numero mobile valide avec indicatif pays (ex: +2250700000000).')
+            return
+        }
+
         const shouldForceFreshQr = retryWithFreshQr || whatsappStatus === 'error'
         setWhatsappStatus('connecting')
         setQrCode(null)
+        setPairingCode(null)
         setWhatsappErrorMessage(null)
         try {
             const response = await fetch('/api/whatsapp/connect', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ agentId, forceFreshQr: shouldForceFreshQr }),
+                body: JSON.stringify({
+                    agentId,
+                    forceFreshQr: shouldForceFreshQr,
+                    connectionMode,
+                    pairingPhone: normalizedPairingPhone
+                }),
             })
             const data = await response.json()
             const result = data.data || data
@@ -384,18 +422,26 @@ export default function AgentWizardPage({
 
             if (result.qrCode) {
                 setQrCode(result.qrCode)
+                setPairingCode(null)
+                setWhatsappStatus('qr_ready')
+                setRetryWithFreshQr(false)
+            } else if (result.pairingCode) {
+                setPairingCode(result.pairingCode)
+                setQrCode(null)
                 setWhatsappStatus('qr_ready')
                 setRetryWithFreshQr(false)
             } else if (result.status === 'connected') {
                 setWhatsappStatus('connected')
                 setConnectedPhone(result.phoneNumber)
                 setQrCode(null)
+                setPairingCode(null)
                 setRetryWithFreshQr(false)
             }
         } catch (err) {
             console.error(err)
             setWhatsappStatus('error')
             setQrCode(null)
+            setPairingCode(null)
             setWhatsappErrorMessage((err as Error)?.message || 'Erreur de connexion WhatsApp')
             setRetryWithFreshQr(true)
         }
@@ -407,6 +453,7 @@ export default function AgentWizardPage({
             await fetch(`/api/whatsapp/connect?agentId=${agentId}&logout=true`, { method: 'DELETE' })
             setWhatsappStatus('idle')
             setQrCode(null)
+            setPairingCode(null)
             setConnectedPhone(null)
         } catch (err) { console.error(err) }
     }
@@ -423,24 +470,34 @@ export default function AgentWizardPage({
                     setWhatsappStatus('connected')
                     setConnectedPhone(result.phoneNumber)
                     setQrCode(null)
+                    setPairingCode(null)
                     setWhatsappErrorMessage(null)
                     setRetryWithFreshQr(false)
                     clearInterval(interval)
                 } else if (result.status === 'paused' || result.paused) {
                     setWhatsappStatus('idle')
                     setQrCode(null)
+                    setPairingCode(null)
                     setWhatsappErrorMessage(null)
                     setRetryWithFreshQr(false)
                     clearInterval(interval)
                 } else if (result.status === 'error' || result.status === 'disconnected' || result.status === 'reconnect_required') {
                     setWhatsappStatus('error')
                     setQrCode(null)
+                    setPairingCode(null)
                     setConnectedPhone(null)
                     setWhatsappErrorMessage(QR_CONNECTION_ERROR_MESSAGE)
                     setRetryWithFreshQr(true)
                     clearInterval(interval)
+                } else if (result.pairingCode && result.pairingCode !== pairingCode) {
+                    setPairingCode(result.pairingCode)
+                    setQrCode(null)
+                    setWhatsappStatus('qr_ready')
+                    setWhatsappErrorMessage(null)
+                    setRetryWithFreshQr(false)
                 } else if (result.qrCode && result.qrCode !== qrCode) {
                     setQrCode(result.qrCode)
+                    setPairingCode(null)
                     setWhatsappStatus('qr_ready')
                     setWhatsappErrorMessage(null)
                     setRetryWithFreshQr(false)
@@ -448,7 +505,7 @@ export default function AgentWizardPage({
             } catch (err) { }
         }, 2000)
         return () => clearInterval(interval)
-    }, [whatsappStatus, agentId, qrCode])
+    }, [whatsappStatus, agentId, qrCode, pairingCode])
 
 
     if (loading) return <div className="flex justify-center items-center min-h-screen bg-slate-900"><Loader2 className="w-8 h-8 text-emerald-400 animate-spin" /></div>
@@ -1539,32 +1596,85 @@ export default function AgentWizardPage({
                                 </div>
                             )}
 
+                            {whatsappStatus !== 'connected' && (
+                                <div className="mb-6 w-full max-w-xl rounded-xl border border-slate-700/60 bg-slate-900/50 p-4 text-left">
+                                    <div className="mb-3 text-sm font-semibold text-slate-200">Mode de connexion</div>
+                                    <div className="grid gap-2 md:grid-cols-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setConnectionMode('qr')}
+                                            className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${connectionMode === 'qr'
+                                                ? 'border-emerald-400/60 bg-emerald-500/10 text-emerald-200'
+                                                : 'border-slate-700 bg-slate-800/70 text-slate-300 hover:border-slate-500'}`}
+                                        >
+                                            QR code (ordinateur)
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setConnectionMode('pairing_code')}
+                                            className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${connectionMode === 'pairing_code'
+                                                ? 'border-emerald-400/60 bg-emerald-500/10 text-emerald-200'
+                                                : 'border-slate-700 bg-slate-800/70 text-slate-300 hover:border-slate-500'}`}
+                                        >
+                                            Code de liaison (mobile)
+                                        </button>
+                                    </div>
+                                    {connectionMode === 'pairing_code' && (
+                                        <div className="mt-3">
+                                            <label className="mb-1 block text-xs text-slate-400">Numero WhatsApp (avec indicatif)</label>
+                                            <input
+                                                type="tel"
+                                                value={pairingPhone}
+                                                onChange={(e) => setPairingPhone(e.target.value)}
+                                                placeholder="+2250700000000"
+                                                className="w-full rounded-lg border border-slate-700 bg-slate-800/70 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400/60"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
                             {whatsappStatus === 'idle' && (
                                 <button
                                     onClick={connectWhatsApp}
                                     disabled={!formData.is_active}
                                     className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-700 disabled:text-slate-400 disabled:cursor-not-allowed text-white rounded-xl font-bold flex items-center gap-2 transition-all"
                                 >
-                                    <QrCode size={20} /> Générer le QR Code
+                                    {connectionMode === 'pairing_code' ? <Smartphone size={20} /> : <QrCode size={20} />}
+                                    {connectionMode === 'pairing_code' ? 'Generer le code de liaison' : 'Generer le QR Code'}
                                 </button>
                             )}
 
                             {whatsappStatus === 'connecting' && (
                                 <div className="text-emerald-400 flex flex-col items-center gap-4">
                                     <Loader2 className="w-10 h-10 animate-spin" />
-                                    <span>Démarrage du service WhatsApp...</span>
+                                    <span>{connectionMode === 'pairing_code' ? 'Generation du code de liaison...' : 'Demarrage du service WhatsApp...'}</span>
                                     <div className="text-sm text-slate-400 bg-slate-800/60 border border-slate-700/50 rounded-xl px-4 py-3 max-w-xs text-center">
-                                        La première connexion peut prendre jusqu&apos;à <strong className="text-amber-400">60 secondes</strong>.<br />
-                                        Patientez, le QR code apparaîtra automatiquement.
+                                        La premiere connexion peut prendre jusqu&apos;a <strong className="text-amber-400">60 secondes</strong>.<br />
+                                        {connectionMode === 'pairing_code'
+                                            ? 'Patientez, le code apparaitra automatiquement.'
+                                            : 'Patientez, le QR code apparaitra automatiquement.'}
                                     </div>
                                 </div>
                             )}
 
-                            {whatsappStatus === 'qr_ready' && qrCode && (
-                                <div className="bg-white p-4 rounded-xl animate-in zoom-in duration-300">
-                                    <img src={qrCode} alt="QR" className="w-64 h-64" />
-                                    <p className="text-slate-500 mt-2 text-sm">Scannez avec WhatsApp (Appareils connectés)</p>
-                                </div>
+                            {whatsappStatus === 'qr_ready' && (qrCode || pairingCode) && (
+                                <>
+                                    {qrCode ? (
+                                        <div className="bg-white p-4 rounded-xl animate-in zoom-in duration-300">
+                                            <img src={qrCode} alt="QR" className="w-64 h-64" />
+                                            <p className="text-slate-500 mt-2 text-sm">Scannez avec WhatsApp (Appareils connectes)</p>
+                                        </div>
+                                    ) : (
+                                        <div className="w-full max-w-md rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-5 text-center animate-in zoom-in duration-300">
+                                            <p className="mb-2 text-sm text-emerald-200">Code de liaison WhatsApp</p>
+                                            <p className="mb-4 text-3xl font-bold tracking-wider text-white">{pairingCode}</p>
+                                            <p className="text-xs text-emerald-100/80">
+                                                Ouvrez WhatsApp sur votre telephone: Appareils connectes &gt; Connecter un appareil &gt; Entrer le code.
+                                            </p>
+                                        </div>
+                                    )}
+                                </>
                             )}
 
                             {whatsappStatus === 'error' && (
@@ -1584,7 +1694,7 @@ export default function AgentWizardPage({
                                         disabled={!formData.is_active}
                                         className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-700 disabled:text-slate-400 disabled:cursor-not-allowed text-white rounded-xl font-bold flex items-center gap-2 transition-all"
                                     >
-                                        <RefreshCw size={20} /> Regenerer un nouveau QR code
+                                        <RefreshCw size={20} /> {connectionMode === 'pairing_code' ? 'Regenerer un nouveau code' : 'Regenerer un nouveau QR code'}
                                     </button>
                                 </div>
                             )}

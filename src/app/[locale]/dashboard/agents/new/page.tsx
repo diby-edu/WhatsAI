@@ -35,6 +35,18 @@ import {
 
 const QR_CONNECTION_ERROR_MESSAGE = 'Le scan a echoue avant la fin de la connexion. Generez un nouveau QR code puis rescanez depuis WhatsApp.'
 
+function normalizePairingPhoneInput(value: string): string | null {
+    const trimmed = (value || '').trim()
+    if (!trimmed) return null
+    let digits = trimmed.replace(/[^\d+]/g, '')
+    if (digits.startsWith('+')) digits = digits.slice(1)
+    if (digits.startsWith('00')) digits = digits.slice(2)
+    digits = digits.replace(/\D/g, '')
+    if (!digits) return null
+    if (digits.length < 8 || digits.length > 15) return null
+    return digits
+}
+
 export default function NewAgentPage() {
     const t = useTranslations('Agents')
     const tCommon = useTranslations('Agents.connect') // specialized namespace if needed or just access via t('connect...')
@@ -49,6 +61,9 @@ export default function NewAgentPage() {
 
     // WhatsApp connection state
     const [qrCode, setQrCode] = useState<string | null>(null)
+    const [pairingCode, setPairingCode] = useState<string | null>(null)
+    const [connectionMode, setConnectionMode] = useState<'qr' | 'pairing_code'>('qr')
+    const [pairingPhone, setPairingPhone] = useState('')
     const [whatsappStatus, setWhatsappStatus] = useState<'idle' | 'connecting' | 'qr_ready' | 'connected' | 'error'>('idle')
     const [connectedPhone, setConnectedPhone] = useState<string | null>(null)
     const [retryWithFreshQr, setRetryWithFreshQr] = useState(false)
@@ -568,8 +583,19 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
             return
         }
 
+        const normalizedPairingPhone = connectionMode === 'pairing_code'
+            ? normalizePairingPhoneInput(pairingPhone)
+            : null
+
+        if (connectionMode === 'pairing_code' && !normalizedPairingPhone) {
+            setError('Entrez un numero mobile valide avec indicatif pays (ex: +2250700000000).')
+            return
+        }
+
         const shouldForceFreshQr = retryWithFreshQr || whatsappStatus === 'error'
         setWhatsappStatus('connecting')
+        setQrCode(null)
+        setPairingCode(null)
         setError(null)
 
         try {
@@ -577,7 +603,12 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
             const response = await fetch('/api/whatsapp/connect', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ agentId: createdAgent.id, forceFreshQr: shouldForceFreshQr }),
+                body: JSON.stringify({
+                    agentId: createdAgent.id,
+                    forceFreshQr: shouldForceFreshQr,
+                    connectionMode,
+                    pairingPhone: normalizedPairingPhone
+                }),
             })
 
             const data = await response.json()
@@ -609,17 +640,26 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
                 const status = statusData.data?.status || statusData.status
                 const phoneNumber = statusData.data?.phoneNumber || statusData.phoneNumber
                 const newQrCode = statusData.data?.qrCode || statusData.qrCode
+                const newPairingCode = statusData.data?.pairingCode || statusData.pairingCode
 
                 if (status === 'connected') {
                     setWhatsappStatus('connected')
                     setConnectedPhone(phoneNumber || '')
+                    setQrCode(null)
+                    setPairingCode(null)
                     setRetryWithFreshQr(false)
                     return
                 } else if (status === 'error' || status === 'disconnected' || status === 'reconnect_required') {
                     throw new Error(QR_CONNECTION_ERROR_MESSAGE)
-                    throw new Error('La session WhatsApp a échoué.')
+                } else if (newPairingCode) {
+                    setPairingCode(newPairingCode)
+                    setQrCode(null)
+                    setWhatsappStatus('qr_ready')
+                    setRetryWithFreshQr(false)
+                    return pollForQR(attempts + 1)
                 } else if (newQrCode) {
                     setQrCode(newQrCode)
+                    setPairingCode(null)
                     setWhatsappStatus('qr_ready')
                     setRetryWithFreshQr(false)
                     // Continuer le polling même si on a le QR code, pour détecter le scan
@@ -633,6 +673,7 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
             setError((err as Error).message)
             setWhatsappStatus('error')
             setQrCode(null)
+            setPairingCode(null)
             setRetryWithFreshQr(true)
         }
     }
@@ -1764,6 +1805,78 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
 
                 return (
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24, padding: 20 }}>
+                        {whatsappStatus !== 'connected' && (
+                            <div style={{
+                                width: '100%',
+                                maxWidth: 460,
+                                border: '1px solid rgba(148, 163, 184, 0.25)',
+                                background: 'rgba(15, 23, 42, 0.55)',
+                                borderRadius: 14,
+                                padding: 14
+                            }}>
+                                <div style={{ fontSize: 13, fontWeight: 600, color: '#cbd5e1', marginBottom: 10 }}>
+                                    Mode de connexion
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                                    <button
+                                        type="button"
+                                        onClick={() => setConnectionMode('qr')}
+                                        style={{
+                                            borderRadius: 10,
+                                            border: connectionMode === 'qr' ? '1px solid rgba(52, 211, 153, 0.7)' : '1px solid rgba(71, 85, 105, 0.8)',
+                                            background: connectionMode === 'qr' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(30, 41, 59, 0.7)',
+                                            color: connectionMode === 'qr' ? '#a7f3d0' : '#cbd5e1',
+                                            padding: '10px 12px',
+                                            fontSize: 13,
+                                            fontWeight: 600,
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        QR code (ordinateur)
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setConnectionMode('pairing_code')}
+                                        style={{
+                                            borderRadius: 10,
+                                            border: connectionMode === 'pairing_code' ? '1px solid rgba(52, 211, 153, 0.7)' : '1px solid rgba(71, 85, 105, 0.8)',
+                                            background: connectionMode === 'pairing_code' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(30, 41, 59, 0.7)',
+                                            color: connectionMode === 'pairing_code' ? '#a7f3d0' : '#cbd5e1',
+                                            padding: '10px 12px',
+                                            fontSize: 13,
+                                            fontWeight: 600,
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        Code de liaison (mobile)
+                                    </button>
+                                </div>
+                                {connectionMode === 'pairing_code' && (
+                                    <div style={{ marginTop: 10 }}>
+                                        <label style={{ display: 'block', fontSize: 12, color: '#94a3b8', marginBottom: 6 }}>
+                                            Numero WhatsApp (avec indicatif)
+                                        </label>
+                                        <input
+                                            type="tel"
+                                            value={pairingPhone}
+                                            onChange={(e) => setPairingPhone(e.target.value)}
+                                            placeholder="+2250700000000"
+                                            style={{
+                                                width: '100%',
+                                                borderRadius: 10,
+                                                border: '1px solid rgba(71, 85, 105, 0.8)',
+                                                background: 'rgba(30, 41, 59, 0.7)',
+                                                color: 'white',
+                                                padding: '10px 12px',
+                                                fontSize: 13,
+                                                outline: 'none'
+                                            }}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
                         {whatsappStatus === 'idle' && (
                             <>
                                 <div style={{
@@ -1796,8 +1909,10 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
                                             onClick={connectWhatsApp}
                                             style={buttonSecondaryStyle}
                                         >
-                                            <QrCode style={{ width: 20, height: 20 }} />
-                                            {t('Wizard.buttons.generateQr')}
+                                            {connectionMode === 'pairing_code'
+                                                ? <Smartphone style={{ width: 20, height: 20 }} />
+                                                : <QrCode style={{ width: 20, height: 20 }} />}
+                                            {connectionMode === 'pairing_code' ? 'Generer le code de liaison' : t('Wizard.buttons.generateQr')}
                                         </button>
                                     </>
                                 ) : (
@@ -1806,8 +1921,10 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
                                             onClick={connectWhatsApp}
                                             style={buttonPrimaryStyle}
                                         >
-                                            <QrCode style={{ width: 20, height: 20 }} />
-                                            {t('Wizard.buttons.generateQr')}
+                                            {connectionMode === 'pairing_code'
+                                                ? <Smartphone style={{ width: 20, height: 20 }} />
+                                                : <QrCode style={{ width: 20, height: 20 }} />}
+                                            {connectionMode === 'pairing_code' ? 'Generer le code de liaison' : t('Wizard.buttons.generateQr')}
                                         </button>
                                         <button
                                             onClick={goToKnowledgeBase}
@@ -1830,36 +1947,60 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
                         {whatsappStatus === 'connecting' && (
                             <>
                                 <Loader2 style={{ width: 48, height: 48, color: '#34d399', animation: 'spin 1s linear infinite' }} />
-                                <p style={{ color: '#94a3b8' }}>{t('connect.initialization')}</p>
+                                <p style={{ color: '#94a3b8' }}>
+                                    {connectionMode === 'pairing_code' ? 'Generation du code de liaison...' : t('connect.initialization')}
+                                </p>
                                 <div style={{ background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: 12, padding: '12px 20px', fontSize: 13, color: '#fcd34d', maxWidth: 300, textAlign: 'center', lineHeight: 1.6 }}>
                                     La première connexion peut prendre jusqu&apos;à <strong>60 secondes</strong>.<br />
-                                    Le QR code apparaîtra automatiquement.
+                                    {connectionMode === 'pairing_code' ? 'Le code apparaitra automatiquement.' : 'Le QR code apparaitra automatiquement.'}
                                 </div>
                             </>
                         )}
 
-                        {whatsappStatus === 'qr_ready' && qrCode && (
+                        {whatsappStatus === 'qr_ready' && (qrCode || pairingCode) && (
                             <>
-                                <div style={{
-                                    background: 'white',
-                                    padding: 16,
-                                    borderRadius: 16
-                                }}>
-                                    <img src={qrCode} alt="QR Code WhatsApp" style={{ width: 250, height: 250 }} />
-                                </div>
-                                <p style={{ color: '#94a3b8', textAlign: 'center' }}>
-                                    {t('connect.qrInstructions.step3')}
-                                </p>
-                                <p style={{ color: '#64748b', textAlign: 'center', fontSize: 12, maxWidth: 280 }}>
-                                    Le QR se renouvelle automatiquement toutes les ~20 s.<br />
-                                    Si votre téléphone charge sans fin, attendez le nouveau QR et rescannez.
-                                </p>
+                                {qrCode ? (
+                                    <>
+                                        <div style={{
+                                            background: 'white',
+                                            padding: 16,
+                                            borderRadius: 16
+                                        }}>
+                                            <img src={qrCode} alt="QR Code WhatsApp" style={{ width: 250, height: 250 }} />
+                                        </div>
+                                        <p style={{ color: '#94a3b8', textAlign: 'center' }}>
+                                            {t('connect.qrInstructions.step3')}
+                                        </p>
+                                        <p style={{ color: '#64748b', textAlign: 'center', fontSize: 12, maxWidth: 280 }}>
+                                            Le QR se renouvelle automatiquement toutes les ~20 s.<br />
+                                            Si votre téléphone charge sans fin, attendez le nouveau QR et rescannez.
+                                        </p>
+                                    </>
+                                ) : (
+                                    <div style={{
+                                        width: '100%',
+                                        maxWidth: 380,
+                                        border: '1px solid rgba(16, 185, 129, 0.4)',
+                                        background: 'rgba(16, 185, 129, 0.12)',
+                                        borderRadius: 14,
+                                        padding: 16,
+                                        textAlign: 'center'
+                                    }}>
+                                        <p style={{ color: '#a7f3d0', fontSize: 13, marginBottom: 8 }}>Code de liaison WhatsApp</p>
+                                        <p style={{ color: 'white', fontSize: 30, fontWeight: 700, letterSpacing: 2, marginBottom: 12 }}>
+                                            {pairingCode}
+                                        </p>
+                                        <p style={{ color: '#d1fae5', fontSize: 12, lineHeight: 1.5 }}>
+                                            Sur votre telephone: WhatsApp &gt; Appareils connectes &gt; Connecter un appareil &gt; Entrer le code.
+                                        </p>
+                                    </div>
+                                )}
                                 <button
                                     onClick={connectWhatsApp}
                                     style={buttonSecondaryStyle}
                                 >
                                     <RefreshCw style={{ width: 18, height: 18 }} />
-                                    {t('connect.actions.regenerate')}
+                                    {connectionMode === 'pairing_code' ? 'Regenerer le code' : t('connect.actions.regenerate')}
                                 </button>
                             </>
                         )}
@@ -1922,7 +2063,7 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
                                     style={buttonPrimaryStyle}
                                 >
                                     <RefreshCw style={{ width: 18, height: 18 }} />
-                                    {t('Wizard.buttons.retry')}
+                                    {connectionMode === 'pairing_code' ? 'Regenerer le code de liaison' : t('Wizard.buttons.retry')}
                                 </button>
                             </>
                         )}
