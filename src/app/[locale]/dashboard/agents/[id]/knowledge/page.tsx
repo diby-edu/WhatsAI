@@ -229,7 +229,7 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
         }
     }
 
-    // Ouvrir l'édition — charger le contenu du chunk 0
+    // Ouvrir l'edition — charger tout le document source (tous les segments)
     const handleOpenEdit = async (doc: Document) => {
         setEditingDoc(doc)
         setEditError(null)
@@ -238,10 +238,16 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
             const sourceId = doc.source_id || doc.id
             const res = await fetch(`/api/knowledge/${sourceId}`)
             const data = await res.json()
-            const chunk0 = (data.data?.segments || []).find((s: Segment) => s.chunk_index === 0)
+            const orderedSegments = (data.data?.segments || [])
+                .slice()
+                .sort((a: Segment, b: Segment) => (a.chunk_index || 0) - (b.chunk_index || 0))
+            const mergedContent = orderedSegments
+                .map((segment: Segment) => String(segment.content || '').trim())
+                .filter(Boolean)
+                .join('\n\n')
             setEditData({
                 title: doc.title,
-                content: chunk0?.content || '',
+                content: mergedContent,
                 image_url: doc.image_url || '',
                 extra_image_urls: Array.isArray(doc.extra_image_urls) ? doc.extra_image_urls : []
             })
