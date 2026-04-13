@@ -365,7 +365,7 @@ export async function finalizePaymentRecord(
                 newCreditsBalance = currentBalance + plan.credits_included
             }
 
-            await adminSupabase
+            const { error: profileUpdateError } = await adminSupabase
                 .from('profiles')
                 .update({
                     plan: plan.id,
@@ -376,6 +376,25 @@ export async function finalizePaymentRecord(
                     credits_high_usage_notified_at: null,
                 })
                 .eq('id', payment.user_id)
+
+            if (profileUpdateError) {
+                if (profileUpdateError.code === '42703') {
+                    // Fallback: retry without optional columns that may not exist yet
+                    const { error: profileFallbackError } = await adminSupabase
+                        .from('profiles')
+                        .update({
+                            plan: plan.id,
+                            credits_balance: newCreditsBalance,
+                            credits_used_this_month: 0,
+                        })
+                        .eq('id', payment.user_id)
+                    if (profileFallbackError) {
+                        console.error('[finalization] Profile fallback update failed:', profileFallbackError.message)
+                    }
+                } else {
+                    console.error('[finalization] Profile update failed:', profileUpdateError.message)
+                }
+            }
 
             // Réactiver les agents désactivés selon la limite du nouveau plan
             const planAgentLimits: Record<string, number> = {
