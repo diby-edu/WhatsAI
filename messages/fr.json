@@ -449,6 +449,21 @@
       "termsLink": "Conditions d'utilisation",
       "hasAccount": "Déjà un compte ?",
       "loginLink": "Se connecter"
+    },
+    "ForgotPassword": {
+      "title": "Mot de passe oublie",
+      "subtitle": "Entrez votre email pour recevoir un lien de reinitialisation.",
+      "email_label": "Adresse email",
+      "email_placeholder": "nom@exemple.com",
+      "submit": "Envoyer le lien",
+      "submitting": "Envoi en cours...",
+      "back_to_login": "Retour a la connexion",
+      "error": "Une erreur est survenue. Veuillez reessayer.",
+      "success": {
+        "title": "Email envoye",
+        "message_1": "Si un compte existe pour cette adresse, un lien de reinitialisation a ete envoye a :",
+        "message_2": "Verifiez votre boite de reception et votre dossier spam."
+      }
     }
   },
   "Dashboard": {
