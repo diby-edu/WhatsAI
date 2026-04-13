@@ -1888,13 +1888,17 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
                                     alignItems: 'center',
                                     justifyContent: 'center'
                                 }}>
-                                    <QrCode style={{ width: 40, height: 40, color: '#34d399' }} />
+                                    {connectionMode === 'pairing_code'
+                                        ? <Smartphone style={{ width: 40, height: 40, color: '#34d399' }} />
+                                        : <QrCode style={{ width: 40, height: 40, color: '#34d399' }} />}
                                 </div>
                                 <h3 style={{ fontSize: 20, fontWeight: 600, color: 'white', textAlign: 'center' }}>
                                     {t('connect.title')}
                                 </h3>
                                 <p style={{ color: '#94a3b8', textAlign: 'center', maxWidth: 400 }}>
-                                    {t('connect.scanPrompt')}
+                                    {connectionMode === 'pairing_code'
+                                        ? 'Generez un code de liaison pour connecter cet agent depuis ce meme telephone.'
+                                        : t('connect.scanPrompt')}
                                 </p>
                                 {isSupportClient ? (
                                     <>
