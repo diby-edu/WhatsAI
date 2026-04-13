@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/client'
+import { formatPriceFromFcfa } from '@/lib/currency'
 
 export type DashboardNotificationKind = 'info' | 'success' | 'warning' | 'order' | 'credits' | 'push'
 export type DashboardNotificationSource = 'order' | 'conversation' | 'credits' | 'notification_log'
@@ -167,7 +168,7 @@ export async function fetchDashboardNotifications(limit: number = 50): Promise<D
 
     const { data: profile } = await supabase
         .from('profiles')
-        .select('credits_balance, avatar_url, full_name')
+        .select('credits_balance, avatar_url, full_name, currency')
         .eq('id', user.id)
         .single()
 
@@ -187,7 +188,7 @@ export async function fetchDashboardNotifications(limit: number = 50): Promise<D
     if (agentIds.length > 0) {
         const { data: recentOrders } = await supabase
             .from('orders')
-            .select('id, order_number, total_amount, created_at')
+            .select('id, order_number, total_fcfa, created_at')
             .in('agent_id', agentIds)
             .gte('created_at', new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString())
             .order('created_at', { ascending: false })
@@ -202,7 +203,7 @@ export async function fetchDashboardNotifications(limit: number = 50): Promise<D
                 source: 'order',
                 type: 'order',
                 title: 'Nouvelle commande',
-                message: `#${order.order_number} - ${(order.total_amount ?? 0).toLocaleString('fr-FR')} FCFA`,
+                message: `#${order.order_number} - ${formatPriceFromFcfa(order.total_fcfa ?? 0, profile?.currency || 'XOF')}`,
                 time: formatBellTime(createdAt),
                 createdAt,
                 read: storedReadIds.has(id),

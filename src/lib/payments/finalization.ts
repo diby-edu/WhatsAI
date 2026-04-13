@@ -310,11 +310,13 @@ export async function finalizePaymentRecord(
                 .gte('current_period_end', new Date().toISOString())
                 .maybeSingle()
 
+            const planSlug = plan.name.toLowerCase()
+
             if (existingSub) {
                 await adminSupabase
                     .from('subscriptions')
                     .update({
-                        plan: plan.id,
+                        plan: planSlug,
                         status: 'active',
                         credits_included: plan.credits_included,
                         price_fcfa: plan.price_fcfa,
@@ -327,7 +329,7 @@ export async function finalizePaymentRecord(
                     .from('subscriptions')
                     .insert({
                         user_id: payment.user_id,
-                        plan: plan.id,
+                        plan: planSlug,
                         status: 'active',
                         credits_included: plan.credits_included,
                         price_fcfa: plan.price_fcfa,
@@ -354,7 +356,7 @@ export async function finalizePaymentRecord(
             let rolloverAmount = 0
             let bonusAmount = 0
 
-            if (plan.id === 'scale') {
+            if (planSlug === 'scale') {
                 // Scale : rollover 20% sur les crédits récupérés + bonus 2000
                 rolloverAmount = Math.floor(currentBalance * 0.20)
                 bonusAmount = 2000
@@ -368,7 +370,7 @@ export async function finalizePaymentRecord(
             const { error: profileUpdateError } = await adminSupabase
                 .from('profiles')
                 .update({
-                    plan: plan.id,
+                    plan: planSlug,
                     credits_balance: newCreditsBalance,
                     credits_used_this_month: 0,
                     credits_frozen_at: null,
@@ -383,7 +385,7 @@ export async function finalizePaymentRecord(
                     // Fallback 1: retry without optional columns
                     const { error: fb1Error } = await adminSupabase
                         .from('profiles')
-                        .update({ plan: plan.id, credits_balance: newCreditsBalance, credits_used_this_month: 0 })
+                        .update({ plan: planSlug, credits_balance: newCreditsBalance, credits_used_this_month: 0 })
                         .eq('id', payment.user_id)
                     if (fb1Error) {
                         console.error('[finalization] Profile fallback-1 failed:', fb1Error.message, fb1Error.code)
@@ -391,7 +393,7 @@ export async function finalizePaymentRecord(
                             // Fallback 2: absolute minimum — plan + credits only
                             const { error: fb2Error } = await adminSupabase
                                 .from('profiles')
-                                .update({ plan: plan.id, credits_balance: newCreditsBalance })
+                                .update({ plan: planSlug, credits_balance: newCreditsBalance })
                                 .eq('id', payment.user_id)
                             if (fb2Error) {
                                 console.error('[finalization] Profile fallback-2 failed:', fb2Error.message)
@@ -405,7 +407,7 @@ export async function finalizePaymentRecord(
             const planAgentLimits: Record<string, number> = {
                 free: 1, starter: 1, pro: 3, business: 6, scale: -1
             }
-            const agentLimit = planAgentLimits[plan.id] ?? 1
+            const agentLimit = planAgentLimits[planSlug] ?? 1
 
             const { data: deactivatedAgents } = await adminSupabase
                 .from('agents')
@@ -440,7 +442,7 @@ export async function finalizePaymentRecord(
             }
 
             // Notify Scale users of their rollover bonus
-            if (plan.id === 'scale' && rolloverAmount > 0) {
+            if (planSlug === 'scale' && rolloverAmount > 0) {
                 const { notify: notifyUser } = await import('@/lib/notifications/notification.service')
                 notifyUser(payment.user_id, 'scale_renewal_bonus', {
                     rolloverAmount,
