@@ -177,6 +177,30 @@ export default function ConversationDetailPage({ params }: { params: Promise<{ i
         }
     }
 
+    const resolveAndResume = async () => {
+        if (!conversation) return
+        setTogglingPause(true)
+        try {
+            const res = await fetch(`/api/conversations/${conversation.id}/pause`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ paused: false })
+            })
+            const data = await res.json()
+            if (data.data) {
+                setConversation({
+                    ...conversation,
+                    bot_paused: data.data.bot_paused,
+                    status: data.data.status || conversation.status,
+                })
+            }
+        } catch (err) {
+            console.error('Error resolving escalation:', err)
+        } finally {
+            setTogglingPause(false)
+        }
+    }
+
     const handleSendMessage = async () => {
         if (!newMessage.trim() || sending) return
 
@@ -266,19 +290,6 @@ export default function ConversationDetailPage({ params }: { params: Promise<{ i
                         <AlertTriangle size={20} />
                         <span>ATTENTION REQUISE: Client mécontent ou demande d'humain.</span>
                     </div>
-                    <button
-                        onClick={() => {
-                            // Resolve escalation -> set to active and resume bot
-                            // For MVP, just resume bot via existing toggle, or we can add specific "Resolve" API
-                            toggleBotPause()
-                        }}
-                        style={{
-                            background: 'white', color: '#ef4444', border: 'none', padding: '6px 16px', borderRadius: 8,
-                            fontWeight: 700, cursor: 'pointer'
-                        }}
-                    >
-                        ✅ Résoudre & Relancer IA
-                    </button>
                 </div>
             )}
             {/* Header */}
@@ -376,15 +387,15 @@ export default function ConversationDetailPage({ params }: { params: Promise<{ i
 
                 {/* Bot Pause Toggle */}
                 <button
-                    onClick={toggleBotPause}
+                    onClick={isEscalated ? resolveAndResume : toggleBotPause}
                     disabled={togglingPause}
-                    title={conversation.bot_paused ? t('bot.resume') : t('bot.pause')}
+                    title={isEscalated ? 'Resoudre et relancer IA' : (conversation.bot_paused ? t('bot.resume') : t('bot.pause'))}
                     style={{
                         padding: '10px 16px',
                         borderRadius: 12,
-                        background: conversation.bot_paused
-                            ? (isEscalated ? '#ef4444' : '#f59e0b')
-                            : 'rgba(16, 185, 129, 0.15)',
+                        background: isEscalated
+                            ? '#ef4444'
+                            : (conversation.bot_paused ? '#f59e0b' : 'rgba(16, 185, 129, 0.15)'),
                         border: 'none',
                         cursor: togglingPause ? 'wait' : 'pointer',
                         display: 'flex',
@@ -392,13 +403,15 @@ export default function ConversationDetailPage({ params }: { params: Promise<{ i
                         gap: 8,
                         fontSize: 13,
                         fontWeight: 600,
-                        color: conversation.bot_paused ? 'white' : '#34d399',
+                        color: (conversation.bot_paused || isEscalated) ? 'white' : '#34d399',
                         opacity: togglingPause ? 0.6 : 1,
-                        boxShadow: conversation.bot_paused ? '0 4px 12px rgba(239, 68, 68, 0.2)' : 'none'
+                        boxShadow: (conversation.bot_paused || isEscalated) ? '0 4px 12px rgba(239, 68, 68, 0.2)' : 'none'
                     }}
                 >
-                    {conversation.bot_paused ? (
-                        <><Play size={16} fill="white" /> {isEscalated ? 'RÉSOUDRE' : 'RELANCER IA'}</>
+                    {isEscalated ? (
+                        <><Play size={16} fill="white" /> RESOUDRE & RELANCER IA</>
+                    ) : conversation.bot_paused ? (
+                        <><Play size={16} fill="white" /> RELANCER IA</>
                     ) : (
                         <><Hand size={16} /> PAUSE (HUMAIN)</>
                     )}
