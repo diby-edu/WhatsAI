@@ -615,13 +615,13 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
                                         <div>
                                             <label style={{ display: 'block', color: '#94a3b8', marginBottom: 6, fontSize: 13 }}>Titre *</label>
                                             <input type="text" required value={newDoc.title} onChange={e => setNewDoc({ ...newDoc, title: e.target.value })}
-                                                style={inputStyle} placeholder="Ex: Honda Civic Rouge 2022" />
+                                                style={inputStyle} placeholder="Ex: Guide commandes et paiements" />
                                         </div>
                                         <div>
                                             <label style={{ display: 'block', color: '#94a3b8', marginBottom: 6, fontSize: 13 }}>Contenu *</label>
                                             <textarea required value={newDoc.content} onChange={e => setNewDoc({ ...newDoc, content: e.target.value })}
                                                 style={{ ...inputStyle, height: 260, resize: 'none' }}
-                                                placeholder="Carrosserie : Berline 4 portes&#10;Couleur : Rouge passion&#10;Année : 2022&#10;Prix : 9 800 000 FCFA&#10;..." />
+                                                placeholder="Sujet : Commandes et paiement&#10;Horaires support : Lun-Sam 8h-18h&#10;Delai de livraison : 24-48h&#10;Politique de retour : 7 jours&#10;..." />
                                             <p style={{ color: '#64748b', fontSize: 11, marginTop: 3 }}>
                                                 {newDoc.content.length} caractères
                                                 {newDoc.content.length > 2000 ? ` — sera découpé en ~${Math.ceil(newDoc.content.length / 1800)} segments` : ''}
@@ -657,7 +657,7 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
                                 <div style={{ marginBottom: 16 }}>
                                     <label style={{ display: 'block', color: '#94a3b8', marginBottom: 8, fontSize: 14 }}>Titre *</label>
                                     <input type="text" required value={pdfTitle} onChange={e => setPdfTitle(e.target.value)}
-                                        style={inputStyle} placeholder="Ex: Catalogue Véhicules 2026" />
+                                        style={inputStyle} placeholder="Ex: FAQ Service Client 2026" />
                                 </div>
                                 <div style={{ marginBottom: 20 }}>
                                     <label style={{ display: 'block', color: '#94a3b8', marginBottom: 8, fontSize: 14 }}>Fichier *</label>
@@ -700,7 +700,7 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
                                 <div style={{ marginBottom: 16 }}>
                                     <label style={{ display: 'block', color: '#94a3b8', marginBottom: 8, fontSize: 14 }}>Titre *</label>
                                     <input type="text" required value={urlTitle} onChange={e => setUrlTitle(e.target.value)}
-                                        style={inputStyle} placeholder="Ex: FAQ Site Officiel" />
+                                        style={inputStyle} placeholder="Ex: Centre d'aide officiel" />
                                 </div>
                                 <div style={{ marginBottom: 20 }}>
                                     <label style={{ display: 'block', color: '#94a3b8', marginBottom: 8, fontSize: 14 }}>URL *</label>
