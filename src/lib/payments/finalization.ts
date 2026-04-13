@@ -143,9 +143,9 @@ async function resolveCreditsToAdd(adminSupabase: SupabaseClientLike, payment: P
 }
 
 async function resolveSubscriptionPlan(adminSupabase: SupabaseClientLike, payment: PaymentRow) {
-    const { metadata } = getMetadata(payment)
-    const planId = String(metadata?.plan_id || '').trim()
-    const planName = String(metadata?.plan_name || '').trim()
+    const { metadata, providerResponse } = getMetadata(payment)
+    const planId = String(metadata?.plan_id || providerResponse?.plan_id || '').trim()
+    const planName = String(metadata?.plan_name || providerResponse?.plan_name || '').trim()
 
     if (planId) {
         const { data: byId } = await adminSupabase
