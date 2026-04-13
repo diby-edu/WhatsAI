@@ -2,6 +2,25 @@ import { NextRequest } from 'next/server'
 import { createApiClient, getAuthUser, errorResponse, successResponse, createAdminClient } from '@/lib/api-utils'
 import { hasAgentConnectedBefore } from '@/lib/admin/agent-status'
 
+type PairingMode = 'qr' | 'pairing_code'
+
+function normalizePairingMode(value: unknown): PairingMode {
+    return value === 'pairing_code' ? 'pairing_code' : 'qr'
+}
+
+function normalizePairingPhone(value: unknown): string | null {
+    if (typeof value !== 'string') return null
+    const trimmed = value.trim()
+    if (!trimmed) return null
+    let digits = trimmed.replace(/[^\d+]/g, '')
+    if (digits.startsWith('+')) digits = digits.slice(1)
+    if (digits.startsWith('00')) digits = digits.slice(2)
+    digits = digits.replace(/\D/g, '')
+    if (!digits) return null
+    if (digits.length < 8 || digits.length > 15) return null
+    return digits
+}
+
 // POST /api/whatsapp/connect - Request WhatsApp connection
 // The standalone whatsapp-service.js will pick this up and generate QR or restore a saved session.
 export async function POST(request: NextRequest) {
@@ -15,9 +34,15 @@ export async function POST(request: NextRequest) {
     try {
         const body = await request.json()
         const { agentId } = body
+        const pairingMode = normalizePairingMode(body?.connectionMode)
+        const pairingPhone = normalizePairingPhone(body?.pairingPhone)
 
         if (!agentId) {
             return errorResponse('agentId is required', 400)
+        }
+
+        if (pairingMode === 'pairing_code' && !pairingPhone) {
+            return errorResponse('Numero mobile invalide pour le code de liaison (format international requis)', 400)
         }
 
         // Verify agent belongs to user
@@ -71,7 +96,8 @@ export async function POST(request: NextRequest) {
         if (agent.whatsapp_connected) {
             return successResponse({
                 status: 'connected',
-                message: 'WhatsApp deja connecte'
+                message: 'WhatsApp deja connecte',
+                phoneNumber: agent.whatsapp_phone
             })
         }
 
@@ -88,15 +114,38 @@ export async function POST(request: NextRequest) {
                 .eq('session_id', agentId)
         }
 
-        const { error: agentUpdateError } = await adminClient
+        const updatePayload = {
+            whatsapp_connected: false,
+            whatsapp_status: 'connecting',
+            whatsapp_qr_code: null,
+            whatsapp_pairing_mode: pairingMode,
+            whatsapp_pairing_phone: pairingMode === 'pairing_code' ? pairingPhone : null,
+            whatsapp_pairing_code: null,
+            whatsapp_disconnected_by: null,
+        }
+
+        let { error: agentUpdateError } = await adminClient
             .from('agents')
-            .update({
-                whatsapp_connected: false,
-                whatsapp_status: 'connecting',
-                whatsapp_qr_code: null,
-                whatsapp_disconnected_by: null,
-            })
+            .update(updatePayload)
             .eq('id', agentId)
+
+        if (agentUpdateError?.code === '42703') {
+            if (pairingMode === 'pairing_code') {
+                return errorResponse('Le mode code mobile nest pas encore disponible sur cette base. Appliquez dabord la migration pairing.', 409)
+            }
+
+            const fallback = await adminClient
+                .from('agents')
+                .update({
+                    whatsapp_connected: false,
+                    whatsapp_status: 'connecting',
+                    whatsapp_qr_code: null,
+                    whatsapp_disconnected_by: null,
+                })
+                .eq('id', agentId)
+
+            agentUpdateError = fallback.error
+        }
 
         if (agentUpdateError) {
             return errorResponse('Erreur lors de l initiation de la connexion', 500)
@@ -104,9 +153,12 @@ export async function POST(request: NextRequest) {
 
         return successResponse({
             status: 'connecting',
-            message: shouldForceFreshQr
-                ? 'Demande de connexion envoyee. Le QR code sera genere sous peu...'
-                : 'Demande de reconnexion envoyee. Restauration de session en cours...'
+            pairingMode,
+            message: pairingMode === 'pairing_code'
+                ? 'Demande de connexion envoyee. Le code de liaison sera genere sous peu...'
+                : (shouldForceFreshQr
+                    ? 'Demande de connexion envoyee. Le QR code sera genere sous peu...'
+                    : 'Demande de reconnexion envoyee. Restauration de session en cours...')
         })
     } catch (err) {
         console.error('WhatsApp connect error:', err)
@@ -131,12 +183,24 @@ export async function GET(request: NextRequest) {
     }
 
     // Get agent with WhatsApp status
-    const { data: agent, error } = await supabase
+    let { data: agent, error } = await supabase
         .from('agents')
-        .select('id, is_active, whatsapp_connected, whatsapp_phone, whatsapp_status, whatsapp_qr_code')
+        .select('id, is_active, whatsapp_connected, whatsapp_phone, whatsapp_status, whatsapp_qr_code, whatsapp_pairing_mode, whatsapp_pairing_phone, whatsapp_pairing_code')
         .eq('id', agentId)
         .eq('user_id', user!.id)
         .single()
+
+    if (error?.code === '42703') {
+        const fallback = await supabase
+            .from('agents')
+            .select('id, is_active, whatsapp_connected, whatsapp_phone, whatsapp_status, whatsapp_qr_code')
+            .eq('id', agentId)
+            .eq('user_id', user!.id)
+            .single()
+
+        agent = fallback.data as any
+        error = fallback.error
+    }
 
     if (error || !agent) {
         return errorResponse('Agent non trouve', 404)
@@ -148,6 +212,9 @@ export async function GET(request: NextRequest) {
         status: isPaused ? 'paused' : (agent.whatsapp_connected ? 'connected' : (agent.whatsapp_status || 'disconnected')),
         phoneNumber: agent.whatsapp_phone,
         qrCode: agent.whatsapp_qr_code,
+        pairingMode: agent.whatsapp_pairing_mode || 'qr',
+        pairingPhone: agent.whatsapp_pairing_phone ? `+${agent.whatsapp_pairing_phone}` : null,
+        pairingCode: agent.whatsapp_pairing_code || null,
         connected: !isPaused && agent.whatsapp_connected,
         paused: isPaused
     })
@@ -189,16 +256,31 @@ export async function DELETE(request: NextRequest) {
         .delete()
         .eq('session_id', agentId)
 
-    const { error: disconnectError } = await adminClient
+    let { error: disconnectError } = await adminClient
         .from('agents')
         .update({
             whatsapp_connected: false,
             whatsapp_phone: null,
             whatsapp_status: 'disconnected',
             whatsapp_qr_code: null,
+            whatsapp_pairing_code: null,
             whatsapp_disconnected_by: 'user'
         })
         .eq('id', agentId)
+
+    if (disconnectError?.code === '42703') {
+        const fallback = await adminClient
+            .from('agents')
+            .update({
+                whatsapp_connected: false,
+                whatsapp_phone: null,
+                whatsapp_status: 'disconnected',
+                whatsapp_qr_code: null,
+                whatsapp_disconnected_by: 'user'
+            })
+            .eq('id', agentId)
+        disconnectError = fallback.error
+    }
 
     if (disconnectError) {
         return errorResponse('Erreur lors de la deconnexion', 500)

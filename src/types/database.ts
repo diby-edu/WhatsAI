@@ -44,6 +44,9 @@ export type Database = {
                     whatsapp_session_id: string | null
                     whatsapp_status: string | null
                     whatsapp_qr_code: string | null
+                    whatsapp_pairing_mode: string | null
+                    whatsapp_pairing_phone: string | null
+                    whatsapp_pairing_code: string | null
                     whatsapp_ever_connected: boolean
                     is_active: boolean
                     total_conversations: number

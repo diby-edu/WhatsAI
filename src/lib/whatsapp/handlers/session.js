@@ -27,6 +27,25 @@ function traceWhatsApp(...args) {
     }
 }
 
+function normalizePairingPhone(value) {
+    if (!value || typeof value !== 'string') return null
+    let digits = value.trim().replace(/[^\d+]/g, '')
+    if (digits.startsWith('+')) digits = digits.slice(1)
+    if (digits.startsWith('00')) digits = digits.slice(2)
+    digits = digits.replace(/\D/g, '')
+    if (!digits) return null
+    if (digits.length < 8 || digits.length > 15) return null
+    return digits
+}
+
+function formatPairingCode(rawCode) {
+    if (!rawCode || typeof rawCode !== 'string') return null
+    const compact = rawCode.replace(/\s+/g, '').trim()
+    if (!compact) return null
+    if (compact.includes('-')) return compact
+    return compact.match(/.{1,4}/g)?.join('-') || compact
+}
+
 async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
     const { supabase, activeSessions, pendingConnections, openai, CinetPay, markSetupPhaseActivity, clearSetupPhaseActivity } = context
     const isSilentRestore = reconnectAttempt === 99
@@ -74,6 +93,26 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
         // const sessionDir = ensureSessionDir(agentId) // Legacy: No longer needed
         // const { state, saveCreds } = await useMultiFileAuthState(sessionDir)
         const { state, saveCreds } = await useSupabaseAuthState(supabase, agentId)
+        let pairingMode = 'qr'
+        let pairingPhone = null
+
+        try {
+            const { data: pairingSettings } = await supabase
+                .from('agents')
+                .select('whatsapp_pairing_mode, whatsapp_pairing_phone')
+                .eq('id', agentId)
+                .single()
+
+            if (pairingSettings?.whatsapp_pairing_mode === 'pairing_code') {
+                const normalizedPhone = normalizePairingPhone(pairingSettings?.whatsapp_pairing_phone || '')
+                if (normalizedPhone) {
+                    pairingMode = 'pairing_code'
+                    pairingPhone = normalizedPhone
+                }
+            }
+        } catch (pairingSettingsError) {
+            console.warn(`[${agentName}] Failed to load pairing settings:`, pairingSettingsError?.message || pairingSettingsError)
+        }
 
         // Fetch latest WhatsApp version with a fallback in case the network call fails on VPS
         let version
@@ -111,6 +150,10 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
             isSilentRestore,
             pairingSucceeded: false,
             persistedCredsClearedForQr: false,
+            pairingMode,
+            pairingPhone,
+            pairingCodeRequested: false,
+            pairingCode: null,
         }
         activeSessions.set(agentId, session)
 
@@ -165,22 +208,60 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                         }).eq('id', agentId)
                         return
                     }
-                    console.log(`📱 [${agentName}] QR code generated (reconnexion ${count}/${MAX_QR_RECONNECT}), saving to DB...`)
+                    console.log(`📱 [${agentName}] Pairing update generated (reconnexion ${count}/${MAX_QR_RECONNECT}), saving to DB...`)
                 } else {
-                    console.log(`📱 [${agentName}] QR code generated, saving to DB...`)
+                    console.log(`📱 [${agentName}] Pairing update generated, saving to DB...`)
                 }
 
                 try {
-                    // Convert QR to data URL and store in database
-                    const qrDataUrl = await QRCode.toDataURL(qr)
-
-                    // ⭐ TIMEOUT 5s : évite que ConnectTimeoutError Supabase (30s) bloque le process
                     const QR_SAVE_TIMEOUT_MS = 5000
-                    const saveQR = supabase.from('agents').update({
-                        whatsapp_qr_code: qrDataUrl,
-                        whatsapp_status: 'qr_ready',
-                        whatsapp_connected: false
-                    }).eq('id', agentId)
+                    let updatePayload = null
+
+                    if (session.pairingMode === 'pairing_code' && session.pairingPhone) {
+                        if (!session.pairingCodeRequested) {
+                            try {
+                                const rawCode = await socket.requestPairingCode(session.pairingPhone)
+                                const formattedCode = formatPairingCode(rawCode)
+                                if (formattedCode) {
+                                    session.pairingCodeRequested = true
+                                    session.pairingCode = formattedCode
+                                    console.log(`🔐 [${agentName}] Pairing code generated for mobile linking`)
+                                } else {
+                                    console.warn(`⚠️ [${agentName}] Pairing code request returned empty payload`)
+                                }
+                            } catch (pairingCodeError) {
+                                console.warn(`⚠️ [${agentName}] Failed to request pairing code:`, pairingCodeError?.message || pairingCodeError)
+                            }
+                        }
+
+                        if (session.pairingCode) {
+                            updatePayload = {
+                                whatsapp_qr_code: null,
+                                whatsapp_status: 'qr_ready',
+                                whatsapp_connected: false,
+                                whatsapp_pairing_code: session.pairingCode
+                            }
+                        } else {
+                            // Fallback: if pairing code cannot be generated, keep QR flow available.
+                            const qrDataUrl = await QRCode.toDataURL(qr)
+                            updatePayload = {
+                                whatsapp_qr_code: qrDataUrl,
+                                whatsapp_status: 'qr_ready',
+                                whatsapp_connected: false
+                            }
+                            console.warn(`⚠️ [${agentName}] Pairing-code fallback to QR mode for this attempt`)
+                        }
+                    } else {
+                        // Convert QR to data URL and store in database
+                        const qrDataUrl = await QRCode.toDataURL(qr)
+                        updatePayload = {
+                            whatsapp_qr_code: qrDataUrl,
+                            whatsapp_status: 'qr_ready',
+                            whatsapp_connected: false
+                        }
+                    }
+
+                    const saveQR = supabase.from('agents').update(updatePayload).eq('id', agentId)
 
                     const { error: qrError } = await Promise.race([
                         saveQR,
@@ -190,14 +271,18 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                     ])
 
                     if (qrError) {
-                        console.warn(`⚠️ [${agentName}] Failed to save QR to DB:`, qrError.message)
+                        console.warn(`⚠️ [${agentName}] Failed to save pairing payload to DB:`, qrError.message)
                     } else {
-                        console.log(`✅ [${agentName}] QR code saved to DB and ready for scan`)
+                        if (session.pairingMode === 'pairing_code') {
+                            console.log(`✅ [${agentName}] Pairing code state saved to DB`)
+                        } else {
+                            console.log(`✅ [${agentName}] QR code saved to DB and ready for scan`)
+                        }
                     }
                 } catch (qrErr) {
-                    // Non-bloquant : QR save échoue silencieusement (timeout réseau ou erreur DB)
-                    // Le socket reste actif et un nouveau QR sera généré au prochain cycle
-                    console.warn(`⚠️ [${agentName}] QR save failed (non-blocking):`, qrErr.message)
+                    // Non-bloquant : save échoue silencieusement (timeout réseau ou erreur DB)
+                    // Le socket reste actif et un nouveau payload sera généré au prochain cycle
+                    console.warn(`⚠️ [${agentName}] Pairing payload save failed (non-blocking):`, qrErr.message)
                 }
             }
 
