@@ -449,6 +449,21 @@
             "termsLink": "Terms of Service",
             "hasAccount": "Already have an account?",
             "loginLink": "Login"
+        },
+        "ForgotPassword": {
+            "title": "Forgot password",
+            "subtitle": "Enter your email to receive a password reset link.",
+            "email_label": "Email address",
+            "email_placeholder": "name@example.com",
+            "submit": "Send reset link",
+            "submitting": "Sending...",
+            "back_to_login": "Back to login",
+            "error": "An error occurred. Please try again.",
+            "success": {
+                "title": "Email sent",
+                "message_1": "If an account exists for this address, a reset link has been sent to:",
+                "message_2": "Check your inbox and spam folder."
+            }
         }
     },
     "Dashboard": {
