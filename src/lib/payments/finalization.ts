@@ -378,21 +378,26 @@ export async function finalizePaymentRecord(
                 .eq('id', payment.user_id)
 
             if (profileUpdateError) {
+                console.error('[finalization] Profile full update failed:', profileUpdateError.message, profileUpdateError.code)
                 if (profileUpdateError.code === '42703') {
-                    // Fallback: retry without optional columns that may not exist yet
-                    const { error: profileFallbackError } = await adminSupabase
+                    // Fallback 1: retry without optional columns
+                    const { error: fb1Error } = await adminSupabase
                         .from('profiles')
-                        .update({
-                            plan: plan.id,
-                            credits_balance: newCreditsBalance,
-                            credits_used_this_month: 0,
-                        })
+                        .update({ plan: plan.id, credits_balance: newCreditsBalance, credits_used_this_month: 0 })
                         .eq('id', payment.user_id)
-                    if (profileFallbackError) {
-                        console.error('[finalization] Profile fallback update failed:', profileFallbackError.message)
+                    if (fb1Error) {
+                        console.error('[finalization] Profile fallback-1 failed:', fb1Error.message, fb1Error.code)
+                        if (fb1Error.code === '42703') {
+                            // Fallback 2: absolute minimum — plan + credits only
+                            const { error: fb2Error } = await adminSupabase
+                                .from('profiles')
+                                .update({ plan: plan.id, credits_balance: newCreditsBalance })
+                                .eq('id', payment.user_id)
+                            if (fb2Error) {
+                                console.error('[finalization] Profile fallback-2 failed:', fb2Error.message)
+                            }
+                        }
                     }
-                } else {
-                    console.error('[finalization] Profile update failed:', profileUpdateError.message)
                 }
             }
 
