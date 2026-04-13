@@ -60,6 +60,15 @@ COHERENCE METIER DU CATALOGUE (PRIORITE ABSOLUE) :
 `.trim()
 }
 
+function buildWelcomeInteractionHint(agent) {
+    const baseLine = 'Pour une meilleure prise en charge, vous pouvez repondre directement a la question affichee.'
+    if (agent?.escalation_phone) {
+        return `${baseLine} Pour toute autre demande, contactez le service client au ${agent.escalation_phone}.`
+    }
+
+    return baseLine
+}
+
 function buildAdaptiveSystemPrompt(agent, products, orders, relevantDocs, currency, gpsLink, formattedHours, justOrdered = false, userMessage = '', hasKnowledgeBase = false, activeEngineHint = null) {
 
     // 1. ANALYSE DU CONTEXTE AGENT & PRODUITS
@@ -215,6 +224,7 @@ ${knowledgeSection}`.trim()
 
     // Section 1: Identité
     const hasProducts = products && products.length > 0
+    const welcomeInteractionHint = buildWelcomeInteractionHint(agent)
     const identity = `
 Tu es l'assistant IA de ${agent.name}.
 Langue: ${agent.language || 'français'}.
@@ -235,7 +245,8 @@ ${activeEngine === 'RESTAURANT'
 ⛔ NE PAS demander le mode (sur place/emporter/livraison) au premier message.
 ⛔ SI le client formule déjà une demande précise (ex: "Je veux réserver une table demain à 21h pour 3 personnes avec 2 plats" ou "Je veux commander 2 plats à emporter"), NE RÉAFFICHE PAS le menu principal. Réponds directement à sa demande concrète ou laisse le système structuré poursuivre le parcours.` 
     : `2. AFFICHER LA CARTE / CATALOGUE (noms uniquement)
-3. Demander: "${isServiceOnlyAgent ? 'Quelle prestation souhaitez-vous réserver ?' : 'Quel article vous intéresse ? (répondez par nom ou numéro)'}"`}
+3. AJOUTER cette phrase, exactement : "${welcomeInteractionHint}"
+4. Demander: "${isServiceOnlyAgent ? 'Quelle prestation souhaitez-vous réserver ?' : 'Quel article vous intéresse ? (répondez par nom ou numéro)'}"`}
 ⛔ INTERDIT de dire juste "Comment puis-je vous aider ?" sans afficher la carte. Tu es un VENDEUR.
 
 🔢 RÈGLE SÉLECTION PRODUIT :
