@@ -112,6 +112,13 @@ export default function AgentWizardPage({
     const [connectedPhone, setConnectedPhone] = useState<string | null>(null)
     const [whatsappErrorMessage, setWhatsappErrorMessage] = useState<string | null>(null)
     const [retryWithFreshQr, setRetryWithFreshQr] = useState(false)
+    const [countdown, setCountdown] = useState<number | null>(null)
+
+    useEffect(() => {
+        if (countdown === null || countdown <= 0) return
+        const t = setTimeout(() => setCountdown(c => (c !== null && c > 0 ? c - 1 : c)), 1000)
+        return () => clearTimeout(t)
+    }, [countdown])
 
     // Conflict Detection
     const [conflictStatus, setConflictStatus] = useState<'idle' | 'checking' | 'safe' | 'conflict' | 'error'>('idle')
@@ -401,6 +408,7 @@ export default function AgentWizardPage({
 
         const shouldForceFreshQr = retryWithFreshQr || whatsappStatus === 'error'
         setWhatsappStatus('connecting')
+        setCountdown(60)
         setQrCode(null)
         setPairingCode(null)
         setWhatsappErrorMessage(null)
@@ -434,11 +442,13 @@ export default function AgentWizardPage({
                 setConnectedPhone(result.phoneNumber)
                 setQrCode(null)
                 setPairingCode(null)
+                setCountdown(null)
                 setRetryWithFreshQr(false)
             }
         } catch (err) {
             console.error(err)
             setWhatsappStatus('error')
+            setCountdown(null)
             setQrCode(null)
             setPairingCode(null)
             setWhatsappErrorMessage((err as Error)?.message || 'Erreur de connexion WhatsApp')
@@ -455,6 +465,14 @@ export default function AgentWizardPage({
             setPairingCode(null)
             setConnectedPhone(null)
         } catch (err) { console.error(err) }
+    }
+
+    const cancelConnection = async () => {
+        setWhatsappStatus('idle')
+        setCountdown(null)
+        setQrCode(null)
+        setPairingCode(null)
+        try { await fetch(`/api/whatsapp/connect?agentId=${agentId}&logout=true`, { method: 'DELETE' }) } catch {}
     }
 
     // Polling
@@ -1648,12 +1666,14 @@ export default function AgentWizardPage({
                                 <div className="text-emerald-400 flex flex-col items-center gap-4">
                                     <Loader2 className="w-10 h-10 animate-spin" />
                                     <span>{connectionMode === 'pairing_code' ? 'Generation du code de liaison...' : 'Demarrage du service WhatsApp...'}</span>
-                                    <div className="text-sm text-slate-400 bg-slate-800/60 border border-slate-700/50 rounded-xl px-4 py-3 max-w-xs text-center">
-                                        La premiere connexion peut prendre jusqu&apos;a <strong className="text-amber-400">60 secondes</strong>.<br />
-                                        {connectionMode === 'pairing_code'
-                                            ? 'Patientez, le code apparaitra automatiquement.'
-                                            : 'Patientez, le QR code apparaitra automatiquement.'}
-                                    </div>
+                                    {countdown !== null && (
+                                        <div style={{ fontSize: 13, color: countdown > 0 ? '#64748b' : '#f59e0b' }}>
+                                            {countdown > 0 ? `${countdown}s` : 'Prend plus de temps que prévu...'}
+                                        </div>
+                                    )}
+                                    <button onClick={cancelConnection} style={{ background: 'none', border: '1px solid #475569', color: '#94a3b8', borderRadius: 10, padding: '7px 18px', cursor: 'pointer', fontSize: 13 }}>
+                                        Annuler
+                                    </button>
                                 </div>
                             )}
 
@@ -1673,6 +1693,14 @@ export default function AgentWizardPage({
                                             </p>
                                         </div>
                                     )}
+                                    {countdown !== null && (
+                                        <div style={{ fontSize: 12, color: countdown > 0 ? '#64748b' : '#f59e0b', textAlign: 'center' }}>
+                                            {countdown > 0 ? `Expiration dans ${countdown}s` : 'Essayez de régénérer'}
+                                        </div>
+                                    )}
+                                    <button onClick={cancelConnection} style={{ background: 'none', border: '1px solid #475569', color: '#94a3b8', borderRadius: 10, padding: '7px 18px', cursor: 'pointer', fontSize: 13, marginTop: 4 }}>
+                                        Annuler
+                                    </button>
                                 </>
                             )}
 
