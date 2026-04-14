@@ -67,6 +67,13 @@ export default function NewAgentPage() {
     const [whatsappStatus, setWhatsappStatus] = useState<'idle' | 'connecting' | 'qr_ready' | 'connected' | 'error'>('idle')
     const [connectedPhone, setConnectedPhone] = useState<string | null>(null)
     const [retryWithFreshQr, setRetryWithFreshQr] = useState(false)
+    const [countdown, setCountdown] = useState<number | null>(null)
+
+    useEffect(() => {
+        if (countdown === null || countdown <= 0) return
+        const t = setTimeout(() => setCountdown(c => (c !== null && c > 0 ? c - 1 : c)), 1000)
+        return () => clearTimeout(t)
+    }, [countdown])
 
     useEffect(() => {
         const checkViewport = () => setIsCompact(window.innerWidth < 768)
@@ -564,7 +571,6 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
 
             setCreatedAgent(agent)
             setCurrentStep(6) // Move to WhatsApp step
-            if (formData.mission === 'support_client') setShowSupportModal(true)
         } catch (err) {
             console.error('[ERROR] Agent creation error:', err)
             setError((err as Error).message)
@@ -594,6 +600,7 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
 
         const shouldForceFreshQr = retryWithFreshQr || whatsappStatus === 'error'
         setWhatsappStatus('connecting')
+        setCountdown(60)
         setQrCode(null)
         setPairingCode(null)
         setError(null)
@@ -621,7 +628,9 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
             if (data.data?.status === 'connected') {
                 setWhatsappStatus('connected')
                 setConnectedPhone(data.data.phoneNumber || '')
+                setCountdown(null)
                 setRetryWithFreshQr(false)
+                if (formData.mission === 'support_client') setShowSupportModal(true)
                 return
             }
 
@@ -647,7 +656,9 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
                     setConnectedPhone(phoneNumber || '')
                     setQrCode(null)
                     setPairingCode(null)
+                    setCountdown(null)
                     setRetryWithFreshQr(false)
+                    if (formData.mission === 'support_client') setShowSupportModal(true)
                     return
                 } else if (status === 'error' || status === 'disconnected' || status === 'reconnect_required') {
                     throw new Error(QR_CONNECTION_ERROR_MESSAGE)
@@ -672,9 +683,20 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
         } catch (err) {
             setError((err as Error).message)
             setWhatsappStatus('error')
+            setCountdown(null)
             setQrCode(null)
             setPairingCode(null)
             setRetryWithFreshQr(true)
+        }
+    }
+
+    const cancelConnection = async () => {
+        setWhatsappStatus('idle')
+        setCountdown(null)
+        setQrCode(null)
+        setPairingCode(null)
+        if (createdAgent) {
+            try { await fetch(`/api/whatsapp/connect?agentId=${createdAgent.id}&logout=true`, { method: 'DELETE' }) } catch {}
         }
     }
 
@@ -1900,50 +1922,19 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
                                         ? 'Generez un code de liaison pour connecter cet agent depuis ce meme telephone.'
                                         : t('connect.scanPrompt')}
                                 </p>
-                                {isSupportClient ? (
-                                    <>
-                                        <button
-                                            onClick={goToKnowledgeBase}
-                                            style={buttonPrimaryStyle}
-                                        >
-                                            <Bot style={{ width: 18, height: 18 }} />
-                                            Configurer la base de connaissance
-                                        </button>
-                                        <button
-                                            onClick={connectWhatsApp}
-                                            style={buttonSecondaryStyle}
-                                        >
-                                            {connectionMode === 'pairing_code'
-                                                ? <Smartphone style={{ width: 20, height: 20 }} />
-                                                : <QrCode style={{ width: 20, height: 20 }} />}
-                                            {connectionMode === 'pairing_code' ? 'Generer le code de liaison' : t('Wizard.buttons.generateQr')}
-                                        </button>
-                                    </>
-                                ) : (
-                                    <>
-                                        <button
-                                            onClick={connectWhatsApp}
-                                            style={buttonPrimaryStyle}
-                                        >
-                                            {connectionMode === 'pairing_code'
-                                                ? <Smartphone style={{ width: 20, height: 20 }} />
-                                                : <QrCode style={{ width: 20, height: 20 }} />}
-                                            {connectionMode === 'pairing_code' ? 'Generer le code de liaison' : t('Wizard.buttons.generateQr')}
-                                        </button>
-                                        <button
-                                            onClick={goToKnowledgeBase}
-                                            style={buttonSecondaryStyle}
-                                        >
-                                            <Bot style={{ width: 18, height: 18 }} />
-                                            Ajouter une base de connaissance
-                                        </button>
-                                        <button
-                                            onClick={handleFinish}
-                                            style={{ ...buttonSecondaryStyle, marginTop: 8 }}
-                                        >
-                                            {t('Wizard.buttons.skip')}
-                                        </button>
-                                    </>
+                                <button
+                                    onClick={connectWhatsApp}
+                                    style={buttonPrimaryStyle}
+                                >
+                                    {connectionMode === 'pairing_code'
+                                        ? <Smartphone style={{ width: 20, height: 20 }} />
+                                        : <QrCode style={{ width: 20, height: 20 }} />}
+                                    {connectionMode === 'pairing_code' ? 'Generer le code de liaison' : t('Wizard.buttons.generateQr')}
+                                </button>
+                                {!isSupportClient && (
+                                    <button onClick={handleFinish} style={{ ...buttonSecondaryStyle, marginTop: 8 }}>
+                                        {t('Wizard.buttons.skip')}
+                                    </button>
                                 )}
                             </>
                         )}
@@ -1954,10 +1945,14 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
                                 <p style={{ color: '#94a3b8' }}>
                                     {connectionMode === 'pairing_code' ? 'Generation du code de liaison...' : t('connect.initialization')}
                                 </p>
-                                <div style={{ background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: 12, padding: '12px 20px', fontSize: 13, color: '#fcd34d', maxWidth: 300, textAlign: 'center', lineHeight: 1.6 }}>
-                                    La première connexion peut prendre jusqu&apos;à <strong>60 secondes</strong>.<br />
-                                    {connectionMode === 'pairing_code' ? 'Le code apparaitra automatiquement.' : 'Le QR code apparaitra automatiquement.'}
-                                </div>
+                                {countdown !== null && (
+                                    <div style={{ fontSize: 13, color: countdown > 0 ? '#64748b' : '#f59e0b', textAlign: 'center' }}>
+                                        {countdown > 0 ? `${countdown}s` : 'Prend plus de temps que prévu...'}
+                                    </div>
+                                )}
+                                <button onClick={cancelConnection} style={{ background: 'none', border: '1px solid #475569', color: '#94a3b8', borderRadius: 10, padding: '8px 20px', cursor: 'pointer', fontSize: 13 }}>
+                                    Annuler
+                                </button>
                             </>
                         )}
 
@@ -1999,13 +1994,20 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
                                         </p>
                                     </div>
                                 )}
-                                <button
-                                    onClick={connectWhatsApp}
-                                    style={buttonSecondaryStyle}
-                                >
-                                    <RefreshCw style={{ width: 18, height: 18 }} />
-                                    {connectionMode === 'pairing_code' ? 'Regenerer le code' : t('connect.actions.regenerate')}
-                                </button>
+                                {countdown !== null && (
+                                    <div style={{ fontSize: 12, color: countdown > 0 ? '#64748b' : '#f59e0b', textAlign: 'center', marginTop: 4 }}>
+                                        {countdown > 0 ? `Expiration dans ${countdown}s` : 'Essayez de régénérer'}
+                                    </div>
+                                )}
+                                <div style={{ display: 'flex', gap: 10 }}>
+                                    <button onClick={connectWhatsApp} style={buttonSecondaryStyle}>
+                                        <RefreshCw style={{ width: 18, height: 18 }} />
+                                        {connectionMode === 'pairing_code' ? 'Regenerer le code' : t('connect.actions.regenerate')}
+                                    </button>
+                                    <button onClick={cancelConnection} style={{ background: 'none', border: '1px solid #475569', color: '#94a3b8', borderRadius: 10, padding: '8px 16px', cursor: 'pointer', fontSize: 13 }}>
+                                        Annuler
+                                    </button>
+                                </div>
                             </>
                         )}
 
@@ -2282,10 +2284,10 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
                                 Aller à la base de connaissance
                             </button>
                             <button
-                                onClick={() => setShowSupportModal(false)}
+                                onClick={() => { setShowSupportModal(false); router.push('/dashboard') }}
                                 style={{ padding: '14px 20px', background: 'transparent', color: '#94a3b8', border: '1px solid #334155', borderRadius: 12, cursor: 'pointer', fontSize: 14 }}
                             >
-                                Plus tard
+                                Tableau de bord
                             </button>
                         </div>
                     </div>
