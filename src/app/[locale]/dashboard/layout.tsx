@@ -94,11 +94,9 @@ export default function DashboardLayout({
         { href: '/dashboard/products', label: t('products'), icon: Package },
         { href: '/dashboard/orders', label: t('orders'), icon: ShoppingBag },
         { href: '/dashboard/analytics', label: t('analytics'), icon: TrendingUp },
-        { href: '/dashboard/playground', label: t('playground'), icon: Zap },
         { href: '/dashboard/developers', label: 'API', icon: Code2 },
         { href: '/dashboard/billing', label: t('billing'), icon: CreditCard },
         { href: '/dashboard/settings', label: t('settings'), icon: Settings },
-        { href: '/dashboard/help', label: t('help'), icon: HelpCircle },
     ]
 
     useEffect(() => {
@@ -714,7 +712,7 @@ export default function DashboardLayout({
                     </div>
 
                     {/* Navigation */}
-                    <nav style={{ flex: 1, padding: 12, display: 'flex', flexDirection: 'column', gap: 4, overflowY: 'auto' }}>
+                    <nav style={{ flex: 1, padding: 12, display: 'flex', flexDirection: 'column', gap: 4, overflowY: 'hidden' }}>
                         {sidebarLinks.map((link) => {
                             const isActive = pathname === link.href || (link.href !== '/dashboard' && pathname.startsWith(link.href))
                             const isApiLocked = link.href === '/dashboard/developers' && !apiAccessEnabled

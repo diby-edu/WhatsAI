@@ -59,7 +59,6 @@ function normalizePairingPhoneInput(value: string): string | null {
 
 // Wizard Steps - Matching the new wizard design exactly
 const STEPS = [
-    { id: 'mission', title: 'Mission', icon: Target },
     { id: 'info', title: 'Identité', icon: Bot },
     { id: 'hours', title: 'Horaires', icon: Clock },
     { id: 'personality', title: 'Personnalité', icon: Sparkles },
@@ -348,11 +347,11 @@ export default function AgentWizardPage({
     // Navigation helpers — Support Client skips step 2 (Horaires)
     // STEPS: 0=mission, 1=info, 2=hours, 3=personality, 4=rules, 5=settings, 6=whatsapp
     const getNextStep = (from: number) => {
-        if (isSupportClient && from === 1) return 3 // skip hours (index 2)
+        if (isSupportClient && from === 0) return 2 // skip hours (index 1)
         return Math.min(STEPS.length - 1, from + 1)
     }
     const getPrevStep = (from: number) => {
-        if (isSupportClient && from === 3) return 1 // skip hours (index 2)
+        if (isSupportClient && from === 2) return 0 // skip hours (index 1)
         return Math.max(0, from - 1)
     }
 
@@ -720,15 +719,15 @@ export default function AgentWizardPage({
                 }
 
                 return (
-                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                         {/* Notice Support Client */}
                         {isSupportClient && (
-                            <div style={{ padding: 14, background: 'rgba(99, 102, 241, 0.1)', border: '1px solid rgba(99, 102, 241, 0.3)', borderRadius: 12, fontSize: 13, color: '#a5b4fc' }}>
+                            <div style={{ padding: 10, background: 'rgba(99, 102, 241, 0.1)', border: '1px solid rgba(99, 102, 241, 0.3)', borderRadius: 10, fontSize: 12, color: '#a5b4fc' }}>
                                 ℹ️ Les horaires ne s'appliquent pas au mode Support Client. Vous pouvez ignorer cette étape.
                             </div>
                         )}
                         {/* 24/7 Quick Toggle */}
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 16, background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: 12, marginBottom: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: 10, marginBottom: 4 }}>
                             <div>
                                 <span style={{ fontWeight: 600, color: '#10b981' }}>🌐 Ouvert 24h/24, 7j/7</span>
                                 <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>Service disponible en permanence</p>
@@ -751,7 +750,7 @@ export default function AgentWizardPage({
                         </div>
 
                         {Object.entries(formData.business_hours).map(([day, hours]) => (
-                            <div key={day} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 12, background: 'rgba(30, 41, 59, 0.3)', borderRadius: 8 }}>
+                            <div key={day} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 10px', background: 'rgba(30, 41, 59, 0.3)', borderRadius: 8 }}>
                                 <span style={{ textTransform: 'capitalize', color: 'white', width: 100 }}>{dayNames[day] || day}</span>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                     <input
@@ -1556,8 +1555,8 @@ export default function AgentWizardPage({
                             )}
                         </div>
 
-                        {/* Live Query API — section avancée */}
-                        <div style={{ borderTop: '1px solid rgba(148,163,184,0.1)', paddingTop: 24 }}>
+                        {/* Live Query API — section avancée (bientôt) */}
+                        <div style={{ borderTop: '1px solid rgba(148,163,184,0.1)', paddingTop: 24, opacity: 0.4, pointerEvents: 'none', userSelect: 'none' }}>
                             <label style={{ display: 'block', fontSize: 14, fontWeight: 600, color: '#e2e8f0', marginBottom: 4 }}>
                                 Live Query URL <span style={{ fontSize: 12, color: '#64748b', fontWeight: 400 }}>(Avancé — API)</span>
                             </label>
