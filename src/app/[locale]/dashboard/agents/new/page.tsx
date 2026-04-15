@@ -1922,6 +1922,15 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
 
                         {whatsappStatus === 'idle' && (
                             <>
+                                <button
+                                    onClick={connectWhatsApp}
+                                    style={buttonPrimaryStyle}
+                                >
+                                    {connectionMode === 'pairing_code'
+                                        ? <Smartphone style={{ width: 20, height: 20 }} />
+                                        : <QrCode style={{ width: 20, height: 20 }} />}
+                                    {connectionMode === 'pairing_code' ? 'Generer le code de liaison' : t('Wizard.buttons.generateQr')}
+                                </button>
                                 <div style={{
                                     width: 80,
                                     height: 80,
@@ -1943,15 +1952,6 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
                                         ? 'Generez un code de liaison pour connecter cet agent depuis ce meme telephone.'
                                         : t('connect.scanPrompt')}
                                 </p>
-                                <button
-                                    onClick={connectWhatsApp}
-                                    style={buttonPrimaryStyle}
-                                >
-                                    {connectionMode === 'pairing_code'
-                                        ? <Smartphone style={{ width: 20, height: 20 }} />
-                                        : <QrCode style={{ width: 20, height: 20 }} />}
-                                    {connectionMode === 'pairing_code' ? 'Generer le code de liaison' : t('Wizard.buttons.generateQr')}
-                                </button>
                                 {!isSupportClient && (
                                     <button onClick={handleFinish} style={{ ...buttonSecondaryStyle, marginTop: 8 }}>
                                         {t('Wizard.buttons.skip')}
