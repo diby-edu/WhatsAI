@@ -58,6 +58,14 @@ export default function NewAgentPage() {
     const [error, setError] = useState<string | null>(null)
     const [createdAgent, setCreatedAgent] = useState<any>(null)
     const [showSupportModal, setShowSupportModal] = useState(false)
+    const [featureFlags, setFeatureFlags] = useState<Record<string, boolean>>({})
+
+    useEffect(() => {
+        fetch('/api/features')
+            .then(r => r.json())
+            .then(d => { if (d.data?.flags) setFeatureFlags(d.data.flags) })
+            .catch(() => {}) // fallback : tout activé par défaut (featureFlags vide = aucune restriction)
+    }, [])
 
     // WhatsApp connection state
     const [qrCode, setQrCode] = useState<string | null>(null)
@@ -773,23 +781,36 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
                                 {t('Form.mission.label')}
                             </label>
                             <div className="agent-grid-3">
-                                {missionTemplates.map((template) => (
+                                {missionTemplates.map((template) => {
+                                    const flagKey = `agent_${template.id}`
+                                    // support_client est toujours actif, les autres vérifient le flag
+                                    const isEnabled = template.id === 'support_client' || Object.keys(featureFlags).length === 0 || featureFlags[flagKey] !== false
+                                    return (
                                     <button
                                         key={template.id}
-                                        onClick={() => selectMissionTemplate(template)}
+                                        onClick={() => isEnabled && selectMissionTemplate(template)}
+                                        disabled={!isEnabled}
                                         style={{
                                             padding: 16,
-                                            border: `2px solid ${formData.mission === template.id ? '#10b981' : 'rgba(148, 163, 184, 0.1)'}`,
+                                            border: `2px solid ${formData.mission === template.id ? '#10b981' : isEnabled ? 'rgba(148, 163, 184, 0.1)' : 'rgba(148, 163, 184, 0.05)'}`,
                                             borderRadius: 12,
                                             textAlign: 'left',
                                             background: formData.mission === template.id ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
-                                            cursor: 'pointer'
+                                            cursor: isEnabled ? 'pointer' : 'not-allowed',
+                                            opacity: isEnabled ? 1 : 0.45,
+                                            position: 'relative' as const
                                         }}
                                     >
-                                        <h3 style={{ fontWeight: 600, color: 'white', marginBottom: 4 }}>{template.title}</h3>
-                                        <p style={{ fontSize: 13, color: '#94a3b8' }}>{template.description}</p>
+                                        {!isEnabled && (
+                                            <span style={{ position: 'absolute', top: 8, right: 8, fontSize: 10, fontWeight: 700, color: '#64748b', background: 'rgba(100,116,139,0.15)', padding: '2px 7px', borderRadius: 20, letterSpacing: '0.05em' }}>
+                                                BIENTÔT
+                                            </span>
+                                        )}
+                                        <h3 style={{ fontWeight: 600, color: isEnabled ? 'white' : '#64748b', marginBottom: 4 }}>{template.title}</h3>
+                                        <p style={{ fontSize: 13, color: '#64748b' }}>{template.description}</p>
                                     </button>
-                                ))}
+                                    )
+                                })}
                             </div>
                         </div>
 

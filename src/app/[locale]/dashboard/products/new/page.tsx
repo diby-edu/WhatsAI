@@ -41,6 +41,14 @@ export default function NewProductPage() {
     const [loading, setLoading] = useState(false)
     const [uploading, setUploading] = useState(false)
     const [agents, setAgents] = useState<{ id: string, name: string, mission?: string }[]>([])
+    const [featureFlags, setFeatureFlags] = useState<Record<string, boolean>>({})
+
+    useEffect(() => {
+        fetch('/api/features')
+            .then(r => r.json())
+            .then(d => { if (d.data?.flags) setFeatureFlags(d.data.flags) })
+            .catch(() => {})
+    }, [])
     const [currency, setCurrency] = useState('USD')
     const [analyzing, setAnalyzing] = useState(false)
     const [analysisResult, setAnalysisResult] = useState<any>(null)
@@ -298,22 +306,25 @@ export default function NewProductPage() {
         }
     }
 
-    // v2.30: Check if a product type should be disabled based on isolation rules
+    // v2.30: Check if a product type should be disabled based on isolation rules + feature flags
     const isProductTypeDisabled = (typeId: string) => {
-        if (existingProductTypes.length === 0) return false
+        // Vérifier le feature flag (si flags chargés et flag = false → grisé)
+        const flagMap: Record<string, string> = { product: 'product_physical', digital: 'product_digital', service: 'product_service' }
+        const flagKey = flagMap[typeId]
+        if (flagKey && Object.keys(featureFlags).length > 0 && featureFlags[flagKey] === false) return true
 
+        if (existingProductTypes.length === 0) return false
         const hasService = existingProductTypes.includes('service')
         const hasNonService = existingProductTypes.some(t => t === 'product' || t === 'digital')
-
-        // If services exist, disable physical and digital
-        if (hasService && (typeId === 'product' || typeId === 'digital')) {
-            return true
-        }
-        // If physical/digital exist, disable service
-        if (hasNonService && typeId === 'service') {
-            return true
-        }
+        if (hasService && (typeId === 'product' || typeId === 'digital')) return true
+        if (hasNonService && typeId === 'service') return true
         return false
+    }
+
+    const isProductTypeSoon = (typeId: string) => {
+        const flagMap: Record<string, string> = { product: 'product_physical', digital: 'product_digital', service: 'product_service' }
+        const flagKey = flagMap[typeId]
+        return flagKey && Object.keys(featureFlags).length > 0 && featureFlags[flagKey] === false
     }
 
     const getDisabledReason = () => {
@@ -662,6 +673,7 @@ export default function NewProductPage() {
                                     { id: 'service', label: '🛠️ Service', desc: 'Prestation' }
                                 ].map(type => {
                                     const isDisabled = isProductTypeDisabled(type.id)
+                                    const isSoon = isProductTypeSoon(type.id)
                                     return (
                                         <button
                                             key={type.id}
@@ -675,9 +687,15 @@ export default function NewProductPage() {
                                                 background: formData.product_type === type.id ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
                                                 textAlign: 'center',
                                                 cursor: isDisabled ? 'not-allowed' : 'pointer',
-                                                opacity: isDisabled ? 0.4 : 1
+                                                opacity: isDisabled ? 0.45 : 1,
+                                                position: 'relative' as const
                                             }}
                                         >
+                                            {isSoon && (
+                                                <span style={{ position: 'absolute', top: 6, right: 6, fontSize: 9, fontWeight: 700, color: '#64748b', background: 'rgba(100,116,139,0.15)', padding: '2px 6px', borderRadius: 20, letterSpacing: '0.05em' }}>
+                                                    BIENTÔT
+                                                </span>
+                                            )}
                                             <div style={{ fontSize: 18 }}>{type.label}</div>
                                             <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>{type.desc}</div>
                                         </button>

@@ -62,6 +62,14 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     const [currency, setCurrency] = useState('USD')
     const [analyzing, setAnalyzing] = useState(false)
     const [analysisResult, setAnalysisResult] = useState<any>(null)
+    const [featureFlags, setFeatureFlags] = useState<Record<string, boolean>>({})
+
+    useEffect(() => {
+        fetch('/api/features')
+            .then(r => r.json())
+            .then(d => { if (d.data?.flags) setFeatureFlags(d.data.flags) })
+            .catch(() => {})
+    }, [])
 
     // Form Data
     const [formData, setFormData] = useState({
@@ -392,17 +400,29 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                                     { id: 'product', label: '📦 Physique', desc: 'Produit livrable' },
                                     { id: 'digital', label: '💻 Numérique', desc: 'Téléchargement' },
                                     { id: 'service', label: '🛠️ Service', desc: 'Prestation' }
-                                ].map(type => (
+                                ].map(type => {
+                                    const flagMap: Record<string, string> = { product: 'product_physical', digital: 'product_digital', service: 'product_service' }
+                                    const flagKey = flagMap[type.id]
+                                    const isSoon = flagKey && Object.keys(featureFlags).length > 0 && featureFlags[flagKey] === false && formData.product_type !== type.id
+                                    return (
                                     <button
                                         key={type.id}
                                         type="button"
-                                        onClick={() => selectProductType(type.id)}
+                                        disabled={!!isSoon}
+                                        onClick={() => !isSoon && selectProductType(type.id)}
+                                        style={{ position: 'relative', opacity: isSoon ? 0.45 : 1, cursor: isSoon ? 'not-allowed' : 'pointer' }}
                                         className={`p-4 rounded-lg border text-center transition-all ${formData.product_type === type.id ? 'bg-emerald-500/20 border-emerald-500' : 'bg-slate-900/30 border-slate-700 hover:border-slate-500'}`}
                                     >
+                                        {isSoon && (
+                                            <span style={{ position: 'absolute', top: 6, right: 6, fontSize: 9, fontWeight: 700, color: '#64748b', background: 'rgba(100,116,139,0.15)', padding: '2px 6px', borderRadius: 20, letterSpacing: '0.05em' }}>
+                                                BIENTÔT
+                                            </span>
+                                        )}
                                         <div className="text-lg">{type.label}</div>
                                         <div className="text-xs text-slate-400 mt-1">{type.desc}</div>
                                     </button>
-                                ))}
+                                    )
+                                })}
                             </div>
                         </div>
 
