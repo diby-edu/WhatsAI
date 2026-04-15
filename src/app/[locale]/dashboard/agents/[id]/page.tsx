@@ -737,7 +737,7 @@ export default function AgentWizardPage({
                 }
 
                 return (
-                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                         {/* Notice Support Client */}
                         {isSupportClient && (
                             <div style={{ padding: 10, background: 'rgba(99, 102, 241, 0.1)', border: '1px solid rgba(99, 102, 241, 0.3)', borderRadius: 10, fontSize: 12, color: '#a5b4fc' }}>
@@ -768,7 +768,7 @@ export default function AgentWizardPage({
                         </div>
 
                         {Object.entries(formData.business_hours).map(([day, hours]) => (
-                            <div key={day} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 10px', background: 'rgba(30, 41, 59, 0.3)', borderRadius: 8 }}>
+                            <div key={day} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 10px', background: 'rgba(30, 41, 59, 0.3)', borderRadius: 8 }}>
                                 <span style={{ textTransform: 'capitalize', color: 'white', width: 100 }}>{dayNames[day] || day}</span>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                     <input
@@ -1832,7 +1832,7 @@ export default function AgentWizardPage({
             </div>
 
             {/* Content */}
-            <div className="max-w-3xl mx-auto px-4 py-8 pb-32">
+            <div className="max-w-3xl mx-auto px-4 py-6 pb-52">
                 {renderStep()}
             </div>
 
