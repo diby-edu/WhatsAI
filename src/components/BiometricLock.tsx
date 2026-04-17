@@ -53,6 +53,11 @@ export function BiometricLock({ children }: { children: React.ReactNode }) {
                 const { App } = await import('@capacitor/app')
 
                 listenerHandle = await App.addListener('appStateChange', async ({ isActive }) => {
+                    if (!isActive) {
+                        // App fermée/tuée → effacer la session pour forcer le prompt au prochain lancement
+                        localStorage.removeItem('wazzapai_biometric_session')
+                        return
+                    }
                     if (isActive && isEnabled) {
                         const SESSION_TIMEOUT = 30 * 60 * 1000
                         const AUTH_SESSION_KEY = 'wazzapai_biometric_session'
