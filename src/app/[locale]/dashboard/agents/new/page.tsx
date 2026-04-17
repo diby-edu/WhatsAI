@@ -2051,20 +2051,24 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
                                 <p style={{ color: '#94a3b8' }}>
                                     Numéro: {connectedPhone}
                                 </p>
-                                <button
-                                    onClick={goToKnowledgeBase}
-                                    style={buttonSecondaryStyle}
-                                >
-                                    <Bot style={{ width: 18, height: 18 }} />
-                                    {isSupportClient ? 'Configurer la base de connaissance' : 'Ajouter une base de connaissance'}
-                                </button>
-                                <button
-                                    onClick={handleFinish}
-                                    style={buttonPrimaryStyle}
-                                >
-                                    {isSupportClient ? 'Continuer vers la base de connaissance' : t('Wizard.buttons.finish')}
-                                    <ArrowRight style={{ width: 20, height: 20 }} />
-                                </button>
+                                {!isSupportClient && (
+                                    <>
+                                        <button
+                                            onClick={goToKnowledgeBase}
+                                            style={buttonSecondaryStyle}
+                                        >
+                                            <Bot style={{ width: 18, height: 18 }} />
+                                            Ajouter une base de connaissance
+                                        </button>
+                                        <button
+                                            onClick={handleFinish}
+                                            style={buttonPrimaryStyle}
+                                        >
+                                            {t('Wizard.buttons.finish')}
+                                            <ArrowRight style={{ width: 20, height: 20 }} />
+                                        </button>
+                                    </>
+                                )}
                             </>
                         )}
 
