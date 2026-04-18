@@ -30,6 +30,9 @@ const {
     findPendingOnlineOrder,
     resolvePendingPaymentFollowUp,
 } = require('./pending-payment-guard')
+const {
+    resolveActiveTunnelCancellation,
+} = require('./tunnel-cancel-guard')
 const { normalizeWhatsAppContact } = require('../ai/tools/tool-helpers')
 const {
     clearCheckoutState,
@@ -603,6 +606,14 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             }
         }
 
+        const activeTunnelCancellation = pendingPaymentResolution
+            ? null
+            : resolveActiveTunnelCancellation({
+                text: structuredMessageText,
+                hasCartState: hasCartStateData(previousCartState),
+                hasCheckoutState: hasCheckoutStateData(previousCheckoutState),
+            })
+
         let restaurantUpdate = noopRestaurantUpdate
         let restaurantFlowActive = false
         let bookingUpdate = noopBookingUpdate
@@ -610,7 +621,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
         let cartUpdate = noopCartUpdate
         let checkoutUpdate = noopCheckoutUpdate
 
-        if (!pendingPaymentResolution) {
+        if (!pendingPaymentResolution && !activeTunnelCancellation) {
             restaurantUpdate = (isSupportClientMode || !hasRestaurantCatalog)
                 ? noopRestaurantUpdate
                 : updateRestaurantStateFromUserMessage(previousRestaurantState, structuredMessageText, restaurantProducts)
@@ -850,6 +861,18 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                 nextRestaurantState = {}
                 resetTransactionalCycleAfterResponse = true
             }
+        } else if (activeTunnelCancellation) {
+            console.log(`🛑 [${agentId}] Active cart/checkout tunnel cancelled by customer request`)
+            aiResponse = {
+                content: activeTunnelCancellation.content,
+                tokensUsed: 0,
+                imageActions: []
+            }
+            clearCartAfterResponse = true
+            clearCheckoutAfterResponse = true
+            nextBookingState = {}
+            nextRestaurantState = {}
+            resetTransactionalCycleAfterResponse = true
         } else if (structuredReply) {
             console.log('Structured flow reply generated')
             aiResponse = {

@@ -4,7 +4,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, ArrowRight, ChevronDown, ChevronUp, Clock4, ShieldAlert } from 'lucide-react'
 import Link from 'next/link'
 
+type BannerMode = 'test' | 'paid_grace' | 'paid_expired'
+
 type TestAccountBannerProps = {
+    bannerMode?: BannerMode | null
     cleanupDeadline: string | null
     isExpired: boolean
     showCountdown: boolean
@@ -23,6 +26,7 @@ function formatRemainingDuration(ms: number) {
 }
 
 export function TestAccountCountdownBanner({
+    bannerMode = 'test',
     cleanupDeadline,
     isExpired,
     showCountdown,
@@ -35,6 +39,11 @@ export function TestAccountCountdownBanner({
     const [isMobile, setIsMobile] = useState(false)
     const [expanded, setExpanded] = useState(false)
 
+    const isPaidGraceBanner = bannerMode === 'paid_grace'
+    const isPaidExpiredBanner = bannerMode === 'paid_expired'
+    const isPaidBanner = isPaidGraceBanner || isPaidExpiredBanner
+    const shouldRenderCountdown = showCountdown || isPaidGraceBanner
+
     useEffect(() => {
         const check = () => setIsMobile(window.innerWidth < 768)
         check()
@@ -43,66 +52,91 @@ export function TestAccountCountdownBanner({
     }, [])
 
     useEffect(() => {
-        if (!deadlineMs || (!showCountdown && !isExpired)) return
+        if (!deadlineMs || !shouldRenderCountdown) return
         const updateCountdown = () => setRemainingMs(Math.max(0, deadlineMs - Date.now()))
         updateCountdown()
         const interval = window.setInterval(updateCountdown, 1000)
         return () => window.clearInterval(interval)
-    }, [deadlineMs, isExpired, showCountdown])
+    }, [deadlineMs, shouldRenderCountdown])
 
     const countdown = useMemo(() => formatRemainingDuration(remainingMs), [remainingMs])
     const formattedDeadline = cleanupDeadline
-        ? new Date(cleanupDeadline).toLocaleString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+        ? new Date(cleanupDeadline).toLocaleString('fr-FR', {
+            day: '2-digit',
+            month: 'long',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+        })
         : null
 
-    if (!cleanupDeadline || (!showCountdown && !isExpired && !isExpiredSubscriber)) return null
+    if (!cleanupDeadline || (!shouldRenderCountdown && !isExpired && !isExpiredSubscriber && !isPaidBanner)) {
+        return null
+    }
 
-    const isAlert = isExpired || isExpiredSubscriber
+    const isAlert = isExpired || isExpiredSubscriber || isPaidBanner
     const borderColor = isAlert ? 'rgba(248, 113, 113, 0.35)' : 'rgba(251, 191, 36, 0.28)'
     const bg = isAlert
         ? 'linear-gradient(135deg, rgba(127, 29, 29, 0.35), rgba(69, 10, 10, 0.22))'
         : 'linear-gradient(135deg, rgba(120, 53, 15, 0.34), rgba(15, 23, 42, 0.72))'
     const accentColor = isAlert ? '#fca5a5' : '#fbbf24'
     const iconBg = isAlert ? 'rgba(239, 68, 68, 0.16)' : 'rgba(251, 191, 36, 0.16)'
-    const badgeLabel = isExpiredSubscriber ? 'Abonnement expiré' : isExpired ? 'Action requise' : 'Compte test'
     const badgeBg = isAlert ? 'rgba(153, 27, 27, 0.28)' : 'rgba(120, 53, 15, 0.4)'
 
-    const title = isExpiredSubscriber
-        ? `Abonnement expiré — compte supprimé le ${formattedDeadline}`
-        : isExpired
-            ? 'Compte expiré — suppression imminente'
-            : emphasizeWelcome
-                ? `Bienvenue — votre compte expire le ${formattedDeadline}`
-                : `Compte en période d'essai — suppression le ${formattedDeadline}`
+    const badgeLabel = isPaidGraceBanner
+        ? 'Compte gele'
+        : isPaidExpiredBanner
+            ? 'Paiement requis'
+            : isExpiredSubscriber
+                ? 'Abonnement expire'
+                : isExpired
+                    ? 'Action requise'
+                    : 'Compte test'
 
-    const description = isExpiredSubscriber
-        ? `Tous vos agents sont désactivés et vos crédits sont gelés. Si vous renouvelez avant le ${formattedDeadline} : vos crédits gelés vous sont intégralement restitués et vos agents sont réactivés immédiatement. Après cette date, votre compte et toutes vos données sont définitivement supprimés. Cette action est irréversible.`
-        : isExpired
-            ? 'Votre délai d\'essai est écoulé. Ce compte sera supprimé très prochainement. Souscrivez immédiatement pour récupérer vos données.'
-            : `Sans paiement valide, ce compte et toutes vos données seront définitivement supprimés le ${formattedDeadline}. Cette action est irréversible.`
+    const title = isPaidGraceBanner
+        ? `Compte gele - regularisez avant le ${formattedDeadline}`
+        : isPaidExpiredBanner
+            ? 'Compte gele - paiement requis pour reactiver'
+            : isExpiredSubscriber
+                ? `Abonnement expire - compte supprime le ${formattedDeadline}`
+                : isExpired
+                    ? 'Compte expire - suppression imminente'
+                    : emphasizeWelcome
+                        ? `Bienvenue - votre compte expire le ${formattedDeadline}`
+                        : `Compte en periode d'essai - suppression le ${formattedDeadline}`
 
-    const actionLine = isExpiredSubscriber
-        ? 'Renouvelez votre abonnement pour récupérer vos crédits et réactiver vos agents.'
-        : 'Pour conserver votre compte et vos données, souscrivez à un abonnement ou achetez des crédits.'
+    const description = isPaidGraceBanner
+        ? `Votre periode payante a expire. Tous vos agents sont desactives et vos credits restants sont geles jusqu'au ${formattedDeadline}. Si vous regularisez avant cette date, vos agents pourront etre reactives et vos credits geles seront recuperes.`
+        : isPaidExpiredBanner
+            ? `Votre compte payant a expire apres sa periode de grace de ${graceDays} jours. Les creations d'agents, reactivations et connexions WhatsApp sont bloquees tant qu'aucun nouveau paiement n'est effectue.`
+            : isExpiredSubscriber
+                ? `Tous vos agents sont desactives et vos credits sont geles. Si vous renouvelez avant le ${formattedDeadline}, vos credits geles vous sont restitues et vos agents sont reactives immediatement.`
+                : isExpired
+                    ? 'Votre delai d essai est ecoule. Ce compte sera supprime tres prochainement. Souscrivez immediatement pour recuperer vos donnees.'
+                    : `Sans paiement valide, ce compte et toutes vos donnees seront definitivement supprimes le ${formattedDeadline}. Cette action est irreversible.`
 
-    const ctaLabel = isExpiredSubscriber ? 'Renouveler mon abonnement' : 'Choisir un abonnement'
-    const ctaBg = isExpiredSubscriber
+    const actionLine = isPaidBanner
+        ? 'Effectuez un paiement pour debloquer votre compte, reactiver vos agents et restaurer vos droits.'
+        : isExpiredSubscriber
+            ? 'Renouvelez votre abonnement pour recuperer vos credits et reactiver vos agents.'
+            : 'Pour conserver votre compte et vos donnees, souscrivez a un abonnement ou achetez des credits.'
+
+    const ctaLabel = isPaidBanner || isExpiredSubscriber ? 'Regler maintenant' : 'Choisir un abonnement'
+    const ctaBg = isPaidBanner || isExpiredSubscriber
         ? 'linear-gradient(135deg, #ef4444, #dc2626)'
         : 'linear-gradient(135deg, #25D366, #128C7E)'
-    const ctaShadow = isExpiredSubscriber
+    const ctaShadow = isPaidBanner || isExpiredSubscriber
         ? '0 4px 14px rgba(239, 68, 68, 0.35)'
         : '0 4px 14px rgba(37, 211, 102, 0.35)'
 
     const countdownInline = `${String(countdown.days).padStart(2, '0')}j ${String(countdown.hours).padStart(2, '0')}h ${String(countdown.minutes).padStart(2, '0')}m ${String(countdown.seconds).padStart(2, '0')}s`
 
-    // ── MOBILE ────────────────────────────────────────────────────────────────
     if (isMobile) {
         return (
             <div style={{ marginBottom: 16, borderRadius: 14, border: `1px solid ${borderColor}`, background: bg, overflow: 'hidden' }}>
-                {/* Compact bar */}
                 <div
                     style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', cursor: 'pointer' }}
-                    onClick={() => setExpanded(e => !e)}
+                    onClick={() => setExpanded((current) => !current)}
                 >
                     <div style={{ width: 32, height: 32, borderRadius: 10, background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                         {isAlert
@@ -112,7 +146,7 @@ export function TestAccountCountdownBanner({
                     <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                             <span style={{ color: 'white', fontWeight: 700, fontSize: 13 }}>{badgeLabel}</span>
-                            {!isExpired && (
+                            {shouldRenderCountdown && (
                                 <span style={{ color: accentColor, fontSize: 12, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
                                     {countdownInline}
                                 </span>
@@ -121,10 +155,10 @@ export function TestAccountCountdownBanner({
                     </div>
                     <Link
                         href="/dashboard/billing"
-                        onClick={e => e.stopPropagation()}
+                        onClick={(event) => event.stopPropagation()}
                         style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 8, background: ctaBg, color: 'white', fontWeight: 700, fontSize: 12, textDecoration: 'none', flexShrink: 0, boxShadow: ctaShadow }}
                     >
-                        {isExpiredSubscriber ? 'Renouveler' : 'Payer'}
+                        {isPaidBanner || isExpiredSubscriber ? 'Regler' : 'Payer'}
                         <ArrowRight style={{ width: 12, height: 12 }} />
                     </Link>
                     {expanded
@@ -132,7 +166,6 @@ export function TestAccountCountdownBanner({
                         : <ChevronDown style={{ width: 16, height: 16, color: '#64748b', flexShrink: 0 }} />}
                 </div>
 
-                {/* Expandable details */}
                 {expanded && (
                     <div style={{ padding: '0 14px 14px 14px', borderTop: `1px solid ${borderColor}` }}>
                         <p style={{ margin: '12px 0 10px', color: '#e2e8f0', lineHeight: 1.6, fontSize: 13 }}>
@@ -148,7 +181,6 @@ export function TestAccountCountdownBanner({
         )
     }
 
-    // ── DESKTOP (inchangé) ────────────────────────────────────────────────────
     return (
         <div
             style={{
@@ -190,7 +222,7 @@ export function TestAccountCountdownBanner({
                         <ArrowRight style={{ width: 16, height: 16 }} />
                     </Link>
 
-                    {!isExpired && (
+                    {shouldRenderCountdown && (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))', gap: 10, maxWidth: 460 }}>
                             {[
                                 { label: 'Jours', value: countdown.days },

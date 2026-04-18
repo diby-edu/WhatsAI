@@ -3,6 +3,7 @@ const {
     buildTestAccountState,
     hasQualifyingAgentSignal,
     isProtectedProfileRole,
+    listUsersWithExpiredPaidGraceWindow,
 } = require('../../../src/lib/test-account')
 
 describe('test-account lifecycle helpers', () => {
@@ -104,5 +105,66 @@ describe('test-account lifecycle helpers', () => {
         expect(state.isTestAccount).toBe(true)
         expect(state.isExpired).toBe(true)
         expect(state.shouldDelete).toBe(true)
+    })
+
+    test('lists only non-protected paid accounts whose grace window is over', async () => {
+        const adminSupabase = {
+            from: jest.fn(() => ({
+                select: jest.fn(() => ({
+                    not: jest.fn(() => ({
+                        lte: jest.fn(async () => ({
+                            data: [
+                                {
+                                    id: 'paid-user-1',
+                                    email: 'paid1@example.com',
+                                    role: 'user',
+                                    paid_until: '2026-03-01T00:00:00.000Z',
+                                    grace_until: '2026-04-01T00:00:00.000Z',
+                                },
+                                {
+                                    id: 'admin-user',
+                                    email: 'admin@example.com',
+                                    role: 'admin',
+                                    paid_until: '2026-03-01T00:00:00.000Z',
+                                    grace_until: '2026-04-01T00:00:00.000Z',
+                                },
+                                {
+                                    id: 'bad-row',
+                                    email: 'bad@example.com',
+                                    role: 'user',
+                                    paid_until: null,
+                                    grace_until: '2026-04-01T00:00:00.000Z',
+                                },
+                            ],
+                            error: null,
+                        })),
+                    })),
+                })),
+            })),
+        }
+
+        const rows = await listUsersWithExpiredPaidGraceWindow(adminSupabase, now)
+
+        expect(rows).toHaveLength(1)
+        expect(rows[0].id).toBe('paid-user-1')
+    })
+
+    test('returns an empty list when lifecycle columns are not available yet', async () => {
+        const adminSupabase = {
+            from: jest.fn(() => ({
+                select: jest.fn(() => ({
+                    not: jest.fn(() => ({
+                        lte: jest.fn(async () => ({
+                            data: null,
+                            error: { code: '42703' },
+                        })),
+                    })),
+                })),
+            })),
+        }
+
+        const rows = await listUsersWithExpiredPaidGraceWindow(adminSupabase, now)
+
+        expect(rows).toEqual([])
     })
 })

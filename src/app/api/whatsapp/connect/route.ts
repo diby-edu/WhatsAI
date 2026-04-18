@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { createApiClient, getAuthUser, errorResponse, successResponse, createAdminClient } from '@/lib/api-utils'
 import { hasAgentConnectedBefore } from '@/lib/admin/agent-status'
+import { buildAccountLifecycleAccessState, getAccountLifecycleBlockMessage } from '@/lib/account-lifecycle'
 
 type PairingMode = 'qr' | 'pairing_code'
 
@@ -63,11 +64,38 @@ export async function POST(request: NextRequest) {
 
         // Check WhatsApp connection limit based on plan
         if (!agent.whatsapp_connected) {
-            const { data: profile } = await supabase
+            let { data: profile, error: profileError } = await supabase
                 .from('profiles')
-                .select('plan')
+                .select('plan, paid_until, grace_until, test_account_cleanup_deadline, test_account_qualified_at')
                 .eq('id', user!.id)
                 .single()
+
+            if (profileError?.code === '42703') {
+                const fallback = await supabase
+                    .from('profiles')
+                    .select('plan')
+                    .eq('id', user!.id)
+                    .single()
+
+                profile = fallback.data as any
+                profileError = fallback.error
+            }
+
+            if (profileError) {
+                return errorResponse('Impossible de verifier le statut du compte', 500)
+            }
+
+            const lifecycleAccess = buildAccountLifecycleAccessState({
+                paidUntil: (profile as any)?.paid_until || null,
+                graceUntil: (profile as any)?.grace_until || null,
+                testAccountCleanupDeadline: (profile as any)?.test_account_cleanup_deadline || null,
+                testAccountQualifiedAt: (profile as any)?.test_account_qualified_at || null,
+            })
+
+            const blockMessage = getAccountLifecycleBlockMessage(lifecycleAccess, 'whatsapp_connect')
+            if (blockMessage) {
+                return errorResponse(blockMessage, 403)
+            }
 
             const { data: planData } = await supabase
                 .from('subscription_plans')

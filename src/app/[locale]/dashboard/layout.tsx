@@ -47,12 +47,15 @@ import { unregisterCurrentDeviceToken } from '@/lib/notifications/device-token-c
 import { TestAccountCountdownBanner } from '@/components/dashboard/TestAccountCountdownBanner'
 
 type TestAccountBannerState = {
+    bannerMode: 'test' | 'paid_grace' | 'paid_expired' | null
     isTestAccount: boolean
     showCountdown: boolean
     isExpired: boolean
+    isExpiredSubscriber: boolean
     cleanupDeadline: string | null
     remainingMs: number | null
     graceDays: number
+    lifecycleStatus?: 'test' | 'paid_active' | 'frozen_grace' | 'inactive'
 }
 
 export default function DashboardLayout({
@@ -1057,13 +1060,15 @@ export default function DashboardLayout({
                     boxSizing: 'border-box',
                     paddingBottom: isMobile ? '100px' : '40px'
                 }}>
-                    {testAccountBanner?.isTestAccount && (testAccountBanner.showCountdown || testAccountBanner.isExpired) && (
+                    {testAccountBanner?.bannerMode && (
                         <TestAccountCountdownBanner
+                            bannerMode={testAccountBanner.bannerMode}
                             cleanupDeadline={testAccountBanner.cleanupDeadline}
                             isExpired={testAccountBanner.isExpired}
                             showCountdown={testAccountBanner.showCountdown}
                             graceDays={testAccountBanner.graceDays}
                             emphasizeWelcome={searchParams.get('welcome') === 'test-account'}
+                            isExpiredSubscriber={testAccountBanner.isExpiredSubscriber}
                         />
                     )}
 

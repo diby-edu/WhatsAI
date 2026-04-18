@@ -1,3 +1,5 @@
+import { buildAccountLifecycleAccessState } from './account-lifecycle'
+
 export const TEST_ACCOUNT_GRACE_DAYS = 7
 
 const PROTECTED_ROLES = new Set(['admin', 'superadmin', 'support'])
@@ -105,9 +107,60 @@ export async function fetchUserTestAccountState(
 ) {
     const { data: profile, error: profileError } = await adminSupabase
         .from('profiles')
-        .select('id, email, full_name, plan, role, test_account_cleanup_deadline, test_account_qualified_at')
+        .select('id, email, full_name, plan, role, test_account_cleanup_deadline, test_account_qualified_at, paid_until, grace_until, account_lifecycle_status')
         .eq('id', userId)
         .maybeSingle()
+
+    if (profileError?.code === '42703') {
+        const fallback = await adminSupabase
+            .from('profiles')
+            .select('id, email, full_name, plan, role, test_account_cleanup_deadline, test_account_qualified_at')
+            .eq('id', userId)
+            .maybeSingle()
+
+        if (fallback.error) throw fallback.error
+        if (!fallback.data) return null
+
+        const [{ count: completedPaymentsCount, error: paymentsError }, { data: agents, error: agentsError }] = await Promise.all([
+            adminSupabase
+                .from('payments')
+                .select('id', { count: 'exact', head: true })
+                .eq('user_id', userId)
+                .eq('status', 'completed'),
+            adminSupabase
+                .from('agents')
+                .select('whatsapp_ever_connected, whatsapp_connected, whatsapp_phone, whatsapp_status')
+                .eq('user_id', userId),
+        ])
+
+        if (paymentsError) throw paymentsError
+        if (agentsError) throw agentsError
+
+        const qualifyingAgentsCount = (agents || []).filter(hasQualifyingAgentSignal).length
+        const state = buildTestAccountState({
+            plan: fallback.data.plan,
+            role: fallback.data.role,
+            cleanupDeadline: fallback.data.test_account_cleanup_deadline,
+            qualifiedAt: fallback.data.test_account_qualified_at,
+            completedPaymentsCount,
+            qualifyingAgentsCount,
+        }, nowMs)
+
+        const lifecycleAccess = buildAccountLifecycleAccessState({
+            testAccountCleanupDeadline: fallback.data.test_account_cleanup_deadline,
+            testAccountQualifiedAt: fallback.data.test_account_qualified_at,
+            paidUntil: null,
+            graceUntil: null,
+        }, nowMs)
+
+        return {
+            ...state,
+            lifecycleAccess,
+            profile: fallback.data,
+            completedPaymentsCount: Number(completedPaymentsCount || 0),
+            qualifyingAgentsCount,
+        }
+    }
 
     if (profileError) throw profileError
     if (!profile) return null
@@ -136,9 +189,16 @@ export async function fetchUserTestAccountState(
         completedPaymentsCount,
         qualifyingAgentsCount,
     }, nowMs)
+    const lifecycleAccess = buildAccountLifecycleAccessState({
+        testAccountCleanupDeadline: profile.test_account_cleanup_deadline,
+        testAccountQualifiedAt: profile.test_account_qualified_at,
+        paidUntil: profile.paid_until,
+        graceUntil: profile.grace_until,
+    }, nowMs)
 
     return {
         ...state,
+        lifecycleAccess,
         profile,
         completedPaymentsCount: Number(completedPaymentsCount || 0),
         qualifyingAgentsCount,
@@ -158,6 +218,30 @@ export async function listUsersWithExpiredTestCleanupDeadline(
     if (error) throw error
 
     return (data || []).filter((profile: any) => !isProtectedProfileRole(profile.role))
+}
+
+export async function listUsersWithExpiredPaidGraceWindow(
+    adminSupabase: SupabaseClientLike,
+    nowMs: number = Date.now()
+) {
+    const query = await adminSupabase
+        .from('profiles')
+        .select('id, email, full_name, plan, role, paid_until, grace_until, account_lifecycle_status, test_account_qualified_at, test_account_cleanup_deadline')
+        .not('grace_until', 'is', null)
+        .lte('grace_until', new Date(nowMs).toISOString())
+
+    if (query.error?.code === '42703') {
+        return []
+    }
+
+    if (query.error) throw query.error
+
+    return (query.data || []).filter((profile: any) => {
+        if (isProtectedProfileRole(profile.role)) return false
+        if (!profile.paid_until || !profile.grace_until) return false
+
+        return true
+    })
 }
 
 export async function markUserAsQualified(
