@@ -10,6 +10,11 @@ import {
 } from '@/lib/test-account'
 import { buildAgentDeactivationUpdate } from '@/lib/whatsapp/agent-lifecycle'
 import { ACCOUNT_PAID_GRACE_DAYS, resolveGraceUntilFromPaidUntil } from '@/lib/account-lifecycle'
+import {
+    buildSystemDeletionAuditEntry,
+    captureSystemDeletionSnapshot,
+    recordSystemDeletionAuditEntry,
+} from '@/lib/notifications/system-deletion-audit'
 
 // =============================================
 // Cron Service - Scheduled tasks (runs in PM2 process)
@@ -37,6 +42,51 @@ function getMailTransporter() {
 }
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://wazzapai.com'
+
+function toErrorMessage(error: unknown): string {
+    if (error instanceof Error && error.message) {
+        return error.message
+    }
+
+    if (typeof error === 'string' && error.trim()) {
+        return error.trim()
+    }
+
+    try {
+        return JSON.stringify(error)
+    } catch {
+        return 'unknown_error'
+    }
+}
+
+function buildEmptyDeletionSnapshot() {
+    return {
+        capturedAt: new Date().toISOString(),
+        relatedCounts: {
+            agents: 0,
+            whatsapp_sessions: 0,
+            conversations: 0,
+            messages: 0,
+            knowledge_base: 0,
+            products: 0,
+            subscriptions: 0,
+            payments: 0,
+            orders: 0,
+        },
+    }
+}
+
+async function persistSystemDeletionAudit(
+    supabase: ReturnType<typeof getAdminSupabase>,
+    payload: Parameters<typeof buildSystemDeletionAuditEntry>[0]
+) {
+    try {
+        const entry = buildSystemDeletionAuditEntry(payload)
+        await recordSystemDeletionAuditEntry(supabase, entry)
+    } catch (auditError) {
+        console.error('[CRON] Failed to persist system deletion audit log:', auditError)
+    }
+}
 
 async function updateProfileFreezeState(
     supabase: ReturnType<typeof getAdminSupabase>,
@@ -931,12 +981,22 @@ async function handlePaidAccountCleanup(): Promise<void> {
         let failed = 0
 
         for (const profile of expiredProfiles) {
+            let beforeSnapshot = null
             try {
+                beforeSnapshot = await captureSystemDeletionSnapshot(supabase, profile.id)
                 const liveState = await fetchUserTestAccountState(supabase, profile.id, nowMs)
 
                 if (!liveState?.lifecycleAccess?.lifecycle?.shouldDeleteAfterGrace) {
                     skipped += 1
                     console.log(`[CRON] Skip paid-account cleanup for ${profile.email || profile.id} - lifecycle changed before deletion`)
+                    await persistSystemDeletionAudit(supabase, {
+                        profile,
+                        reason: 'expired_paid_grace',
+                        result: 'skipped',
+                        liveState,
+                        beforeSnapshot: beforeSnapshot || buildEmptyDeletionSnapshot(),
+                        note: 'lifecycle_changed_before_deletion',
+                    })
                     continue
                 }
 
@@ -945,14 +1005,41 @@ async function handlePaidAccountCleanup(): Promise<void> {
                 if (deleteError) {
                     failed += 1
                     console.error(`[CRON] Failed to delete expired paid account ${profile.email || profile.id}:`, deleteError.message)
+                    await persistSystemDeletionAudit(supabase, {
+                        profile,
+                        reason: 'expired_paid_grace',
+                        result: 'failed',
+                        liveState,
+                        beforeSnapshot: beforeSnapshot || buildEmptyDeletionSnapshot(),
+                        failureMessage: deleteError.message,
+                        note: 'auth_delete_failed',
+                    })
                     continue
                 }
 
+                const afterSnapshot = await captureSystemDeletionSnapshot(supabase, profile.id)
                 deleted += 1
                 console.log(`[CRON] Deleted expired paid account ${profile.email || profile.id}`)
+                await persistSystemDeletionAudit(supabase, {
+                    profile,
+                    reason: 'expired_paid_grace',
+                    result: 'deleted',
+                    liveState,
+                    beforeSnapshot: beforeSnapshot || buildEmptyDeletionSnapshot(),
+                    afterSnapshot,
+                    note: 'deleted_by_cron',
+                })
             } catch (profileError) {
                 failed += 1
                 console.error(`[CRON] Error while processing expired paid account ${profile.email || profile.id}:`, profileError)
+                await persistSystemDeletionAudit(supabase, {
+                    profile,
+                    reason: 'expired_paid_grace',
+                    result: 'failed',
+                    beforeSnapshot: beforeSnapshot || buildEmptyDeletionSnapshot(),
+                    failureMessage: toErrorMessage(profileError),
+                    note: 'unexpected_cleanup_error',
+                })
             }
         }
 
@@ -987,12 +1074,22 @@ async function handleTestAccountCleanup(): Promise<void> {
         let failed = 0
 
         for (const profile of expiredProfiles) {
+            let beforeSnapshot = null
             try {
+                beforeSnapshot = await captureSystemDeletionSnapshot(supabase, profile.id)
                 const liveState = await fetchUserTestAccountState(supabase, profile.id, nowMs)
 
                 if (!liveState?.shouldDelete) {
                     skipped += 1
                     console.log(`⏭️ [CRON] Skip test-account cleanup for ${profile.email || profile.id} — user no longer qualifies`)
+                    await persistSystemDeletionAudit(supabase, {
+                        profile,
+                        reason: 'expired_test_account',
+                        result: 'skipped',
+                        liveState,
+                        beforeSnapshot: beforeSnapshot || buildEmptyDeletionSnapshot(),
+                        note: 'user_no_longer_qualifies',
+                    })
                     continue
                 }
 
@@ -1001,14 +1098,41 @@ async function handleTestAccountCleanup(): Promise<void> {
                 if (deleteError) {
                     failed += 1
                     console.error(`❌ [CRON] Failed to delete expired test account ${profile.email || profile.id}:`, deleteError.message)
+                    await persistSystemDeletionAudit(supabase, {
+                        profile,
+                        reason: 'expired_test_account',
+                        result: 'failed',
+                        liveState,
+                        beforeSnapshot: beforeSnapshot || buildEmptyDeletionSnapshot(),
+                        failureMessage: deleteError.message,
+                        note: 'auth_delete_failed',
+                    })
                     continue
                 }
 
+                const afterSnapshot = await captureSystemDeletionSnapshot(supabase, profile.id)
                 deleted += 1
                 console.log(`🗑️ [CRON] Deleted expired test account ${profile.email || profile.id}`)
+                await persistSystemDeletionAudit(supabase, {
+                    profile,
+                    reason: 'expired_test_account',
+                    result: 'deleted',
+                    liveState,
+                    beforeSnapshot: beforeSnapshot || buildEmptyDeletionSnapshot(),
+                    afterSnapshot,
+                    note: 'deleted_by_cron',
+                })
             } catch (userError) {
                 failed += 1
                 console.error(`❌ [CRON] Error while processing expired test account ${profile.email || profile.id}:`, userError)
+                await persistSystemDeletionAudit(supabase, {
+                    profile,
+                    reason: 'expired_test_account',
+                    result: 'failed',
+                    beforeSnapshot: beforeSnapshot || buildEmptyDeletionSnapshot(),
+                    failureMessage: toErrorMessage(userError),
+                    note: 'unexpected_cleanup_error',
+                })
             }
         }
 
