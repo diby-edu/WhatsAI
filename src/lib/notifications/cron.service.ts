@@ -785,19 +785,11 @@ async function handleCreditExpiry(): Promise<void> {
             console.log(`â° [CRON] Credit expiry warnings (3 days left) sent to ${upcomingExpiryProfiles!.length} user(s)`)
         }
 
-        let expiredProfilesQuery = await supabase
+        const expiredProfilesQuery = await supabase
             .from('profiles')
-            .select('id, credits_balance, account_lifecycle_status')
+            .select('id, credits_balance')
             .not('credits_expire_at', 'is', null)
             .lt('credits_expire_at', now.toISOString())
-
-        if ((expiredProfilesQuery.error as any)?.code === '42703') {
-            expiredProfilesQuery = await supabase
-                .from('profiles')
-                .select('id, credits_balance')
-                .not('credits_expire_at', 'is', null)
-                .lt('credits_expire_at', now.toISOString())
-        }
 
         for (const user of expiredProfilesQuery.data || []) {
             const updatePayload: Record<string, unknown> = {
