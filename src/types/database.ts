@@ -12,9 +12,18 @@ export type Database = {
                     avatar_url: string | null
                     phone: string | null
                     company: string | null
-                    plan: 'free' | 'starter' | 'pro' | 'business'
+                    role: string | null
+                    plan: 'free' | 'starter' | 'pro' | 'business' | 'scale'
                     credits_balance: number
                     credits_used_this_month: number
+                    credits_frozen_at: string | null
+                    credits_expire_at: string | null
+                    credits_high_usage_notified_at: string | null
+                    test_account_cleanup_deadline: string | null
+                    test_account_qualified_at: string | null
+                    paid_until: string | null
+                    grace_until: string | null
+                    account_lifecycle_status: 'test' | 'paid_active' | 'frozen_grace' | 'inactive' | null
                     timezone: string
                     language: string
                     currency: string

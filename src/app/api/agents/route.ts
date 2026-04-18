@@ -3,6 +3,7 @@ import { createAdminClient, createApiClient, getAuthUser, errorResponse, success
 import { notifyAdmins } from '@/lib/notifications/admin-notify'
 import { getAIRuntimeSettings } from '@/lib/admin/settings'
 import { normalizeAgentPaymentMode } from '@/lib/payments/payment-mode-display'
+import { buildAccountLifecycleAccessState, getAccountLifecycleBlockMessage } from '@/lib/account-lifecycle'
 
 function normalizeRestaurantDepositSettings(body: any) {
     const enabled = !!body.restaurant_deposit_enabled
@@ -78,11 +79,38 @@ export async function POST(request: NextRequest) {
         }
 
         // Check agent limit based on plan (reads from DB so admin changes take effect)
-        const { data: profile } = await supabase
+        let { data: profile, error: profileError } = await supabase
             .from('profiles')
-            .select('plan, email')
+            .select('plan, email, paid_until, grace_until, test_account_cleanup_deadline, test_account_qualified_at')
             .eq('id', user!.id)
             .single()
+
+        if (profileError?.code === '42703') {
+            const fallback = await supabase
+                .from('profiles')
+                .select('plan, email')
+                .eq('id', user!.id)
+                .single()
+
+            profile = fallback.data as any
+            profileError = fallback.error
+        }
+
+        if (profileError) {
+            return errorResponse('Impossible de verifier le statut du compte', 500)
+        }
+
+        const lifecycleAccess = buildAccountLifecycleAccessState({
+            paidUntil: (profile as any)?.paid_until || null,
+            graceUntil: (profile as any)?.grace_until || null,
+            testAccountCleanupDeadline: (profile as any)?.test_account_cleanup_deadline || null,
+            testAccountQualifiedAt: (profile as any)?.test_account_qualified_at || null,
+        })
+
+        const blockMessage = getAccountLifecycleBlockMessage(lifecycleAccess, 'agent_creation')
+        if (blockMessage) {
+            return errorResponse(blockMessage, 403)
+        }
 
         const { count: agentCount } = await supabase
             .from('agents')

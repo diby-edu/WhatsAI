@@ -14,6 +14,8 @@ const {
 } = require('../../../src/lib/whatsapp/handlers/pending-payment-guard')
 
 describe('pending payment guard', () => {
+    const recentIso = (offsetMinutes = 0) => new Date(Date.now() + offsetMinutes * 60 * 1000).toISOString()
+
     const pendingOrder = {
         id: 'abcd1234-5678',
         total_fcfa: 150,
@@ -45,11 +47,11 @@ describe('pending payment guard', () => {
                 status: 'pending',
                 payment_method: 'online',
                 conversation_id: 'old-conv',
-                created_at: '2026-04-12T10:00:00.000Z',
+                created_at: recentIso(-10),
             },
             {
                 ...pendingOrder,
-                created_at: '2026-04-12T10:05:00.000Z',
+                created_at: recentIso(-5),
             },
         ], {
             conversationId: 'conv-1',

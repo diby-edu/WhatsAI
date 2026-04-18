@@ -3,8 +3,13 @@ import { createClient } from '@supabase/supabase-js'
 import { notify } from './notification.service'
 import { notifyAdmins } from './admin-notify'
 import nodemailer from 'nodemailer'
-import { fetchUserTestAccountState, listUsersWithExpiredTestCleanupDeadline } from '@/lib/test-account'
+import {
+    fetchUserTestAccountState,
+    listUsersWithExpiredPaidGraceWindow,
+    listUsersWithExpiredTestCleanupDeadline,
+} from '@/lib/test-account'
 import { buildAgentDeactivationUpdate } from '@/lib/whatsapp/agent-lifecycle'
+import { ACCOUNT_PAID_GRACE_DAYS, resolveGraceUntilFromPaidUntil } from '@/lib/account-lifecycle'
 
 // =============================================
 // Cron Service - Scheduled tasks (runs in PM2 process)
@@ -32,6 +37,142 @@ function getMailTransporter() {
 }
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://wazzapai.com'
+
+async function updateProfileFreezeState(
+    supabase: ReturnType<typeof getAdminSupabase>,
+    userId: string,
+    payload: Record<string, unknown>
+) {
+    let { error } = await supabase
+        .from('profiles')
+        .update(payload)
+        .eq('id', userId)
+
+    if (error?.code === '42703') {
+        const fallbackPayload = { ...payload }
+        delete fallbackPayload.grace_until
+        delete fallbackPayload.account_lifecycle_status
+
+        ;({ error } = await supabase
+            .from('profiles')
+            .update(fallbackPayload)
+            .eq('id', userId))
+    }
+
+    if (error?.code === '42703') {
+        const legacyPayload = { ...payload }
+        delete legacyPayload.grace_until
+        delete legacyPayload.account_lifecycle_status
+        delete legacyPayload.credits_frozen_at
+        delete legacyPayload.credits_expire_at
+
+        ;({ error } = await supabase
+            .from('profiles')
+            .update(legacyPayload)
+            .eq('id', userId))
+    }
+
+    return error
+}
+
+async function freezePaidLifecycleForUser(
+    supabase: ReturnType<typeof getAdminSupabase>,
+    userId: string,
+    paidUntilInput?: string | null
+) {
+    let profileQuery = await supabase
+        .from('profiles')
+        .select('plan, credits_balance, paid_until, grace_until, account_lifecycle_status')
+        .eq('id', userId)
+        .single()
+
+    if (profileQuery.error?.code === '42703') {
+        profileQuery = await supabase
+            .from('profiles')
+            .select('plan, credits_balance, paid_until, grace_until')
+            .eq('id', userId)
+            .single()
+    }
+
+    if (profileQuery.error?.code === '42703') {
+        profileQuery = await supabase
+            .from('profiles')
+            .select('plan, credits_balance')
+            .eq('id', userId)
+            .single()
+    }
+
+    if (profileQuery.error) {
+        throw profileQuery.error
+    }
+
+    const profile = profileQuery.data || {}
+    const currentStatus = String((profile as any).account_lifecycle_status || '').trim().toLowerCase()
+    const currentGraceUntil = String((profile as any).grace_until || '').trim()
+    const nowMs = Date.now()
+
+    if (currentStatus === 'frozen_grace' && currentGraceUntil) {
+        const currentGraceMs = new Date(currentGraceUntil).getTime()
+        if (Number.isFinite(currentGraceMs) && currentGraceMs > nowMs) {
+            return {
+                frozen: false,
+                graceUntil: currentGraceUntil,
+            }
+        }
+    }
+
+    const freezeDate = new Date(nowMs)
+    const paidUntil = paidUntilInput || (profile as any).paid_until || freezeDate.toISOString()
+    const graceUntil = resolveGraceUntilFromPaidUntil(paidUntil, nowMs, ACCOUNT_PAID_GRACE_DAYS)
+    const currentBalance = Number((profile as any).credits_balance || 0)
+
+    const profileUpdateError = await updateProfileFreezeState(supabase, userId, {
+        plan: 'free',
+        credits_frozen_at: freezeDate.toISOString(),
+        credits_expire_at: graceUntil,
+        grace_until: graceUntil,
+        account_lifecycle_status: 'frozen_grace',
+    })
+
+    if (profileUpdateError) {
+        throw profileUpdateError
+    }
+
+    if (currentBalance > 0) {
+        await notify(userId, 'credits_freeze_warning', {
+            balance: currentBalance,
+            creditExpireDate: new Date(graceUntil).toLocaleDateString('fr-FR')
+        })
+    }
+
+    const { data: userAgents } = await supabase
+        .from('agents')
+        .select('id')
+        .eq('user_id', userId)
+        .is('archived_at', null)
+
+    if (userAgents && userAgents.length > 0) {
+        const toDeactivate = userAgents.map((agent: any) => agent.id)
+        await supabase
+            .from('agents')
+            .update({
+                archived_at: freezeDate.toISOString(),
+                archived_reason: 'payment_window_expired',
+                ...buildAgentDeactivationUpdate(),
+            })
+            .in('id', toDeactivate)
+
+        await notify(userId, 'agent_archived', {
+            count: toDeactivate.length,
+            deleteDate: new Date(graceUntil).toLocaleDateString('fr-FR')
+        })
+    }
+
+    return {
+        frozen: true,
+        graceUntil,
+    }
+}
 
 /**
  * Check for expiring subscriptions and notify users.
@@ -144,7 +285,7 @@ async function checkExpiredSubscriptions(): Promise<void> {
         // Subscriptions past their end date that are still marked 'active'
         const { data: expired, error } = await supabase
             .from('subscriptions')
-            .select('id, user_id, plan')
+            .select('id, user_id, plan, current_period_end')
             .eq('status', 'active')
             .lt('current_period_end', now)
 
@@ -167,6 +308,19 @@ async function checkExpiredSubscriptions(): Promise<void> {
                     .from('subscriptions')
                     .update({ status: 'expired' })
                     .eq('id', sub.id)
+
+                const lifecycleFreezeResult = await freezePaidLifecycleForUser(
+                    supabase,
+                    sub.user_id,
+                    (sub as any).current_period_end || null
+                )
+
+                console.log(
+                    `â° [CRON] Expired: user ${sub.user_id} (was: ${sub.plan}) â†’ frozen_grace until ${new Date(lifecycleFreezeResult.graceUntil).toLocaleDateString('fr-FR')}`
+                )
+                if (lifecycleFreezeResult.graceUntil) {
+                    continue
+                }
 
                 // 2. Downgrade profile to free + freeze credits
                 const { data: profile } = await supabase
@@ -229,6 +383,91 @@ async function checkExpiredSubscriptions(): Promise<void> {
         console.log('⏰ [CRON] Expired subscription check completed.')
     } catch (error) {
         console.error('⏰ [CRON] Fatal error in expired subscription check:', error)
+    }
+}
+
+async function checkExpiredPaidAccounts(): Promise<void> {
+    console.log('â° [CRON] Reconciling expired paid windows...')
+
+    try {
+        const supabase = getAdminSupabase()
+        const now = new Date()
+        const nowIso = now.toISOString()
+        const nowMs = now.getTime()
+
+        const { data: profiles, error } = await supabase
+            .from('profiles')
+            .select('id, paid_until, grace_until, account_lifecycle_status')
+            .not('paid_until', 'is', null)
+            .lt('paid_until', nowIso)
+
+        if ((error as any)?.code === '42703') {
+            console.log('â° [CRON] Skipping paid-window reconciliation: lifecycle columns not available yet.')
+            return
+        }
+
+        if (error) {
+            console.error('â° [CRON] Error fetching expired paid profiles:', error)
+            return
+        }
+
+        if (!profiles || profiles.length === 0) {
+            console.log('â° [CRON] No expired paid windows to reconcile.')
+            return
+        }
+
+        let frozenCount = 0
+        let inactiveCount = 0
+        let skippedCount = 0
+
+        for (const profile of profiles) {
+            try {
+                const profileId = String((profile as any).id || '').trim()
+                const paidUntil = String((profile as any).paid_until || '').trim()
+                const graceUntil = String((profile as any).grace_until || '').trim()
+                const graceUntilMs = graceUntil ? new Date(graceUntil).getTime() : Number.NaN
+
+                const { data: activeSubscription } = await supabase
+                    .from('subscriptions')
+                    .select('id')
+                    .eq('user_id', profileId)
+                    .eq('status', 'active')
+                    .gte('current_period_end', nowIso)
+                    .maybeSingle()
+
+                if (activeSubscription) {
+                    skippedCount += 1
+                    continue
+                }
+
+                if (Number.isFinite(graceUntilMs) && graceUntilMs > nowMs) {
+                    skippedCount += 1
+                    continue
+                }
+
+                if (Number.isFinite(graceUntilMs) && graceUntilMs <= nowMs) {
+                    const inactiveError = await updateProfileFreezeState(supabase, profileId, {
+                        account_lifecycle_status: 'inactive',
+                    })
+
+                    if (inactiveError) {
+                        throw inactiveError
+                    }
+
+                    inactiveCount += 1
+                    continue
+                }
+
+                await freezePaidLifecycleForUser(supabase, profileId, paidUntil || null)
+                frozenCount += 1
+            } catch (profileError) {
+                console.error(`â° [CRON] Error reconciling paid lifecycle for user ${(profile as any).id}:`, profileError)
+            }
+        }
+
+        console.log(`â° [CRON] Paid-window reconciliation completed â€” frozen=${frozenCount}, inactive=${inactiveCount}, skipped=${skippedCount}`)
+    } catch (error) {
+        console.error('â° [CRON] Fatal error while reconciling paid windows:', error)
     }
 }
 
@@ -527,6 +766,66 @@ async function handleCreditExpiry(): Promise<void> {
         const in3Days = new Date(now.getTime() + 3 * 24 * 3600000)
         const in2Days = new Date(now.getTime() + 2 * 24 * 3600000)
 
+        const { data: upcomingExpiryProfiles } = await supabase
+            .from('profiles')
+            .select('id, credits_balance, credits_expire_at')
+            .not('credits_expire_at', 'is', null)
+            .lte('credits_expire_at', in3Days.toISOString())
+            .gte('credits_expire_at', in2Days.toISOString())
+            .gt('credits_balance', 0)
+
+        for (const user of upcomingExpiryProfiles || []) {
+            const expireDate = new Date(user.credits_expire_at).toLocaleDateString('fr-FR')
+            await notify(user.id, 'credits_freeze_warning', {
+                balance: user.credits_balance,
+                creditExpireDate: expireDate
+            })
+        }
+        if ((upcomingExpiryProfiles || []).length > 0) {
+            console.log(`â° [CRON] Credit expiry warnings (3 days left) sent to ${upcomingExpiryProfiles!.length} user(s)`)
+        }
+
+        let expiredProfilesQuery = await supabase
+            .from('profiles')
+            .select('id, credits_balance, account_lifecycle_status')
+            .not('credits_expire_at', 'is', null)
+            .lt('credits_expire_at', now.toISOString())
+
+        if ((expiredProfilesQuery.error as any)?.code === '42703') {
+            expiredProfilesQuery = await supabase
+                .from('profiles')
+                .select('id, credits_balance')
+                .not('credits_expire_at', 'is', null)
+                .lt('credits_expire_at', now.toISOString())
+        }
+
+        for (const user of expiredProfilesQuery.data || []) {
+            const updatePayload: Record<string, unknown> = {
+                credits_frozen_at: null,
+                credits_expire_at: null,
+                account_lifecycle_status: 'inactive',
+            }
+
+            if (Number(user.credits_balance || 0) > 0) {
+                updatePayload.credits_balance = 0
+            }
+
+            const updateError = await updateProfileFreezeState(supabase, user.id, updatePayload)
+            if (updateError) {
+                throw updateError
+            }
+
+            if (Number(user.credits_balance || 0) > 0) {
+                await notify(user.id, 'credits_expired', {})
+            }
+        }
+        if ((expiredProfilesQuery.data || []).length > 0) {
+            console.log(`â° [CRON] Credits expired for ${expiredProfilesQuery.data!.length} user(s)`)
+        }
+        if (Array.isArray(expiredProfilesQuery.data)) {
+            return
+        }
+
         // Warning: credits expire in ~3 days (at J+4 of the 7-day grace period)
         const { data: warnUsers } = await supabase
             .from('profiles')
@@ -622,6 +921,55 @@ async function checkHighCreditUsage(): Promise<void> {
     }
 }
 
+async function handlePaidAccountCleanup(): Promise<void> {
+    console.log('[CRON] Handling expired paid-account cleanup...')
+
+    try {
+        const supabase = getAdminSupabase()
+        const nowMs = Date.now()
+        const expiredProfiles = await listUsersWithExpiredPaidGraceWindow(supabase, nowMs)
+
+        if (!expiredProfiles.length) {
+            console.log('[CRON] No expired paid accounts to delete.')
+            return
+        }
+
+        let deleted = 0
+        let skipped = 0
+        let failed = 0
+
+        for (const profile of expiredProfiles) {
+            try {
+                const liveState = await fetchUserTestAccountState(supabase, profile.id, nowMs)
+
+                if (!liveState?.lifecycleAccess?.lifecycle?.shouldDeleteAfterGrace) {
+                    skipped += 1
+                    console.log(`[CRON] Skip paid-account cleanup for ${profile.email || profile.id} - lifecycle changed before deletion`)
+                    continue
+                }
+
+                const { error: deleteError } = await supabase.auth.admin.deleteUser(profile.id)
+
+                if (deleteError) {
+                    failed += 1
+                    console.error(`[CRON] Failed to delete expired paid account ${profile.email || profile.id}:`, deleteError.message)
+                    continue
+                }
+
+                deleted += 1
+                console.log(`[CRON] Deleted expired paid account ${profile.email || profile.id}`)
+            } catch (profileError) {
+                failed += 1
+                console.error(`[CRON] Error while processing expired paid account ${profile.email || profile.id}:`, profileError)
+            }
+        }
+
+        console.log(`[CRON] Paid-account cleanup finished - deleted=${deleted}, skipped=${skipped}, failed=${failed}`)
+    } catch (error) {
+        console.error('[CRON] Error in paid-account cleanup:', error)
+    }
+}
+
 /**
  * Delete only genuinely expired test accounts.
  * Safety rules:
@@ -699,6 +1047,7 @@ export function initCronJobs(): void {
     cron.schedule('0 8 * * *', () => {
         checkExpiringSubscriptions()
         checkExpiredSubscriptions()
+        checkExpiredPaidAccounts()
         sendDailySummary()
     }, {
         timezone: 'UTC'
@@ -709,6 +1058,7 @@ export function initCronJobs(): void {
         handleArchivedAgentLifecycle()
         handleCreditExpiry()
         checkHighCreditUsage()
+        handlePaidAccountCleanup()
         handleTestAccountCleanup()
     }, {
         timezone: 'UTC'
@@ -726,4 +1076,4 @@ export function initCronJobs(): void {
 }
 
 // Also export the check functions for manual testing
-export { checkExpiringSubscriptions, checkExpiredSubscriptions, sendDailySummary, handleArchivedAgentLifecycle, handleCreditExpiry, checkHighCreditUsage, handleTestAccountCleanup }
+export { checkExpiringSubscriptions, checkExpiredSubscriptions, checkExpiredPaidAccounts, sendDailySummary, handleArchivedAgentLifecycle, handleCreditExpiry, checkHighCreditUsage, handlePaidAccountCleanup, handleTestAccountCleanup }

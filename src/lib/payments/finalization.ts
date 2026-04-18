@@ -4,6 +4,11 @@ import { collectReconnectableAgentIds } from '@/lib/whatsapp/reactivation'
 import { checkHostedPaymentStatus, normalizePaymentProvider } from '@/lib/payments/provider'
 import { extractPaystackChannelInfo } from '@/lib/payments/paystack'
 import { markUserAsQualified } from '@/lib/test-account'
+import {
+    resolvePaidUntilForCreditsPurchase,
+    resolvePaidUntilForPlanChange,
+    resolvePaidUntilForSamePlanRenewal,
+} from '@/lib/account-lifecycle'
 
 export type PaymentRow = {
     id: string
@@ -150,7 +155,7 @@ async function resolveSubscriptionPlan(adminSupabase: SupabaseClientLike, paymen
     if (planId) {
         const { data: byId } = await adminSupabase
             .from('subscription_plans')
-            .select('id, name, credits_included, price_fcfa')
+            .select('id, name, credits_included, price_fcfa, billing_cycle')
             .eq('id', planId)
             .maybeSingle()
 
@@ -160,7 +165,7 @@ async function resolveSubscriptionPlan(adminSupabase: SupabaseClientLike, paymen
     if (planName) {
         const { data: byName } = await adminSupabase
             .from('subscription_plans')
-            .select('id, name, credits_included, price_fcfa')
+            .select('id, name, credits_included, price_fcfa, billing_cycle')
             .ilike('name', planName)
             .maybeSingle()
 
@@ -173,11 +178,139 @@ async function resolveSubscriptionPlan(adminSupabase: SupabaseClientLike, paymen
 
     const { data: inferredPlan } = await adminSupabase
         .from('subscription_plans')
-        .select('id, name, credits_included, price_fcfa')
+        .select('id, name, credits_included, price_fcfa, billing_cycle')
         .eq('id', inferredPlanId)
         .maybeSingle()
 
     return inferredPlan || null
+}
+
+function normalizeBillingCycle(value: unknown): 'monthly' | 'yearly' {
+    return String(value || '').trim().toLowerCase() === 'yearly' ? 'yearly' : 'monthly'
+}
+
+function getPlanAgentLimit(planSlug: string): number {
+    const planAgentLimits: Record<string, number> = {
+        free: 1,
+        starter: 1,
+        pro: 3,
+        business: 6,
+        scale: -1,
+    }
+
+    return planAgentLimits[planSlug] ?? 1
+}
+
+async function fetchProfileForPaymentLifecycle(adminSupabase: SupabaseClientLike, userId: string) {
+    let result = await adminSupabase
+        .from('profiles')
+        .select('plan, credits_balance, credits_frozen_at, credits_expire_at, paid_until, grace_until')
+        .eq('id', userId)
+        .single()
+
+    if (result.error?.code === '42703') {
+        result = await adminSupabase
+            .from('profiles')
+            .select('plan, credits_balance, credits_frozen_at, credits_expire_at')
+            .eq('id', userId)
+            .single()
+    }
+
+    if (result.error?.code === '42703') {
+        result = await adminSupabase
+            .from('profiles')
+            .select('plan, credits_balance')
+            .eq('id', userId)
+            .single()
+    }
+
+    if (result.error) {
+        throw result.error
+    }
+
+    return result.data || null
+}
+
+async function updateProfileAfterPayment(
+    adminSupabase: SupabaseClientLike,
+    userId: string,
+    payload: Record<string, unknown>
+) {
+    let { error } = await adminSupabase
+        .from('profiles')
+        .update(payload)
+        .eq('id', userId)
+
+    if (error?.code === '42703') {
+        const fallbackPayload = { ...payload }
+        delete fallbackPayload.paid_until
+        delete fallbackPayload.grace_until
+        delete fallbackPayload.account_lifecycle_status
+
+        ;({ error } = await adminSupabase
+            .from('profiles')
+            .update(fallbackPayload)
+            .eq('id', userId))
+    }
+
+    if (error?.code === '42703') {
+        const legacyPayload = { ...payload }
+        delete legacyPayload.paid_until
+        delete legacyPayload.grace_until
+        delete legacyPayload.account_lifecycle_status
+        delete legacyPayload.credits_frozen_at
+        delete legacyPayload.credits_expire_at
+        delete legacyPayload.credits_high_usage_notified_at
+
+        ;({ error } = await adminSupabase
+            .from('profiles')
+            .update(legacyPayload)
+            .eq('id', userId))
+    }
+
+    return error
+}
+
+async function reactivateArchivedAgentsForPlan(
+    adminSupabase: SupabaseClientLike,
+    userId: string,
+    planSlug: string
+) {
+    const agentLimit = getPlanAgentLimit(planSlug)
+
+    const { data: deactivatedAgents } = await adminSupabase
+        .from('agents')
+        .select('id, is_active, whatsapp_connected, whatsapp_status, whatsapp_phone, whatsapp_ever_connected')
+        .eq('user_id', userId)
+        .not('archived_at', 'is', null)
+        .order('whatsapp_connected', { ascending: false })
+        .order('updated_at', { ascending: false })
+
+    if (!deactivatedAgents || deactivatedAgents.length === 0) {
+        return
+    }
+
+    const toReactivate = agentLimit === -1
+        ? deactivatedAgents
+        : deactivatedAgents.slice(0, agentLimit)
+    const reconnectableIds = collectReconnectableAgentIds(toReactivate)
+
+    await adminSupabase
+        .from('agents')
+        .update({ is_active: true, archived_at: null, archived_reason: null })
+        .in('id', toReactivate.map((a: any) => a.id))
+
+    if (reconnectableIds.length > 0) {
+        await adminSupabase
+            .from('agents')
+            .update({
+                whatsapp_connected: false,
+                whatsapp_status: 'connecting',
+                whatsapp_qr_code: null,
+                whatsapp_disconnected_by: null,
+            })
+            .in('id', reconnectableIds)
+    }
 }
 
 export async function getUserRole(adminSupabase: SupabaseClientLike, userId: string): Promise<string | null> {
@@ -278,10 +411,15 @@ export async function finalizePaymentRecord(
             }
         }
 
-        const isSubscription = payment.payment_type === 'subscription' || getMetadata(payment).metadata?.type === 'subscription'
+        const paymentKind = String(payment.payment_type || getMetadata(payment).metadata?.type || '').trim().toLowerCase()
+        const isSubscription = paymentKind === 'subscription'
+        const isCreditPurchase = paymentKind === 'credits'
         let creditsAdded = 0
         let newBalance: number | null = null
         let planUpdated = false
+        const nowMs = Date.now()
+        const currentProfile = await fetchProfileForPaymentLifecycle(adminSupabase, payment.user_id)
+        const currentPlanSlug = String(currentProfile?.plan || 'free').trim().toLowerCase()
 
         if (isSubscription) {
             const plan = await resolveSubscriptionPlan(adminSupabase, payment)
@@ -298,19 +436,23 @@ export async function finalizePaymentRecord(
                 }
             }
 
-            const periodStart = new Date()
-            const periodEnd = new Date()
-            periodEnd.setMonth(periodEnd.getMonth() + 1)
+            const periodStart = new Date(nowMs)
 
             const { data: existingSub } = await adminSupabase
                 .from('subscriptions')
-                .select('id')
+                .select('id, current_period_end, billing_cycle')
                 .eq('user_id', payment.user_id)
                 .eq('status', 'active')
                 .gte('current_period_end', new Date().toISOString())
                 .maybeSingle()
 
             const planSlug = plan.name.toLowerCase()
+            const billingCycle = normalizeBillingCycle((plan as any).billing_cycle)
+            const hasActivePaidWindow = Boolean(currentProfile?.paid_until) && new Date(currentProfile.paid_until).getTime() > nowMs
+            const isSamePlanRenewal = hasActivePaidWindow && currentPlanSlug === planSlug
+            const nextPaidUntil = isSamePlanRenewal
+                ? resolvePaidUntilForSamePlanRenewal(billingCycle, currentProfile?.paid_until || existingSub?.current_period_end || null, nowMs)
+                : resolvePaidUntilForPlanChange(billingCycle, nowMs)
 
             if (existingSub) {
                 await adminSupabase
@@ -321,7 +463,8 @@ export async function finalizePaymentRecord(
                         credits_included: plan.credits_included,
                         price_fcfa: plan.price_fcfa,
                         current_period_start: periodStart.toISOString(),
-                        current_period_end: periodEnd.toISOString(),
+                        current_period_end: nextPaidUntil,
+                        billing_cycle: billingCycle,
                     })
                     .eq('id', existingSub.id)
             } else {
@@ -333,8 +476,9 @@ export async function finalizePaymentRecord(
                         status: 'active',
                         credits_included: plan.credits_included,
                         price_fcfa: plan.price_fcfa,
+                        billing_cycle: billingCycle,
                         current_period_start: periodStart.toISOString(),
-                        current_period_end: periodEnd.toISOString(),
+                        current_period_end: nextPaidUntil,
                     })
             }
 
@@ -342,12 +486,6 @@ export async function finalizePaymentRecord(
             // - Scale: rollover 20% of remaining + new credits + 2000 bonus
             // - Others: ADD if active sub, REPLACE if expired/first
             // Also unfreeze any frozen credits on renewal
-            const { data: currentProfile } = await adminSupabase
-                .from('profiles')
-                .select('credits_balance, credits_frozen_at, credits_expire_at')
-                .eq('id', payment.user_id)
-                .single()
-
             const isCreditExpired = currentProfile?.credits_expire_at &&
                 new Date(currentProfile.credits_expire_at) < new Date()
             const currentBalance = isCreditExpired ? 0 : (Number(currentProfile?.credits_balance) || 0)
@@ -367,79 +505,23 @@ export async function finalizePaymentRecord(
                 newCreditsBalance = currentBalance + plan.credits_included
             }
 
-            const { error: profileUpdateError } = await adminSupabase
-                .from('profiles')
-                .update({
-                    plan: planSlug,
-                    credits_balance: newCreditsBalance,
-                    credits_used_this_month: 0,
-                    credits_frozen_at: null,
-                    credits_expire_at: null,
-                    credits_high_usage_notified_at: null,
-                })
-                .eq('id', payment.user_id)
+            const profileUpdateError = await updateProfileAfterPayment(adminSupabase, payment.user_id, {
+                plan: planSlug,
+                credits_balance: newCreditsBalance,
+                credits_used_this_month: 0,
+                credits_frozen_at: null,
+                credits_expire_at: null,
+                credits_high_usage_notified_at: null,
+                paid_until: nextPaidUntil,
+                grace_until: null,
+                account_lifecycle_status: 'paid_active',
+            })
 
             if (profileUpdateError) {
                 console.error('[finalization] Profile full update failed:', profileUpdateError.message, profileUpdateError.code)
-                if (profileUpdateError.code === '42703') {
-                    // Fallback 1: retry without optional columns
-                    const { error: fb1Error } = await adminSupabase
-                        .from('profiles')
-                        .update({ plan: planSlug, credits_balance: newCreditsBalance, credits_used_this_month: 0 })
-                        .eq('id', payment.user_id)
-                    if (fb1Error) {
-                        console.error('[finalization] Profile fallback-1 failed:', fb1Error.message, fb1Error.code)
-                        if (fb1Error.code === '42703') {
-                            // Fallback 2: absolute minimum — plan + credits only
-                            const { error: fb2Error } = await adminSupabase
-                                .from('profiles')
-                                .update({ plan: planSlug, credits_balance: newCreditsBalance })
-                                .eq('id', payment.user_id)
-                            if (fb2Error) {
-                                console.error('[finalization] Profile fallback-2 failed:', fb2Error.message)
-                            }
-                        }
-                    }
-                }
             }
 
-            // Réactiver les agents désactivés selon la limite du nouveau plan
-            const planAgentLimits: Record<string, number> = {
-                free: 1, starter: 1, pro: 3, business: 6, scale: -1
-            }
-            const agentLimit = planAgentLimits[planSlug] ?? 1
-
-            const { data: deactivatedAgents } = await adminSupabase
-                .from('agents')
-                .select('id, is_active, whatsapp_connected, whatsapp_status, whatsapp_phone, whatsapp_ever_connected')
-                .eq('user_id', payment.user_id)
-                .not('archived_at', 'is', null)
-                .order('whatsapp_connected', { ascending: false })
-                .order('updated_at', { ascending: false })
-
-            if (deactivatedAgents && deactivatedAgents.length > 0) {
-                const toReactivate = agentLimit === -1
-                    ? deactivatedAgents
-                    : deactivatedAgents.slice(0, agentLimit)
-                const reconnectableIds = collectReconnectableAgentIds(toReactivate)
-
-                await adminSupabase
-                    .from('agents')
-                    .update({ is_active: true, archived_at: null, archived_reason: null })
-                    .in('id', toReactivate.map((a: any) => a.id))
-
-                if (reconnectableIds.length > 0) {
-                    await adminSupabase
-                        .from('agents')
-                        .update({
-                            whatsapp_connected: false,
-                            whatsapp_status: 'connecting',
-                            whatsapp_qr_code: null,
-                            whatsapp_disconnected_by: null,
-                        })
-                        .in('id', reconnectableIds)
-                }
-            }
+            await reactivateArchivedAgentsForPlan(adminSupabase, payment.user_id, planSlug)
 
             // Notify Scale users of their rollover bonus
             if (planSlug === 'scale' && rolloverAmount > 0) {
@@ -453,7 +535,7 @@ export async function finalizePaymentRecord(
 
             creditsAdded = Number(plan.credits_included || 0)
             planUpdated = true
-        } else {
+        } else if (isCreditPurchase) {
             creditsAdded = await resolveCreditsToAdd(adminSupabase, payment)
             if (creditsAdded > 0 && payment.user_id) {
                 const { data: creditResult, error: creditError } = await adminSupabase.rpc('add_credits', {
@@ -477,6 +559,21 @@ export async function finalizePaymentRecord(
 
                 newBalance = typeof creditResult === 'number' ? creditResult : null
             }
+
+            const nextPaidUntil = resolvePaidUntilForCreditsPurchase(currentProfile?.paid_until || null, nowMs)
+            const profileUpdateError = await updateProfileAfterPayment(adminSupabase, payment.user_id, {
+                credits_frozen_at: null,
+                credits_expire_at: null,
+                paid_until: nextPaidUntil,
+                grace_until: null,
+                account_lifecycle_status: 'paid_active',
+            })
+
+            if (profileUpdateError) {
+                console.error('[finalization] Credit lifecycle update failed:', profileUpdateError.message, profileUpdateError.code)
+            }
+
+            await reactivateArchivedAgentsForPlan(adminSupabase, payment.user_id, currentPlanSlug)
         }
 
         const { error: updatePaymentError } = await adminSupabase
