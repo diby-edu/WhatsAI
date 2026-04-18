@@ -2,18 +2,15 @@
  * Supabase Realtime Listeners
  * Version 1.1.0 - Dual-Client Architecture (anon_key for Realtime)
  *
- * FIX CRITIQUE: Supabase Realtime REJETTE service_role_key pour postgres_changes
- * Solution: Utiliser anon_key via supabaseRealtime, garder service_role pour DB ops
+ * FIX CRITIQUE: Supabase Realtime rejette service_role_key pour postgres_changes
+ * Solution: utiliser anon_key via supabaseRealtime, garder service_role pour DB ops
  */
 
 const { MessagingService } = require('../services/messaging.service')
+const { resolveCanonicalJid } = require('../utils/jid')
 
 const processingMessages = new Set()
 const processingOutbound = new Set()
-
-function normalizePhoneForJid(phoneNumber) {
-    return typeof phoneNumber === 'string' ? phoneNumber.replace(/\D/g, '') : ''
-}
 
 async function simulateRealtimeTyping(socket, jid, text) {
     try {
@@ -42,103 +39,101 @@ async function isAgentActive(supabase, agentId) {
 }
 
 /**
- * Configure les listeners Realtime pour toutes les tables critiques via un CANAL UNIQUE
- * @param {Object} context - Context avec supabase (admin), supabaseRealtime, activeSessions, etc.
- * @returns {Object} Channel unique créé
+ * Configure les listeners Realtime pour toutes les tables critiques via un canal unique.
+ * @param {Object} context
+ * @returns {Object}
  */
 function setupRealtimeListeners(context) {
-    // supabaseRealtime = client avec anon_key (pour subscriptions)
-    // supabase = client avec service_role_key (pour DB operations)
     const { supabaseRealtime, activeSessions, pendingConnections } = context
 
     context.realtimeConnected = false
 
-    console.log(`📡 [REALTIME] Establishing channel with anon_key...`)
+    console.log('[REALTIME] Establishing channel with anon_key...')
 
-    // ═══════════════════════════════════════════════════════════
-    // CANAL UNIQUE avec supabaseRealtime (anon_key)
-    // ⚠️ service_role_key cause TIMED_OUT sur postgres_changes
-    // ═══════════════════════════════════════════════════════════
     const messagesChannel = supabaseRealtime
         .channel('whatsapp-updates', {
             config: {
                 presence: { key: 'bot' },
-                broadcast: { ack: true }
-            }
+                broadcast: { ack: true },
+            },
         })
-        // 1. Messages (IA responses)
-        .on('postgres_changes',
+        .on(
+            'postgres_changes',
             {
                 event: 'INSERT',
                 schema: 'public',
                 table: 'messages',
-                filter: 'role=eq.assistant'
+                filter: 'role=eq.assistant',
             },
             async (payload) => {
                 if (payload.new.status !== 'pending') return
-                console.log('⚡ [REALTIME] Status: Processing new message', payload.new.id)
+                console.log('[REALTIME] Status: Processing new message', payload.new.id)
                 await handlePendingMessage(context, payload.new)
             }
         )
-        // 2. Outbound (Standalone notifications)
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'outbound_messages' }, async (payload) => {
-            if (payload.new.status !== 'pending') return
-            console.log('⚡ [REALTIME] Outbound message detected:', payload.new.id)
-            await handleOutboundMessage(context, payload.new)
-        })
-        // 3. Agents (Connection requests OR Deactivation)
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'agents' }, async (payload) => {
-            const { whatsapp_status, whatsapp_connected, name, id, is_active } = payload.new
+        .on(
+            'postgres_changes',
+            { event: 'INSERT', schema: 'public', table: 'outbound_messages' },
+            async (payload) => {
+                if (payload.new.status !== 'pending') return
+                console.log('[REALTIME] Outbound message detected:', payload.new.id)
+                await handleOutboundMessage(context, payload.new)
+            }
+        )
+        .on(
+            'postgres_changes',
+            { event: 'UPDATE', schema: 'public', table: 'agents' },
+            async (payload) => {
+                const { whatsapp_status, whatsapp_connected, name, id, is_active } = payload.new
 
-            // Handle deactivation mapping to disconnect zombie websockets
-            if (is_active === false) {
-                const session = activeSessions.get(id)
-                if (session) {
-                    console.log(`⏸️ [REALTIME] Agent deactivated — closing orphan socket (${id})`)
-                    try { session.socket.end() } catch (_) { }
+                if (is_active === false) {
+                    const session = activeSessions.get(id)
+                    if (session) {
+                        console.log(`[REALTIME] Agent deactivated - closing orphan socket (${id})`)
+                        try { session.socket.end() } catch (_) { }
+                        activeSessions.delete(id)
+                    }
+                    pendingConnections.delete(id)
+                    return
+                }
+
+                if (whatsapp_connected === false && whatsapp_status === 'disconnected') {
+                    const session = activeSessions.get(id)
+                    if (session) {
+                        console.log(`[REALTIME] WhatsApp disconnected - closing orphan socket (${id})`)
+                        try { session.socket.end() } catch (_) { }
+                        activeSessions.delete(id)
+                    }
+                    pendingConnections.delete(id)
+                    return
+                }
+
+                if (whatsapp_status !== 'connecting') return
+
+                console.log('[REALTIME] Agent connection requested:', name)
+                const { initSession } = require('../handlers/session')
+                const existingSession = activeSessions.get(id)
+                if (existingSession && !pendingConnections.has(id)) {
+                    console.log(`[REALTIME] Recycling existing socket before reconnect (${id})`)
+                    try { existingSession.socket.end() } catch (_) { }
                     activeSessions.delete(id)
                 }
-                pendingConnections.delete(id)
-                return
-            }
 
-            // Handle explicit WhatsApp disconnection (owner or admin) — close orphan socket
-            if (whatsapp_connected === false && whatsapp_status === 'disconnected') {
-                const session = activeSessions.get(id)
-                if (session) {
-                    console.log(`🔌 [REALTIME] WhatsApp disconnected — closing orphan socket (${id})`)
-                    try { session.socket.end() } catch (_) { }
-                    activeSessions.delete(id)
+                if (pendingConnections.has(id)) return
+
+                if (typeof context.scheduleSessionInit === 'function') {
+                    context.scheduleSessionInit(context, { id, name, whatsapp_status }, 99)
+                } else {
+                    initSession(context, id, name, 99)
                 }
-                pendingConnections.delete(id)
-                return
             }
-
-            if (whatsapp_status !== 'connecting') return
-            console.log('⚡ [REALTIME] Agent connection requested:', name)
-            const { initSession } = require('../handlers/session')
-            const existingSession = activeSessions.get(id)
-            if (existingSession && !pendingConnections.has(id)) {
-                console.log(`♻️ [REALTIME] Recycling existing socket before reconnect (${id})`)
-                try { existingSession.socket.end() } catch (_) { }
-                activeSessions.delete(id)
-            }
-
-            if (pendingConnections.has(id)) return
-
-            if (typeof context.scheduleSessionInit === 'function') {
-                context.scheduleSessionInit(context, { id, name, whatsapp_status }, 99)
-            } else {
-                initSession(context, id, name, 99)
-            }
-        })
-        // 4. Agents (Deletion — close orphan socket immediately, no polling needed)
+        )
         .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'agents' }, (payload) => {
             const agentId = payload.old?.id
             if (!agentId) return
             const session = activeSessions.get(agentId)
             if (session) {
-                console.log(`🗑️ [REALTIME] Agent deleted — closing orphan socket (${agentId})`)
+                console.log(`[REALTIME] Agent deleted - closing orphan socket (${agentId})`)
                 try { session.socket.end() } catch (_) { }
                 activeSessions.delete(agentId)
             }
@@ -146,25 +141,21 @@ function setupRealtimeListeners(context) {
         })
         .subscribe((status, err) => {
             if (err) {
-                console.error('📡 [REALTIME] Error:', err.message || err)
+                console.error('[REALTIME] Error:', err.message || err)
                 context.realtimeConnected = false
             }
             if (status === 'SUBSCRIBED') {
-                console.log('✅ [REALTIME] Connected!')
+                console.log('[REALTIME] Connected')
                 context.realtimeConnected = true
             } else if (status === 'TIMED_OUT' || status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-                console.log(`⚠️ [REALTIME] ${status} - Fallback polling active`)
+                console.log(`[REALTIME] ${status} - Fallback polling active`)
                 context.realtimeConnected = false
             }
         }, 90000)
 
-    console.log('✅ [REALTIME] Master listener registered')
+    console.log('[REALTIME] Master listener registered')
     return messagesChannel
 }
-
-// ═══════════════════════════════════════════════════════════
-// HANDLERS (Idempotent)
-// ═══════════════════════════════════════════════════════════
 
 async function handlePendingMessage(context, message) {
     const { supabase, activeSessions } = context
@@ -197,12 +188,12 @@ async function handlePendingMessage(context, message) {
         const session = activeSessions.get(conv.agent_id)
         if (!session?.socket || !session.socket.user) return
 
-        let jid = conv.contact_jid || conv.contact_phone
-        if (!jid.includes('@')) {
-            const normalizedPhone = normalizePhoneForJid(conv.contact_phone)
-            const isLid = normalizedPhone.length > 15 || !/^\d{10,13}$/.test(normalizedPhone)
-            jid = normalizedPhone + (isLid ? '@lid' : '@s.whatsapp.net')
-        }
+        const target = await resolveCanonicalJid(
+            session.socket,
+            conv.contact_phone,
+            conv.contact_jid
+        )
+        const jid = target.jid
 
         await simulateRealtimeTyping(session.socket, jid, message.content)
         const result = await session.socket.sendMessage(jid, { text: message.content })
@@ -214,13 +205,12 @@ async function handlePendingMessage(context, message) {
         await supabase.from('conversations').update({
             last_message_text: message.content.substring(0, 200),
             last_message_at: new Date().toISOString(),
-            last_message_role: 'assistant'
+            last_message_role: 'assistant',
         }).eq('id', message.conversation_id)
 
-        console.log(`✅ [REALTIME] Message delivered to ${conv.contact_phone}`)
-
+        console.log(`[REALTIME] Message accepted for ${conv.contact_phone} via ${jid} (${target.source}) as ${result?.key?.id || 'unknown-id'}`)
     } catch (error) {
-        console.error('❌ [REALTIME] Send error:', error.message)
+        console.error('[REALTIME] Send error:', error.message)
         await supabase.from('messages')
             .update({ status: 'failed', error_message: error.message })
             .eq('id', message.id)
@@ -246,27 +236,27 @@ async function handleOutboundMessage(context, msg) {
         const session = activeSessions.get(msg.agent_id)
         if (!session?.socket || !session.socket.user) return
 
-        let jid = msg.recipient_phone
-        if (!jid.includes('@')) jid = jid.replace(/\D/g, '') + '@s.whatsapp.net'
-        console.log(`⚡ [REALTIME] Attempting outbound send ${msg.id} via ${jid}`)
+        const target = await resolveCanonicalJid(session.socket, msg.recipient_phone)
+        const jid = target.jid
+        console.log(`[REALTIME] Attempting outbound send ${msg.id} via ${jid} (${target.source})`)
 
+        let result = null
         if (msg.media_url && msg.media_type === 'document') {
             const fileName = decodeURIComponent(msg.media_url.split('/').pop()?.split('?')[0] || 'fichier')
-            await MessagingService.sendDocument(session, jid, msg.media_url, fileName, msg.message_content)
+            result = await MessagingService.sendDocument(session, jid, msg.media_url, fileName, msg.message_content)
         } else if (msg.media_url && msg.media_type === 'image') {
-            await MessagingService.sendImage(session, jid, msg.media_url, msg.message_content)
+            result = await MessagingService.sendImage(session, jid, msg.media_url, msg.message_content)
         } else {
-            await session.socket.sendMessage(jid, { text: msg.message_content })
+            result = await session.socket.sendMessage(jid, { text: msg.message_content })
         }
 
         await supabase.from('outbound_messages')
             .update({ status: 'sent', sent_at: new Date().toISOString() })
             .eq('id', msg.id)
 
-        console.log(`✅ [REALTIME] Outbound delivered to ${msg.recipient_phone}`)
-
+        console.log(`[REALTIME] Outbound accepted for ${msg.recipient_phone} via ${jid} (${target.source}) as ${result?.key?.id || 'unknown-id'}`)
     } catch (error) {
-        console.error('❌ [REALTIME] Outbound error:', error.message)
+        console.error('[REALTIME] Outbound error:', error.message)
         await supabase.from('outbound_messages')
             .update({ status: 'failed' })
             .eq('id', msg.id)
@@ -276,11 +266,11 @@ async function handleOutboundMessage(context, msg) {
 }
 
 async function cleanupRealtimeListeners(channel, supabaseRealtime) {
-    console.log('📴 [REALTIME] Cleaning up...')
+    console.log('[REALTIME] Cleaning up...')
     if (channel && supabaseRealtime) {
         await supabaseRealtime.removeChannel(channel)
     }
-    console.log('✅ [REALTIME] Done')
+    console.log('[REALTIME] Done')
 }
 
 module.exports = { setupRealtimeListeners, cleanupRealtimeListeners }
