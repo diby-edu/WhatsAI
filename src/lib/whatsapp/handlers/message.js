@@ -33,6 +33,10 @@ const {
 const {
     resolveActiveTunnelCancellation,
 } = require('./tunnel-cancel-guard')
+const {
+    shouldBypassTransactionalFlow,
+    shouldPersistTransactionalMetadataAfterResponse,
+} = require('./transactional-state-guard')
 const { normalizeWhatsAppContact } = require('../ai/tools/tool-helpers')
 const {
     clearCheckoutState,
@@ -613,6 +617,10 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                 hasCartState: hasCartStateData(previousCartState),
                 hasCheckoutState: hasCheckoutStateData(previousCheckoutState),
             })
+        const transactionalGuardOwnsReply = shouldBypassTransactionalFlow({
+            pendingPaymentResolution,
+            activeTunnelCancellation,
+        })
 
         let restaurantUpdate = noopRestaurantUpdate
         let restaurantFlowActive = false
@@ -621,7 +629,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
         let cartUpdate = noopCartUpdate
         let checkoutUpdate = noopCheckoutUpdate
 
-        if (!pendingPaymentResolution && !activeTunnelCancellation) {
+        if (!transactionalGuardOwnsReply) {
             restaurantUpdate = (isSupportClientMode || !hasRestaurantCatalog)
                 ? noopRestaurantUpdate
                 : updateRestaurantStateFromUserMessage(previousRestaurantState, structuredMessageText, restaurantProducts)
@@ -657,6 +665,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
         }
 
         if (
+            !transactionalGuardOwnsReply &&
             !isSupportClientMode &&
             !restaurantFlowActive &&
             !bookingFlowActive &&
@@ -689,6 +698,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
         const checkoutState = checkoutUpdate.state
 
         if (
+            !transactionalGuardOwnsReply &&
             !isSupportClientMode && (
                 JSON.stringify(previousCartState) !== JSON.stringify(cartUpdate.state) ||
                 JSON.stringify(previousCheckoutState) !== JSON.stringify(checkoutState) ||
@@ -960,7 +970,12 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             aiResponse.imageActions = [...preImageActions, ...(aiResponse.imageActions || [])]
         }
 
-        if (!isSupportClientMode) {
+        const shouldPersistTransactionalMetadata = shouldPersistTransactionalMetadataAfterResponse({
+            pendingPaymentResolution,
+            activeTunnelCancellation,
+        })
+
+        if (!isSupportClientMode && shouldPersistTransactionalMetadata) {
             let nextMetadata = conversation.metadata
             nextMetadata = clearCartAfterResponse
                 ? clearCartState(nextMetadata)
