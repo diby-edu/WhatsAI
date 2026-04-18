@@ -4,7 +4,7 @@ import { authenticateApiKey, isAgentAllowed } from '@/lib/api/public-auth'
 import { checkPublicRateLimit } from '@/lib/api/rate-limit-public'
 import { logApiUsage } from '@/lib/api/log-usage'
 import { checkIdempotency, storeIdempotency } from '@/lib/api/idempotency'
-import { sendMessageWithTyping } from '@/lib/whatsapp/baileys'
+import { sendMessageViaInternalBot } from '@/lib/whatsapp/internal-bot'
 
 export const dynamic = 'force-dynamic'
 
@@ -134,7 +134,11 @@ export async function POST(request: NextRequest) {
     if (!agent.whatsapp_connected) return NextResponse.json({ error: 'Agent not connected to WhatsApp', code: 'AGENT_DISCONNECTED' }, { status: 400 })
 
     // ── Envoyer le message ────────────────────────────────────────────────
-    const result = await sendMessageWithTyping(agent_id, normalizedPhone, message)
+    const result = await sendMessageViaInternalBot({
+        agentId: agent_id,
+        to: normalizedPhone,
+        message,
+    })
 
     if (!result.success) {
         logApiUsage(supabaseAdmin, { apiKeyId: apiKey!.id, userId: userId!, agentId: agent_id, endpoint: '/api/public/v1/send', method: 'POST', statusCode: 500, requestBody: body, responseMs: Date.now() - startTime, ipAddress: ip })

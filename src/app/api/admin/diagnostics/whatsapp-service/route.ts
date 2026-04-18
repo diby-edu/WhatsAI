@@ -2,10 +2,11 @@
 import { errorResponse, successResponse } from '@/lib/api-utils'
 import { requireAdminAccess } from '@/lib/admin/auth'
 import { getAgentOperationalMetrics, getWhatsAppRiskReport } from '@/lib/admin/monitoring'
+import { getInternalBotBaseUrl } from '@/lib/whatsapp/internal-bot'
 
 async function probeBotService() {
     try {
-        const response = await fetch('http://localhost:3001/health', {
+        const response = await fetch(`${getInternalBotBaseUrl()}/health`, {
             signal: AbortSignal.timeout(5000),
         })
 
