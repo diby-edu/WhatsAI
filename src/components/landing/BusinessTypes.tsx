@@ -170,12 +170,18 @@ export default function BusinessTypes() {
                     }
                 }
                 @media (max-width: 768px) {
+                    #business-types {
+                        padding-top: 60px !important;
+                        padding-bottom: 60px !important;
+                    }
                     #business-types h3,
                     #business-types p {
-                        word-wrap: normal !important;
-                        overflow-wrap: normal !important;
-                        word-break: normal !important;
-                        hyphens: manual !important;
+                        word-break: break-word !important;
+                        overflow-wrap: break-word !important;
+                        hyphens: auto !important;
+                    }
+                    .bt-grid > div {
+                        padding: 18px !important;
                     }
                 }
             `}</style>

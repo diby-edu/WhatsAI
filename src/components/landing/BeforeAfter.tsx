@@ -157,9 +157,16 @@ export default function BeforeAfter() {
 
             <style jsx global>{`
                 @media (max-width: 768px) {
+                    #before-after {
+                        padding-top: 60px !important;
+                        padding-bottom: 60px !important;
+                    }
                     .ba-grid {
                         grid-template-columns: 1fr !important;
                         gap: 20px !important;
+                    }
+                    .ba-grid > div {
+                        padding: 24px !important;
                     }
                 }
             `}</style>

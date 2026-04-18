@@ -590,10 +590,7 @@ export default function Hero() {
                         gap: 50px !important;
                         text-align: center !important;
                     }
-                    section > div > div > div:first-child > div:last-of-type {
-                        justify-content: center !important;
-                    }
-                    section > div > div > div:first-child > div[style*="gap: 40"] {
+                    .hero-stats {
                         justify-content: center !important;
                     }
                 }
@@ -642,13 +639,13 @@ export default function Hero() {
                         justify-content: center !important;
                     }
                     /* Stack trust stats */
-                    section > div > div > div:first-child > div[style*="gap: 40"] {
+                    .hero-stats {
                         flex-direction: column !important;
                         gap: 20px !important;
                         align-items: center !important;
                     }
-                    /* Hide phone mockup on very small screens */
-                    section > div > div > div:last-child {
+                    /* Hide phone mockup on mobile */
+                    .hero-phone {
                         display: none !important;
                     }
                 }
