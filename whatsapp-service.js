@@ -27,6 +27,7 @@ const { checkPendingPayments, cancelExpiredOrders, cancelExpiredBookingDeposits,
 const { checkPendingHistoryMessages, checkOutboundMessages } = require('./src/lib/whatsapp/cron/outgoing')
 const { setupRealtimeListeners, cleanupRealtimeListeners } = require('./src/lib/whatsapp/realtime/listeners')
 const { MessagingService } = require('./src/lib/whatsapp/services/messaging.service')
+const { resolveCanonicalJid } = require('./src/lib/whatsapp/utils/jid')
 
 // Configuration des logs
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' })
@@ -436,12 +437,14 @@ async function handleInternalSendRequest(req, res) {
             return
         }
 
-        const jid = to.includes('@') ? to : `${to.replace(/\D/g, '')}@s.whatsapp.net`
-        const result = await MessagingService.sendText(session, jid, message)
+        const target = await resolveCanonicalJid(session.socket, to)
+        const result = await MessagingService.sendText(session, target.jid, message)
 
         sendJson(res, 200, {
             success: true,
             messageId: result?.key?.id || null,
+            jid: target.jid,
+            jidSource: target.source,
         })
     } catch (error) {
         console.error('❌ Internal /send error:', error)
