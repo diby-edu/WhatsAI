@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     // Récupérer la conversation + vérifier ownership
     const { data: conversation } = await supabaseAdmin
         .from('conversations')
-        .select('id, agent_id, customer_phone, status, created_at, updated_at, metadata')
+        .select('id, agent_id, contact_phone, status, created_at, updated_at, metadata')
         .eq('id', conversationId)
         .single()
 
@@ -77,10 +77,13 @@ export async function GET(request: NextRequest) {
         statusCode: 200, responseMs: Date.now() - startTime, ipAddress: ip
     })
 
+    const { contact_phone, ...conversationData } = conversation
+
     return NextResponse.json({
         success: true,
         data: {
-            ...conversation,
+            ...conversationData,
+            customer_phone: contact_phone,
             messages: withMessages ? messages : undefined,
             message_count: messages.length
         }
