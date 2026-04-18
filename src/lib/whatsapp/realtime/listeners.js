@@ -11,6 +11,10 @@ const { MessagingService } = require('../services/messaging.service')
 const processingMessages = new Set()
 const processingOutbound = new Set()
 
+function normalizePhoneForJid(phoneNumber) {
+    return typeof phoneNumber === 'string' ? phoneNumber.replace(/\D/g, '') : ''
+}
+
 async function simulateRealtimeTyping(socket, jid, text) {
     try {
         const delay = 800 + Math.min((text || '').length * 25, 1200)
@@ -195,8 +199,9 @@ async function handlePendingMessage(context, message) {
 
         let jid = conv.contact_jid || conv.contact_phone
         if (!jid.includes('@')) {
-            const isLid = conv.contact_phone.length > 15 || !/^\d{10,13}$/.test(conv.contact_phone)
-            jid = conv.contact_phone + (isLid ? '@lid' : '@s.whatsapp.net')
+            const normalizedPhone = normalizePhoneForJid(conv.contact_phone)
+            const isLid = normalizedPhone.length > 15 || !/^\d{10,13}$/.test(normalizedPhone)
+            jid = normalizedPhone + (isLid ? '@lid' : '@s.whatsapp.net')
         }
 
         await simulateRealtimeTyping(session.socket, jid, message.content)
@@ -233,7 +238,7 @@ async function handleOutboundMessage(context, msg) {
         const agentActive = await isAgentActive(supabase, msg.agent_id)
         if (!agentActive) {
             await supabase.from('outbound_messages')
-                .update({ status: 'failed', error_log: 'agent_inactive' })
+                .update({ status: 'failed' })
                 .eq('id', msg.id)
             return
         }
@@ -243,6 +248,7 @@ async function handleOutboundMessage(context, msg) {
 
         let jid = msg.recipient_phone
         if (!jid.includes('@')) jid = jid.replace(/\D/g, '') + '@s.whatsapp.net'
+        console.log(`⚡ [REALTIME] Attempting outbound send ${msg.id} via ${jid}`)
 
         if (msg.media_url && msg.media_type === 'document') {
             const fileName = decodeURIComponent(msg.media_url.split('/').pop()?.split('?')[0] || 'fichier')
@@ -262,7 +268,7 @@ async function handleOutboundMessage(context, msg) {
     } catch (error) {
         console.error('❌ [REALTIME] Outbound error:', error.message)
         await supabase.from('outbound_messages')
-            .update({ status: 'failed', error_log: error.message })
+            .update({ status: 'failed' })
             .eq('id', msg.id)
     } finally {
         processingOutbound.delete(msg.id)

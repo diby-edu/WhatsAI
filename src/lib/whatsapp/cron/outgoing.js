@@ -44,10 +44,11 @@ const ONE_HOUR = 60 * 60 * 1000
 
 function resolveJid(contactJid, phoneNumber) {
     if (contactJid?.includes('@')) return contactJid
-    const base = contactJid || phoneNumber
+    const normalizedPhone = (phoneNumber || '').replace(/\D/g, '')
+    const base = contactJid || normalizedPhone
     if (base.includes('@')) return base
-    const isLid = phoneNumber.length > 15 || !/^\d{10,13}$/.test(phoneNumber)
-    return phoneNumber + (isLid ? '@lid' : '@s.whatsapp.net')
+    const isLid = normalizedPhone.length > 15 || !/^\d{10,13}$/.test(normalizedPhone)
+    return normalizedPhone + (isLid ? '@lid' : '@s.whatsapp.net')
 }
 
 async function simulateTyping(socket, jid, text) {
@@ -143,7 +144,7 @@ async function checkPendingHistoryMessages(context) {
 
 async function markOutboundFailed(supabase, msgId, reason) {
     await supabase.from('outbound_messages')
-        .update({ status: 'failed', error_log: reason })
+        .update({ status: 'failed' })
         .eq('id', msgId)
 }
 
@@ -161,6 +162,7 @@ async function handleOutboundSendError(supabase, msg, sendError) {
 async function sendOutboundMessage(supabase, session, msg) {
     let jid = msg.recipient_phone
     if (!jid.includes('@')) jid = jid.replaceAll(/\D/gu, '') + '@s.whatsapp.net'
+    console.log(`⚡ [OUTBOUND] Attempting queued send ${msg.id} via ${jid}`)
 
     await new Promise(resolve => setTimeout(resolve, broadcastDelay()))
 
