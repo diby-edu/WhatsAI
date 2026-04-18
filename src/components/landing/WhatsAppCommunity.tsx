@@ -205,6 +205,15 @@ export default function WhatsAppCommunity() {
                     0%, 100% { opacity: 1; }
                     50% { opacity: 0.4; }
                 }
+                @media (max-width: 768px) {
+                    #community {
+                        padding-top: 60px !important;
+                        padding-bottom: 60px !important;
+                    }
+                    #community > div > div:first-child {
+                        margin-bottom: 36px !important;
+                    }
+                }
             `}</style>
         </section>
     )

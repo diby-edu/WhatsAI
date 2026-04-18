@@ -264,20 +264,25 @@ export default function HowItWorks() {
             `}</style>
             <style jsx global>{`
                 @media (max-width: 768px) {
+                    #how-it-works {
+                        padding-top: 60px !important;
+                        padding-bottom: 60px !important;
+                    }
                     .hiw-steps {
                         flex-direction: column !important;
                         gap: 20px !important;
                     }
-
                     .hiw-step-wrap {
                         max-width: 100% !important;
+                        flex: 1 1 100% !important;
                     }
-
+                    .hiw-step {
+                        padding: 24px !important;
+                    }
                     #how-it-works h3,
                     #how-it-works p {
-                        word-wrap: normal !important;
-                        overflow-wrap: normal !important;
-                        word-break: normal !important;
+                        word-break: break-word !important;
+                        overflow-wrap: break-word !important;
                     }
                 }
             `}</style>

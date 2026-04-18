@@ -180,7 +180,7 @@ export default function Footer() {
                 </div>
 
                 {/* Bottom bar */}
-                <div style={{
+                <div className="footer-bottom-bar" style={{
                     paddingTop: 24,
                     borderTop: '1px solid rgba(148, 163, 184, 0.1)',
                     display: 'flex',
@@ -189,10 +189,34 @@ export default function Footer() {
                     alignItems: 'center',
                     gap: 16
                 }}>
-                    <p style={{ color: '#475569', fontSize: 13 }}>
-                        {t('rights')}
-                    </p>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+                        <p style={{ color: '#475569', fontSize: 13, margin: 0 }}>
+                            {t('rights')}
+                        </p>
+                        <a
+                            href="https://chat.whatsapp.com/E7vbXhqS0o5D4Wn2lrdDGi"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="footer-community-link"
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                padding: '5px 12px',
+                                borderRadius: 20,
+                                background: 'rgba(37, 211, 102, 0.1)',
+                                border: '1px solid rgba(37, 211, 102, 0.25)',
+                                color: '#25D366',
+                                fontSize: 12,
+                                fontWeight: 600,
+                                textDecoration: 'none'
+                            }}
+                        >
+                            <MessageCircle style={{ width: 13, height: 13 }} />
+                            Rejoindre la communauté
+                        </a>
+                    </div>
+                    <div className="footer-contacts" style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#475569', fontSize: 13 }}>
                             <Mail style={{ width: 14, height: 14 }} />
                             support@wazzapai.com
@@ -240,14 +264,15 @@ export default function Footer() {
                         gap: 24px !important;
                     }
                     /* Bottom bar stack */
-                    footer > div > div:last-child {
+                    .footer-bottom-bar {
                         flex-direction: column !important;
                         text-align: center !important;
                         gap: 12px !important;
                     }
-                    footer > div > div:last-child > div {
+                    .footer-contacts {
                         flex-direction: column !important;
                         gap: 8px !important;
+                        align-items: center !important;
                     }
                 }
                 @media (max-width: 400px) {

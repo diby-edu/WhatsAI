@@ -22,7 +22,7 @@ function FloatingCommunityBadge() {
   if (closed || !visible) return null
 
   return (
-    <div style={{
+    <div className="floating-community-badge" style={{
       position: 'fixed',
       bottom: 24,
       left: 24,
@@ -35,7 +35,7 @@ function FloatingCommunityBadge() {
       background: 'linear-gradient(135deg, #25D366, #128C7E)',
       boxShadow: '0 8px 32px rgba(37, 211, 102, 0.4)',
       animation: 'slideInUp 0.4s ease',
-      maxWidth: 260
+      maxWidth: 'min(260px, calc(100vw - 120px))'
     }}>
       <MessageCircle style={{ width: 22, height: 22, color: 'white', flexShrink: 0 }} />
       <a
@@ -75,6 +75,11 @@ function FloatingCommunityBadge() {
         @keyframes slideInUp {
           from { opacity: 0; transform: translateY(20px); }
           to { opacity: 1; transform: translateY(0); }
+        }
+        @media (max-width: 768px) {
+          .floating-community-badge {
+            display: none !important;
+          }
         }
       `}</style>
     </div>
