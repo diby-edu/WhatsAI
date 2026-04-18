@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { errorResponse, successResponse } from '@/lib/api-utils'
 import { requireAdminAccess } from '@/lib/admin/auth'
+import { getInternalBotBaseUrl } from '@/lib/whatsapp/internal-bot'
 
 type BotSession = { id: string; status: string; connectedAt: number | null }
 type BotPayload = {
@@ -11,7 +12,7 @@ type BotPayload = {
 
 async function fetchBotSessions(): Promise<BotPayload> {
     try {
-        const response = await fetch('http://localhost:3001/sessions', {
+        const response = await fetch(`${getInternalBotBaseUrl()}/sessions`, {
             signal: AbortSignal.timeout(5000),
         })
         if (!response.ok) return null

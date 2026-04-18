@@ -15,6 +15,7 @@ import {
     captureSystemDeletionSnapshot,
     recordSystemDeletionAuditEntry,
 } from '@/lib/notifications/system-deletion-audit'
+import { getInternalBotBaseUrl } from '@/lib/whatsapp/internal-bot'
 
 // =============================================
 // Cron Service - Scheduled tasks (runs in PM2 process)
@@ -719,7 +720,7 @@ let lastWhatsAppDownNotif = 0
  */
 export async function checkWhatsAppService(): Promise<void> {
     try {
-        const botUrl = process.env.WHATSAPP_BOT_URL || 'http://localhost:3001'
+        const botUrl = getInternalBotBaseUrl()
         const controller = new AbortController()
         const timeout = setTimeout(() => controller.abort(), 5000)
 

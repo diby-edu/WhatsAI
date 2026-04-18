@@ -1,8 +1,9 @@
 import { createAdminClient, successResponse } from '@/lib/api-utils'
+import { getInternalBotBaseUrl } from '@/lib/whatsapp/internal-bot'
 
 async function probeWhatsAppBot() {
     try {
-        const response = await fetch('http://localhost:3001/health', {
+        const response = await fetch(`${getInternalBotBaseUrl()}/health`, {
             signal: AbortSignal.timeout(3000),
         })
 

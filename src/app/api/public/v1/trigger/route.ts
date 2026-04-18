@@ -5,7 +5,7 @@ import { checkPublicRateLimit } from '@/lib/api/rate-limit-public'
 import { logApiUsage } from '@/lib/api/log-usage'
 import { checkIdempotency, storeIdempotency } from '@/lib/api/idempotency'
 import { buildTriggerMessage, type TriggerContext } from '@/lib/api/trigger-templates'
-import { sendMessageWithTyping } from '@/lib/whatsapp/baileys'
+import { sendMessageViaInternalBot } from '@/lib/whatsapp/internal-bot'
 
 export const dynamic = 'force-dynamic'
 
@@ -144,7 +144,11 @@ export async function POST(request: NextRequest) {
     const generatedMessage = buildTriggerMessage(triggerContext)
 
     // ── Envoyer le message ────────────────────────────────────────────────
-    const result = await sendMessageWithTyping(agent_id, normalizedPhone, generatedMessage)
+    const result = await sendMessageViaInternalBot({
+        agentId: agent_id,
+        to: normalizedPhone,
+        message: generatedMessage,
+    })
 
     if (!result.success) {
         logApiUsage(supabaseAdmin, {

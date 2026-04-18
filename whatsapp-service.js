@@ -26,6 +26,7 @@ const { initSession } = require('./src/lib/whatsapp/handlers/session')
 const { checkPendingPayments, cancelExpiredOrders, cancelExpiredBookingDeposits, requestFeedback } = require('./src/lib/whatsapp/cron/jobs')
 const { checkPendingHistoryMessages, checkOutboundMessages } = require('./src/lib/whatsapp/cron/outgoing')
 const { setupRealtimeListeners, cleanupRealtimeListeners } = require('./src/lib/whatsapp/realtime/listeners')
+const { MessagingService } = require('./src/lib/whatsapp/services/messaging.service')
 
 // Configuration des logs
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' })
@@ -40,6 +41,8 @@ const SUPABASE_ANON_KEY = cleanEnv(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)  /
 const OPENAI_API_KEY = cleanEnv(process.env.OPENAI_API_KEY)
 const SESSION_BASE_DIR = cleanEnv(process.env.WHATSAPP_SESSION_PATH) || './.whatsapp-sessions'
 const CHECK_INTERVAL = 5000 // Check every 5 seconds
+const INTERNAL_HTTP_HOST = cleanEnv(process.env.HEALTH_HOST) || '127.0.0.1'
+const INTERNAL_API_TOKEN = cleanEnv(process.env.WHATSAPP_INTERNAL_API_TOKEN) || null
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY || !SUPABASE_ANON_KEY) {
     console.error('❌ Missing SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY')
@@ -372,6 +375,84 @@ const gracefulShutdown = async (signal) => {
 process.on('SIGINT', () => gracefulShutdown('SIGINT'))
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'))
 
+function sendJson(res, statusCode, payload) {
+    res.writeHead(statusCode, { 'Content-Type': 'application/json' })
+    res.end(JSON.stringify(payload))
+}
+
+function readJsonBody(req) {
+    return new Promise((resolve, reject) => {
+        let body = ''
+
+        req.on('data', (chunk) => {
+            body += chunk
+        })
+
+        req.on('end', () => {
+            try {
+                resolve(body ? JSON.parse(body) : {})
+            } catch {
+                reject(new Error('Invalid JSON body'))
+            }
+        })
+
+        req.on('error', reject)
+    })
+}
+
+async function handleInternalSendRequest(req, res) {
+    if (req.method !== 'POST') {
+        sendJson(res, 405, { success: false, error: 'Method not allowed', code: 'METHOD_NOT_ALLOWED' })
+        return
+    }
+
+    if (INTERNAL_API_TOKEN && req.headers['x-internal-token'] !== INTERNAL_API_TOKEN) {
+        sendJson(res, 401, { success: false, error: 'Unauthorized internal request', code: 'UNAUTHORIZED_INTERNAL' })
+        return
+    }
+
+    try {
+        const body = await readJsonBody(req)
+        const agentId = typeof body.agentId === 'string' ? body.agentId : body.agent_id
+        const to = typeof body.to === 'string' ? body.to : ''
+        const message = typeof body.message === 'string' ? body.message : ''
+
+        if (!agentId || !to || !message) {
+            sendJson(res, 400, {
+                success: false,
+                error: 'Missing required fields: agentId, to, message',
+                code: 'BAD_REQUEST',
+            })
+            return
+        }
+
+        const session = activeSessions.get(agentId)
+        if (!session?.socket || session.status !== 'connected') {
+            sendJson(res, 503, {
+                success: false,
+                error: 'WhatsApp not connected',
+                code: 'SESSION_NOT_CONNECTED',
+            })
+            return
+        }
+
+        const jid = to.includes('@') ? to : `${to.replace(/\D/g, '')}@s.whatsapp.net`
+        const result = await MessagingService.sendText(session, jid, message)
+
+        sendJson(res, 200, {
+            success: true,
+            messageId: result?.key?.id || null,
+        })
+    } catch (error) {
+        console.error('❌ Internal /send error:', error)
+        sendJson(res, 500, {
+            success: false,
+            error: error instanceof Error ? error.message : 'Failed to send message',
+            code: 'SEND_FAILED',
+        })
+    }
+}
+
 // Main loop
 async function main() {
     console.log('🚀 WhatsApp Service starting...')
@@ -450,18 +531,16 @@ async function main() {
 
     const healthServer = http.createServer((req, res) => {
         if (req.url === '/health' || req.url === '/') {
-            res.writeHead(200, { 'Content-Type': 'application/json' })
-            res.end(JSON.stringify({
+            sendJson(res, 200, {
                 status: 'healthy',
                 service: 'whatsapp-service',
                 activeSessions: activeSessions.size,
                 pendingConnections: pendingConnections.size,
                 uptime: Math.floor(process.uptime()),
                 timestamp: new Date().toISOString()
-            }))
+            })
         } else if (req.url === '/sessions') {
-            res.writeHead(200, { 'Content-Type': 'application/json' })
-            res.end(JSON.stringify({
+            sendJson(res, 200, {
                 activeSessions: Array.from(activeSessions.entries()).map(([id, session]) => ({
                     id,
                     status: session.status, // 'connected' | 'connecting' | 'qr_waiting' | 'pairing_waiting_open' | 'error'
@@ -469,21 +548,26 @@ async function main() {
                 })),
                 pendingConnections: Array.from(pendingConnections),
                 scheduledConnections: Array.from(scheduledConnections),
-            }))
+            })
+        } else if (req.url === '/send') {
+            handleInternalSendRequest(req, res)
         } else {
             res.writeHead(404)
             res.end('Not Found')
         }
     })
 
-    healthServer.listen(HEALTH_PORT, () => {
-        console.log(`🏥 Healthcheck server running on port ${HEALTH_PORT}`)
+    healthServer.listen(HEALTH_PORT, INTERNAL_HTTP_HOST, () => {
+        console.log(`🏥 Internal HTTP server running on http://${INTERNAL_HTTP_HOST}:${HEALTH_PORT}`)
     })
 
     console.log('✅ WhatsApp Service running with Realtime')
     console.log('   ⚡ Realtime: Instant message delivery (~100ms)')
     console.log('   🛡️ Backup: Polling every 5 minutes')
-    console.log(`   🏥 Healthcheck: http://localhost:${HEALTH_PORT}/health`)
+    console.log(`   🏥 Healthcheck: http://${INTERNAL_HTTP_HOST}:${HEALTH_PORT}/health`)
+    if (!INTERNAL_API_TOKEN) {
+        console.warn('⚠️ Internal bot token not configured; relying on loopback binding only for /send')
+    }
     console.log('✅ Sessions WhatsApp préservées — restart safe (pas de re-scan QR)')
     console.log('📉 CPU optimisé: ~55% → ~5-10% au repos')
 }
