@@ -51,12 +51,12 @@ export async function GET(request: NextRequest) {
 
     let query = supabaseAdmin
         .from('conversations')
-        .select('id, customer_phone, status, created_at, updated_at, metadata', { count: 'exact' })
+        .select('id, contact_phone, status, created_at, updated_at, metadata', { count: 'exact' })
         .eq('agent_id', agentId)
         .order('updated_at', { ascending: false })
         .range(offset, offset + limit - 1)
 
-    if (phone) query = query.eq('customer_phone', phone)
+    if (phone) query = query.eq('contact_phone', phone)
     if (status) query = query.eq('status', status)
 
     const { data: conversations, error, count } = await query
@@ -73,7 +73,13 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
         success: true,
-        data: conversations || [],
+        data: (conversations || []).map((conversation) => {
+            const { contact_phone, ...conversationData } = conversation
+            return {
+                ...conversationData,
+                customer_phone: contact_phone,
+            }
+        }),
         pagination: { total: count || 0, limit, offset, has_more: (offset + limit) < (count || 0) }
     }, { status: 200, headers: rateCheck.headers })
 }
