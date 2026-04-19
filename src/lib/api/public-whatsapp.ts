@@ -18,6 +18,15 @@ type QueuePublicAssistantMessageParams = {
     messageMetadata?: Record<string, unknown> | null
 }
 
+function buildShadowMessageMetadata(
+    messageMetadata: Record<string, unknown> | null | undefined
+): Record<string, unknown> {
+    return {
+        ...(messageMetadata || {}),
+        delivery_via: 'outbound_messages',
+    }
+}
+
 function isObject(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
@@ -105,6 +114,7 @@ export async function queuePublicAssistantMessage(params: QueuePublicAssistantMe
     }
 
     if (conversationId) {
+        const shadowMessageMetadata = buildShadowMessageMetadata(messageMetadata)
         await supabase.from('messages').insert({
             conversation_id: conversationId,
             agent_id: agentId,
@@ -113,7 +123,7 @@ export async function queuePublicAssistantMessage(params: QueuePublicAssistantMe
             whatsapp_message_id: null,
             // Public API sends are transported by outbound_messages, not by the assistant pending-message pipeline.
             status: 'sent',
-            metadata: messageMetadata || null,
+            metadata: shadowMessageMetadata,
         })
     }
 

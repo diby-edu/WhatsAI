@@ -1,6 +1,7 @@
 const { MessagingService } = require('../services/messaging.service')
 const { resolveCanonicalJid } = require('../utils/jid')
 const { processingMessages, processingOutbound } = require('../utils/queue-processing-state')
+const { isExternallyTransportedAssistantMessage } = require('../utils/delivery-path')
 
 // Compteur horaire des broadcasts par agent (in-memory, reset auto)
 const broadcastHourlyCount = new Map() // agentId -> { count, windowStart }
@@ -68,6 +69,12 @@ async function handleHistorySendError(supabase, msg, error) {
     }
 }
 
+async function markHistoryShadowAsSent(supabase, msg) {
+    await supabase.from('messages')
+        .update({ status: 'sent' })
+        .eq('id', msg.id)
+}
+
 async function sendHistoryMessage(supabase, session, msg) {
     const target = await resolveCanonicalJid(
         session.socket,
@@ -101,6 +108,12 @@ async function processHistoryMessage(supabase, activeSessions, agentStateCache, 
     const agentId = msg.conversation.agent_id
     const isManualResponse = msg?.metadata?.manual_response === true
     try {
+        if (isExternallyTransportedAssistantMessage(msg)) {
+            console.log(`[HISTORY] Skipping ${msg.id}: outbound_messages is the delivery source`)
+            await markHistoryShadowAsSent(supabase, msg)
+            return
+        }
+
         const isActive = await getAgentIsActive(supabase, agentId, agentStateCache)
         if (!isActive) {
             await supabase.from('messages')

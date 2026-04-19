@@ -70,7 +70,11 @@ export async function POST(request: NextRequest) {
                     role: 'assistant',
                     content: message,
                     whatsapp_message_id: null,
-                    status: 'pending',
+                    status: 'sent',
+                    metadata: {
+                        source: 'internal_send_api',
+                        delivery_via: 'outbound_messages',
+                    },
                 })
         }
 
