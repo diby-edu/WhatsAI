@@ -65,7 +65,10 @@ const templates: Record<string, TemplateBuilder> = {
 
         let msg = `Bonjour ${name} ! 👋\n\nVous avez des articles qui vous attendent dans votre panier :`
         if (itemLines) msg += `\n\n${itemLines}`
-        if (total) msg += `\n\nTotal : ${Number(total).toLocaleString('fr-FR')} ${currency}`
+        if (total != null) {
+            const n = Number(total)
+            msg += `\n\nTotal : ${Number.isNaN(n) ? total : n.toLocaleString('fr-FR') + ' ' + currency}`
+        }
         msg += `\n\nSouhaitez-vous finaliser votre commande ? Je suis là pour vous aider. 😊`
         return msg
     },
@@ -77,7 +80,10 @@ const templates: Record<string, TemplateBuilder> = {
         const currency = ctx.cart?.currency ?? 'FCFA'
 
         let msg = `Bonjour ${name} ! ✅\n\nVotre commande *#${ref}* a bien été reçue et est en cours de traitement.`
-        if (total) msg += `\nMontant : ${Number(total).toLocaleString('fr-FR')} ${currency}`
+        if (total != null) {
+            const n = Number(total)
+            msg += `\nMontant : ${Number.isNaN(n) ? total : n.toLocaleString('fr-FR') + ' ' + currency}`
+        }
         msg += `\n\nVous avez des questions sur votre commande ? Je suis disponible. 😊`
         return msg
     },
