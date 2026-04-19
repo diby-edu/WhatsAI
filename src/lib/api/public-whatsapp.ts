@@ -111,7 +111,8 @@ export async function queuePublicAssistantMessage(params: QueuePublicAssistantMe
             role: 'assistant',
             content: message,
             whatsapp_message_id: null,
-            status: 'pending',
+            // Public API sends are transported by outbound_messages, not by the assistant pending-message pipeline.
+            status: 'sent',
             metadata: messageMetadata || null,
         })
     }
