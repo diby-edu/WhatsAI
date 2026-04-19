@@ -8,9 +8,7 @@
 
 const { MessagingService } = require('../services/messaging.service')
 const { resolveCanonicalJid } = require('../utils/jid')
-
-const processingMessages = new Set()
-const processingOutbound = new Set()
+const { processingMessages, processingOutbound } = require('../utils/queue-processing-state')
 
 async function simulateRealtimeTyping(socket, jid, text) {
     try {

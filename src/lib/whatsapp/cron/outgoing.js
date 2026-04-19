@@ -1,5 +1,6 @@
 const { MessagingService } = require('../services/messaging.service')
 const { resolveCanonicalJid } = require('../utils/jid')
+const { processingMessages, processingOutbound } = require('../utils/queue-processing-state')
 
 // Compteur horaire des broadcasts par agent (in-memory, reset auto)
 const broadcastHourlyCount = new Map() // agentId -> { count, windowStart }
@@ -91,33 +92,41 @@ async function sendHistoryMessage(supabase, session, msg) {
 }
 
 async function processHistoryMessage(supabase, activeSessions, agentStateCache, msg) {
+    if (processingMessages.has(msg.id)) {
+        console.log(`[HISTORY] Skipping ${msg.id}: already being processed by another delivery path`)
+        return
+    }
+    processingMessages.add(msg.id)
+
     const agentId = msg.conversation.agent_id
     const isManualResponse = msg?.metadata?.manual_response === true
-    const isActive = await getAgentIsActive(supabase, agentId, agentStateCache)
-    if (!isActive) {
-        await supabase.from('messages')
-            .update({ status: 'failed', error_message: 'agent_inactive' })
-            .eq('id', msg.id)
-        return
-    }
-
-    const conversationBlocked =
-        msg.conversation.bot_paused === true ||
-        msg.conversation.status === 'escalated' ||
-        msg.conversation.status === 'spam'
-
-    if (conversationBlocked && !isManualResponse) {
-        console.log(`[HISTORY] Skipping pending msg ${msg.id}: conversation ${msg.conversation_id} is bot_paused`)
-        return
-    }
-
-    const session = activeSessions.get(agentId)
-    if (!session?.socket) return
-
     try {
+        const isActive = await getAgentIsActive(supabase, agentId, agentStateCache)
+        if (!isActive) {
+            await supabase.from('messages')
+                .update({ status: 'failed', error_message: 'agent_inactive' })
+                .eq('id', msg.id)
+            return
+        }
+
+        const conversationBlocked =
+            msg.conversation.bot_paused === true ||
+            msg.conversation.status === 'escalated' ||
+            msg.conversation.status === 'spam'
+
+        if (conversationBlocked && !isManualResponse) {
+            console.log(`[HISTORY] Skipping pending msg ${msg.id}: conversation ${msg.conversation_id} is bot_paused`)
+            return
+        }
+
+        const session = activeSessions.get(agentId)
+        if (!session?.socket) return
+
         await sendHistoryMessage(supabase, session, msg)
     } catch (sendError) {
         await handleHistorySendError(supabase, msg, sendError)
+    } finally {
+        processingMessages.delete(msg.id)
     }
 }
 
@@ -192,28 +201,36 @@ async function sendOutboundMessage(supabase, session, msg) {
 }
 
 async function processOutboundMessage(supabase, activeSessions, agentStateCache, msg) {
-    const isActive = await getAgentIsActive(supabase, msg.agent_id, agentStateCache)
-    if (!isActive) {
-        await markOutboundFailed(supabase, msg.id, 'agent_inactive')
+    if (processingOutbound.has(msg.id)) {
+        console.log(`[OUTBOUND] Skipping ${msg.id}: already being processed by another delivery path`)
         return
     }
-
-    const session = activeSessions.get(msg.agent_id)
-    if (!session?.socket || !session.socket.user) {
-        console.log(`Agent ${msg.agent_id} socket not ready (disconnected or QR pending), keeping in queue`)
-        return
-    }
-
-    const hourlyCount = getBroadcastCount(msg.agent_id)
-    if (hourlyCount >= BROADCAST_HOURLY_LIMIT) {
-        console.log(`Broadcast limit reached for agent ${msg.agent_id} (${hourlyCount}/h) - retry next cycle`)
-        return
-    }
+    processingOutbound.add(msg.id)
 
     try {
+        const isActive = await getAgentIsActive(supabase, msg.agent_id, agentStateCache)
+        if (!isActive) {
+            await markOutboundFailed(supabase, msg.id, 'agent_inactive')
+            return
+        }
+
+        const session = activeSessions.get(msg.agent_id)
+        if (!session?.socket || !session.socket.user) {
+            console.log(`Agent ${msg.agent_id} socket not ready (disconnected or QR pending), keeping in queue`)
+            return
+        }
+
+        const hourlyCount = getBroadcastCount(msg.agent_id)
+        if (hourlyCount >= BROADCAST_HOURLY_LIMIT) {
+            console.log(`Broadcast limit reached for agent ${msg.agent_id} (${hourlyCount}/h) - retry next cycle`)
+            return
+        }
+
         await sendOutboundMessage(supabase, session, msg)
     } catch (sendError) {
         await handleOutboundSendError(supabase, msg, sendError)
+    } finally {
+        processingOutbound.delete(msg.id)
     }
 }
 
