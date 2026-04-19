@@ -9,6 +9,7 @@
 const { MessagingService } = require('../services/messaging.service')
 const { resolveCanonicalJid } = require('../utils/jid')
 const { processingMessages, processingOutbound } = require('../utils/queue-processing-state')
+const { isExternallyTransportedAssistantMessage } = require('../utils/delivery-path')
 
 async function simulateRealtimeTyping(socket, jid, text) {
     try {
@@ -161,6 +162,14 @@ async function handlePendingMessage(context, message) {
     processingMessages.add(message.id)
 
     try {
+        if (isExternallyTransportedAssistantMessage(message)) {
+            console.log(`[REALTIME] Skipping pending assistant message ${message.id}: outbound_messages is the delivery source`)
+            await supabase.from('messages')
+                .update({ status: 'sent' })
+                .eq('id', message.id)
+            return
+        }
+
         const isManualResponse = message?.metadata?.manual_response === true
         const { data: conv } = await supabase
             .from('conversations')
