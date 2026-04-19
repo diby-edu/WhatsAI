@@ -123,6 +123,7 @@ export default function NewAgentPage() {
         name: '',
         description: '',
         mission: '',
+        ecommerce_mode: 'native' as 'native' | 'external_sync',
         systemPrompt: '',
         personality: 'friendly',
         useEmojis: true,
@@ -165,7 +166,9 @@ export default function NewAgentPage() {
         lead_redirect_message: '',
         lead_collect_fields: ['name', 'phone'] as string[],
         // SUPPORT
-        fallback_contact_message: ''
+        fallback_contact_message: '',
+        live_query_url: '',
+        live_query_secret: ''
     })
 
     const steps = [
@@ -179,6 +182,7 @@ export default function NewAgentPage() {
     ]
 
     const isSupportClient = formData.mission === 'support_client'
+    const isExternalSync = formData.mission === 'ecommerce' && formData.ecommerce_mode === 'external_sync'
 
     const missionTemplates = [
         {
@@ -329,6 +333,31 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
         },
     ]
 
+    const getMissionPrompt = (
+        templateId: string,
+        ecommerceMode: 'native' | 'external_sync' = formData.ecommerce_mode
+    ) => {
+        const basePrompt = missionTemplates.find(template => template.id === templateId)?.prompt || ''
+        if (templateId !== 'ecommerce' || ecommerceMode !== 'external_sync') {
+            return basePrompt
+        }
+
+        return `Tu es l'assistant commercial de notre boutique connectee a une plateforme externe.
+
+Ton role:
+- Accueillir les clients et repondre a leurs questions
+- Presenter les produits connus via les donnees synchronisees
+- Aider le client a choisir selon ses besoins
+- Rediriger l'achat vers la plateforme externe lorsque le client veut commander
+
+Regles:
+- N'invente jamais un produit, un stock ou un prix
+- Utilise les donnees synchronisees comme source principale
+- N'ouvre jamais un panier ou un checkout natif WazzapAI
+- Si l'information manque, dis que la verification est en cours ou redirige vers le SAV
+- Si le client veut payer ou finaliser une commande, oriente-le vers la plateforme externe`
+    }
+
     const personalities = [
         { id: 'professional', name: t('Form.personality.types.professional'), emoji: '👔', description: t('Form.personality.types.professional') },
         { id: 'friendly', name: t('Form.personality.types.friendly'), emoji: '😊', description: t('Form.personality.types.friendly') },
@@ -341,9 +370,24 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
     }
 
     const selectMissionTemplate = (template: typeof missionTemplates[0]) => {
-        updateFormData('mission', template.id)
-        // Always force the secure template prompt, no manual override allowed
-        updateFormData('systemPrompt', template.prompt)
+        const nextEcommerceMode = template.id === 'ecommerce' ? formData.ecommerce_mode : 'native'
+        setFormData(prev => ({
+            ...prev,
+            mission: template.id,
+            ecommerce_mode: nextEcommerceMode,
+            // Always force the secure template prompt, no manual override allowed
+            systemPrompt: getMissionPrompt(template.id, nextEcommerceMode)
+        }))
+    }
+
+    const setEcommerceMode = (mode: 'native' | 'external_sync') => {
+        setFormData(prev => ({
+            ...prev,
+            ecommerce_mode: mode,
+            systemPrompt: prev.mission === 'ecommerce'
+                ? getMissionPrompt('ecommerce', mode)
+                : prev.systemPrompt
+        }))
     }
 
     const canProceed = () => {
@@ -525,6 +569,7 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
                     longitude: parseFloat(formData.longitude) || null,
                     business_hours: formData.business_hours,
                     custom_rules: formData.custom_rules,
+                    ecommerce_mode: formData.ecommerce_mode,
                     // Payment Settings
                     payment_mode: formData.payment_mode,
                     mobile_money_orange: formData.mobile_money_orange || null,
@@ -546,6 +591,8 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
                     lead_redirect_message: formData.lead_redirect_message || null,
                     lead_collect_fields: formData.lead_collect_fields,
                     fallback_contact_message: formData.fallback_contact_message || null,
+                    live_query_url: formData.live_query_url || null,
+                    live_query_secret: formData.live_query_secret || null,
                     mission: formData.mission || null,
                 }),
             })
@@ -834,6 +881,65 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
                             </div>
                         )}
 
+                        {formData.mission === 'ecommerce' && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0' }}>
+                                    Mode e-commerce
+                                </label>
+                                <div className="agent-grid-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setEcommerceMode('native')}
+                                        style={{
+                                            padding: 16,
+                                            borderRadius: 12,
+                                            border: `2px solid ${formData.ecommerce_mode === 'native' ? '#10b981' : 'rgba(148, 163, 184, 0.1)'}`,
+                                            background: formData.ecommerce_mode === 'native' ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
+                                            textAlign: 'left',
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        <h3 style={{ fontWeight: 600, color: 'white', marginBottom: 4 }}>Native</h3>
+                                        <p style={{ fontSize: 13, color: '#94a3b8' }}>
+                                            Catalogue WazzapAI + commandes et checkout natifs.
+                                        </p>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setEcommerceMode('external_sync')}
+                                        style={{
+                                            padding: 16,
+                                            borderRadius: 12,
+                                            border: `2px solid ${formData.ecommerce_mode === 'external_sync' ? '#0ea5e9' : 'rgba(148, 163, 184, 0.1)'}`,
+                                            background: formData.ecommerce_mode === 'external_sync' ? 'rgba(14, 165, 233, 0.12)' : 'transparent',
+                                            textAlign: 'left',
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        <h3 style={{ fontWeight: 600, color: 'white', marginBottom: 4 }}>Catalogue externe via API</h3>
+                                        <p style={{ fontSize: 13, color: '#94a3b8' }}>
+                                            Catalogue synchronise par API + checkout gere par votre plateforme.
+                                        </p>
+                                    </button>
+                                </div>
+
+                                {isExternalSync && (
+                                    <div style={{
+                                        padding: 14,
+                                        background: 'rgba(14, 165, 233, 0.08)',
+                                        border: '1px solid rgba(14, 165, 233, 0.25)',
+                                        borderRadius: 12,
+                                        color: '#bae6fd',
+                                        fontSize: 13,
+                                        lineHeight: 1.6
+                                    }}>
+                                        Ce mode est prevu pour une plateforme connectee. Les produits viendront de l&apos;API publique
+                                        via <strong> /sync</strong>. Les commandes et paiements resteront geres hors du checkout natif WazzapAI.
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
                         {isSupportClient && (
                             <div>
                                 <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
@@ -915,6 +1021,12 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
             case 1: // INFO
                 return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                        {isExternalSync && (
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px', background: 'rgba(14, 165, 233, 0.08)', border: '1px solid rgba(14, 165, 233, 0.2)', borderRadius: 10, fontSize: 13, color: '#bae6fd' }}>
+                                <span>â„¹ï¸</span>
+                                <span>En mode external_sync, cette etape definit l'identite commerciale de l'agent. Le catalogue sera fourni par votre plateforme via l'API publique <strong>/sync</strong>.</span>
+                            </div>
+                        )}
                         {isSupportClient && (
                             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px', background: 'rgba(99, 102, 241, 0.08)', border: '1px solid rgba(99, 102, 241, 0.2)', borderRadius: 10, fontSize: 13, color: '#a5b4fc' }}>
                                 <span>ℹ️</span>
@@ -958,6 +1070,11 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
                                     Générer (1 crédit)
                                 </button>
                             </label>
+                            {isExternalSync && (
+                                <div style={{ marginBottom: 10, padding: '10px 12px', borderRadius: 10, background: 'rgba(14, 165, 233, 0.08)', border: '1px solid rgba(14, 165, 233, 0.2)', color: '#bae6fd', fontSize: 12, lineHeight: 1.6 }}>
+                                    En mode external_sync, rappelez ici que le catalogue vient de l&apos;API, que le checkout natif WazzapAI ne doit jamais s&apos;ouvrir, et que l&apos;achat doit se faire sur votre plateforme.
+                                </div>
+                            )}
                             <textarea
                                 value={formData.description}
                                 onChange={(e) => updateFormData('description', e.target.value)}
@@ -1336,6 +1453,21 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
                             </select>
                         </div>
 
+                        {isExternalSync && (
+                            <div style={{
+                                padding: 16,
+                                borderRadius: 12,
+                                background: 'rgba(14, 165, 233, 0.08)',
+                                border: '1px solid rgba(14, 165, 233, 0.2)',
+                                color: '#bae6fd',
+                                fontSize: 13,
+                                lineHeight: 1.6
+                            }}>
+                                En mode <strong>external_sync</strong>, WazzapAI n&apos;utilise pas le checkout natif.
+                                Le catalogue vient de <strong>/sync</strong> et les evenements metier viennent de <strong>/trigger</strong>.
+                            </div>
+                        )}
+
                         {/* Voice Settings (Premium) — hidden, text-only responses */}
                         <div style={{ display: 'none' }}>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: formData.enableVoice ? 16 : 0 }}>
@@ -1578,7 +1710,11 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
                             <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 12 }}>
                                 Mode de Paiement
                             </label>
-                            {isSupportClient ? (
+                            {isExternalSync ? (
+                                <div style={{ fontSize: 13, color: '#94a3b8', padding: '10px 14px', background: 'rgba(30,41,59,0.5)', borderRadius: 10, border: '1px solid rgba(148,163,184,0.1)', lineHeight: 1.6 }}>
+                                    Les commandes et paiements sont geres par votre plateforme externe. Le checkout natif WazzapAI est desactive pour cet agent.
+                                </div>
+                            ) : isSupportClient ? (
                                 <div style={{ fontSize: 13, color: '#94a3b8', padding: '10px 14px', background: 'rgba(30,41,59,0.5)', borderRadius: 10, border: '1px solid rgba(148,163,184,0.1)' }}>
                                     Paiement manuel activé automatiquement (mode Support Client).
                                 </div>
@@ -1617,7 +1753,7 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
                         </div>
 
                         {/* Mobile Money Numbers (only if direct mode or support client) */}
-                        {(formData.payment_mode === 'mobile_money_direct' || isSupportClient) && (
+                        {!isExternalSync && (formData.payment_mode === 'mobile_money_direct' || isSupportClient) && (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 16 }}>
                                 <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0' }}>
                                     {MANUAL_PAYMENT_METHODS_LABEL}
@@ -1737,6 +1873,38 @@ Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact dir
 
                                 <div style={{ marginTop: 8, fontSize: 12, color: '#fbbf24', background: 'rgba(251, 191, 36, 0.1)', padding: 12, borderRadius: 8 }}>
                                     ⚠️ Avec ce mode, les clients enverront une capture d'écran après paiement. Vous devrez vérifier manuellement dans Commandes.
+                                </div>
+                            </div>
+                        )}
+
+                        {isExternalSync && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
+                                        Live Query URL (optionnel)
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={formData.live_query_url}
+                                        onChange={(e) => updateFormData('live_query_url', e.target.value)}
+                                        placeholder="https://votre-plateforme.com/api/wazzap/live-query"
+                                        style={inputStyle}
+                                    />
+                                    <p style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
+                                        Utilise pour interroger votre plateforme en temps reel pendant une conversation entrante.
+                                    </p>
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
+                                        Live Query Secret (optionnel)
+                                    </label>
+                                    <input
+                                        type="password"
+                                        value={formData.live_query_secret}
+                                        onChange={(e) => updateFormData('live_query_secret', e.target.value)}
+                                        placeholder="secret interne pour signer les requetes"
+                                        style={inputStyle}
+                                    />
                                 </div>
                             </div>
                         )}

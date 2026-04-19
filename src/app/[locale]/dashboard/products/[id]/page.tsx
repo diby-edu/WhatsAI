@@ -27,6 +27,7 @@ import { createBrowserClient } from '@supabase/ssr'
 import { useTranslations } from 'next-intl'
 import ProductVariantsEditor, { VariantGroup, ProductCombination } from '@/components/dashboard/ProductVariantsEditor'
 import { convertFromFcfa, convertToFcfa } from '@/lib/currency'
+import { getManualProductsBlockedReason } from '@/lib/agents/ecommerce-mode'
 
 const RESTAURANT_MENU_SECTIONS = [
     { id: 'starters', label: 'Entrees' },
@@ -46,6 +47,8 @@ const STEPS = [
 interface Agent {
     id: string
     name: string
+    mission?: string
+    ecommerce_mode?: string | null
 }
 
 export default function EditProductPage({ params }: { params: Promise<{ id: string }> }) {
@@ -585,8 +588,24 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                                         className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
                                     >
                                         <option value="">Tous les agents</option>
-                                        {agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                                        {agents.map(a => (
+                                            <option key={a.id} value={a.id} disabled={!!getManualProductsBlockedReason(a)}>
+                                                {a.name}
+                                                {a.mission === 'support_client' ? ' (Support - KB uniquement)' : ''}
+                                                {a.mission === 'ecommerce' && a.ecommerce_mode === 'external_sync' ? ' (API externe uniquement)' : ''}
+                                            </option>
+                                        ))}
                                     </select>
+                                    {(() => {
+                                        const selectedAgent = agents.find(a => a.id === formData.agent_id)
+                                        const blockedReason = getManualProductsBlockedReason(selectedAgent)
+                                        if (!blockedReason) return null
+                                        return (
+                                            <p style={{ marginTop: 6, fontSize: 12, color: '#f87171', background: 'rgba(239,68,68,0.08)', padding: '6px 10px', borderRadius: 8 }}>
+                                                â›” {blockedReason}
+                                            </p>
+                                        )
+                                    })()}
                                     {!formData.agent_id && agents.length > 1 && (
                                         <p style={{ marginTop: 6, fontSize: 12, color: '#fbbf24', background: 'rgba(251, 191, 36, 0.08)', padding: '6px 10px', borderRadius: 8 }}>
                                             ⚠️ Ce produit sera proposé par <strong>tous vos agents</strong>. Sélectionnez un agent pour le restreindre.

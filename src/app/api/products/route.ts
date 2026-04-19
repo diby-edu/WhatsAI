@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import { createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
+import { getManualProductsBlockedReason } from '@/lib/agents/ecommerce-mode'
 
 function normalizeRestaurantMenuFields(body: any) {
     const isRestaurantService = body.product_type === 'service' && body.service_subtype === 'restaurant'
@@ -62,19 +63,21 @@ export async function POST(request: NextRequest) {
 
         // v2.19: Mandatory service_subtype validation
         if (body.product_type === 'service' && !body.service_subtype) {
-            return errorResponse('Catégorie de service obligatoire', 400)
+            return errorResponse('CatÃ©gorie de service obligatoire', 400)
         }
 
-        // Bloquer l'ajout de produit sur un agent Support Client
+        // Bloquer l'ajout de produit sur un agent Support Client ou external_sync
         if (body.agent_id) {
             const { data: agentCheck } = await supabase
                 .from('agents')
-                .select('mission')
+                .select('mission, ecommerce_mode')
                 .eq('id', body.agent_id)
                 .eq('user_id', user.id)
                 .single()
-            if (agentCheck?.mission === 'support_client') {
-                return errorResponse('Impossible d\'ajouter un produit à un agent Support Client. Utilisez la Base de Connaissances.', 400)
+
+            const blockedReason = getManualProductsBlockedReason(agentCheck)
+            if (blockedReason) {
+                return errorResponse(blockedReason, 400)
             }
         }
 
@@ -115,6 +118,6 @@ export async function POST(request: NextRequest) {
         return successResponse({ product }, 201)
     } catch (err) {
         console.error('Error creating product:', err)
-        return errorResponse('Erreur lors de la création', 500)
+        return errorResponse('Erreur lors de la crÃ©ation', 500)
     }
 }

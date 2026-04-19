@@ -23,6 +23,7 @@ import { createBrowserClient } from '@supabase/ssr'
 import { useTranslations } from 'next-intl'
 import ProductVariantsEditor, { VariantGroup, ProductCombination } from '@/components/dashboard/ProductVariantsEditor'
 import { convertToFcfa, convertFromFcfa } from '@/lib/currency'
+import { getManualProductsBlockedReason } from '@/lib/agents/ecommerce-mode'
 
 const RESTAURANT_MENU_SECTIONS = [
     { id: 'starters', label: 'Entrées' },
@@ -40,7 +41,7 @@ export default function NewProductPage() {
     const [currentStep, setCurrentStep] = useState(0)
     const [loading, setLoading] = useState(false)
     const [uploading, setUploading] = useState(false)
-    const [agents, setAgents] = useState<{ id: string, name: string, mission?: string }[]>([])
+    const [agents, setAgents] = useState<{ id: string, name: string, mission?: string, ecommerce_mode?: string | null }[]>([])
     const [featureFlags, setFeatureFlags] = useState<Record<string, boolean>>({})
 
     useEffect(() => {
@@ -245,7 +246,8 @@ export default function NewProductPage() {
     useEffect(() => {
         if (agents.length === 0) return
         const lastAgentId = localStorage.getItem('product_last_agent_id')
-        if (lastAgentId && agents.some(a => a.id === lastAgentId)) {
+        const lastAgent = agents.find(a => a.id === lastAgentId)
+        if (lastAgentId && lastAgent && !getManualProductsBlockedReason(lastAgent)) {
             setFormData(prev => ({ ...prev, agent_id: lastAgentId }))
         }
     }, [agents])
@@ -347,7 +349,7 @@ export default function NewProductPage() {
 
     const loadAgents = async () => {
         try {
-            const { data } = await supabase.from('agents').select('id, name, mission')
+            const { data } = await supabase.from('agents').select('id, name, mission, ecommerce_mode')
             if (data) setAgents(data)
         } catch (e) { }
     }
@@ -1078,12 +1080,23 @@ export default function NewProductPage() {
                             >
                                 <option value="">Tous les agents</option>
                                 {agents.map(a => (
-                                    <option key={a.id} value={a.id} disabled={a.mission === 'support_client'}>
+                                    <option key={a.id} value={a.id} disabled={!!getManualProductsBlockedReason(a)}>
                                         {a.name}{a.mission === 'support_client' ? ' (Support — KB uniquement)' : ''}
+                                        {a.mission === 'ecommerce' && a.ecommerce_mode === 'external_sync' ? ' (API externe uniquement)' : ''}
                                     </option>
                                 ))}
                             </select>
-                            {formData.agent_id && agents.find(a => a.id === formData.agent_id)?.mission === 'support_client' && (
+                            {(() => {
+                                const selectedAgent = agents.find(a => a.id === formData.agent_id)
+                                const blockedReason = getManualProductsBlockedReason(selectedAgent)
+                                if (!blockedReason) return null
+                                return (
+                                    <p style={{ marginTop: 6, fontSize: 12, color: '#f87171', background: 'rgba(239,68,68,0.08)', padding: '6px 10px', borderRadius: 8 }}>
+                                        â›” {blockedReason}
+                                    </p>
+                                )
+                            })()}
+                            {formData.agent_id && !getManualProductsBlockedReason(agents.find(a => a.id === formData.agent_id)) && agents.find(a => a.id === formData.agent_id)?.mission === 'support_client' && (
                                 <p style={{ marginTop: 6, fontSize: 12, color: '#f87171', background: 'rgba(239,68,68,0.08)', padding: '6px 10px', borderRadius: 8 }}>
                                     ⛔ Les agents Support Client n'acceptent pas de produits. Utilisez la Base de Connaissances pour cet agent.
                                 </p>

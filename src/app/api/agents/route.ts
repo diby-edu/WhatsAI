@@ -4,6 +4,7 @@ import { notifyAdmins } from '@/lib/notifications/admin-notify'
 import { getAIRuntimeSettings } from '@/lib/admin/settings'
 import { normalizeAgentPaymentMode } from '@/lib/payments/payment-mode-display'
 import { buildAccountLifecycleAccessState, getAccountLifecycleBlockMessage } from '@/lib/account-lifecycle'
+import { resolveAgentEcommerceMode } from '@/lib/agents/ecommerce-mode'
 
 function normalizeRestaurantDepositSettings(body: any) {
     const enabled = !!body.restaurant_deposit_enabled
@@ -72,6 +73,7 @@ export async function POST(request: NextRequest) {
         const aiDefaults = await getAIRuntimeSettings(adminSupabase)
         const restaurantDepositSettings = normalizeRestaurantDepositSettings(body)
         const paymentMode = normalizeAgentPaymentMode(body.payment_mode)
+        const ecommerceMode = resolveAgentEcommerceMode(body.mission, body.ecommerce_mode)
 
         // Validate required fields
         if (!body.name) {
@@ -175,6 +177,7 @@ export async function POST(request: NextRequest) {
                 lead_collect_fields: body.lead_collect_fields || ['name', 'phone'],
                 fallback_contact_message: body.fallback_contact_message || null,
                 mission: body.mission || null,
+                ecommerce_mode: ecommerceMode,
                 // Payment & escalation (Support Client + transactionnel)
                 payment_mode: paymentMode,
                 mobile_money_orange: body.mobile_money_orange || null,
@@ -182,6 +185,8 @@ export async function POST(request: NextRequest) {
                 mobile_money_wave: body.mobile_money_wave || null,
                 custom_payment_methods: body.custom_payment_methods || null,
                 escalation_phone: body.escalation_phone || null,
+                live_query_url: body.live_query_url || null,
+                live_query_secret: body.live_query_secret || null,
                 ...restaurantDepositSettings
             })
             .select()

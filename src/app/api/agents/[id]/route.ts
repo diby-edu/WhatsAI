@@ -173,6 +173,10 @@ export async function PATCH(
             currentAgent = data
         }
 
+        if (body.ecommerce_mode !== undefined) {
+            return errorResponse("Le mode e-commerce ne peut pas etre modifie apres la creation de l'agent.", 400)
+        }
+
         if (depositSettingsTouched) {
             Object.assign(updates, normalizeRestaurantDepositSettings({
                 restaurant_deposit_enabled:
