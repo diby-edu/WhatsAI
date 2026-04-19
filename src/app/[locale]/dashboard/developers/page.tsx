@@ -27,6 +27,7 @@ interface AgentSummary {
     mission?: string | null
     is_active?: boolean
     archived_at?: string | null
+    ecommerce_mode?: string | null
 }
 
 interface ApiKey {
@@ -163,7 +164,7 @@ export default function DevelopersPage() {
     const [logKeyFilterId, setLogKeyFilterId] = useState<string>('all')
 
     const activeAgents = useMemo(
-        () => agents.filter(agent => !agent.archived_at),
+        () => agents.filter(agent => !agent.archived_at && agent.ecommerce_mode === 'external_sync'),
         [agents]
     )
 
@@ -305,7 +306,6 @@ export default function DevelopersPage() {
 
     const createKey = async () => {
         if (!newKeyName.trim()) return
-        if (newKeyScopeMode === 'selected' && newKeyAllowedAgentIds.length === 0) return
 
         setCreatingKey(true)
         setPageError(null)
@@ -318,7 +318,7 @@ export default function DevelopersPage() {
                     name: newKeyName.trim(),
                     environment: newKeyEnv,
                     rate_limit_per_minute: newKeyLimit,
-                    allowed_agent_ids: newKeyScopeMode === 'all' ? null : newKeyAllowedAgentIds,
+                    allowed_agent_ids: newKeyAllowedAgentIds.length > 0 ? newKeyAllowedAgentIds : null,
                 }),
             })
 
@@ -373,7 +373,6 @@ export default function DevelopersPage() {
 
     const saveKeyScope = async () => {
         if (!editingKeyId) return
-        if (editingKeyScopeMode === 'selected' && editingKeyAllowedAgentIds.length === 0) return
 
         setSavingKeyScope(true)
         setPageError(null)
@@ -383,7 +382,7 @@ export default function DevelopersPage() {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    allowed_agent_ids: editingKeyScopeMode === 'all' ? null : editingKeyAllowedAgentIds,
+                    allowed_agent_ids: editingKeyAllowedAgentIds.length > 0 ? editingKeyAllowedAgentIds : null,
                 }),
             })
 
@@ -722,86 +721,64 @@ export default function DevelopersPage() {
                             </div>
 
                             <div style={{ marginTop: 18 }}>
-                                <div style={{ fontSize: 12, marginBottom: 8, color: 'var(--text-secondary, #9ca3af)' }}>
-                                    Scope agent
+                                <div style={{ fontSize: 12, marginBottom: 4, color: 'var(--text-secondary, #9ca3af)' }}>
+                                    Agents autorisés
                                 </div>
-                                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
-                                    <button
-                                        onClick={() => setNewKeyScopeMode('all')}
-                                        style={{
-                                            ...secondaryButtonStyle,
-                                            background: newKeyScopeMode === 'all' ? 'rgba(37,211,102,0.12)' : 'transparent',
-                                            color: newKeyScopeMode === 'all' ? '#25d366' : 'var(--text-secondary, #9ca3af)',
-                                        }}
-                                    >
-                                        Tous mes agents
-                                    </button>
-                                    <button
-                                        onClick={() => setNewKeyScopeMode('selected')}
-                                        style={{
-                                            ...secondaryButtonStyle,
-                                            background: newKeyScopeMode === 'selected' ? 'rgba(37,211,102,0.12)' : 'transparent',
-                                            color: newKeyScopeMode === 'selected' ? '#25d366' : 'var(--text-secondary, #9ca3af)',
-                                        }}
-                                    >
-                                        Agents selectionnes
-                                    </button>
+                                <div style={{ fontSize: 11, color: 'var(--text-secondary, #9ca3af)', marginBottom: 10, opacity: 0.7 }}>
+                                    Laissez tout décoché pour autoriser tous vos agents catalogue.
                                 </div>
-
-                                {newKeyScopeMode === 'selected' && (
-                                    <div style={{
-                                        border: '1px solid var(--border, #2a2a3e)',
-                                        borderRadius: 12,
-                                        padding: 14,
-                                        background: 'rgba(255,255,255,0.02)',
-                                    }}>
-                                        {agentsLoading ? (
-                                            <div style={{ color: 'var(--text-secondary, #9ca3af)', fontSize: 13 }}>Chargement des agents...</div>
-                                        ) : activeAgents.length === 0 ? (
-                                            <div style={{ color: '#f59e0b', fontSize: 13 }}>
-                                                Aucun agent disponible. Cree d abord un agent, ou laisse cette cle sur "Tous mes agents".
-                                            </div>
-                                        ) : (
-                                            <div style={{ display: 'grid', gap: 8 }}>
-                                                {activeAgents.map(agent => (
-                                                    <label
-                                                        key={agent.id}
-                                                        style={{
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            gap: 10,
-                                                            padding: '8px 10px',
-                                                            borderRadius: 8,
-                                                            background: 'rgba(255,255,255,0.03)',
-                                                            color: 'var(--text-primary, #fff)',
-                                                            fontSize: 13,
-                                                            cursor: 'pointer',
-                                                        }}
-                                                    >
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={newKeyAllowedAgentIds.includes(agent.id)}
-                                                            onChange={() => toggleAgentSelection(newKeyAllowedAgentIds, agent.id, setNewKeyAllowedAgentIds)}
-                                                        />
-                                                        <span>{agent.name}</span>
-                                                        {!agent.is_active && (
-                                                            <span style={{ color: '#f59e0b', fontSize: 11 }}>(inactif)</span>
-                                                        )}
-                                                    </label>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
+                                <div style={{
+                                    border: '1px solid var(--border, #2a2a3e)',
+                                    borderRadius: 12,
+                                    padding: 14,
+                                    background: 'rgba(255,255,255,0.02)',
+                                }}>
+                                    {agentsLoading ? (
+                                        <div style={{ color: 'var(--text-secondary, #9ca3af)', fontSize: 13 }}>Chargement des agents...</div>
+                                    ) : activeAgents.length === 0 ? (
+                                        <div style={{ color: '#f59e0b', fontSize: 13 }}>
+                                            Aucun agent en mode catalogue externe. Activez ce mode dans les paramètres de l'agent.
+                                        </div>
+                                    ) : (
+                                        <div style={{ display: 'grid', gap: 8 }}>
+                                            {activeAgents.map(agent => (
+                                                <label
+                                                    key={agent.id}
+                                                    style={{
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: 10,
+                                                        padding: '8px 10px',
+                                                        borderRadius: 8,
+                                                        background: 'rgba(255,255,255,0.03)',
+                                                        color: 'var(--text-primary, #fff)',
+                                                        fontSize: 13,
+                                                        cursor: 'pointer',
+                                                    }}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={newKeyAllowedAgentIds.includes(agent.id)}
+                                                        onChange={() => toggleAgentSelection(newKeyAllowedAgentIds, agent.id, setNewKeyAllowedAgentIds)}
+                                                    />
+                                                    <span>{agent.name}</span>
+                                                    {!agent.is_active && (
+                                                        <span style={{ color: '#f59e0b', fontSize: 11 }}>(inactif)</span>
+                                                    )}
+                                                </label>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
 
                             <div style={{ display: 'flex', gap: 10, marginTop: 18, flexWrap: 'wrap' }}>
                                 <button
                                     onClick={createKey}
-                                    disabled={creatingKey || !newKeyName.trim() || (newKeyScopeMode === 'selected' && newKeyAllowedAgentIds.length === 0)}
+                                    disabled={creatingKey || !newKeyName.trim()}
                                     style={{
                                         ...primaryButtonStyle,
-                                        opacity: creatingKey || !newKeyName.trim() || (newKeyScopeMode === 'selected' && newKeyAllowedAgentIds.length === 0) ? 0.6 : 1,
+                                        opacity: creatingKey || !newKeyName.trim() ? 0.6 : 1,
                                         cursor: creatingKey ? 'not-allowed' : 'pointer',
                                     }}
                                 >
@@ -1036,64 +1013,46 @@ export default function DevelopersPage() {
                                                             border: '1px solid var(--border, #2a2a3e)',
                                                             background: 'rgba(255,255,255,0.02)',
                                                         }}>
-                                                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
-                                                                <button
-                                                                    onClick={() => setEditingKeyScopeMode('all')}
-                                                                    style={{
-                                                                        ...secondaryButtonStyle,
-                                                                        background: editingKeyScopeMode === 'all' ? 'rgba(37,211,102,0.12)' : 'transparent',
-                                                                        color: editingKeyScopeMode === 'all' ? '#25d366' : 'var(--text-secondary, #9ca3af)',
-                                                                    }}
-                                                                >
-                                                                    Tous mes agents
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => setEditingKeyScopeMode('selected')}
-                                                                    style={{
-                                                                        ...secondaryButtonStyle,
-                                                                        background: editingKeyScopeMode === 'selected' ? 'rgba(37,211,102,0.12)' : 'transparent',
-                                                                        color: editingKeyScopeMode === 'selected' ? '#25d366' : 'var(--text-secondary, #9ca3af)',
-                                                                    }}
-                                                                >
-                                                                    Agents selectionnes
-                                                                </button>
+                                                            <div style={{ fontSize: 11, color: 'var(--text-secondary, #9ca3af)', marginBottom: 10, opacity: 0.7 }}>
+                                                                Laissez tout décoché pour autoriser tous vos agents catalogue.
                                                             </div>
-
-                                                            {editingKeyScopeMode === 'selected' && (
-                                                                <div style={{ display: 'grid', gap: 8 }}>
-                                                                    {activeAgents.map(agent => (
-                                                                        <label
-                                                                            key={agent.id}
-                                                                            style={{
-                                                                                display: 'flex',
-                                                                                alignItems: 'center',
-                                                                                gap: 10,
-                                                                                padding: '8px 10px',
-                                                                                borderRadius: 8,
-                                                                                background: 'rgba(255,255,255,0.03)',
-                                                                                color: 'var(--text-primary, #fff)',
-                                                                                fontSize: 13,
-                                                                                cursor: 'pointer',
-                                                                            }}
-                                                                        >
-                                                                            <input
-                                                                                type="checkbox"
-                                                                                checked={editingKeyAllowedAgentIds.includes(agent.id)}
-                                                                                onChange={() => toggleAgentSelection(editingKeyAllowedAgentIds, agent.id, setEditingKeyAllowedAgentIds)}
-                                                                            />
-                                                                            <span>{agent.name}</span>
-                                                                        </label>
-                                                                    ))}
-                                                                </div>
-                                                            )}
+                                                            <div style={{ display: 'grid', gap: 8 }}>
+                                                                {activeAgents.length === 0 ? (
+                                                                    <div style={{ color: '#f59e0b', fontSize: 13 }}>
+                                                                        Aucun agent en mode catalogue externe.
+                                                                    </div>
+                                                                ) : activeAgents.map(agent => (
+                                                                    <label
+                                                                        key={agent.id}
+                                                                        style={{
+                                                                            display: 'flex',
+                                                                            alignItems: 'center',
+                                                                            gap: 10,
+                                                                            padding: '8px 10px',
+                                                                            borderRadius: 8,
+                                                                            background: 'rgba(255,255,255,0.03)',
+                                                                            color: 'var(--text-primary, #fff)',
+                                                                            fontSize: 13,
+                                                                            cursor: 'pointer',
+                                                                        }}
+                                                                    >
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={editingKeyAllowedAgentIds.includes(agent.id)}
+                                                                            onChange={() => toggleAgentSelection(editingKeyAllowedAgentIds, agent.id, setEditingKeyAllowedAgentIds)}
+                                                                        />
+                                                                        <span>{agent.name}</span>
+                                                                    </label>
+                                                                ))}
+                                                            </div>
 
                                                             <div style={{ display: 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
                                                                 <button
                                                                     onClick={saveKeyScope}
-                                                                    disabled={savingKeyScope || (editingKeyScopeMode === 'selected' && editingKeyAllowedAgentIds.length === 0)}
+                                                                    disabled={savingKeyScope}
                                                                     style={{
                                                                         ...primaryButtonStyle,
-                                                                        opacity: savingKeyScope || (editingKeyScopeMode === 'selected' && editingKeyAllowedAgentIds.length === 0) ? 0.6 : 1,
+                                                                        opacity: savingKeyScope ? 0.6 : 1,
                                                                     }}
                                                                 >
                                                                     {savingKeyScope ? 'Enregistrement...' : 'Enregistrer le scope'}
