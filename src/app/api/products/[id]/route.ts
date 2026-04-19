@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import { createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
+import { getManualProductsBlockedReason } from '@/lib/agents/ecommerce-mode'
 
 function normalizeRestaurantMenuFields(body: any) {
     const isRestaurantService = body.product_type === 'service' && body.service_subtype === 'restaurant'
@@ -44,7 +45,7 @@ export async function GET(
             .single()
 
         if (error || !product) {
-            return errorResponse('Produit non trouvé', 404)
+            return errorResponse('Produit non trouvÃ©', 404)
         }
 
         return successResponse({ product })
@@ -70,6 +71,21 @@ export async function PUT(
     try {
         const body = await request.json()
         const restaurantMenuFields = normalizeRestaurantMenuFields(body)
+        const targetAgentId = body.agent_id || null
+
+        if (targetAgentId) {
+            const { data: agentCheck } = await supabase
+                .from('agents')
+                .select('mission, ecommerce_mode')
+                .eq('id', targetAgentId)
+                .eq('user_id', user.id)
+                .single()
+
+            const blockedReason = getManualProductsBlockedReason(agentCheck)
+            if (blockedReason) {
+                return errorResponse(blockedReason, 400)
+            }
+        }
 
         const { data: product, error } = await supabase
             .from('products')
@@ -82,7 +98,7 @@ export async function PUT(
                 image_url: body.image_url,
                 is_available: body.is_available,
                 stock_quantity: body.stock_quantity,
-                agent_id: body.agent_id,
+                agent_id: targetAgentId,
                 product_type: body.product_type || 'product',
                 variants: body.variants,
                 combinations: body.combinations ?? null,
@@ -108,7 +124,7 @@ export async function PUT(
     } catch (err: any) {
         console.error('Error updating product:', err)
         const detail = err?.message || err?.details || err?.hint || JSON.stringify(err)
-        return errorResponse(`Erreur lors de la mise à jour: ${detail}`, 500)
+        return errorResponse(`Erreur lors de la mise Ã  jour: ${detail}`, 500)
     }
 }
 
@@ -143,21 +159,21 @@ export async function DELETE(
                 const pathParts = url.pathname.split('/images/')
                 if (pathParts.length > 1) {
                     const filePath = pathParts[1] // e.g., "products/1234567.webp"
-                    console.log('🗑️ Deleting image from storage:', filePath)
+                    console.log('ðŸ—‘ï¸ Deleting image from storage:', filePath)
 
                     const { error: storageError } = await supabase.storage
                         .from('images')
                         .remove([filePath])
 
                     if (storageError) {
-                        console.error('⚠️ Failed to delete image:', storageError)
+                        console.error('âš ï¸ Failed to delete image:', storageError)
                         // Continue with product deletion even if image cleanup fails
                     } else {
-                        console.log('✅ Image deleted from storage')
+                        console.log('âœ… Image deleted from storage')
                     }
                 }
             } catch (urlError) {
-                console.error('⚠️ Error parsing image URL:', urlError)
+                console.error('âš ï¸ Error parsing image URL:', urlError)
                 // Continue with product deletion
             }
         }
@@ -171,7 +187,7 @@ export async function DELETE(
 
         if (error) throw error
 
-        return successResponse({ message: 'Produit et image supprimés' })
+        return successResponse({ message: 'Produit et image supprimÃ©s' })
     } catch (err) {
         console.error('Error deleting product:', err)
         return errorResponse('Erreur lors de la suppression', 500)
