@@ -244,6 +244,44 @@ En clair :
 - `send` / `trigger` / `sync` / `status` / `conversation(s)` = API publique entrante
 - `live_query_url` = callback sortant de WazzapAI vers un systeme externe
 
+### Ou se configure le Live Query aujourd'hui
+
+Le support backend est bien implemente :
+
+- colonnes DB `agents.live_query_url` et `agents.live_query_secret`
+- lecture runtime dans le generateur IA
+- champs acceptes par `PATCH /api/agents/[id]`
+
+Important :
+
+- dans le dashboard agent, les champs existent visuellement
+- mais la section est actuellement desactivee cote UI
+- donc, en l'etat actuel, la configuration se fait soit par mise a jour backend authentifiee, soit directement en base
+
+En pratique, cela veut dire :
+
+- oui, la fonctionnalite existe techniquement
+- non, elle n'est pas encore "self-service" proprement accessible a tous les utilisateurs depuis l'UI
+
+Payload callback envoye par WazzapAI vers `live_query_url` :
+
+```json
+{
+  "customer_phone": "+2250700000000",
+  "message": "Ou en est ma commande 4587 ?",
+  "conversation_id": "UUID_CONVERSATION",
+  "agent_id": "UUID_AGENT"
+}
+```
+
+Reponse minimale attendue du systeme externe :
+
+```json
+{
+  "answer": "La commande 4587 est en preparation et part aujourd'hui."
+}
+```
+
 ## 6. Rate limiting actuel
 
 Dans le code actuel :
