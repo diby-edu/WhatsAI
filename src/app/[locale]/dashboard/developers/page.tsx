@@ -66,12 +66,40 @@ interface WebhookItem {
     secret?: string
 }
 
+interface PlatformConnectionItem {
+    id: string
+    name: string
+    provider: 'shopify' | 'woocommerce' | 'chariow' | 'maketou' | 'generic'
+    agent_id: string
+    allowed_events: string[] | null
+    rate_limit_per_minute: number
+    is_active: boolean
+    last_received_at: string | null
+    last_status_code: number | null
+    last_error: string | null
+    metadata?: Record<string, any> | null
+    created_at: string
+    updated_at: string
+    webhook_url: string
+    webhook_token_preview?: string | null
+    signing_secret?: string
+    signing_secret_masked?: string
+}
+
 const WEBHOOK_EVENTS = [
     'message.received',
     'message.sent',
     'conversation.started',
     'conversation.ended',
     'lead.collected',
+] as const
+
+const PLATFORM_PROVIDERS = [
+    { value: 'shopify', label: 'Shopify' },
+    { value: 'woocommerce', label: 'WooCommerce' },
+    { value: 'chariow', label: 'Chariow' },
+    { value: 'maketou', label: 'Maketou' },
+    { value: 'generic', label: 'Generic (custom)' },
 ] as const
 
 const sectionStyle: CSSProperties = {
@@ -124,11 +152,13 @@ export default function DevelopersPage() {
 
     const [keys, setKeys] = useState<ApiKey[]>([])
     const [webhooks, setWebhooks] = useState<WebhookItem[]>([])
+    const [platformConnections, setPlatformConnections] = useState<PlatformConnectionItem[]>([])
     const [logs, setLogs] = useState<UsageLog[]>([])
     const [agents, setAgents] = useState<AgentSummary[]>([])
 
     const [keysLoading, setKeysLoading] = useState(true)
     const [webhooksLoading, setWebhooksLoading] = useState(true)
+    const [platformConnectionsLoading, setPlatformConnectionsLoading] = useState(true)
     const [logsLoading, setLogsLoading] = useState(false)
     const [agentsLoading, setAgentsLoading] = useState(true)
 
@@ -158,6 +188,17 @@ export default function DevelopersPage() {
     const [editingWebhookEvents, setEditingWebhookEvents] = useState<string[]>([])
     const [savingWebhookEdit, setSavingWebhookEdit] = useState(false)
     const [deletingWebhookId, setDeletingWebhookId] = useState<string | null>(null)
+
+    const [showPlatformConnectionForm, setShowPlatformConnectionForm] = useState(false)
+    const [creatingPlatformConnection, setCreatingPlatformConnection] = useState(false)
+    const [newPlatformConnectionName, setNewPlatformConnectionName] = useState('')
+    const [newPlatformProvider, setNewPlatformProvider] = useState<PlatformConnectionItem['provider']>('shopify')
+    const [newPlatformAgentId, setNewPlatformAgentId] = useState('')
+    const [newPlatformExternalName, setNewPlatformExternalName] = useState('')
+    const [newPlatformRateLimit, setNewPlatformRateLimit] = useState(300)
+    const [newPlatformAllowedEvents, setNewPlatformAllowedEvents] = useState('')
+    const [deletingPlatformConnectionId, setDeletingPlatformConnectionId] = useState<string | null>(null)
+    const [rotatingPlatformConnectionId, setRotatingPlatformConnectionId] = useState<string | null>(null)
 
     const [copiedId, setCopiedId] = useState<string | null>(null)
     const [revealedKeyId, setRevealedKeyId] = useState<string | null>(null)
@@ -222,6 +263,22 @@ export default function DevelopersPage() {
         }
     }, [])
 
+    const fetchPlatformConnections = useCallback(async () => {
+        setPlatformConnectionsLoading(true)
+        try {
+            const res = await fetch('/api/developer/platform-connections')
+            const result = await res.json()
+            if (!res.ok) {
+                throw new Error(result.error || 'Impossible de charger les connexions plateforme')
+            }
+            setPlatformConnections(result.data || [])
+        } catch (error: any) {
+            setPageError(error.message || 'Impossible de charger les connexions plateforme')
+        } finally {
+            setPlatformConnectionsLoading(false)
+        }
+    }, [])
+
     const fetchLogs = useCallback(async (keyFilterId?: string) => {
         setLogsLoading(true)
         try {
@@ -245,14 +302,22 @@ export default function DevelopersPage() {
 
     useEffect(() => {
         setPageError(null)
-        void Promise.all([fetchKeys(), fetchAgents(), fetchWebhooks()])
-    }, [fetchAgents, fetchKeys, fetchWebhooks])
+        void Promise.all([fetchKeys(), fetchAgents(), fetchWebhooks(), fetchPlatformConnections()])
+    }, [fetchAgents, fetchKeys, fetchWebhooks, fetchPlatformConnections])
 
     useEffect(() => {
         if (activeTab === 'logs') {
             void fetchLogs(logKeyFilterId)
         }
     }, [activeTab, logKeyFilterId, fetchLogs])
+
+    useEffect(() => {
+        if (activeAgents.length === 0) return
+        const hasCurrent = activeAgents.some(agent => agent.id === newPlatformAgentId)
+        if (!newPlatformAgentId || !hasCurrent) {
+            setNewPlatformAgentId(activeAgents[0].id)
+        }
+    }, [activeAgents, newPlatformAgentId])
 
     const formatDate = (iso: string) =>
         new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
@@ -561,9 +626,127 @@ export default function DevelopersPage() {
         }
     }
 
+    const parseAllowedEventsInput = (value: string): string[] | null => {
+        const normalized = [...new Set(
+            value
+                .split(',')
+                .map(item => item.trim().toLowerCase())
+                .filter(Boolean)
+        )]
+        return normalized.length > 0 ? normalized : null
+    }
+
+    const resetPlatformConnectionForm = () => {
+        setNewPlatformConnectionName('')
+        setNewPlatformProvider('shopify')
+        setNewPlatformExternalName('')
+        setNewPlatformRateLimit(300)
+        setNewPlatformAllowedEvents('')
+    }
+
+    const createPlatformConnection = async () => {
+        if (!newPlatformConnectionName.trim() || !newPlatformAgentId) return
+
+        setCreatingPlatformConnection(true)
+        setPageError(null)
+
+        try {
+            const res = await fetch('/api/developer/platform-connections', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: newPlatformConnectionName.trim(),
+                    provider: newPlatformProvider,
+                    agent_id: newPlatformAgentId,
+                    external_platform_name: newPlatformExternalName.trim() || null,
+                    rate_limit_per_minute: newPlatformRateLimit,
+                    allowed_events: parseAllowedEventsInput(newPlatformAllowedEvents),
+                }),
+            })
+
+            const result = await res.json()
+            if (!res.ok) {
+                throw new Error(result.error || 'Impossible de creer la connexion plateforme')
+            }
+
+            setPlatformConnections(prev => [result.data, ...prev])
+            resetPlatformConnectionForm()
+            setShowPlatformConnectionForm(false)
+            setActiveTab('webhooks')
+        } catch (error: any) {
+            setPageError(error.message || 'Impossible de creer la connexion plateforme')
+        } finally {
+            setCreatingPlatformConnection(false)
+        }
+    }
+
+    const togglePlatformConnection = async (connection: PlatformConnectionItem) => {
+        setPageError(null)
+        try {
+            const res = await fetch(`/api/developer/platform-connections/${connection.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ is_active: !connection.is_active }),
+            })
+
+            const result = await res.json()
+            if (!res.ok) {
+                throw new Error(result.error || 'Impossible de modifier la connexion plateforme')
+            }
+
+            setPlatformConnections(prev => prev.map(item => item.id === connection.id ? { ...item, ...result.data } : item))
+        } catch (error: any) {
+            setPageError(error.message || 'Impossible de modifier la connexion plateforme')
+        }
+    }
+
+    const rotatePlatformConnectionSecret = async (id: string) => {
+        setRotatingPlatformConnectionId(id)
+        setPageError(null)
+        try {
+            const res = await fetch(`/api/developer/platform-connections/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ rotate_signing_secret: true }),
+            })
+
+            const result = await res.json()
+            if (!res.ok) {
+                throw new Error(result.error || 'Impossible de regenerer le secret')
+            }
+
+            setPlatformConnections(prev => prev.map(item => item.id === id ? { ...item, ...result.data } : item))
+        } catch (error: any) {
+            setPageError(error.message || 'Impossible de regenerer le secret')
+        } finally {
+            setRotatingPlatformConnectionId(null)
+        }
+    }
+
+    const deletePlatformConnection = async (id: string) => {
+        if (!confirm('Supprimer cette connexion plateforme ?')) return
+
+        setDeletingPlatformConnectionId(id)
+        setPageError(null)
+        try {
+            const res = await fetch(`/api/developer/platform-connections/${id}`, {
+                method: 'DELETE',
+            })
+            const result = await res.json()
+            if (!res.ok) {
+                throw new Error(result.error || 'Impossible de supprimer la connexion plateforme')
+            }
+            setPlatformConnections(prev => prev.filter(item => item.id !== id))
+        } catch (error: any) {
+            setPageError(error.message || 'Impossible de supprimer la connexion plateforme')
+        } finally {
+            setDeletingPlatformConnectionId(null)
+        }
+    }
+
     const tabs = [
         { id: 'keys' as const, label: 'Cles API', icon: Key, count: keys.length },
-        { id: 'webhooks' as const, label: 'Webhooks', icon: Globe, count: webhooks.length },
+        { id: 'webhooks' as const, label: 'Webhooks', icon: Globe, count: webhooks.length + platformConnections.length },
         { id: 'logs' as const, label: 'Logs', icon: Activity, count: undefined },
         { id: 'docs' as const, label: 'Documentation & Tests', icon: BookOpen, count: undefined },
     ]
@@ -600,6 +783,16 @@ export default function DevelopersPage() {
                     >
                         <Plus size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
                         Nouveau webhook
+                    </button>
+                    <button
+                        onClick={() => {
+                            setActiveTab('webhooks')
+                            setShowPlatformConnectionForm(value => !value)
+                        }}
+                        style={secondaryButtonStyle}
+                    >
+                        <Plus size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+                        Nouvelle connexion plateforme
                     </button>
                 </div>
             </div>
@@ -1163,6 +1356,350 @@ export default function DevelopersPage() {
                         </div>
                     )}
 
+                    {showPlatformConnectionForm && (
+                        <div style={sectionStyle}>
+                            <h2 style={{ margin: '0 0 16px', fontSize: 16, color: 'var(--text-primary, #fff)' }}>
+                                Creer une connexion plateforme directe
+                            </h2>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'var(--text-secondary, #9ca3af)' }}>
+                                        Nom de la connexion
+                                    </label>
+                                    <input
+                                        value={newPlatformConnectionName}
+                                        onChange={event => setNewPlatformConnectionName(event.target.value)}
+                                        placeholder="Ex: Boutique Shopify principale"
+                                        style={inputStyle}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'var(--text-secondary, #9ca3af)' }}>
+                                        Plateforme
+                                    </label>
+                                    <select
+                                        value={newPlatformProvider}
+                                        onChange={event => setNewPlatformProvider(event.target.value as PlatformConnectionItem['provider'])}
+                                        style={inputStyle}
+                                    >
+                                        {PLATFORM_PROVIDERS.map(provider => (
+                                            <option key={provider.value} value={provider.value}>
+                                                {provider.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'var(--text-secondary, #9ca3af)' }}>
+                                        Agent cible
+                                    </label>
+                                    <select
+                                        value={newPlatformAgentId}
+                                        onChange={event => setNewPlatformAgentId(event.target.value)}
+                                        style={inputStyle}
+                                    >
+                                        {activeAgents.map(agent => (
+                                            <option key={agent.id} value={agent.id}>
+                                                {agent.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'var(--text-secondary, #9ca3af)' }}>
+                                        Nom externe (optionnel)
+                                    </label>
+                                    <input
+                                        value={newPlatformExternalName}
+                                        onChange={event => setNewPlatformExternalName(event.target.value)}
+                                        placeholder="Ex: shop-kono-live"
+                                        style={inputStyle}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'var(--text-secondary, #9ca3af)' }}>
+                                        Limite req/min
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min={30}
+                                        max={5000}
+                                        value={newPlatformRateLimit}
+                                        onChange={event => setNewPlatformRateLimit(Number(event.target.value))}
+                                        style={inputStyle}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'var(--text-secondary, #9ca3af)' }}>
+                                        Evenements autorises (optionnel)
+                                    </label>
+                                    <input
+                                        value={newPlatformAllowedEvents}
+                                        onChange={event => setNewPlatformAllowedEvents(event.target.value)}
+                                        placeholder="order.created, orders/create"
+                                        style={inputStyle}
+                                    />
+                                </div>
+                            </div>
+
+                            {agentsLoading ? (
+                                <div style={{ marginTop: 12, color: 'var(--text-secondary, #9ca3af)', fontSize: 13 }}>
+                                    Chargement des agents...
+                                </div>
+                            ) : activeAgents.length === 0 ? (
+                                <div style={{ marginTop: 12, color: '#f59e0b', fontSize: 13 }}>
+                                    Aucun agent externe disponible. Creez un agent avec ecommerce_mode = external_sync.
+                                </div>
+                            ) : null}
+
+                            <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
+                                <button
+                                    onClick={createPlatformConnection}
+                                    disabled={creatingPlatformConnection || !newPlatformConnectionName.trim() || !newPlatformAgentId || activeAgents.length === 0}
+                                    style={{
+                                        ...primaryButtonStyle,
+                                        opacity: creatingPlatformConnection || !newPlatformConnectionName.trim() || !newPlatformAgentId || activeAgents.length === 0 ? 0.6 : 1,
+                                    }}
+                                >
+                                    {creatingPlatformConnection ? 'Creation...' : 'Creer la connexion'}
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        resetPlatformConnectionForm()
+                                        setShowPlatformConnectionForm(false)
+                                    }}
+                                    style={secondaryButtonStyle}
+                                >
+                                    Annuler
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    <div style={sectionStyle}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
+                            <h2 style={{ margin: 0, fontSize: 16, color: 'var(--text-primary, #fff)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <Globe size={16} />
+                                Connexions plateforme directes ({platformConnections.length})
+                            </h2>
+                            <button onClick={() => void fetchPlatformConnections()} style={secondaryButtonStyle}>
+                                <RefreshCw size={13} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+                                Rafraichir
+                            </button>
+                        </div>
+
+                        {platformConnectionsLoading ? (
+                            <div style={{ color: 'var(--text-secondary, #9ca3af)', textAlign: 'center', padding: 30 }}>Chargement...</div>
+                        ) : platformConnections.length === 0 ? (
+                            <div style={{ color: 'var(--text-secondary, #9ca3af)', textAlign: 'center', padding: 30 }}>
+                                Aucune connexion plateforme configuree.
+                            </div>
+                        ) : (
+                            <div style={{ display: 'grid', gap: 12 }}>
+                                {platformConnections.map(connection => {
+                                    const hasFreshSecret = Boolean(connection.signing_secret)
+                                    return (
+                                        <div
+                                            key={connection.id}
+                                            style={{
+                                                borderRadius: 14,
+                                                border: '1px solid var(--border, #2a2a3e)',
+                                                background: 'rgba(255,255,255,0.02)',
+                                                padding: 16,
+                                                opacity: connection.is_active ? 1 : 0.72,
+                                            }}
+                                        >
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                                                <div style={{ display: 'grid', gap: 6 }}>
+                                                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                                                        <span style={{ fontSize: 15, color: 'var(--text-primary, #fff)', fontWeight: 600 }}>
+                                                            {connection.name}
+                                                        </span>
+                                                        <span style={{
+                                                            padding: '4px 8px',
+                                                            borderRadius: 999,
+                                                            background: 'rgba(37, 211, 102, 0.15)',
+                                                            color: '#25d366',
+                                                            fontSize: 11,
+                                                            textTransform: 'uppercase',
+                                                            fontWeight: 700,
+                                                        }}>
+                                                            {connection.provider}
+                                                        </span>
+                                                        <span style={{
+                                                            padding: '4px 8px',
+                                                            borderRadius: 999,
+                                                            background: 'rgba(59,130,246,0.12)',
+                                                            color: '#93c5fd',
+                                                            fontSize: 11,
+                                                        }}>
+                                                            {agentNameById.get(connection.agent_id) || connection.agent_id}
+                                                        </span>
+                                                    </div>
+
+                                                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', fontSize: 12, color: 'var(--text-secondary, #9ca3af)' }}>
+                                                        <span>Creee le {formatDate(connection.created_at)}</span>
+                                                        <span>Limite: {connection.rate_limit_per_minute}/min</span>
+                                                        {connection.last_status_code != null && (
+                                                            <span style={{ color: statusColor(connection.last_status_code) }}>
+                                                                Dernier statut: {connection.last_status_code}
+                                                            </span>
+                                                        )}
+                                                        {connection.last_received_at && (
+                                                            <span>Derniere reception: {formatTime(connection.last_received_at)}</span>
+                                                        )}
+                                                    </div>
+
+                                                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                                                        <div style={{
+                                                            padding: '8px 10px',
+                                                            borderRadius: 8,
+                                                            border: '1px solid rgba(255,255,255,0.08)',
+                                                            background: 'rgba(0,0,0,0.2)',
+                                                            color: '#a5f3fc',
+                                                            fontSize: 12,
+                                                            fontFamily: 'monospace',
+                                                            wordBreak: 'break-all',
+                                                        }}>
+                                                            {connection.webhook_url}
+                                                        </div>
+                                                        <button
+                                                            onClick={() => copyToClipboard(connection.webhook_url, `incoming_url_${connection.id}`)}
+                                                            style={secondaryButtonStyle}
+                                                        >
+                                                            {copiedId === `incoming_url_${connection.id}` ? 'Copiee' : 'Copier URL'}
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                                    <button
+                                                        onClick={() => togglePlatformConnection(connection)}
+                                                        style={{
+                                                            ...secondaryButtonStyle,
+                                                            color: connection.is_active ? '#25d366' : '#ef4444',
+                                                        }}
+                                                    >
+                                                        <Power size={13} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+                                                        {connection.is_active ? 'Desactiver' : 'Activer'}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => void rotatePlatformConnectionSecret(connection.id)}
+                                                        disabled={rotatingPlatformConnectionId === connection.id}
+                                                        style={secondaryButtonStyle}
+                                                    >
+                                                        {rotatingPlatformConnectionId === connection.id ? 'Rotation...' : 'Regenerer secret'}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => void deletePlatformConnection(connection.id)}
+                                                        disabled={deletingPlatformConnectionId === connection.id}
+                                                        style={{
+                                                            ...secondaryButtonStyle,
+                                                            color: '#ef4444',
+                                                            opacity: deletingPlatformConnectionId === connection.id ? 0.6 : 1,
+                                                        }}
+                                                    >
+                                                        {deletingPlatformConnectionId === connection.id ? (
+                                                            <RefreshCw size={13} style={{ marginRight: 6, verticalAlign: 'middle', animation: 'spin 1s linear infinite' }} />
+                                                        ) : (
+                                                            <Trash2 size={13} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+                                                        )}
+                                                        Supprimer
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                                {(connection.allowed_events || []).map(eventName => (
+                                                    <span
+                                                        key={eventName}
+                                                        style={{
+                                                            padding: '5px 10px',
+                                                            borderRadius: 999,
+                                                            background: 'rgba(16,185,129,0.14)',
+                                                            color: '#6ee7b7',
+                                                            fontSize: 12,
+                                                        }}
+                                                    >
+                                                        {eventName}
+                                                    </span>
+                                                ))}
+                                                {(!connection.allowed_events || connection.allowed_events.length === 0) && (
+                                                    <span style={{ color: 'var(--text-secondary, #9ca3af)', fontSize: 12 }}>
+                                                        Tous les evenements sont acceptes
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            {connection.last_error && (
+                                                <div style={{
+                                                    marginTop: 10,
+                                                    padding: '8px 10px',
+                                                    borderRadius: 8,
+                                                    border: '1px solid rgba(239,68,68,0.3)',
+                                                    background: 'rgba(239,68,68,0.08)',
+                                                    color: '#fca5a5',
+                                                    fontSize: 12,
+                                                }}>
+                                                    Derniere erreur: {connection.last_error}
+                                                </div>
+                                            )}
+
+                                            {(hasFreshSecret || connection.signing_secret_masked) && (
+                                                <div style={{
+                                                    marginTop: 12,
+                                                    padding: '10px 12px',
+                                                    borderRadius: 10,
+                                                    border: '1px solid rgba(245,158,11,0.3)',
+                                                    background: 'rgba(245,158,11,0.1)',
+                                                    color: '#f59e0b',
+                                                    fontSize: 13,
+                                                }}>
+                                                    <div style={{ marginBottom: 8 }}>
+                                                        {hasFreshSecret
+                                                            ? 'Copie ce secret maintenant. Il ne sera plus reaffiche.'
+                                                            : 'Secret stocke (masque). Utilise Regenerer secret pour en obtenir un nouveau.'
+                                                        }
+                                                    </div>
+                                                    <div style={{
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: 8,
+                                                        padding: '8px 10px',
+                                                        borderRadius: 8,
+                                                        border: '1px solid rgba(255,255,255,0.08)',
+                                                        background: 'rgba(0,0,0,0.2)',
+                                                        color: '#fde68a',
+                                                        fontFamily: 'monospace',
+                                                        wordBreak: 'break-all',
+                                                    }}>
+                                                        <span style={{ flex: 1 }}>
+                                                            {hasFreshSecret ? connection.signing_secret : connection.signing_secret_masked}
+                                                        </span>
+                                                        {hasFreshSecret && (
+                                                            <button
+                                                                onClick={() => copyToClipboard(connection.signing_secret!, `incoming_secret_${connection.id}`)}
+                                                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit' }}
+                                                            >
+                                                                {copiedId === `incoming_secret_${connection.id}` ? <Check size={13} color="#25d366" /> : <Copy size={13} />}
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        )}
+                    </div>
+
                     <div style={sectionStyle}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
                             <h2 style={{ margin: 0, fontSize: 16, color: 'var(--text-primary, #fff)', display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -1469,6 +2006,7 @@ export default function DevelopersPage() {
                                 { method: 'POST', path: '/api/public/v1/send', desc: 'Envoi bas niveau: tu fournis deja le texte exact a envoyer.' },
                                 { method: 'POST', path: '/api/public/v1/trigger', desc: 'Envoi metier: tu fournis un evenement structure, WazzapAI construit le bon message.' },
                                 { method: 'POST', path: '/api/public/v1/platform-webhook', desc: 'Ingestion webhook plateforme: payload Shopify/Woo/Chariow/Maketou mappe vers un trigger.' },
+                                { method: 'POST', path: '/api/public/v1/incoming/{webhook_token}', desc: 'Ingestion webhook directe (sans n8n): auth par token URL + signature HMAC fournisseur.' },
                                 { method: 'POST/DELETE', path: '/api/public/v1/sync', desc: 'Memoire metier: tu pousses ou retires des donnees externes pour un agent.' },
                                 { method: 'GET', path: '/api/public/v1/status', desc: 'Lecture de l etat de l agent et de sa connexion WhatsApp.' },
                                 { method: 'GET', path: '/api/public/v1/conversations', desc: 'Liste les conversations accessibles a la cle.' },
@@ -1625,6 +2163,37 @@ export default function DevelopersPage() {
   }'`}
                                 </pre>
                             </div>
+
+                            <div>
+                                <div style={{ fontSize: 13, color: 'var(--text-primary, #fff)', marginBottom: 8 }}>5. Incoming Direct (sans n8n)</div>
+                                <pre style={{
+                                    margin: 0,
+                                    padding: 14,
+                                    borderRadius: 12,
+                                    border: '1px solid var(--border, #2a2a3e)',
+                                    background: 'var(--input-bg, #0f0f1a)',
+                                    color: '#a5f3fc',
+                                    fontSize: 12,
+                                    overflowX: 'auto',
+                                    lineHeight: 1.6,
+                                }}>
+{`curl -X POST "https://votre-domaine.com/api/public/v1/incoming/pwk_xxxxxxxxx" \\
+  -H "Content-Type: application/json" \\
+  -H "X-WC-Webhook-Topic: order.created" \\
+  -H "X-WC-Webhook-Delivery-ID: 95cbf8ad-baa4-4a0f-9d72-9ff13fe1999a" \\
+  -H "X-WC-Webhook-Signature: <signature_base64>" \\
+  -d '{
+    "id": 4587,
+    "number": "CMD-4587",
+    "total": "12500",
+    "billing": {
+      "first_name": "Client",
+      "last_name": "Direct",
+      "phone": "+2250700000000"
+    }
+  }'`}
+                                </pre>
+                            </div>
                         </div>
                     </div>
 
@@ -1639,6 +2208,7 @@ export default function DevelopersPage() {
                             <div>2. Une cle avec scope agent limite strictement les endpoints publics a ces agents la.</div>
                             <div>3. Utilise toujours un <code style={{ background: 'rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: 4 }}>idempotency_key</code> pour les evenements retry-cotes plateforme.</div>
                             <div>4. Les webhooks servent pour la sortie d evenements WazzapAI vers ta plateforme; les cles API servent pour les appels entrants de ta plateforme vers WazzapAI.</div>
+                            <div>5. En mode direct <code style={{ background: 'rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: 4 }}>/incoming/{'{'}webhook_token{'}'}</code>, protege toujours le flux avec la signature HMAC de la plateforme.</div>
                         </div>
                     </div>
                 </div>

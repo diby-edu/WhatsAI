@@ -307,7 +307,7 @@ function normalizeGeneric(topic: string, payload: Record<string, unknown>): Norm
     }
 }
 
-function normalizeProvider(value: string | null | undefined): SupportedPlatformProvider {
+export function normalizeProvider(value: string | null | undefined): SupportedPlatformProvider {
     const next = String(value ?? '').trim().toLowerCase()
     if (next === 'shopify') return 'shopify'
     if (next === 'woocommerce' || next === 'woo') return 'woocommerce'
@@ -353,4 +353,29 @@ export function normalizeWebhookEvent(
     if (provider === 'chariow') return normalizeChariow(providerEvent, payload)
     if (provider === 'maketou') return normalizeMaketou(providerEvent, payload)
     return normalizeGeneric(providerEvent, payload)
+}
+
+export function detectProviderEventForFixedProvider(
+    provider: SupportedPlatformProvider,
+    headers: Headers,
+    body: Record<string, unknown>
+): string {
+    if (provider === 'shopify') {
+        return asString(headers.get('x-shopify-topic'))?.toLowerCase()
+            || asString(body.provider_event)?.toLowerCase()
+            || asString(body.event)?.toLowerCase()
+            || 'custom'
+    }
+
+    if (provider === 'woocommerce') {
+        return asString(headers.get('x-wc-webhook-topic'))?.toLowerCase()
+            || asString(body.provider_event)?.toLowerCase()
+            || asString(body.event)?.toLowerCase()
+            || 'custom'
+    }
+
+    return asString(body.provider_event)?.toLowerCase()
+        || asString(body.event)?.toLowerCase()
+        || asString(headers.get('x-event-name'))?.toLowerCase()
+        || 'custom'
 }

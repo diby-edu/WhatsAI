@@ -1,0 +1,321 @@
+import { createHash } from 'node:crypto'
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
+import { checkPublicApiAccessForUser } from '@/lib/api/public-auth'
+import { checkPublicRateLimit } from '@/lib/api/rate-limit-public'
+import { checkIdempotency, storeIdempotency } from '@/lib/api/idempotency'
+import { buildTriggerMessage, type TriggerContext } from '@/lib/api/trigger-templates'
+import { queuePublicAssistantMessage } from '@/lib/api/public-whatsapp'
+import {
+    detectProviderEventForFixedProvider,
+    normalizeProvider,
+    normalizeWebhookEvent,
+} from '@/lib/api/platform-webhook-normalizer'
+import { verifyIncomingWebhookSignature } from '@/lib/api/platform-webhook-security'
+
+export const dynamic = 'force-dynamic'
+
+const supabaseAdmin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
+
+function asObject(value: unknown): Record<string, unknown> {
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) return {}
+    return value as Record<string, unknown>
+}
+
+function asString(value: unknown): string | undefined {
+    if (typeof value !== 'string') return undefined
+    const next = value.trim()
+    return next.length > 0 ? next : undefined
+}
+
+function normalizePhone(phone: string): string {
+    const digits = phone.replace(/\D/g, '')
+    if (phone.startsWith('+')) return `+${digits}`
+    if (digits.length >= 8) return `+${digits}`
+    return phone
+}
+
+function isValidPhone(phone: string): boolean {
+    return /^\+\d{8,15}$/.test(phone)
+}
+
+function buildDeliveryId(headers: Headers, body: Record<string, unknown>, fallback?: string): string | null {
+    const headerDeliveryId =
+        headers.get('x-shopify-webhook-id')
+        || headers.get('x-shopify-event-id')
+        || headers.get('x-wc-webhook-delivery-id')
+        || headers.get('x-webhook-id')
+
+    const bodyDeliveryId =
+        asString(body.delivery_id)
+        || asString(body.webhook_id)
+        || asString(body.event_id)
+        || asString(body.id)
+
+    const raw = headerDeliveryId || bodyDeliveryId || fallback
+    if (!raw) return null
+    return raw.trim().slice(0, 180)
+}
+
+function eventAllowed(allowedEvents: unknown, providerEvent: string, triggerEvent: string): boolean {
+    if (!Array.isArray(allowedEvents) || allowedEvents.length === 0) return true
+    const normalized = new Set(
+        allowedEvents
+            .filter((event): event is string => typeof event === 'string')
+            .map(event => event.trim().toLowerCase())
+            .filter(Boolean)
+    )
+    if (normalized.size === 0) return true
+    return normalized.has(providerEvent.toLowerCase()) || normalized.has(triggerEvent.toLowerCase())
+}
+
+async function updateConnectionStatus(connectionId: string, statusCode: number, error: string | null = null) {
+    await supabaseAdmin
+        .from('api_platform_connections')
+        .update({
+            last_received_at: new Date().toISOString(),
+            last_status_code: statusCode,
+            last_error: error,
+        })
+        .eq('id', connectionId)
+}
+
+// POST /api/public/v1/incoming/[token]
+export async function POST(
+    request: NextRequest,
+    { params }: { params: Promise<{ token: string }> }
+) {
+    const { token } = await params
+
+    if (!token || token.length < 12) {
+        return NextResponse.json({ error: 'Invalid webhook token', code: 'INVALID_TOKEN' }, { status: 400 })
+    }
+
+    const rawBody = await request.text()
+    if (!rawBody) {
+        return NextResponse.json({ error: 'Missing request body', code: 'BAD_REQUEST' }, { status: 400 })
+    }
+
+    let body: Record<string, unknown>
+    try {
+        body = asObject(JSON.parse(rawBody))
+    } catch {
+        return NextResponse.json({ error: 'Invalid JSON body', code: 'BAD_REQUEST' }, { status: 400 })
+    }
+
+    const { data: connection, error: connectionError } = await supabaseAdmin
+        .from('api_platform_connections')
+        .select('id, user_id, agent_id, provider, signing_secret, allowed_events, rate_limit_per_minute, is_active')
+        .eq('webhook_token', token)
+        .maybeSingle()
+
+    if (connectionError) {
+        return NextResponse.json({ error: connectionError.message, code: 'LOOKUP_FAILED' }, { status: 500 })
+    }
+
+    if (!connection || !connection.is_active) {
+        return NextResponse.json({ error: 'Webhook connection not found or inactive', code: 'NOT_FOUND' }, { status: 404 })
+    }
+
+    const access = await checkPublicApiAccessForUser(connection.user_id)
+    if (!access.allowed) {
+        await updateConnectionStatus(connection.id, access.status || 403, access.error || 'Public API access denied')
+        return NextResponse.json({ error: access.error, code: 'ACCESS_DENIED' }, { status: access.status || 403 })
+    }
+
+    const provider = normalizeProvider(connection.provider)
+    const signatureCheck = verifyIncomingWebhookSignature({
+        provider,
+        headers: request.headers,
+        rawBody,
+        signingSecret: connection.signing_secret,
+    })
+
+    if (!signatureCheck.valid) {
+        await updateConnectionStatus(connection.id, 401, signatureCheck.reason || 'Invalid signature')
+        return NextResponse.json(
+            {
+                error: signatureCheck.reason || 'Invalid webhook signature',
+                code: 'INVALID_SIGNATURE',
+            },
+            { status: 401 }
+        )
+    }
+
+    const payload = Object.keys(asObject(body.payload)).length > 0
+        ? asObject(body.payload)
+        : body
+
+    const providerEvent = detectProviderEventForFixedProvider(provider, request.headers, body)
+    const normalized = normalizeWebhookEvent(provider, providerEvent, payload)
+
+    if (!eventAllowed(connection.allowed_events, providerEvent, normalized.triggerEvent)) {
+        await updateConnectionStatus(connection.id, 202, `Ignored event: ${providerEvent}`)
+        return NextResponse.json(
+            {
+                success: true,
+                ignored: true,
+                reason: 'event_not_allowed',
+                data: {
+                    provider,
+                    provider_event: providerEvent,
+                    trigger_event: normalized.triggerEvent,
+                },
+            },
+            { status: 202 }
+        )
+    }
+
+    const normalizedPhone = normalized.customer.phone ? normalizePhone(normalized.customer.phone) : null
+    if (!normalizedPhone || !isValidPhone(normalizedPhone)) {
+        await updateConnectionStatus(connection.id, 400, 'Unable to map valid customer phone')
+        return NextResponse.json(
+            {
+                error: 'Unable to map a valid customer phone from webhook payload',
+                code: 'INVALID_PHONE',
+                details: {
+                    provider,
+                    provider_event: providerEvent,
+                },
+            },
+            { status: 400 }
+        )
+    }
+
+    const rateCheck = checkPublicRateLimit(
+        `platform_conn_${connection.id}`,
+        connection.user_id,
+        null,
+        connection.rate_limit_per_minute || 300
+    )
+    if (!rateCheck.allowed) {
+        await updateConnectionStatus(connection.id, 429, rateCheck.reason || 'Rate limit reached')
+        return NextResponse.json(
+            { error: rateCheck.reason, code: 'RATE_LIMIT' },
+            { status: 429, headers: rateCheck.headers }
+        )
+    }
+
+    const deliveryId = buildDeliveryId(request.headers, body, normalized.idempotencyHint)
+    const explicitIdempotency = asString(body.idempotency_key)
+    const hashSuffix = createHash('sha256').update(rawBody).digest('hex').slice(0, 20)
+    const idempotencyKey = (
+        explicitIdempotency
+        || (deliveryId ? `in_${connection.id}_${providerEvent}_${deliveryId}` : `in_${connection.id}_${providerEvent}_${hashSuffix}`)
+    ).slice(0, 180)
+
+    const cached = await checkIdempotency(supabaseAdmin, connection.user_id, idempotencyKey)
+    if (cached) {
+        await updateConnectionStatus(connection.id, 200, null)
+        return NextResponse.json(cached, {
+            status: 200,
+            headers: {
+                ...rateCheck.headers,
+                'X-Idempotent-Replayed': 'true',
+            },
+        })
+    }
+
+    const { data: agent, error: agentError } = await supabaseAdmin
+        .from('agents')
+        .select('id, user_id, is_active, whatsapp_connected')
+        .eq('id', connection.agent_id)
+        .maybeSingle()
+
+    if (agentError) {
+        await updateConnectionStatus(connection.id, 500, agentError.message)
+        return NextResponse.json({ error: agentError.message, code: 'AGENT_LOOKUP_FAILED' }, { status: 500 })
+    }
+    if (!agent || agent.user_id !== connection.user_id) {
+        await updateConnectionStatus(connection.id, 404, 'Agent not found or unauthorized')
+        return NextResponse.json({ error: 'Agent not found', code: 'AGENT_NOT_FOUND' }, { status: 404 })
+    }
+    if (!agent.is_active) {
+        await updateConnectionStatus(connection.id, 400, 'Agent is paused')
+        return NextResponse.json({ error: 'Agent is paused', code: 'AGENT_INACTIVE' }, { status: 400 })
+    }
+    if (!agent.whatsapp_connected) {
+        await updateConnectionStatus(connection.id, 400, 'Agent not connected to WhatsApp')
+        return NextResponse.json({ error: 'Agent not connected to WhatsApp', code: 'AGENT_DISCONNECTED' }, { status: 400 })
+    }
+
+    const messageOverride =
+        asString(body.message)
+        || asString(payload.message)
+        || asString(payload.custom_message)
+
+    const triggerContext: TriggerContext = {
+        event: normalized.triggerEvent,
+        customer: {
+            name: normalized.customer.name,
+            phone: normalizedPhone,
+            email: normalized.customer.email,
+        },
+        order: normalized.order,
+        cart: normalized.cart,
+        data: normalized.data,
+        message: messageOverride,
+    }
+
+    const generatedMessage = buildTriggerMessage(triggerContext)
+    const externalContext = {
+        source: 'platform_webhook_incoming',
+        provider,
+        provider_event: providerEvent,
+        trigger_event: normalized.triggerEvent,
+        delivery_id: deliveryId,
+        customer: {
+            name: normalized.customer.name || null,
+            phone: normalizedPhone,
+            email: normalized.customer.email || null,
+        },
+        order: normalized.order || null,
+        cart: normalized.cart || null,
+    }
+
+    const queueResult = await queuePublicAssistantMessage({
+        supabase: supabaseAdmin,
+        agentId: connection.agent_id,
+        userId: connection.user_id,
+        phone: normalizedPhone,
+        message: generatedMessage,
+        conversationMetadata: { external_context: externalContext },
+        messageMetadata: {
+            source: 'platform_webhook_incoming',
+            provider,
+            provider_event: providerEvent,
+            delivery_id: deliveryId || null,
+            signature_mode: signatureCheck.mode,
+        },
+    })
+
+    if (!queueResult.queued) {
+        await updateConnectionStatus(connection.id, 500, 'Failed to queue outbound message')
+        return NextResponse.json(
+            { error: 'Failed to queue message', code: 'QUEUE_FAILED' },
+            { status: 500, headers: rateCheck.headers }
+        )
+    }
+
+    const responseBody = {
+        success: true,
+        data: {
+            provider,
+            provider_event: providerEvent,
+            trigger_event: normalized.triggerEvent,
+            message_id: null,
+            conversation_id: queueResult.conversationId,
+            status: 'queued',
+            queued: true,
+            queued_at: new Date().toISOString(),
+        },
+    }
+
+    storeIdempotency(supabaseAdmin, connection.user_id, idempotencyKey, responseBody)
+    await updateConnectionStatus(connection.id, 200, null)
+
+    return NextResponse.json(responseBody, { status: 200, headers: rateCheck.headers })
+}
