@@ -131,6 +131,12 @@ Flow :
 - live_query_url sur l'agent
 - Appel sortant dans generator.js (3s timeout, HMAC, fail silencieux)
 
+### Addendum 2026-04-20
+
+- Nouveau endpoint entrant implemente : `POST /api/public/v1/platform-webhook`
+- Role : ingestion webhook plateforme (Shopify, WooCommerce, Chariow, Maketou, generic)
+- Comportement : normalise le payload, mappe un evenement trigger, puis envoie via la queue outbound.
+
 ## DASHBOARDS
 
 ### Utilisateur — /dashboard/developers
