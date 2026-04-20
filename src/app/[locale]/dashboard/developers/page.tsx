@@ -6,6 +6,7 @@ import {
     AlertCircle,
     BookOpen,
     Check,
+    ChevronDown,
     Clock,
     Code2,
     Copy,
@@ -20,7 +21,7 @@ import {
     Trash2
 } from 'lucide-react'
 
-type TabId = 'keys' | 'webhooks' | 'logs' | 'docs'
+type TabId = 'keys' | 'platform_connections' | 'webhooks' | 'logs' | 'documentation' | 'tests'
 type ScopeMode = 'all' | 'selected'
 
 interface AgentSummary {
@@ -749,7 +750,7 @@ export default function DevelopersPage() {
             setPlatformConnections(prev => [result.data, ...prev])
             resetPlatformConnectionForm()
             setShowPlatformConnectionForm(false)
-            setActiveTab('webhooks')
+            setActiveTab('platform_connections')
         } catch (error: any) {
             setPageError(error.message || 'Impossible de creer la connexion plateforme')
         } finally {
@@ -823,9 +824,11 @@ export default function DevelopersPage() {
 
     const tabs = [
         { id: 'keys' as const, label: 'Cles API', icon: Key, count: keys.length },
-        { id: 'webhooks' as const, label: 'Webhooks', icon: Globe, count: webhooks.length + platformConnections.length },
+        { id: 'platform_connections' as const, label: 'Connexions plateforme directes', icon: Globe, count: platformConnections.length },
+        { id: 'webhooks' as const, label: 'Webhooks', icon: Globe, count: webhooks.length },
         { id: 'logs' as const, label: 'Logs', icon: Activity, count: undefined },
-        { id: 'docs' as const, label: 'Documentation & Tests', icon: BookOpen, count: undefined },
+        { id: 'documentation' as const, label: 'Documentation', icon: BookOpen, count: undefined },
+        { id: 'tests' as const, label: 'Tests', icon: Code2, count: undefined },
     ]
 
     return (
@@ -836,42 +839,10 @@ export default function DevelopersPage() {
                         API publique
                     </h1>
                     <p style={{ margin: '6px 0 0', fontSize: 14, color: 'var(--text-secondary, #9ca3af)', maxWidth: 760 }}>
-                        Gere tes cles, limite chaque cle a un ou plusieurs agents, branche tes webhooks et verifie rapidement les appels entrants sans modifier le comportement prod des endpoints publics.
+                        Gere tes cles API, tes connexions plateforme entrantes, tes webhooks sortants, puis valide le tout via les onglets Documentation et Tests sans changer le comportement prod des endpoints publics.
                     </p>
                 </div>
 
-                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                    <button
-                        onClick={() => {
-                            setActiveTab('keys')
-                            setShowKeyForm(value => !value)
-                        }}
-                        style={primaryButtonStyle}
-                    >
-                        <Plus size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
-                        Nouvelle cle
-                    </button>
-                    <button
-                        onClick={() => {
-                            setActiveTab('webhooks')
-                            setShowWebhookForm(value => !value)
-                        }}
-                        style={secondaryButtonStyle}
-                    >
-                        <Plus size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
-                        Nouveau webhook
-                    </button>
-                    <button
-                        onClick={() => {
-                            setActiveTab('webhooks')
-                            setShowPlatformConnectionForm(value => !value)
-                        }}
-                        style={secondaryButtonStyle}
-                    >
-                        <Plus size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
-                        Nouvelle connexion plateforme
-                    </button>
-                </div>
             </div>
 
             {pageError && (
@@ -1073,10 +1044,19 @@ export default function DevelopersPage() {
                                 <Key size={16} />
                                 Cles API ({keys.length})
                             </h2>
-                            <button onClick={() => void fetchKeys()} style={secondaryButtonStyle}>
-                                <RefreshCw size={13} style={{ marginRight: 6, verticalAlign: 'middle' }} />
-                                Rafraichir
-                            </button>
+                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                <button
+                                    onClick={() => setShowKeyForm(value => !value)}
+                                    style={primaryButtonStyle}
+                                >
+                                    <Plus size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+                                    Nouvelle cle
+                                </button>
+                                <button onClick={() => void fetchKeys()} style={secondaryButtonStyle}>
+                                    <RefreshCw size={13} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+                                    Rafraichir
+                                </button>
+                            </div>
                         </div>
 
                         {keysLoading ? (
@@ -1353,9 +1333,9 @@ export default function DevelopersPage() {
                 </div>
             )}
 
-            {activeTab === 'webhooks' && (
+            {(activeTab === 'webhooks' || activeTab === 'platform_connections') && (
                 <div style={{ display: 'grid', gap: 20 }}>
-                    {showWebhookForm && (
+                    {activeTab === 'webhooks' && showWebhookForm && (
                         <div style={sectionStyle}>
                             <h2 style={{ margin: '0 0 16px', fontSize: 16, color: 'var(--text-primary, #fff)' }}>
                                 Creer un webhook
@@ -1442,7 +1422,7 @@ export default function DevelopersPage() {
                         </div>
                     )}
 
-                    {showPlatformConnectionForm && (
+                    {activeTab === 'platform_connections' && showPlatformConnectionForm && (
                         <div style={sectionStyle}>
                             <h2 style={{ margin: '0 0 16px', fontSize: 16, color: 'var(--text-primary, #fff)' }}>
                                 Creer une connexion plateforme directe
@@ -1533,14 +1513,21 @@ export default function DevelopersPage() {
                                     }}>
                                         <summary style={{
                                             listStyle: 'none',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
                                             cursor: 'pointer',
                                             color: 'var(--text-primary, #fff)',
                                             fontSize: 13,
                                             outline: 'none',
+                                            gap: 10,
                                         }}>
-                                            {newPlatformAllowedEvents.length > 0
-                                                ? `${newPlatformAllowedEvents.length} evenement(s) selectionne(s)`
-                                                : 'Tous les evenements (aucun filtre)'}
+                                            <span>
+                                                {newPlatformAllowedEvents.length > 0
+                                                    ? `${newPlatformAllowedEvents.length} evenement(s) selectionne(s)`
+                                                    : 'Tous les evenements (aucun filtre)'}
+                                            </span>
+                                            <ChevronDown size={14} style={{ opacity: 0.85, flexShrink: 0 }} />
                                         </summary>
                                         <div style={{ marginTop: 10, display: 'grid', gap: 8 }}>
                                             {providerEventOptions.map(option => (
@@ -1632,16 +1619,26 @@ export default function DevelopersPage() {
                         </div>
                     )}
 
+                    {activeTab === 'platform_connections' && (
                     <div style={sectionStyle}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
                             <h2 style={{ margin: 0, fontSize: 16, color: 'var(--text-primary, #fff)', display: 'flex', alignItems: 'center', gap: 8 }}>
                                 <Globe size={16} />
                                 Connexions plateforme directes ({platformConnections.length})
                             </h2>
-                            <button onClick={() => void fetchPlatformConnections()} style={secondaryButtonStyle}>
-                                <RefreshCw size={13} style={{ marginRight: 6, verticalAlign: 'middle' }} />
-                                Rafraichir
-                            </button>
+                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                <button
+                                    onClick={() => setShowPlatformConnectionForm(value => !value)}
+                                    style={primaryButtonStyle}
+                                >
+                                    <Plus size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+                                    Nouvelle connexion plateforme
+                                </button>
+                                <button onClick={() => void fetchPlatformConnections()} style={secondaryButtonStyle}>
+                                    <RefreshCw size={13} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+                                    Rafraichir
+                                </button>
+                            </div>
                         </div>
 
                         {platformConnectionsLoading ? (
@@ -1869,17 +1866,28 @@ export default function DevelopersPage() {
                             </div>
                         )}
                     </div>
+                    )}
 
+                    {activeTab === 'webhooks' && (
                     <div style={sectionStyle}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
                             <h2 style={{ margin: 0, fontSize: 16, color: 'var(--text-primary, #fff)', display: 'flex', alignItems: 'center', gap: 8 }}>
                                 <Globe size={16} />
                                 Webhooks ({webhooks.length})
                             </h2>
-                            <button onClick={() => void fetchWebhooks()} style={secondaryButtonStyle}>
-                                <RefreshCw size={13} style={{ marginRight: 6, verticalAlign: 'middle' }} />
-                                Rafraichir
-                            </button>
+                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                <button
+                                    onClick={() => setShowWebhookForm(value => !value)}
+                                    style={primaryButtonStyle}
+                                >
+                                    <Plus size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+                                    Nouveau webhook
+                                </button>
+                                <button onClick={() => void fetchWebhooks()} style={secondaryButtonStyle}>
+                                    <RefreshCw size={13} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+                                    Rafraichir
+                                </button>
+                            </div>
                         </div>
 
                         {webhooksLoading ? (
@@ -2069,6 +2077,7 @@ export default function DevelopersPage() {
                             </div>
                         )}
                     </div>
+                    )}
                 </div>
             )}
 
@@ -2163,7 +2172,7 @@ export default function DevelopersPage() {
                 </div>
             )}
 
-            {activeTab === 'docs' && (
+            {activeTab === 'documentation' && (
                 <div style={{ display: 'grid', gap: 20 }}>
                     <div style={sectionStyle}>
                         <h2 style={{ margin: '0 0 14px', fontSize: 16, color: 'var(--text-primary, #fff)', display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -2207,13 +2216,32 @@ export default function DevelopersPage() {
 
                     <div style={sectionStyle}>
                         <h2 style={{ margin: '0 0 14px', fontSize: 16, color: 'var(--text-primary, #fff)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <Shield size={16} />
+                            Regles utiles
+                        </h2>
+
+                        <div style={{ display: 'grid', gap: 10, color: 'var(--text-secondary, #9ca3af)', fontSize: 13, lineHeight: 1.6 }}>
+                            <div>1. Une cle sans scope agent peut appeler tous tes agents autorises sur le compte.</div>
+                            <div>2. Une cle avec scope agent limite strictement les endpoints publics a ces agents la.</div>
+                            <div>3. Utilise toujours un <code style={{ background: 'rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: 4 }}>idempotency_key</code> pour les evenements retry-cotes plateforme.</div>
+                            <div>4. Les webhooks servent pour la sortie d evenements WazzapAI vers ta plateforme; les cles API servent pour les appels entrants de ta plateforme vers WazzapAI.</div>
+                            <div>5. En mode direct <code style={{ background: 'rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: 4 }}>/incoming/{'{'}webhook_token{'}'}</code>, protege toujours le flux avec la signature HMAC de la plateforme.</div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {activeTab === 'tests' && (
+                <div style={{ display: 'grid', gap: 20 }}>
+                    <div style={sectionStyle}>
+                        <h2 style={{ margin: '0 0 14px', fontSize: 16, color: 'var(--text-primary, #fff)', display: 'flex', alignItems: 'center', gap: 8 }}>
                             <Code2 size={16} />
-                            Exemples rapides
+                            Exemples de tests rapides
                         </h2>
 
                         <div style={{ display: 'grid', gap: 16 }}>
                             <div>
-                                <div style={{ fontSize: 13, color: 'var(--text-primary, #fff)', marginBottom: 8 }}>1. Send</div>
+                                <div style={{ fontSize: 13, color: 'var(--text-primary, #fff)', marginBottom: 8 }}>1. Test send</div>
                                 <pre style={{
                                     margin: 0,
                                     padding: 14,
@@ -2238,7 +2266,7 @@ export default function DevelopersPage() {
                             </div>
 
                             <div>
-                                <div style={{ fontSize: 13, color: 'var(--text-primary, #fff)', marginBottom: 8 }}>2. Trigger</div>
+                                <div style={{ fontSize: 13, color: 'var(--text-primary, #fff)', marginBottom: 8 }}>2. Test trigger</div>
                                 <pre style={{
                                     margin: 0,
                                     padding: 14,
@@ -2272,7 +2300,7 @@ export default function DevelopersPage() {
                             </div>
 
                             <div>
-                                <div style={{ fontSize: 13, color: 'var(--text-primary, #fff)', marginBottom: 8 }}>3. Sync</div>
+                                <div style={{ fontSize: 13, color: 'var(--text-primary, #fff)', marginBottom: 8 }}>3. Test sync</div>
                                 <pre style={{
                                     margin: 0,
                                     padding: 14,
@@ -2304,38 +2332,7 @@ export default function DevelopersPage() {
                             </div>
 
                             <div>
-                                <div style={{ fontSize: 13, color: 'var(--text-primary, #fff)', marginBottom: 8 }}>4. Platform Webhook</div>
-                                <pre style={{
-                                    margin: 0,
-                                    padding: 14,
-                                    borderRadius: 12,
-                                    border: '1px solid var(--border, #2a2a3e)',
-                                    background: 'var(--input-bg, #0f0f1a)',
-                                    color: '#a5f3fc',
-                                    fontSize: 12,
-                                    overflowX: 'auto',
-                                    lineHeight: 1.6,
-                                }}>
-{`curl -X POST "https://votre-domaine.com/api/public/v1/platform-webhook?agent_id=uuid-agent" \\
-  -H "Authorization: Bearer sk_live_xxxx" \\
-  -H "Content-Type: application/json" \\
-  -H "X-WC-Webhook-Topic: order.created" \\
-  -H "X-WC-Webhook-Delivery-ID: 95cbf8ad-baa4-4a0f-9d72-9ff13fe1999a" \\
-  -d '{
-    "id": 4587,
-    "number": "CMD-4587",
-    "total": "12500",
-    "billing": {
-      "first_name": "Client",
-      "last_name": "Test",
-      "phone": "+2250700000000"
-    }
-  }'`}
-                                </pre>
-                            </div>
-
-                            <div>
-                                <div style={{ fontSize: 13, color: 'var(--text-primary, #fff)', marginBottom: 8 }}>5. Incoming Direct (sans n8n)</div>
+                                <div style={{ fontSize: 13, color: 'var(--text-primary, #fff)', marginBottom: 8 }}>4. Test incoming direct (Woo)</div>
                                 <pre style={{
                                     margin: 0,
                                     padding: 14,
@@ -2370,15 +2367,14 @@ export default function DevelopersPage() {
                     <div style={sectionStyle}>
                         <h2 style={{ margin: '0 0 14px', fontSize: 16, color: 'var(--text-primary, #fff)', display: 'flex', alignItems: 'center', gap: 8 }}>
                             <Shield size={16} />
-                            Regles utiles
+                            Checklist de validation
                         </h2>
-
                         <div style={{ display: 'grid', gap: 10, color: 'var(--text-secondary, #9ca3af)', fontSize: 13, lineHeight: 1.6 }}>
-                            <div>1. Une cle sans scope agent peut appeler tous tes agents autorises sur le compte.</div>
-                            <div>2. Une cle avec scope agent limite strictement les endpoints publics a ces agents la.</div>
-                            <div>3. Utilise toujours un <code style={{ background: 'rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: 4 }}>idempotency_key</code> pour les evenements retry-cotes plateforme.</div>
-                            <div>4. Les webhooks servent pour la sortie d evenements WazzapAI vers ta plateforme; les cles API servent pour les appels entrants de ta plateforme vers WazzapAI.</div>
-                            <div>5. En mode direct <code style={{ background: 'rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: 4 }}>/incoming/{'{'}webhook_token{'}'}</code>, protege toujours le flux avec la signature HMAC de la plateforme.</div>
+                            <div>1. Verifier que le webhook entrant repond 200 avec une signature valide.</div>
+                            <div>2. Rejouer le meme event avec le meme delivery id et verifier l en-tete <code style={{ background: 'rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: 4 }}>x-idempotent-replayed: true</code>.</div>
+                            <div>3. Tester une mauvaise signature et verifier 401.</div>
+                            <div>4. Confirmer qu une seule ligne outbound est creee pour un event idempotent.</div>
+                            <div>5. Verifier dans l onglet Logs que les appels sont traces avec le bon code HTTP.</div>
                         </div>
                     </div>
                 </div>
