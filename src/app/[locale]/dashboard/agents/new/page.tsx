@@ -59,6 +59,7 @@ export default function NewAgentPage() {
     const [createdAgent, setCreatedAgent] = useState<any>(null)
     const [showSupportModal, setShowSupportModal] = useState(false)
     const [featureFlags, setFeatureFlags] = useState<Record<string, boolean>>({})
+    const [apiAccessEnabled, setApiAccessEnabled] = useState(false)
 
     useEffect(() => {
         fetch('/api/features')
@@ -97,6 +98,7 @@ export default function NewAgentPage() {
                 const res = await fetch('/api/profile')
                 const data = await res.json()
                 const plan = data.data?.profile?.plan || 'free'
+                setApiAccessEnabled(data.data?.profile?.api_access_enabled === true)
                 const limits: Record<string, number> = { free: 1, starter: 1, pro: 3, business: 6, scale: -1 }
                 const limit = limits[plan] ?? 1
                 if (limit === -1) return // unlimited
@@ -906,17 +908,24 @@ Regles:
                                     </button>
                                     <button
                                         type="button"
-                                        onClick={() => setEcommerceMode('external_sync')}
+                                        onClick={() => apiAccessEnabled && setEcommerceMode('external_sync')}
+                                        disabled={!apiAccessEnabled}
+                                        title={!apiAccessEnabled ? "Nécessite un abonnement API" : undefined}
                                         style={{
                                             padding: 16,
                                             borderRadius: 12,
-                                            border: `2px solid ${formData.ecommerce_mode === 'external_sync' ? '#0ea5e9' : 'rgba(148, 163, 184, 0.1)'}`,
-                                            background: formData.ecommerce_mode === 'external_sync' ? 'rgba(14, 165, 233, 0.12)' : 'transparent',
+                                            border: `2px solid ${!apiAccessEnabled ? 'rgba(148, 163, 184, 0.08)' : formData.ecommerce_mode === 'external_sync' ? '#0ea5e9' : 'rgba(148, 163, 184, 0.1)'}`,
+                                            background: !apiAccessEnabled ? 'rgba(255,255,255,0.02)' : formData.ecommerce_mode === 'external_sync' ? 'rgba(14, 165, 233, 0.12)' : 'transparent',
                                             textAlign: 'left',
-                                            cursor: 'pointer'
+                                            cursor: apiAccessEnabled ? 'pointer' : 'not-allowed',
+                                            opacity: apiAccessEnabled ? 1 : 0.45,
+                                            position: 'relative'
                                         }}
                                     >
-                                        <h3 style={{ fontWeight: 600, color: 'white', marginBottom: 4 }}>Catalogue externe via API</h3>
+                                        <h3 style={{ fontWeight: 600, color: apiAccessEnabled ? 'white' : '#64748b', marginBottom: 4 }}>
+                                            Catalogue externe via API
+                                            {!apiAccessEnabled && <span style={{ fontSize: 11, fontWeight: 400, color: '#f59e0b', marginLeft: 8 }}>Abonnement API requis</span>}
+                                        </h3>
                                         <p style={{ fontSize: 13, color: '#94a3b8' }}>
                                             Catalogue synchronise par API + checkout gere par votre plateforme.
                                         </p>
