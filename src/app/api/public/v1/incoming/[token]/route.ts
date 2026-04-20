@@ -95,15 +95,39 @@ export async function POST(
     }
 
     const rawBody = await request.text()
-    if (!rawBody) {
-        return NextResponse.json({ error: 'Missing request body', code: 'BAD_REQUEST' }, { status: 400 })
+    if (!rawBody || rawBody.trim().length === 0) {
+        return NextResponse.json(
+            {
+                success: true,
+                ignored: true,
+                reason: 'empty_body_probe',
+            },
+            { status: 200 }
+        )
     }
 
     let body: Record<string, unknown>
     try {
         body = asObject(JSON.parse(rawBody))
     } catch {
-        return NextResponse.json({ error: 'Invalid JSON body', code: 'BAD_REQUEST' }, { status: 400 })
+        try {
+            const formBody = new URLSearchParams(rawBody)
+            const payload = formBody.get('payload')
+            if (payload) {
+                body = asObject(JSON.parse(payload))
+            } else {
+                body = Object.fromEntries(formBody.entries())
+            }
+        } catch {
+            return NextResponse.json(
+                {
+                    success: true,
+                    ignored: true,
+                    reason: 'invalid_json_probe',
+                },
+                { status: 200 }
+            )
+        }
     }
 
     const { data: connection, error: connectionError } = await supabaseAdmin
