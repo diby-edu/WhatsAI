@@ -72,6 +72,12 @@ function eventAllowed(allowedEvents: unknown, providerEvent: string, triggerEven
     return normalized.has(providerEvent.toLowerCase()) || normalized.has(triggerEvent.toLowerCase())
 }
 
+function short(value: string | null | undefined, max = 120): string {
+    const next = String(value || '').trim()
+    if (!next) return 'n/a'
+    return next.length > max ? `${next.slice(0, max)}...` : next
+}
+
 async function updateConnectionStatus(connectionId: string, statusCode: number, error: string | null = null) {
     await supabaseAdmin
         .from('api_platform_connections')
@@ -151,6 +157,14 @@ export async function POST(
     }
 
     const provider = normalizeProvider(connection.provider)
+    const payload = Object.keys(asObject(body.payload)).length > 0
+        ? asObject(body.payload)
+        : body
+    const providerEvent = detectProviderEventForFixedProvider(provider, request.headers, body)
+    const normalized = normalizeWebhookEvent(provider, providerEvent, payload)
+    const deliveryId = buildDeliveryId(request.headers, body, normalized.idempotencyHint)
+
+    const signatureContext = `topic=${providerEvent}; delivery_id=${deliveryId || 'none'}; ua=${short(request.headers.get('user-agent'))}; ct=${short(request.headers.get('content-type'))}`
     const signatureCheck = verifyIncomingWebhookSignature({
         provider,
         headers: request.headers,
@@ -159,7 +173,36 @@ export async function POST(
     })
 
     if (!signatureCheck.valid) {
-        await updateConnectionStatus(connection.id, 401, signatureCheck.reason || 'Invalid signature')
+        const normalizedPhonePreview = normalized.customer.phone ? normalizePhone(normalized.customer.phone) : null
+        const hasValidPhonePreview = !!(normalizedPhonePreview && isValidPhone(normalizedPhonePreview))
+
+        const isUnsignedWooProbe =
+            provider === 'woocommerce'
+            && signatureCheck.reason === 'Missing X-WC-Webhook-Signature header'
+            && !hasValidPhonePreview
+
+        if (isUnsignedWooProbe) {
+            const message = `Ignored unsigned Woo probe | ${signatureContext}`
+            console.warn(`[INCOMING][PROBE] ${message}`)
+            await updateConnectionStatus(connection.id, 200, message)
+            return NextResponse.json(
+                {
+                    success: true,
+                    ignored: true,
+                    reason: 'unsigned_woo_probe',
+                    data: {
+                        provider,
+                        provider_event: providerEvent,
+                        trigger_event: normalized.triggerEvent,
+                    },
+                },
+                { status: 200 }
+            )
+        }
+
+        const errorMessage = `${signatureCheck.reason || 'Invalid signature'} | ${signatureContext}`
+        console.error(`[INCOMING][SIGNATURE] ${errorMessage}`)
+        await updateConnectionStatus(connection.id, 401, errorMessage)
         return NextResponse.json(
             {
                 error: signatureCheck.reason || 'Invalid webhook signature',
@@ -168,13 +211,6 @@ export async function POST(
             { status: 401 }
         )
     }
-
-    const payload = Object.keys(asObject(body.payload)).length > 0
-        ? asObject(body.payload)
-        : body
-
-    const providerEvent = detectProviderEventForFixedProvider(provider, request.headers, body)
-    const normalized = normalizeWebhookEvent(provider, providerEvent, payload)
 
     if (!eventAllowed(connection.allowed_events, providerEvent, normalized.triggerEvent)) {
         await updateConnectionStatus(connection.id, 202, `Ignored event: ${providerEvent}`)
@@ -225,7 +261,6 @@ export async function POST(
         )
     }
 
-    const deliveryId = buildDeliveryId(request.headers, body, normalized.idempotencyHint)
     const explicitIdempotency = asString(body.idempotency_key)
     const hashSuffix = createHash('sha256').update(rawBody).digest('hex').slice(0, 20)
     const idempotencyKey = (
