@@ -49,8 +49,39 @@ function parseAllowedEvents(value: unknown): { ok: true; data: string[] | null }
     return { ok: true, data: normalized }
 }
 
+function normalizeBaseUrl(value: string | null | undefined): string | null {
+    const raw = String(value || '').trim()
+    if (!raw) return null
+    const withProtocol = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`
+    try {
+        const parsed = new URL(withProtocol)
+        return parsed.origin.replace(/\/+$/, '')
+    } catch {
+        return null
+    }
+}
+
+function resolvePublicBaseUrl(request: NextRequest): string {
+    const fromEnv = normalizeBaseUrl(process.env.NEXT_PUBLIC_APP_URL)
+    if (fromEnv && !/localhost|127\.0\.0\.1/i.test(new URL(fromEnv).hostname)) {
+        return fromEnv
+    }
+
+    const forwardedHost = request.headers.get('x-forwarded-host')
+    const forwardedProto = request.headers.get('x-forwarded-proto') || 'https'
+    if (forwardedHost && !/localhost|127\.0\.0\.1/i.test(forwardedHost)) {
+        return `${forwardedProto}://${forwardedHost}`.replace(/\/+$/, '')
+    }
+
+    const origin = request.nextUrl.origin.replace(/\/+$/, '')
+    if (/localhost|127\.0\.0\.1/i.test(origin)) {
+        return 'https://wazzapai.com'
+    }
+    return origin
+}
+
 function buildInboundUrl(request: NextRequest, token: string): string {
-    return `${request.nextUrl.origin}/api/public/v1/incoming/${token}`
+    return `${resolvePublicBaseUrl(request)}/api/public/v1/incoming/${token}`
 }
 
 async function ensureAgentOwnership(admin: ReturnType<typeof createAdminClient>, userId: string, agentId: string): Promise<boolean> {
