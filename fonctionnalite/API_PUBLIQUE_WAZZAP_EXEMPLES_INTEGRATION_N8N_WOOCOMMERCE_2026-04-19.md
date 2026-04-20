@@ -8,6 +8,7 @@ Elle parle a WazzapAI via :
 
 - `POST /api/public/v1/send`
 - `POST /api/public/v1/trigger`
+- `POST /api/public/v1/platform-webhook`
 - `POST /api/public/v1/sync`
 - `GET /api/public/v1/status`
 - `GET /api/public/v1/conversations`
@@ -276,3 +277,34 @@ Pour demarrer proprement :
 3. ajouter `sync` pour catalogue/FAQ
 4. ajouter `live_query_url` seulement pour les cas temps reel utiles
 5. construire un plugin WooCommerce seulement si le besoin produit se repete chez plusieurs marchands
+
+## 8. Endpoint webhook plateforme (nouveau)
+
+Vous pouvez aussi pousser un payload natif de plateforme vers :
+
+- `POST /api/public/v1/platform-webhook`
+
+Le endpoint detecte ou accepte le provider (`shopify`, `woocommerce`, `chariow`, `maketou`, `generic`) puis mappe vers un trigger interne.
+
+Exemple direct (WooCommerce):
+
+```bash
+curl -X POST "https://wazzapai.com/api/public/v1/platform-webhook" \
+  -H "Authorization: Bearer sk_live_xxx" \
+  -H "Content-Type: application/json" \
+  -H "X-WC-Webhook-Topic: order.created" \
+  -H "X-WC-Webhook-Delivery-ID: 95cbf8ad-baa4-4a0f-9d72-9ff13fe1999a" \
+  -d '{
+    "agent_id": "UUID_AGENT",
+    "id": 4587,
+    "number": "CMD-4587",
+    "total": "12500",
+    "status": "processing",
+    "billing": {
+      "first_name": "Client",
+      "last_name": "Test",
+      "phone": "+2250554585927",
+      "email": "client@example.com"
+    }
+  }'
+```

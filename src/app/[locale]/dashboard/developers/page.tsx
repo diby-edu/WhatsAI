@@ -1468,6 +1468,7 @@ export default function DevelopersPage() {
                             {[
                                 { method: 'POST', path: '/api/public/v1/send', desc: 'Envoi bas niveau: tu fournis deja le texte exact a envoyer.' },
                                 { method: 'POST', path: '/api/public/v1/trigger', desc: 'Envoi metier: tu fournis un evenement structure, WazzapAI construit le bon message.' },
+                                { method: 'POST', path: '/api/public/v1/platform-webhook', desc: 'Ingestion webhook plateforme: payload Shopify/Woo/Chariow/Maketou mappe vers un trigger.' },
                                 { method: 'POST/DELETE', path: '/api/public/v1/sync', desc: 'Memoire metier: tu pousses ou retires des donnees externes pour un agent.' },
                                 { method: 'GET', path: '/api/public/v1/status', desc: 'Lecture de l etat de l agent et de sa connexion WhatsApp.' },
                                 { method: 'GET', path: '/api/public/v1/conversations', desc: 'Liste les conversations accessibles a la cle.' },
@@ -1590,6 +1591,37 @@ export default function DevelopersPage() {
         "stock": 5
       }
     ]
+  }'`}
+                                </pre>
+                            </div>
+
+                            <div>
+                                <div style={{ fontSize: 13, color: 'var(--text-primary, #fff)', marginBottom: 8 }}>4. Platform Webhook</div>
+                                <pre style={{
+                                    margin: 0,
+                                    padding: 14,
+                                    borderRadius: 12,
+                                    border: '1px solid var(--border, #2a2a3e)',
+                                    background: 'var(--input-bg, #0f0f1a)',
+                                    color: '#a5f3fc',
+                                    fontSize: 12,
+                                    overflowX: 'auto',
+                                    lineHeight: 1.6,
+                                }}>
+{`curl -X POST "https://votre-domaine.com/api/public/v1/platform-webhook?agent_id=uuid-agent" \\
+  -H "Authorization: Bearer sk_live_xxxx" \\
+  -H "Content-Type: application/json" \\
+  -H "X-WC-Webhook-Topic: order.created" \\
+  -H "X-WC-Webhook-Delivery-ID: 95cbf8ad-baa4-4a0f-9d72-9ff13fe1999a" \\
+  -d '{
+    "id": 4587,
+    "number": "CMD-4587",
+    "total": "12500",
+    "billing": {
+      "first_name": "Client",
+      "last_name": "Test",
+      "phone": "+2250700000000"
+    }
   }'`}
                                 </pre>
                             </div>

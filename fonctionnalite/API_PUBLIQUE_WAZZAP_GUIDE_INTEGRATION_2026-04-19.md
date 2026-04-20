@@ -19,6 +19,7 @@ En pratique : la meme implementation sert tous les agents de l'application, mais
 
 - `POST /api/public/v1/send`
 - `POST /api/public/v1/trigger`
+- `POST /api/public/v1/platform-webhook`
 
 ### Data Sync
 
@@ -116,6 +117,65 @@ curl -X POST https://wazzapai.com/api/public/v1/trigger \
       ]
     },
     "idempotency_key": "cart_123_relance_1"
+  }'
+```
+
+### `POST /api/public/v1/platform-webhook`
+
+Usage :
+
+- endpoint entrant dedie aux webhooks plateformes (Shopify, WooCommerce, Chariow, Maketou, generic)
+- mappe le payload en evenement trigger puis queue un message WhatsApp
+
+Important :
+
+- l'auth reste la meme : `Authorization: Bearer sk_live_xxx`
+- `agent_id` est obligatoire (body ou query string)
+- idempotence automatique si `idempotency_key` est fourni
+- a defaut, le endpoint tente d'utiliser les ids de livraison webhook (`x-shopify-webhook-id`, etc.)
+
+Exemple Shopify :
+
+```bash
+curl -X POST "https://wazzapai.com/api/public/v1/platform-webhook?agent_id=UUID_AGENT" \
+  -H "Authorization: Bearer sk_live_xxx" \
+  -H "Content-Type: application/json" \
+  -H "X-Shopify-Topic: orders/create" \
+  -H "X-Shopify-Webhook-Id: 5f8b5f3e-aaaa-bbbb-cccc-123456789abc" \
+  -d '{
+    "id": 987654321,
+    "name": "#CMD-9876",
+    "total_price": "12500",
+    "currency": "FCFA",
+    "customer": {
+      "first_name": "Koffi",
+      "last_name": "Diby",
+      "phone": "+2250700000000",
+      "email": "koffi@example.com"
+    }
+  }'
+```
+
+Exemple WooCommerce :
+
+```bash
+curl -X POST "https://wazzapai.com/api/public/v1/platform-webhook" \
+  -H "Authorization: Bearer sk_live_xxx" \
+  -H "Content-Type: application/json" \
+  -H "X-WC-Webhook-Topic: order.created" \
+  -H "X-WC-Webhook-Delivery-ID: 7fd0f4a9-1234-5678-9abc-4e8f0debe111" \
+  -d '{
+    "agent_id": "UUID_AGENT",
+    "id": 4587,
+    "number": "CMD-4587",
+    "total": "12500",
+    "status": "processing",
+    "billing": {
+      "first_name": "Client",
+      "last_name": "Test 2",
+      "phone": "+2250554585927",
+      "email": "client2@example.com"
+    }
   }'
 ```
 
