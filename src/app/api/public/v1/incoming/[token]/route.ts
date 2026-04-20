@@ -171,17 +171,19 @@ export async function POST(
 
     const normalizedPhone = normalized.customer.phone ? normalizePhone(normalized.customer.phone) : null
     if (!normalizedPhone || !isValidPhone(normalizedPhone)) {
-        await updateConnectionStatus(connection.id, 400, 'Unable to map valid customer phone')
+        await updateConnectionStatus(connection.id, 202, null)
         return NextResponse.json(
             {
-                error: 'Unable to map a valid customer phone from webhook payload',
-                code: 'INVALID_PHONE',
-                details: {
+                success: true,
+                ignored: true,
+                reason: 'invalid_phone',
+                data: {
                     provider,
                     provider_event: providerEvent,
+                    trigger_event: normalized.triggerEvent,
                 },
             },
-            { status: 400 }
+            { status: 202 }
         )
     }
 
