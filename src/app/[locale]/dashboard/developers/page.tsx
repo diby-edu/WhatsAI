@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useState, type CSSProperties, type Dispatch, type SetStateAction } from 'react'
 import {
     Activity,
     AlertCircle,
@@ -9,6 +9,8 @@ import {
     Clock,
     Code2,
     Copy,
+    Eye,
+    EyeOff,
     Globe,
     Key,
     Plus,
@@ -86,6 +88,9 @@ interface PlatformConnectionItem {
     signing_secret_masked?: string
 }
 
+type PlatformProvider = PlatformConnectionItem['provider']
+type PlatformEventOption = { value: string; label: string }
+
 const WEBHOOK_EVENTS = [
     'message.received',
     'message.sent',
@@ -101,6 +106,43 @@ const PLATFORM_PROVIDERS = [
     { value: 'maketou', label: 'Maketou' },
     { value: 'generic', label: 'Generic (custom)' },
 ] as const
+
+const PLATFORM_EVENT_OPTIONS: Record<PlatformProvider, PlatformEventOption[]> = {
+    shopify: [
+        { value: 'orders/create', label: 'Commande creee (orders/create)' },
+        { value: 'orders/paid', label: 'Commande payee (orders/paid)' },
+        { value: 'orders/fulfilled', label: 'Commande expediee (orders/fulfilled)' },
+        { value: 'orders/updated', label: 'Commande mise a jour (orders/updated)' },
+        { value: 'checkouts/update', label: 'Checkout mis a jour (checkouts/update)' },
+        { value: 'carts/update', label: 'Panier mis a jour (carts/update)' },
+    ],
+    woocommerce: [
+        { value: 'order.created', label: 'Commande creee (order.created)' },
+        { value: 'order.updated', label: 'Commande mise a jour (order.updated)' },
+        { value: 'order.failed', label: 'Paiement echoue (order.failed)' },
+        { value: 'order.pending', label: 'Paiement en attente (order.pending)' },
+        { value: 'order.deleted', label: 'Commande supprimee (order.deleted)' },
+    ],
+    chariow: [
+        { value: 'successful.sale', label: 'Vente reussie (successful.sale)' },
+        { value: 'sale.success', label: 'Vente reussie alternative (sale.success)' },
+        { value: 'abandoned.cart', label: 'Panier abandonne (abandoned.cart)' },
+        { value: 'payment.failed', label: 'Paiement echoue (payment.failed)' },
+    ],
+    maketou: [
+        { value: 'order_created', label: 'Commande creee (order_created)' },
+        { value: 'order_paid', label: 'Commande payee (order_paid)' },
+        { value: 'cart_abandoned', label: 'Panier abandonne (cart_abandoned)' },
+        { value: 'payment_failed', label: 'Paiement echoue (payment_failed)' },
+    ],
+    generic: [
+        { value: 'order_created', label: 'Commande creee (order_created)' },
+        { value: 'order_shipped', label: 'Commande expediee (order_shipped)' },
+        { value: 'cart_abandoned', label: 'Panier abandonne (cart_abandoned)' },
+        { value: 'payment_failed', label: 'Paiement echoue (payment_failed)' },
+        { value: 'custom', label: 'Evenement personnalise (custom)' },
+    ],
+}
 
 const sectionStyle: CSSProperties = {
     background: 'var(--card-bg, #1a1a2e)',
@@ -196,9 +238,11 @@ export default function DevelopersPage() {
     const [newPlatformAgentId, setNewPlatformAgentId] = useState('')
     const [newPlatformExternalName, setNewPlatformExternalName] = useState('')
     const [newPlatformRateLimit, setNewPlatformRateLimit] = useState(300)
-    const [newPlatformAllowedEvents, setNewPlatformAllowedEvents] = useState('')
+    const [newPlatformAllowedEvents, setNewPlatformAllowedEvents] = useState<string[]>([])
     const [deletingPlatformConnectionId, setDeletingPlatformConnectionId] = useState<string | null>(null)
     const [rotatingPlatformConnectionId, setRotatingPlatformConnectionId] = useState<string | null>(null)
+    const [revealedPlatformWebhookUrlIds, setRevealedPlatformWebhookUrlIds] = useState<Record<string, boolean>>({})
+    const [revealedPlatformSecretIds, setRevealedPlatformSecretIds] = useState<Record<string, boolean>>({})
 
     const [copiedId, setCopiedId] = useState<string | null>(null)
     const [revealedKeyId, setRevealedKeyId] = useState<string | null>(null)
@@ -319,6 +363,11 @@ export default function DevelopersPage() {
         }
     }, [activeAgents, newPlatformAgentId])
 
+    useEffect(() => {
+        const allowedValues = new Set((PLATFORM_EVENT_OPTIONS[newPlatformProvider] || []).map(option => option.value))
+        setNewPlatformAllowedEvents(prev => prev.filter(eventName => allowedValues.has(eventName)))
+    }, [newPlatformProvider])
+
     const formatDate = (iso: string) =>
         new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
 
@@ -335,6 +384,33 @@ export default function DevelopersPage() {
         await navigator.clipboard.writeText(text)
         setCopiedId(id)
         setTimeout(() => setCopiedId(null), 2000)
+    }
+
+    const toggleReveal = (
+        id: string,
+        setter: Dispatch<SetStateAction<Record<string, boolean>>>
+    ) => {
+        setter(prev => ({ ...prev, [id]: !prev[id] }))
+    }
+
+    const maskValue = (value: string, visiblePrefix = 8, visibleSuffix = 6) => {
+        if (!value) return '********'
+        if (value.length <= visiblePrefix + visibleSuffix) {
+            return `${value.slice(0, Math.min(4, value.length))}********`
+        }
+        return `${value.slice(0, visiblePrefix)}********${value.slice(-visibleSuffix)}`
+    }
+
+    const maskWebhookUrl = (url: string) => {
+        try {
+            const parsed = new URL(url)
+            const pathParts = parsed.pathname.split('/').filter(Boolean)
+            const token = pathParts[pathParts.length - 1] || ''
+            const maskedToken = maskValue(token, 8, 4)
+            return `${parsed.origin}/api/public/v1/incoming/${maskedToken}`
+        } catch {
+            return maskValue(url, 16, 8)
+        }
     }
 
     const toggleAgentSelection = (
@@ -626,22 +702,23 @@ export default function DevelopersPage() {
         }
     }
 
-    const parseAllowedEventsInput = (value: string): string[] | null => {
-        const normalized = [...new Set(
-            value
-                .split(',')
-                .map(item => item.trim().toLowerCase())
-                .filter(Boolean)
-        )]
-        return normalized.length > 0 ? normalized : null
+    const toggleNewPlatformAllowedEvent = (eventName: string) => {
+        setNewPlatformAllowedEvents(prev => {
+            if (prev.includes(eventName)) {
+                return prev.filter(item => item !== eventName)
+            }
+            return [...prev, eventName]
+        })
     }
+
+    const providerEventOptions = PLATFORM_EVENT_OPTIONS[newPlatformProvider] || []
 
     const resetPlatformConnectionForm = () => {
         setNewPlatformConnectionName('')
         setNewPlatformProvider('shopify')
         setNewPlatformExternalName('')
         setNewPlatformRateLimit(300)
-        setNewPlatformAllowedEvents('')
+        setNewPlatformAllowedEvents([])
     }
 
     const createPlatformConnection = async () => {
@@ -660,7 +737,7 @@ export default function DevelopersPage() {
                     agent_id: newPlatformAgentId,
                     external_platform_name: newPlatformExternalName.trim() || null,
                     rate_limit_per_minute: newPlatformRateLimit,
-                    allowed_events: parseAllowedEventsInput(newPlatformAllowedEvents),
+                    allowed_events: newPlatformAllowedEvents.length > 0 ? newPlatformAllowedEvents : null,
                 }),
             })
 
@@ -1065,6 +1142,15 @@ export default function DevelopersPage() {
                                                     color: 'var(--text-secondary, #9ca3af)',
                                                 }}>
                                                     {revealedKeyId === key.id && key.raw_key ? key.raw_key : `${key.key_prefix}************`}
+                                                    {key.raw_key && (
+                                                        <button
+                                                            onClick={() => setRevealedKeyId(revealedKeyId === key.id ? null : key.id)}
+                                                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'inherit' }}
+                                                            title={revealedKeyId === key.id ? 'Masquer la cle' : 'Afficher la cle'}
+                                                        >
+                                                            {revealedKeyId === key.id ? <EyeOff size={13} /> : <Eye size={13} />}
+                                                        </button>
+                                                    )}
                                                     {revealedKeyId === key.id && key.raw_key && (
                                                         <button
                                                             onClick={() => copyToClipboard(key.raw_key!, `key_${key.id}`)}
@@ -1439,12 +1525,76 @@ export default function DevelopersPage() {
                                     <label style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'var(--text-secondary, #9ca3af)' }}>
                                         Evenements autorises (optionnel)
                                     </label>
-                                    <input
-                                        value={newPlatformAllowedEvents}
-                                        onChange={event => setNewPlatformAllowedEvents(event.target.value)}
-                                        placeholder="order.created, orders/create"
-                                        style={inputStyle}
-                                    />
+                                    <details style={{
+                                        border: '1px solid var(--border, #2a2a3e)',
+                                        borderRadius: 10,
+                                        background: 'var(--input-bg, #0f0f1a)',
+                                        padding: '8px 10px',
+                                    }}>
+                                        <summary style={{
+                                            listStyle: 'none',
+                                            cursor: 'pointer',
+                                            color: 'var(--text-primary, #fff)',
+                                            fontSize: 13,
+                                            outline: 'none',
+                                        }}>
+                                            {newPlatformAllowedEvents.length > 0
+                                                ? `${newPlatformAllowedEvents.length} evenement(s) selectionne(s)`
+                                                : 'Tous les evenements (aucun filtre)'}
+                                        </summary>
+                                        <div style={{ marginTop: 10, display: 'grid', gap: 8 }}>
+                                            {providerEventOptions.map(option => (
+                                                <label
+                                                    key={option.value}
+                                                    style={{
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: 10,
+                                                        padding: '8px 10px',
+                                                        borderRadius: 8,
+                                                        background: 'rgba(255,255,255,0.03)',
+                                                        color: 'var(--text-primary, #fff)',
+                                                        fontSize: 13,
+                                                        cursor: 'pointer',
+                                                    }}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={newPlatformAllowedEvents.includes(option.value)}
+                                                        onChange={() => toggleNewPlatformAllowedEvent(option.value)}
+                                                    />
+                                                    <span>{option.label}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </details>
+                                    <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                        <button
+                                            type="button"
+                                            onClick={() => setNewPlatformAllowedEvents([])}
+                                            style={secondaryButtonStyle}
+                                        >
+                                            Tout autoriser
+                                        </button>
+                                    </div>
+                                    {newPlatformAllowedEvents.length > 0 && (
+                                        <div style={{ marginTop: 8, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                                            {newPlatformAllowedEvents.map(eventName => (
+                                                <span
+                                                    key={eventName}
+                                                    style={{
+                                                        padding: '4px 8px',
+                                                        borderRadius: 999,
+                                                        background: 'rgba(16,185,129,0.15)',
+                                                        color: '#6ee7b7',
+                                                        fontSize: 11,
+                                                    }}
+                                                >
+                                                    {eventName}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -1504,6 +1654,8 @@ export default function DevelopersPage() {
                             <div style={{ display: 'grid', gap: 12 }}>
                                 {platformConnections.map(connection => {
                                     const hasFreshSecret = Boolean(connection.signing_secret)
+                                    const isWebhookVisible = Boolean(revealedPlatformWebhookUrlIds[connection.id])
+                                    const isSecretVisible = Boolean(revealedPlatformSecretIds[connection.id])
                                     return (
                                         <div
                                             key={connection.id}
@@ -1567,8 +1719,15 @@ export default function DevelopersPage() {
                                                             fontFamily: 'monospace',
                                                             wordBreak: 'break-all',
                                                         }}>
-                                                            {connection.webhook_url}
+                                                            {isWebhookVisible ? connection.webhook_url : maskWebhookUrl(connection.webhook_url)}
                                                         </div>
+                                                        <button
+                                                            onClick={() => toggleReveal(connection.id, setRevealedPlatformWebhookUrlIds)}
+                                                            style={secondaryButtonStyle}
+                                                            title={isWebhookVisible ? 'Masquer URL' : 'Afficher URL'}
+                                                        >
+                                                            {isWebhookVisible ? <EyeOff size={13} /> : <Eye size={13} />}
+                                                        </button>
                                                         <button
                                                             onClick={() => copyToClipboard(connection.webhook_url, `incoming_url_${connection.id}`)}
                                                             style={secondaryButtonStyle}
@@ -1680,8 +1839,19 @@ export default function DevelopersPage() {
                                                         wordBreak: 'break-all',
                                                     }}>
                                                         <span style={{ flex: 1 }}>
-                                                            {hasFreshSecret ? connection.signing_secret : connection.signing_secret_masked}
+                                                            {hasFreshSecret
+                                                                ? (isSecretVisible ? connection.signing_secret : maskValue(connection.signing_secret || ''))
+                                                                : connection.signing_secret_masked}
                                                         </span>
+                                                        {hasFreshSecret && (
+                                                            <button
+                                                                onClick={() => toggleReveal(connection.id, setRevealedPlatformSecretIds)}
+                                                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit' }}
+                                                                title={isSecretVisible ? 'Masquer secret' : 'Afficher secret'}
+                                                            >
+                                                                {isSecretVisible ? <EyeOff size={13} /> : <Eye size={13} />}
+                                                            </button>
+                                                        )}
                                                         {hasFreshSecret && (
                                                             <button
                                                                 onClick={() => copyToClipboard(connection.signing_secret!, `incoming_secret_${connection.id}`)}
