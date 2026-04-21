@@ -21,7 +21,7 @@ import {
     Trash2
 } from 'lucide-react'
 
-type TabId = 'keys' | 'platform_connections' | 'webhooks' | 'logs' | 'documentation' | 'tests'
+type TabId = 'keys' | 'catalog_sync' | 'platform_connections' | 'webhooks' | 'logs' | 'documentation' | 'tests'
 type ScopeMode = 'all' | 'selected'
 
 interface AgentSummary {
@@ -92,6 +92,44 @@ interface PlatformConnectionItem {
 type PlatformProvider = PlatformConnectionItem['provider']
 type PlatformEventOption = { value: string; label: string }
 
+interface PlatformSyncConnectionItem {
+    id: string
+    name: string
+    provider: 'woocommerce' | 'shopify'
+    agent_id: string
+    is_active: boolean
+    auto_sync_enabled: boolean
+    sync_interval_minutes: number
+    retry_count: number
+    next_retry_at: string | null
+    credentials_hint: Record<string, any> | null
+    last_tested_at: string | null
+    last_test_status_code: number | null
+    last_test_error: string | null
+    last_synced_at: string | null
+    last_sync_started_at: string | null
+    last_sync_finished_at: string | null
+    last_sync_status: 'idle' | 'success' | 'failed' | 'running'
+    last_sync_error: string | null
+    last_sync_count: number
+    metadata?: Record<string, any> | null
+    created_at: string
+    updated_at: string
+}
+
+interface PlatformSyncRunItem {
+    id: string
+    trigger_source: 'manual' | 'cron'
+    status: 'success' | 'failed'
+    fetched_count: number
+    synced_count: number
+    has_more: boolean
+    error: string | null
+    started_at: string
+    finished_at: string
+    created_at: string
+}
+
 const WEBHOOK_EVENTS = [
     'message.received',
     'message.sent',
@@ -107,6 +145,13 @@ const PLATFORM_PROVIDERS = [
     { value: 'maketou', label: 'Maketou' },
     { value: 'generic', label: 'Generic (custom)' },
 ] as const
+
+const PLATFORM_SYNC_PROVIDERS = [
+    { value: 'woocommerce', label: 'WooCommerce' },
+    { value: 'shopify', label: 'Shopify' },
+] as const
+
+const PLATFORM_SYNC_INTERVAL_OPTIONS = [5, 10, 15, 30, 60, 180, 360, 720, 1440] as const
 
 const PLATFORM_EVENT_OPTIONS: Record<PlatformProvider, PlatformEventOption[]> = {
     shopify: [
@@ -195,12 +240,14 @@ export default function DevelopersPage() {
 
     const [keys, setKeys] = useState<ApiKey[]>([])
     const [webhooks, setWebhooks] = useState<WebhookItem[]>([])
+    const [platformSyncConnections, setPlatformSyncConnections] = useState<PlatformSyncConnectionItem[]>([])
     const [platformConnections, setPlatformConnections] = useState<PlatformConnectionItem[]>([])
     const [logs, setLogs] = useState<UsageLog[]>([])
     const [agents, setAgents] = useState<AgentSummary[]>([])
 
     const [keysLoading, setKeysLoading] = useState(true)
     const [webhooksLoading, setWebhooksLoading] = useState(true)
+    const [platformSyncConnectionsLoading, setPlatformSyncConnectionsLoading] = useState(true)
     const [platformConnectionsLoading, setPlatformConnectionsLoading] = useState(true)
     const [logsLoading, setLogsLoading] = useState(false)
     const [agentsLoading, setAgentsLoading] = useState(true)
@@ -231,6 +278,27 @@ export default function DevelopersPage() {
     const [editingWebhookEvents, setEditingWebhookEvents] = useState<string[]>([])
     const [savingWebhookEdit, setSavingWebhookEdit] = useState(false)
     const [deletingWebhookId, setDeletingWebhookId] = useState<string | null>(null)
+
+    const [showPlatformSyncForm, setShowPlatformSyncForm] = useState(false)
+    const [creatingPlatformSync, setCreatingPlatformSync] = useState(false)
+    const [newPlatformSyncName, setNewPlatformSyncName] = useState('')
+    const [newPlatformSyncProvider, setNewPlatformSyncProvider] = useState<'woocommerce' | 'shopify'>('woocommerce')
+    const [newPlatformSyncAgentId, setNewPlatformSyncAgentId] = useState('')
+    const [newPlatformSyncAutoSyncEnabled, setNewPlatformSyncAutoSyncEnabled] = useState(false)
+    const [newPlatformSyncIntervalMinutes, setNewPlatformSyncIntervalMinutes] = useState(15)
+    const [newWooStoreUrl, setNewWooStoreUrl] = useState('')
+    const [newWooConsumerKey, setNewWooConsumerKey] = useState('')
+    const [newWooConsumerSecret, setNewWooConsumerSecret] = useState('')
+    const [newShopifyDomain, setNewShopifyDomain] = useState('')
+    const [newShopifyToken, setNewShopifyToken] = useState('')
+    const [newShopifyApiVersion, setNewShopifyApiVersion] = useState('2024-10')
+    const [testingPlatformSyncId, setTestingPlatformSyncId] = useState<string | null>(null)
+    const [syncingPlatformSyncId, setSyncingPlatformSyncId] = useState<string | null>(null)
+    const [savingPlatformSyncConfigId, setSavingPlatformSyncConfigId] = useState<string | null>(null)
+    const [deletingPlatformSyncId, setDeletingPlatformSyncId] = useState<string | null>(null)
+    const [expandedPlatformSyncRunsId, setExpandedPlatformSyncRunsId] = useState<string | null>(null)
+    const [loadingPlatformSyncRunsId, setLoadingPlatformSyncRunsId] = useState<string | null>(null)
+    const [platformSyncRunsByConnection, setPlatformSyncRunsByConnection] = useState<Record<string, PlatformSyncRunItem[]>>({})
 
     const [showPlatformConnectionForm, setShowPlatformConnectionForm] = useState(false)
     const [creatingPlatformConnection, setCreatingPlatformConnection] = useState(false)
@@ -308,6 +376,22 @@ export default function DevelopersPage() {
         }
     }, [])
 
+    const fetchPlatformSyncConnections = useCallback(async () => {
+        setPlatformSyncConnectionsLoading(true)
+        try {
+            const res = await fetch('/api/developer/platform-sync-connections')
+            const result = await res.json()
+            if (!res.ok) {
+                throw new Error(result.error || 'Impossible de charger les connexions de sync catalogue')
+            }
+            setPlatformSyncConnections(result.data || [])
+        } catch (error: any) {
+            setPageError(error.message || 'Impossible de charger les connexions de sync catalogue')
+        } finally {
+            setPlatformSyncConnectionsLoading(false)
+        }
+    }, [])
+
     const fetchPlatformConnections = useCallback(async () => {
         setPlatformConnectionsLoading(true)
         try {
@@ -347,8 +431,8 @@ export default function DevelopersPage() {
 
     useEffect(() => {
         setPageError(null)
-        void Promise.all([fetchKeys(), fetchAgents(), fetchWebhooks(), fetchPlatformConnections()])
-    }, [fetchAgents, fetchKeys, fetchWebhooks, fetchPlatformConnections])
+        void Promise.all([fetchKeys(), fetchAgents(), fetchWebhooks(), fetchPlatformSyncConnections(), fetchPlatformConnections()])
+    }, [fetchAgents, fetchKeys, fetchWebhooks, fetchPlatformConnections, fetchPlatformSyncConnections])
 
     useEffect(() => {
         if (activeTab === 'logs') {
@@ -363,6 +447,14 @@ export default function DevelopersPage() {
             setNewPlatformAgentId(activeAgents[0].id)
         }
     }, [activeAgents, newPlatformAgentId])
+
+    useEffect(() => {
+        if (activeAgents.length === 0) return
+        const hasCurrent = activeAgents.some(agent => agent.id === newPlatformSyncAgentId)
+        if (!newPlatformSyncAgentId || !hasCurrent) {
+            setNewPlatformSyncAgentId(activeAgents[0].id)
+        }
+    }, [activeAgents, newPlatformSyncAgentId])
 
     useEffect(() => {
         const allowedValues = new Set((PLATFORM_EVENT_OPTIONS[newPlatformProvider] || []).map(option => option.value))
@@ -703,6 +795,223 @@ export default function DevelopersPage() {
         }
     }
 
+    const resetPlatformSyncForm = () => {
+        setNewPlatformSyncName('')
+        setNewPlatformSyncProvider('woocommerce')
+        setNewPlatformSyncAutoSyncEnabled(false)
+        setNewPlatformSyncIntervalMinutes(15)
+        setNewWooStoreUrl('')
+        setNewWooConsumerKey('')
+        setNewWooConsumerSecret('')
+        setNewShopifyDomain('')
+        setNewShopifyToken('')
+        setNewShopifyApiVersion('2024-10')
+    }
+
+    const createPlatformSyncConnection = async () => {
+        if (!newPlatformSyncName.trim() || !newPlatformSyncAgentId) return
+
+        const credentials = newPlatformSyncProvider === 'woocommerce'
+            ? {
+                store_url: newWooStoreUrl.trim(),
+                consumer_key: newWooConsumerKey.trim(),
+                consumer_secret: newWooConsumerSecret.trim(),
+            }
+            : {
+                shop_domain: newShopifyDomain.trim(),
+                admin_api_token: newShopifyToken.trim(),
+                api_version: newShopifyApiVersion.trim() || '2024-10',
+            }
+
+        setCreatingPlatformSync(true)
+        setPageError(null)
+
+        try {
+            const res = await fetch('/api/developer/platform-sync-connections', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: newPlatformSyncName.trim(),
+                    provider: newPlatformSyncProvider,
+                    agent_id: newPlatformSyncAgentId,
+                    credentials,
+                    is_active: true,
+                    auto_sync_enabled: newPlatformSyncAutoSyncEnabled,
+                    sync_interval_minutes: newPlatformSyncIntervalMinutes,
+                }),
+            })
+
+            const result = await res.json()
+            if (!res.ok) {
+                throw new Error(result.error || 'Impossible de creer la connexion de sync')
+            }
+
+            setPlatformSyncConnections(prev => [result.data, ...prev])
+            resetPlatformSyncForm()
+            setShowPlatformSyncForm(false)
+            setActiveTab('catalog_sync')
+        } catch (error: any) {
+            setPageError(error.message || 'Impossible de creer la connexion de sync')
+        } finally {
+            setCreatingPlatformSync(false)
+        }
+    }
+
+    const updatePlatformSyncConnection = async (
+        connection: PlatformSyncConnectionItem,
+        updates: Record<string, unknown>,
+        fallbackErrorMessage: string
+    ) => {
+        setSavingPlatformSyncConfigId(connection.id)
+        setPageError(null)
+        try {
+            const res = await fetch(`/api/developer/platform-sync-connections/${connection.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updates),
+            })
+            const result = await res.json()
+            if (!res.ok) {
+                throw new Error(result.error || fallbackErrorMessage)
+            }
+            setPlatformSyncConnections(prev =>
+                prev.map(item => item.id === connection.id ? { ...item, ...result.data } : item)
+            )
+        } catch (error: any) {
+            setPageError(error.message || fallbackErrorMessage)
+        } finally {
+            setSavingPlatformSyncConfigId(null)
+        }
+    }
+
+    const togglePlatformSyncConnection = async (connection: PlatformSyncConnectionItem) => {
+        await updatePlatformSyncConnection(
+            connection,
+            { is_active: !connection.is_active },
+            'Impossible de modifier la connexion de sync'
+        )
+    }
+
+    const togglePlatformSyncAuto = async (connection: PlatformSyncConnectionItem) => {
+        await updatePlatformSyncConnection(
+            connection,
+            { auto_sync_enabled: !connection.auto_sync_enabled },
+            'Impossible de modifier le mode auto-sync'
+        )
+    }
+
+    const changePlatformSyncInterval = async (
+        connection: PlatformSyncConnectionItem,
+        value: number
+    ) => {
+        await updatePlatformSyncConnection(
+            connection,
+            { sync_interval_minutes: value },
+            'Impossible de modifier l intervalle de sync'
+        )
+    }
+
+    const testPlatformSyncConnection = async (id: string) => {
+        setTestingPlatformSyncId(id)
+        setPageError(null)
+        try {
+            const res = await fetch(`/api/developer/platform-sync-connections/${id}/test`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+            })
+            const result = await res.json()
+            if (!res.ok) {
+                throw new Error(result.error || 'Test de connexion echoue')
+            }
+            await fetchPlatformSyncConnections()
+        } catch (error: any) {
+            setPageError(error.message || 'Test de connexion echoue')
+        } finally {
+            setTestingPlatformSyncId(null)
+        }
+    }
+
+    const syncNowPlatformSyncConnection = async (id: string) => {
+        setSyncingPlatformSyncId(id)
+        setPageError(null)
+        try {
+            const res = await fetch(`/api/developer/platform-sync-connections/${id}/sync-now`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ max_items: 200 }),
+            })
+            const result = await res.json()
+            if (!res.ok) {
+                throw new Error(result.error || 'Sync catalogue echouee')
+            }
+            await fetchPlatformSyncConnections()
+            if (expandedPlatformSyncRunsId === id) {
+                await fetchPlatformSyncRuns(id, true)
+            }
+        } catch (error: any) {
+            setPageError(error.message || 'Sync catalogue echouee')
+        } finally {
+            setSyncingPlatformSyncId(null)
+        }
+    }
+
+    const fetchPlatformSyncRuns = async (connectionId: string, force = false) => {
+        if (!force && platformSyncRunsByConnection[connectionId]) {
+            return
+        }
+
+        setLoadingPlatformSyncRunsId(connectionId)
+        setPageError(null)
+        try {
+            const res = await fetch(`/api/developer/platform-sync-connections/${connectionId}/runs?limit=10`)
+            const result = await res.json()
+            if (!res.ok) {
+                throw new Error(result.error || 'Impossible de charger l historique des syncs')
+            }
+            setPlatformSyncRunsByConnection(prev => ({ ...prev, [connectionId]: result.data || [] }))
+        } catch (error: any) {
+            setPageError(error.message || 'Impossible de charger l historique des syncs')
+        } finally {
+            setLoadingPlatformSyncRunsId(null)
+        }
+    }
+
+    const togglePlatformSyncRuns = async (connectionId: string) => {
+        if (expandedPlatformSyncRunsId === connectionId) {
+            setExpandedPlatformSyncRunsId(null)
+            return
+        }
+        setExpandedPlatformSyncRunsId(connectionId)
+        await fetchPlatformSyncRuns(connectionId)
+    }
+
+    const deletePlatformSyncConnection = async (id: string) => {
+        if (!confirm('Supprimer cette connexion de sync catalogue ?')) return
+
+        setDeletingPlatformSyncId(id)
+        setPageError(null)
+        try {
+            const res = await fetch(`/api/developer/platform-sync-connections/${id}`, { method: 'DELETE' })
+            const result = await res.json()
+            if (!res.ok) {
+                throw new Error(result.error || 'Impossible de supprimer la connexion de sync')
+            }
+            setPlatformSyncConnections(prev => prev.filter(item => item.id !== id))
+            setPlatformSyncRunsByConnection(prev => {
+                const next = { ...prev }
+                delete next[id]
+                return next
+            })
+            if (expandedPlatformSyncRunsId === id) {
+                setExpandedPlatformSyncRunsId(null)
+            }
+        } catch (error: any) {
+            setPageError(error.message || 'Impossible de supprimer la connexion de sync')
+        } finally {
+            setDeletingPlatformSyncId(null)
+        }
+    }
+
     const toggleNewPlatformAllowedEvent = (eventName: string) => {
         setNewPlatformAllowedEvents(prev => {
             if (prev.includes(eventName)) {
@@ -824,12 +1133,32 @@ export default function DevelopersPage() {
 
     const tabs = [
         { id: 'keys' as const, label: 'Cles API', icon: Key, count: keys.length },
+        { id: 'catalog_sync' as const, label: 'Sync catalogue', icon: RefreshCw, count: platformSyncConnections.length },
         { id: 'platform_connections' as const, label: 'Connexions plateforme directes', icon: Globe, count: platformConnections.length },
         { id: 'webhooks' as const, label: 'Webhooks', icon: Globe, count: webhooks.length },
         { id: 'logs' as const, label: 'Logs', icon: Activity, count: undefined },
         { id: 'documentation' as const, label: 'Documentation', icon: BookOpen, count: undefined },
         { id: 'tests' as const, label: 'Tests', icon: Code2, count: undefined },
     ]
+
+    const canCreatePlatformSync = newPlatformSyncProvider === 'woocommerce'
+        ? Boolean(
+            newPlatformSyncName.trim()
+            && newPlatformSyncAgentId
+            && newPlatformSyncIntervalMinutes >= 5
+            && newPlatformSyncIntervalMinutes <= 1440
+            && newWooStoreUrl.trim()
+            && newWooConsumerKey.trim()
+            && newWooConsumerSecret.trim()
+        )
+        : Boolean(
+            newPlatformSyncName.trim()
+            && newPlatformSyncAgentId
+            && newPlatformSyncIntervalMinutes >= 5
+            && newPlatformSyncIntervalMinutes <= 1440
+            && newShopifyDomain.trim()
+            && newShopifyToken.trim()
+        )
 
     return (
         <div style={{ padding: 24, maxWidth: 1180, margin: '0 auto' }}>
@@ -1327,6 +1656,458 @@ export default function DevelopersPage() {
                                         </div>
                                     )
                                 })}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {activeTab === 'catalog_sync' && (
+                <div style={{ display: 'grid', gap: 20 }}>
+                    {showPlatformSyncForm && (
+                        <div style={sectionStyle}>
+                            <h2 style={{ margin: '0 0 16px', fontSize: 16, color: 'var(--text-primary, #fff)' }}>
+                                Creer une connexion de sync catalogue
+                            </h2>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'var(--text-secondary, #9ca3af)' }}>
+                                        Nom de la connexion
+                                    </label>
+                                    <input
+                                        value={newPlatformSyncName}
+                                        onChange={event => setNewPlatformSyncName(event.target.value)}
+                                        placeholder="Ex: Woo principal - sync catalogue"
+                                        style={inputStyle}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'var(--text-secondary, #9ca3af)' }}>
+                                        Plateforme
+                                    </label>
+                                    <select
+                                        value={newPlatformSyncProvider}
+                                        onChange={event => setNewPlatformSyncProvider(event.target.value as 'woocommerce' | 'shopify')}
+                                        style={inputStyle}
+                                    >
+                                        {PLATFORM_SYNC_PROVIDERS.map(provider => (
+                                            <option key={provider.value} value={provider.value}>
+                                                {provider.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'var(--text-secondary, #9ca3af)' }}>
+                                        Agent cible
+                                    </label>
+                                    <select
+                                        value={newPlatformSyncAgentId}
+                                        onChange={event => setNewPlatformSyncAgentId(event.target.value)}
+                                        style={inputStyle}
+                                    >
+                                        {activeAgents.map(agent => (
+                                            <option key={agent.id} value={agent.id}>
+                                                {agent.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'var(--text-secondary, #9ca3af)' }}>
+                                        Auto-sync catalogue
+                                    </label>
+                                    <select
+                                        value={newPlatformSyncAutoSyncEnabled ? 'on' : 'off'}
+                                        onChange={event => setNewPlatformSyncAutoSyncEnabled(event.target.value === 'on')}
+                                        style={inputStyle}
+                                    >
+                                        <option value="off">Desactive</option>
+                                        <option value="on">Active</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'var(--text-secondary, #9ca3af)' }}>
+                                        Intervalle auto-sync
+                                    </label>
+                                    <select
+                                        value={String(newPlatformSyncIntervalMinutes)}
+                                        onChange={event => setNewPlatformSyncIntervalMinutes(Number(event.target.value))}
+                                        style={inputStyle}
+                                    >
+                                        {PLATFORM_SYNC_INTERVAL_OPTIONS.map(minutes => (
+                                            <option key={minutes} value={String(minutes)}>
+                                                {minutes >= 60 ? `${minutes / 60}h` : `${minutes} min`}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {newPlatformSyncProvider === 'woocommerce' ? (
+                                    <>
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'var(--text-secondary, #9ca3af)' }}>
+                                                URL boutique Woo
+                                            </label>
+                                            <input
+                                                value={newWooStoreUrl}
+                                                onChange={event => setNewWooStoreUrl(event.target.value)}
+                                                placeholder="https://votre-boutique.com"
+                                                style={inputStyle}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'var(--text-secondary, #9ca3af)' }}>
+                                                Consumer key
+                                            </label>
+                                            <input
+                                                value={newWooConsumerKey}
+                                                onChange={event => setNewWooConsumerKey(event.target.value)}
+                                                placeholder="ck_xxxxxxxxxxxxxxxxx"
+                                                style={inputStyle}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'var(--text-secondary, #9ca3af)' }}>
+                                                Consumer secret
+                                            </label>
+                                            <input
+                                                value={newWooConsumerSecret}
+                                                onChange={event => setNewWooConsumerSecret(event.target.value)}
+                                                placeholder="cs_xxxxxxxxxxxxxxxxx"
+                                                style={inputStyle}
+                                            />
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'var(--text-secondary, #9ca3af)' }}>
+                                                Domaine Shopify
+                                            </label>
+                                            <input
+                                                value={newShopifyDomain}
+                                                onChange={event => setNewShopifyDomain(event.target.value)}
+                                                placeholder="votre-boutique.myshopify.com"
+                                                style={inputStyle}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'var(--text-secondary, #9ca3af)' }}>
+                                                Admin API token
+                                            </label>
+                                            <input
+                                                value={newShopifyToken}
+                                                onChange={event => setNewShopifyToken(event.target.value)}
+                                                placeholder="shpat_xxxxxxxxxxxxxxxxx"
+                                                style={inputStyle}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'var(--text-secondary, #9ca3af)' }}>
+                                                API version
+                                            </label>
+                                            <input
+                                                value={newShopifyApiVersion}
+                                                onChange={event => setNewShopifyApiVersion(event.target.value)}
+                                                placeholder="2024-10"
+                                                style={inputStyle}
+                                            />
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+
+                            {agentsLoading ? (
+                                <div style={{ marginTop: 12, color: 'var(--text-secondary, #9ca3af)', fontSize: 13 }}>
+                                    Chargement des agents...
+                                </div>
+                            ) : activeAgents.length === 0 ? (
+                                <div style={{ marginTop: 12, color: '#f59e0b', fontSize: 13 }}>
+                                    Aucun agent externe disponible. Creez un agent avec ecommerce_mode = external_sync.
+                                </div>
+                            ) : null}
+
+                            <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
+                                <button
+                                    onClick={createPlatformSyncConnection}
+                                    disabled={creatingPlatformSync || !canCreatePlatformSync || activeAgents.length === 0}
+                                    style={{
+                                        ...primaryButtonStyle,
+                                        opacity: creatingPlatformSync || !canCreatePlatformSync || activeAgents.length === 0 ? 0.6 : 1,
+                                    }}
+                                >
+                                    {creatingPlatformSync ? 'Creation...' : 'Creer la connexion sync'}
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        resetPlatformSyncForm()
+                                        setShowPlatformSyncForm(false)
+                                    }}
+                                    style={secondaryButtonStyle}
+                                >
+                                    Annuler
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    <div style={sectionStyle}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
+                            <h2 style={{ margin: 0, fontSize: 16, color: 'var(--text-primary, #fff)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <RefreshCw size={16} />
+                                Sync catalogue ({platformSyncConnections.length})
+                            </h2>
+                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                <button
+                                    onClick={() => setShowPlatformSyncForm(value => !value)}
+                                    style={primaryButtonStyle}
+                                >
+                                    <Plus size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+                                    Nouvelle connexion sync
+                                </button>
+                                <button onClick={() => void fetchPlatformSyncConnections()} style={secondaryButtonStyle}>
+                                    <RefreshCw size={13} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+                                    Rafraichir
+                                </button>
+                            </div>
+                        </div>
+
+                        {platformSyncConnectionsLoading ? (
+                            <div style={{ color: 'var(--text-secondary, #9ca3af)', textAlign: 'center', padding: 30 }}>Chargement...</div>
+                        ) : platformSyncConnections.length === 0 ? (
+                            <div style={{ color: 'var(--text-secondary, #9ca3af)', textAlign: 'center', padding: 30 }}>
+                                Aucune connexion de sync catalogue configuree.
+                            </div>
+                        ) : (
+                            <div style={{ display: 'grid', gap: 12 }}>
+                                {platformSyncConnections.map(connection => (
+                                    <div
+                                        key={connection.id}
+                                        style={{
+                                            borderRadius: 14,
+                                            border: '1px solid var(--border, #2a2a3e)',
+                                            background: 'rgba(255,255,255,0.02)',
+                                            padding: 16,
+                                            opacity: connection.is_active ? 1 : 0.72,
+                                        }}
+                                    >
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                                            <div style={{ display: 'grid', gap: 6 }}>
+                                                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                                                    <span style={{ fontSize: 15, color: 'var(--text-primary, #fff)', fontWeight: 600 }}>
+                                                        {connection.name}
+                                                    </span>
+                                                    <span style={{
+                                                        padding: '4px 8px',
+                                                        borderRadius: 999,
+                                                        background: 'rgba(37, 211, 102, 0.15)',
+                                                        color: '#25d366',
+                                                        fontSize: 11,
+                                                        textTransform: 'uppercase',
+                                                        fontWeight: 700,
+                                                    }}>
+                                                        {connection.provider}
+                                                    </span>
+                                                    <span style={{
+                                                        padding: '4px 8px',
+                                                        borderRadius: 999,
+                                                        background: 'rgba(59,130,246,0.12)',
+                                                        color: '#93c5fd',
+                                                        fontSize: 11,
+                                                    }}>
+                                                        {agentNameById.get(connection.agent_id) || connection.agent_id}
+                                                    </span>
+                                                </div>
+
+                                                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', fontSize: 12, color: 'var(--text-secondary, #9ca3af)' }}>
+                                                    <span>Creee le {formatDate(connection.created_at)}</span>
+                                                    <span>Dernier test: {connection.last_tested_at ? formatTime(connection.last_tested_at) : 'jamais'}</span>
+                                                    {connection.last_test_status_code != null && (
+                                                        <span style={{ color: statusColor(connection.last_test_status_code) }}>
+                                                            Test HTTP {connection.last_test_status_code}
+                                                        </span>
+                                                    )}
+                                                    <span>Derniere sync: {connection.last_synced_at ? formatTime(connection.last_synced_at) : 'jamais'}</span>
+                                                    <span>Auto-sync: {connection.auto_sync_enabled ? 'actif' : 'off'}</span>
+                                                    <span>Intervalle: {connection.sync_interval_minutes || 15} min</span>
+                                                    {connection.next_retry_at && (
+                                                        <span style={{ color: '#f59e0b' }}>
+                                                            Prochain retry: {formatTime(connection.next_retry_at)}
+                                                        </span>
+                                                    )}
+                                                    <span>Retry count: {connection.retry_count || 0}</span>
+                                                    <span style={{
+                                                        color: connection.last_sync_status === 'success'
+                                                            ? '#22c55e'
+                                                            : connection.last_sync_status === 'failed'
+                                                                ? '#ef4444'
+                                                                : 'var(--text-secondary, #9ca3af)'
+                                                    }}>
+                                                        Etat sync: {connection.last_sync_status}
+                                                    </span>
+                                                    <span>Elements sync: {connection.last_sync_count || 0}</span>
+                                                    {connection.last_sync_started_at && (
+                                                        <span>Debut run: {formatTime(connection.last_sync_started_at)}</span>
+                                                    )}
+                                                    {connection.last_sync_finished_at && (
+                                                        <span>Fin run: {formatTime(connection.last_sync_finished_at)}</span>
+                                                    )}
+                                                </div>
+
+                                                <div style={{ fontSize: 12, color: 'var(--text-secondary, #9ca3af)' }}>
+                                                    {connection.provider === 'woocommerce'
+                                                        ? `Boutique: ${String(connection.credentials_hint?.store_url_origin || 'non renseignee')}`
+                                                        : `Shop: ${String(connection.credentials_hint?.shop_domain || 'non renseigne')} (API ${String(connection.credentials_hint?.api_version || '2024-10')})`}
+                                                </div>
+
+                                                {connection.last_test_error && (
+                                                    <div style={{ color: '#fca5a5', fontSize: 12 }}>
+                                                        Erreur test: {connection.last_test_error}
+                                                    </div>
+                                                )}
+
+                                                {connection.last_sync_error && (
+                                                    <div style={{ color: '#fca5a5', fontSize: 12 }}>
+                                                        Erreur sync: {connection.last_sync_error}
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                                                <select
+                                                    value={String(connection.sync_interval_minutes || 15)}
+                                                    onChange={event => void changePlatformSyncInterval(connection, Number(event.target.value))}
+                                                    disabled={savingPlatformSyncConfigId === connection.id || !connection.auto_sync_enabled}
+                                                    style={{ ...inputStyle, minWidth: 120, width: 'auto', opacity: connection.auto_sync_enabled ? 1 : 0.6 }}
+                                                >
+                                                    {PLATFORM_SYNC_INTERVAL_OPTIONS.map(minutes => (
+                                                        <option key={minutes} value={String(minutes)}>
+                                                            {minutes >= 60 ? `${minutes / 60}h` : `${minutes} min`}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                <button
+                                                    onClick={() => void testPlatformSyncConnection(connection.id)}
+                                                    disabled={testingPlatformSyncId === connection.id}
+                                                    style={secondaryButtonStyle}
+                                                >
+                                                    {testingPlatformSyncId === connection.id ? 'Test...' : 'Tester connexion'}
+                                                </button>
+                                                <button
+                                                    onClick={() => void syncNowPlatformSyncConnection(connection.id)}
+                                                    disabled={syncingPlatformSyncId === connection.id || !connection.is_active}
+                                                    style={secondaryButtonStyle}
+                                                >
+                                                    {syncingPlatformSyncId === connection.id ? 'Sync...' : 'Sync maintenant'}
+                                                </button>
+                                                <button
+                                                    onClick={() => void togglePlatformSyncAuto(connection)}
+                                                    disabled={savingPlatformSyncConfigId === connection.id}
+                                                    style={{
+                                                        ...secondaryButtonStyle,
+                                                        color: connection.auto_sync_enabled ? '#25d366' : 'var(--text-secondary, #9ca3af)',
+                                                        opacity: savingPlatformSyncConfigId === connection.id ? 0.6 : 1,
+                                                    }}
+                                                >
+                                                    {connection.auto_sync_enabled ? 'Auto-sync ON' : 'Auto-sync OFF'}
+                                                </button>
+                                                <button
+                                                    onClick={() => void togglePlatformSyncConnection(connection)}
+                                                    disabled={savingPlatformSyncConfigId === connection.id}
+                                                    style={{
+                                                        ...secondaryButtonStyle,
+                                                        color: connection.is_active ? '#25d366' : '#ef4444',
+                                                        opacity: savingPlatformSyncConfigId === connection.id ? 0.6 : 1,
+                                                    }}
+                                                >
+                                                    <Power size={13} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+                                                    {connection.is_active ? 'Desactiver' : 'Activer'}
+                                                </button>
+                                                <button
+                                                    onClick={() => void togglePlatformSyncRuns(connection.id)}
+                                                    style={secondaryButtonStyle}
+                                                >
+                                                    {expandedPlatformSyncRunsId === connection.id ? 'Masquer runs' : 'Voir runs'}
+                                                </button>
+                                                <button
+                                                    onClick={() => void deletePlatformSyncConnection(connection.id)}
+                                                    disabled={deletingPlatformSyncId === connection.id}
+                                                    style={{
+                                                        ...secondaryButtonStyle,
+                                                        color: '#ef4444',
+                                                        opacity: deletingPlatformSyncId === connection.id ? 0.6 : 1,
+                                                    }}
+                                                >
+                                                    {deletingPlatformSyncId === connection.id ? (
+                                                        <RefreshCw size={13} style={{ marginRight: 6, verticalAlign: 'middle', animation: 'spin 1s linear infinite' }} />
+                                                    ) : (
+                                                        <Trash2 size={13} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+                                                    )}
+                                                    Supprimer
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {expandedPlatformSyncRunsId === connection.id && (
+                                            <div
+                                                style={{
+                                                    marginTop: 14,
+                                                    paddingTop: 12,
+                                                    borderTop: '1px solid rgba(255,255,255,0.08)',
+                                                    display: 'grid',
+                                                    gap: 8,
+                                                }}
+                                            >
+                                                {loadingPlatformSyncRunsId === connection.id ? (
+                                                    <div style={{ fontSize: 12, color: 'var(--text-secondary, #9ca3af)' }}>
+                                                        Chargement des runs...
+                                                    </div>
+                                                ) : (platformSyncRunsByConnection[connection.id] || []).length === 0 ? (
+                                                    <div style={{ fontSize: 12, color: 'var(--text-secondary, #9ca3af)' }}>
+                                                        Aucun run enregistre pour cette connexion.
+                                                    </div>
+                                                ) : (
+                                                    (platformSyncRunsByConnection[connection.id] || []).map(run => (
+                                                        <div
+                                                            key={run.id}
+                                                            style={{
+                                                                border: '1px solid var(--border, #2a2a3e)',
+                                                                borderRadius: 10,
+                                                                padding: '8px 10px',
+                                                                fontSize: 12,
+                                                                display: 'flex',
+                                                                gap: 10,
+                                                                flexWrap: 'wrap',
+                                                                alignItems: 'center',
+                                                            }}
+                                                        >
+                                                            <span style={{ color: run.status === 'success' ? '#22c55e' : '#ef4444', fontWeight: 700 }}>
+                                                                {run.status.toUpperCase()}
+                                                            </span>
+                                                            <span>Source: {run.trigger_source}</span>
+                                                            <span>Fetched: {run.fetched_count}</span>
+                                                            <span>Synced: {run.synced_count}</span>
+                                                            <span>Has more: {run.has_more ? 'oui' : 'non'}</span>
+                                                            <span>Debut: {formatTime(run.started_at)}</span>
+                                                            <span>Fin: {formatTime(run.finished_at)}</span>
+                                                            {run.error && (
+                                                                <span style={{ color: '#fca5a5' }}>
+                                                                    Erreur: {run.error}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    ))
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
                             </div>
                         )}
                     </div>
