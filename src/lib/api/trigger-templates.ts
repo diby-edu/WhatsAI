@@ -52,6 +52,15 @@ type TemplateBuilder = (ctx: TriggerContext) => string
 const customerName = (ctx: TriggerContext) =>
     ctx.customer?.name ? `${ctx.customer.name}` : 'vous'
 
+const formatOrderReference = (value?: string, fallback = '—') => {
+    const raw = (value || '').trim()
+    const cleaned = raw.replace(/^#+\s*/, '')
+    const finalRef = cleaned || fallback
+    if (!finalRef) return ''
+    if (finalRef === '—') return finalRef
+    return `#${finalRef}`
+}
+
 const templates: Record<string, TemplateBuilder> = {
     cart_abandoned: (ctx) => {
         const name = customerName(ctx)
@@ -75,11 +84,11 @@ const templates: Record<string, TemplateBuilder> = {
 
     order_created: (ctx) => {
         const name = customerName(ctx)
-        const ref = ctx.order?.reference || ctx.order?.id || '—'
+        const ref = formatOrderReference(ctx.order?.reference || ctx.order?.id, '—')
         const total = ctx.order?.total
         const currency = ctx.cart?.currency ?? 'FCFA'
 
-        let msg = `Bonjour ${name} ! ✅\n\nVotre commande *#${ref}* a bien été reçue et est en cours de traitement.`
+        let msg = `Bonjour ${name} ! ✅\n\nVotre commande *${ref}* a bien été reçue et est en cours de traitement.`
         if (total != null) {
             const n = Number(total)
             msg += `\nMontant : ${Number.isNaN(n) ? total : n.toLocaleString('fr-FR') + ' ' + currency}`
@@ -90,9 +99,9 @@ const templates: Record<string, TemplateBuilder> = {
 
     order_shipped: (ctx) => {
         const name = customerName(ctx)
-        const ref = ctx.order?.reference || ctx.order?.id || '—'
+        const ref = formatOrderReference(ctx.order?.reference || ctx.order?.id, '—')
 
-        let msg = `Bonjour ${name} ! 🚚\n\nBonne nouvelle : votre commande *#${ref}* est en route !`
+        let msg = `Bonjour ${name} ! 🚚\n\nBonne nouvelle : votre commande *${ref}* est en route !`
         if (ctx.order?.tracking_url) msg += `\n\nSuivez votre livraison : ${ctx.order.tracking_url}`
         msg += `\n\nUne question ? Je suis là.`
         return msg
@@ -100,9 +109,9 @@ const templates: Record<string, TemplateBuilder> = {
 
     payment_failed: (ctx) => {
         const name = customerName(ctx)
-        const ref = ctx.order?.reference || ctx.order?.id
+        const ref = formatOrderReference(ctx.order?.reference || ctx.order?.id, '')
 
-        let msg = `Bonjour ${name},\n\nNous n'avons pas pu traiter votre paiement${ref ? ` pour la commande *#${ref}*` : ''}.`
+        let msg = `Bonjour ${name},\n\nNous n'avons pas pu traiter votre paiement${ref ? ` pour la commande *${ref}*` : ''}.`
         msg += `\n\nVoulez-vous réessayer ou choisir un autre mode de paiement ? Je peux vous guider. 🙏`
         return msg
     },
