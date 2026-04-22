@@ -715,7 +715,7 @@ export default function DashboardLayout({
                     </div>
 
                     {/* Navigation */}
-                    <nav style={{ flex: 1, padding: 12, display: 'flex', flexDirection: 'column', gap: 4, overflowY: 'hidden' }}>
+                    <nav style={{ flex: 1, padding: 12, display: 'flex', flexDirection: 'column', gap: 4, overflowY: 'auto' }}>
                         {sidebarLinks.map((link) => {
                             const isActive = pathname === link.href || (link.href !== '/dashboard' && pathname.startsWith(link.href))
                             const isApiLocked = link.href === '/dashboard/developers' && !apiAccessEnabled
