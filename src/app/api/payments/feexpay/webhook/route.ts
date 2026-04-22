@@ -55,7 +55,13 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        if (providerStatus !== 'ACCEPTED') {
+        const isTerminalProviderStatus = (
+            providerStatus === 'ACCEPTED'
+            || providerStatus === 'REFUSED'
+            || providerStatus === 'CANCELLED'
+        )
+
+        if (!isTerminalProviderStatus) {
             console.info('[FeexPay Webhook] Non-final status ignored', {
                 reference: webhookReference,
                 callbackInfo,
@@ -74,12 +80,21 @@ export async function POST(request: NextRequest) {
         }
 
         if (isOrderTransactionId(finalizationReference) || isBookingTransactionId(finalizationReference)) {
-            await finalizeHostedCheckoutTransaction(getSupabase(), finalizationReference, {
-                provider: 'feexpay',
-                amount: null,
-                providerPayload,
-            })
-            console.info('[FeexPay Webhook] Hosted checkout finalized', {
+            if (providerStatus === 'ACCEPTED') {
+                await finalizeHostedCheckoutTransaction(getSupabase(), finalizationReference, {
+                    provider: 'feexpay',
+                    amount: null,
+                    providerPayload,
+                })
+                console.info('[FeexPay Webhook] Hosted checkout finalized', {
+                    reference: webhookReference,
+                    finalizationReference,
+                    providerStatus,
+                })
+                return new Response('OK', { status: 200 })
+            }
+
+            console.info('[FeexPay Webhook] Hosted checkout terminal non-success status received', {
                 reference: webhookReference,
                 finalizationReference,
                 providerStatus,
