@@ -13,6 +13,27 @@ import {
     resolveFeexPaySelection,
 } from '@/lib/payments/feexpay-networks'
 
+function buildPayTraceId(orderId: string) {
+    return `pay_${orderId.slice(0, 8)}_${Date.now()}`
+}
+
+function maskPhone(value: unknown) {
+    const raw = String(value || '').replace(/\s+/g, '')
+    if (!raw) return null
+    if (raw.length <= 6) return raw
+    return `${raw.slice(0, 3)}***${raw.slice(-3)}`
+}
+
+function safeHost(url: unknown) {
+    const value = String(url || '').trim()
+    if (!value) return null
+    try {
+        return new URL(value).host
+    } catch {
+        return null
+    }
+}
+
 const getSupabase = () => createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -23,6 +44,7 @@ export async function POST(
     { params }: { params: Promise<{ orderId: string }> }
 ) {
     const { orderId } = await params
+    const traceId = buildPayTraceId(orderId)
     let body: Record<string, any> = {}
     try {
         const rawBody = await request.text()
@@ -76,6 +98,19 @@ export async function POST(
             providerPaymentUrl: order.provider_payment_url,
         })
 
+        console.info('[PAY][INIT][REQUEST]', {
+            traceId,
+            orderId,
+            amountToCharge,
+            isDepositPayment,
+            defaultProvider,
+            paymentProvider,
+            customerPhone: maskPhone(order.customer_phone),
+            hasCustomerEmail: Boolean(String(order.customer_email || '').trim()),
+            bodyFeexpayCountry: String(body.feexpay_country || '').trim() || null,
+            bodyFeexpayNetwork: String(body.feexpay_network || '').trim() || null,
+        })
+
         const existingProviderReference = String(order.provider_transaction_id || order.transaction_id || '').trim()
         if (existingProviderReference) {
             const existingPayment = await inspectExistingHostedPayment(
@@ -87,6 +122,13 @@ export async function POST(
             if (existingPayment.action === 'reuse') {
                 const existingPaymentUrl = String(order.provider_payment_url || '').trim()
                     || `${baseUrl}/payment/success?transaction_id=${encodeURIComponent(String(order.transaction_id || existingProviderReference).trim())}&payment=pending`
+                console.info('[PAY][INIT][REUSE_EXISTING]', {
+                    traceId,
+                    orderId,
+                    paymentProvider,
+                    existingProviderReference,
+                    reusedUrlHost: safeHost(existingPaymentUrl),
+                })
                 return NextResponse.json({
                     success: true,
                     payment_url: existingPaymentUrl,
@@ -96,6 +138,13 @@ export async function POST(
             }
 
             if (existingPayment.action === 'accepted') {
+                console.info('[PAY][INIT][ALREADY_ACCEPTED]', {
+                    traceId,
+                    orderId,
+                    paymentProvider,
+                    existingProviderReference,
+                    providerStatus: existingPayment.providerStatus,
+                })
                 return NextResponse.json({
                     error: 'Ce paiement a deja ete valide. Actualisez la commande dans quelques secondes.',
                     provider: paymentProvider,
@@ -135,7 +184,24 @@ export async function POST(
             metadata.payment_channel = 'mobile_money'
             metadata.payment_channel_detail = selection.networkCode
             metadata.payment_channel_label = networkOption?.label || selection.networkCode
+
+            console.info('[PAY][INIT][FEEXPAY_SELECTION]', {
+                traceId,
+                orderId,
+                countryCode: selection.countryCode,
+                networkCode: selection.networkCode,
+                networkLabel: networkOption?.label || selection.networkCode,
+            })
         }
+
+        console.info('[PAY][INIT][PROVIDER_CALL]', {
+            traceId,
+            orderId,
+            provider: paymentProvider,
+            transactionId,
+            notifyHost: safeHost(`${baseUrl}/api/payments/${paymentProvider}/webhook`),
+            returnHost: safeHost(`${baseUrl}/pay/${orderId}`),
+        })
 
         const result = await initializeHostedPayment({
             provider: paymentProvider,
@@ -155,7 +221,27 @@ export async function POST(
             agentId: order.agent_id
         })
 
+        console.info('[PAY][INIT][PROVIDER_RESULT]', {
+            traceId,
+            orderId,
+            provider: paymentProvider,
+            providerSuccess: result.success,
+            hasPaymentUrl: Boolean(String(result.paymentUrl || '').trim()),
+            paymentUrlHost: safeHost(result.paymentUrl),
+            providerTransactionId: result.providerTransactionId || null,
+            providerVersion: result.providerVersion || null,
+            error: result.error || null,
+        })
+
         if (!result.success || !result.paymentUrl) {
+            console.warn('[PAY][INIT][FAILED_NO_URL]', {
+                traceId,
+                orderId,
+                provider: paymentProvider,
+                providerSuccess: result.success,
+                hasPaymentUrl: Boolean(String(result.paymentUrl || '').trim()),
+                error: result.error || null,
+            })
             return NextResponse.json({
                 error: result.error || 'Erreur de paiement',
                 details: result.raw || result
@@ -179,7 +265,12 @@ export async function POST(
             provider: paymentProvider
         })
     } catch (err: any) {
-        console.error('Hosted payment initiation error:', err)
+        console.error('[PAY][INIT][UNCAUGHT_ERROR]', {
+            traceId,
+            orderId,
+            message: err?.message || 'unknown error',
+            stack: err?.stack || null,
+        })
         return NextResponse.json({ error: err.message || 'Erreur serveur' }, { status: 500 })
     }
 }

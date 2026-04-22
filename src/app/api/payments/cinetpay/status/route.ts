@@ -101,6 +101,11 @@ export async function GET(request: NextRequest) {
     }
 
     try {
+        console.info('[PAY][STATUS][GET_REQUEST]', {
+            transactionId,
+            publicTxPattern: isPublicCheckoutTransactionId(transactionId),
+        })
+
         const publicCheckoutConfig = await getPublicCheckoutProviderConfig(transactionId)
         if (isPublicCheckoutTransactionId(transactionId) || publicCheckoutConfig.found) {
             const adminSupabase = createAdminClient()
@@ -108,6 +113,16 @@ export async function GET(request: NextRequest) {
             const providerVersion = publicCheckoutConfig.providerVersion
             const providerReference = publicCheckoutConfig.providerTransactionId || transactionId
             const internalTransactionId = publicCheckoutConfig.internalTransactionId || transactionId
+
+            console.info('[PAY][STATUS][PUBLIC_RESOLVED]', {
+                transactionId,
+                foundConfig: publicCheckoutConfig.found,
+                provider,
+                providerVersion,
+                providerReference,
+                internalTransactionId,
+            })
+
             const result = await checkHostedPaymentStatus(provider, providerReference, { providerVersion })
             const normalizedStatus = result.status || 'UNKNOWN'
 
@@ -121,7 +136,23 @@ export async function GET(request: NextRequest) {
                 })
 
                 finalizationState = finalized.state
+                console.info('[PAY][STATUS][PUBLIC_FINALIZATION]', {
+                    internalTransactionId,
+                    providerReference,
+                    provider,
+                    finalizationState,
+                })
             }
+
+            console.info('[PAY][STATUS][PUBLIC_RESULT]', {
+                internalTransactionId,
+                providerReference,
+                provider,
+                providerStatus: normalizedStatus,
+                amount: result.amount ?? null,
+                message: result.message ?? null,
+                finalizationState,
+            })
 
             return NextResponse.json({
                 success: normalizedStatus === 'ACCEPTED',
@@ -175,6 +206,16 @@ export async function GET(request: NextRequest) {
             { providerVersion: payment?.payment_provider_version || null }
         )
 
+        console.info('[PAY][STATUS][AUTH_RESULT]', {
+            transactionId,
+            userId: user.id,
+            provider: normalizePaymentProvider(payment?.payment_provider),
+            statusReference: statusReference || transactionId,
+            paymentRecordStatus: payment?.status || null,
+            providerStatus: result.status || 'UNKNOWN',
+            amount: result.amount ?? null,
+        })
+
         return NextResponse.json({
             success: result.status === 'ACCEPTED',
             status: result.status || 'UNKNOWN',
@@ -188,6 +229,11 @@ export async function GET(request: NextRequest) {
             },
         })
     } catch (err: any) {
+        console.error('[PAY][STATUS][GET_ERROR]', {
+            transactionId,
+            message: err?.message || 'Erreur de verification',
+            stack: err?.stack || null,
+        })
         return NextResponse.json({ error: err.message || 'Erreur de verification' }, { status: 500 })
     }
 }
@@ -234,6 +280,15 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: finalized.message }, { status: 500 })
         }
 
+        console.info('[PAY][STATUS][POST_FINALIZE]', {
+            transactionId,
+            userId: user.id,
+            providerStatus: finalized.providerStatus,
+            finalizationState: finalized.state,
+            creditsAdded: finalized.creditsAdded,
+            planUpdated: finalized.planUpdated,
+        })
+
         return NextResponse.json({
             success: finalized.providerStatus === 'ACCEPTED',
             status: finalized.providerStatus,
@@ -247,7 +302,10 @@ export async function POST(request: NextRequest) {
             },
         })
     } catch (err: any) {
-        console.error('Payment status check error:', err)
+        console.error('[PAY][STATUS][POST_ERROR]', {
+            message: err?.message || 'Erreur de verification',
+            stack: err?.stack || null,
+        })
         return NextResponse.json({ error: err.message || 'Erreur de verification' }, { status: 500 })
     }
 }

@@ -249,6 +249,16 @@ export async function initializeHostedPayment(input: HostedPaymentInitInput): Pr
     ensurePaymentProviderReady(provider)
 
     if (provider === 'feexpay') {
+        const requestedCountry = String(input.metadata?.feexpay_country || '').trim().toLowerCase() || null
+        const requestedNetwork = String(input.metadata?.feexpay_network || '').trim().toLowerCase() || null
+        console.info('[PAY][FEEXPAY][INIT_REQUEST]', {
+            transactionId: input.transactionId,
+            amountFcfa: input.amountFcfa,
+            requestedCountry,
+            requestedNetwork,
+            hasPhone: Boolean(String(input.customerPhone || '').trim()),
+        })
+
         const result = await initializeFeexPayPayment({
             amountFcfa: input.amountFcfa,
             transactionId: input.transactionId,
@@ -268,6 +278,28 @@ export async function initializeHostedPayment(input: HostedPaymentInitInput): Pr
             'pending'
         )
         const resolvedPaymentUrl = paymentUrl || fallbackPendingUrl
+        const usedFallbackPendingUrl = !paymentUrl && Boolean(fallbackPendingUrl)
+
+        console.info('[PAY][FEEXPAY][INIT_RESULT]', {
+            transactionId: input.transactionId,
+            success: result.success,
+            network: network || requestedNetwork,
+            reference: result.reference || null,
+            hasPaymentUrl: Boolean(paymentUrl),
+            usedFallbackPendingUrl,
+            fallbackUrl: usedFallbackPendingUrl ? fallbackPendingUrl : null,
+            rawStatus: (result.raw as any)?.status || null,
+            error: result.error || null,
+        })
+
+        if (usedFallbackPendingUrl) {
+            console.warn('[PAY][FEEXPAY][FALLBACK_PENDING_URL]', {
+                transactionId: input.transactionId,
+                reason: 'Provider did not return payment_url; using pending return URL fallback',
+                network: network || requestedNetwork,
+                reference: result.reference || null,
+            })
+        }
 
         return {
             success: Boolean(result.success && resolvedPaymentUrl),
