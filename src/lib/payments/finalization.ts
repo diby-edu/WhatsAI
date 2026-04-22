@@ -18,6 +18,7 @@ export type PaymentRow = {
     provider_transaction_id?: string | null
     transaction_id?: string | null
     payment_provider?: string | null
+    payment_provider_version?: string | null
     amount_fcfa?: number | null
     credits_purchased?: number | null
     provider_response?: unknown
@@ -64,10 +65,10 @@ function parseMaybeJson(value: unknown): Record<string, any> | null {
 
 function normalizeProviderStatus(status: unknown): ProviderStatus {
     const value = String(status || '').toUpperCase()
-    if (value === 'SUCCESS') return 'ACCEPTED'
+    if (value === 'SUCCESS' || value === 'SUCCESSFUL') return 'ACCEPTED'
     if (value === 'FAILED' || value === 'INSUFFICIENT_BALANCE') return 'REFUSED'
     if (value === 'EXPIRED') return 'CANCELLED'
-    if (value === 'INITIATED') return 'PENDING'
+    if (value === 'INITIATED' || value === 'IN PENDING STATE') return 'PENDING'
     if (value === 'ACCEPTED') return 'ACCEPTED'
     if (value === 'REFUSED') return 'REFUSED'
     if (value === 'CANCELLED') return 'CANCELLED'

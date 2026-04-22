@@ -81,7 +81,7 @@ interface AdminNotificationSettings {
 }
 
 interface PaymentProviderReadiness {
-    provider: 'cinetpay' | 'paystack'
+    provider: 'cinetpay' | 'paystack' | 'feexpay'
     ready: boolean
     requiredKeys: string[]
     missingKeys: string[]
@@ -98,6 +98,7 @@ export default function AdminSettingsPage() {
         current: PaymentProviderReadiness
         cinetpay: PaymentProviderReadiness
         paystack: PaymentProviderReadiness
+        feexpay: PaymentProviderReadiness
     } | null>(null)
 
     const [notificationSettings, setNotificationSettings] = useState<AdminNotificationSettings>({
@@ -255,7 +256,14 @@ export default function AdminSettingsPage() {
             const data = await res.json()
             if (data.data?.settings) {
                 const fetchedSettings = { ...data.data.settings }
-                if (fetchedSettings.defaultPaymentProvider !== 'paystack' && fetchedSettings.defaultPaymentProvider !== 'cinetpay') {
+                if (fetchedSettings.defaultPaymentProvider === 'feepay') {
+                    fetchedSettings.defaultPaymentProvider = 'feexpay'
+                }
+                if (
+                    fetchedSettings.defaultPaymentProvider !== 'paystack'
+                    && fetchedSettings.defaultPaymentProvider !== 'cinetpay'
+                    && fetchedSettings.defaultPaymentProvider !== 'feexpay'
+                ) {
                     fetchedSettings.defaultPaymentProvider = 'cinetpay'
                 }
                 setSettings(prev => ({ ...prev, ...fetchedSettings }))
@@ -341,10 +349,18 @@ export default function AdminSettingsPage() {
         </div>
     )
 
+    const paymentProviderLabel = (provider: string) => {
+        if (provider === 'paystack') return 'Paystack'
+        if (provider === 'feexpay') return 'FeexPay'
+        return 'CinetPay'
+    }
+
     const activeProviderReadiness =
         settings.defaultPaymentProvider === 'paystack'
             ? providerReadiness?.paystack || null
-            : providerReadiness?.cinetpay || null
+            : settings.defaultPaymentProvider === 'feexpay'
+                ? providerReadiness?.feexpay || null
+                : providerReadiness?.cinetpay || null
 
     const renderTabContent = () => {
         switch (activeTab) {
@@ -546,8 +562,8 @@ export default function AdminSettingsPage() {
                                     color: activeProviderReadiness?.ready ? '#4ade80' : '#f87171'
                                 }}>
                                     {activeProviderReadiness?.ready
-                                        ? `${settings.defaultPaymentProvider === 'paystack' ? 'Paystack' : 'CinetPay'} pilote actuellement les nouveaux paiements en ligne`
-                                        : `${settings.defaultPaymentProvider === 'paystack' ? 'Paystack' : 'CinetPay'} n est pas pret pour les nouveaux paiements en ligne`}
+                                        ? `${paymentProviderLabel(settings.defaultPaymentProvider)} pilote actuellement les nouveaux paiements en ligne`
+                                        : `${paymentProviderLabel(settings.defaultPaymentProvider)} n est pas pret pour les nouveaux paiements en ligne`}
                                 </div>
                                 <div style={{ fontSize: 13, color: '#94a3b8' }}>
                                     {activeProviderReadiness?.ready
@@ -595,6 +611,12 @@ export default function AdminSettingsPage() {
                                 >
                                     {providerReadiness?.paystack && !providerReadiness.paystack.ready ? 'Paystack (non pret)' : 'Paystack'}
                                 </option>
+                                <option
+                                    value="feexpay"
+                                    disabled={Boolean(providerReadiness?.feexpay && !providerReadiness.feexpay.ready && settings.defaultPaymentProvider !== 'feexpay')}
+                                >
+                                    {providerReadiness?.feexpay && !providerReadiness.feexpay.ready ? 'FeexPay (non pret)' : 'FeexPay'}
+                                </option>
                             </select>
                             <p style={{ fontSize: 13, color: '#64748b', marginTop: 6 }}>
                                 Ce choix pilote les nouveaux paiements en ligne crees par la plateforme. Les transactions deja lancees conservent leur fournisseur d origine.
@@ -615,7 +637,7 @@ export default function AdminSettingsPage() {
                                     Le client recoit un lien de paiement securise. L argent est d abord collecte par la plateforme, puis reverse a l utilisateur par la plateforme.
                                 </div>
                                 <div style={{ fontSize: 12, color: '#64748b', marginTop: 8 }}>
-                                    Fournisseur actif: {settings.defaultPaymentProvider === 'paystack' ? 'Paystack' : 'CinetPay'}
+                                    Fournisseur actif: {paymentProviderLabel(settings.defaultPaymentProvider)}
                                     {activeProviderReadiness?.ready ? ' - pret' : ' - non pret'}
                                 </div>
                             </div>

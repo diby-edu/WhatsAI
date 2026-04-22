@@ -129,6 +129,7 @@ function BillingContent() {
     const formatHistoryProvider = (provider?: string | null) => {
         const normalized = String(provider || '').trim().toLowerCase()
         if (normalized === 'paystack') return 'Paystack'
+        if (normalized === 'feexpay') return 'FeexPay'
         if (normalized === 'cinetpay') return 'CinetPay'
         return provider || 'Paiement'
     }

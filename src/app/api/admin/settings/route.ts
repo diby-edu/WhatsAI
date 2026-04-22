@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
                 },
             cinetpay: getPaymentProviderReadiness('cinetpay'),
             paystack: getPaymentProviderReadiness('paystack'),
+            feexpay: getPaymentProviderReadiness('feexpay'),
         }
 
         return successResponse({ settings, providerReadiness })
