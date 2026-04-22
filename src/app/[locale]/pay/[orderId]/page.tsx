@@ -27,6 +27,7 @@ export default function OrderPaymentPage() {
     const [items, setItems] = useState<any[]>([])
     const [status, setStatus] = useState<'pending' | 'processing' | 'success' | 'error'>('pending')
     const [error, setError] = useState('')
+    const [notice, setNotice] = useState('')
     const [feexPayCountries, setFeexPayCountries] = useState<FeexPayCountryOption[]>([])
     const [selectedCountry, setSelectedCountry] = useState('')
     const [selectedNetwork, setSelectedNetwork] = useState('')
@@ -45,13 +46,16 @@ export default function OrderPaymentPage() {
             if (data.success && data.status === 'ACCEPTED') {
                 setStatus('success')
                 setError('')
+                setNotice('')
                 return 'ACCEPTED'
             } else if (data.status === 'REFUSED' || data.status === 'CANCELLED') {
                 setStatus('error')
                 setError('Le paiement a ete refuse ou annule.')
+                setNotice('')
                 return String(data.status || 'UNKNOWN')
             } else if (data.status === 'PENDING') {
                 setStatus('processing')
+                setNotice('Demande envoyee. Confirmez le paiement sur votre telephone...')
                 return 'PENDING'
             }
         } catch (err) {
@@ -68,7 +72,7 @@ export default function OrderPaymentPage() {
 
         pollingRef.current = true
         setStatus('processing')
-        setError('Demande envoyee. Confirmez le paiement sur votre telephone...')
+        setNotice('Demande envoyee. Confirmez le paiement sur votre telephone...')
 
         try {
             for (let attempt = 0; attempt < 18; attempt += 1) {
@@ -80,7 +84,7 @@ export default function OrderPaymentPage() {
             }
 
             setStatus('processing')
-            setError('Paiement en attente. Validez sur votre telephone puis actualisez cette page.')
+            setNotice('Paiement en attente. Validez sur votre telephone puis actualisez cette page.')
         } finally {
             pollingRef.current = false
         }
@@ -123,9 +127,11 @@ export default function OrderPaymentPage() {
 
             if (data.order.status === 'paid' || data.order.status === 'completed' || isDepositPaid) {
                 setStatus('success')
+                setNotice('')
             } else if (paymentMarker === 'cancelled') {
                 setStatus('error')
                 setError('Le paiement a ete annule.')
+                setNotice('')
             } else if (paymentMarker === 'pending') {
                 const pendingTx = provider === 'feexpay'
                     ? String(data.order.transaction_id || queryTransactionId || '').trim()
@@ -135,7 +141,7 @@ export default function OrderPaymentPage() {
                     await waitForPaymentSettlement(pendingTx)
                 } else {
                     setStatus('processing')
-                    setError('Paiement en attente de confirmation...')
+                    setNotice('Paiement en attente de confirmation...')
                 }
             } else if (provider === 'paystack' && paystackReference) {
                 await verifyReturnPayment(String(paystackReference))
@@ -158,6 +164,7 @@ export default function OrderPaymentPage() {
 
     const handlePayment = async () => {
         setError('')
+        setNotice('')
 
         if ((order?.payment_provider || '').toLowerCase() === 'feexpay') {
             if (!selectedCountry || !selectedNetwork) {
@@ -353,7 +360,7 @@ export default function OrderPaymentPage() {
                 {status === 'processing' && (
                     <div className="bg-blue-500/10 border border-blue-500/30 rounded-2xl p-4 mb-6">
                         <p className="text-sm text-blue-200">
-                            Paiement initie. Confirmez la demande sur votre telephone. Cette page met a jour le statut automatiquement.
+                            {notice || 'Paiement initie. Confirmez la demande sur votre telephone. Cette page met a jour le statut automatiquement.'}
                         </p>
                     </div>
                 )}
