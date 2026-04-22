@@ -104,7 +104,7 @@ export async function GET() {
     try {
         const { data: payments, error } = await adminSupabase
             .from('payments')
-            .select('id, user_id, amount_fcfa, status, provider_transaction_id, transaction_id, created_at')
+            .select('id, user_id, amount_fcfa, status, provider_transaction_id, created_at')
             .in('status', ['pending', 'processing'])
             .order('created_at', { ascending: false })
             .limit(20)
@@ -113,10 +113,16 @@ export async function GET() {
             return NextResponse.json({ error: error.message }, { status: 500 })
         }
 
+        const normalizedPayments = (payments || []).map((payment: any) => ({
+            ...payment,
+            // Backward-compatible field for UIs/scripts that still expect transaction_id.
+            transaction_id: payment.provider_transaction_id || null,
+        }))
+
         return NextResponse.json({
             success: true,
-            pending_payments: payments || [],
-            count: payments?.length || 0,
+            pending_payments: normalizedPayments,
+            count: normalizedPayments.length,
         })
     } catch (error) {
         console.error('Payments verify GET error:', error)
