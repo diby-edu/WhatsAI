@@ -715,7 +715,7 @@ export default function DashboardLayout({
                     </div>
 
                     {/* Navigation */}
-                    <nav style={{ flex: 1, padding: 12, display: 'flex', flexDirection: 'column', gap: 4, overflowY: 'auto' }}>
+                    <nav style={{ flex: 1, padding: 8, display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto' }}>
                         {sidebarLinks.map((link) => {
                             const isActive = pathname === link.href || (link.href !== '/dashboard' && pathname.startsWith(link.href))
                             const isApiLocked = link.href === '/dashboard/developers' && !apiAccessEnabled
@@ -726,8 +726,8 @@ export default function DashboardLayout({
                                         title={collapsed ? 'Bientôt disponible' : undefined}
                                         style={{
                                             display: 'flex', alignItems: 'center',
-                                            gap: 12, padding: collapsed ? '12px' : '12px 14px',
-                                            borderRadius: 12, color: '#4b5563', fontWeight: 500,
+                                            gap: 12, padding: collapsed ? '8px' : '8px 14px',
+                                            borderRadius: 10, color: '#4b5563', fontWeight: 500,
                                             cursor: 'not-allowed', userSelect: 'none',
                                             justifyContent: collapsed ? 'center' : 'space-between',
                                             transition: 'all 0.2s ease'
@@ -759,8 +759,8 @@ export default function DashboardLayout({
                                         display: 'flex',
                                         alignItems: 'center',
                                         gap: 12,
-                                        padding: collapsed ? '12px' : '12px 14px',
-                                        borderRadius: 12,
+                                        padding: collapsed ? '8px' : '8px 14px',
+                                        borderRadius: 10,
                                         color: isActive ? '#34d399' : '#94a3b8',
                                         fontWeight: 500,
                                         textDecoration: 'none',
