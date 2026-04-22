@@ -736,7 +736,7 @@ Regles:
                 } else if (newPairingCode) {
                     if (!pairingCodeShownRef.current) {
                         pairingCodeShownRef.current = true
-                        setCountdown(60)
+                        setCountdown(90)
                     }
                     setPairingCode(newPairingCode)
                     setQrCode(null)

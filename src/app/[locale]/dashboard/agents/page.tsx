@@ -157,9 +157,13 @@ export default function AgentsPage() {
 
             if (res.ok) {
                 setAgents(agents.filter(a => a.id !== id))
+            } else {
+                const data = await res.json().catch(() => ({}))
+                alert(data.error || 'Suppression échouée. Veuillez réessayer.')
             }
         } catch (err) {
             console.error('Error deleting agent:', err)
+            alert('Erreur réseau. Veuillez réessayer.')
         } finally {
             setActionLoading(null)
             setMenuOpen(null)
