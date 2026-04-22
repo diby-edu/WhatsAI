@@ -62,18 +62,21 @@ export async function POST(
             providerPaymentUrl: order.provider_payment_url,
         })
 
-        if (order.transaction_id && order.provider_payment_url) {
+        const existingProviderReference = String(order.provider_transaction_id || order.transaction_id || '').trim()
+        if (existingProviderReference) {
             const existingPayment = await inspectExistingHostedPayment(
                 paymentProvider,
-                order.transaction_id,
+                existingProviderReference,
                 { providerVersion: order.payment_provider_version || null }
             )
 
             if (existingPayment.action === 'reuse') {
+                const existingPaymentUrl = String(order.provider_payment_url || '').trim()
+                    || `${baseUrl}/payment/success?transaction_id=${encodeURIComponent(String(order.transaction_id || existingProviderReference).trim())}&payment=pending`
                 return NextResponse.json({
                     success: true,
-                    payment_url: order.provider_payment_url,
-                    transaction_id: order.transaction_id,
+                    payment_url: existingPaymentUrl,
+                    transaction_id: String(order.transaction_id || existingProviderReference).trim(),
                     provider: paymentProvider
                 })
             }

@@ -74,6 +74,7 @@ export function formatPaymentProviderLabel(provider?: string | null): string | n
 
     if (!normalized) return null
     if (normalized === 'paystack') return 'Paystack'
+    if (normalized === 'feexpay') return 'FeexPay'
     if (normalized === 'cinetpay') return 'CinetPay'
 
     return normalized.charAt(0).toUpperCase() + normalized.slice(1)

@@ -54,6 +54,7 @@ export async function POST(request: NextRequest) {
                 deposit_status,
                 payment_method,
                 transaction_id,
+                provider_transaction_id,
                 provider_payment_url,
                 payment_provider,
                 payment_provider_version
@@ -112,18 +113,21 @@ export async function POST(request: NextRequest) {
             providerPaymentUrl: booking.provider_payment_url,
         })
 
-        if (booking.transaction_id && booking.provider_payment_url) {
+        const existingProviderReference = String(booking.provider_transaction_id || booking.transaction_id || '').trim()
+        if (existingProviderReference) {
             const existingPayment = await inspectExistingHostedPayment(
                 paymentProvider,
-                booking.transaction_id,
+                existingProviderReference,
                 { providerVersion: booking.payment_provider_version || null }
             )
 
             if (existingPayment.action === 'reuse') {
+                const existingPaymentUrl = String(booking.provider_payment_url || '').trim()
+                    || `${baseUrl}/payment/success?transaction_id=${encodeURIComponent(String(booking.transaction_id || existingProviderReference).trim())}&payment=pending`
                 return NextResponse.json({
                     success: true,
-                    payment_url: booking.provider_payment_url,
-                    transaction_id: booking.transaction_id,
+                    payment_url: existingPaymentUrl,
+                    transaction_id: String(booking.transaction_id || existingProviderReference).trim(),
                     provider: paymentProvider,
                 })
             }

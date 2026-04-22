@@ -6,6 +6,10 @@ const mockShouldUseCinetPayV2ForAgent = jest.fn(() => false)
 const mockInitializePaystackPayment = jest.fn()
 const mockResolvePaystackCustomerEmail = jest.fn((_email, transactionId) => `${transactionId}@example.com`)
 const mockVerifyPaystackTransaction = jest.fn()
+const mockGetFeexPayDefaultNetwork = jest.fn(() => '')
+const mockInitializeFeexPayPayment = jest.fn()
+const mockNetworkRequiresOtp = jest.fn(() => false)
+const mockVerifyFeexPayTransaction = jest.fn()
 
 jest.mock('@/lib/payments/cinetpay', () => ({
     checkPaymentStatus: (...args) => mockCheckPaymentStatus(...args),
@@ -22,6 +26,13 @@ jest.mock('@/lib/payments/paystack', () => ({
     initializePaystackPayment: (...args) => mockInitializePaystackPayment(...args),
     resolvePaystackCustomerEmail: (...args) => mockResolvePaystackCustomerEmail(...args),
     verifyPaystackTransaction: (...args) => mockVerifyPaystackTransaction(...args),
+}))
+
+jest.mock('@/lib/payments/feexpay', () => ({
+    getFeexPayDefaultNetwork: (...args) => mockGetFeexPayDefaultNetwork(...args),
+    initializeFeexPayPayment: (...args) => mockInitializeFeexPayPayment(...args),
+    networkRequiresOtp: (...args) => mockNetworkRequiresOtp(...args),
+    verifyFeexPayTransaction: (...args) => mockVerifyFeexPayTransaction(...args),
 }))
 
 describe('payment provider helpers', () => {
@@ -45,9 +56,11 @@ describe('payment provider helpers', () => {
 
         expect(parsePaymentProvider('paystack')).toBe('paystack')
         expect(parsePaymentProvider('cinetpay')).toBe('cinetpay')
+        expect(parsePaymentProvider('feepay')).toBe('feexpay')
         expect(parsePaymentProvider('unknown')).toBeNull()
         expect(normalizePaymentProvider('')).toBe('cinetpay')
         expect(normalizePaymentProvider('paystack')).toBe('paystack')
+        expect(normalizePaymentProvider('feepay')).toBe('feexpay')
         expect(() => normalizePaymentProvider('stripe')).toThrow(/unsupported payment provider/i)
         expect(resolveHostedPaymentProvider({
             defaultProvider: 'paystack',
@@ -116,6 +129,43 @@ describe('payment provider helpers', () => {
         expect(mockInitializePaystackPayment).toHaveBeenCalledWith(expect.objectContaining({
             customerEmail: 'ORD_demo_ref@example.com',
         }))
+    })
+
+    test('generates a fallback pending URL when feexpay returns no direct payment_url', async () => {
+        const { initializeHostedPayment } = require('@/lib/payments/provider')
+
+        process.env.FEEXPAY_API_KEY = 'fp_live_demo'
+        process.env.FEEXPAY_SHOP_ID = 'shop_demo'
+        process.env.FEEXPAY_DEFAULT_NETWORK = 'free_sn'
+        process.env.NEXT_PUBLIC_APP_URL = 'https://wazzapai.com'
+        mockInitializeFeexPayPayment.mockResolvedValue({
+            success: true,
+            reference: 'fp_ref_123',
+            paymentUrl: null,
+            raw: { network: 'free_sn' },
+        })
+
+        const result = await initializeHostedPayment({
+            provider: 'feexpay',
+            amountFcfa: 5000,
+            currency: 'XOF',
+            transactionId: 'ORD_FEEX_001',
+            description: 'Commande feexpay',
+            customerName: 'Client Test',
+            customerPhone: '+2250700000000',
+            returnUrl: 'https://wazzapai.com/pay/order_feex_001',
+            failedUrl: 'https://wazzapai.com/pay/order_feex_001?payment=cancelled',
+        })
+
+        expect(result).toEqual(expect.objectContaining({
+            success: true,
+            provider: 'feexpay',
+            providerTransactionId: 'fp_ref_123',
+            providerVersion: 'v1',
+        }))
+        expect(result.paymentUrl).toContain('https://wazzapai.com/pay/order_feex_001')
+        expect(result.paymentUrl).toContain('transaction_id=ORD_FEEX_001')
+        expect(result.paymentUrl).toContain('payment=pending')
     })
 
     test('loads the default provider strictly from admin settings', async () => {

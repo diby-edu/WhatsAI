@@ -19,51 +19,102 @@ function isPublicCheckoutTransactionId(transactionId: string) {
 async function getPublicCheckoutProviderConfig(transactionId: string) {
     const adminSupabase = createAdminClient()
 
-    const { data: order } = await adminSupabase
+    const { data: orderByTx } = await adminSupabase
         .from('orders')
-        .select('payment_provider, payment_provider_version')
+        .select('transaction_id, provider_transaction_id, payment_provider, payment_provider_version')
         .eq('transaction_id', transactionId)
-        .single()
+        .maybeSingle()
 
-    if (order) {
+    if (orderByTx) {
         return {
-            provider: normalizePaymentProvider(order.payment_provider),
-            providerVersion: order.payment_provider_version || 'v1',
+            found: true,
+            provider: normalizePaymentProvider(orderByTx.payment_provider),
+            providerVersion: orderByTx.payment_provider_version || 'v1',
+            internalTransactionId: orderByTx.transaction_id || null,
+            providerTransactionId: orderByTx.provider_transaction_id || null,
         }
     }
 
-    const { data: booking } = await adminSupabase
+    const { data: orderByProviderTx } = await adminSupabase
+        .from('orders')
+        .select('transaction_id, provider_transaction_id, payment_provider, payment_provider_version')
+        .eq('provider_transaction_id', transactionId)
+        .maybeSingle()
+
+    if (orderByProviderTx) {
+        return {
+            found: true,
+            provider: normalizePaymentProvider(orderByProviderTx.payment_provider),
+            providerVersion: orderByProviderTx.payment_provider_version || 'v1',
+            internalTransactionId: orderByProviderTx.transaction_id || null,
+            providerTransactionId: orderByProviderTx.provider_transaction_id || null,
+        }
+    }
+
+    const { data: bookingByTx } = await adminSupabase
         .from('bookings')
-        .select('payment_provider, payment_provider_version')
+        .select('transaction_id, provider_transaction_id, payment_provider, payment_provider_version')
         .eq('transaction_id', transactionId)
-        .single()
+        .maybeSingle()
+
+    if (bookingByTx) {
+        return {
+            found: true,
+            provider: normalizePaymentProvider(bookingByTx.payment_provider),
+            providerVersion: bookingByTx.payment_provider_version || 'v1',
+            internalTransactionId: bookingByTx.transaction_id || null,
+            providerTransactionId: bookingByTx.provider_transaction_id || null,
+        }
+    }
+
+    const { data: bookingByProviderTx } = await adminSupabase
+        .from('bookings')
+        .select('transaction_id, provider_transaction_id, payment_provider, payment_provider_version')
+        .eq('provider_transaction_id', transactionId)
+        .maybeSingle()
+
+    if (bookingByProviderTx) {
+        return {
+            found: true,
+            provider: normalizePaymentProvider(bookingByProviderTx.payment_provider),
+            providerVersion: bookingByProviderTx.payment_provider_version || 'v1',
+            internalTransactionId: bookingByProviderTx.transaction_id || null,
+            providerTransactionId: bookingByProviderTx.provider_transaction_id || null,
+        }
+    }
 
     return {
-        provider: normalizePaymentProvider(booking?.payment_provider),
-        providerVersion: booking?.payment_provider_version || 'v1',
+        found: false,
+        provider: normalizePaymentProvider(null),
+        providerVersion: 'v1',
+        internalTransactionId: null,
+        providerTransactionId: null,
     }
 }
 
 export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const transactionId = String(searchParams.get('transaction_id') || '').trim()
-    const isPublicCheckoutTransaction = isPublicCheckoutTransactionId(transactionId)
 
     if (!transactionId) {
         return NextResponse.json({ error: 'transaction_id requis' }, { status: 400 })
     }
 
     try {
-        if (isPublicCheckoutTransaction) {
+        const publicCheckoutConfig = await getPublicCheckoutProviderConfig(transactionId)
+        if (isPublicCheckoutTransactionId(transactionId) || publicCheckoutConfig.found) {
             const adminSupabase = createAdminClient()
-            const { provider, providerVersion } = await getPublicCheckoutProviderConfig(transactionId)
-            const result = await checkHostedPaymentStatus(provider, transactionId, { providerVersion })
+            const provider = publicCheckoutConfig.provider
+            const providerVersion = publicCheckoutConfig.providerVersion
+            const providerReference = publicCheckoutConfig.providerTransactionId || transactionId
+            const internalTransactionId = publicCheckoutConfig.internalTransactionId || transactionId
+            const result = await checkHostedPaymentStatus(provider, providerReference, { providerVersion })
             const normalizedStatus = result.status || 'UNKNOWN'
 
             let finalizationState: string | null = null
 
             if (normalizedStatus === 'ACCEPTED') {
-                const finalized = await finalizeHostedCheckoutTransaction(adminSupabase, transactionId, {
+                const finalized = await finalizeHostedCheckoutTransaction(adminSupabase, internalTransactionId, {
                     provider,
                     amount: result.amount ?? null,
                     providerPayload: result.raw || result,
@@ -77,7 +128,8 @@ export async function GET(request: NextRequest) {
                 status: normalizedStatus,
                 provider,
                 provider_status: normalizedStatus,
-                transaction_id: transactionId,
+                transaction_id: internalTransactionId,
+                provider_transaction_id: providerReference,
                 amount: result.amount,
                 payment_method: result.message,
                 payment_record_status: null,
@@ -111,9 +163,16 @@ export async function GET(request: NextRequest) {
             }
         }
 
+        const statusReference = String(
+            payment?.provider_transaction_id
+            || payment?.transaction_id
+            || transactionId
+            || ''
+        ).trim()
         const result = await checkHostedPaymentStatus(
             normalizePaymentProvider(payment?.payment_provider),
-            transactionId
+            statusReference || transactionId,
+            { providerVersion: payment?.payment_provider_version || null }
         )
 
         return NextResponse.json({

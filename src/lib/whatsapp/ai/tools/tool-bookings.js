@@ -32,7 +32,7 @@ async function initiateServiceBookingOnlinePayment({
 
     const { data: booking, error: bookingError } = await supabase
         .from('bookings')
-        .select('id, transaction_id, provider_payment_url, payment_provider, payment_provider_version')
+        .select('id, transaction_id, provider_transaction_id, provider_payment_url, payment_provider, payment_provider_version')
         .eq('id', bookingId)
         .single()
 
@@ -47,19 +47,23 @@ async function initiateServiceBookingOnlinePayment({
         transactionId: booking.transaction_id,
         providerPaymentUrl: booking.provider_payment_url,
     })
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://wazzapai.com'
 
-    if (booking.transaction_id && booking.provider_payment_url) {
+    const existingProviderReference = String(booking.provider_transaction_id || booking.transaction_id || '').trim()
+    if (existingProviderReference) {
         const existingPayment = await inspectExistingHostedPayment(
             paymentProvider,
-            booking.transaction_id,
+            existingProviderReference,
             { providerVersion: booking.payment_provider_version || null }
         )
 
         if (existingPayment.action === 'reuse') {
+            const existingPaymentUrl = String(booking.provider_payment_url || '').trim()
+                || `${baseUrl}/payment/success?transaction_id=${encodeURIComponent(String(booking.transaction_id || existingProviderReference).trim())}&payment=pending`
             return {
                 success: true,
-                transactionId: booking.transaction_id,
-                paymentUrl: booking.provider_payment_url,
+                transactionId: String(booking.transaction_id || existingProviderReference).trim(),
+                paymentUrl: existingPaymentUrl,
                 provider: paymentProvider,
                 providerVersion: booking.payment_provider_version || 'v1',
             }
@@ -75,7 +79,6 @@ async function initiateServiceBookingOnlinePayment({
         }
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://wazzapai.com'
     const transactionId = `BKG_${bookingId.substring(0, 8)}_${Date.now()}`
     const result = await initializeHostedPayment({
         provider: paymentProvider,

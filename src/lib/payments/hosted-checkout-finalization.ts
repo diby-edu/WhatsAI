@@ -16,7 +16,10 @@ function isFullServiceBookingPayment(booking: any) {
 }
 
 function providerLabel(providerInput: unknown) {
-    return normalizePaymentProvider(providerInput) === 'paystack' ? 'Paystack' : 'CinetPay'
+    const provider = normalizePaymentProvider(providerInput)
+    if (provider === 'paystack') return 'Paystack'
+    if (provider === 'feexpay') return 'FeexPay'
+    return 'CinetPay'
 }
 
 function resolveProviderTransactionId(provider: SupportedPaymentProvider, reference: string, providerPayload?: unknown) {
@@ -24,6 +27,17 @@ function resolveProviderTransactionId(provider: SupportedPaymentProvider, refere
 
     if (provider === 'paystack') {
         return String(payload?.data?.reference || reference || '').trim() || null
+    }
+
+    if (provider === 'feexpay') {
+        return String(
+            payload?.reference
+            || payload?.data?.reference
+            || payload?.id_transaction
+            || payload?.data?.id_transaction
+            || reference
+            || ''
+        ).trim() || null
     }
 
     return String(
@@ -213,11 +227,20 @@ export async function finalizeHostedOrderPayment(
         providerPayload?: unknown
     }
 ) {
-    const { data: order } = await supabase
+    let { data: order } = await supabase
         .from('orders')
         .select('*')
         .eq('transaction_id', reference)
-        .single()
+        .maybeSingle()
+
+    if (!order) {
+        const lookupByProviderTx = await supabase
+            .from('orders')
+            .select('*')
+            .eq('provider_transaction_id', reference)
+            .maybeSingle()
+        order = lookupByProviderTx.data || null
+    }
 
     if (!order) {
         return { ok: false, kind: 'order', state: 'not_found' as const }
@@ -320,11 +343,20 @@ export async function finalizeHostedBookingPayment(
         providerPayload?: unknown
     }
 ) {
-    const { data: booking } = await supabase
+    let { data: booking } = await supabase
         .from('bookings')
         .select('*')
         .eq('transaction_id', reference)
-        .single()
+        .maybeSingle()
+
+    if (!booking) {
+        const lookupByProviderTx = await supabase
+            .from('bookings')
+            .select('*')
+            .eq('provider_transaction_id', reference)
+            .maybeSingle()
+        booking = lookupByProviderTx.data || null
+    }
 
     if (!booking) {
         return { ok: false, kind: 'booking', state: 'not_found' as const }
@@ -424,6 +456,16 @@ export async function finalizeHostedCheckoutTransaction(
 
     if (isBookingTransactionId(reference)) {
         return finalizeHostedBookingPayment(supabase, reference, options)
+    }
+
+    const orderResult = await finalizeHostedOrderPayment(supabase, reference, options)
+    if (orderResult.state !== 'not_found') {
+        return orderResult
+    }
+
+    const bookingResult = await finalizeHostedBookingPayment(supabase, reference, options)
+    if (bookingResult.state !== 'not_found') {
+        return bookingResult
     }
 
     return { ok: false, kind: 'unknown', state: 'not_found' as const }
