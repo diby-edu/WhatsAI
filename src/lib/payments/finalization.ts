@@ -364,14 +364,6 @@ export async function findPaymentByIdentifiers(
             .maybeSingle()
 
         if (byProviderTx) return byProviderTx as PaymentRow
-
-        const { data: byLegacyTx } = await adminSupabase
-            .from('payments')
-            .select(select)
-            .eq('transaction_id', identifier)
-            .maybeSingle()
-
-        if (byLegacyTx) return byLegacyTx as PaymentRow
     }
 
     return null
