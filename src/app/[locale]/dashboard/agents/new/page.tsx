@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import {
@@ -68,6 +68,8 @@ export default function NewAgentPage() {
             .catch(() => {}) // fallback : tout activé par défaut (featureFlags vide = aucune restriction)
     }, [])
 
+    const pairingCodeShownRef = useRef(false)
+
     // WhatsApp connection state
     const [qrCode, setQrCode] = useState<string | null>(null)
     const [pairingCode, setPairingCode] = useState<string | null>(null)
@@ -79,10 +81,19 @@ export default function NewAgentPage() {
     const [countdown, setCountdown] = useState<number | null>(null)
 
     useEffect(() => {
-        if (countdown === null || countdown <= 0) return
+        if (countdown === null || countdown <= 0) {
+            if (countdown === 0 && connectionMode === 'pairing_code') {
+                // Code expiré : reset propre pour permettre la regénération
+                setPairingCode(null)
+                setWhatsappStatus('idle')
+                setRetryWithFreshQr(true)
+                pairingCodeShownRef.current = false
+            }
+            return
+        }
         const t = setTimeout(() => setCountdown(c => (c !== null && c > 0 ? c - 1 : c)), 1000)
         return () => clearTimeout(t)
-    }, [countdown])
+    }, [countdown, connectionMode])
 
     useEffect(() => {
         const checkViewport = () => setIsCompact(window.innerWidth < 768)
@@ -639,7 +650,9 @@ Regles:
     // Connect WhatsApp
     const connectWhatsApp = async () => {
         // Prevent double-calls: block if already in progress
-        if (whatsappStatus === 'connecting' || whatsappStatus === 'qr_ready') return
+        if (whatsappStatus === 'connecting') return
+        // En mode pairing_code, autoriser la regénération depuis qr_ready
+        if (whatsappStatus === 'qr_ready' && connectionMode !== 'pairing_code') return
 
         if (!createdAgent) {
             setError(t('connect.errors.noAgent'))
@@ -655,12 +668,13 @@ Regles:
             return
         }
 
-        const shouldForceFreshQr = retryWithFreshQr || whatsappStatus === 'error'
+        const shouldForceFreshQr = retryWithFreshQr || whatsappStatus === 'error' || connectionMode === 'pairing_code'
         setWhatsappStatus('connecting')
-        setCountdown(60)
+        setCountdown(null)
         setQrCode(null)
         setPairingCode(null)
         setError(null)
+        pairingCodeShownRef.current = false
 
         try {
             // Step 1: Initiate connection
@@ -720,6 +734,10 @@ Regles:
                 } else if (status === 'error' || status === 'disconnected' || status === 'reconnect_required') {
                     throw new Error(QR_CONNECTION_ERROR_MESSAGE)
                 } else if (newPairingCode) {
+                    if (!pairingCodeShownRef.current) {
+                        pairingCodeShownRef.current = true
+                        setCountdown(60)
+                    }
                     setPairingCode(newPairingCode)
                     setQrCode(null)
                     setWhatsappStatus('qr_ready')
