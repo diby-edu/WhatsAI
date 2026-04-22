@@ -339,17 +339,23 @@ export async function findPaymentByIdentifiers(
     identifiers: string[],
     select: string = '*'
 ): Promise<PaymentRow | null> {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
     for (const raw of identifiers) {
         const identifier = String(raw || '').trim()
         if (!identifier) continue
 
-        const { data: byId } = await adminSupabase
-            .from('payments')
-            .select(select)
-            .eq('id', identifier)
-            .maybeSingle()
+        // Prevent PostgreSQL UUID cast errors (22P02) when provider references are
+        // not UUIDs (e.g. WAZZAPAI_xxx returned by some providers).
+        if (uuidRegex.test(identifier)) {
+            const { data: byId } = await adminSupabase
+                .from('payments')
+                .select(select)
+                .eq('id', identifier)
+                .maybeSingle()
 
-        if (byId) return byId as PaymentRow
+            if (byId) return byId as PaymentRow
+        }
 
         const { data: byProviderTx } = await adminSupabase
             .from('payments')

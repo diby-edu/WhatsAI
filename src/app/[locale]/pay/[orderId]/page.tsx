@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import { Loader2, CheckCircle, CreditCard, ShoppingBag } from 'lucide-react'
 import { motion } from 'framer-motion'
@@ -30,6 +30,7 @@ export default function OrderPaymentPage() {
     const [feexPayCountries, setFeexPayCountries] = useState<FeexPayCountryOption[]>([])
     const [selectedCountry, setSelectedCountry] = useState('')
     const [selectedNetwork, setSelectedNetwork] = useState('')
+    const pollingRef = useRef(false)
 
     useEffect(() => {
         fetchOrder()
@@ -43,12 +44,45 @@ export default function OrderPaymentPage() {
 
             if (data.success && data.status === 'ACCEPTED') {
                 setStatus('success')
+                setError('')
+                return 'ACCEPTED'
             } else if (data.status === 'REFUSED' || data.status === 'CANCELLED') {
                 setStatus('error')
                 setError('Le paiement a ete refuse ou annule.')
+                return String(data.status || 'UNKNOWN')
+            } else if (data.status === 'PENDING') {
+                setStatus('processing')
+                return 'PENDING'
             }
         } catch (err) {
             console.error('Error verifying order payment:', err)
+        }
+        return 'UNKNOWN'
+    }
+
+    const waitForPaymentSettlement = async (transactionId: string) => {
+        const normalizedTransactionId = String(transactionId || '').trim()
+        if (!normalizedTransactionId || pollingRef.current) {
+            return
+        }
+
+        pollingRef.current = true
+        setStatus('processing')
+        setError('Demande envoyee. Confirmez le paiement sur votre telephone...')
+
+        try {
+            for (let attempt = 0; attempt < 18; attempt += 1) {
+                const statusResult = await verifyReturnPayment(normalizedTransactionId)
+                if (statusResult === 'ACCEPTED' || statusResult === 'REFUSED' || statusResult === 'CANCELLED') {
+                    return
+                }
+                await new Promise((resolve) => setTimeout(resolve, 3000))
+            }
+
+            setStatus('processing')
+            setError('Paiement en attente. Validez sur votre telephone puis actualisez cette page.')
+        } finally {
+            pollingRef.current = false
         }
     }
 
@@ -82,17 +116,36 @@ export default function OrderPaymentPage() {
             }
 
             const isDepositPaid = data.order.deposit_required && data.order.deposit_status === 'paid'
+            const provider = String(data.order?.payment_provider || '').toLowerCase()
+            const queryTransactionId = String(searchParams.get('transaction_id') || '').trim()
+            const paymentMarker = String(searchParams.get('payment') || '').trim().toLowerCase()
             const paystackReference = searchParams.get('reference') || searchParams.get('trxref')
 
             if (data.order.status === 'paid' || data.order.status === 'completed' || isDepositPaid) {
                 setStatus('success')
-            } else if (paystackReference) {
-                await verifyReturnPayment(paystackReference)
-            } else if (searchParams.get('status') === 'success' && data.order.transaction_id) {
-                await verifyReturnPayment(data.order.transaction_id)
-            } else if (searchParams.get('status') === 'cancelled') {
+            } else if (paymentMarker === 'cancelled') {
                 setStatus('error')
                 setError('Le paiement a ete annule.')
+            } else if (paymentMarker === 'pending') {
+                const pendingTx = provider === 'feexpay'
+                    ? String(data.order.transaction_id || queryTransactionId || '').trim()
+                    : String(queryTransactionId || data.order.transaction_id || '').trim()
+
+                if (pendingTx) {
+                    await waitForPaymentSettlement(pendingTx)
+                } else {
+                    setStatus('processing')
+                    setError('Paiement en attente de confirmation...')
+                }
+            } else if (provider === 'paystack' && paystackReference) {
+                await verifyReturnPayment(String(paystackReference))
+            } else if (searchParams.get('status') === 'success' && data.order.transaction_id) {
+                const successTx = provider === 'feexpay'
+                    ? String(data.order.transaction_id || '').trim()
+                    : String(paystackReference || data.order.transaction_id || '').trim()
+                if (successTx) {
+                    await waitForPaymentSettlement(successTx)
+                }
             }
         } catch (err: any) {
             console.error('Error fetching order:', err)
@@ -104,6 +157,8 @@ export default function OrderPaymentPage() {
     }
 
     const handlePayment = async () => {
+        setError('')
+
         if ((order?.payment_provider || '').toLowerCase() === 'feexpay') {
             if (!selectedCountry || !selectedNetwork) {
                 setError('Choisissez le pays et le reseau de paiement avant de continuer.')
@@ -136,7 +191,33 @@ export default function OrderPaymentPage() {
                 throw new Error(data.error || 'Echec de l initialisation du paiement')
             }
 
-            window.location.href = data.payment_url
+            const paymentUrl = String(data.payment_url || '').trim()
+            if (!paymentUrl) {
+                throw new Error('Aucune URL de paiement retournee')
+            }
+
+            const isInlinePendingReturn = (() => {
+                try {
+                    const currentUrl = new URL(window.location.href)
+                    const targetUrl = new URL(paymentUrl, window.location.origin)
+                    return (
+                        currentUrl.pathname === targetUrl.pathname
+                        && String(targetUrl.searchParams.get('payment') || '').trim().toLowerCase() === 'pending'
+                    )
+                } catch {
+                    return false
+                }
+            })()
+
+            if (isInlinePendingReturn) {
+                const pendingTx = String(data.transaction_id || order?.transaction_id || '').trim()
+                if (pendingTx) {
+                    await waitForPaymentSettlement(pendingTx)
+                    return
+                }
+            }
+
+            window.location.href = paymentUrl
         } catch (err: any) {
             console.error('Payment failed:', err)
             setError(err.message || 'Erreur de paiement')
@@ -268,6 +349,14 @@ export default function OrderPaymentPage() {
                         }
                     </p>
                 </div>
+
+                {status === 'processing' && (
+                    <div className="bg-blue-500/10 border border-blue-500/30 rounded-2xl p-4 mb-6">
+                        <p className="text-sm text-blue-200">
+                            Paiement initie. Confirmez la demande sur votre telephone. Cette page met a jour le statut automatiquement.
+                        </p>
+                    </div>
+                )}
 
                 {isFeexPay && (
                     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-6">
