@@ -21,8 +21,19 @@ const getSupabase = () => createClient(
 
 function resolveFinalizationReference(callbackInfo: string | null, providerReference: string | null) {
     const callback = String(callbackInfo || '').trim()
-    if (callback) return callback
-    return String(providerReference || '').trim() || null
+    const provider = String(providerReference || '').trim()
+
+    // For hosted checkout flows, callback_info carries our internal ORD_/BKG_ reference.
+    if (callback && (isOrderTransactionId(callback) || isBookingTransactionId(callback))) {
+        return callback
+    }
+
+    // For account payments (credits/subscriptions), we finalize on provider_transaction_id.
+    if (provider) {
+        return provider
+    }
+
+    return callback || null
 }
 
 export async function POST(request: NextRequest) {
@@ -109,8 +120,37 @@ export async function POST(request: NextRequest) {
             providerPayload
         )
 
+        if (finalized.state === 'not_found' && webhookReference && finalizationReference !== webhookReference) {
+            // Safety retry: some historical rows were stored only with provider reference.
+            const fallbackFinalized = await finalizePaymentByTransaction(
+                getSupabase(),
+                webhookReference,
+                providerStatus,
+                providerPayload
+            )
+
+            if (!fallbackFinalized.ok && fallbackFinalized.state !== 'not_found') {
+                console.error('[FeexPay Webhook] Finalization fallback failed:', fallbackFinalized.message)
+            } else {
+                console.info('[FeexPay Webhook] Account payment finalized (fallback)', {
+                    reference: webhookReference,
+                    finalizationReference,
+                    fallbackReference: webhookReference,
+                    state: fallbackFinalized.state,
+                })
+            }
+
+            return new Response('OK', { status: 200 })
+        }
+
         if (!finalized.ok && finalized.state !== 'not_found') {
             console.error('[FeexPay Webhook] Finalization failed:', finalized.message)
+        } else if (finalized.state === 'not_found') {
+            console.warn('[FeexPay Webhook] Account payment not found for finalization', {
+                reference: webhookReference,
+                finalizationReference,
+                callbackInfo,
+            })
         } else {
             console.info('[FeexPay Webhook] Account payment finalized', {
                 reference: webhookReference,
