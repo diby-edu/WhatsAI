@@ -1,4 +1,12 @@
 import crypto from 'crypto'
+import {
+    getFeexPayNetworkOption,
+    isFeexPayHostedRedirectNetwork,
+    isFeexPayOtpNetwork,
+    normalizeFeexPayCountry,
+    normalizeFeexPayNetwork,
+    resolveFeexPaySelection,
+} from '@/lib/payments/feexpay-networks'
 
 const FEEXPAY_API_KEY = String(process.env.FEEXPAY_API_KEY || '').trim()
 const FEEXPAY_SHOP_ID = String(process.env.FEEXPAY_SHOP_ID || '').trim()
@@ -8,23 +16,6 @@ const FEEXPAY_DEFAULT_NETWORK = String(process.env.FEEXPAY_DEFAULT_NETWORK || ''
 const FEEXPAY_DEFAULT_OTP = String(process.env.FEEXPAY_DEFAULT_OTP || '').trim()
 const FEEXPAY_WEBHOOK_SECRET = String(process.env.FEEXPAY_WEBHOOK_SECRET || '').trim()
 const FEEXPAY_DEBUG_LOGS = String(process.env.FEEXPAY_DEBUG_LOGS || '').trim() === '1'
-
-const FEEXPAY_WEB_REDIRECT_NETWORKS = new Set([
-    // Cote d'Ivoire
-    'moov_ci',
-    'wave_ci',
-    'orange_ci',
-    // Senegal
-    'free_sn',
-    'wave_sn',
-])
-
-const FEEXPAY_OTP_NETWORKS = new Set([
-    // Benin (Coris flow in 2 steps with OTP)
-    'coris',
-    // Senegal
-    'orange_sn',
-])
 
 const FEEXPAY_SIGNATURE_HEADERS = [
     'x-feexpay-signature',
@@ -210,8 +201,15 @@ function extractFeexPayStatusText(raw: unknown) {
 }
 
 function resolveNetwork(metadata?: Record<string, any>) {
-    const metadataNetwork = String(metadata?.feexpay_network || metadata?.network || '').trim().toLowerCase()
-    return metadataNetwork || FEEXPAY_DEFAULT_NETWORK
+    const requestedCountry = normalizeFeexPayCountry(metadata?.feexpay_country || metadata?.country)
+    const requestedNetwork = normalizeFeexPayNetwork(metadata?.feexpay_network || metadata?.network)
+    const selection = resolveFeexPaySelection({
+        country: requestedCountry,
+        network: requestedNetwork,
+        phone: String(metadata?.customer_phone || '').trim(),
+        defaultNetwork: FEEXPAY_DEFAULT_NETWORK,
+    })
+    return selection.networkCode || ''
 }
 
 export function isFeexPayReady() {
@@ -223,11 +221,11 @@ export function getFeexPayDefaultNetwork() {
 }
 
 export function networkRequiresOtp(network: string) {
-    return FEEXPAY_OTP_NETWORKS.has(String(network || '').trim().toLowerCase())
+    return isFeexPayOtpNetwork(network)
 }
 
 export function networkSupportsHostedUrl(network: string) {
-    return FEEXPAY_WEB_REDIRECT_NETWORKS.has(String(network || '').trim().toLowerCase())
+    return isFeexPayHostedRedirectNetwork(network)
 }
 
 function resolveOtp(network: string, metadata?: Record<string, any>) {
@@ -247,14 +245,17 @@ export async function initializeFeexPayPayment(input: FeexPayInitInput): Promise
         }
     }
 
-    const network = resolveNetwork(input.metadata)
+    const network = resolveNetwork({
+        ...(input.metadata || {}),
+        customer_phone: input.customerPhone || '',
+    })
     if (!network) {
         logFeexPay('warn', 'INIT_MISSING_NETWORK', {
             transactionId: input.transactionId,
         })
         return {
             success: false,
-            error: 'FEEXPAY_DEFAULT_NETWORK manquant (ou feexpay_network dans les metadata)',
+            error: 'Reseau FeexPay manquant (feexpay_network/feexpay_country) et FEEXPAY_DEFAULT_NETWORK absent',
         }
     }
 
@@ -285,6 +286,7 @@ export async function initializeFeexPayPayment(input: FeexPayInitInput): Promise
 
     const { firstName, lastName } = splitCustomerName(input.customerName)
     const description = sanitizeFeexPayDescription(input.description || 'Paiement WazzapAI')
+    const networkOption = getFeexPayNetworkOption(network)
     const otp = resolveOtp(network, input.metadata)
 
     if (networkRequiresOtp(network) && !otp) {
@@ -366,6 +368,7 @@ export async function initializeFeexPayPayment(input: FeexPayInitInput): Promise
         logFeexPay('info', 'INIT_ATTEMPT', {
             transactionId: input.transactionId,
             network,
+            country: networkOption?.countryCode || null,
             amount,
             hasReturnUrl: Boolean(input.returnUrl),
         })

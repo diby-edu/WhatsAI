@@ -5,6 +5,11 @@ import {
     generateTransactionId,
 } from '@/lib/payments/cinetpay'
 import { getDefaultPaymentProvider, initializeHostedPayment } from '@/lib/payments/provider'
+import { getFeexPayDefaultNetwork } from '@/lib/payments/feexpay'
+import {
+    getFeexPayNetworkOption,
+    resolveFeexPaySelection,
+} from '@/lib/payments/feexpay-networks'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
@@ -124,21 +129,47 @@ export async function POST(request: NextRequest) {
         // Create payment record in database
         const adminSupabase = createAdminClient()
         const defaultProvider = await getDefaultPaymentProvider(adminSupabase)
+        const feexPaySelection = defaultProvider === 'feexpay'
+            ? resolveFeexPaySelection({
+                country: body?.feexpay_country,
+                network: body?.feexpay_network,
+                phone: profile.phone || '',
+                defaultNetwork: getFeexPayDefaultNetwork(),
+            })
+            : { countryCode: null, networkCode: null, error: null }
+
+        if (defaultProvider === 'feexpay') {
+            if (feexPaySelection.error === 'NETWORK_COUNTRY_MISMATCH') {
+                return errorResponse('Le reseau FeexPay ne correspond pas au pays choisi', 400)
+            }
+
+            if (!feexPaySelection.networkCode || !feexPaySelection.countryCode) {
+                return errorResponse('Selection FeexPay incomplete (pays + reseau requis)', 400)
+            }
+        }
+
+        const paymentInsert: Record<string, any> = {
+            user_id: user!.id,
+            amount_fcfa: amountFCFA,
+            payment_type: type,
+            description,
+            status: 'pending',
+            payment_provider: defaultProvider,
+            provider_transaction_id: transactionId,
+            customer_phone: profile.phone,
+            customer_email: profile.email,
+            credits_purchased: metadata.credits,
+            provider_response: { ...metadata, amount_fcfa: amount },
+        }
+
+        if (defaultProvider === 'feexpay' && feexPaySelection.networkCode) {
+            paymentInsert.payment_channel = 'mobile_money'
+            paymentInsert.payment_channel_detail = feexPaySelection.networkCode
+        }
+
         const { data: payment, error: paymentError } = await adminSupabase
             .from('payments')
-            .insert({
-                user_id: user!.id,
-                amount_fcfa: amountFCFA,
-                payment_type: type,
-                description,
-                status: 'pending',
-                payment_provider: defaultProvider,
-                provider_transaction_id: transactionId,
-                customer_phone: profile.phone,
-                customer_email: profile.email,
-                credits_purchased: metadata.credits,
-                provider_response: { ...metadata, amount_fcfa: amount },
-            })
+            .insert(paymentInsert)
             .select('id')
             .single()
 
@@ -149,6 +180,19 @@ export async function POST(request: NextRequest) {
 
         // Initialize payment with CinetPay
         // Prices are stored in FCFA — send directly as XOF (no conversion needed)
+        const paymentMetadata = {
+            ...metadata,
+            payment_id: payment.id,
+            amount_fcfa: amount,
+            ...(defaultProvider === 'feexpay' ? {
+                feexpay_country: feexPaySelection.countryCode,
+                feexpay_network: feexPaySelection.networkCode,
+                payment_channel: 'mobile_money',
+                payment_channel_detail: feexPaySelection.networkCode,
+                payment_channel_label: getFeexPayNetworkOption(feexPaySelection.networkCode || '')?.label || feexPaySelection.networkCode || null,
+            } : {}),
+        }
+
         const result = await initializeHostedPayment({
             provider: defaultProvider,
             amountFcfa: amountFCFA,
@@ -161,11 +205,7 @@ export async function POST(request: NextRequest) {
             returnUrl: `${APP_URL}/dashboard/billing`,
             failedUrl: `${APP_URL}/dashboard/billing?payment=cancelled`,
             notifyUrl: `${APP_URL}/api/payments/${defaultProvider}/webhook`,
-            metadata: {
-                ...metadata,
-                payment_id: payment.id,
-                amount_fcfa: amount,
-            },
+            metadata: paymentMetadata,
         })
 
         if (!result.success) {
@@ -179,20 +219,27 @@ export async function POST(request: NextRequest) {
         }
 
         // Update payment with token
+        const paymentUpdate: Record<string, any> = {
+            status: 'processing',
+            payment_provider: defaultProvider,
+            provider_transaction_id: result.providerTransactionId || transactionId,
+            provider_payment_url: result.paymentUrl,
+            provider_response: {
+                ...metadata,
+                amount_fcfa: amount,
+                provider: defaultProvider,
+                provider_version: result.providerVersion || null,
+            },
+        }
+
+        if (defaultProvider === 'feexpay' && feexPaySelection.networkCode) {
+            paymentUpdate.payment_channel = 'mobile_money'
+            paymentUpdate.payment_channel_detail = feexPaySelection.networkCode
+        }
+
         await adminSupabase
             .from('payments')
-            .update({
-                status: 'processing',
-                payment_provider: defaultProvider,
-                provider_transaction_id: result.providerTransactionId || transactionId,
-                provider_payment_url: result.paymentUrl,
-                provider_response: {
-                    ...metadata,
-                    amount_fcfa: amount,
-                    provider: defaultProvider,
-                    provider_version: result.providerVersion || null,
-                },
-            })
+            .update(paymentUpdate)
             .eq('id', payment.id)
 
         return successResponse({

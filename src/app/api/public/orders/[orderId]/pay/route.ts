@@ -7,6 +7,11 @@ import {
     inspectExistingHostedPayment,
     resolveHostedPaymentProvider,
 } from '@/lib/payments/provider'
+import { getFeexPayDefaultNetwork } from '@/lib/payments/feexpay'
+import {
+    getFeexPayNetworkOption,
+    resolveFeexPaySelection,
+} from '@/lib/payments/feexpay-networks'
 
 const getSupabase = () => createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -18,6 +23,15 @@ export async function POST(
     { params }: { params: Promise<{ orderId: string }> }
 ) {
     const { orderId } = await params
+    let body: Record<string, any> = {}
+    try {
+        const rawBody = await request.text()
+        if (rawBody.trim()) {
+            body = JSON.parse(rawBody)
+        }
+    } catch {
+        body = {}
+    }
 
     const clientId = getClientIdentifier(request)
     const rateCheck = await checkRateLimit(`payment:${clientId}`, RATE_LIMITS.payment)
@@ -90,6 +104,39 @@ export async function POST(
             }
         }
 
+        const metadata: Record<string, any> = {
+            order_id: orderId,
+            type: isDepositPayment ? 'order_deposit' : 'order_payment'
+        }
+
+        if (paymentProvider === 'feexpay') {
+            const selection = resolveFeexPaySelection({
+                country: body.feexpay_country,
+                network: body.feexpay_network,
+                phone: order.customer_phone || '',
+                defaultNetwork: getFeexPayDefaultNetwork(),
+            })
+
+            if (selection.error === 'NETWORK_COUNTRY_MISMATCH') {
+                return NextResponse.json({
+                    error: 'Le reseau de paiement ne correspond pas au pays choisi',
+                }, { status: 400 })
+            }
+
+            if (!selection.networkCode || !selection.countryCode) {
+                return NextResponse.json({
+                    error: 'Selection FeexPay incomplete: choisissez un pays et un reseau',
+                }, { status: 400 })
+            }
+
+            const networkOption = getFeexPayNetworkOption(selection.networkCode)
+            metadata.feexpay_country = selection.countryCode
+            metadata.feexpay_network = selection.networkCode
+            metadata.payment_channel = 'mobile_money'
+            metadata.payment_channel_detail = selection.networkCode
+            metadata.payment_channel_label = networkOption?.label || selection.networkCode
+        }
+
         const result = await initializeHostedPayment({
             provider: paymentProvider,
             amountFcfa: amountToCharge,
@@ -104,10 +151,7 @@ export async function POST(
             returnUrl: `${baseUrl}/pay/${orderId}`,
             failedUrl: `${baseUrl}/pay/${orderId}?payment=cancelled`,
             notifyUrl: `${baseUrl}/api/payments/${paymentProvider}/webhook`,
-            metadata: {
-                order_id: orderId,
-                type: isDepositPayment ? 'order_deposit' : 'order_payment'
-            },
+            metadata,
             agentId: order.agent_id
         })
 

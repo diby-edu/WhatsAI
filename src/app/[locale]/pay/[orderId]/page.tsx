@@ -5,6 +5,20 @@ import { useParams, useSearchParams } from 'next/navigation'
 import { Loader2, CheckCircle, CreditCard, ShoppingBag } from 'lucide-react'
 import { motion } from 'framer-motion'
 
+type FeexPayNetworkOption = {
+    code: string
+    label: string
+    countryCode: string
+    requiresOtp: boolean
+}
+
+type FeexPayCountryOption = {
+    code: string
+    name: string
+    dialCode: string
+    networks: FeexPayNetworkOption[]
+}
+
 export default function OrderPaymentPage() {
     const params = useParams()
     const searchParams = useSearchParams()
@@ -13,6 +27,9 @@ export default function OrderPaymentPage() {
     const [items, setItems] = useState<any[]>([])
     const [status, setStatus] = useState<'pending' | 'processing' | 'success' | 'error'>('pending')
     const [error, setError] = useState('')
+    const [feexPayCountries, setFeexPayCountries] = useState<FeexPayCountryOption[]>([])
+    const [selectedCountry, setSelectedCountry] = useState('')
+    const [selectedNetwork, setSelectedNetwork] = useState('')
 
     useEffect(() => {
         fetchOrder()
@@ -47,6 +64,23 @@ export default function OrderPaymentPage() {
             setOrder(data.order)
             setItems(data.items || [])
 
+            const countries = Array.isArray(data.feexpay?.countries)
+                ? data.feexpay.countries as FeexPayCountryOption[]
+                : []
+            setFeexPayCountries(countries)
+
+            if ((data.order?.payment_provider || '').toLowerCase() === 'feexpay' && countries.length > 0) {
+                const defaultCountry = String(data.feexpay?.default_country || countries[0]?.code || '')
+                const countryOption = countries.find((country) => country.code === defaultCountry) || countries[0]
+                const requestedDefaultNetwork = String(data.feexpay?.default_network || '')
+                const defaultNetwork = countryOption?.networks.find((network) => network.code === requestedDefaultNetwork)?.code
+                    || countryOption?.networks[0]?.code
+                    || ''
+
+                setSelectedCountry(countryOption?.code || '')
+                setSelectedNetwork(defaultNetwork)
+            }
+
             const isDepositPaid = data.order.deposit_required && data.order.deposit_status === 'paid'
             const paystackReference = searchParams.get('reference') || searchParams.get('trxref')
 
@@ -70,11 +104,30 @@ export default function OrderPaymentPage() {
     }
 
     const handlePayment = async () => {
+        if ((order?.payment_provider || '').toLowerCase() === 'feexpay') {
+            if (!selectedCountry || !selectedNetwork) {
+                setError('Choisissez le pays et le reseau de paiement avant de continuer.')
+                setStatus('error')
+                return
+            }
+        }
+
         setStatus('processing')
 
         try {
+            const payload = (order?.payment_provider || '').toLowerCase() === 'feexpay'
+                ? {
+                    feexpay_country: selectedCountry,
+                    feexpay_network: selectedNetwork,
+                }
+                : {}
+
             const res = await fetch(`/api/public/orders/${params.orderId}/pay`, {
-                method: 'POST'
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload),
             })
 
             const data = await res.json()
@@ -112,6 +165,8 @@ export default function OrderPaymentPage() {
 
     const isDepositPayment = order.deposit_required && order.deposit_status === 'pending'
     const payableAmount = Number(isDepositPayment ? order.deposit_amount_fcfa : order.total_fcfa || 0)
+    const isFeexPay = (order.payment_provider || '').toLowerCase() === 'feexpay'
+    const networksForSelectedCountry = feexPayCountries.find((country) => country.code === selectedCountry)?.networks || []
 
     if (status === 'success') {
         return (
@@ -213,6 +268,58 @@ export default function OrderPaymentPage() {
                         }
                     </p>
                 </div>
+
+                {isFeexPay && (
+                    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-6">
+                        <h3 className="font-semibold text-sm text-slate-400 uppercase tracking-wider mb-3">
+                            Paiement mobile money
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <label className="flex flex-col gap-2">
+                                <span className="text-xs text-slate-400">Pays</span>
+                                <select
+                                    value={selectedCountry}
+                                    onChange={(event) => {
+                                        const nextCountry = event.target.value
+                                        const nextCountryOption = feexPayCountries.find((country) => country.code === nextCountry)
+                                        setSelectedCountry(nextCountry)
+                                        setSelectedNetwork(nextCountryOption?.networks?.[0]?.code || '')
+                                    }}
+                                    className="w-full rounded-xl border border-slate-700 bg-slate-950 text-white p-3"
+                                >
+                                    <option value="" disabled>Selectionner un pays</option>
+                                    {feexPayCountries.map((country) => (
+                                        <option key={country.code} value={country.code}>
+                                            {country.name} (+{country.dialCode})
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
+
+                            <label className="flex flex-col gap-2">
+                                <span className="text-xs text-slate-400">Reseau</span>
+                                <select
+                                    value={selectedNetwork}
+                                    onChange={(event) => setSelectedNetwork(event.target.value)}
+                                    className="w-full rounded-xl border border-slate-700 bg-slate-950 text-white p-3"
+                                    disabled={!selectedCountry}
+                                >
+                                    <option value="" disabled>Selectionner un reseau</option>
+                                    {networksForSelectedCountry.map((network) => (
+                                        <option key={network.code} value={network.code}>
+                                            {network.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
+                        </div>
+                        {selectedNetwork && networksForSelectedCountry.find((network) => network.code === selectedNetwork)?.requiresOtp && (
+                            <p className="mt-3 text-xs text-amber-300">
+                                Ce reseau peut demander une validation OTP operateur.
+                            </p>
+                        )}
+                    </div>
+                )}
 
                 <button
                     onClick={handlePayment}
