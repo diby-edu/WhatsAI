@@ -21,6 +21,13 @@ import {
 import { useTranslations, useFormatter } from 'next-intl'
 import { useCurrency } from '@/contexts/CurrencyContext'
 import { createClient } from '@/lib/supabase/client'
+import {
+    listFeexPayCountries,
+    listFeexPayNetworksByCountry,
+    isFeexPayOtpNetwork,
+    type FeexPayCountryCode,
+    type FeexPayNetworkCode,
+} from '@/lib/payments/feexpay-networks'
 
 interface Plan {
     id: string
@@ -59,6 +66,13 @@ interface Payment {
     completed_at?: string | null
 }
 
+type SupportedPaymentProvider = 'cinetpay' | 'paystack' | 'feexpay'
+
+type FeexPayPaymentIntent = {
+    type: 'subscription' | 'credits'
+    targetId: string
+}
+
 export default function BillingPage() {
     return (
         <Suspense fallback={
@@ -87,7 +101,20 @@ function BillingContent() {
     const [plans, setPlans] = useState<Plan[]>([])
     const [creditPacks, setCreditPacks] = useState<CreditPack[]>([])
     const [loading, setLoading] = useState(true)
-    const [paymentStatus, setPaymentStatus] = useState<'success' | 'failed' | null>(null)
+    const [paymentStatus, setPaymentStatus] = useState<'success' | 'failed' | 'pending' | null>(null)
+    const [defaultPaymentProvider, setDefaultPaymentProvider] = useState<SupportedPaymentProvider>('cinetpay')
+    const [feexPayIntent, setFeexPayIntent] = useState<FeexPayPaymentIntent | null>(null)
+    const [showFeexPayModal, setShowFeexPayModal] = useState(false)
+    const [feexPayCountry, setFeexPayCountry] = useState<FeexPayCountryCode>('CI')
+    const [feexPayNetwork, setFeexPayNetwork] = useState<FeexPayNetworkCode | ''>('')
+    const [feexPayPhone, setFeexPayPhone] = useState('')
+    const [feexPayOtp, setFeexPayOtp] = useState('')
+    const [feexPayError, setFeexPayError] = useState<string | null>(null)
+
+    const feexPayCountries = listFeexPayCountries()
+    const feexPayNetworks = listFeexPayNetworksByCountry(feexPayCountry)
+    const selectedFeexPayNetwork = feexPayNetworks.find((network) => network.code === feexPayNetwork) || null
+    const feexPayNeedsOtp = isFeexPayOtpNetwork(feexPayNetwork)
 
     const getHistoryStatusMeta = (status: string) => {
         const normalized = String(status || '').trim().toLowerCase()
@@ -197,6 +224,9 @@ function BillingContent() {
             }
         } else if (paymentParam === 'cancelled') {
             setPaymentStatus('failed')
+        } else if (paymentParam === 'pending' && transactionId) {
+            setPaymentStatus('pending')
+            checkPaymentStatus(transactionId)
         } else if (paystackReference) {
             setPaymentStatus('success')
             checkPaymentStatus(paystackReference)
@@ -212,7 +242,20 @@ function BillingContent() {
         fetchPlans()
         fetchCreditPacks()
         fetchPayments()
+        fetchPaymentConfig()
     }, [])
+
+    useEffect(() => {
+        if (!feexPayNetworks.length) {
+            setFeexPayNetwork('')
+            return
+        }
+
+        const hasCurrentNetwork = feexPayNetworks.some((network) => network.code === feexPayNetwork)
+        if (!hasCurrentNetwork) {
+            setFeexPayNetwork(feexPayNetworks[0].code)
+        }
+    }, [feexPayCountry, feexPayNetwork, feexPayNetworks])
 
     const fetchPlans = async () => {
         try {
@@ -319,6 +362,20 @@ function BillingContent() {
         }
     }
 
+    const fetchPaymentConfig = async () => {
+        try {
+            const res = await fetch('/api/payments/config')
+            if (!res.ok) return
+            const data = await res.json()
+            const provider = String(data?.data?.defaultPaymentProvider || '').trim().toLowerCase()
+            if (provider === 'paystack' || provider === 'cinetpay' || provider === 'feexpay') {
+                setDefaultPaymentProvider(provider)
+            }
+        } catch (err) {
+            console.error('Error fetching payment config:', err)
+        }
+    }
+
     const checkPaymentStatus = async (paymentId: string) => {
         try {
             // Call verify API which checks with the configured provider and credits user
@@ -329,23 +386,34 @@ function BillingContent() {
             })
             const data = await res.json()
 
-            if (data.success && data.credits_added) {
+            if (!res.ok) {
+                setPaymentStatus('failed')
+                fetchPayments()
+                return
+            }
+
+            const providerStatus = String(data.provider_status || '').trim().toUpperCase()
+            const currentStatus = String(data.current_status || '').trim().toLowerCase()
+
+            if (data.success && (data.credits_added || currentStatus === 'completed')) {
                 setPaymentStatus('success')
                 fetchData() // Refresh user data to show new balance
                 fetchPayments()
-            } else if (data.provider_status === 'REFUSED' || data.provider_status === 'CANCELLED') {
+            } else if (
+                providerStatus === 'REFUSED'
+                || providerStatus === 'CANCELLED'
+                || currentStatus === 'failed'
+            ) {
                 setPaymentStatus('failed')
                 fetchPayments()
-            } else if (data.current_status === 'completed') {
-                setPaymentStatus('success')
-                fetchData()
-                fetchPayments()
             } else {
-                // Payment still pending, check again in 3 seconds
+                // Payment still pending, check again in 3 seconds.
+                setPaymentStatus('pending')
                 setTimeout(() => checkPaymentStatus(paymentId), 3000)
             }
         } catch (err) {
             console.error('Error checking payment:', err)
+            setPaymentStatus('failed')
         }
     }
 
@@ -392,6 +460,138 @@ function BillingContent() {
             alert('Erreur réseau')
         } finally {
             setIsLoading(null)
+        }
+    }
+
+    const openFeexPayModal = (intent: FeexPayPaymentIntent) => {
+        setFeexPayIntent(intent)
+        setFeexPayError(null)
+        setFeexPayOtp('')
+        setFeexPayPhone('')
+        setShowFeexPayModal(true)
+    }
+
+    const closeFeexPayModal = () => {
+        if (isLoading) return
+        setShowFeexPayModal(false)
+        setFeexPayIntent(null)
+        setFeexPayError(null)
+    }
+
+    const initializePaymentV2 = async (payload: Record<string, any>, loadingKey: string) => {
+        setIsLoading(loadingKey)
+        try {
+            const res = await fetch('/api/payments/initialize', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            })
+            const data = await res.json()
+
+            if (!res.ok) {
+                throw new Error(data?.error || 'Erreur lors de l initialisation du paiement')
+            }
+
+            const paymentUrl = String(data?.data?.paymentUrl || '').trim()
+            const transactionId = String(data?.data?.transactionId || '').trim()
+
+            if (!paymentUrl) {
+                throw new Error('URL de paiement manquante')
+            }
+
+            const isPendingFallbackUrl = paymentUrl.includes('/dashboard/billing') && paymentUrl.includes('payment=pending')
+
+            if (isPendingFallbackUrl) {
+                setPaymentStatus('pending')
+                fetchPayments()
+                if (transactionId) {
+                    setTimeout(() => checkPaymentStatus(transactionId), 1500)
+                }
+                return
+            }
+
+            window.location.href = paymentUrl
+        } finally {
+            setIsLoading(null)
+        }
+    }
+
+    const submitFeexPayModal = async () => {
+        if (!feexPayIntent) return
+
+        if (!feexPayCountry || !feexPayNetwork) {
+            setFeexPayError('Veuillez choisir un pays et un reseau')
+            return
+        }
+
+        const normalizedPhone = feexPayPhone.replace(/\s+/g, '')
+        if (!normalizedPhone) {
+            setFeexPayError('Le numero payeur est obligatoire')
+            return
+        }
+
+        if (!normalizedPhone.startsWith('+')) {
+            setFeexPayError('Le numero payeur doit etre au format international (ex: +225...)')
+            return
+        }
+
+        if (feexPayNeedsOtp && !String(feexPayOtp || '').trim()) {
+            setFeexPayError('OTP requis pour ce reseau')
+            return
+        }
+
+        const payload: Record<string, any> = {
+            type: feexPayIntent.type,
+            feexpay_country: feexPayCountry,
+            feexpay_network: feexPayNetwork,
+            feexpay_phone: normalizedPhone,
+        }
+
+        if (feexPayIntent.type === 'subscription') {
+            payload.planId = feexPayIntent.targetId
+        } else {
+            payload.packId = feexPayIntent.targetId
+        }
+
+        if (feexPayNeedsOtp && String(feexPayOtp || '').trim()) {
+            payload.feexpay_otp = String(feexPayOtp).trim()
+        }
+
+        setFeexPayError(null)
+        try {
+            await initializePaymentV2(payload, feexPayIntent.targetId)
+            setShowFeexPayModal(false)
+            setFeexPayIntent(null)
+        } catch (err: any) {
+            const message = String(err?.message || 'Erreur reseau')
+            setFeexPayError(message)
+            alert(message)
+        }
+    }
+
+    const handleSubscribeV2 = async (planId: string) => {
+        if (defaultPaymentProvider === 'feexpay') {
+            openFeexPayModal({ type: 'subscription', targetId: planId })
+            return
+        }
+
+        try {
+            await initializePaymentV2({ type: 'subscription', planId }, planId)
+        } catch (err: any) {
+            alert(String(err?.message || 'Erreur reseau'))
+        }
+    }
+
+    const handleBuyCreditsV2 = async (packId: string) => {
+        if (defaultPaymentProvider === 'feexpay') {
+            openFeexPayModal({ type: 'credits', targetId: packId })
+            return
+        }
+
+        try {
+            await initializePaymentV2({ type: 'credits', packId }, packId)
+        } catch (err: any) {
+            alert(String(err?.message || 'Erreur reseau'))
         }
     }
 
@@ -450,8 +650,16 @@ function BillingContent() {
                     style={{
                         padding: 14,
                         borderRadius: 10,
-                        background: paymentStatus === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                        border: `1px solid ${paymentStatus === 'success' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`,
+                        background: paymentStatus === 'success'
+                            ? 'rgba(16, 185, 129, 0.1)'
+                            : paymentStatus === 'pending'
+                                ? 'rgba(245, 158, 11, 0.12)'
+                                : 'rgba(239, 68, 68, 0.1)',
+                        border: `1px solid ${paymentStatus === 'success'
+                            ? 'rgba(16, 185, 129, 0.2)'
+                            : paymentStatus === 'pending'
+                                ? 'rgba(245, 158, 11, 0.3)'
+                                : 'rgba(239, 68, 68, 0.2)'}`,
                         display: 'flex',
                         alignItems: 'center',
                         gap: 12
@@ -465,6 +673,18 @@ function BillingContent() {
                                 <div style={{ fontSize: 12, color: '#94a3b8' }}>{t('status.success.message')}</div>
                             </div>
                         </>
+                    ) : paymentStatus === 'pending' ? (
+                        <>
+                            <Loader2 style={{ width: 20, height: 20, color: '#f59e0b', animation: 'spin 1s linear infinite' }} />
+                            <div>
+                                <div style={{ fontWeight: 500, color: '#f59e0b', fontSize: 14 }}>
+                                    Paiement en attente de confirmation
+                                </div>
+                                <div style={{ fontSize: 12, color: '#94a3b8' }}>
+                                    Confirmez la demande sur votre telephone. Le statut sera mis a jour automatiquement.
+                                </div>
+                            </div>
+                        </>
                     ) : (
                         <>
                             <XCircle style={{ width: 20, height: 20, color: '#f87171' }} />
@@ -475,6 +695,186 @@ function BillingContent() {
                         </>
                     )}
                 </motion.div>
+            )}
+
+            {showFeexPayModal && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        inset: 0,
+                        background: 'rgba(2, 6, 23, 0.72)',
+                        backdropFilter: 'blur(4px)',
+                        zIndex: 60,
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        padding: 16,
+                    }}
+                >
+                    <div
+                        style={{
+                            width: '100%',
+                            maxWidth: 520,
+                            background: 'rgba(15, 23, 42, 0.98)',
+                            border: '1px solid rgba(148, 163, 184, 0.24)',
+                            borderRadius: 14,
+                            padding: 20,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 12,
+                        }}
+                    >
+                        <div style={{ color: 'white', fontWeight: 700, fontSize: 17 }}>
+                            Paiement FeexPay
+                        </div>
+                        <div style={{ color: '#94a3b8', fontSize: 13, lineHeight: 1.4 }}>
+                            Choisissez le pays, le reseau et le numero payeur Mobile Money.
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                            <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, color: '#cbd5e1' }}>
+                                Pays
+                                <select
+                                    value={feexPayCountry}
+                                    onChange={(event) => setFeexPayCountry(event.target.value as FeexPayCountryCode)}
+                                    disabled={Boolean(isLoading)}
+                                    style={{
+                                        height: 40,
+                                        borderRadius: 8,
+                                        border: '1px solid rgba(148, 163, 184, 0.25)',
+                                        background: 'rgba(15, 23, 42, 0.85)',
+                                        color: 'white',
+                                        padding: '0 10px',
+                                    }}
+                                >
+                                    {feexPayCountries.map((country) => (
+                                        <option key={country.code} value={country.code}>
+                                            {country.name} (+{country.dialCode})
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
+
+                            <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, color: '#cbd5e1' }}>
+                                Reseau
+                                <select
+                                    value={feexPayNetwork}
+                                    onChange={(event) => setFeexPayNetwork(event.target.value as FeexPayNetworkCode)}
+                                    disabled={Boolean(isLoading)}
+                                    style={{
+                                        height: 40,
+                                        borderRadius: 8,
+                                        border: '1px solid rgba(148, 163, 184, 0.25)',
+                                        background: 'rgba(15, 23, 42, 0.85)',
+                                        color: 'white',
+                                        padding: '0 10px',
+                                    }}
+                                >
+                                    {feexPayNetworks.map((network) => (
+                                        <option key={network.code} value={network.code}>
+                                            {network.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
+                        </div>
+
+                        <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, color: '#cbd5e1' }}>
+                            Numero payeur (format international)
+                            <input
+                                type="tel"
+                                value={feexPayPhone}
+                                onChange={(event) => setFeexPayPhone(event.target.value)}
+                                placeholder="+2250700000000"
+                                disabled={Boolean(isLoading)}
+                                style={{
+                                    height: 40,
+                                    borderRadius: 8,
+                                    border: '1px solid rgba(148, 163, 184, 0.25)',
+                                    background: 'rgba(15, 23, 42, 0.85)',
+                                    color: 'white',
+                                    padding: '0 10px',
+                                }}
+                            />
+                        </label>
+
+                        {feexPayNeedsOtp && (
+                            <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, color: '#cbd5e1' }}>
+                                OTP
+                                <input
+                                    type="text"
+                                    value={feexPayOtp}
+                                    onChange={(event) => setFeexPayOtp(event.target.value)}
+                                    placeholder="Code OTP"
+                                    disabled={Boolean(isLoading)}
+                                    style={{
+                                        height: 40,
+                                        borderRadius: 8,
+                                        border: '1px solid rgba(148, 163, 184, 0.25)',
+                                        background: 'rgba(15, 23, 42, 0.85)',
+                                        color: 'white',
+                                        padding: '0 10px',
+                                    }}
+                                />
+                            </label>
+                        )}
+
+                        {selectedFeexPayNetwork && (
+                            <div style={{ fontSize: 12, color: '#94a3b8' }}>
+                                Canal: {selectedFeexPayNetwork.label} ({selectedFeexPayNetwork.supportsHostedRedirect ? 'redirection web' : 'confirmation mobile'})
+                            </div>
+                        )}
+
+                        {feexPayError && (
+                            <div style={{ color: '#f87171', fontSize: 12 }}>
+                                {feexPayError}
+                            </div>
+                        )}
+
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 6 }}>
+                            <button
+                                type="button"
+                                onClick={closeFeexPayModal}
+                                disabled={Boolean(isLoading)}
+                                style={{
+                                    height: 38,
+                                    borderRadius: 8,
+                                    border: '1px solid rgba(148, 163, 184, 0.3)',
+                                    background: 'rgba(51, 65, 85, 0.5)',
+                                    color: 'white',
+                                    padding: '0 14px',
+                                    cursor: 'pointer',
+                                }}
+                            >
+                                Annuler
+                            </button>
+                            <button
+                                type="button"
+                                onClick={submitFeexPayModal}
+                                disabled={Boolean(isLoading)}
+                                style={{
+                                    height: 38,
+                                    borderRadius: 8,
+                                    border: 'none',
+                                    background: 'linear-gradient(135deg, #10b981, #059669)',
+                                    color: 'white',
+                                    padding: '0 14px',
+                                    cursor: 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 8,
+                                }}
+                            >
+                                {isLoading ? (
+                                    <>
+                                        <Loader2 style={{ width: 14, height: 14, animation: 'spin 1s linear infinite' }} />
+                                        Initialisation...
+                                    </>
+                                ) : 'Continuer'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
 
             {/* Frozen credits banner */}
@@ -762,7 +1162,7 @@ function BillingContent() {
                                     <motion.button
                                         whileHover={{ scale: 1.02 }}
                                         whileTap={{ scale: 0.98 }}
-                                        onClick={() => handleSubscribe(plan.id)}
+                                        onClick={() => handleSubscribeV2(plan.id)}
                                         disabled={isLoading === plan.id || currentPlan.toLowerCase() === plan.name.toLowerCase()}
                                         style={{
                                             width: '100%',
@@ -844,7 +1244,7 @@ function BillingContent() {
                             <motion.button
                                 whileHover={{ scale: 1.02 }}
                                 whileTap={{ scale: 0.98 }}
-                                onClick={() => handleBuyCredits(pack.id)}
+                                onClick={() => handleBuyCreditsV2(pack.id)}
                                 disabled={isLoading === pack.id}
                                 style={{
                                     width: '100%',
