@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { AlertCircle, ArrowLeft, ExternalLink, Loader2, RefreshCw } from 'lucide-react'
+import ManualPaymentFallbackCard from '@/components/payments/manual-payment-fallback-card'
 
 const FEEXPAY_CHECKOUT_SESSION_KEY = 'wazzapai_feexpay_checkout_context'
 
@@ -353,6 +354,11 @@ export default function FeexPayCheckoutPage() {
                     Transaction: <strong style={{ color: '#e2e8f0' }}>{transactionId || '-'}</strong>
                 </div>
                 {renderBody()}
+                {(phase === 'pending' || phase === 'failed') && (
+                    <div style={{ marginTop: 18 }}>
+                        <ManualPaymentFallbackCard compact />
+                    </div>
+                )}
             </div>
         </div>
     )
