@@ -12,8 +12,13 @@ import {
     networkRequiresOtp,
     verifyFeexPayTransaction,
 } from '@/lib/payments/feexpay'
+import {
+    getPayDunyaPublicKey,
+    initializePayDunyaPayment,
+    verifyPayDunyaTransaction,
+} from '@/lib/payments/paydunya'
 
-export type SupportedPaymentProvider = 'cinetpay' | 'paystack' | 'feexpay'
+export type SupportedPaymentProvider = 'cinetpay' | 'paystack' | 'feexpay' | 'paydunya'
 export type ProviderStatus = 'ACCEPTED' | 'REFUSED' | 'PENDING' | 'CANCELLED' | 'UNKNOWN'
 export type HostedPaymentReuseAction = 'reuse' | 'regenerate' | 'accepted'
 
@@ -90,7 +95,7 @@ export function parsePaymentProvider(value: unknown): SupportedPaymentProvider |
     if (!normalized) return null
     // Accept common typo/alias used by operators ("FeePay")
     if (normalized === 'feepay') return 'feexpay'
-    if (normalized === 'paystack' || normalized === 'cinetpay' || normalized === 'feexpay') {
+    if (normalized === 'paystack' || normalized === 'cinetpay' || normalized === 'feexpay' || normalized === 'paydunya') {
         return normalized
     }
     return null
@@ -135,6 +140,29 @@ export function resolveHostedPaymentProvider(params: {
 
 export function getPaymentProviderReadiness(providerInput: unknown): PaymentProviderReadiness {
     const provider = normalizePaymentProvider(providerInput)
+
+    if (provider === 'paydunya') {
+        const requiredKeys = [
+            'PAYDUNYA_MASTER_KEY',
+            'PAYDUNYA_PRIVATE_KEY',
+            'PAYDUNYA_TOKEN',
+            'NEXT_PUBLIC_APP_URL',
+        ]
+        const missingKeys = requiredKeys.filter((key) => !String(process.env[key] || '').trim())
+        const warnings: string[] = []
+
+        if (!String(getPayDunyaPublicKey() || '').trim()) {
+            warnings.push('PAYDUNYA_PUBLIC_KEY is not configured')
+        }
+
+        return {
+            provider,
+            ready: missingKeys.length === 0,
+            requiredKeys,
+            missingKeys,
+            warnings,
+        }
+    }
 
     if (provider === 'feexpay') {
         const requiredKeys = ['FEEXPAY_API_KEY', 'FEEXPAY_SHOP_ID', 'NEXT_PUBLIC_APP_URL']
@@ -247,6 +275,33 @@ function normalizeCinetPayV2Currency(currency?: string): 'XOF' | 'XAF' | 'GNF' |
 export async function initializeHostedPayment(input: HostedPaymentInitInput): Promise<HostedPaymentInitResult> {
     const provider = normalizePaymentProvider(input.provider)
     ensurePaymentProviderReady(provider)
+
+    if (provider === 'paydunya') {
+        const result = await initializePayDunyaPayment({
+            amountFcfa: input.amountFcfa,
+            transactionId: input.transactionId,
+            description: input.description,
+            customerName: input.customerName,
+            customerEmail: input.customerEmail,
+            customerPhone: input.customerPhone,
+            returnUrl: input.returnUrl,
+            failedUrl: input.failedUrl,
+            notifyUrl: input.notifyUrl,
+            metadata: input.metadata,
+        })
+
+        return {
+            success: Boolean(result.success && result.paymentUrl),
+            provider,
+            paymentUrl: result.paymentUrl || undefined,
+            transactionId: input.transactionId,
+            providerTransactionId: result.token || input.transactionId,
+            providerNotifyToken: null,
+            providerVersion: 'v1',
+            error: result.error,
+            raw: result.raw || result,
+        }
+    }
 
     if (provider === 'feexpay') {
         const requestedCountry = String(input.metadata?.feexpay_country || '').trim().toLowerCase() || null
@@ -412,6 +467,10 @@ export async function checkHostedPaymentStatus(
     options?: { providerVersion?: string | null }
 ): Promise<HostedPaymentStatusResult> {
     const provider = normalizePaymentProvider(providerInput)
+
+    if (provider === 'paydunya') {
+        return verifyPayDunyaTransaction(transactionId)
+    }
 
     if (provider === 'feexpay') {
         return verifyFeexPayTransaction(transactionId)

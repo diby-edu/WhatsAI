@@ -10,6 +10,9 @@ const mockGetFeexPayDefaultNetwork = jest.fn(() => '')
 const mockInitializeFeexPayPayment = jest.fn()
 const mockNetworkRequiresOtp = jest.fn(() => false)
 const mockVerifyFeexPayTransaction = jest.fn()
+const mockGetPayDunyaPublicKey = jest.fn(() => '')
+const mockInitializePayDunyaPayment = jest.fn()
+const mockVerifyPayDunyaTransaction = jest.fn()
 
 jest.mock('@/lib/payments/cinetpay', () => ({
     checkPaymentStatus: (...args) => mockCheckPaymentStatus(...args),
@@ -35,6 +38,12 @@ jest.mock('@/lib/payments/feexpay', () => ({
     verifyFeexPayTransaction: (...args) => mockVerifyFeexPayTransaction(...args),
 }))
 
+jest.mock('@/lib/payments/paydunya', () => ({
+    getPayDunyaPublicKey: (...args) => mockGetPayDunyaPublicKey(...args),
+    initializePayDunyaPayment: (...args) => mockInitializePayDunyaPayment(...args),
+    verifyPayDunyaTransaction: (...args) => mockVerifyPayDunyaTransaction(...args),
+}))
+
 describe('payment provider helpers', () => {
     const previousEnv = { ...process.env }
 
@@ -57,10 +66,12 @@ describe('payment provider helpers', () => {
         expect(parsePaymentProvider('paystack')).toBe('paystack')
         expect(parsePaymentProvider('cinetpay')).toBe('cinetpay')
         expect(parsePaymentProvider('feepay')).toBe('feexpay')
+        expect(parsePaymentProvider('paydunya')).toBe('paydunya')
         expect(parsePaymentProvider('unknown')).toBeNull()
         expect(normalizePaymentProvider('')).toBe('cinetpay')
         expect(normalizePaymentProvider('paystack')).toBe('paystack')
         expect(normalizePaymentProvider('feepay')).toBe('feexpay')
+        expect(normalizePaymentProvider('paydunya')).toBe('paydunya')
         expect(() => normalizePaymentProvider('stripe')).toThrow(/unsupported payment provider/i)
         expect(resolveHostedPaymentProvider({
             defaultProvider: 'paystack',
@@ -102,6 +113,41 @@ describe('payment provider helpers', () => {
         }))
     })
 
+    test('reports paydunya readiness and blocks when mandatory keys are missing', () => {
+        const {
+            ensurePaymentProviderReady,
+            getPaymentProviderReadiness,
+        } = require('@/lib/payments/provider')
+
+        delete process.env.PAYDUNYA_MASTER_KEY
+        delete process.env.PAYDUNYA_PRIVATE_KEY
+        delete process.env.PAYDUNYA_TOKEN
+        delete process.env.NEXT_PUBLIC_APP_URL
+
+        expect(getPaymentProviderReadiness('paydunya')).toEqual(expect.objectContaining({
+            provider: 'paydunya',
+            ready: false,
+            missingKeys: [
+                'PAYDUNYA_MASTER_KEY',
+                'PAYDUNYA_PRIVATE_KEY',
+                'PAYDUNYA_TOKEN',
+                'NEXT_PUBLIC_APP_URL',
+            ],
+        }))
+        expect(() => ensurePaymentProviderReady('paydunya')).toThrow(/paydunya is not ready/i)
+
+        process.env.PAYDUNYA_MASTER_KEY = 'master'
+        process.env.PAYDUNYA_PRIVATE_KEY = 'private'
+        process.env.PAYDUNYA_TOKEN = 'token'
+        process.env.NEXT_PUBLIC_APP_URL = 'https://wazzapai.com'
+
+        expect(getPaymentProviderReadiness('paydunya')).toEqual(expect.objectContaining({
+            provider: 'paydunya',
+            ready: true,
+            missingKeys: [],
+        }))
+    })
+
     test('builds a fallback email for paystack hosted payments when no customer email is provided', async () => {
         const { initializeHostedPayment } = require('@/lib/payments/provider')
 
@@ -128,6 +174,46 @@ describe('payment provider helpers', () => {
 
         expect(mockInitializePaystackPayment).toHaveBeenCalledWith(expect.objectContaining({
             customerEmail: 'ORD_demo_ref@example.com',
+        }))
+    })
+
+    test('initializes hosted checkout via paydunya and stores provider token', async () => {
+        const { initializeHostedPayment } = require('@/lib/payments/provider')
+
+        process.env.PAYDUNYA_MASTER_KEY = 'master'
+        process.env.PAYDUNYA_PRIVATE_KEY = 'private'
+        process.env.PAYDUNYA_TOKEN = 'token'
+        process.env.NEXT_PUBLIC_APP_URL = 'https://wazzapai.com'
+
+        mockInitializePayDunyaPayment.mockResolvedValue({
+            success: true,
+            token: 'pd_tok_001',
+            paymentUrl: 'https://app.paydunya.com/checkout/invoice/pd_tok_001',
+            raw: { response_code: '00' },
+        })
+
+        const result = await initializeHostedPayment({
+            provider: 'paydunya',
+            amountFcfa: 4500,
+            currency: 'XOF',
+            transactionId: 'ORD_PAYDUNYA_001',
+            description: 'Commande paydunya',
+            customerName: 'Client Test',
+            customerEmail: '[email protected]',
+            customerPhone: '+2250700000000',
+            returnUrl: 'https://wazzapai.com/pay/order-pd-001',
+            failedUrl: 'https://wazzapai.com/pay/order-pd-001?payment=cancelled',
+            notifyUrl: 'https://wazzapai.com/api/payments/paydunya/webhook',
+        })
+
+        expect(mockInitializePayDunyaPayment).toHaveBeenCalledWith(expect.objectContaining({
+            transactionId: 'ORD_PAYDUNYA_001',
+        }))
+        expect(result).toEqual(expect.objectContaining({
+            success: true,
+            provider: 'paydunya',
+            providerTransactionId: 'pd_tok_001',
+            providerVersion: 'v1',
         }))
     })
 
@@ -240,6 +326,18 @@ describe('payment provider helpers', () => {
             action: 'regenerate',
             providerStatus: 'UNKNOWN',
             error: 'network',
+        })
+
+        mockVerifyPayDunyaTransaction.mockResolvedValueOnce({
+            success: true,
+            status: 'PENDING',
+            transactionId: 'pd_tx_1',
+        })
+        await expect(inspectExistingHostedPayment('paydunya', 'pd_tx_1')).resolves.toEqual({
+            provider: 'paydunya',
+            action: 'reuse',
+            providerStatus: 'PENDING',
+            error: null,
         })
     })
 })
