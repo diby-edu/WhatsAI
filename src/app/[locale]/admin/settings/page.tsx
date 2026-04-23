@@ -81,7 +81,7 @@ interface AdminNotificationSettings {
 }
 
 interface PaymentProviderReadiness {
-    provider: 'cinetpay' | 'paystack' | 'feexpay'
+    provider: 'cinetpay' | 'paystack' | 'feexpay' | 'paydunya'
     ready: boolean
     requiredKeys: string[]
     missingKeys: string[]
@@ -99,6 +99,7 @@ export default function AdminSettingsPage() {
         cinetpay: PaymentProviderReadiness
         paystack: PaymentProviderReadiness
         feexpay: PaymentProviderReadiness
+        paydunya: PaymentProviderReadiness
     } | null>(null)
 
     const [notificationSettings, setNotificationSettings] = useState<AdminNotificationSettings>({
@@ -263,6 +264,7 @@ export default function AdminSettingsPage() {
                     fetchedSettings.defaultPaymentProvider !== 'paystack'
                     && fetchedSettings.defaultPaymentProvider !== 'cinetpay'
                     && fetchedSettings.defaultPaymentProvider !== 'feexpay'
+                    && fetchedSettings.defaultPaymentProvider !== 'paydunya'
                 ) {
                     fetchedSettings.defaultPaymentProvider = 'cinetpay'
                 }
@@ -352,6 +354,7 @@ export default function AdminSettingsPage() {
     const paymentProviderLabel = (provider: string) => {
         if (provider === 'paystack') return 'Paystack'
         if (provider === 'feexpay') return 'FeexPay'
+        if (provider === 'paydunya') return 'PayDunya'
         return 'CinetPay'
     }
 
@@ -360,7 +363,9 @@ export default function AdminSettingsPage() {
             ? providerReadiness?.paystack || null
             : settings.defaultPaymentProvider === 'feexpay'
                 ? providerReadiness?.feexpay || null
-                : providerReadiness?.cinetpay || null
+                : settings.defaultPaymentProvider === 'paydunya'
+                    ? providerReadiness?.paydunya || null
+                    : providerReadiness?.cinetpay || null
 
     const renderTabContent = () => {
         switch (activeTab) {
@@ -616,6 +621,12 @@ export default function AdminSettingsPage() {
                                     disabled={Boolean(providerReadiness?.feexpay && !providerReadiness.feexpay.ready && settings.defaultPaymentProvider !== 'feexpay')}
                                 >
                                     {providerReadiness?.feexpay && !providerReadiness.feexpay.ready ? 'FeexPay (non pret)' : 'FeexPay'}
+                                </option>
+                                <option
+                                    value="paydunya"
+                                    disabled={Boolean(providerReadiness?.paydunya && !providerReadiness.paydunya.ready && settings.defaultPaymentProvider !== 'paydunya')}
+                                >
+                                    {providerReadiness?.paydunya && !providerReadiness.paydunya.ready ? 'PayDunya (non pret)' : 'PayDunya'}
                                 </option>
                             </select>
                             <p style={{ fontSize: 13, color: '#64748b', marginTop: 6 }}>

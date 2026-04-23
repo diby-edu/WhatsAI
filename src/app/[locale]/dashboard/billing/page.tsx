@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useState, useEffect, Suspense, useRef } from 'react'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { createPortal } from 'react-dom'
 import {
@@ -67,12 +67,14 @@ interface Payment {
     completed_at?: string | null
 }
 
-type SupportedPaymentProvider = 'cinetpay' | 'paystack' | 'feexpay'
+type SupportedPaymentProvider = 'cinetpay' | 'paystack' | 'feexpay' | 'paydunya'
 
 type FeexPayPaymentIntent = {
     type: 'subscription' | 'credits'
     targetId: string
 }
+
+const FEEXPAY_CHECKOUT_SESSION_KEY = 'wazzapai_feexpay_checkout_context'
 
 export default function BillingPage() {
     return (
@@ -89,6 +91,7 @@ export default function BillingPage() {
 function BillingContent() {
     const t = useTranslations('Billing')
     const format = useFormatter()
+    const pathname = usePathname()
     const searchParams = useSearchParams()
     const { formatFromFcfa } = useCurrency()
 
@@ -112,6 +115,7 @@ function BillingContent() {
     const [feexPayOtp, setFeexPayOtp] = useState('')
     const [feexPayError, setFeexPayError] = useState<string | null>(null)
     const [isBrowser, setIsBrowser] = useState(false)
+    const pendingFeexPayChecksRef = useRef<Record<string, number>>({})
 
     const feexPayCountries = listFeexPayCountries()
     const feexPayNetworks = listFeexPayNetworksByCountry(feexPayCountry)
@@ -159,6 +163,7 @@ function BillingContent() {
         const normalized = String(provider || '').trim().toLowerCase()
         if (normalized === 'paystack') return 'Paystack'
         if (normalized === 'feexpay') return 'FeexPay'
+        if (normalized === 'paydunya') return 'PayDunya'
         if (normalized === 'cinetpay') return 'CinetPay'
         return provider || 'Paiement'
     }
@@ -202,6 +207,16 @@ function BillingContent() {
         return detailLabel
             ? `${providerLabel} - ${detailLabel}`
             : providerLabel
+    }
+
+    const resolveBillingBasePath = () => {
+        const marker = '/dashboard/billing'
+        const rawPath = String(pathname || '').trim()
+        const markerIndex = rawPath.indexOf(marker)
+        if (markerIndex >= 0) {
+            return rawPath.slice(0, markerIndex + marker.length)
+        }
+        return '/dashboard/billing'
     }
 
     // Check for payment return
@@ -277,6 +292,30 @@ function BillingContent() {
             setFeexPayNetwork(feexPayNetworks[0].code)
         }
     }, [feexPayCountry, feexPayNetwork, feexPayNetworks])
+
+    useEffect(() => {
+        if (!payments.length) return
+
+        const now = Date.now()
+        const pendingFeexPayPayments = payments
+            .filter((payment) => {
+                const provider = String(payment.payment_provider || '').trim().toLowerCase()
+                const status = String(payment.status || '').trim().toLowerCase()
+                return (provider === 'feexpay' || provider === 'paydunya') && (status === 'pending' || status === 'processing')
+            })
+            .slice(0, 3)
+
+        pendingFeexPayPayments.forEach((payment) => {
+            const reference = String(payment.reference || payment.id || '').trim()
+            if (!reference) return
+
+            const lastCheckedAt = pendingFeexPayChecksRef.current[reference] || 0
+            if (now - lastCheckedAt < 15000) return
+
+            pendingFeexPayChecksRef.current[reference] = now
+            void checkPaymentStatus(reference, { silent: true, maxAttempts: 1 })
+        })
+    }, [payments])
 
     const fetchPlans = async () => {
         try {
@@ -389,7 +428,7 @@ function BillingContent() {
             if (!res.ok) return
             const data = await res.json()
             const provider = String(data?.data?.defaultPaymentProvider || '').trim().toLowerCase()
-            if (provider === 'paystack' || provider === 'cinetpay' || provider === 'feexpay') {
+            if (provider === 'paystack' || provider === 'cinetpay' || provider === 'feexpay' || provider === 'paydunya') {
                 setDefaultPaymentProvider(provider)
             }
         } catch (err) {
@@ -397,7 +436,14 @@ function BillingContent() {
         }
     }
 
-    const checkPaymentStatus = async (paymentId: string) => {
+    const checkPaymentStatus = async (
+        paymentId: string,
+        options?: { silent?: boolean; attempt?: number; maxAttempts?: number }
+    ) => {
+        const silent = Boolean(options?.silent)
+        const attempt = Math.max(1, Number(options?.attempt || 1))
+        const maxAttempts = Math.max(1, Number(options?.maxAttempts || 40))
+
         try {
             // Call verify API which checks with the configured provider and credits user
             const res = await fetch('/api/payments/verify', {
@@ -408,8 +454,10 @@ function BillingContent() {
             const data = await res.json()
 
             if (!res.ok) {
-                setPaymentStatus('failed')
-                fetchPayments()
+                if (!silent) {
+                    setPaymentStatus('failed')
+                }
+                await fetchPayments()
                 return
             }
 
@@ -417,24 +465,34 @@ function BillingContent() {
             const currentStatus = String(data.current_status || '').trim().toLowerCase()
 
             if (data.success && (data.credits_added || currentStatus === 'completed')) {
-                setPaymentStatus('success')
-                fetchData() // Refresh user data to show new balance
-                fetchPayments()
+                if (!silent) {
+                    setPaymentStatus('success')
+                }
+                await fetchData() // Refresh user data to show new balance
+                await fetchPayments()
             } else if (
                 providerStatus === 'REFUSED'
                 || providerStatus === 'CANCELLED'
                 || currentStatus === 'failed'
             ) {
-                setPaymentStatus('failed')
-                fetchPayments()
+                if (!silent) {
+                    setPaymentStatus('failed')
+                }
+                await fetchPayments()
             } else {
-                // Payment still pending, check again in 3 seconds.
-                setPaymentStatus('pending')
-                setTimeout(() => checkPaymentStatus(paymentId), 3000)
+                // Payment still pending, check again in 3 seconds for explicit user flow.
+                if (!silent) {
+                    setPaymentStatus('pending')
+                    if (attempt < maxAttempts) {
+                        setTimeout(() => checkPaymentStatus(paymentId, { attempt: attempt + 1, maxAttempts }), 3000)
+                    }
+                }
             }
         } catch (err) {
             console.error('Error checking payment:', err)
-            setPaymentStatus('failed')
+            if (!silent) {
+                setPaymentStatus('failed')
+            }
         }
     }
 
@@ -502,7 +560,16 @@ function BillingContent() {
         setFeexPayError(null)
     }
 
-    const initializePaymentV2 = async (payload: Record<string, any>, loadingKey: string) => {
+    const initializePaymentV2 = async (
+        payload: Record<string, any>,
+        loadingKey: string,
+        feexPayContext?: {
+            countryCode?: string | null
+            networkCode?: string | null
+            networkLabel?: string | null
+            phone?: string | null
+        }
+    ) => {
         setIsLoading(loadingKey)
         try {
             const res = await fetch('/api/payments/initialize', {
@@ -524,6 +591,29 @@ function BillingContent() {
             }
 
             const isPendingFallbackUrl = paymentUrl.includes('/dashboard/billing') && paymentUrl.includes('payment=pending')
+            const isFeexPayPayload = Boolean(payload?.feexpay_country || payload?.feexpay_network || payload?.feexpay_phone)
+
+            if (isFeexPayPayload && transactionId) {
+                try {
+                    const checkoutContext = {
+                        transactionId,
+                        paymentUrl,
+                        fallbackPending: isPendingFallbackUrl,
+                        countryCode: feexPayContext?.countryCode || String(payload?.feexpay_country || ''),
+                        networkCode: feexPayContext?.networkCode || String(payload?.feexpay_network || ''),
+                        networkLabel: feexPayContext?.networkLabel || null,
+                        payerPhone: feexPayContext?.phone || String(payload?.feexpay_phone || ''),
+                        createdAt: Date.now(),
+                    }
+                    sessionStorage.setItem(FEEXPAY_CHECKOUT_SESSION_KEY, JSON.stringify(checkoutContext))
+                } catch (storageError) {
+                    console.warn('Unable to persist FeexPay checkout context:', storageError)
+                }
+
+                const billingBasePath = resolveBillingBasePath()
+                window.location.href = `${billingBasePath}/feexpay?transaction_id=${encodeURIComponent(transactionId)}`
+                return
+            }
 
             if (isPendingFallbackUrl) {
                 setPaymentStatus('pending')
@@ -583,7 +673,12 @@ function BillingContent() {
 
         setFeexPayError(null)
         try {
-            await initializePaymentV2(payload, feexPayIntent.targetId)
+            await initializePaymentV2(payload, feexPayIntent.targetId, {
+                countryCode: feexPayCountry,
+                networkCode: feexPayNetwork || null,
+                networkLabel: selectedFeexPayNetwork?.label || null,
+                phone: normalizedPhone,
+            })
             setShowFeexPayModal(false)
             setFeexPayIntent(null)
         } catch (err: any) {

@@ -19,6 +19,7 @@ function providerLabel(providerInput: unknown) {
     const provider = normalizePaymentProvider(providerInput)
     if (provider === 'paystack') return 'Paystack'
     if (provider === 'feexpay') return 'FeexPay'
+    if (provider === 'paydunya') return 'PayDunya'
     return 'CinetPay'
 }
 
@@ -35,6 +36,17 @@ function resolveProviderTransactionId(provider: SupportedPaymentProvider, refere
             || payload?.data?.reference
             || payload?.id_transaction
             || payload?.data?.id_transaction
+            || reference
+            || ''
+        ).trim() || null
+    }
+
+    if (provider === 'paydunya') {
+        return String(
+            payload?.invoice?.token
+            || payload?.data?.invoice?.token
+            || payload?.token
+            || payload?.data?.token
             || reference
             || ''
         ).trim() || null
