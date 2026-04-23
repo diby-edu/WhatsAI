@@ -22,6 +22,7 @@ import {
 import { useTranslations, useFormatter } from 'next-intl'
 import { useCurrency } from '@/contexts/CurrencyContext'
 import { createClient } from '@/lib/supabase/client'
+import ManualPaymentFallbackCard from '@/components/payments/manual-payment-fallback-card'
 import {
     listFeexPayCountries,
     listFeexPayNetworksByCountry,
@@ -817,6 +818,8 @@ function BillingContent() {
                     )}
                 </motion.div>
             )}
+
+            <ManualPaymentFallbackCard />
 
             {isBrowser && showFeexPayModal && createPortal(
                 <div
