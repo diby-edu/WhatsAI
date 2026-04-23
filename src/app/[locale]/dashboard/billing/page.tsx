@@ -1223,6 +1223,7 @@ function BillingContent() {
                         {plans.map((plan, index) => {
                             const Icon = getPlanIcon(plan.name)
                             const color = getPlanColor(plan.name)
+                            const isCurrentDisplayedPlan = currentPlan.toLowerCase() === plan.name.toLowerCase()
                             return (
                                 <motion.div
                                     key={plan.id}
@@ -1288,7 +1289,7 @@ function BillingContent() {
                                         whileHover={{ scale: 1.02 }}
                                         whileTap={{ scale: 0.98 }}
                                         onClick={() => handleSubscribeV2(plan.id)}
-                                        disabled={isLoading === plan.id || currentPlan.toLowerCase() === plan.name.toLowerCase()}
+                                        disabled={isLoading === plan.id}
                                         style={{
                                             width: '100%',
                                             padding: '12px 20px',
@@ -1296,13 +1297,13 @@ function BillingContent() {
                                             fontWeight: 600,
                                             fontSize: 13,
                                             border: 'none',
-                                            cursor: currentPlan.toLowerCase() === plan.name.toLowerCase() ? 'not-allowed' : 'pointer',
-                                            background: currentPlan.toLowerCase() === plan.name.toLowerCase()
-                                                ? 'rgba(51, 65, 85, 0.5)'
+                                            cursor: isLoading === plan.id ? 'not-allowed' : 'pointer',
+                                            background: isCurrentDisplayedPlan
+                                                ? 'linear-gradient(135deg, #2563eb, #1d4ed8)'
                                                 : plan.is_popular
                                                     ? 'linear-gradient(135deg, #10b981, #059669)'
                                                     : 'rgba(51, 65, 85, 0.5)',
-                                            color: currentPlan.toLowerCase() === plan.name.toLowerCase() ? '#64748b' : 'white',
+                                            color: 'white',
                                             display: 'flex',
                                             alignItems: 'center',
                                             justifyContent: 'center',
@@ -1314,8 +1315,8 @@ function BillingContent() {
                                                 <Loader2 style={{ width: 16, height: 16, animation: 'spin 1s linear infinite' }} />
                                                 {t('Plans.loading')}
                                             </>
-                                        ) : currentPlan.toLowerCase() === plan.name.toLowerCase() ? (
-                                            t('Plans.current')
+                                        ) : isCurrentDisplayedPlan ? (
+                                            'Renouveler ce plan'
                                         ) : (
                                             <>
                                                 {t('Plans.choose')}
@@ -1323,6 +1324,11 @@ function BillingContent() {
                                             </>
                                         )}
                                     </motion.button>
+                                    {isCurrentDisplayedPlan && (
+                                        <div style={{ marginTop: 8, fontSize: 11, color: '#93c5fd' }}>
+                                            Plan actif. Renouvellement anticipe autorise.
+                                        </div>
+                                    )}
                                 </motion.div>
                             )
                         })}
