@@ -170,11 +170,7 @@ export function getPaymentProviderReadiness(providerInput: unknown): PaymentProv
         const warnings: string[] = []
         const defaultNetwork = getFeexPayDefaultNetwork()
 
-        if (!defaultNetwork) {
-            warnings.push('FEEXPAY_DEFAULT_NETWORK is not set: each checkout must provide feexpay_country/feexpay_network')
-        }
-
-        if (networkRequiresOtp(defaultNetwork) && !String(process.env.FEEXPAY_DEFAULT_OTP || '').trim()) {
+        if (defaultNetwork && networkRequiresOtp(defaultNetwork) && !String(process.env.FEEXPAY_DEFAULT_OTP || '').trim()) {
             warnings.push(`FEEXPAY_DEFAULT_OTP is recommended for network ${defaultNetwork}`)
         }
 

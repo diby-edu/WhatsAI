@@ -250,6 +250,9 @@ function BillingContent() {
         } else if (transactionId) {
             // Check specific transaction
             checkPaymentStatus(transactionId)
+        } else {
+            // Avoid stale status banners when no payment context is present in URL.
+            setPaymentStatus(null)
         }
     }, [searchParams])
 
@@ -544,13 +547,11 @@ function BillingContent() {
 
     const openFeexPayModal = (intent: FeexPayPaymentIntent) => {
         setFeexPayIntent(intent)
+        setPaymentStatus(null)
         setFeexPayError(null)
         setFeexPayOtp('')
         setFeexPayPhone('')
         setShowFeexPayModal(true)
-        if (typeof window !== 'undefined') {
-            window.scrollTo({ top: 0, behavior: 'smooth' })
-        }
     }
 
     const closeFeexPayModal = () => {
@@ -570,6 +571,7 @@ function BillingContent() {
             phone?: string | null
         }
     ) => {
+        setPaymentStatus(null)
         setIsLoading(loadingKey)
         try {
             const res = await fetch('/api/payments/initialize', {
