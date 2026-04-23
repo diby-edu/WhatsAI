@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
+import { createPortal } from 'react-dom'
 import {
     CreditCard,
     Sparkles,
@@ -110,6 +111,7 @@ function BillingContent() {
     const [feexPayPhone, setFeexPayPhone] = useState('')
     const [feexPayOtp, setFeexPayOtp] = useState('')
     const [feexPayError, setFeexPayError] = useState<string | null>(null)
+    const [isBrowser, setIsBrowser] = useState(false)
 
     const feexPayCountries = listFeexPayCountries()
     const feexPayNetworks = listFeexPayNetworksByCountry(feexPayCountry)
@@ -244,6 +246,25 @@ function BillingContent() {
         fetchPayments()
         fetchPaymentConfig()
     }, [])
+
+    useEffect(() => {
+        setIsBrowser(true)
+    }, [])
+
+    useEffect(() => {
+        if (!isBrowser) return
+
+        const previousOverflow = document.body.style.overflow
+        if (showFeexPayModal) {
+            document.body.style.overflow = 'hidden'
+        } else {
+            document.body.style.overflow = previousOverflow || ''
+        }
+
+        return () => {
+            document.body.style.overflow = previousOverflow || ''
+        }
+    }, [showFeexPayModal, isBrowser])
 
     useEffect(() => {
         if (!feexPayNetworks.length) {
@@ -469,6 +490,9 @@ function BillingContent() {
         setFeexPayOtp('')
         setFeexPayPhone('')
         setShowFeexPayModal(true)
+        if (typeof window !== 'undefined') {
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+        }
     }
 
     const closeFeexPayModal = () => {
@@ -697,14 +721,14 @@ function BillingContent() {
                 </motion.div>
             )}
 
-            {showFeexPayModal && (
+            {isBrowser && showFeexPayModal && createPortal(
                 <div
                     style={{
                         position: 'fixed',
                         inset: 0,
                         background: 'rgba(2, 6, 23, 0.72)',
                         backdropFilter: 'blur(4px)',
-                        zIndex: 60,
+                        zIndex: 9999,
                         display: 'flex',
                         justifyContent: 'center',
                         alignItems: 'center',
@@ -874,7 +898,8 @@ function BillingContent() {
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* Frozen credits banner */}
