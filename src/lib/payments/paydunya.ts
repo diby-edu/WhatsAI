@@ -268,12 +268,20 @@ export function extractPayDunyaWebhookAmount(payload: unknown) {
 }
 
 function buildRequestHeaders() {
-    return {
+    const headers: Record<string, string> = {
         'Content-Type': 'application/json',
         'PAYDUNYA-MASTER-KEY': PAYDUNYA_MASTER_KEY,
         'PAYDUNYA-PRIVATE-KEY': PAYDUNYA_PRIVATE_KEY,
         'PAYDUNYA-TOKEN': PAYDUNYA_TOKEN,
     }
+
+    // Some PayDunya accounts enforce the public key on HTTP/JSON endpoints.
+    // Sending it when available remains backward-compatible.
+    if (PAYDUNYA_PUBLIC_KEY) {
+        headers['PAYDUNYA-PUBLIC-KEY'] = PAYDUNYA_PUBLIC_KEY
+    }
+
+    return headers
 }
 
 function normalizeChannels(metadata?: Record<string, any>) {
