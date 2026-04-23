@@ -251,6 +251,16 @@ export async function initializeHostedPayment(input: HostedPaymentInitInput): Pr
     if (provider === 'feexpay') {
         const requestedCountry = String(input.metadata?.feexpay_country || '').trim().toLowerCase() || null
         const requestedNetwork = String(input.metadata?.feexpay_network || '').trim().toLowerCase() || null
+        const trackedPendingReturnUrl = appendQueryParam(
+            appendQueryParam(input.returnUrl, 'transaction_id', input.transactionId),
+            'payment',
+            'pending'
+        )
+        const trackedFailedReturnUrl = appendQueryParam(
+            appendQueryParam(input.failedUrl || input.returnUrl, 'transaction_id', input.transactionId),
+            'payment',
+            'cancelled'
+        )
         console.info('[PAY][FEEXPAY][INIT_REQUEST]', {
             transactionId: input.transactionId,
             amountFcfa: input.amountFcfa,
@@ -265,18 +275,15 @@ export async function initializeHostedPayment(input: HostedPaymentInitInput): Pr
             description: input.description,
             customerName: input.customerName,
             customerPhone: input.customerPhone,
-            returnUrl: input.returnUrl,
-            failedUrl: input.failedUrl,
+            // Force tracked return URLs so hosted flows can always auto-verify on return.
+            returnUrl: trackedPendingReturnUrl,
+            failedUrl: trackedFailedReturnUrl,
             metadata: input.metadata,
         })
 
         const network = String((result.raw as any)?.network || '').trim().toLowerCase()
         const paymentUrl = String(result.paymentUrl || '').trim()
-        const fallbackPendingUrl = appendQueryParam(
-            appendQueryParam(input.returnUrl, 'transaction_id', input.transactionId),
-            'payment',
-            'pending'
-        )
+        const fallbackPendingUrl = trackedPendingReturnUrl
         const resolvedPaymentUrl = paymentUrl || fallbackPendingUrl
         const usedFallbackPendingUrl = !paymentUrl && Boolean(fallbackPendingUrl)
 
