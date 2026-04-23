@@ -129,11 +129,20 @@ export async function POST(request: NextRequest) {
         // Create payment record in database
         const adminSupabase = createAdminClient()
         const defaultProvider = await getDefaultPaymentProvider(adminSupabase)
+        const requestedFeexPayPhone = String(body?.feexpay_phone || '').trim()
+        const payerPhone = defaultProvider === 'feexpay'
+            ? requestedFeexPayPhone
+            : String(profile.phone || '').trim()
+
+        if (defaultProvider === 'feexpay' && !payerPhone) {
+            return errorResponse('Numero payeur requis pour FeexPay', 400)
+        }
+
         const feexPaySelection = defaultProvider === 'feexpay'
             ? resolveFeexPaySelection({
                 country: body?.feexpay_country,
                 network: body?.feexpay_network,
-                phone: profile.phone || '',
+                phone: payerPhone,
                 defaultNetwork: getFeexPayDefaultNetwork(),
             })
             : { countryCode: null, networkCode: null, error: null }
@@ -156,7 +165,7 @@ export async function POST(request: NextRequest) {
             status: 'pending',
             payment_provider: defaultProvider,
             provider_transaction_id: transactionId,
-            customer_phone: profile.phone,
+            customer_phone: payerPhone || null,
             customer_email: profile.email,
             credits_purchased: metadata.credits,
             provider_response: { ...metadata, amount_fcfa: amount },
@@ -184,6 +193,7 @@ export async function POST(request: NextRequest) {
             ...metadata,
             payment_id: payment.id,
             amount_fcfa: amount,
+            customer_phone: payerPhone || null,
             ...(defaultProvider === 'feexpay' ? {
                 feexpay_country: feexPaySelection.countryCode,
                 feexpay_network: feexPaySelection.networkCode,
@@ -201,7 +211,7 @@ export async function POST(request: NextRequest) {
             description,
             customerName: profile.full_name || profile.email,
             customerEmail: profile.email,
-            customerPhone: profile.phone || '',
+            customerPhone: payerPhone,
             returnUrl: `${APP_URL}/dashboard/billing`,
             failedUrl: `${APP_URL}/dashboard/billing?payment=cancelled`,
             notifyUrl: `${APP_URL}/api/payments/${defaultProvider}/webhook`,
