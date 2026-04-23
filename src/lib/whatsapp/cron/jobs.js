@@ -31,7 +31,7 @@ async function checkPendingPayments(supabase) {
             .eq('status', 'pending')
             .eq('payment_method', 'online')
             .lt('created_at', fifteenMinutesAgo)
-            .is('payment_reminder_sent', null)
+            .or('payment_reminder_sent.is.null,payment_reminder_sent.eq.false')
 
         for (const order of pendingOrders || []) {
             if (!order.provider_payment_url) continue
@@ -167,7 +167,7 @@ async function requestFeedback(supabase) {
             .from('orders')
             .select('id, agent_id, customer_phone, delivered_at')
             .eq('status', 'delivered')
-            .is('feedback_requested', null)
+            .or('feedback_requested.is.null,feedback_requested.eq.false')
             .lt('delivered_at', threeDaysAgo)
             .gt('delivered_at', fourDaysAgo)
 
