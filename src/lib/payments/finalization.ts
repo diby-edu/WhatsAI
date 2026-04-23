@@ -76,6 +76,66 @@ function normalizeProviderStatus(status: unknown): ProviderStatus {
     return 'UNKNOWN'
 }
 
+function parseProviderAmountValue(value: unknown): number | null {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+        return value
+    }
+
+    if (typeof value !== 'string') {
+        return null
+    }
+
+    const compact = value.trim().replace(/\s+/g, '')
+    if (!compact) return null
+
+    if (/^-?\d+(\.\d+)?$/.test(compact)) {
+        const parsed = Number(compact)
+        return Number.isFinite(parsed) ? parsed : null
+    }
+
+    if (/^-?\d+(,\d+)?$/.test(compact)) {
+        const parsed = Number(compact.replace(',', '.'))
+        return Number.isFinite(parsed) ? parsed : null
+    }
+
+    const digitsOnly = compact.replace(/[^\d-]/g, '')
+    if (!digitsOnly || digitsOnly === '-') return null
+    const parsed = Number(digitsOnly)
+    return Number.isFinite(parsed) ? parsed : null
+}
+
+function extractProviderPaidAmount(providerPayload: unknown): number | null {
+    const parsedPayload = parseMaybeJson(providerPayload)
+        || ((providerPayload && typeof providerPayload === 'object') ? providerPayload as Record<string, any> : null)
+        || {}
+
+    const nestedVerification = parseMaybeJson(parsedPayload?.last_verification_payload)
+        || parsedPayload?.last_verification_payload
+        || {}
+
+    const candidates: unknown[] = [
+        parsedPayload?.amount,
+        parsedPayload?.total,
+        parsedPayload?.montant,
+        parsedPayload?.amount_fcfa,
+        parsedPayload?.data?.amount,
+        parsedPayload?.data?.total,
+        parsedPayload?.response_operator?.amount,
+        nestedVerification?.amount,
+        nestedVerification?.total,
+        nestedVerification?.montant,
+    ]
+
+    for (const candidate of candidates) {
+        const parsed = parseProviderAmountValue(candidate)
+        if (parsed !== null) {
+            return parsed
+        }
+    }
+
+    return null
+}
+
 function inferPlanIdFromCredits(credits: number): string | null {
     if (credits >= 15000) return 'scale'
     if (credits >= 6000)  return 'business'
@@ -407,6 +467,58 @@ export async function finalizePaymentRecord(
                 newBalance: null,
                 planUpdated: false,
                 message: 'Paiement deja traite',
+            }
+        }
+
+        const expectedAmountFcfa = Math.max(0, Math.round(Number(payment.amount_fcfa || 0)))
+        const paidAmountRaw = extractProviderPaidAmount(providerPayload)
+        const paidAmountFcfa = paidAmountRaw === null ? null : Math.round(paidAmountRaw)
+        const amountToleranceFcfa = 1
+
+        if (
+            expectedAmountFcfa > 0
+            && paidAmountFcfa !== null
+            && paidAmountFcfa + amountToleranceFcfa < expectedAmountFcfa
+        ) {
+            console.warn('[PAY][FINALIZE][AMOUNT_MISMATCH]', {
+                paymentId: payment.id,
+                userId: payment.user_id,
+                expectedAmountFcfa,
+                paidAmountFcfa,
+                provider: String(payment.payment_provider || 'unknown'),
+            })
+
+            const mismatchPayload = {
+                ...(parseMaybeJson(providerPayload)
+                    || ((providerPayload && typeof providerPayload === 'object') ? providerPayload as Record<string, any> : {})),
+                amount_check: {
+                    result: 'mismatch',
+                    reason: 'AMOUNT_TOO_LOW',
+                    expected_amount_fcfa: expectedAmountFcfa,
+                    paid_amount_fcfa: paidAmountFcfa,
+                    tolerance_fcfa: amountToleranceFcfa,
+                },
+            }
+
+            if (payment.status !== 'failed') {
+                await adminSupabase
+                    .from('payments')
+                    .update({
+                        status: 'failed',
+                        ...buildPaymentProviderUpdate(payment, mismatchPayload),
+                    })
+                    .eq('id', payment.id)
+            }
+
+            return {
+                ok: true,
+                state: 'failed',
+                payment: { ...payment, status: 'failed' },
+                providerStatus: 'REFUSED',
+                creditsAdded: 0,
+                newBalance: null,
+                planUpdated: false,
+                message: 'Montant paye inferieur au montant attendu',
             }
         }
 
