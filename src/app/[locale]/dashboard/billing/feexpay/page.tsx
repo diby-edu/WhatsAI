@@ -77,8 +77,14 @@ export default function FeexPayCheckoutPage() {
                 return
             }
 
+            const networkLabel = String(parsed.networkLabel || parsed.networkCode || 'FeexPay').trim()
+            const payerPhone = String(parsed.payerPhone || '').trim()
             setPhase('pending')
-            setStatusMessage('Demande envoyee. Confirmez sur votre telephone puis revenez sur cette page.')
+            setStatusMessage(
+                payerPhone
+                    ? `Demande envoyee au ${payerPhone} via ${networkLabel}. Confirmez sur votre telephone puis revenez sur cette page.`
+                    : `Demande envoyee via ${networkLabel}. Confirmez sur votre telephone puis revenez sur cette page.`
+            )
         } catch (error) {
             console.error('Failed to read FeexPay checkout context:', error)
             setPhase('pending')

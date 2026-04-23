@@ -200,6 +200,39 @@ function extractFeexPayStatusText(raw: unknown) {
     ])
 }
 
+function extractFeexPayReasonText(raw: unknown) {
+    return findDeepStringByKeys(raw, [
+        'reason',
+        'comment',
+        'responsedesc',
+        'response_operator',
+        'error',
+    ])
+}
+
+function extractFeexPayResponseCode(raw: unknown) {
+    return findDeepStringByKeys(raw, [
+        'responsecode',
+        'statuscode',
+        'status_code',
+        'code',
+    ])
+}
+
+function normalizeFeexPayStatusFromPayload(raw: unknown): FeexPayStatusResult['status'] {
+    const statusText = extractFeexPayStatusText(raw)
+    const normalized = normalizeFeexPayStatus(statusText)
+    if (normalized !== 'UNKNOWN') return normalized
+
+    const code = String(extractFeexPayResponseCode(raw) || '').trim().toUpperCase()
+    if (code === 'FAILED' || code === 'REFUSED') return 'REFUSED'
+    if (code === 'CANCELLED') return 'CANCELLED'
+    if (code === 'SUCCESS' || code === 'SUCCESSFUL' || code === 'ACCEPTED') return 'ACCEPTED'
+    if (code === 'PENDING' || code === 'INITIATED') return 'PENDING'
+
+    return 'UNKNOWN'
+}
+
 function resolveNetwork(metadata?: Record<string, any>) {
     const requestedCountry = normalizeFeexPayCountry(metadata?.feexpay_country || metadata?.country)
     const requestedNetwork = normalizeFeexPayNetwork(metadata?.feexpay_network || metadata?.network)
@@ -385,10 +418,12 @@ export async function initializeFeexPayPayment(input: FeexPayInitInput): Promise
         const data = isRecord(raw) ? raw : {}
         const reference = extractFeexPayReference(data)
         let paymentUrl = extractFeexPayPaymentUrl(data)
-        const status = extractFeexPayStatusText(data) || null
+        const statusText = extractFeexPayStatusText(data) || null
+        const status = normalizeFeexPayStatusFromPayload(data)
+        const reasonText = extractFeexPayReasonText(data)
 
         const acceptedHttp = response.ok
-        const hasUsefulResponse = Boolean(reference || paymentUrl || status)
+        const hasUsefulResponse = Boolean(reference || paymentUrl || statusText)
 
         if (!acceptedHttp || !hasUsefulResponse) {
             logFeexPay('warn', 'INIT_REJECTED', {
@@ -401,6 +436,23 @@ export async function initializeFeexPayPayment(input: FeexPayInitInput): Promise
                 success: false,
                 network,
                 error: String(data.message || data.error || `FeexPay HTTP ${response.status}`),
+                raw,
+            }
+        }
+
+        if (status === 'REFUSED' || status === 'CANCELLED') {
+            const providerError = String(reasonText || data.message || data.error || '').trim()
+            logFeexPay('warn', 'INIT_TERMINAL_NON_SUCCESS', {
+                transactionId: input.transactionId,
+                network,
+                status,
+                providerError: providerError || null,
+            })
+            return {
+                success: false,
+                network,
+                status: statusText,
+                error: providerError || `Paiement ${status === 'REFUSED' ? 'refuse' : 'annule'} par FeexPay`,
                 raw,
             }
         }
@@ -428,7 +480,7 @@ export async function initializeFeexPayPayment(input: FeexPayInitInput): Promise
             network,
             reference: reference || null,
             paymentUrl: paymentUrl || null,
-            status,
+            status: statusText,
             raw,
         }
     } catch (error) {
@@ -500,7 +552,13 @@ export async function verifyFeexPayTransaction(reference: string): Promise<FeexP
 
             const raw = await response.json().catch(() => ({}))
             const payload = extractStatusPayload(raw)
-            const status = normalizeFeexPayStatus(payload.status || payload.message || '')
+            const statusFromPayload = normalizeFeexPayStatusFromPayload(payload)
+            const status = statusFromPayload !== 'UNKNOWN'
+                ? statusFromPayload
+                : normalizeFeexPayStatusFromPayload(raw)
+            const statusText = extractFeexPayStatusText(payload) || extractFeexPayStatusText(raw)
+            const reasonText = extractFeexPayReasonText(payload) || extractFeexPayReasonText(raw)
+            const providerMessage = String(statusText || reasonText || '').trim()
             const amountValue = Number(payload.amount ?? payload.total ?? payload.montant)
             const providerTx = String(
                 payload.reference
@@ -520,12 +578,12 @@ export async function verifyFeexPayTransaction(reference: string): Promise<FeexP
                     status,
                     transactionId: providerTx || normalizedRef,
                     amount: Number.isFinite(amountValue) ? amountValue : null,
-                    message: String(payload.message || payload.status || '').trim() || null,
+                    message: providerMessage || null,
                     raw,
                 }
             }
 
-            lastMessage = String(payload.message || payload.error || `FeexPay HTTP ${response.status}`)
+            lastMessage = String(providerMessage || payload.error || `FeexPay HTTP ${response.status}`)
             lastRaw = raw
         } catch (error) {
             lastMessage = error instanceof Error ? error.message : 'Erreur FeexPay'
