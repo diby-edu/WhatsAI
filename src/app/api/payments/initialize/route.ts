@@ -235,16 +235,26 @@ export async function POST(request: NextRequest) {
         }
 
         // Update payment with token
+        // For PayDunya: keep our internal transactionId as provider_transaction_id
+        // so the webhook can find the payment via custom_data.transaction_id.
+        // The PayDunya invoice token is stored in provider_response for verification.
+        const resolvedProviderTxId = defaultProvider === 'paydunya'
+            ? transactionId
+            : (result.providerTransactionId || transactionId)
+
         const paymentUpdate: Record<string, any> = {
             status: 'processing',
             payment_provider: defaultProvider,
-            provider_transaction_id: result.providerTransactionId || transactionId,
+            provider_transaction_id: resolvedProviderTxId,
             provider_payment_url: result.paymentUrl,
             provider_response: {
                 ...metadata,
                 amount_fcfa: amount,
                 provider: defaultProvider,
                 provider_version: result.providerVersion || null,
+                ...(defaultProvider === 'paydunya' && result.providerTransactionId
+                    ? { paydunya_token: result.providerTransactionId }
+                    : {}),
             },
         }
 
