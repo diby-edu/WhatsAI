@@ -596,6 +596,18 @@ function BillingContent() {
 
             const isPendingFallbackUrl = paymentUrl.includes('/dashboard/billing') && paymentUrl.includes('payment=pending')
             const isFeexPayPayload = Boolean(payload?.feexpay_country || payload?.feexpay_network || payload?.feexpay_phone)
+            const isPayDunyaPayload = String(data?.data?.provider || '').toLowerCase() === 'paydunya'
+
+            if (isPayDunyaPayload && transactionId) {
+                try {
+                    const ctx = JSON.stringify({ transactionId, paymentUrl, createdAt: Date.now() })
+                    sessionStorage.setItem(`wazzapai_paydunya_checkout:${transactionId}`, ctx)
+                    localStorage.setItem(`wazzapai_paydunya_checkout:${transactionId}`, ctx)
+                } catch {}
+                const billingBasePath = resolveBillingBasePath()
+                window.location.href = `${billingBasePath}/paydunya?transaction_id=${encodeURIComponent(transactionId)}`
+                return
+            }
 
             if (isFeexPayPayload && transactionId) {
                 try {
