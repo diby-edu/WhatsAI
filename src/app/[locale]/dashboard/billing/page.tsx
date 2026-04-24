@@ -599,13 +599,13 @@ function BillingContent() {
             const isPayDunyaPayload = String(data?.data?.provider || '').toLowerCase() === 'paydunya'
 
             if (isPayDunyaPayload && transactionId) {
+                const providerTransactionId = String(data?.data?.providerTransactionId || '').trim()
                 try {
-                    const ctx = JSON.stringify({ transactionId, paymentUrl, createdAt: Date.now() })
+                    const ctx = JSON.stringify({ transactionId, paymentUrl, providerTransactionId: providerTransactionId || transactionId, createdAt: Date.now() })
                     sessionStorage.setItem(`wazzapai_paydunya_checkout:${transactionId}`, ctx)
                     localStorage.setItem(`wazzapai_paydunya_checkout:${transactionId}`, ctx)
                 } catch {}
-                const billingBasePath = resolveBillingBasePath()
-                window.location.href = `${billingBasePath}/paydunya?transaction_id=${encodeURIComponent(transactionId)}`
+                window.open(paymentUrl, '_blank')
                 return
             }
 

@@ -132,7 +132,9 @@ export async function POST(request: NextRequest) {
         const requestedFeexPayPhone = String(body?.feexpay_phone || '').trim()
         const payerPhone = defaultProvider === 'feexpay'
             ? requestedFeexPayPhone
-            : String(profile.phone || '').trim()
+            : defaultProvider === 'paydunya'
+                ? ''
+                : String(profile.phone || '').trim()
 
         if (defaultProvider === 'feexpay' && !payerPhone) {
             return errorResponse('Numero payeur requis pour FeexPay', 400)
@@ -260,6 +262,7 @@ export async function POST(request: NextRequest) {
             paymentId: payment.id,
             paymentUrl: result.paymentUrl,
             transactionId,
+            providerTransactionId: String(result.providerTransactionId || transactionId).trim(),
             provider: defaultProvider,
         })
     } catch (err) {
