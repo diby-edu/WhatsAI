@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { AlertCircle, ArrowLeft, ExternalLink, Loader2, RefreshCw } from 'lucide-react'
 import ManualPaymentFallbackCard from '@/components/payments/manual-payment-fallback-card'
@@ -10,7 +10,7 @@ type CheckStatusOutcome = 'success' | 'failed' | 'pending' | 'pause'
 
 const STORAGE_KEY_PREFIX = 'wazzapai_paydunya_checkout'
 
-function readContext(transactionId: string): { paymentUrl: string; transactionId: string } | null {
+function readContext(transactionId: string): { paymentUrl: string; transactionId: string; providerTransactionId?: string | null } | null {
     const key = `${STORAGE_KEY_PREFIX}:${transactionId}`
     for (const storage of [sessionStorage, localStorage]) {
         try {
@@ -44,6 +44,7 @@ export default function PayDunyaCheckoutPage() {
     const [isChecking, setIsChecking] = useState(false)
     const [attemptCount, setAttemptCount] = useState(0)
     const [errorMessage, setErrorMessage] = useState<string | null>(null)
+    const providerTokenRef = useRef<string | null>(null)
 
     const billingPath = useMemo(() => {
         const marker = '/dashboard/billing'
@@ -66,7 +67,11 @@ export default function PayDunyaCheckoutPage() {
         }
 
         if (isReturning) {
-            // User is returning from PayDunya checkout — verify payment
+            // User is returning from PayDunya checkout — read token before clearing
+            const ctx = readContext(transactionId)
+            if (ctx?.providerTransactionId) {
+                providerTokenRef.current = ctx.providerTransactionId
+            }
             clearContext(transactionId)
             setPhase('pending')
             setStatusMessage('Retour de PayDunya détecté. Vérification du paiement...')
@@ -76,6 +81,9 @@ export default function PayDunyaCheckoutPage() {
         // First visit — read context and redirect to PayDunya
         const ctx = readContext(transactionId)
         if (ctx?.paymentUrl) {
+            if (ctx.providerTransactionId) {
+                providerTokenRef.current = ctx.providerTransactionId
+            }
             setPaymentUrl(ctx.paymentUrl)
             setPhase('redirect_ready')
         } else {
@@ -88,11 +96,12 @@ export default function PayDunyaCheckoutPage() {
     const checkStatus = async (): Promise<CheckStatusOutcome> => {
         if (!transactionId || isChecking) return 'pending'
         setIsChecking(true)
+        const txId = providerTokenRef.current || transactionId
         try {
             const res = await fetch('/api/payments/verify', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ paymentId: transactionId, transactionId }),
+                body: JSON.stringify({ paymentId: txId, transactionId: txId }),
             })
             const data = await res.json()
             const providerStatus = String(data?.provider_status || '').trim().toUpperCase()
