@@ -103,7 +103,7 @@ export default function AdminBroadcastsPage() {
     const [pushDeviceCount, setPushDeviceCount] = useState(0)
     const [pushUserCount, setPushUserCount] = useState(0)
     const [pushSending, setPushSending] = useState(false)
-    const [pushResult, setPushResult] = useState<{ sent: number; failed: number; total: number; userCount?: number } | null>(null)
+    const [pushResult, setPushResult] = useState<{ sent: number; failed: number; total: number; userCount?: number; failedEmails?: string[] } | null>(null)
     const [pushError, setPushError] = useState<string | null>(null)
 
     // Individual selection state (shared user list)
@@ -801,6 +801,26 @@ export default function AdminBroadcastsPage() {
                             </div>
                         )}
 
+                        {/* Selected emails chips */}
+                        {emailPlan === 'individual' && selectedEmails.size > 0 && (
+                            <div style={{ marginBottom: 12, padding: '10px 12px', background: 'rgba(96, 165, 250, 0.06)', border: '1px solid rgba(96, 165, 250, 0.15)', borderRadius: 10 }}>
+                                <div style={{ color: '#94a3b8', fontSize: 11, marginBottom: 6 }}>
+                                    {selectedEmails.size} destinataire{selectedEmails.size !== 1 ? 's' : ''} sélectionné{selectedEmails.size !== 1 ? 's' : ''} :
+                                </div>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                                    {[...selectedEmails].map(email => (
+                                        <span
+                                            key={email}
+                                            onClick={() => toggleUser(email)}
+                                            title="Cliquer pour retirer"
+                                            style={{ padding: '2px 8px', background: 'rgba(96, 165, 250, 0.12)', border: '1px solid rgba(96, 165, 250, 0.25)', borderRadius: 5, color: '#93c5fd', fontSize: 11, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                            {email} <span style={{ opacity: 0.6 }}>×</span>
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         {/* Recipients preview */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', marginBottom: 16, background: 'rgba(96, 165, 250, 0.1)', border: '1px solid rgba(96, 165, 250, 0.2)', borderRadius: 10 }}>
                             <Users size={16} style={{ color: '#60a5fa' }} />
@@ -1076,15 +1096,50 @@ export default function AdminBroadcastsPage() {
 
                         {/* Result */}
                         {pushResult && (
-                            <div style={{ padding: '12px 14px', marginBottom: 16, background: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.2)', borderRadius: 10 }}>
-                                <div style={{ color: '#4ade80', fontWeight: 600, fontSize: 13, marginBottom: 4 }}>✅ Notification envoyée</div>
-                                <div style={{ color: '#94a3b8', fontSize: 12 }}>
-                                    Push : {pushResult.sent} envoyé{pushResult.sent !== 1 ? 's' : ''}
-                                    {pushResult.failed > 0 && ` · ${pushResult.failed} échec${pushResult.failed !== 1 ? 's' : ''}`}
-                                </div>
-                                {(pushResult.userCount ?? 0) > 0 && (
+                            <div style={{ marginBottom: 16 }}>
+                                <div style={{ padding: '12px 14px', background: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.2)', borderRadius: 10 }}>
+                                    <div style={{ color: '#4ade80', fontWeight: 600, fontSize: 13, marginBottom: 4 }}>✅ Notification envoyée</div>
                                     <div style={{ color: '#94a3b8', fontSize: 12 }}>
-                                        Cloche : {pushResult.userCount} utilisateur{pushResult.userCount !== 1 ? 's' : ''} notifié{pushResult.userCount !== 1 ? 's' : ''}
+                                        Push : {pushResult.sent} envoyé{pushResult.sent !== 1 ? 's' : ''}
+                                        {pushResult.failed > 0 && <span style={{ color: '#f87171' }}> · {pushResult.failed} échec{pushResult.failed !== 1 ? 's' : ''}</span>}
+                                    </div>
+                                    {(pushResult.userCount ?? 0) > 0 && (
+                                        <div style={{ color: '#94a3b8', fontSize: 12 }}>
+                                            Cloche : {pushResult.userCount} utilisateur{pushResult.userCount !== 1 ? 's' : ''} notifié{pushResult.userCount !== 1 ? 's' : ''}
+                                        </div>
+                                    )}
+                                </div>
+                                {pushResult.failed > 0 && (
+                                    <div style={{ marginTop: 8, padding: '10px 14px', background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.25)', borderRadius: 10 }}>
+                                        <div style={{ color: '#f87171', fontWeight: 600, fontSize: 12, marginBottom: 6 }}>
+                                            Appareils en échec ({pushResult.failed})
+                                        </div>
+                                        {(pushResult.failedEmails ?? []).length > 0 ? (
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
+                                                {pushResult.failedEmails!.map(email => (
+                                                    <span key={email} style={{ padding: '2px 8px', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 5, color: '#fca5a5', fontSize: 11 }}>
+                                                        {email}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div style={{ color: '#94a3b8', fontSize: 11, marginBottom: 8 }}>
+                                                Tokens invalides ou expirés (appareils non enregistrés)
+                                            </div>
+                                        )}
+                                        <button
+                                            onClick={() => {
+                                                if (pushResult.failedEmails && pushResult.failedEmails.length > 0) {
+                                                    const users = allUsers.filter(u => pushResult.failedEmails!.includes(u.email))
+                                                    setSelectedPushUserIds(new Set(users.map(u => u.id!).filter(Boolean)))
+                                                    setPushPlan('individual')
+                                                    if (allUsers.length === 0) fetchAllUsers()
+                                                }
+                                                setPushResult(null)
+                                            }}
+                                            style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 7, color: '#f87171', padding: '5px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+                                            Relancer ces utilisateurs
+                                        </button>
                                     </div>
                                 )}
                             </div>

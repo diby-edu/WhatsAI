@@ -77,6 +77,7 @@ export async function POST(request: NextRequest) {
         // Send FCM push only if there are registered devices
         let sent = 0
         let failed = 0
+        let failedEmails: string[] = []
         if (tokens.length > 0) {
             const result = await sendPushNotificationToMultiple(tokens, {
                 title: title.trim(),
@@ -86,6 +87,23 @@ export async function POST(request: NextRequest) {
             sent = result?.success ?? 0
             failed = result?.failure ?? 0
 
+            // Resolve failed tokens to user emails for admin retry
+            if ((result?.invalidTokens ?? []).length > 0) {
+                try {
+                    const { data: failedRows } = await adminSupabase
+                        .from('device_tokens')
+                        .select('user_id')
+                        .in('token', result.invalidTokens)
+                    const failedUserIds = (failedRows || []).map((r: any) => r.user_id).filter(Boolean)
+                    if (failedUserIds.length > 0) {
+                        const { data: failedProfiles } = await adminSupabase
+                            .from('profiles')
+                            .select('email')
+                            .in('id', failedUserIds)
+                        failedEmails = (failedProfiles || []).map((p: any) => p.email).filter(Boolean)
+                    }
+                } catch { /* non-bloquant */ }
+            }
         }
 
         // Insérer dans notification_log pour la cloche — pour TOUS les users du segment
@@ -122,7 +140,7 @@ export async function POST(request: NextRequest) {
             })
         } catch { /* log failure is non-blocking */ }
 
-        return successResponse({ sent, failed, total: tokens.length, userCount })
+        return successResponse({ sent, failed, total: tokens.length, userCount, failedEmails })
     } catch (err) {
         console.error('Push broadcast error:', err)
         return errorResponse('Erreur serveur', 500)
