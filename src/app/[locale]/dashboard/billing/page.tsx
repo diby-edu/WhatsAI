@@ -570,7 +570,8 @@ function BillingContent() {
             networkCode?: string | null
             networkLabel?: string | null
             phone?: string | null
-        }
+        },
+        targetWindow?: Window | null
     ) => {
         setPaymentStatus(null)
         setIsLoading(loadingKey)
@@ -608,13 +609,28 @@ function BillingContent() {
                         payerPhone: feexPayContext?.phone || String(payload?.feexpay_phone || ''),
                         createdAt: Date.now(),
                     }
-                    sessionStorage.setItem(FEEXPAY_CHECKOUT_SESSION_KEY, JSON.stringify(checkoutContext))
+                    const serialized = JSON.stringify(checkoutContext)
+                    const txScopedKey = `${FEEXPAY_CHECKOUT_SESSION_KEY}:${transactionId}`
+                    sessionStorage.setItem(FEEXPAY_CHECKOUT_SESSION_KEY, serialized)
+                    sessionStorage.setItem(txScopedKey, serialized)
+                    localStorage.setItem(FEEXPAY_CHECKOUT_SESSION_KEY, serialized)
+                    localStorage.setItem(txScopedKey, serialized)
                 } catch (storageError) {
                     console.warn('Unable to persist FeexPay checkout context:', storageError)
                 }
 
                 const billingBasePath = resolveBillingBasePath()
-                window.location.href = `${billingBasePath}/feexpay?transaction_id=${encodeURIComponent(transactionId)}`
+                const checkoutPageUrl = `${billingBasePath}/feexpay?transaction_id=${encodeURIComponent(transactionId)}`
+
+                if (targetWindow && !targetWindow.closed) {
+                    targetWindow.location.href = checkoutPageUrl
+                    targetWindow.focus?.()
+                } else {
+                    const opened = window.open(checkoutPageUrl, '_blank', 'noopener,noreferrer')
+                    if (!opened) {
+                        window.location.href = checkoutPageUrl
+                    }
+                }
                 return
             }
 
@@ -675,16 +691,21 @@ function BillingContent() {
         }
 
         setFeexPayError(null)
+        let targetWindow: Window | null = null
         try {
+            targetWindow = window.open('', '_blank', 'noopener,noreferrer')
             await initializePaymentV2(payload, feexPayIntent.targetId, {
                 countryCode: feexPayCountry,
                 networkCode: feexPayNetwork || null,
                 networkLabel: selectedFeexPayNetwork?.label || null,
                 phone: normalizedPhone,
-            })
+            }, targetWindow)
             setShowFeexPayModal(false)
             setFeexPayIntent(null)
         } catch (err: any) {
+            if (targetWindow && !targetWindow.closed) {
+                targetWindow.close()
+            }
             const message = String(err?.message || 'Erreur reseau')
             setFeexPayError(message)
             alert(message)

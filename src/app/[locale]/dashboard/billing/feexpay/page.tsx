@@ -20,8 +20,52 @@ type FeexPayCheckoutContext = {
     createdAt?: number
 }
 
+type CheckStatusOutcome = 'success' | 'failed' | 'pending' | 'pause'
+
 function isFallbackPendingUrl(url: string) {
     return url.includes('/dashboard/billing') && url.includes('payment=pending')
+}
+
+function buildCheckoutStorageKeys(transactionId: string) {
+    const txScopedKey = `${FEEXPAY_CHECKOUT_SESSION_KEY}:${transactionId}`
+    return [txScopedKey, FEEXPAY_CHECKOUT_SESSION_KEY]
+}
+
+function readCheckoutContext(transactionId: string): FeexPayCheckoutContext | null {
+    const keys = buildCheckoutStorageKeys(transactionId)
+    const storages: Storage[] = [localStorage, sessionStorage]
+
+    for (const storage of storages) {
+        for (const key of keys) {
+            const raw = storage.getItem(key)
+            if (!raw) continue
+            try {
+                const parsed = JSON.parse(raw) as FeexPayCheckoutContext
+                if (String(parsed?.transactionId || '').trim() === transactionId) {
+                    return parsed
+                }
+            } catch {
+                // Ignore malformed payload and continue probing.
+            }
+        }
+    }
+
+    return null
+}
+
+function clearCheckoutContext(transactionId: string) {
+    const keys = buildCheckoutStorageKeys(transactionId)
+    const storages: Storage[] = [localStorage, sessionStorage]
+
+    for (const storage of storages) {
+        for (const key of keys) {
+            try {
+                storage.removeItem(key)
+            } catch {
+                // Ignore storage errors in cleanup.
+            }
+        }
+    }
 }
 
 export default function FeexPayCheckoutPage() {
@@ -55,15 +99,8 @@ export default function FeexPayCheckoutPage() {
         }
 
         try {
-            const raw = sessionStorage.getItem(FEEXPAY_CHECKOUT_SESSION_KEY)
-            if (!raw) {
-                setPhase('pending')
-                setStatusMessage('Paiement initialise. Verification automatique en cours...')
-                return
-            }
-
-            const parsed = JSON.parse(raw) as FeexPayCheckoutContext
-            if (!parsed || String(parsed.transactionId || '').trim() !== transactionId) {
+            const parsed = readCheckoutContext(transactionId)
+            if (!parsed) {
                 setPhase('pending')
                 setStatusMessage('Paiement initialise. Verification automatique en cours...')
                 return
@@ -93,8 +130,8 @@ export default function FeexPayCheckoutPage() {
         }
     }, [transactionId])
 
-    const checkStatus = async () => {
-        if (!transactionId || isChecking) return
+    const checkStatus = async (): Promise<CheckStatusOutcome> => {
+        if (!transactionId || isChecking) return 'pending'
         setIsChecking(true)
         try {
             const response = await fetch('/api/payments/verify', {
@@ -105,28 +142,43 @@ export default function FeexPayCheckoutPage() {
             const data = await response.json()
             const providerStatus = String(data?.provider_status || '').trim().toUpperCase()
             const currentStatus = String(data?.current_status || '').trim().toLowerCase()
+            const providerError = String(
+                data?.provider_response?.message
+                || data?.provider_response?.error
+                || data?.error
+                || ''
+            ).trim()
 
             if (response.ok && (currentStatus === 'completed' || providerStatus === 'ACCEPTED')) {
                 setStatusMessage('Paiement confirme. Redirection vers la facturation...')
-                try {
-                    sessionStorage.removeItem(FEEXPAY_CHECKOUT_SESSION_KEY)
-                } catch {}
+                clearCheckoutContext(transactionId)
                 setTimeout(() => {
                     router.replace(`${billingPath}?payment=success&transaction_id=${encodeURIComponent(transactionId)}`)
                 }, 600)
-                return
+                return 'success'
             }
 
             if (providerStatus === 'REFUSED' || providerStatus === 'CANCELLED' || currentStatus === 'failed') {
                 setPhase('failed')
-                setErrorMessage('Paiement refuse ou annule. Aucun credit n a ete ajoute.')
-                return
+                setErrorMessage(providerError || 'Paiement refuse ou annule. Aucun credit n a ete ajoute.')
+                return 'failed'
+            }
+
+            if (!response.ok) {
+                setStatusMessage(
+                    providerError
+                        ? `Verification automatique en pause: ${providerError}`
+                        : 'Verification automatique en pause. Cliquez sur "Verifier maintenant".'
+                )
+                return 'pause'
             }
 
             setStatusMessage('Paiement en attente de confirmation. Nous continuons la verification...')
+            return 'pending'
         } catch (error) {
             console.error('Failed to verify FeexPay payment status:', error)
             setStatusMessage('Verification temporairement indisponible. Reessayez dans quelques secondes.')
+            return 'pause'
         } finally {
             setIsChecking(false)
         }
@@ -148,27 +200,42 @@ export default function FeexPayCheckoutPage() {
 
         let cancelled = false
         let attempts = 0
+        let interval: ReturnType<typeof setInterval> | null = null
+        let pollingStopped = false
 
         const tick = async () => {
-            if (cancelled) return
+            if (cancelled || pollingStopped) return
             attempts += 1
             setAttemptCount(attempts)
-            await checkStatus()
+            const outcome = await checkStatus()
+
+            if (outcome === 'success' || outcome === 'failed') {
+                pollingStopped = true
+                if (interval) clearInterval(interval)
+                return
+            }
+
+            if (outcome === 'pause') {
+                pollingStopped = true
+                if (interval) clearInterval(interval)
+                return
+            }
+
+            if (attempts >= 12) {
+                pollingStopped = true
+                if (interval) clearInterval(interval)
+                setStatusMessage('Le paiement prend plus de temps. Cliquez sur "Verifier maintenant" apres confirmation sur votre telephone.')
+            }
         }
 
         void tick()
-        const interval = setInterval(() => {
-            if (attempts >= 36) {
-                clearInterval(interval)
-                setStatusMessage('Le paiement peut prendre plus de temps. Vous pouvez verifier manuellement ci-dessous.')
-                return
-            }
+        interval = setInterval(() => {
             void tick()
         }, 5000)
 
         return () => {
             cancelled = true
-            clearInterval(interval)
+            if (interval) clearInterval(interval)
         }
     }, [phase, transactionId])
 
