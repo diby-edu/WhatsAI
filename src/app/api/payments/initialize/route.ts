@@ -212,8 +212,12 @@ export async function POST(request: NextRequest) {
             customerName: profile.full_name || profile.email,
             customerEmail: profile.email,
             customerPhone: payerPhone,
-            returnUrl: `${APP_URL}/dashboard/billing`,
-            failedUrl: `${APP_URL}/dashboard/billing?payment=cancelled`,
+            returnUrl: defaultProvider === 'paydunya'
+                ? `${APP_URL}/dashboard/billing/paydunya?transaction_id=${encodeURIComponent(transactionId)}&returning=1`
+                : `${APP_URL}/dashboard/billing`,
+            failedUrl: defaultProvider === 'paydunya'
+                ? `${APP_URL}/dashboard/billing/paydunya?transaction_id=${encodeURIComponent(transactionId)}&returning=1&failed=1`
+                : `${APP_URL}/dashboard/billing?payment=cancelled`,
             notifyUrl: `${APP_URL}/api/payments/${defaultProvider}/webhook`,
             metadata: paymentMetadata,
         })
