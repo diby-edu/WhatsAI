@@ -39,7 +39,14 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Acces refuse' }, { status: 403 })
         }
 
-        const txToCheck = getPaymentTransactionId(payment, [transactionId, paymentId])
+        // For PayDunya payments, use the invoice token stored in provider_response
+        // (provider_transaction_id holds our internal WAZZAPAI_MOD... for webhook matching)
+        const providerResponse = payment.provider_response as Record<string, any> | null
+        const paydunyaToken = payment.payment_provider === 'paydunya'
+            ? String(providerResponse?.paydunya_token || '').trim() || null
+            : null
+
+        const txToCheck = paydunyaToken || getPaymentTransactionId(payment, [transactionId, paymentId])
         if (!txToCheck) {
             return NextResponse.json({ error: 'Transaction ID introuvable' }, { status: 400 })
         }
