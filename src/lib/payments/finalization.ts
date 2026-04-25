@@ -647,6 +647,8 @@ export async function finalizePaymentRecord(
             creditsAdded = Number(plan.credits_included || 0)
             planUpdated = true
         } else if (isCreditPurchase) {
+            // Crédits = carburant uniquement. N'affecte pas le cycle de vie du compte.
+            // Seul un abonnement ouvre paid_until et sort du statut test.
             creditsAdded = await resolveCreditsToAdd(adminSupabase, payment)
             if (creditsAdded > 0 && payment.user_id) {
                 const { data: creditResult, error: creditError } = await adminSupabase.rpc('add_credits', {
@@ -670,21 +672,8 @@ export async function finalizePaymentRecord(
 
                 newBalance = typeof creditResult === 'number' ? creditResult : null
             }
-
-            const nextPaidUntil = resolvePaidUntilForCreditsPurchase(currentProfile?.paid_until || null, nowMs)
-            const profileUpdateError = await updateProfileAfterPayment(adminSupabase, payment.user_id, {
-                credits_frozen_at: null,
-                credits_expire_at: null,
-                paid_until: nextPaidUntil,
-                grace_until: null,
-                account_lifecycle_status: 'paid_active',
-            })
-
-            if (profileUpdateError) {
-                console.error('[finalization] Credit lifecycle update failed:', profileUpdateError.message, profileUpdateError.code)
-            }
-
-            await reactivateArchivedAgentsForPlan(adminSupabase, payment.user_id, currentPlanSlug)
+            // Pas de mise à jour lifecycle : paid_until, grace_until, account_lifecycle_status
+            // et paid_until restent inchangés. Les agents ne sont pas réactivés.
         }
 
         const { error: updatePaymentError } = await adminSupabase
@@ -711,10 +700,13 @@ export async function finalizePaymentRecord(
             }
         }
 
-        try {
-            await markUserAsQualified(adminSupabase, payment.user_id)
-        } catch (qualificationError) {
-            console.error('Failed to clear test-account deadline after payment:', qualificationError)
+        // Qualification test → abonnement uniquement (pas achat de crédits)
+        if (isSubscription) {
+            try {
+                await markUserAsQualified(adminSupabase, payment.user_id)
+            } catch (qualificationError) {
+                console.error('Failed to clear test-account deadline after subscription:', qualificationError)
+            }
         }
 
         // Notify admins of successful payment

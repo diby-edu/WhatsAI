@@ -170,10 +170,18 @@ export function getAccountLifecycleBlockMessage(
             : 'connecter WhatsApp'
 
     if (accessState.bannerMode === 'paid_grace') {
-        return `Votre compte est actuellement gele apres expiration de votre periode payante. Renouvelez votre abonnement ou achetez des credits pour ${actionText}.`
+        const hasPaidHistory = Boolean(accessState.lifecycle.paidUntil)
+        if (hasPaidHistory) {
+            return `Votre abonnement a expire. Renouvelez votre abonnement pour ${actionText}.`
+        }
+        return `Votre periode d'essai est terminee. Souscrivez un abonnement pour ${actionText}.`
     }
 
-    return `Votre compte payant a expire et necessite un nouveau paiement pour ${actionText}.`
+    const hasPaidHistory = Boolean(accessState.lifecycle.paidUntil)
+    if (hasPaidHistory) {
+        return `Votre abonnement a expire et la periode de grace est ecoulee. Un nouveau paiement est requis pour ${actionText}.`
+    }
+    return `Votre periode d'essai est definitivement expirée. Souscrivez un abonnement pour ${actionText}.`
 }
 
 export function resolvePaidUntilForSamePlanRenewal(

@@ -40,6 +40,8 @@ export async function GET(request: NextRequest) {
                 provider_transaction_id,
                 customer_email,
                 customer_phone,
+                payment_method_source,
+                admin_notes,
                 created_at,
                 completed_at,
                 profiles (
@@ -64,6 +66,9 @@ export async function GET(request: NextRequest) {
             status: p.status,
             payment_provider: p.payment_provider || null,
             payment_method: p.payment_provider || null,
+            payment_method_source: p.payment_method_source || 'automatic',
+            admin_notes: p.admin_notes || null,
+            is_manual: (p.payment_method_source || 'automatic') === 'manual',
             payment_channel: p.payment_channel || null,
             payment_channel_detail: p.payment_channel_detail || null,
             transaction_id: p.provider_transaction_id,

@@ -334,7 +334,7 @@
       },
       "credits": {
         "question": "Comment fonctionne le système de crédits ?",
-        "answer": "1 crédit = 1 message envoyé par l'IA. Pour les abonnés : à l'expiration de votre forfait, vos crédits sont gelés pendant 7 jours. Si vous renouvelez dans ce délai, ils sont restaurés et cumulés avec les nouveaux crédits. Pour les achats de crédits sans abonnement : chaque achat donne une validité d'1 mois, renouvelable à chaque nouvel achat. Passé 7 jours sans renouvellement dans les deux cas, votre compte est définitivement supprimé.",
+        "answer": "1 crédit = 1 message envoyé par l'IA. Les crédits achetés s'ajoutent au solde de votre abonnement. Ils sont inutilisables sans abonnement actif. À l'expiration de votre forfait, vos crédits sont gelés pendant 30 jours. Si vous renouvelez dans ce délai, ils sont restaurés et cumulés avec les crédits du nouveau plan. Sans renouvellement après 30 jours, votre compte est définitivement supprimé.",
         "category": "Facturation"
       },
       "multiNumber": {
@@ -354,22 +354,22 @@
       },
       "cancel": {
         "question": "Puis-je annuler à tout moment ?",
-        "answer": "Oui, sans engagement ! Annulez votre abonnement à tout moment depuis votre tableau de bord. À l'expiration, vos agents sont désactivés et vos crédits sont gelés. Si vous renouvelez dans les 7 jours, vos crédits gelés sont restitués et cumulés avec les crédits du nouveau plan, et vos agents sont réactivés immédiatement.",
+        "answer": "Oui, sans engagement ! Annulez votre abonnement à tout moment depuis votre tableau de bord. À l'expiration, vos agents sont désactivés et vos crédits sont gelés. Si vous renouvelez dans les 30 jours, vos crédits gelés sont restitués et cumulés avec les crédits du nouveau plan, et vos agents sont réactivés immédiatement.",
         "category": "Facturation"
       },
       "expiredSubscription": {
         "question": "Que se passe-t-il quand mon abonnement payant expire ?",
-        "answer": "Dès l'expiration, tous vos agents sont désactivés et vos crédits non utilisés sont gelés. Vous avez 7 jours pour renouveler. Si vous renouvelez avant la date limite : vos crédits gelés vous sont intégralement restitués, ils s'ajoutent aux crédits de votre nouveau plan, et vos agents sont réactivés immédiatement. Sans renouvellement au bout de 7 jours, votre compte et toutes vos données sont définitivement supprimés. Cette action est irréversible.",
+        "answer": "Dès l'expiration, tous vos agents sont désactivés et vos crédits non utilisés sont gelés. Vous avez 30 jours pour renouveler. Si vous renouvelez avant la date limite : vos crédits gelés vous sont intégralement restitués, ils s'ajoutent aux crédits de votre nouveau plan, et vos agents sont réactivés immédiatement. Sans renouvellement au bout de 30 jours, votre compte et toutes vos données sont définitivement supprimés. Cette action est irréversible.",
         "category": "Facturation"
       },
       "retention": {
-        "question": "Que se passe-t-il après 7 jours sans renouvellement ?",
-        "answer": "Après 7 jours sans paiement valide, votre compte est définitivement supprimé : profil, agents, catalogue, historique de commandes — tout est effacé. Cette action est irréversible. Une alerte est envoyée par email et notification push à J+4 (3 jours avant la suppression) pour vous laisser le temps de réagir.",
+        "question": "Que se passe-t-il après 30 jours sans renouvellement ?",
+        "answer": "Après 30 jours sans paiement valide, votre compte est définitivement supprimé : profil, agents, catalogue, historique de commandes — tout est effacé. Cette action est irréversible. Une alerte est envoyée par email et notification push avant la suppression pour vous laisser le temps de réagir.",
         "category": "Compte"
       },
       "creditsOnly": {
         "question": "Puis-je utiliser WazzapAI sans souscrire à un abonnement ?",
-        "answer": "Oui. Vous pouvez acheter des crédits directement sans abonnement mensuel. Chaque achat vous donne accès à 1 agent WhatsApp pendant 1 mois. Chaque nouvel achat avant l'échéance prolonge cette validité d'1 mois supplémentaire. Vos crédits ne périment pas tant que votre compte est actif. Si vous ne renouvelez pas avant l'échéance, vos crédits sont gelés 7 jours puis votre compte est définitivement supprimé.",
+        "answer": "Un abonnement est requis pour accéder à la plateforme. Les packs de crédits sont complémentaires : ils s'ajoutent aux crédits de votre abonnement quand vous en avez besoin. Si vous avez acheté des crédits sans abonnement, vous disposez de 30 jours pour souscrire et les récupérer.",
         "category": "Facturation"
       },
       "whatsappBusiness": {

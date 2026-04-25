@@ -126,7 +126,8 @@ export async function fetchUserTestAccountState(
                 .from('payments')
                 .select('id', { count: 'exact', head: true })
                 .eq('user_id', userId)
-                .eq('status', 'completed'),
+                .eq('status', 'completed')
+                .eq('payment_type', 'subscription'),
             adminSupabase
                 .from('agents')
                 .select('whatsapp_ever_connected, whatsapp_connected, whatsapp_phone, whatsapp_status')
@@ -170,7 +171,8 @@ export async function fetchUserTestAccountState(
             .from('payments')
             .select('id', { count: 'exact', head: true })
             .eq('user_id', userId)
-            .eq('status', 'completed'),
+            .eq('status', 'completed')
+            .eq('payment_type', 'subscription'),
         adminSupabase
             .from('agents')
             .select('whatsapp_ever_connected, whatsapp_connected, whatsapp_phone, whatsapp_status')
