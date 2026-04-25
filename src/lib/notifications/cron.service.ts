@@ -792,16 +792,42 @@ async function handleArchivedAgentLifecycle(): Promise<void> {
         }
 
         // Auto-delete agents deactivated 7+ days ago
+        // Exception : exclure les agents des comptes en frozen_grace (grace 30j — l'utilisateur
+        // peut encore renouveler et récupérer ses agents via reactivateArchivedAgentsForPlan)
         const day7Delete = new Date(now.getTime() - 7 * 24 * 3600000)
-        const { data: deleted, error } = await supabase
+
+        const { data: agentCandidates } = await supabase
             .from('agents')
-            .delete()
+            .select('id, user_id')
             .not('archived_at', 'is', null)
             .lte('archived_at', day7Delete.toISOString())
-            .select('id')
 
-        if (!error && deleted && deleted.length > 0) {
-            console.log(`⏰ [CRON] Auto-deleted ${deleted.length} deactivated agent(s)`)
+        if (agentCandidates && agentCandidates.length > 0) {
+            const candidateUserIds = [...new Set(agentCandidates.map((a: any) => a.user_id))]
+
+            const { data: frozenUsers } = await supabase
+                .from('profiles')
+                .select('id')
+                .in('id', candidateUserIds)
+                .eq('account_lifecycle_status', 'frozen_grace')
+
+            const frozenUserIdSet = new Set((frozenUsers || []).map((u: any) => u.id))
+            const toDelete = agentCandidates
+                .filter((a: any) => !frozenUserIdSet.has(a.user_id))
+                .map((a: any) => a.id)
+
+            if (toDelete.length > 0) {
+                const { error } = await supabase
+                    .from('agents')
+                    .delete()
+                    .in('id', toDelete)
+
+                if (!error) {
+                    console.log(`⏰ [CRON] Auto-deleted ${toDelete.length} deactivated agent(s) (${frozenUserIdSet.size} user(s) in frozen_grace protected)`)
+                }
+            } else if (frozenUserIdSet.size > 0) {
+                console.log(`⏰ [CRON] No agents deleted — all ${frozenUserIdSet.size} user(s) in frozen_grace`)
+            }
         }
     } catch (error) {
         console.error('⏰ [CRON] Error in deactivated agent lifecycle:', error)
@@ -1096,6 +1122,56 @@ async function handleTestAccountCleanup(): Promise<void> {
                         note: 'user_no_longer_qualifies',
                     })
                     continue
+                }
+
+                // Grace 30j si l'utilisateur a acheté des crédits sans souscrire
+                // Ne s'applique qu'une seule fois :
+                // - pas déjà en frozen_grace
+                // - n'a pas déjà eu une grace_until (même expirée) — évite la boucle si handleCreditExpiry
+                //   a déjà remis account_lifecycle_status à 'inactive' après expiration de la grace
+                const alreadyInGrace = String((liveState as any)?.profile?.account_lifecycle_status || '').trim() === 'frozen_grace'
+                const hadGracePeriod = Boolean((liveState as any)?.profile?.grace_until)
+                if (!alreadyInGrace && !hadGracePeriod) {
+                    const { count: creditPaymentsCount } = await supabase
+                        .from('payments')
+                        .select('id', { count: 'exact', head: true })
+                        .eq('user_id', profile.id)
+                        .eq('status', 'completed')
+                        .eq('payment_type', 'credits')
+
+                    if (creditPaymentsCount && creditPaymentsCount > 0) {
+                        const graceUntil = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+                        await supabase
+                            .from('profiles')
+                            .update({
+                                grace_until: graceUntil,
+                                credits_frozen_at: new Date().toISOString(),
+                                credits_expire_at: graceUntil,
+                                account_lifecycle_status: 'frozen_grace',
+                                // Replanifie le prochain passage du cron à la fin de la grace
+                                test_account_cleanup_deadline: graceUntil,
+                            })
+                            .eq('id', profile.id)
+
+                        // Archiver les agents
+                        await supabase
+                            .from('agents')
+                            .update({ is_active: false, archived_at: new Date().toISOString() })
+                            .eq('user_id', profile.id)
+                            .eq('is_active', true)
+
+                        skipped += 1
+                        console.log(`⏸️ [CRON] Test account ${profile.email || profile.id} has credits — entering frozen_grace until ${graceUntil}`)
+                        await persistSystemDeletionAudit(supabase, {
+                            profile,
+                            reason: 'expired_test_account',
+                            result: 'skipped',
+                            liveState,
+                            beforeSnapshot: beforeSnapshot || buildEmptyDeletionSnapshot(),
+                            note: 'test_expired_with_credits_grace',
+                        })
+                        continue
+                    }
                 }
 
                 const { error: deleteError } = await supabase.auth.admin.deleteUser(profile.id)

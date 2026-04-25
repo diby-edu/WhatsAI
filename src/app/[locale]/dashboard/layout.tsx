@@ -56,6 +56,8 @@ type TestAccountBannerState = {
     remainingMs: number | null
     graceDays: number
     lifecycleStatus?: 'test' | 'paid_active' | 'frozen_grace' | 'inactive'
+    hasUnusedCredits?: boolean
+    isTestGraceMode?: boolean
 }
 
 export default function DashboardLayout({
@@ -1069,6 +1071,8 @@ export default function DashboardLayout({
                             graceDays={testAccountBanner.graceDays}
                             emphasizeWelcome={searchParams.get('welcome') === 'test-account'}
                             isExpiredSubscriber={testAccountBanner.isExpiredSubscriber}
+                            hasUnusedCredits={testAccountBanner.hasUnusedCredits}
+                            isTestGraceMode={testAccountBanner.isTestGraceMode}
                         />
                     )}
 

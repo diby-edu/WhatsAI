@@ -52,12 +52,13 @@ export const PLANS = {
 }
 
 // Credit packs for additional purchases (prices in FCFA)
+// Crédits réduits pour que l'abonnement reste toujours meilleur rapport qualité/prix
 export const CREDIT_PACKS = [
     { id: 'boost_mini', name: 'Boost Mini', credits: 200,   price: 3000,   savings: 0 },
-    { id: 'boost_s',    name: 'Boost S',    credits: 500,   price: 7000,   savings: 7 },
-    { id: 'boost_m',    name: 'Boost M',    credits: 2000,  price: 25000,  savings: 17 },
-    { id: 'boost_l',    name: 'Boost L',    credits: 5000,  price: 55000,  savings: 27 },
-    { id: 'boost_xl',   name: 'Boost XL',   credits: 12000, price: 110000, savings: 39 },
+    { id: 'boost_s',    name: 'Boost S',    credits: 400,   price: 7000,   savings: 0 },
+    { id: 'boost_m',    name: 'Boost M',    credits: 1800,  price: 25000,  savings: 0 },
+    { id: 'boost_l',    name: 'Boost L',    credits: 4500,  price: 55000,  savings: 0 },
+    { id: 'boost_xl',   name: 'Boost XL',   credits: 11000, price: 110000, savings: 0 },
 ]
 
 export type PlanId = keyof typeof PLANS

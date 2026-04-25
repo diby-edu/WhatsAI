@@ -277,7 +277,7 @@ export default function AdminLayout({
         }
     }
 
-    const sidebarWidth = collapsed ? 80 : 280
+    const sidebarWidth = collapsed ? 80 : 220
 
     return (
         <div style={{

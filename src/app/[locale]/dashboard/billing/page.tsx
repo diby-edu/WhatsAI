@@ -356,22 +356,22 @@ function BillingContent() {
             } else {
                 // Fallback Boost packs (prices in FCFA)
                 setCreditPacks([
-                    { id: 'boost_mini', credits: 200, price: 3000, savings: 0 },
-                    { id: 'boost_s', credits: 500, price: 7000, savings: 7 },
-                    { id: 'boost_m', credits: 2000, price: 25000, savings: 17 },
-                    { id: 'boost_l', credits: 5000, price: 55000, savings: 27 },
-                    { id: 'boost_xl', credits: 12000, price: 110000, savings: 39 },
+                    { id: 'boost_mini', credits: 200,   price: 3000,   savings: 0 },
+                    { id: 'boost_s',    credits: 400,   price: 7000,   savings: 0 },
+                    { id: 'boost_m',    credits: 1800,  price: 25000,  savings: 0 },
+                    { id: 'boost_l',    credits: 4500,  price: 55000,  savings: 0 },
+                    { id: 'boost_xl',   credits: 11000, price: 110000, savings: 0 },
                 ])
             }
         } catch (err) {
             console.error('Error fetching credit packs:', err)
             // Fallback Boost packs (prices in FCFA)
             setCreditPacks([
-                { id: 'boost_mini', credits: 200, price: 3000, savings: 0 },
-                { id: 'boost_s', credits: 500, price: 7000, savings: 7 },
-                { id: 'boost_m', credits: 2000, price: 25000, savings: 17 },
-                { id: 'boost_l', credits: 5000, price: 55000, savings: 27 },
-                { id: 'boost_xl', credits: 12000, price: 110000, savings: 39 },
+                { id: 'boost_mini', credits: 200,   price: 3000,   savings: 0 },
+                { id: 'boost_s',    credits: 400,   price: 7000,   savings: 0 },
+                { id: 'boost_m',    credits: 1800,  price: 25000,  savings: 0 },
+                { id: 'boost_l',    credits: 4500,  price: 55000,  savings: 0 },
+                { id: 'boost_xl',   credits: 11000, price: 110000, savings: 0 },
             ])
         }
     }
@@ -1371,10 +1371,16 @@ function BillingContent() {
 
             {/* Credit Packs */}
             <div>
-                <h2 style={{ fontSize: 16, fontWeight: 600, color: 'white', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <h2 style={{ fontSize: 16, fontWeight: 600, color: 'white', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
                     <Package style={{ width: 18, height: 18, color: '#34d399' }} />
                     {t('Credits.title')}
                 </h2>
+                <p style={{ fontSize: 13, color: '#94a3b8', marginBottom: 16, lineHeight: 1.5 }}>
+                    Les credits sont complementaires a un abonnement actif. Un abonnement est requis pour les utiliser.
+                    {currentPlan === 'free' && (
+                        <span style={{ marginLeft: 6, color: '#fbbf24', fontWeight: 600 }}>Souscrivez d&apos;abord un abonnement.</span>
+                    )}
+                </p>
                 <div className="billing-packs-grid" style={{ display: 'grid', gap: 12 }}>
                     {creditPacks.map((pack, index) => (
                         <motion.div

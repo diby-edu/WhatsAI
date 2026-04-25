@@ -35,33 +35,33 @@ const COMMON_FEATURES = [
 const PLAN_SPECIFIC_FEATURES: Record<string, { text: string; highlight?: boolean }[]> = {
     free: [
         { text: '10 crédits offerts une seule fois' },
-        { text: 'Pas de renouvellement automatique' },
-        { text: 'Sans paiement après 7j : compte supprimé définitivement' },
+        { text: 'Accès 7 jours — aucune carte requise' },
+        { text: 'Sans abonnement après 7j : compte supprimé définitivement' },
     ],
     starter: [
-        { text: 'À l\'expiration : crédits gelés 7 jours' },
-        { text: 'Au renouvellement : anciens + nouveaux crédits cumulés' },
-        { text: 'Agents réactivés immédiatement au renouvellement' },
-        { text: 'Sans renouvellement après 7j : compte supprimé définitivement' },
+        { text: 'À l\'expiration : agents désactivés, crédits gelés' },
+        { text: '30 jours de grâce pour renouveler' },
+        { text: 'Au renouvellement : anciens crédits conservés + nouveaux crédits' },
+        { text: 'Sans renouvellement après 30j : compte supprimé définitivement' },
     ],
     pro: [
-        { text: 'À l\'expiration : crédits gelés 7 jours' },
-        { text: 'Au renouvellement : anciens + nouveaux crédits cumulés' },
-        { text: 'Agents réactivés immédiatement au renouvellement' },
+        { text: 'À l\'expiration : agents désactivés, crédits gelés' },
+        { text: '30 jours de grâce pour renouveler' },
+        { text: 'Au renouvellement : anciens crédits conservés + nouveaux crédits' },
         { text: 'Alerte à 85% de consommation mensuelle' },
-        { text: 'Sans renouvellement après 7j : compte supprimé définitivement' },
+        { text: 'Sans renouvellement après 30j : compte supprimé définitivement' },
     ],
     business: [
-        { text: 'À l\'expiration : crédits gelés 7 jours' },
-        { text: 'Au renouvellement : anciens + nouveaux crédits cumulés' },
-        { text: 'Agents réactivés immédiatement au renouvellement' },
+        { text: 'À l\'expiration : agents désactivés, crédits gelés' },
+        { text: '30 jours de grâce pour renouveler' },
+        { text: 'Au renouvellement : anciens crédits conservés + nouveaux crédits' },
         { text: 'Alerte à 85% de consommation mensuelle' },
-        { text: 'Sans renouvellement après 7j : compte supprimé définitivement' },
+        { text: 'Sans renouvellement après 30j : compte supprimé définitivement' },
     ],
     scale: [
-        { text: 'Crédits non utilisés conservés + 20% de bonus à chaque renouvellement', highlight: true },
-        { text: '+2 000 crédits bonus offerts à chaque renouvellement', highlight: true },
+        { text: 'Rollover 20% crédits + 2 000 bonus à chaque renouvellement', highlight: true },
         { text: 'Agents illimités — aucun archivage possible', highlight: true },
+        { text: 'Crédits toujours sécurisés tant que Scale est actif', highlight: true },
         { text: 'Notification détaillée de votre bonus après chaque renouvellement', highlight: false },
     ],
 }
@@ -440,7 +440,7 @@ export default function Pricing() {
                                         </div>
                                         {plan.id !== 'free' && (
                                             <div style={{ fontSize: 9, color: plan.id === 'scale' ? '#a78bfa' : '#64748b', marginTop: 2 }}>
-                                                {plan.id === 'scale' ? 'Rollover 20% + bonus' : 'Gelés 7j à expir.'}
+                                                {plan.id === 'scale' ? 'Rollover 20% + bonus' : 'Gelés 30j à expir.'}
                                             </div>
                                         )}
                                     </div>

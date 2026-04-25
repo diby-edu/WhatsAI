@@ -1,5 +1,6 @@
 import { createAdminClient, createApiClient, errorResponse, getAuthUser, successResponse } from '@/lib/api-utils'
 import { TEST_ACCOUNT_GRACE_DAYS, fetchUserTestAccountState } from '@/lib/test-account'
+import { ACCOUNT_PAID_GRACE_DAYS } from '@/lib/account-lifecycle'
 
 export const dynamic = 'force-dynamic'
 
@@ -40,17 +41,37 @@ export async function GET() {
             ? state.lifecycleAccess?.lifecycle.remainingGraceMs ?? null
             : state.remainingMs
 
+        // Vérifie si l'utilisateur a des crédits non utilisés (pour adapter le message du banner)
+        let hasUnusedCredits = false
+        if (state.isTestAccount || isPaidBanner) {
+            const { data: profileData } = await adminSupabase
+                .from('profiles')
+                .select('credits_balance')
+                .eq('id', user.id)
+                .single()
+            hasUnusedCredits = Number(profileData?.credits_balance || 0) > 0
+        }
+
+        // Compte test entré en frozen_grace via achat de crédits (jamais eu d'abonnement)
+        // paid_until null = jamais souscrit
+        const isTestGraceMode = bannerMode === 'paid_grace'
+            && !state.lifecycleAccess?.lifecycle.paidUntil
+
         return successResponse({
             bannerMode,
             isTestAccount: state.isTestAccount,
             showCountdown,
             isExpired: state.isExpired,
-            isExpiredSubscriber: isPaidBanner,
+            isExpiredSubscriber: isPaidBanner && !isTestGraceMode,
             cleanupDeadline: bannerDeadline,
             remainingMs,
-            graceDays: TEST_ACCOUNT_GRACE_DAYS,
+            graceDays: isPaidBanner && !isTestGraceMode
+                ? ACCOUNT_PAID_GRACE_DAYS
+                : TEST_ACCOUNT_GRACE_DAYS,
             exitReason: state.exitReason,
             lifecycleStatus: state.lifecycleAccess?.lifecycle.status || 'inactive',
+            hasUnusedCredits,
+            isTestGraceMode,
         })
     } catch (err) {
         console.error('Test account status API error:', err)

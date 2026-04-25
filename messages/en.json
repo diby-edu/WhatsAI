@@ -334,7 +334,7 @@
             },
             "credits": {
                 "question": "How does the credit system work?",
-                "answer": "1 credit = 1 message sent by AI. For subscribers: when your plan expires, your remaining credits are frozen for 7 days. If you renew within that period, they are restored and added to your new plan credits. For credit-only buyers: each purchase gives 1 month of validity, renewed with each new purchase. After 7 days without renewal in either case, your account is permanently deleted.",
+                "answer": "1 credit = 1 message sent by AI. Purchased credits are added to your subscription balance and cannot be used without an active subscription. When your plan expires, your credits are frozen for 30 days. If you renew within that period, they are restored and added to your new plan credits. Without renewal after 30 days, your account is permanently deleted.",
                 "category": "Billing"
             },
             "multiNumber": {
@@ -354,22 +354,22 @@
             },
             "cancel": {
                 "question": "Can I cancel anytime?",
-                "answer": "Yes, no commitment! Cancel your subscription anytime from your dashboard. Upon expiry, all your agents are disabled and your credits are frozen. Renew within 7 days to get your credits back and reactivate your agents.",
+                "answer": "Yes, no commitment! Cancel your subscription anytime from your dashboard. Upon expiry, all your agents are disabled and your credits are frozen. Renew within 30 days to get your credits back and reactivate your agents.",
                 "category": "Billing"
             },
             "expiredSubscription": {
                 "question": "What happens when my paid subscription expires?",
-                "answer": "Upon expiry, all your agents are disabled and your unused credits are frozen. You have 7 days to renew: if you do so before the deadline, your frozen credits are fully restored and added to your new plan credits, and your agents are reactivated immediately. Without renewal after 7 days, your account is permanently deleted.",
+                "answer": "Upon expiry, all your agents are disabled and your unused credits are frozen. You have 30 days to renew: if you do so before the deadline, your frozen credits are fully restored and added to your new plan credits, and your agents are reactivated immediately. Without renewal after 30 days, your account is permanently deleted.",
                 "category": "Account"
             },
             "retention": {
-                "question": "What happens after 7 days without renewal?",
-                "answer": "Your account is permanently deleted: profile, agents, order history, all data. This action is irreversible. At day 4 (3 days before the deadline), you receive an email and push notification reminder to give you time to act.",
+                "question": "What happens after 30 days without renewal?",
+                "answer": "Your account is permanently deleted: profile, agents, order history, all data. This action is irreversible. You receive an email and push notification reminder before the deadline to give you time to act.",
                 "category": "Account"
             },
             "creditsOnly": {
                 "question": "Can I use WazzapAI without a subscription?",
-                "answer": "Yes. You can buy credits directly without a monthly subscription. Each purchase gives you access to 1 WhatsApp agent for 1 month. Each new purchase before the deadline extends this validity by 1 additional month. If you don't renew before the deadline, your credits are frozen for 7 days and then your account is permanently deleted.",
+                "answer": "A subscription is required to access the platform. Credit packs are complementary: they add to your subscription balance when you need more. If you have purchased credits without a subscription, you have 30 days to subscribe and recover them.",
                 "category": "Billing"
             },
             "whatsappBusiness": {
