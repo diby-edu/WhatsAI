@@ -1,15 +1,12 @@
 import { NextRequest } from 'next/server'
 import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
+import { PLANS } from '@/lib/plans'
 
 export async function GET(request: NextRequest) {
     const supabase = await createApiClient()
     const { user, error: authError } = await getAuthUser(supabase)
+    if (authError || !user) return errorResponse('Non autorisé', 403)
 
-    if (authError || !user) {
-        return errorResponse('Non autorisé', 403)
-    }
-
-    // Check admin via profile role
     const { data: profile } = await supabase
         .from('profiles')
         .select('role')
@@ -20,247 +17,242 @@ export async function GET(request: NextRequest) {
         return errorResponse('Non autorisé', 403)
     }
 
-    const adminSupabase = createAdminClient()
+    const db = createAdminClient()
 
     try {
-        const today = new Date()
-        today.setHours(0, 0, 0, 0)
-        const thirtyDaysAgo = new Date()
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+        const now = new Date()
+        const today = new Date(now); today.setHours(0, 0, 0, 0)
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+        const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+        const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59)
+        const in7Days = new Date(now); in7Days.setDate(in7Days.getDate() + 7)
+        const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1)
 
-        // Total Users
-        const { count: totalUsers } = await adminSupabase
-            .from('profiles')
-            .select('*', { count: 'exact', head: true })
+        // ── Utilisateurs ──────────────────────────────────────────────────
+        const [
+            { count: totalUsers },
+            { count: newUsersToday },
+            { count: newUsersYesterday },
+            { count: activeUsers },
+        ] = await Promise.all([
+            db.from('profiles').select('*', { count: 'exact', head: true }),
+            db.from('profiles').select('*', { count: 'exact', head: true }).gte('created_at', today.toISOString()),
+            db.from('profiles').select('*', { count: 'exact', head: true }).gte('created_at', yesterday.toISOString()).lt('created_at', today.toISOString()),
+            db.from('profiles').select('*', { count: 'exact', head: true }).gte('updated_at', new Date(now.getTime() - 30 * 86400000).toISOString()),
+        ])
 
-        // Active Users (30 days)
-        const { count: activeUsers } = await adminSupabase
-            .from('profiles')
-            .select('*', { count: 'exact', head: true })
-            .gte('updated_at', thirtyDaysAgo.toISOString())
-
-        // New Users Today
-        const { count: newUsersToday } = await adminSupabase
-            .from('profiles')
-            .select('*', { count: 'exact', head: true })
-            .gte('created_at', today.toISOString())
-
-        // Total Agents
-        const { count: totalAgents } = await adminSupabase
-            .from('agents')
-            .select('*', { count: 'exact', head: true })
-
-        // Connected Agents
-        const { count: connectedAgents } = await adminSupabase
-            .from('agents')
-            .select('*', { count: 'exact', head: true })
-            .eq('whatsapp_connected', true)
-
-        // Messages count
-        let totalMessages = 0
-        let messagesToday = 0
-        try {
-            const { count: msgCount } = await adminSupabase
-                .from('messages')
-                .select('*', { count: 'exact', head: true })
-            totalMessages = msgCount || 0
-
-            const { count: msgToday } = await adminSupabase
-                .from('messages')
-                .select('*', { count: 'exact', head: true })
-                .gte('created_at', today.toISOString())
-            messagesToday = msgToday || 0
-        } catch { }
-
-        // Conversations
-        let totalConversations = 0
-        let conversationsToday = 0
-        try {
-            const { count: convCount } = await adminSupabase
-                .from('conversations')
-                .select('*', { count: 'exact', head: true })
-            totalConversations = convCount || 0
-
-            const { count: convToday } = await adminSupabase
-                .from('conversations')
-                .select('*', { count: 'exact', head: true })
-                .gte('created_at', today.toISOString())
-            conversationsToday = convToday || 0
-        } catch { }
-
-        // Credits used
-        let totalCreditsUsed = 0
-        try {
-            const { data: profiles } = await adminSupabase
-                .from('profiles')
-                .select('credits_used_this_month')
-            totalCreditsUsed = profiles?.reduce((sum, p) => sum + (p.credits_used_this_month || 0), 0) || 0
-        } catch { }
-
-        // Revenue from payments — separated platform vs merchant, and auto vs manual
-        let platformRevenue = 0
-        let merchantRevenue = 0
-        let revenueAutomatic = 0
-        let revenueManual = 0
-        try {
-            const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString()
-
-            // Platform revenue (subscriptions + credits) — all sources
-            const { data: platformPayments } = await adminSupabase
-                .from('payments')
-                .select('amount_fcfa, payment_method_source')
-                .eq('status', 'completed')
-                .in('payment_type', ['subscription', 'credits'])
-                .gte('created_at', monthStart)
-            platformRevenue = platformPayments?.reduce((sum, p) => sum + (p.amount_fcfa || 0), 0) || 0
-            revenueAutomatic = platformPayments?.filter(p => p.payment_method_source !== 'manual').reduce((sum, p) => sum + (p.amount_fcfa || 0), 0) || 0
-            revenueManual = platformPayments?.filter(p => p.payment_method_source === 'manual').reduce((sum, p) => sum + (p.amount_fcfa || 0), 0) || 0
-
-            // Merchant revenue (order payments to reverse)
-            const { data: orderPayments } = await adminSupabase
-                .from('payments')
-                .select('amount_fcfa')
-                .eq('status', 'completed')
-                .eq('payment_type', 'one_time')
-                .gte('created_at', monthStart)
-            merchantRevenue = orderPayments?.reduce((sum, p) => sum + (p.amount_fcfa || 0), 0) || 0
-        } catch { }
-
-        // Orders
-        let totalOrders = 0
-        let pendingOrders = 0
-        try {
-            const { count: ordersCount } = await adminSupabase
-                .from('orders')
-                .select('*', { count: 'exact', head: true })
-            totalOrders = ordersCount || 0
-
-            const { count: pendCount } = await adminSupabase
-                .from('orders')
-                .select('*', { count: 'exact', head: true })
-                .eq('status', 'pending')
-            pendingOrders = pendCount || 0
-        } catch { }
-
-        // Active Agents (with messages in last 7 days)
-        let activeAgents = 0
-        try {
-            const sevenDaysAgo = new Date()
-            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-            const { data: activeAgentIds } = await adminSupabase
-                .from('messages')
-                .select('agent_id')
-                .gte('created_at', sevenDaysAgo.toISOString())
-            const uniqueAgents = new Set(activeAgentIds?.map(m => m.agent_id) || [])
-            activeAgents = uniqueAgents.size
-        } catch { }
-
-        // Recent Users (use plan field, not subscription_plan)
-        const { data: recentUsers } = await adminSupabase
-            .from('profiles')
-            .select('id, full_name, email, created_at, plan')
-            .order('created_at', { ascending: false })
-            .limit(5)
-
-        // Compute additional KPIs
-        const paidUsers = await adminSupabase
-            .from('profiles')
-            .select('*', { count: 'exact', head: true })
-            .neq('plan', 'free')
-            .not('plan', 'is', null)
-        const paidUsersCount = paidUsers.count || 0
-
-        // Yesterday's users for growth comparison
-        const yesterday = new Date()
-        yesterday.setDate(yesterday.getDate() - 1)
-        yesterday.setHours(0, 0, 0, 0)
-        const { count: newUsersYesterday } = await adminSupabase
-            .from('profiles')
-            .select('*', { count: 'exact', head: true })
-            .gte('created_at', yesterday.toISOString())
-            .lt('created_at', today.toISOString())
-
-        // Advanced lifecycle KPIs
-        let expiringIn7Days = 0
-        let inGracePeriod = 0
-        let trialAccounts = 0
-        let newPaidThisMonth = 0
-        try {
-            const in7Days = new Date()
-            in7Days.setDate(in7Days.getDate() + 7)
-            const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString()
-
-            const { count: expCount } = await adminSupabase
-                .from('profiles')
-                .select('*', { count: 'exact', head: true })
+        // ── Abonnés actifs & statuts ───────────────────────────────────────
+        const [
+            { count: activeSubscribers },
+            { count: inGracePeriod },
+            { count: expiringIn7Days },
+            { count: trialAccounts },
+        ] = await Promise.all([
+            db.from('profiles').select('*', { count: 'exact', head: true }).eq('account_lifecycle_status', 'paid_active'),
+            db.from('profiles').select('*', { count: 'exact', head: true }).eq('account_lifecycle_status', 'frozen_grace'),
+            db.from('profiles').select('*', { count: 'exact', head: true })
                 .eq('account_lifecycle_status', 'paid_active')
                 .lte('paid_until', in7Days.toISOString())
-                .gte('paid_until', new Date().toISOString())
-            expiringIn7Days = expCount || 0
-
-            const { count: graceCount } = await adminSupabase
-                .from('profiles')
-                .select('*', { count: 'exact', head: true })
-                .eq('account_lifecycle_status', 'frozen_grace')
-            inGracePeriod = graceCount || 0
-
-            const { count: trialCount } = await adminSupabase
-                .from('profiles')
-                .select('*', { count: 'exact', head: true })
+                .gte('paid_until', now.toISOString()),
+            db.from('profiles').select('*', { count: 'exact', head: true })
                 .is('test_account_qualified_at', null)
-                .neq('role', 'admin')
-                .neq('role', 'superadmin')
-            trialAccounts = trialCount || 0
+                .not('role', 'in', '("admin","superadmin")'),
+        ])
 
-            const { count: newPaidCount } = await adminSupabase
-                .from('payments')
-                .select('*', { count: 'exact', head: true })
-                .eq('status', 'completed')
-                .eq('payment_type', 'subscription')
-                .gte('created_at', monthStart)
-            newPaidThisMonth = newPaidCount || 0
+        // ── Revenue: MRR (abonnements seulement) ──────────────────────────
+        const [
+            { data: subPaymentsThisMonth },
+            { data: subPaymentsLastMonth },
+            { data: allSubPaymentsBeforeMonth },
+        ] = await Promise.all([
+            db.from('payments').select('user_id, amount_fcfa, payment_method_source')
+                .eq('status', 'completed').eq('payment_type', 'subscription')
+                .gte('completed_at', monthStart.toISOString()),
+            db.from('payments').select('amount_fcfa')
+                .eq('status', 'completed').eq('payment_type', 'subscription')
+                .gte('completed_at', lastMonthStart.toISOString())
+                .lte('completed_at', lastMonthEnd.toISOString()),
+            db.from('payments').select('user_id')
+                .eq('status', 'completed').eq('payment_type', 'subscription')
+                .lt('completed_at', monthStart.toISOString()),
+        ])
+
+        const mrr = subPaymentsThisMonth?.reduce((s, p) => s + (p.amount_fcfa || 0), 0) || 0
+        const mrrLastMonth = subPaymentsLastMonth?.reduce((s, p) => s + (p.amount_fcfa || 0), 0) || 0
+        const mrrGrowth = mrrLastMonth > 0 ? Math.round(((mrr - mrrLastMonth) / mrrLastMonth) * 100) : 0
+
+        // New MRR = abonnements de nouveaux clients (premier achat ce mois)
+        const existingSubUserIds = new Set((allSubPaymentsBeforeMonth || []).map(p => p.user_id))
+        const newSubPayments = (subPaymentsThisMonth || []).filter(p => !existingSubUserIds.has(p.user_id))
+        const newMrr = newSubPayments.reduce((s, p) => s + (p.amount_fcfa || 0), 0)
+
+        // Revenue auto vs manuel (abonnements + crédits ce mois)
+        const { data: allPlatformPayments } = await db.from('payments').select('amount_fcfa, payment_method_source, payment_type')
+            .eq('status', 'completed').in('payment_type', ['subscription', 'credits'])
+            .gte('completed_at', monthStart.toISOString())
+        const platformRevenue = allPlatformPayments?.reduce((s, p) => s + (p.amount_fcfa || 0), 0) || 0
+        const revenueAutomatic = allPlatformPayments?.filter(p => p.payment_method_source !== 'manual').reduce((s, p) => s + (p.amount_fcfa || 0), 0) || 0
+        const revenueManual = allPlatformPayments?.filter(p => p.payment_method_source === 'manual').reduce((s, p) => s + (p.amount_fcfa || 0), 0) || 0
+
+        // Merchant revenue
+        const { data: orderPayments } = await db.from('payments').select('amount_fcfa')
+            .eq('status', 'completed').eq('payment_type', 'one_time').gte('completed_at', monthStart.toISOString())
+        const merchantRevenue = orderPayments?.reduce((s, p) => s + (p.amount_fcfa || 0), 0) || 0
+
+        // ── Churned MRR : abonnés qui ont expiré ce mois sans renouveler ──
+        let churnedMrr = 0
+        let churnedCount = 0
+        try {
+            const { data: churnedProfiles } = await db.from('profiles')
+                .select('plan, account_lifecycle_status')
+                .in('account_lifecycle_status', ['frozen_grace', 'inactive'])
+                .gte('paid_until', lastMonthStart.toISOString())
+                .lte('paid_until', now.toISOString())
+            churnedCount = churnedProfiles?.length || 0
+            churnedMrr = (churnedProfiles || []).reduce((s, p) => {
+                const planPrice = PLANS[p.plan as keyof typeof PLANS]?.price || 0
+                return s + planPrice
+            }, 0)
         } catch { }
 
-        // Compute derived metrics
-        const conversionRate = (totalUsers || 0) > 0 ? Math.round((paidUsersCount / (totalUsers || 1)) * 100) : 0
-        const avgMessagesPerAgent = (totalAgents || 0) > 0 ? Math.round((totalMessages || 0) / (totalAgents || 1)) : 0
-        const avgCreditsPerUser = (totalUsers || 0) > 0 ? Math.round(totalCreditsUsed / (totalUsers || 1)) : 0
-        const arpu = paidUsersCount > 0 ? Math.round(platformRevenue / paidUsersCount) : 0
-        const userGrowth = (newUsersYesterday || 0) > 0 ? Math.round((((newUsersToday || 0) - (newUsersYesterday || 0)) / (newUsersYesterday || 1)) * 100) : 0
+        // ── Churn rate & LTV ─────────────────────────────────────────────
+        const totalAtRisk = (activeSubscribers || 0) + churnedCount
+        const churnRate = totalAtRisk > 0 ? parseFloat(((churnedCount / totalAtRisk) * 100).toFixed(1)) : 0
+        const arpu = (activeSubscribers || 0) > 0 ? Math.round(mrr / (activeSubscribers || 1)) : 0
+        const ltv = churnRate > 0 ? Math.round(arpu / (churnRate / 100)) : arpu * 12
+
+        // Trial → Paid conversion rate
+        const { count: qualifiedUsers } = await db.from('profiles')
+            .select('*', { count: 'exact', head: true })
+            .not('test_account_qualified_at', 'is', null)
+        const trialToPaidRate = (totalUsers || 0) > 0
+            ? parseFloat(((qualifiedUsers || 0) / (totalUsers || 1) * 100).toFixed(1))
+            : 0
+
+        // ── Agent activation rate ──────────────────────────────────────────
+        let agentActivationRate = 0
+        try {
+            const { data: connectedAgentUserIds } = await db.from('agents')
+                .select('user_id').eq('whatsapp_connected', true)
+            const { data: payingProfiles } = await db.from('profiles')
+                .select('id').eq('account_lifecycle_status', 'paid_active')
+            const payingIds = new Set((payingProfiles || []).map(p => p.id))
+            const activatedCount = (connectedAgentUserIds || []).filter(a => payingIds.has(a.user_id)).length
+            agentActivationRate = payingIds.size > 0 ? Math.round((activatedCount / payingIds.size) * 100) : 0
+        } catch { }
+
+        // ── Agents ────────────────────────────────────────────────────────
+        const [{ count: totalAgents }, { count: connectedAgents }] = await Promise.all([
+            db.from('agents').select('*', { count: 'exact', head: true }),
+            db.from('agents').select('*', { count: 'exact', head: true }).eq('whatsapp_connected', true),
+        ])
+
+        // Active agents (activity last 7 days)
+        let activeAgents = 0
+        try {
+            const sevenDaysAgo = new Date(now.getTime() - 7 * 86400000)
+            const { data: agentIds } = await db.from('messages').select('agent_id').gte('created_at', sevenDaysAgo.toISOString())
+            activeAgents = new Set(agentIds?.map(m => m.agent_id) || []).size
+        } catch { }
+
+        // ── Messages & conversations ───────────────────────────────────────
+        let totalMessages = 0, messagesToday = 0, totalConversations = 0, conversationsToday = 0
+        try {
+            const [{ count: mc }, { count: mt }, { count: cc }, { count: ct }] = await Promise.all([
+                db.from('messages').select('*', { count: 'exact', head: true }),
+                db.from('messages').select('*', { count: 'exact', head: true }).gte('created_at', today.toISOString()),
+                db.from('conversations').select('*', { count: 'exact', head: true }),
+                db.from('conversations').select('*', { count: 'exact', head: true }).gte('created_at', today.toISOString()),
+            ])
+            totalMessages = mc || 0; messagesToday = mt || 0
+            totalConversations = cc || 0; conversationsToday = ct || 0
+        } catch { }
+
+        // ── Leads ce mois ─────────────────────────────────────────────────
+        let leadsThisMonth = 0
+        try {
+            const { count: lc } = await db.from('leads').select('*', { count: 'exact', head: true })
+                .gte('created_at', monthStart.toISOString())
+            leadsThisMonth = lc || 0
+        } catch { }
+
+        // ── Crédits ───────────────────────────────────────────────────────
+        let totalCreditsUsed = 0
+        try {
+            const { data: profiles } = await db.from('profiles').select('credits_used_this_month')
+            totalCreditsUsed = profiles?.reduce((s, p) => s + (p.credits_used_this_month || 0), 0) || 0
+        } catch { }
+
+        // ── Commandes ─────────────────────────────────────────────────────
+        let totalOrders = 0, pendingOrders = 0
+        try {
+            const [{ count: oc }, { count: pc }] = await Promise.all([
+                db.from('orders').select('*', { count: 'exact', head: true }),
+                db.from('orders').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+            ])
+            totalOrders = oc || 0; pendingOrders = pc || 0
+        } catch { }
+
+        // ── Derniers inscrits ─────────────────────────────────────────────
+        const { data: recentUsers } = await db.from('profiles')
+            .select('id, full_name, email, created_at, plan, account_lifecycle_status')
+            .order('created_at', { ascending: false }).limit(6)
+
+        // ── Derived ───────────────────────────────────────────────────────
+        const userGrowth = (newUsersYesterday || 0) > 0
+            ? Math.round((((newUsersToday || 0) - (newUsersYesterday || 0)) / (newUsersYesterday || 1)) * 100)
+            : 0
+        const avgMessagesPerAgent = (totalAgents || 0) > 0 ? Math.round(totalMessages / (totalAgents || 1)) : 0
+        const newPaidThisMonth = newSubPayments.length
+        const conversionRate = (totalUsers || 0) > 0 ? Math.round(((qualifiedUsers || 0) / (totalUsers || 1)) * 100) : 0
 
         return successResponse({
             stats: {
+                // Utilisateurs
                 totalUsers: totalUsers || 0,
-                activeUsers: activeUsers || 0,
                 newUsersToday: newUsersToday || 0,
                 newUsersYesterday: newUsersYesterday || 0,
-                paidUsers: paidUsersCount,
+                activeUsers: activeUsers || 0,
+                userGrowth,
+                // Abonnés & lifecycle
+                activeSubscribers: activeSubscribers || 0,
+                inGracePeriod: inGracePeriod || 0,
+                expiringIn7Days: expiringIn7Days || 0,
+                trialAccounts: trialAccounts || 0,
+                // MRR & finances
+                mrr,
+                mrrLastMonth,
+                mrrGrowth,
+                newMrr,
+                churnedMrr,
+                platformRevenue,
+                revenueAutomatic,
+                revenueManual,
+                merchantRevenue,
+                // Métriques SaaS
+                arpu,
+                ltv,
+                churnRate,
+                churnedCount,
+                trialToPaidRate,
+                conversionRate,
+                newPaidThisMonth,
+                // Agents
                 totalAgents: totalAgents || 0,
-                activeAgents,
                 connectedAgents: connectedAgents || 0,
+                activeAgents,
+                agentActivationRate,
+                // Engagement
                 totalMessages,
                 messagesToday,
                 totalConversations,
                 conversationsToday,
+                leadsThisMonth,
                 totalCreditsUsed,
-                platformRevenue,
-                merchantRevenue,
-                revenueAutomatic,
-                revenueManual,
-                revenue: platformRevenue + merchantRevenue,
+                avgMessagesPerAgent,
+                // Commandes
                 totalOrders,
                 pendingOrders,
-                // Computed KPIs
-                conversionRate,
-                avgMessagesPerAgent,
-                avgCreditsPerUser,
-                arpu,
-                userGrowth,
-                // Lifecycle KPIs
-                expiringIn7Days,
-                inGracePeriod,
-                trialAccounts,
-                newPaidThisMonth
             },
             recentUsers: recentUsers || []
         })
