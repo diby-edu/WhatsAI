@@ -46,6 +46,8 @@ export type NotificationType =
     | 'credits_freeze_warning'
     | 'credits_expired'
     | 'scale_renewal_bonus'
+    // Leads
+    | 'new_lead'
 
 export interface NotificationData {
     // For credits
@@ -104,6 +106,7 @@ const PREF_MAP: Record<NotificationType, { push?: string; email?: string }> = {
     credits_freeze_warning: { push: 'push_credits_freeze_warning' },
     credits_expired: { push: 'push_credits_expired' },
     scale_renewal_bonus: { push: 'push_scale_renewal_bonus' },
+    new_lead: { push: 'push_new_lead', email: 'email_new_lead' },
 }
 
 // =============================================
@@ -213,6 +216,12 @@ function getPushContent(type: NotificationType, data: NotificationData): PushNot
                 title: '✨ Bonus Scale appliqué !',
                 body: `Rollover : +${data.rolloverAmount} crédits (20%). Bonus mensuel : +${data.bonusAmount} crédits. Solde : ${data.balance?.toLocaleString()}.`,
                 data: { type: 'scale_renewal_bonus', route: '/dashboard/billing' }
+            }
+        case 'new_lead':
+            return {
+                title: '🎯 Nouveau lead qualifié !',
+                body: `${data.contactName || data.contactPhone || 'Un prospect'} a été capturé${data.agentName ? ` par l'agent "${data.agentName}"` : ''}.`,
+                data: { type: 'new_lead', route: '/dashboard/agents' }
             }
     }
 }

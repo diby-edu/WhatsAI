@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
     Search, Mail, Download,
     Phone, Calendar, Edit, Ban, X, Zap, Shield, UserX, CheckCircle,
-    ChevronLeft, ChevronRight, CheckSquare, Square
+    ChevronLeft, ChevronRight, CheckSquare, Square, Timer
 } from 'lucide-react'
 import { TableSkeleton } from '@/components/admin/AdminSkeletons'
 
@@ -84,7 +84,9 @@ export default function AdminUsersPage() {
                     agents: u.agents_count || 0,
                     messages: u.messages_count || 0,
                     created: u.created_at,
-                    credits: u.credits_balance || 0
+                    credits: u.credits_balance || 0,
+                    paid_until: u.paid_until || null,
+                    lifecycle: u.account_lifecycle_status || null
                 }))
                 setUsers(mappedUsers)
                 setMeta(data.meta)
@@ -285,6 +287,7 @@ export default function AdminUsersPage() {
                                     { label: 'Plan', field: 'plan' },
                                     { label: 'Crédits', field: 'credits' },
                                     { label: 'Statut', field: 'status' },
+                                    { label: 'Échéance', field: null },
                                     { label: 'Inscrit le', field: 'created' },
                                     { label: 'Actions', field: null }
                                 ] as { label: string; field: string | null }[]).map(({ label, field }) => (
@@ -358,6 +361,9 @@ export default function AdminUsersPage() {
                                         </td>
                                         <td style={{ padding: '12px 16px' }}>
                                             <StatusBadge status={u.status} />
+                                        </td>
+                                        <td style={{ padding: '12px 16px' }}>
+                                            <ExpiryCell paidUntil={u.paid_until} lifecycle={u.lifecycle} />
                                         </td>
                                         <td style={{ padding: '12px 16px' }}>
                                             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 4, color: '#94a3b8', fontSize: 12 }}>
@@ -510,6 +516,34 @@ function ActionBtn({ icon: Icon, color, bg, title, onClick, loading }: any) {
             style={{ padding: 7, borderRadius: 8, background: bg, border: 'none', cursor: loading ? 'wait' : 'pointer', opacity: loading ? 0.5 : 1 }}>
             <Icon style={{ width: 15, height: 15, color }} />
         </button>
+    )
+}
+
+function ExpiryCell({ paidUntil, lifecycle }: { paidUntil: string | null, lifecycle: string | null }) {
+    if (!paidUntil) {
+        if (lifecycle === 'frozen_grace') {
+            return <span style={{ fontSize: 11, color: '#60a5fa', fontWeight: 600 }}>En grâce</span>
+        }
+        return <span style={{ fontSize: 11, color: '#475569' }}>—</span>
+    }
+    const date = new Date(paidUntil)
+    const now = new Date()
+    const daysLeft = Math.ceil((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+    const isExpired = daysLeft <= 0
+    const isUrgent = !isExpired && daysLeft <= 7
+    const color = isExpired ? '#f87171' : isUrgent ? '#fbbf24' : '#4ade80'
+    return (
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 4, fontSize: 12 }}>
+            <Timer style={{ width: 12, height: 12, marginTop: 2, flexShrink: 0, color }} />
+            <div>
+                <div style={{ color, fontWeight: isUrgent || isExpired ? 700 : 400 }}>
+                    {date.toLocaleDateString('fr-FR')}
+                </div>
+                <div style={{ fontSize: 10, color: color, opacity: 0.8 }}>
+                    {isExpired ? 'Expiré' : `J-${daysLeft}`}
+                </div>
+            </div>
+        </div>
     )
 }
 

@@ -7,7 +7,7 @@ import {
     Users, Bot, MessageSquare, CreditCard, TrendingUp, DollarSign,
     Activity, AlertTriangle, CheckCircle2, Clock, Zap, Loader2, RefreshCw,
     ShoppingCart, UserPlus, Eye, BarChart3, Wallet, Phone, Globe, Shield,
-    Wrench, Power
+    Wrench, Power, Timer, Snowflake, FlaskConical, BadgeDollarSign, PenLine, Cpu
 } from 'lucide-react'
 
 interface DashboardStats {
@@ -35,6 +35,14 @@ interface DashboardStats {
     avgCreditsPerUser: number
     arpu: number
     userGrowth: number
+    // Revenue split
+    revenueAutomatic: number
+    revenueManual: number
+    // Lifecycle KPIs
+    expiringIn7Days: number
+    inGracePeriod: number
+    trialAccounts: number
+    newPaidThisMonth: number
 }
 
 interface SystemService {
@@ -161,8 +169,11 @@ export default function AdminDashboard() {
         totalUsers: 0, activeUsers: 0, newUsersToday: 0, newUsersYesterday: 0, paidUsers: 0,
         totalAgents: 0, activeAgents: 0, connectedAgents: 0,
         totalMessages: 0, messagesToday: 0, totalConversations: 0, conversationsToday: 0,
-        totalCreditsUsed: 0, revenue: 0, platformRevenue: 0, merchantRevenue: 0, pendingOrders: 0, totalOrders: 0,
-        conversionRate: 0, avgMessagesPerAgent: 0, avgCreditsPerUser: 0, arpu: 0, userGrowth: 0
+        totalCreditsUsed: 0, revenue: 0, platformRevenue: 0, merchantRevenue: 0,
+        revenueAutomatic: 0, revenueManual: 0,
+        pendingOrders: 0, totalOrders: 0,
+        conversionRate: 0, avgMessagesPerAgent: 0, avgCreditsPerUser: 0, arpu: 0, userGrowth: 0,
+        expiringIn7Days: 0, inGracePeriod: 0, trialAccounts: 0, newPaidThisMonth: 0
     }
 
     return (
@@ -254,7 +265,7 @@ export default function AdminDashboard() {
             {/* Primary KPIs - 4 cards (responsive) */}
             <div className="kpi-grid">
                 <KPICard icon={Users} label="Utilisateurs" value={s.totalUsers} subValue={`+${s.newUsersToday || 0} aujourd'hui`} color="#3b82f6" trend={s.userGrowth} />
-                <KPICard icon={DollarSign} label="Revenus Plateforme" value={s.platformRevenue || 0} subValue="FCFA ce mois" color="#10b981" isCurrency />
+                <RevenueKPICard label="Revenus Plateforme" total={s.platformRevenue || 0} automatic={s.revenueAutomatic || 0} manual={s.revenueManual || 0} />
                 <KPICard icon={TrendingUp} label="Taux Conversion" value={s.conversionRate || 0} subValue={`${s.paidUsers || 0} utilisateurs payants`} color="#f59e0b" isPercent />
                 <KPICard icon={Wallet} label="À Reverser" value={s.merchantRevenue || 0} subValue="FCFA aux marchands" color="#ef4444" isCurrency />
             </div>
@@ -273,6 +284,14 @@ export default function AdminDashboard() {
                 <KPICard icon={Phone} label="Conversations" value={s.totalConversations || 0} subValue={`+${s.conversationsToday || 0} aujourd'hui`} color="#0ea5e9" />
                 <KPICard icon={Zap} label="Crédits Utilisés" value={s.totalCreditsUsed || 0} subValue={`~${s.avgCreditsPerUser || 0}/user`} color="#f43f5e" />
                 <KPICard icon={Activity} label="Msg/Agent" value={s.avgMessagesPerAgent || 0} subValue="moyenne" color="#84cc16" />
+            </div>
+
+            {/* Lifecycle KPIs - 4 cards (responsive) */}
+            <div className="kpi-grid">
+                <KPICard icon={Timer} label="Expire dans 7j" value={s.expiringIn7Days || 0} subValue="abonnements actifs" color="#f59e0b" />
+                <KPICard icon={Snowflake} label="En grâce" value={s.inGracePeriod || 0} subValue="comptes gelés" color="#60a5fa" />
+                <KPICard icon={FlaskConical} label="Comptes test" value={s.trialAccounts || 0} subValue="non qualifiés" color="#a78bfa" />
+                <KPICard icon={BadgeDollarSign} label="Nouveaux payants" value={s.newPaidThisMonth || 0} subValue="abonnements ce mois" color="#34d399" />
             </div>
 
             {/* Two Columns Layout (responsive) */}
@@ -422,6 +441,35 @@ export default function AdminDashboard() {
             </div>
 
         </div>
+    )
+}
+
+function RevenueKPICard({ label, total, automatic, manual }: {
+    label: string, total: number, automatic: number, manual: number
+}) {
+    return (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+            style={{ padding: 16, background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(148, 163, 184, 0.1)', borderRadius: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: '#10b98120', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <DollarSign size={16} style={{ color: '#10b981' }} />
+                </div>
+                <span style={{ color: '#94a3b8', fontSize: 12, fontWeight: 500 }}>{label}</span>
+            </div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: 'white', marginBottom: 6 }}>
+                {total.toLocaleString('fr-FR')}
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'rgba(16,185,129,0.1)', borderRadius: 6, padding: '3px 8px' }}>
+                    <Cpu size={10} style={{ color: '#34d399' }} />
+                    <span style={{ fontSize: 10, color: '#34d399', fontWeight: 600 }}>{automatic.toLocaleString('fr-FR')}</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'rgba(251,191,36,0.1)', borderRadius: 6, padding: '3px 8px' }}>
+                    <PenLine size={10} style={{ color: '#fbbf24' }} />
+                    <span style={{ fontSize: 10, color: '#fbbf24', fontWeight: 600 }}>{manual.toLocaleString('fr-FR')}</span>
+                </div>
+            </div>
+        </motion.div>
     )
 }
 

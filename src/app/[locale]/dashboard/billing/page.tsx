@@ -103,6 +103,7 @@ function BillingContent() {
     const [creditsFrozenAt, setCreditsFrozenAt] = useState<string | null>(null)
     const [creditsExpireAt, setCreditsExpireAt] = useState<string | null>(null)
     const [payments, setPayments] = useState<Payment[]>([])
+    const [subscriptionHistory, setSubscriptionHistory] = useState<any[]>([])
     const [plans, setPlans] = useState<Plan[]>([])
     const [creditPacks, setCreditPacks] = useState<CreditPack[]>([])
     const [loading, setLoading] = useState(true)
@@ -264,6 +265,7 @@ function BillingContent() {
         fetchCreditPacks()
         fetchPayments()
         fetchPaymentConfig()
+        fetchSubscriptionHistory()
     }, [])
 
     useEffect(() => {
@@ -423,6 +425,18 @@ function BillingContent() {
             }
         } catch (err) {
             console.error('Error fetching payments:', err)
+        }
+    }
+
+    const fetchSubscriptionHistory = async () => {
+        try {
+            const res = await fetch('/api/dashboard/subscription-history')
+            if (res.ok) {
+                const data = await res.json()
+                setSubscriptionHistory(data.data?.history || [])
+            }
+        } catch (err) {
+            console.error('Error fetching subscription history:', err)
         }
     }
 
@@ -1442,6 +1456,58 @@ function BillingContent() {
                     ))}
                 </div>
             </div>
+
+            {/* Subscription Deadline History */}
+            {subscriptionHistory.length > 0 && (
+                <div>
+                    <h2 style={{ fontSize: 16, fontWeight: 600, color: 'white', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <Calendar style={{ width: 18, height: 18, color: '#60a5fa' }} />
+                        Historique des renouvellements
+                    </h2>
+                    <div style={cardStyle}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                            {subscriptionHistory.map((entry, i) => {
+                                const start = new Date(entry.period_start)
+                                const end = new Date(entry.period_end)
+                                const isManual = entry.source === 'manual'
+                                return (
+                                    <div key={entry.id || i} style={{
+                                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                        padding: '10px 12px', borderRadius: 8, background: 'rgba(51, 65, 85, 0.3)'
+                                    }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                            <div style={{
+                                                width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
+                                                background: isManual ? '#fbbf24' : '#34d399'
+                                            }} />
+                                            <div>
+                                                <div style={{ fontSize: 13, color: 'white', fontWeight: 500 }}>
+                                                    {start.toLocaleDateString('fr-FR')} → {end.toLocaleDateString('fr-FR')}
+                                                </div>
+                                                {entry.admin_notes && (
+                                                    <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{entry.admin_notes}</div>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                                            <span style={{
+                                                fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 4,
+                                                background: isManual ? 'rgba(251,191,36,0.1)' : 'rgba(52,211,153,0.1)',
+                                                color: isManual ? '#fbbf24' : '#34d399'
+                                            }}>
+                                                {isManual ? 'Manuel' : 'Auto'}
+                                            </span>
+                                            <span style={{ fontSize: 13, fontWeight: 600, color: 'white' }}>
+                                                {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF', maximumFractionDigits: 0 }).format(entry.amount_fcfa)}
+                                            </span>
+                                        </div>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Payment History */}
             <div>

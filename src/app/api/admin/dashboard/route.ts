@@ -97,20 +97,24 @@ export async function GET(request: NextRequest) {
             totalCreditsUsed = profiles?.reduce((sum, p) => sum + (p.credits_used_this_month || 0), 0) || 0
         } catch { }
 
-        // Revenue from payments — separated platform vs merchant
+        // Revenue from payments — separated platform vs merchant, and auto vs manual
         let platformRevenue = 0
         let merchantRevenue = 0
+        let revenueAutomatic = 0
+        let revenueManual = 0
         try {
             const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString()
 
-            // Platform revenue (subscriptions + credits)
+            // Platform revenue (subscriptions + credits) — all sources
             const { data: platformPayments } = await adminSupabase
                 .from('payments')
-                .select('amount_fcfa')
+                .select('amount_fcfa, payment_method_source')
                 .eq('status', 'completed')
                 .in('payment_type', ['subscription', 'credits'])
                 .gte('created_at', monthStart)
             platformRevenue = platformPayments?.reduce((sum, p) => sum + (p.amount_fcfa || 0), 0) || 0
+            revenueAutomatic = platformPayments?.filter(p => p.payment_method_source !== 'manual').reduce((sum, p) => sum + (p.amount_fcfa || 0), 0) || 0
+            revenueManual = platformPayments?.filter(p => p.payment_method_source === 'manual').reduce((sum, p) => sum + (p.amount_fcfa || 0), 0) || 0
 
             // Merchant revenue (order payments to reverse)
             const { data: orderPayments } = await adminSupabase
@@ -176,6 +180,47 @@ export async function GET(request: NextRequest) {
             .gte('created_at', yesterday.toISOString())
             .lt('created_at', today.toISOString())
 
+        // Advanced lifecycle KPIs
+        let expiringIn7Days = 0
+        let inGracePeriod = 0
+        let trialAccounts = 0
+        let newPaidThisMonth = 0
+        try {
+            const in7Days = new Date()
+            in7Days.setDate(in7Days.getDate() + 7)
+            const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString()
+
+            const { count: expCount } = await adminSupabase
+                .from('profiles')
+                .select('*', { count: 'exact', head: true })
+                .eq('account_lifecycle_status', 'paid_active')
+                .lte('paid_until', in7Days.toISOString())
+                .gte('paid_until', new Date().toISOString())
+            expiringIn7Days = expCount || 0
+
+            const { count: graceCount } = await adminSupabase
+                .from('profiles')
+                .select('*', { count: 'exact', head: true })
+                .eq('account_lifecycle_status', 'frozen_grace')
+            inGracePeriod = graceCount || 0
+
+            const { count: trialCount } = await adminSupabase
+                .from('profiles')
+                .select('*', { count: 'exact', head: true })
+                .is('test_account_qualified_at', null)
+                .neq('role', 'admin')
+                .neq('role', 'superadmin')
+            trialAccounts = trialCount || 0
+
+            const { count: newPaidCount } = await adminSupabase
+                .from('payments')
+                .select('*', { count: 'exact', head: true })
+                .eq('status', 'completed')
+                .eq('payment_type', 'subscription')
+                .gte('created_at', monthStart)
+            newPaidThisMonth = newPaidCount || 0
+        } catch { }
+
         // Compute derived metrics
         const conversionRate = (totalUsers || 0) > 0 ? Math.round((paidUsersCount / (totalUsers || 1)) * 100) : 0
         const avgMessagesPerAgent = (totalAgents || 0) > 0 ? Math.round((totalMessages || 0) / (totalAgents || 1)) : 0
@@ -200,6 +245,8 @@ export async function GET(request: NextRequest) {
                 totalCreditsUsed,
                 platformRevenue,
                 merchantRevenue,
+                revenueAutomatic,
+                revenueManual,
                 revenue: platformRevenue + merchantRevenue,
                 totalOrders,
                 pendingOrders,
@@ -208,7 +255,12 @@ export async function GET(request: NextRequest) {
                 avgMessagesPerAgent,
                 avgCreditsPerUser,
                 arpu,
-                userGrowth
+                userGrowth,
+                // Lifecycle KPIs
+                expiringIn7Days,
+                inGracePeriod,
+                trialAccounts,
+                newPaidThisMonth
             },
             recentUsers: recentUsers || []
         })
