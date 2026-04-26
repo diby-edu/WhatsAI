@@ -1458,13 +1458,18 @@ function BillingContent() {
             </div>
 
             {/* Subscription Deadline History */}
-            {subscriptionHistory.length > 0 && (
-                <div>
-                    <h2 style={{ fontSize: 16, fontWeight: 600, color: 'white', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <Calendar style={{ width: 18, height: 18, color: '#60a5fa' }} />
-                        Historique des renouvellements
-                    </h2>
-                    <div style={cardStyle}>
+            <div>
+                <h2 style={{ fontSize: 16, fontWeight: 600, color: 'white', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Calendar style={{ width: 18, height: 18, color: '#60a5fa' }} />
+                    Historique des renouvellements
+                </h2>
+                <div style={cardStyle}>
+                    {subscriptionHistory.length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: 32, color: '#64748b' }}>
+                            <Calendar style={{ width: 36, height: 36, margin: '0 auto 10px', opacity: 0.4 }} />
+                            <p style={{ fontSize: 13 }}>Aucun renouvellement enregistré</p>
+                        </div>
+                    ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                             {subscriptionHistory.map((entry, i) => {
                                 const start = new Date(entry.period_start)
@@ -1505,9 +1510,9 @@ function BillingContent() {
                                 )
                             })}
                         </div>
-                    </div>
+                    )}
                 </div>
-            )}
+            </div>
 
             {/* Payment History */}
             <div>
