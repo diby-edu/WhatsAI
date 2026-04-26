@@ -65,6 +65,9 @@ interface NotificationSettings {
     push_stock_out: boolean
     push_payment_received: boolean
     push_new_booking: boolean
+    // Leads
+    push_new_lead: boolean
+    email_new_lead: boolean
 }
 
 export default function SettingsPage() {
@@ -136,7 +139,10 @@ export default function SettingsPage() {
         push_subscription_expiring: true,
         push_stock_out: true,
         push_payment_received: true,
-        push_new_booking: true
+        push_new_booking: true,
+        // Leads
+        push_new_lead: true,
+        email_new_lead: true,
     })
 
     // Password state
@@ -665,6 +671,17 @@ export default function SettingsPage() {
                                         />
                                     </div>
 
+                                    {/* Leads */}
+                                    <p style={{ color: '#64748b', fontSize: 12, marginBottom: 8, marginTop: 16 }}>Leads</p>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                        <ToggleOption
+                                            label={'Nouveau lead qualifié'}
+                                            description={'Email quand un prospect est capturé par votre agent WhatsApp'}
+                                            checked={notifications.email_new_lead}
+                                            onChange={(v) => setNotifications({ ...notifications, email_new_lead: v })}
+                                        />
+                                    </div>
+
                                     {/* Rapports */}
                                     <p style={{ color: '#64748b', fontSize: 12, marginBottom: 8, marginTop: 16 }}>Rapports</p>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -776,6 +793,15 @@ export default function SettingsPage() {
                                                     description={'Notification quand un client réserve un service'}
                                                     checked={notifications.push_new_booking}
                                                     onChange={(v) => setNotifications({ ...notifications, push_new_booking: v })}
+                                                />
+
+                                                {/* Leads */}
+                                                <p style={{ color: '#64748b', fontSize: 12, marginBottom: 4, marginTop: 12 }}>Leads</p>
+                                                <ToggleOption
+                                                    label={'Nouveau lead qualifié'}
+                                                    description={'Notification push quand un prospect est capturé par votre agent'}
+                                                    checked={notifications.push_new_lead}
+                                                    onChange={(v) => setNotifications({ ...notifications, push_new_lead: v })}
                                                 />
                                             </>
                                         )}
