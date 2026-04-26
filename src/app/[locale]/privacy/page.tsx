@@ -25,7 +25,7 @@ export default function PrivacyPage() {
                     Politique de Confidentialité
                 </h1>
                 <p style={{ fontSize: 14, color: '#64748b', marginBottom: 40 }}>
-                    Dernière mise à jour : Mars 2026
+                    Dernière mise à jour : Avril 2026
                 </p>
 
                 <section style={{ marginBottom: 32 }}>
@@ -75,11 +75,36 @@ export default function PrivacyPage() {
 
                 <section style={{ marginBottom: 32 }}>
                     <h2 style={{ fontSize: 20, fontWeight: 600, marginBottom: 12, color: '#e2e8f0' }}>
-                        5. Cookies
+                        5. Paiements et données financières
                     </h2>
                     <p style={{ fontSize: 15, lineHeight: 1.8, color: '#94a3b8' }}>
-                        Nous utilisons des cookies essentiels pour le fonctionnement du site et des cookies
-                        analytiques (avec votre consentement) pour améliorer nos services.
+                        Les paiements sont traités par PayDunya (opérateur de paiement certifié dans l'espace
+                        UEMOA). WazzapAI ne stocke jamais vos données bancaires ou de carte. Nous conservons
+                        uniquement : le montant, la référence de transaction, le statut et l'horodatage,
+                        dans le but de constituer l'historique de facturation accessible depuis votre compte.
+                    </p>
+                </section>
+
+                <section style={{ marginBottom: 32 }}>
+                    <h2 style={{ fontSize: 20, fontWeight: 600, marginBottom: 12, color: '#e2e8f0' }}>
+                        6. Cookies
+                    </h2>
+                    <p style={{ fontSize: 15, lineHeight: 1.8, color: '#94a3b8' }}>
+                        Nous utilisons des cookies essentiels pour le fonctionnement du site (session,
+                        authentification) et des cookies analytiques (avec votre consentement) pour améliorer
+                        nos services. Aucune donnée n'est vendue à des tiers.
+                    </p>
+                </section>
+
+                <section style={{ marginBottom: 32 }}>
+                    <h2 style={{ fontSize: 20, fontWeight: 600, marginBottom: 12, color: '#e2e8f0' }}>
+                        7. Conservation et suppression des données
+                    </h2>
+                    <p style={{ fontSize: 15, lineHeight: 1.8, color: '#94a3b8' }}>
+                        Vos données sont conservées pendant la durée de vie de votre compte et pendant
+                        30 jours après sa désactivation. Passé ce délai, toutes vos données (agents,
+                        conversations, crédits) sont définitivement supprimées. Vous pouvez demander
+                        la suppression anticipée de votre compte à tout moment via support@wazzapai.com.
                     </p>
                 </section>
 
