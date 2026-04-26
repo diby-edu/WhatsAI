@@ -329,7 +329,7 @@
             },
             "freeTest": {
                 "question": "Can I test for free?",
-                "answer": "Absolutely! Create an account and get 10 free credits to test the platform. No credit card required. Upgrade to a paid plan when you're ready.",
+                "answer": "Absolutely! Create an account and get 10 free credits to test the platform. No credit card required. The trial period lasts 7 days. Without subscribing to a paid plan within that time, your account is automatically deleted. If you purchased credits during your trial, you get an additional 30-day grace period to subscribe.",
                 "category": "General"
             },
             "credits": {

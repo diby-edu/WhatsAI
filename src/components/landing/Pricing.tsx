@@ -620,11 +620,11 @@ export default function Pricing() {
                                 📉 À l'expiration
                             </div>
                             {[
-                                'Plan réduit au Free automatiquement',
+                                'Compte en période de grâce de 30 jours',
                                 'Crédits gelés (protégés) — non perdus immédiatement',
-                                'Agents excédentaires archivés (non supprimés)',
-                                'Seul 1 agent reste actif (limite Free)',
-                                'IA en pause si crédits épuisés',
+                                'Tous les agents archivés (non supprimés)',
+                                'Aucune nouvelle conversation traitée pendant la grâce',
+                                'Données conservées — rien n\'est supprimé',
                             ].map((item, i) => (
                                 <div key={i} style={{ fontSize: 12, color: '#94a3b8', marginBottom: 6, display: 'flex', gap: 6 }}>
                                     <span style={{ color: '#f87171', flexShrink: 0 }}>•</span>
@@ -641,14 +641,14 @@ export default function Pricing() {
                             border: '1px solid rgba(34, 197, 94, 0.15)'
                         }}>
                             <div style={{ fontSize: 13, fontWeight: 700, color: '#4ade80', marginBottom: 10 }}>
-                                🔄 À la souscription (dans les 7j)
+                                🔄 Au renouvellement (dans les 30j)
                             </div>
                             {[
-                                'Crédits sécurisés réactivés pleinement',
+                                'Crédits gelés réactivés pleinement',
                                 'Anciens crédits + nouveaux crédits cumulés',
                                 'Plan restauré avec les quotas du plan choisi',
-                                'Agents archivés récupérables',
-                                'Si >7j sans renouvellement : crédits définitivement supprimés',
+                                'Agents archivés récupérables immédiatement',
+                                'Si >30j sans renouvellement : compte supprimé définitivement',
                             ].map((item, i) => (
                                 <div key={i} style={{ fontSize: 12, color: '#94a3b8', marginBottom: 6, display: 'flex', gap: 6 }}>
                                     <span style={{ color: '#4ade80', flexShrink: 0 }}>•</span>

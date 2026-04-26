@@ -329,7 +329,7 @@
       },
       "freeTest": {
         "question": "Puis-je tester gratuitement ?",
-        "answer": "Absolument ! Créez un compte et recevez 10 crédits gratuits pour tester la plateforme. Aucune carte de crédit requise. Passez à un plan payant quand vous êtes prêt.",
+        "answer": "Absolument ! Créez un compte et recevez 10 crédits gratuits pour tester la plateforme. Aucune carte de crédit requise. La période d'essai dure 7 jours. Sans souscription à un plan payant dans ce délai, votre compte est automatiquement supprimé. Si vous avez acheté des crédits pendant votre essai, vous bénéficiez d'une période de grâce supplémentaire de 30 jours pour souscrire.",
         "category": "Général"
       },
       "credits": {
