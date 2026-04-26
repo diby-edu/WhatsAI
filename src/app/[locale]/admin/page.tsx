@@ -262,7 +262,7 @@ export default function AdminDashboard() {
                 </button>
             </div>
 
-            {/* Primary KPIs - 4 cards (responsive) */}
+            {/* Rangée 1 — Revenus & utilisateurs */}
             <div className="kpi-grid">
                 <KPICard icon={Users} label="Utilisateurs" value={s.totalUsers} subValue={`+${s.newUsersToday || 0} aujourd'hui`} color="#3b82f6" trend={s.userGrowth} />
                 <RevenueKPICard label="Revenus Plateforme" total={s.platformRevenue || 0} automatic={s.revenueAutomatic || 0} manual={s.revenueManual || 0} />
@@ -270,7 +270,15 @@ export default function AdminDashboard() {
                 <KPICard icon={Wallet} label="À Reverser" value={s.merchantRevenue || 0} subValue="FCFA aux marchands" color="#ef4444" isCurrency />
             </div>
 
-            {/* Secondary KPIs - 4 cards (responsive) */}
+            {/* Rangée 2 — Lifecycle abonnements */}
+            <div className="kpi-grid">
+                <KPICard icon={Timer} label="Expire dans 7j" value={s.expiringIn7Days || 0} subValue="abonnements actifs" color="#f59e0b" />
+                <KPICard icon={Snowflake} label="En grâce" value={s.inGracePeriod || 0} subValue="comptes gelés" color="#60a5fa" />
+                <KPICard icon={FlaskConical} label="Comptes test" value={s.trialAccounts || 0} subValue="non qualifiés" color="#a78bfa" />
+                <KPICard icon={BadgeDollarSign} label="Nouveaux payants" value={s.newPaidThisMonth || 0} subValue="abonnements ce mois" color="#34d399" />
+            </div>
+
+            {/* Rangée 3 — Agents & messages */}
             <div className="kpi-grid">
                 <KPICard icon={Bot} label="Agents IA" value={s.totalAgents} subValue={`${s.connectedAgents || 0} connectés`} color="#8b5cf6" />
                 <KPICard icon={MessageSquare} label="Messages" value={s.totalMessages} subValue={`+${s.messagesToday || 0} aujourd'hui`} color="#06b6d4" />
@@ -278,20 +286,12 @@ export default function AdminDashboard() {
                 <KPICard icon={BarChart3} label="ARPU" value={s.arpu || 0} subValue="FCFA/utilisateur payant" color="#ec4899" isCurrency />
             </div>
 
-            {/* Tertiary KPIs - 4 cards (responsive) */}
+            {/* Rangée 4 — Activité plateforme */}
             <div className="kpi-grid">
                 <KPICard icon={UserPlus} label="Actifs (30j)" value={s.activeUsers || 0} subValue={`${s.totalUsers > 0 ? Math.round((s.activeUsers / s.totalUsers) * 100) : 0}% du total`} color="#6366f1" />
                 <KPICard icon={Phone} label="Conversations" value={s.totalConversations || 0} subValue={`+${s.conversationsToday || 0} aujourd'hui`} color="#0ea5e9" />
                 <KPICard icon={Zap} label="Crédits Utilisés" value={s.totalCreditsUsed || 0} subValue={`~${s.avgCreditsPerUser || 0}/user`} color="#f43f5e" />
                 <KPICard icon={Activity} label="Msg/Agent" value={s.avgMessagesPerAgent || 0} subValue="moyenne" color="#84cc16" />
-            </div>
-
-            {/* Lifecycle KPIs - 4 cards (responsive) */}
-            <div className="kpi-grid">
-                <KPICard icon={Timer} label="Expire dans 7j" value={s.expiringIn7Days || 0} subValue="abonnements actifs" color="#f59e0b" />
-                <KPICard icon={Snowflake} label="En grâce" value={s.inGracePeriod || 0} subValue="comptes gelés" color="#60a5fa" />
-                <KPICard icon={FlaskConical} label="Comptes test" value={s.trialAccounts || 0} subValue="non qualifiés" color="#a78bfa" />
-                <KPICard icon={BadgeDollarSign} label="Nouveaux payants" value={s.newPaidThisMonth || 0} subValue="abonnements ce mois" color="#34d399" />
             </div>
 
             {/* Two Columns Layout (responsive) */}

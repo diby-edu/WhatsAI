@@ -539,8 +539,8 @@ function ExpiryCell({ paidUntil, lifecycle }: { paidUntil: string | null, lifecy
                 <div style={{ color, fontWeight: isUrgent || isExpired ? 700 : 400 }}>
                     {date.toLocaleDateString('fr-FR')}
                 </div>
-                <div style={{ fontSize: 10, color: color, opacity: 0.8 }}>
-                    {isExpired ? 'Expiré' : `J-${daysLeft}`}
+                <div style={{ fontSize: 10, color: '#64748b' }}>
+                    {date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} · {isExpired ? <span style={{ color: '#f87171' }}>Expiré</span> : `J-${daysLeft}`}
                 </div>
             </div>
         </div>
