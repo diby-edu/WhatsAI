@@ -91,10 +91,10 @@ export async function POST(request: NextRequest) {
                 // Fallback: try to find in defaults if database table doesn't exist (prices in FCFA)
                 const defaultPacks = [
                     { id: 'boost_mini', credits: 200,   price: 3000 },
-                    { id: 'boost_s',    credits: 500,   price: 7000 },
-                    { id: 'boost_m',    credits: 2000,  price: 25000 },
-                    { id: 'boost_l',    credits: 5000,  price: 55000 },
-                    { id: 'boost_xl',   credits: 12000, price: 110000 },
+                    { id: 'boost_s',    credits: 400,   price: 7000 },
+                    { id: 'boost_m',    credits: 1800,  price: 25000 },
+                    { id: 'boost_l',    credits: 4500,  price: 55000 },
+                    { id: 'boost_xl',   credits: 11000, price: 110000 },
                 ]
                 const fallbackPack = defaultPacks.find(p => p.id === packId)
                 if (!fallbackPack) {
