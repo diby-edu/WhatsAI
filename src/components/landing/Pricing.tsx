@@ -5,7 +5,7 @@ import { Check, Zap, Crown, Sparkles, ArrowRight, Loader2, Rocket, Users, Credit
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import { formatPriceFromFcfa } from '@/lib/currency'
 
 interface Plan {
@@ -20,51 +20,6 @@ interface Plan {
 }
 
 type Currency = 'FCFA' | 'USD' | 'EUR'
-
-const COMMON_FEATURES = [
-    'Réponses automatiques 24/7',
-    'Base de connaissances personnalisée',
-    'Analytics et rapports',
-    'Qualification de leads',
-    'Historique illimité',
-    'Templates de messages',
-    'Support email inclus',
-]
-
-// Per-plan extras — expiration, renewal and bonus behaviors
-const PLAN_SPECIFIC_FEATURES: Record<string, { text: string; highlight?: boolean }[]> = {
-    free: [
-        { text: '10 crédits offerts une seule fois' },
-        { text: 'Accès 7 jours — aucune carte requise' },
-        { text: 'Sans abonnement après 7j : compte supprimé définitivement' },
-    ],
-    starter: [
-        { text: 'À l\'expiration : agents désactivés, crédits gelés' },
-        { text: '30 jours de grâce pour renouveler' },
-        { text: 'Au renouvellement : anciens crédits conservés + nouveaux crédits' },
-        { text: 'Sans renouvellement après 30j : compte supprimé définitivement' },
-    ],
-    pro: [
-        { text: 'À l\'expiration : agents désactivés, crédits gelés' },
-        { text: '30 jours de grâce pour renouveler' },
-        { text: 'Au renouvellement : anciens crédits conservés + nouveaux crédits' },
-        { text: 'Alerte à 85% de consommation mensuelle' },
-        { text: 'Sans renouvellement après 30j : compte supprimé définitivement' },
-    ],
-    business: [
-        { text: 'À l\'expiration : agents désactivés, crédits gelés' },
-        { text: '30 jours de grâce pour renouveler' },
-        { text: 'Au renouvellement : anciens crédits conservés + nouveaux crédits' },
-        { text: 'Alerte à 85% de consommation mensuelle' },
-        { text: 'Sans renouvellement après 30j : compte supprimé définitivement' },
-    ],
-    scale: [
-        { text: 'Rollover 20% crédits + 2 000 bonus à chaque renouvellement', highlight: true },
-        { text: 'Agents illimités — aucun archivage possible', highlight: true },
-        { text: 'Crédits toujours sécurisés tant que Scale est actif', highlight: true },
-        { text: 'Notification détaillée de votre bonus après chaque renouvellement', highlight: false },
-    ],
-}
 
 const planIcons: Record<string, any> = {
     'Gratuit': Zap,
@@ -94,7 +49,52 @@ const FALLBACK_PLANS: Plan[] = [
 
 export default function Pricing() {
     const t = useTranslations('Pricing')
+    const locale = useLocale()
     const router = useRouter()
+
+    const COMMON_FEATURES = [
+        t('commonFeature0'),
+        t('commonFeature1'),
+        t('commonFeature2'),
+        t('commonFeature3'),
+        t('commonFeature4'),
+        t('commonFeature5'),
+        t('commonFeature6'),
+    ]
+
+    const PLAN_SPECIFIC_FEATURES: Record<string, { text: string; highlight?: boolean }[]> = {
+        free: [
+            { text: t('planFeature_free_0') },
+            { text: t('planFeature_free_1') },
+            { text: t('planFeature_free_2') },
+        ],
+        starter: [
+            { text: t('planFeature_starter_0') },
+            { text: t('planFeature_starter_1') },
+            { text: t('planFeature_starter_2') },
+            { text: t('planFeature_starter_3') },
+        ],
+        pro: [
+            { text: t('planFeature_pro_0') },
+            { text: t('planFeature_pro_1') },
+            { text: t('planFeature_pro_2') },
+            { text: t('planFeature_pro_3') },
+            { text: t('planFeature_pro_4') },
+        ],
+        business: [
+            { text: t('planFeature_business_0') },
+            { text: t('planFeature_business_1') },
+            { text: t('planFeature_business_2') },
+            { text: t('planFeature_business_3') },
+            { text: t('planFeature_business_4') },
+        ],
+        scale: [
+            { text: t('planFeature_scale_0'), highlight: true },
+            { text: t('planFeature_scale_1'), highlight: true },
+            { text: t('planFeature_scale_2'), highlight: true },
+            { text: t('planFeature_scale_3'), highlight: false },
+        ],
+    }
     const [isYearly, setIsYearly] = useState(false)
     const [currency, setCurrency] = useState<Currency>('FCFA')
     const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -373,7 +373,7 @@ export default function Pricing() {
                                         alignSelf: 'flex-start'
                                     }}>
                                         <span style={{ fontSize: 11, color: '#fbbf24', fontWeight: 700 }}>
-                                            ⭐ Crédits conservés + 20% bonus • +2 000 crédits/mois
+                                            {t('scaleBadge')}
                                         </span>
                                     </div>
                                 )}
@@ -432,15 +432,15 @@ export default function Pricing() {
                                 }}>
                                     <div style={{ textAlign: 'center' }}>
                                         <div style={{ fontSize: 22, fontWeight: 800, color: 'white', lineHeight: 1.1 }}>
-                                            {plan.credits.toLocaleString('fr-FR')}
+                                            {plan.credits.toLocaleString(locale)}
                                         </div>
                                         <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
                                             <CreditCard size={9} />
-                                            crédits
+                                            {t('quotaCredits')}
                                         </div>
                                         {plan.id !== 'free' && (
                                             <div style={{ fontSize: 9, color: plan.id === 'scale' ? '#a78bfa' : '#64748b', marginTop: 2 }}>
-                                                {plan.id === 'scale' ? 'Rollover 20% + bonus' : 'Gelés 30j à expir.'}
+                                                {plan.id === 'scale' ? t('quotaRollover') : t('quotaFrozen')}
                                             </div>
                                         )}
                                     </div>
@@ -450,7 +450,7 @@ export default function Pricing() {
                                         </div>
                                         <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
                                             <Users size={9} />
-                                            agents
+                                            {t('quotaAgents')}
                                         </div>
                                     </div>
                                 </div>
@@ -602,7 +602,7 @@ export default function Pricing() {
                     }}
                 >
                     <h4 style={{ fontSize: 15, fontWeight: 700, color: 'white', marginBottom: 20, textAlign: 'center' }}>
-                        ⚡ Ce qui se passe à l'expiration &amp; au renouvellement
+                        {t('explainerTitle')}
                     </h4>
                     <div style={{
                         display: 'grid',
@@ -617,18 +617,12 @@ export default function Pricing() {
                             border: '1px solid rgba(239, 68, 68, 0.15)'
                         }}>
                             <div style={{ fontSize: 13, fontWeight: 700, color: '#f87171', marginBottom: 10 }}>
-                                📉 À l'expiration
+                                {t('explainerExpirationTitle')}
                             </div>
-                            {[
-                                'Compte en période de grâce de 30 jours',
-                                'Crédits gelés (protégés) — non perdus immédiatement',
-                                'Tous les agents archivés (non supprimés)',
-                                'Aucune nouvelle conversation traitée pendant la grâce',
-                                'Données conservées — rien n\'est supprimé',
-                            ].map((item, i) => (
+                            {[0, 1, 2, 3, 4].map((i) => (
                                 <div key={i} style={{ fontSize: 12, color: '#94a3b8', marginBottom: 6, display: 'flex', gap: 6 }}>
                                     <span style={{ color: '#f87171', flexShrink: 0 }}>•</span>
-                                    {item}
+                                    {t(`explainerExpirationItem${i}` as any)}
                                 </div>
                             ))}
                         </div>
@@ -641,18 +635,12 @@ export default function Pricing() {
                             border: '1px solid rgba(34, 197, 94, 0.15)'
                         }}>
                             <div style={{ fontSize: 13, fontWeight: 700, color: '#4ade80', marginBottom: 10 }}>
-                                🔄 Au renouvellement (dans les 30j)
+                                {t('explainerRenewalTitle')}
                             </div>
-                            {[
-                                'Crédits gelés réactivés pleinement',
-                                'Anciens crédits + nouveaux crédits cumulés',
-                                'Plan restauré avec les quotas du plan choisi',
-                                'Agents archivés récupérables immédiatement',
-                                'Si >30j sans renouvellement : compte supprimé définitivement',
-                            ].map((item, i) => (
+                            {[0, 1, 2, 3, 4].map((i) => (
                                 <div key={i} style={{ fontSize: 12, color: '#94a3b8', marginBottom: 6, display: 'flex', gap: 6 }}>
                                     <span style={{ color: '#4ade80', flexShrink: 0 }}>•</span>
-                                    {item}
+                                    {t(`explainerRenewalItem${i}` as any)}
                                 </div>
                             ))}
                         </div>
@@ -665,18 +653,12 @@ export default function Pricing() {
                             border: '1px solid rgba(139, 92, 246, 0.25)'
                         }}>
                             <div style={{ fontSize: 13, fontWeight: 700, color: '#a78bfa', marginBottom: 10 }}>
-                                ⭐ Avantages exclusifs Scale
+                                {t('explainerScaleTitle')}
                             </div>
-                            {[
-                                'Rollover 20% des crédits non utilisés à chaque renouvellement',
-                                '+2 000 crédits bonus offerts chaque mois',
-                                'Crédits toujours sécurisés tant que Scale est actif',
-                                'Agents illimités — aucun archivage possible',
-                                'Notification de votre bonus de rollover après chaque renouvellement',
-                            ].map((item, i) => (
+                            {[0, 1, 2, 3, 4].map((i) => (
                                 <div key={i} style={{ fontSize: 12, color: '#94a3b8', marginBottom: 6, display: 'flex', gap: 6 }}>
                                     <span style={{ color: '#a78bfa', flexShrink: 0 }}>•</span>
-                                    {item}
+                                    {t(`explainerScaleItem${i}` as any)}
                                 </div>
                             ))}
                         </div>

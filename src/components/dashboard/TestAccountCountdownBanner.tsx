@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, ArrowRight, ChevronDown, ChevronUp, Clock4, ShieldAlert } from 'lucide-react'
 import Link from 'next/link'
+import { useTranslations, useLocale } from 'next-intl'
 
 type BannerMode = 'test' | 'frozen_grace' | 'inactive'
 
@@ -38,6 +39,9 @@ export function TestAccountCountdownBanner({
     hasUnusedCredits = false,
     isTestGraceMode = false,
 }: TestAccountBannerProps) {
+    const t = useTranslations('TestAccountBanner')
+    const locale = useLocale()
+
     const deadlineMs = cleanupDeadline ? new Date(cleanupDeadline).getTime() : null
     const [remainingMs, setRemainingMs] = useState(() => deadlineMs ? Math.max(0, deadlineMs - Date.now()) : 0)
     const [isMobile, setIsMobile] = useState(false)
@@ -70,7 +74,7 @@ export function TestAccountCountdownBanner({
 
     const countdown = useMemo(() => formatRemainingDuration(remainingMs), [remainingMs])
     const formattedDeadline = cleanupDeadline
-        ? new Date(cleanupDeadline).toLocaleString('fr-FR', {
+        ? new Date(cleanupDeadline).toLocaleString(locale, {
             day: '2-digit',
             month: 'long',
             year: 'numeric',
@@ -102,76 +106,76 @@ export function TestAccountCountdownBanner({
     // ─── Badge ───────────────────────────────────────────────────────────────
     const badgeLabel = isPaidGraceBanner
         ? (isTestGraceWithCredits
-            ? 'Credits en attente'
+            ? t('badgeCreditsOnHold')
             : isTestGraceNoCredits
-                ? 'Essai expire'
-                : 'Abonnement expire')
+                ? t('badgeTrialExpired')
+                : t('badgeSubscriptionExpired'))
         : isPaidExpiredBanner
-            ? (isTestGraceMode ? 'Acces bloque' : 'Paiement requis')
+            ? (isTestGraceMode ? t('badgeAccessBlocked') : t('badgePaymentRequired'))
             : isExpiredSubscriber
-                ? 'Abonnement expire'
+                ? t('badgeSubscriptionExpired')
                 : isExpired
-                    ? 'Action requise'
-                    : 'Compte test'
+                    ? t('badgeActionRequired')
+                    : t('badgeTestAccount')
 
     // ─── Titre ───────────────────────────────────────────────────────────────
     const title = isPaidGraceBanner
         ? (isTestGraceWithCredits
-            ? `Credits en attente — souscrivez avant le ${formattedDeadline}`
+            ? t('titleTestGraceCredits', { deadline: formattedDeadline })
             : isTestGraceNoCredits
-                ? `Periode d'essai terminee — souscrivez avant le ${formattedDeadline}`
-                : `Abonnement expire — regularisez avant le ${formattedDeadline}`)
+                ? t('titleTestGraceNoCredits', { deadline: formattedDeadline })
+                : t('titleSubscriptionGrace', { deadline: formattedDeadline }))
         : isPaidExpiredBanner
             ? (isTestGraceMode
-                ? 'Compte bloque — un abonnement est requis'
-                : `Abonnement expire depuis plus de ${graceDays} jours — paiement requis`)
+                ? t('titleTestBlocked')
+                : t('titleSubscriptionExpiredLong', { graceDays }))
             : isExpiredSubscriber
-                ? `Abonnement expire — compte supprime le ${formattedDeadline}`
+                ? t('titleSubscriberExpired', { deadline: formattedDeadline })
                 : isExpired
-                    ? 'Periode d\'essai terminee — suppression imminente'
+                    ? t('titleTrialExpired')
                     : emphasizeWelcome
-                        ? `Bienvenue — votre periode d'essai expire le ${formattedDeadline}`
-                        : `Compte en periode d'essai — suppression le ${formattedDeadline}`
+                        ? t('titleTrialWelcome', { deadline: formattedDeadline })
+                        : t('titleTrialDefault', { deadline: formattedDeadline })
 
     // ─── Description ─────────────────────────────────────────────────────────
     const description = isPaidGraceBanner
         ? (isTestGraceWithCredits
-            ? `Vous avez des credits que vous avez achetes pendant votre essai. Ces credits sont actuellement geles. Souscrivez un abonnement avant le ${formattedDeadline} pour les recuperer et commencer a les utiliser. Passe cette date, votre compte et vos credits seront definitvement supprimes.`
+            ? t('descTestGraceCredits', { deadline: formattedDeadline })
             : isTestGraceNoCredits
-                ? `Votre periode d'essai de 7 jours est terminee. Vous disposez de 30 jours jusqu'au ${formattedDeadline} pour souscrire un abonnement et conserver votre compte. Passe cette date, votre compte sera definitivement supprime.`
-                : `Votre abonnement a expire. Tous vos agents sont desactives et vos credits sont geles. Renouvelez votre abonnement avant le ${formattedDeadline} pour reactiver vos agents et recuperer vos credits geles. Passe cette date, votre compte sera definitivement supprime.`)
+                ? t('descTestGraceNoCredits', { deadline: formattedDeadline })
+                : t('descSubscriptionGrace', { deadline: formattedDeadline }))
         : isPaidExpiredBanner
             ? (isTestGraceMode
-                ? `Votre periode d'essai est definitivement expirée. Sans abonnement actif, la creation d'agents, la connexion WhatsApp et l'utilisation des credits sont bloquees.`
-                : `Votre abonnement a expire depuis plus de ${graceDays} jours et votre periode de grace est ecoulee. La creation d'agents, les reactivations et les connexions WhatsApp sont bloquees. Un nouveau paiement est requis pour restaurer l'acces.`)
-        : isExpiredSubscriber
-            ? `Votre abonnement a expire. Tous vos agents sont desactives et vos credits sont geles. Renouvelez avant le ${formattedDeadline} pour reactiver vos agents et recuperer vos credits geles.`
-            : isExpired
-                ? `Votre periode d'essai de 7 jours est ecoulee. Ce compte sera supprime tres prochainement avec toutes vos donnees. Souscrivez immediatement pour le conserver.`
-                : `Votre compte est en periode d'essai gratuite. Sans abonnement, ce compte et toutes vos donnees seront definitivement supprimes le ${formattedDeadline}. Cette action est irreversible.`
+                ? t('descTestBlocked')
+                : t('descSubscriptionExpiredLong', { graceDays }))
+            : isExpiredSubscriber
+                ? t('descSubscriberExpired', { deadline: formattedDeadline })
+                : isExpired
+                    ? t('descTrialExpired')
+                    : t('descTrialDefault', { deadline: formattedDeadline })
 
     // ─── Sous-message crédits (compte test actif avec crédits achetés) ───────
     const creditsSubMessage = !isPaidBanner && !isExpiredSubscriber && !isExpired && hasUnusedCredits
-        ? 'Vous avez des credits en attente. Ils seront disponibles des la souscription a un abonnement.'
+        ? t('creditsSubMessage')
         : null
 
     // ─── Action line ─────────────────────────────────────────────────────────
     const actionLine = isTestGraceWithCredits
-        ? 'Souscrivez un abonnement pour recuperer vos credits et les utiliser immediatement.'
+        ? t('actionTestGraceCredits')
         : isTestGraceNoCredits
-            ? 'Souscrivez un abonnement pour conserver votre compte et vos donnees avant expiration.'
+            ? t('actionTestGraceNoCredits')
             : isPaidBanner
-                ? 'Renouvelez votre abonnement pour reactiver vos agents et restaurer vos credits geles.'
+                ? t('actionRenew')
                 : isExpiredSubscriber
-                    ? 'Renouvelez votre abonnement pour recuperer vos credits et reactiver vos agents.'
+                    ? t('actionSubscriberExpired')
                     : hasUnusedCredits
-                        ? 'Souscrivez un abonnement pour conserver votre compte et utiliser vos credits.'
-                        : 'Souscrivez un abonnement pour conserver votre compte et vos donnees.'
+                        ? t('actionWithCredits')
+                        : t('actionDefault')
 
     // ─── CTA ─────────────────────────────────────────────────────────────────
     const ctaLabel = isTestGraceMode || !isPaidBanner && !isExpiredSubscriber
-        ? 'Choisir un abonnement'
-        : 'Renouveler maintenant'
+        ? t('ctaSubscribe')
+        : t('ctaRenew')
 
     const ctaBg = isTestGraceMode || (!isPaidBanner && !isExpiredSubscriber)
         ? 'linear-gradient(135deg, #25D366, #128C7E)'
@@ -180,7 +184,9 @@ export function TestAccountCountdownBanner({
         ? '0 4px 14px rgba(37, 211, 102, 0.35)'
         : '0 4px 14px rgba(239, 68, 68, 0.35)'
 
-    const mobileCTALabel = isTestGraceMode || (!isPaidBanner && !isExpiredSubscriber) ? 'Souscrire' : 'Renouveler'
+    const mobileCTALabel = isTestGraceMode || (!isPaidBanner && !isExpiredSubscriber)
+        ? t('ctaSubscribeMobile')
+        : t('ctaRenewMobile')
 
     const countdownInline = `${String(countdown.days).padStart(2, '0')}j ${String(countdown.hours).padStart(2, '0')}h ${String(countdown.minutes).padStart(2, '0')}m ${String(countdown.seconds).padStart(2, '0')}s`
 
@@ -287,10 +293,10 @@ export function TestAccountCountdownBanner({
                     {shouldRenderCountdown && (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))', gap: 10, maxWidth: 460 }}>
                             {[
-                                { label: 'Jours', value: countdown.days },
-                                { label: 'Heures', value: countdown.hours },
-                                { label: 'Minutes', value: countdown.minutes },
-                                { label: 'Secondes', value: countdown.seconds },
+                                { label: t('countdownDays'), value: countdown.days },
+                                { label: t('countdownHours'), value: countdown.hours },
+                                { label: t('countdownMinutes'), value: countdown.minutes },
+                                { label: t('countdownSeconds'), value: countdown.seconds },
                             ].map((item) => (
                                 <div key={item.label} style={{ padding: '12px 10px', borderRadius: 14, background: 'rgba(15, 23, 42, 0.55)', border: '1px solid rgba(148, 163, 184, 0.12)', textAlign: 'center' }}>
                                     <div style={{ color: 'white', fontSize: 24, fontWeight: 800, lineHeight: 1 }}>
