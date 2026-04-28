@@ -90,7 +90,7 @@ export default function DashboardPage() {
                         value = (s.plan || 'Free').toUpperCase()
                         if (s.subscriptionExpiry) {
                             const date = new Date(s.subscriptionExpiry)
-                            change = `Exp: ${date.toLocaleDateString()}`
+                            change = `Échéance : ${date.toLocaleDateString('fr-FR')}`
                             positive = true
                         }
                     }
