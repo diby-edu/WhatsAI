@@ -803,6 +803,7 @@ function BillingContent() {
     const currentPlan = userData?.plan || 'free'
     const usagePct = creditsIncluded > 0 ? Math.min(Math.round((creditsUsed / creditsIncluded) * 100), 100) : 0
     const progressColor = usagePct >= 85 ? '#ef4444' : usagePct >= 75 ? '#f59e0b' : '#34d399'
+    const boostCredits = Math.max(0, creditsBalance - Math.max(0, creditsIncluded - creditsUsed))
     const isScalePlan = currentPlan === 'scale'
 
     return (
@@ -1178,9 +1179,9 @@ function BillingContent() {
                     }}
                 >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                        <span style={{ fontSize: 13, color: '#94a3b8' }}>Utilisation ce mois</span>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: progressColor }}>
-                            {creditsUsed.toLocaleString()} / {creditsIncluded.toLocaleString()} crédits ({usagePct}%)
+                        <span style={{ fontSize: 13, color: '#94a3b8' }}>Solde disponible</span>
+                        <span style={{ fontSize: 15, fontWeight: 700, color: '#34d399' }}>
+                            {creditsBalance.toLocaleString()} crédits
                         </span>
                     </div>
                     <div style={{ height: 8, borderRadius: 4, background: 'rgba(148, 163, 184, 0.15)', overflow: 'hidden' }}>
@@ -1192,8 +1193,18 @@ function BillingContent() {
                             transition: 'width 0.5s ease'
                         }} />
                     </div>
+                    <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 12, color: '#64748b' }}>
+                            {creditsUsed.toLocaleString()} / {creditsIncluded.toLocaleString()} utilisés ce mois ({usagePct}%)
+                        </span>
+                        {boostCredits > 0 && (
+                            <span style={{ fontSize: 12, color: '#fbbf24', fontWeight: 600 }}>
+                                · dont {boostCredits.toLocaleString()} crédits Boost
+                            </span>
+                        )}
+                    </div>
                     {usagePct >= 85 && !isScalePlan && (
-                        <div style={{ marginTop: 10, fontSize: 12, color: '#ef4444', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <div style={{ marginTop: 8, fontSize: 12, color: '#ef4444', display: 'flex', alignItems: 'center', gap: 6 }}>
                             <AlertCircle style={{ width: 14, height: 14 }} />
                             85% atteint — <a href="/dashboard/billing" style={{ color: '#ef4444', textDecoration: 'underline' }}>Passez au plan supérieur</a>
                         </div>
