@@ -303,7 +303,16 @@ export default function AdminDashboard() {
                 <KPI icon={Wallet} label="ARR projeté" value={fcfa(s.mrr * 12)} sub="MRR × 12" color="#6366f1" />
             </div>
 
-            {/* ── SECTION 2 : SANTÉ CLIENTS ───────────────────────────── */}
+            {/* ── SECTION 2 : ENGAGEMENT PRODUIT ──────────────────────── */}
+            <SectionLabel>Engagement produit</SectionLabel>
+            <div className="kpi-grid">
+                <KPI icon={Bot} label="Agents connectés" value={`${s.connectedAgents}/${s.totalAgents}`} sub={`${s.activeAgents} actifs (7j)`} color="#8b5cf6" />
+                <KPI icon={Activity} label="Taux d'activation" value={pct(s.agentActivationRate)} sub="payants avec 1 agent live" color="#06b6d4" />
+                <KPI icon={MessageSquare} label="Messages" value={s.totalMessages.toLocaleString('fr-FR')} sub={`+${s.messagesToday} aujourd'hui`} color="#0ea5e9" />
+                <KPI icon={Phone} label="Leads captés" value={String(s.leadsThisMonth)} sub="ce mois" color="#ec4899" />
+            </div>
+
+            {/* ── SECTION 3 : SANTÉ CLIENTS ───────────────────────────── */}
             <SectionLabel>Santé clients · alertes</SectionLabel>
             <div className="kpi-grid">
                 <AlertKPI icon={TrendingUp} label="Churn rate mensuel" value={pct(s.churnRate)} sub={`${s.churnedCount} perdu${s.churnedCount !== 1 ? 's' : ''} ce mois`} level={churnAlert} />
@@ -312,22 +321,13 @@ export default function AdminDashboard() {
                 <AlertKPI icon={Target} label="Trial → Payant" value={pct(s.trialToPaidRate)} sub={`cible : 20%`} level={conversionAlert} />
             </div>
 
-            {/* ── SECTION 3 : FUNNEL D'ACQUISITION ────────────────────── */}
+            {/* ── SECTION 4 : FUNNEL D'ACQUISITION ────────────────────── */}
             <SectionLabel>Funnel d'acquisition</SectionLabel>
             <div className="kpi-grid">
                 <KPI icon={UserPlus} label="Total inscrits" value={String(s.totalUsers)} sub={`+${s.newUsersToday} aujourd'hui`} color="#3b82f6" trend={s.userGrowth} />
                 <KPI icon={FlaskConical} label="Comptes test actifs" value={String(s.trialAccounts)} sub="non qualifiés" color="#a78bfa" />
                 <KPI icon={CreditCard} label="Nouveaux payants" value={String(s.newPaidThisMonth)} sub="abonnements ce mois" color="#34d399" />
                 <KPI icon={Flame} label="Rétention estimée" value={s.churnRate > 0 ? `${Math.round(1 / (s.churnRate / 100))} mois` : '12+ mois'} sub="durée moyenne client" color="#f97316" />
-            </div>
-
-            {/* ── SECTION 4 : ENGAGEMENT PRODUIT ──────────────────────── */}
-            <SectionLabel>Engagement produit</SectionLabel>
-            <div className="kpi-grid">
-                <KPI icon={Bot} label="Agents connectés" value={`${s.connectedAgents}/${s.totalAgents}`} sub={`${s.activeAgents} actifs (7j)`} color="#8b5cf6" />
-                <KPI icon={Activity} label="Taux d'activation" value={pct(s.agentActivationRate)} sub="payants avec 1 agent live" color="#06b6d4" />
-                <KPI icon={MessageSquare} label="Messages" value={s.totalMessages.toLocaleString('fr-FR')} sub={`+${s.messagesToday} aujourd'hui`} color="#0ea5e9" />
-                <KPI icon={Phone} label="Leads captés" value={String(s.leadsThisMonth)} sub="ce mois" color="#ec4899" />
             </div>
 
             {/* ── SECTION 5 : OPÉRATIONNEL ────────────────────────────── */}
