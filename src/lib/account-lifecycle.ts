@@ -37,7 +37,7 @@ export type AccountLifecycleState = {
     remainingGraceMs: number | null
 }
 
-export type AccountLifecycleBannerMode = 'test' | 'paid_grace' | 'paid_expired'
+export type AccountLifecycleBannerMode = 'test' | 'frozen_grace' | 'inactive'
 
 export type AccountLifecycleAccessState = {
     lifecycle: AccountLifecycleState
@@ -134,7 +134,7 @@ export function buildAccountLifecycleAccessState(
             lifecycle,
             hasPaidWindowHistory,
             shouldBlockAgentProvisioning: true,
-            bannerMode: 'paid_grace',
+            bannerMode: 'frozen_grace',
         }
     }
 
@@ -143,7 +143,7 @@ export function buildAccountLifecycleAccessState(
             lifecycle,
             hasPaidWindowHistory,
             shouldBlockAgentProvisioning: true,
-            bannerMode: 'paid_expired',
+            bannerMode: 'inactive',
         }
     }
 
@@ -169,7 +169,7 @@ export function getAccountLifecycleBlockMessage(
             ? 'reactiver cet agent'
             : 'connecter WhatsApp'
 
-    if (accessState.bannerMode === 'paid_grace') {
+    if (accessState.bannerMode === 'frozen_grace') {
         const hasPaidHistory = Boolean(accessState.lifecycle.paidUntil)
         if (hasPaidHistory) {
             return `Votre abonnement a expire. Renouvelez votre abonnement pour ${actionText}.`
