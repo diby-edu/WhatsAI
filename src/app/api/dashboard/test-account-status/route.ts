@@ -30,14 +30,14 @@ export async function GET() {
         }
 
         const bannerMode = state.lifecycleAccess?.bannerMode || null
-        const isPaidBanner = bannerMode === 'paid_grace' || bannerMode === 'paid_expired'
+        const isPaidBanner = bannerMode === 'frozen_grace' || bannerMode === 'inactive'
         const bannerDeadline = isPaidBanner
             ? (state.lifecycleAccess?.lifecycle.graceUntil || null)
             : state.cleanupDeadline
-        const showCountdown = bannerMode === 'paid_grace'
+        const showCountdown = bannerMode === 'frozen_grace'
             ? true
             : state.showCountdown
-        const remainingMs = bannerMode === 'paid_grace'
+        const remainingMs = bannerMode === 'frozen_grace'
             ? state.lifecycleAccess?.lifecycle.remainingGraceMs ?? null
             : state.remainingMs
 
@@ -54,7 +54,7 @@ export async function GET() {
 
         // Compte test entré en frozen_grace via achat de crédits (jamais eu d'abonnement)
         // paid_until null = jamais souscrit
-        const isTestGraceMode = bannerMode === 'paid_grace'
+        const isTestGraceMode = bannerMode === 'frozen_grace'
             && !state.lifecycleAccess?.lifecycle.paidUntil
 
         return successResponse({

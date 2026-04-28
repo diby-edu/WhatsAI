@@ -102,6 +102,7 @@ function BillingContent() {
     const [creditsIncluded, setCreditsIncluded] = useState<number>(0)
     const [creditsFrozenAt, setCreditsFrozenAt] = useState<string | null>(null)
     const [creditsExpireAt, setCreditsExpireAt] = useState<string | null>(null)
+    const [lifecycleStatus, setLifecycleStatus] = useState<string | null>(null)
     const [payments, setPayments] = useState<Payment[]>([])
     const [subscriptionHistory, setSubscriptionHistory] = useState<any[]>([])
     const [plans, setPlans] = useState<Plan[]>([])
@@ -403,11 +404,12 @@ function BillingContent() {
 
                 const { data: profileExtra } = await supabase
                     .from('profiles')
-                    .select('credits_frozen_at, credits_expire_at')
+                    .select('credits_frozen_at, credits_expire_at, account_lifecycle_status')
                     .eq('id', user.id)
                     .single()
                 setCreditsFrozenAt(profileExtra?.credits_frozen_at || null)
                 setCreditsExpireAt(profileExtra?.credits_expire_at || null)
+                setLifecycleStatus(profileExtra?.account_lifecycle_status || null)
             }
         } catch (err) {
             console.error('Error fetching data:', err)
@@ -1148,9 +1150,15 @@ function BillingContent() {
                             <div style={{ fontSize: 18, fontWeight: 700, color: subscriptionEnd ? 'white' : '#64748b' }}>
                                 {subscriptionEnd
                                     ? new Date(subscriptionEnd).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
-                                    : currentPlan !== 'free'
-                                        ? 'Géré manuellement'
-                                        : 'Plan gratuit'}
+                                    : currentPlan === 'free'
+                                        ? 'Plan gratuit'
+                                        : lifecycleStatus === null
+                                            ? 'Compte test'
+                                            : lifecycleStatus === 'frozen_grace'
+                                                ? 'En période de grâce'
+                                                : lifecycleStatus === 'inactive'
+                                                    ? 'Compte suspendu'
+                                                    : 'Géré manuellement'}
                             </div>
                         </div>
                     </div>
@@ -1371,9 +1379,9 @@ function BillingContent() {
                                             </>
                                         )}
                                     </motion.button>
-                                    {isCurrentDisplayedPlan && (
+                                    {isCurrentDisplayedPlan && subscriptionEnd && new Date(subscriptionEnd) > new Date() && (
                                         <div style={{ marginTop: 8, fontSize: 11, color: '#93c5fd' }}>
-                                            Plan actif. Renouvellement anticipe autorise.
+                                            Plan actif. Renouvellement anticipé autorisé.
                                         </div>
                                     )}
                                 </motion.div>

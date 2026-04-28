@@ -47,7 +47,7 @@ import { unregisterCurrentDeviceToken } from '@/lib/notifications/device-token-c
 import { TestAccountCountdownBanner } from '@/components/dashboard/TestAccountCountdownBanner'
 
 type TestAccountBannerState = {
-    bannerMode: 'test' | 'paid_grace' | 'paid_expired' | null
+    bannerMode: 'test' | 'frozen_grace' | 'inactive' | null
     isTestAccount: boolean
     showCountdown: boolean
     isExpired: boolean

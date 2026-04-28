@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, ArrowRight, ChevronDown, ChevronUp, Clock4, ShieldAlert } from 'lucide-react'
 import Link from 'next/link'
 
-type BannerMode = 'test' | 'paid_grace' | 'paid_expired'
+type BannerMode = 'test' | 'frozen_grace' | 'inactive'
 
 type TestAccountBannerProps = {
     bannerMode?: BannerMode | null
@@ -43,8 +43,8 @@ export function TestAccountCountdownBanner({
     const [isMobile, setIsMobile] = useState(false)
     const [expanded, setExpanded] = useState(false)
 
-    const isPaidGraceBanner = bannerMode === 'paid_grace'
-    const isPaidExpiredBanner = bannerMode === 'paid_expired'
+    const isPaidGraceBanner = bannerMode === 'frozen_grace'
+    const isPaidExpiredBanner = bannerMode === 'inactive'
     const isPaidBanner = isPaidGraceBanner || isPaidExpiredBanner
     const shouldRenderCountdown = showCountdown || isPaidGraceBanner
 
