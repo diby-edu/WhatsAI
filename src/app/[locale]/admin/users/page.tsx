@@ -569,7 +569,7 @@ function StatusBadge({ status, lifecycle }: { status: string, lifecycle: string 
     if (status !== 'active') {
         return <span style={{ padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: 'rgba(239,68,68,0.15)', color: '#f87171' }}>Suspendu</span>
     }
-    if (!lifecycle) {
+    if (lifecycle === 'test' || !lifecycle) {
         return <span style={{ padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: 'rgba(148,163,184,0.15)', color: '#94a3b8' }}>Test</span>
     }
     return <span style={{ padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: 'rgba(34,197,94,0.15)', color: '#4ade80' }}>Actif</span>
