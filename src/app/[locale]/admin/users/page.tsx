@@ -53,7 +53,8 @@ export default function AdminUsersPage() {
     // Map frontend field names → DB column names
     const fieldToCol: Record<string, string> = {
         name: 'full_name', email: 'email', plan: 'plan',
-        credits: 'credits_balance', status: 'is_active', created: 'created_at'
+        credits: 'credits_balance', status: 'is_active', created: 'created_at',
+        expiry: 'paid_until'
     }
 
     // Debounce search — attend 400ms après la dernière frappe avant de requêter
@@ -287,7 +288,7 @@ export default function AdminUsersPage() {
                                     { label: 'Plan', field: 'plan' },
                                     { label: 'Crédits', field: 'credits' },
                                     { label: 'Statut', field: 'status' },
-                                    { label: 'Échéance', field: null },
+                                    { label: 'Échéance', field: 'expiry' },
                                     { label: 'Inscrit le', field: 'created' },
                                     { label: 'Actions', field: null }
                                 ] as { label: string; field: string | null }[]).map(({ label, field }) => (
@@ -360,7 +361,7 @@ export default function AdminUsersPage() {
                                             {(u.credits || 0).toLocaleString('fr-FR')}
                                         </td>
                                         <td style={{ padding: '12px 16px' }}>
-                                            <StatusBadge status={u.status} />
+                                            <StatusBadge status={u.status} lifecycle={u.lifecycle} />
                                         </td>
                                         <td style={{ padding: '12px 16px' }}>
                                             <ExpiryCell paidUntil={u.paid_until} lifecycle={u.lifecycle} />
@@ -557,17 +558,21 @@ function PlanBadge({ plan }: { plan: string }) {
     return <span style={{ padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: c.bg, color: c.text }}>{plan}</span>
 }
 
-function StatusBadge({ status }: { status: string }) {
-    const active = status === 'active'
-    return (
-        <span style={{
-            padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600,
-            background: active ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-            color: active ? '#4ade80' : '#f87171'
-        }}>
-            {active ? 'Actif' : 'Suspendu'}
-        </span>
-    )
+function StatusBadge({ status, lifecycle }: { status: string, lifecycle: string | null }) {
+    // lifecycle prime sur is_active pour refléter la réalité abonnement
+    if (lifecycle === 'frozen_grace') {
+        return <span style={{ padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: 'rgba(96,165,250,0.15)', color: '#60a5fa' }}>En grâce</span>
+    }
+    if (lifecycle === 'inactive') {
+        return <span style={{ padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: 'rgba(239,68,68,0.15)', color: '#f87171' }}>Inactif</span>
+    }
+    if (status !== 'active') {
+        return <span style={{ padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: 'rgba(239,68,68,0.15)', color: '#f87171' }}>Suspendu</span>
+    }
+    if (!lifecycle) {
+        return <span style={{ padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: 'rgba(148,163,184,0.15)', color: '#94a3b8' }}>Test</span>
+    }
+    return <span style={{ padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: 'rgba(34,197,94,0.15)', color: '#4ade80' }}>Actif</span>
 }
 
 function EditUserModal({ user, onClose, onSave, onSetCredits, onAddCredits, onSubtractCredits, onChangeRole }: {

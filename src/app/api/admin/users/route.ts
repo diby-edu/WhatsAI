@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     // Sort params
     const sortByRaw = searchParams.get('sortBy') || 'created_at'
     const sortDir = searchParams.get('sortDir') === 'asc'
-    const allowedSortCols = ['created_at', 'full_name', 'email', 'plan', 'credits_balance', 'is_active']
+    const allowedSortCols = ['created_at', 'full_name', 'email', 'plan', 'credits_balance', 'is_active', 'paid_until']
     const sortBy = allowedSortCols.includes(sortByRaw) ? sortByRaw : 'created_at'
 
     // Export all emails
