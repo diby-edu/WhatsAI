@@ -118,41 +118,43 @@ export function TestAccountCountdownBanner({
                     ? t('badgeActionRequired')
                     : t('badgeTestAccount')
 
+    const dl = formattedDeadline ?? ''
+
     // ─── Titre ───────────────────────────────────────────────────────────────
     const title = isPaidGraceBanner
         ? (isTestGraceWithCredits
-            ? t('titleTestGraceCredits', { deadline: formattedDeadline })
+            ? t('titleTestGraceCredits', { deadline: dl })
             : isTestGraceNoCredits
-                ? t('titleTestGraceNoCredits', { deadline: formattedDeadline })
-                : t('titleSubscriptionGrace', { deadline: formattedDeadline }))
+                ? t('titleTestGraceNoCredits', { deadline: dl })
+                : t('titleSubscriptionGrace', { deadline: dl }))
         : isPaidExpiredBanner
             ? (isTestGraceMode
                 ? t('titleTestBlocked')
                 : t('titleSubscriptionExpiredLong', { graceDays }))
             : isExpiredSubscriber
-                ? t('titleSubscriberExpired', { deadline: formattedDeadline })
+                ? t('titleSubscriberExpired', { deadline: dl })
                 : isExpired
                     ? t('titleTrialExpired')
                     : emphasizeWelcome
-                        ? t('titleTrialWelcome', { deadline: formattedDeadline })
-                        : t('titleTrialDefault', { deadline: formattedDeadline })
+                        ? t('titleTrialWelcome', { deadline: dl })
+                        : t('titleTrialDefault', { deadline: dl })
 
     // ─── Description ─────────────────────────────────────────────────────────
     const description = isPaidGraceBanner
         ? (isTestGraceWithCredits
-            ? t('descTestGraceCredits', { deadline: formattedDeadline })
+            ? t('descTestGraceCredits', { deadline: dl })
             : isTestGraceNoCredits
-                ? t('descTestGraceNoCredits', { deadline: formattedDeadline })
-                : t('descSubscriptionGrace', { deadline: formattedDeadline }))
+                ? t('descTestGraceNoCredits', { deadline: dl })
+                : t('descSubscriptionGrace', { deadline: dl }))
         : isPaidExpiredBanner
             ? (isTestGraceMode
                 ? t('descTestBlocked')
                 : t('descSubscriptionExpiredLong', { graceDays }))
             : isExpiredSubscriber
-                ? t('descSubscriberExpired', { deadline: formattedDeadline })
+                ? t('descSubscriberExpired', { deadline: dl })
                 : isExpired
                     ? t('descTrialExpired')
-                    : t('descTrialDefault', { deadline: formattedDeadline })
+                    : t('descTrialDefault', { deadline: dl })
 
     // ─── Sous-message crédits (compte test actif avec crédits achetés) ───────
     const creditsSubMessage = !isPaidBanner && !isExpiredSubscriber && !isExpired && hasUnusedCredits
