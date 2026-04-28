@@ -1144,7 +1144,7 @@ function BillingContent() {
                             <Calendar style={{ width: 20, height: 20, color: '#fbbf24' }} />
                         </div>
                         <div>
-                            <div style={{ fontSize: 12, color: '#64748b' }}>Renouvellement</div>
+                            <div style={{ fontSize: 12, color: '#64748b' }}>Échéance</div>
                             <div style={{ fontSize: 18, fontWeight: 700, color: subscriptionEnd ? 'white' : '#64748b' }}>
                                 {subscriptionEnd
                                     ? new Date(subscriptionEnd).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
