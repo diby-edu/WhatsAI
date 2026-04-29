@@ -184,6 +184,28 @@ export default function AdminLogsPage() {
                 }
             })
 
+            // ── ADMIN ─────────────────────────────────────────────────────────
+            const { data: adminLogs } = await supabase
+                .from('admin_audit_logs')
+                .select('id, admin_id, action_type, target_type, target_id, metadata, created_at, profiles(email, full_name)')
+                .order('created_at', { ascending: false })
+                .limit(50)
+
+            adminLogs?.forEach((log: any) => {
+                if (now - new Date(log.created_at).getTime() < days30) {
+                    const isDestructive = ['delete', 'ban', 'suspend', 'reset'].some(k => log.action_type?.toLowerCase().includes(k))
+                    entries.push({
+                        id: `admin-${log.id}`,
+                        category: 'admin',
+                        type: isDestructive ? 'warning' : 'info',
+                        action: log.action_type || 'Action admin',
+                        user: log.profiles?.full_name || log.profiles?.email || `Admin ${log.admin_id?.substring(0, 8)}`,
+                        details: log.target_type ? `${log.target_type} · ${String(log.target_id || '').substring(0, 8)}` : undefined,
+                        date: log.created_at
+                    })
+                }
+            })
+
             entries.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
             setLogs(entries.slice(0, 200))
         } catch (err) {
