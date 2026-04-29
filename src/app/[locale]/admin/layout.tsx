@@ -845,7 +845,7 @@ export default function AdminLayout({
                                                 {link.label}
                                             </button>
                                         ))}
-                                    {adminLinks.filter(link => link.label.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
+                                    {adminGroups.flatMap(g => g.items).filter(link => link.label.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
                                         <div style={{ padding: '16px', textAlign: 'center', color: '#64748b', fontSize: 13 }}>
                                             Aucun résultat
                                         </div>
