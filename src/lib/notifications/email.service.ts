@@ -1,8 +1,33 @@
 import nodemailer from 'nodemailer'
+import { createAdminClient } from '@/lib/api-utils'
 
 // =============================================
 // Email Service - Sends transactional emails via SMTP (Hostinger)
 // =============================================
+
+async function logEmail(
+    userId: string | undefined,
+    email: string,
+    type: string,
+    subject: string,
+    status: 'sent' | 'failed',
+    failureReason?: string
+) {
+    try {
+        const adminSupabase = createAdminClient()
+        await adminSupabase.from('email_logs').insert({
+            user_id: userId ?? null,
+            email,
+            type,
+            subject,
+            status,
+            failure_reason: failureReason ?? null,
+            sent_at: status === 'sent' ? new Date().toISOString() : null,
+        })
+    } catch {
+        // Non-blocking — logging failure must never break email delivery
+    }
+}
 
 const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'smtp.hostinger.com',
@@ -103,34 +128,40 @@ function subscriptionExpiringTemplate(userName: string, planName: string, daysLe
 // Send Functions
 // =============================================
 
-export async function sendLowCreditsEmail(toEmail: string, userName: string, balance: number): Promise<boolean> {
+export async function sendLowCreditsEmail(toEmail: string, userName: string, balance: number, userId?: string): Promise<boolean> {
+    const subject = `⚠️ Crédits faibles — ${balance} crédits restants`
     try {
         await transporter.sendMail({
             from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
             to: toEmail,
-            subject: `⚠️ Crédits faibles — ${balance} crédits restants`,
+            subject,
             html: lowCreditsTemplate(userName, balance),
         })
         console.log(`📧 Low credits email sent to ${toEmail}`)
+        void logEmail(userId, toEmail, 'low_credits', subject, 'sent')
         return true
     } catch (error) {
         console.error('Failed to send low credits email:', error)
+        void logEmail(userId, toEmail, 'low_credits', subject, 'failed', String(error))
         return false
     }
 }
 
-export async function sendCreditsDepletedEmail(toEmail: string, userName: string): Promise<boolean> {
+export async function sendCreditsDepletedEmail(toEmail: string, userName: string, userId?: string): Promise<boolean> {
+    const subject = '🚨 Crédits épuisés — Votre agent est en pause'
     try {
         await transporter.sendMail({
             from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
             to: toEmail,
-            subject: '🚨 Crédits épuisés — Votre agent est en pause',
+            subject,
             html: creditsDepletedTemplate(userName),
         })
         console.log(`📧 Credits depleted email sent to ${toEmail}`)
+        void logEmail(userId, toEmail, 'credits_depleted', subject, 'sent')
         return true
     } catch (error) {
         console.error('Failed to send credits depleted email:', error)
+        void logEmail(userId, toEmail, 'credits_depleted', subject, 'failed', String(error))
         return false
     }
 }
@@ -140,19 +171,23 @@ export async function sendSubscriptionExpiringEmail(
     userName: string,
     planName: string,
     daysLeft: number,
-    expiryDate: string
+    expiryDate: string,
+    userId?: string
 ): Promise<boolean> {
+    const subject = `📅 Votre abonnement ${planName} expire dans ${daysLeft} jour${daysLeft > 1 ? 's' : ''}`
     try {
         await transporter.sendMail({
             from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
             to: toEmail,
-            subject: `📅 Votre abonnement ${planName} expire dans ${daysLeft} jour${daysLeft > 1 ? 's' : ''}`,
+            subject,
             html: subscriptionExpiringTemplate(userName, planName, daysLeft, expiryDate),
         })
         console.log(`📧 Subscription expiring email sent to ${toEmail}`)
+        void logEmail(userId, toEmail, 'subscription_expiring', subject, 'sent')
         return true
     } catch (error) {
         console.error('Failed to send subscription expiring email:', error)
+        void logEmail(userId, toEmail, 'subscription_expiring', subject, 'failed', String(error))
         return false
     }
 }
