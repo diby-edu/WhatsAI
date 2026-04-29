@@ -339,6 +339,24 @@ export async function finalizeHostedOrderPayment(
         if (isRestaurantDepositPayment) {
             await clearRestaurantConversationState(supabase, order.conversation_id)
         }
+
+        // 🔗 WEBHOOK: payment.received
+        try {
+            const { data: agentOwner } = await supabase
+                .from('agents').select('user_id').eq('id', order.agent_id).single()
+            if (agentOwner?.user_id) {
+                const { triggerWebhooks } = await import('@/lib/webhooks/webhook.service')
+                triggerWebhooks(agentOwner.user_id, 'payment.received', {
+                    order_id: order.id,
+                    customer_name: order.customer_name || null,
+                    customer_phone: order.customer_phone,
+                    amount_fcfa: Number(isRestaurantDepositPayment ? order.deposit_amount_fcfa : order.total_fcfa),
+                    payment_method: providerLabel(provider),
+                    status: nextStatus,
+                    agent_id: order.agent_id || null,
+                })
+            }
+        } catch (_webhookErr) { }
     } catch (notifyError) {
         console.error('[Hosted Checkout Finalization] Failed to send order confirmation:', notifyError)
     }
