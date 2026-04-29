@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, type ElementType } from 'react'
 import { motion } from 'framer-motion'
 import {
     FileText, AlertCircle, CheckCircle, Info, User, Clock,
@@ -22,7 +22,7 @@ interface LogEntry {
     date: string
 }
 
-const CATEGORIES: { key: LogCategory; label: string; icon: React.ElementType }[] = [
+const CATEGORIES: { key: LogCategory; label: string; icon: ElementType }[] = [
     { key: 'tous', label: 'Tous', icon: FileText },
     { key: 'auth', label: 'Auth', icon: LogIn },
     { key: 'paiements', label: 'Paiements', icon: CreditCard },
