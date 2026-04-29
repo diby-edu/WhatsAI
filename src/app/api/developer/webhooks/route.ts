@@ -16,6 +16,9 @@ const ALLOWED_EVENTS = [
     'conversation.started',
     'conversation.ended',
     'lead.collected',
+    'order.created',
+    'payment.received',
+    'booking.created',
 ]
 
 // GET — liste des webhooks de l'utilisateur

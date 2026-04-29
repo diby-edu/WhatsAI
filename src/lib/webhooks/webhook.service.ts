@@ -8,6 +8,9 @@ export type WebhookEvent =
     | 'conversation.started'
     | 'conversation.ended'
     | 'lead.collected'
+    | 'order.created'
+    | 'payment.received'
+    | 'booking.created'
 
 export interface WebhookPayload {
     event: WebhookEvent
