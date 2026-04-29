@@ -814,7 +814,7 @@ export default function AdminLayout({
                                     overflow: 'hidden',
                                     zIndex: 100
                                 }}>
-                                    {adminLinks
+                                    {adminGroups.flatMap(g => g.items)
                                         .filter(link => link.label.toLowerCase().includes(searchQuery.toLowerCase()))
                                         .map((link, i) => (
                                             <button
