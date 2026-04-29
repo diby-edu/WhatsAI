@@ -87,6 +87,8 @@ export default function AdminUsersPage() {
                     created: u.created_at,
                     credits: u.credits_balance || 0,
                     paid_until: u.paid_until || null,
+                    grace_until: u.grace_until || null,
+                    cleanup_deadline: u.test_account_cleanup_deadline || null,
                     lifecycle: u.account_lifecycle_status || null
                 }))
                 setUsers(mappedUsers)
@@ -364,7 +366,7 @@ export default function AdminUsersPage() {
                                             <StatusBadge status={u.status} lifecycle={u.lifecycle} />
                                         </td>
                                         <td style={{ padding: '12px 16px' }}>
-                                            <ExpiryCell paidUntil={u.paid_until} lifecycle={u.lifecycle} />
+                                            <ExpiryCell paidUntil={u.paid_until} graceUntil={u.grace_until} cleanupDeadline={u.cleanup_deadline} lifecycle={u.lifecycle} />
                                         </td>
                                         <td style={{ padding: '12px 16px' }}>
                                             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 4, color: '#94a3b8', fontSize: 12 }}>
@@ -520,32 +522,32 @@ function ActionBtn({ icon: Icon, color, bg, title, onClick, loading }: any) {
     )
 }
 
-function ExpiryCell({ paidUntil, lifecycle }: { paidUntil: string | null, lifecycle: string | null }) {
-    if (!paidUntil) {
-        if (lifecycle === 'frozen_grace') {
-            return <span style={{ fontSize: 11, color: '#60a5fa', fontWeight: 600 }}>En grâce</span>
-        }
-        return <span style={{ fontSize: 11, color: '#475569' }}>—</span>
-    }
-    const date = new Date(paidUntil)
-    const now = new Date()
-    const daysLeft = Math.ceil((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-    const isExpired = daysLeft <= 0
-    const isUrgent = !isExpired && daysLeft <= 7
-    const color = isExpired ? '#f87171' : isUrgent ? '#fbbf24' : '#4ade80'
-    return (
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 4, fontSize: 12 }}>
-            <Timer style={{ width: 12, height: 12, marginTop: 2, flexShrink: 0, color }} />
-            <div>
-                <div style={{ color, fontWeight: isUrgent || isExpired ? 700 : 400 }}>
-                    {date.toLocaleDateString('fr-FR')}
-                </div>
-                <div style={{ fontSize: 10, color: '#64748b' }}>
-                    {date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} · {isExpired ? <span style={{ color: '#f87171' }}>Expiré</span> : `J-${daysLeft}`}
+function ExpiryCell({ paidUntil, graceUntil, cleanupDeadline, lifecycle }: { paidUntil: string | null, graceUntil: string | null, cleanupDeadline: string | null, lifecycle: string | null }) {
+    const renderDate = (iso: string, color: string, label: string) => {
+        const date = new Date(iso)
+        const daysLeft = Math.ceil((date.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+        const isExpired = daysLeft <= 0
+        const isUrgent = !isExpired && daysLeft <= 7
+        const c = isExpired ? '#f87171' : isUrgent ? '#fbbf24' : color
+        return (
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 4, fontSize: 12 }}>
+                <Timer style={{ width: 12, height: 12, marginTop: 2, flexShrink: 0, color: c }} />
+                <div>
+                    <div style={{ color: c, fontWeight: isUrgent || isExpired ? 700 : 400 }}>
+                        {date.toLocaleDateString('fr-FR')}
+                    </div>
+                    <div style={{ fontSize: 10, color: '#64748b' }}>
+                        {label} · {isExpired ? <span style={{ color: '#f87171' }}>Expiré</span> : `J-${daysLeft}`}
+                    </div>
                 </div>
             </div>
-        </div>
-    )
+        )
+    }
+
+    if (paidUntil) return renderDate(paidUntil, '#4ade80', 'Abonnement')
+    if (graceUntil) return renderDate(graceUntil, '#60a5fa', 'Grâce')
+    if (cleanupDeadline) return renderDate(cleanupDeadline, '#fbbf24', lifecycle === 'inactive' ? 'Test expiré' : 'Test')
+    return <span style={{ fontSize: 11, color: '#475569' }}>—</span>
 }
 
 function PlanBadge({ plan }: { plan: string }) {
