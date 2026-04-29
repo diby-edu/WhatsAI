@@ -41,7 +41,8 @@ import {
     Code2,
     Target,
     Timer,
-    Mail
+    Mail,
+    SlidersHorizontal
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useAndroidBackButton } from '@/hooks/useAndroidBackButton'
@@ -89,6 +90,7 @@ const adminGroups: AdminGroup[] = [
         label: 'OPÉRATIONS',
         items: [
             { href: '/admin/cron', label: 'Tâches planifiées', icon: Timer },
+            { href: '/admin/quotas', label: 'Quotas & Limites', icon: SlidersHorizontal },
             { href: '/admin/emails', label: 'Emails transactionnels', icon: Mail },
             { href: '/admin/audit-logs', label: 'Audit Trail', icon: FileText },
             { href: '/admin/logs', label: 'Logs Activité', icon: Clock },
