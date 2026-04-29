@@ -42,7 +42,8 @@ import {
     Target,
     Timer,
     Mail,
-    SlidersHorizontal
+    SlidersHorizontal,
+    Webhook
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useAndroidBackButton } from '@/hooks/useAndroidBackButton'
@@ -104,6 +105,7 @@ const adminGroups: AdminGroup[] = [
         items: [
             { href: '/admin/plans', label: 'Plans', icon: Zap },
             { href: '/admin/credit-packs', label: 'Packs de Crédits', icon: Package },
+            { href: '/admin/webhooks', label: 'Webhooks', icon: Webhook },
             { href: '/admin/settings', label: 'Paramètres', icon: Settings },
             { href: '/admin/payments', label: 'Outils Dev', icon: TestTube2 },
         ]
