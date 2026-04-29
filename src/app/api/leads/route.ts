@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
 import { notify } from '@/lib/notifications/notification.service'
+import { triggerWebhooks } from '@/lib/webhooks/webhook.service'
 
 // GET /api/leads?agentId=xxx — liste les leads d'un agent
 export async function GET(request: NextRequest) {
@@ -78,6 +79,17 @@ export async function POST(request: NextRequest) {
             contactName: name || undefined,
             contactPhone: phone || undefined,
             agentName: agent.name,
+        }).catch(() => { })
+
+        // Déclencher les webhooks lead.collected (fire & forget)
+        triggerWebhooks(agent.user_id, 'lead.collected', {
+            lead_id: lead.id,
+            agent_id: agent_id,
+            agent_name: agent.name,
+            name: name || null,
+            phone: phone || null,
+            email: email || null,
+            source: source || 'whatsapp',
         }).catch(() => { })
 
         return successResponse({ lead })

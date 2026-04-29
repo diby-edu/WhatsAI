@@ -1,18 +1,13 @@
 import crypto from 'crypto'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@supabase/supabase-js'
 
+// Événements officiels — synchronisés avec ALLOWED_EVENTS dans /api/developer/webhooks/route.ts
 export type WebhookEvent =
-    | 'lead.created'
-    | 'order.created'
-    | 'booking.created'
     | 'message.received'
-    | 'credits.low'
-    | 'credits.depleted'
-    | 'payment.received'
-    | 'subscription.activated'
-    | 'subscription.expired'
-    | 'agent.created'
-    | 'agent.updated'
+    | 'message.sent'
+    | 'conversation.started'
+    | 'conversation.ended'
+    | 'lead.collected'
 
 export interface WebhookPayload {
     event: WebhookEvent
@@ -34,12 +29,19 @@ function signPayload(payload: string, secret: string): string {
     return 'sha256=' + crypto.createHmac('sha256', secret).update(payload).digest('hex')
 }
 
+function getAdminClient() {
+    return createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+}
+
 export async function triggerWebhooks(
     userId: string,
     event: WebhookEvent,
     data: Record<string, unknown>
 ): Promise<void> {
-    const supabase = createClient()
+    const supabase = getAdminClient()
 
     const { data: webhooks, error } = await supabase
         .from('api_webhooks')
@@ -88,15 +90,14 @@ export async function triggerWebhooks(
                 response_body = err instanceof Error ? err.message : 'Network error'
             }
 
-            // Log the delivery attempt
             await supabase.from('webhook_deliveries').insert({
                 webhook_id: webhook.id,
                 event,
-                payload: payload,
+                payload,
                 status_code: status || null,
                 response_body: response_body.slice(0, 500),
                 success,
-            }).then(() => {})
+            })
         })
     )
 }

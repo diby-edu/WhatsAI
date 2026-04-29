@@ -28,18 +28,13 @@ interface WebhookDelivery {
     created_at: string
 }
 
+// Synchronisé avec ALLOWED_EVENTS dans /api/developer/webhooks/route.ts
 const EVENT_COLORS: Record<string, string> = {
-    'lead.created':              '#10b981',
-    'order.created':             '#3b82f6',
-    'booking.created':           '#8b5cf6',
-    'message.received':          '#64748b',
-    'credits.low':               '#fbbf24',
-    'credits.depleted':          '#ef4444',
-    'payment.received':          '#10b981',
-    'subscription.activated':    '#10b981',
-    'subscription.expired':      '#ef4444',
-    'agent.created':             '#3b82f6',
-    'agent.updated':             '#f97316',
+    'message.received':      '#3b82f6',
+    'message.sent':          '#8b5cf6',
+    'conversation.started':  '#10b981',
+    'conversation.ended':    '#64748b',
+    'lead.collected':        '#f97316',
 }
 
 export default function AdminWebhooksPage() {
