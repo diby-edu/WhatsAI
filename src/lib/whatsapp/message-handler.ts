@@ -266,6 +266,24 @@ export function initializeMessageHandler() {
                             .select()
                             .single()
 
+                        // 🔗 WEBHOOK: booking.created (créé par l'IA)
+                        if (booking && !bookingError) {
+                            try {
+                                const { triggerWebhooks } = await import('@/lib/webhooks/webhook.service')
+                                triggerWebhooks(agent.user_id, 'booking.created', {
+                                    booking_id: booking.id,
+                                    customer_phone: booking.customer_phone,
+                                    booking_type: booking.booking_type || null,
+                                    start_time: booking.start_time || null,
+                                    party_size: booking.party_size || null,
+                                    notes: booking.notes || null,
+                                    status: 'confirmed',
+                                    agent_id: agentId,
+                                    source: 'ai',
+                                })
+                            } catch (_webhookErr) { }
+                        }
+
                         const toolOutput = bookingError
                             ? `Erreur lors de la réservation: ${bookingError.message}`
                             : `Réservation confirmée avec succès (ID: ${booking ? booking.id.substring(0, 8) : '?'}).`
