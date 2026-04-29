@@ -280,10 +280,10 @@ export async function notify(
             if (userEmail) {
                 switch (type) {
                     case 'low_credits':
-                        await sendLowCreditsEmail(userEmail, userName, data.balance || 0)
+                        await sendLowCreditsEmail(userEmail, userName, data.balance || 0, userId)
                         break
                     case 'credits_depleted':
-                        await sendCreditsDepletedEmail(userEmail, userName)
+                        await sendCreditsDepletedEmail(userEmail, userName, userId)
                         break
                     case 'subscription_expiring':
                         await sendSubscriptionExpiringEmail(
@@ -291,7 +291,8 @@ export async function notify(
                             userName,
                             data.planName || 'WazzapAI',
                             data.daysLeft || 7,
-                            data.expiryDate || ''
+                            data.expiryDate || '',
+                            userId
                         )
                         break
                 }
