@@ -35,6 +35,9 @@ const EVENT_COLORS: Record<string, string> = {
     'conversation.started':  '#10b981',
     'conversation.ended':    '#64748b',
     'lead.collected':        '#f97316',
+    'order.created':         '#ec4899',
+    'payment.received':      '#22c55e',
+    'booking.created':       '#06b6d4',
 }
 
 export default function AdminWebhooksPage() {

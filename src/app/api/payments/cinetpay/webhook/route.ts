@@ -277,6 +277,24 @@ async function handleCinetPayV2Webhook(body: {
                 }
 
                 await notifyMerchantOrderPayment(order)
+
+                // 🔗 WEBHOOK: payment.received (V2)
+                try {
+                    const { data: agentOwner } = await getSupabase()
+                        .from('agents').select('user_id').eq('id', order.agent_id).single()
+                    if (agentOwner) {
+                        const { triggerWebhooks } = await import('@/lib/webhooks/webhook.service')
+                        triggerWebhooks(agentOwner.user_id, 'payment.received', {
+                            order_id: order.id,
+                            customer_name: order.customer_name || null,
+                            customer_phone: order.customer_phone,
+                            amount_fcfa: Number(isRestaurantDepositPayment ? order.deposit_amount_fcfa : order.total_fcfa),
+                            payment_method: 'CinetPay',
+                            status: nextStatus,
+                            agent_id: order.agent_id || null,
+                        })
+                    }
+                } catch (_webhookErr) { }
             }
         } else if (normalizedStatus === 'REFUSED' || normalizedStatus === 'CANCELLED') {
             const orderUpdate: Record<string, unknown> = {
@@ -681,6 +699,20 @@ export async function POST(request: NextRequest) {
                                             paymentMethod: 'CinetPay'
                                         })
                                         console.log('[Webhook] Push/email notification sent for payment')
+
+                                        // 6. 🔗 WEBHOOK: payment.received
+                                        try {
+                                            const { triggerWebhooks } = await import('@/lib/webhooks/webhook.service')
+                                            triggerWebhooks(agentData.user_id, 'payment.received', {
+                                                order_id: order.id,
+                                                customer_name: order.customer_name || null,
+                                                customer_phone: order.customer_phone,
+                                                amount_fcfa: Number(order.total_fcfa),
+                                                payment_method: 'CinetPay',
+                                                status: 'paid',
+                                                agent_id: order.agent_id || null,
+                                            })
+                                        } catch (_webhookErr) { }
                                     }
                                 } catch (notifyError) {
                                     console.error('Failed to notify merchant:', notifyError)

@@ -113,6 +113,24 @@ export async function POST(request: NextRequest) {
             console.error('🔔 Notification error (non-blocking):', notifError)
         }
 
+        // 🔗 WEBHOOK: order.created
+        try {
+            const { triggerWebhooks } = await import('@/lib/webhooks/webhook.service')
+            triggerWebhooks(user.id, 'order.created', {
+                order_id: order.id,
+                customer_name: order.customer_name || null,
+                customer_phone: order.customer_phone,
+                customer_email: order.customer_email || null,
+                total_fcfa: total,
+                status: 'pending',
+                delivery_address: order.delivery_address || null,
+                agent_id: order.agent_id || null,
+                items: body.items || [],
+            })
+        } catch (webhookError) {
+            console.error('🔗 Webhook error (non-blocking):', webhookError)
+        }
+
         return successResponse({ order }, 201)
     } catch (err) {
         console.error('Error creating order:', err)
