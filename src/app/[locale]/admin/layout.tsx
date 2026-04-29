@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type ElementType, type ReactNode } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -48,7 +48,7 @@ import { useSessionTimeout } from '@/hooks/useSessionTimeout'
 import { useNativeDeviceTokenSync } from '@/hooks/useNativeDeviceTokenSync'
 import { unregisterCurrentDeviceToken } from '@/lib/notifications/device-token-client'
 
-interface AdminNavItem { href: string; label: string; icon: React.ElementType }
+interface AdminNavItem { href: string; label: string; icon: ElementType }
 interface AdminGroup { label?: string; items: AdminNavItem[] }
 
 const adminGroups: AdminGroup[] = [
@@ -118,7 +118,7 @@ interface Notification {
 export default function AdminLayout({
     children,
 }: {
-    children: React.ReactNode
+    children: ReactNode
 }) {
     const pathname = usePathname()
     const router = useRouter()
