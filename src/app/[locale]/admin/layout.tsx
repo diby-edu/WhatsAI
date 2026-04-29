@@ -38,7 +38,9 @@ import {
     Wallet,
     Download,
     Clock,
-    Code2
+    Code2,
+    Target,
+    Timer
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useAndroidBackButton } from '@/hooks/useAndroidBackButton'
@@ -46,28 +48,62 @@ import { useSessionTimeout } from '@/hooks/useSessionTimeout'
 import { useNativeDeviceTokenSync } from '@/hooks/useNativeDeviceTokenSync'
 import { unregisterCurrentDeviceToken } from '@/lib/notifications/device-token-client'
 
-const adminLinks = [
-    { href: '/admin', label: 'Vue d\'ensemble', icon: Gauge },
-    { href: '/admin/notifications', label: 'Notifications', icon: Bell },
-    { href: '/admin/users', label: 'Utilisateurs', icon: Users },
-    { href: '/admin/agents', label: 'Agents IA', icon: Bot },
-    { href: '/admin/conversations', label: 'Conversations', icon: MessagesSquare },
-    { href: '/admin/orders', label: 'Commandes', icon: ShoppingCart },
-    { href: '/admin/bookings', label: 'Réservations', icon: Calendar },
-    { href: '/admin/plans', label: 'Plans', icon: Zap },
-    { href: '/admin/credit-packs', label: 'Packs de Crédits', icon: Package },
-    { href: '/admin/subscriptions', label: 'Abonnements', icon: CreditCard },
-    { href: '/admin/payments', label: 'Test Paiement', icon: TestTube2 },
-    { href: '/admin/payouts', label: 'Reversements', icon: Wallet },
-    { href: '/admin/api-monitoring', label: 'API Monitoring', icon: Code2 },
-    { href: '/admin/features', label: 'Feature Flags', icon: ToggleRight },
-    { href: '/admin/broadcasts', label: 'Broadcasts', icon: Send },
-    { href: '/admin/diagnostics', label: 'Diagnostic', icon: Activity },
-    { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
-    { href: '/admin/audit-logs', label: 'Audit Trail', icon: FileText },
-    { href: '/admin/logs', label: 'Logs Activité', icon: Clock },
-    { href: '/admin/exports', label: 'Exports & Rapports', icon: Download },
-    { href: '/admin/settings', label: 'Paramètres', icon: Settings },
+interface AdminNavItem { href: string; label: string; icon: React.ElementType }
+interface AdminGroup { label?: string; items: AdminNavItem[] }
+
+const adminGroups: AdminGroup[] = [
+    {
+        items: [
+            { href: '/admin', label: 'Vue d\'ensemble', icon: Gauge },
+        ]
+    },
+    {
+        label: 'CLIENTS',
+        items: [
+            { href: '/admin/users', label: 'Utilisateurs', icon: Users },
+            { href: '/admin/subscriptions', label: 'Abonnements', icon: CreditCard },
+            { href: '/admin/payouts', label: 'Paiements & Revenus', icon: Wallet },
+        ]
+    },
+    {
+        label: 'PRODUIT',
+        items: [
+            { href: '/admin/agents', label: 'Agents IA', icon: Bot },
+            { href: '/admin/conversations', label: 'Conversations', icon: MessagesSquare },
+            { href: '/admin/leads', label: 'Leads', icon: Target },
+            { href: '/admin/orders', label: 'Commandes', icon: ShoppingCart },
+            { href: '/admin/bookings', label: 'Réservations', icon: Calendar },
+            { href: '/admin/broadcasts', label: 'Broadcasts', icon: Send },
+        ]
+    },
+    {
+        label: 'CROISSANCE',
+        items: [
+            { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
+            { href: '/admin/features', label: 'Feature Flags', icon: ToggleRight },
+            { href: '/admin/notifications', label: 'Notifications', icon: Bell },
+        ]
+    },
+    {
+        label: 'OPÉRATIONS',
+        items: [
+            { href: '/admin/cron', label: 'Tâches planifiées', icon: Timer },
+            { href: '/admin/audit-logs', label: 'Audit Trail', icon: FileText },
+            { href: '/admin/logs', label: 'Logs Activité', icon: Clock },
+            { href: '/admin/api-monitoring', label: 'API Monitoring', icon: Code2 },
+            { href: '/admin/diagnostics', label: 'Diagnostic', icon: Activity },
+            { href: '/admin/exports', label: 'Exports & Rapports', icon: Download },
+        ]
+    },
+    {
+        label: 'CONFIGURATION',
+        items: [
+            { href: '/admin/plans', label: 'Plans', icon: Zap },
+            { href: '/admin/credit-packs', label: 'Packs de Crédits', icon: Package },
+            { href: '/admin/settings', label: 'Paramètres', icon: Settings },
+            { href: '/admin/payments', label: 'Outils Dev', icon: TestTube2 },
+        ]
+    },
 ]
 
 interface Notification {
@@ -496,32 +532,52 @@ export default function AdminLayout({
                                         <div style={{ fontSize: 12, color: '#ef4444', fontWeight: 500 }}>SUPER ADMIN</div>
                                     </div>
                                 </Link>
-                                <nav style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                                    {adminLinks.map((link) => {
-                                        const isActive = pathname === link.href
-                                        return (
-                                            <Link
-                                                key={link.href}
-                                                href={link.href}
-                                                onClick={() => setMobileMenuOpen(false)}
-                                                style={{
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: 12,
-                                                    padding: '14px 16px',
-                                                    borderRadius: 12,
-                                                    color: isActive ? '#34d399' : '#94a3b8',
-                                                    fontWeight: 500,
-                                                    textDecoration: 'none',
-                                                    backgroundColor: isActive ? 'rgba(16, 185, 129, 0.15)' : 'transparent',
-                                                    transition: 'all 0.2s ease'
-                                                }}
-                                            >
-                                                <link.icon style={{ width: 20, height: 20 }} />
-                                                <span>{link.label}</span>
-                                            </Link>
-                                        )
-                                    })}
+                                <nav style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                    {adminGroups.map((group, groupIdx) => (
+                                        <div key={groupIdx}>
+                                            {groupIdx > 0 && (
+                                                <div style={{ height: 1, backgroundColor: 'rgba(148, 163, 184, 0.08)', margin: '8px 0' }} />
+                                            )}
+                                            {group.label && (
+                                                <div style={{
+                                                    fontSize: 10,
+                                                    fontWeight: 700,
+                                                    color: '#475569',
+                                                    letterSpacing: '0.08em',
+                                                    padding: '10px 8px 4px',
+                                                    textTransform: 'uppercase'
+                                                }}>
+                                                    {group.label}
+                                                </div>
+                                            )}
+                                            {group.items.map((link) => {
+                                                const isActive = pathname === link.href || (link.href !== '/admin' && pathname.startsWith(link.href))
+                                                return (
+                                                    <Link
+                                                        key={link.href}
+                                                        href={link.href}
+                                                        onClick={() => setMobileMenuOpen(false)}
+                                                        style={{
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: 10,
+                                                            padding: '10px 12px',
+                                                            borderRadius: 10,
+                                                            color: isActive ? '#34d399' : '#94a3b8',
+                                                            fontWeight: 500,
+                                                            fontSize: 13,
+                                                            textDecoration: 'none',
+                                                            backgroundColor: isActive ? 'rgba(16, 185, 129, 0.12)' : 'transparent',
+                                                            transition: 'all 0.15s ease'
+                                                        }}
+                                                    >
+                                                        <link.icon style={{ width: 18, height: 18 }} />
+                                                        <span>{link.label}</span>
+                                                    </Link>
+                                                )
+                                            })}
+                                        </div>
+                                    ))}
                                     <button
                                         onClick={handleLogout}
                                         style={{
@@ -611,33 +667,53 @@ export default function AdminLayout({
                     </div>
 
                     {/* Navigation */}
-                    <nav style={{ flex: 1, padding: 16, display: 'flex', flexDirection: 'column', gap: 4, overflowY: 'auto' }}>
-                        {adminLinks.map((link) => {
-                            const isActive = pathname === link.href || (link.href !== '/admin' && pathname.startsWith(link.href))
-                            return (
-                                <Link
-                                    key={link.href}
-                                    href={link.href}
-                                    title={collapsed ? link.label : undefined}
-                                    style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 12,
-                                        padding: collapsed ? '14px' : '14px 16px',
-                                        borderRadius: 12,
-                                        color: isActive ? '#34d399' : '#94a3b8',
-                                        fontWeight: 500,
-                                        textDecoration: 'none',
-                                        backgroundColor: isActive ? 'rgba(16, 185, 129, 0.15)' : 'transparent',
-                                        justifyContent: collapsed ? 'center' : 'flex-start',
-                                        transition: 'all 0.2s ease'
-                                    }}
-                                >
-                                    <link.icon style={{ width: 20, height: 20, flexShrink: 0 }} />
-                                    {!collapsed && <span>{link.label}</span>}
-                                </Link>
-                            )
-                        })}
+                    <nav style={{ flex: 1, padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto' }}>
+                        {adminGroups.map((group, groupIdx) => (
+                            <div key={groupIdx}>
+                                {groupIdx > 0 && (
+                                    <div style={{ height: 1, backgroundColor: 'rgba(148, 163, 184, 0.08)', margin: collapsed ? '8px 4px' : '8px 4px' }} />
+                                )}
+                                {group.label && !collapsed && (
+                                    <div style={{
+                                        fontSize: 10,
+                                        fontWeight: 700,
+                                        color: '#475569',
+                                        letterSpacing: '0.08em',
+                                        padding: '10px 8px 4px',
+                                        textTransform: 'uppercase'
+                                    }}>
+                                        {group.label}
+                                    </div>
+                                )}
+                                {group.items.map((link) => {
+                                    const isActive = pathname === link.href || (link.href !== '/admin' && pathname.startsWith(link.href))
+                                    return (
+                                        <Link
+                                            key={link.href}
+                                            href={link.href}
+                                            title={collapsed ? link.label : undefined}
+                                            style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 10,
+                                                padding: collapsed ? '12px' : '10px 12px',
+                                                borderRadius: 10,
+                                                color: isActive ? '#34d399' : '#94a3b8',
+                                                fontWeight: 500,
+                                                fontSize: 13,
+                                                textDecoration: 'none',
+                                                backgroundColor: isActive ? 'rgba(16, 185, 129, 0.12)' : 'transparent',
+                                                justifyContent: collapsed ? 'center' : 'flex-start',
+                                                transition: 'all 0.15s ease'
+                                            }}
+                                        >
+                                            <link.icon style={{ width: 18, height: 18, flexShrink: 0 }} />
+                                            {!collapsed && <span>{link.label}</span>}
+                                        </Link>
+                                    )
+                                })}
+                            </div>
+                        ))}
                     </nav>
 
                     {/* Footer - Logout Button */}
