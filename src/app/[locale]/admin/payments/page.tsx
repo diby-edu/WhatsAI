@@ -34,20 +34,6 @@ export default function AdminPaymentPage() {
     const [checkingPayment, setCheckingPayment] = useState<string | null>(null)
     const [searchQuery, setSearchQuery] = useState('')
     const [statusFilter, setStatusFilter] = useState('all')
-    const [activeTab, setActiveTab] = useState<'list' | 'verify' | 'config'>('list')
-    const [verifyTransactionId, setVerifyTransactionId] = useState('')
-    const [verifyResult, setVerifyResult] = useState<any>(null)
-    const [verifying, setVerifying] = useState(false)
-    const [providerConfig, setProviderConfig] = useState({
-        cinetpayApiKey: false,
-        cinetpaySiteId: false,
-        paystackSecretKey: false,
-        paystackPublicKey: false,
-    })
-    const cinetpayConfig = {
-        apiKey: providerConfig.cinetpayApiKey,
-        siteId: providerConfig.cinetpaySiteId,
-    }
     const [isMobile, setIsMobile] = useState(false)
 
     useEffect(() => {
@@ -59,25 +45,7 @@ export default function AdminPaymentPage() {
 
     useEffect(() => {
         fetchPayments()
-        fetchProviderConfig()
     }, [])
-
-    const fetchProviderConfig = async () => {
-        try {
-            const res = await fetch('/api/admin/diagnostics/env')
-            const data = await res.json()
-            const missing = data.data?.missing || []
-            const optionalConfigured = data.data?.optionalConfigured || []
-            setProviderConfig({
-                cinetpayApiKey: !missing.includes('CINETPAY_API_KEY'),
-                cinetpaySiteId: !missing.includes('CINETPAY_SITE_ID'),
-                paystackSecretKey: optionalConfigured.includes('PAYSTACK_SECRET_KEY'),
-                paystackPublicKey: optionalConfigured.includes('PAYSTACK_PUBLIC_KEY'),
-            })
-        } catch (err) {
-            console.error('Error checking config:', err)
-        }
-    }
 
     const fetchPayments = async () => {
         try {
@@ -128,29 +96,6 @@ export default function AdminPaymentPage() {
             console.error('Error verifying payment:', err)
         } finally {
             setCheckingPayment(null)
-        }
-    }
-
-    // Manual verification from the verify tab
-    const handleManualVerify = async (e: React.FormEvent) => {
-        e.preventDefault()
-        if (!verifyTransactionId.trim()) return
-
-        setVerifying(true)
-        setVerifyResult(null)
-
-        try {
-            const res = await fetch('/api/payments/status', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ transaction_id: verifyTransactionId.trim() })
-            })
-            const data = await res.json()
-            setVerifyResult(data)
-        } catch (err) {
-            setVerifyResult({ error: 'Erreur de connexion à l\'API' })
-        } finally {
-            setVerifying(false)
         }
     }
 
@@ -279,42 +224,7 @@ export default function AdminPaymentPage() {
                 </div>
             </div>
 
-            {/* Tabs */}
-            <div style={{
-                display: 'flex',
-                gap: 6,
-                marginBottom: 20,
-                padding: 4,
-                background: 'rgba(30, 41, 59, 0.5)',
-                borderRadius: 10,
-                width: 'fit-content'
-            }}>
-                {[
-                    { id: 'list', label: 'Liste' },
-                    { id: 'verify', label: 'Vérifier' },
-                    { id: 'config', label: 'Config' }
-                ].map(tab => (
-                    <button
-                        key={tab.id}
-                        onClick={() => setActiveTab(tab.id as any)}
-                        style={{
-                            padding: '10px 16px',
-                            borderRadius: 8,
-                            border: 'none',
-                            background: activeTab === tab.id ? '#10b981' : 'transparent',
-                            color: activeTab === tab.id ? 'white' : '#94a3b8',
-                            cursor: 'pointer',
-                            fontWeight: 500,
-                            fontSize: 13
-                        }}
-                    >
-                        {tab.label}
-                    </button>
-                ))}
-            </div>
-
-            {activeTab === 'list' && (
-                <>
+            <>
                     {/* Filters */}
                     <div style={{
                         display: 'flex',
@@ -464,7 +374,7 @@ export default function AdminPaymentPage() {
                                                 })}
                                             </td>
                                             <td style={{ padding: '12px 14px' }}>
-                                                {payment.transaction_id && payment.status === 'pending' && (
+                                                {payment.transaction_id && (payment.status === 'pending' || payment.status === 'processing') && (
                                                     <button
                                                         onClick={() => verifyPaymentStatus(payment.transaction_id!)}
                                                         disabled={checkingPayment === payment.transaction_id}
@@ -493,103 +403,7 @@ export default function AdminPaymentPage() {
                             </table>
                         )}
                     </div>
-                </>
-            )}
-
-            {activeTab === 'verify' && (
-                <div style={{
-                    padding: 24,
-                    background: 'rgba(30, 41, 59, 0.5)',
-                    borderRadius: 12,
-                    border: '1px solid rgba(148, 163, 184, 0.1)'
-                }}>
-                    <h3 style={{ fontSize: 16, fontWeight: 600, color: 'white', marginBottom: 16 }}>
-                        Vérifier un paiement manuellement
-                    </h3>
-                    <form onSubmit={handleManualVerify} style={{ display: 'flex', gap: 12 }}>
-                        <input
-                            type="text"
-                            placeholder="ID de transaction"
-                            value={verifyTransactionId}
-                            onChange={(e) => setVerifyTransactionId(e.target.value)}
-                            style={{
-                                flex: 1,
-                                padding: 12,
-                                borderRadius: 8,
-                                background: 'rgba(15, 23, 42, 0.5)',
-                                border: '1px solid rgba(148, 163, 184, 0.1)',
-                                color: 'white',
-                                fontSize: 14
-                            }}
-                        />
-                        <button
-                            type="submit"
-                            disabled={verifying || !verifyTransactionId.trim()}
-                            style={{
-                                padding: '12px 24px',
-                                borderRadius: 8,
-                                background: 'linear-gradient(135deg, #10b981, #059669)',
-                                border: 'none',
-                                color: 'white',
-                                cursor: 'pointer',
-                                fontWeight: 600,
-                                fontSize: 14
-                            }}
-                        >
-                            {verifying ? 'Vérification...' : 'Vérifier'}
-                        </button>
-                    </form>
-
-                    {verifyResult && (
-                        <div style={{
-                            marginTop: 20,
-                            padding: 16,
-                            borderRadius: 10,
-                            background: verifyResult.error ? 'rgba(239, 68, 68, 0.1)' : 'rgba(34, 197, 94, 0.1)',
-                            border: `1px solid ${verifyResult.error ? 'rgba(239, 68, 68, 0.2)' : 'rgba(34, 197, 94, 0.2)'}`
-                        }}>
-                            <pre style={{
-                                color: verifyResult.error ? '#f87171' : '#4ade80',
-                                fontSize: 13,
-                                whiteSpace: 'pre-wrap',
-                                margin: 0
-                            }}>
-                                {JSON.stringify(verifyResult, null, 2)}
-                            </pre>
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {activeTab === 'config' && (
-                <div style={{
-                    padding: 24,
-                    background: 'rgba(30, 41, 59, 0.5)',
-                    borderRadius: 12,
-                    border: '1px solid rgba(148, 163, 184, 0.1)'
-                }}>
-                    <h3 style={{ fontSize: 16, fontWeight: 600, color: 'white', marginBottom: 16 }}>
-                        Fournisseurs de paiement
-                    </h3>
-                    <p style={{ color: '#64748b', fontSize: 13, marginBottom: 16 }}>
-                        Les paiements en ligne utilisent le fournisseur actif choisi dans les reglages admin. Ces indicateurs verifient seulement la presence des cles cote serveur.
-                    </p>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: 12, background: 'rgba(15, 23, 42, 0.3)', borderRadius: 8 }}>
-                            <span style={{ color: '#94a3b8', fontSize: 13 }}>CINETPAY_API_KEY</span>
-                            <span style={{ color: cinetpayConfig.apiKey ? '#4ade80' : '#f87171', fontSize: 13 }}>
-                                {cinetpayConfig.apiKey ? '✓ Configurée' : '✗ Non configurée'}
-                            </span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: 12, background: 'rgba(15, 23, 42, 0.3)', borderRadius: 8 }}>
-                            <span style={{ color: '#94a3b8', fontSize: 13 }}>CINETPAY_SITE_ID</span>
-                            <span style={{ color: cinetpayConfig.siteId ? '#4ade80' : '#f87171', fontSize: 13 }}>
-                                {cinetpayConfig.siteId ? '✓ Configurée' : '✗ Non configurée'}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-            )}
+            </>
         </div>
     )
 }
