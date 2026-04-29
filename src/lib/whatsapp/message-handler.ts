@@ -333,6 +333,25 @@ export function initializeMessageHandler() {
                             await supabase.from('order_items').insert(orderItems)
                         }
 
+                        // 🔗 WEBHOOK: order.created (créé par l'IA)
+                        if (order && !orderError) {
+                            try {
+                                const { triggerWebhooks } = await import('@/lib/webhooks/webhook.service')
+                                triggerWebhooks(agent.user_id, 'order.created', {
+                                    order_id: order.id,
+                                    customer_name: order.customer_name || null,
+                                    customer_phone: order.customer_phone,
+                                    customer_email: order.customer_email || null,
+                                    total_fcfa: total,
+                                    status: 'pending',
+                                    delivery_address: order.delivery_address || null,
+                                    agent_id: agentId,
+                                    source: 'ai',
+                                    items: args.items || [],
+                                })
+                            } catch (_webhookErr) { }
+                        }
+
                         const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://wazzapai.com'
                         const paymentLink = order ? `${baseUrl}/fr/pay/${order.id}` : ''
 
