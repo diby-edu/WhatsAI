@@ -79,7 +79,6 @@ export async function captureSystemDeletionSnapshot(
         .filter(Boolean)
 
     const [
-        whatsappSessions,
         conversations,
         knowledgeBase,
         products,
@@ -88,7 +87,6 @@ export async function captureSystemDeletionSnapshot(
         orders,
         messages,
     ] = await Promise.all([
-        countExactRows(supabase, 'whatsapp_sessions', (query) => query.eq('user_id', userId)),
         countExactRows(supabase, 'conversations', (query) => query.eq('user_id', userId)),
         countExactRows(supabase, 'knowledge_base', (query) => query.eq('user_id', userId)),
         countExactRows(supabase, 'products', (query) => query.eq('user_id', userId)),
@@ -104,7 +102,7 @@ export async function captureSystemDeletionSnapshot(
         capturedAt: new Date().toISOString(),
         relatedCounts: {
             agents: agentIds.length,
-            whatsapp_sessions: whatsappSessions,
+            whatsapp_sessions: 0,
             conversations,
             messages,
             knowledge_base: knowledgeBase,
