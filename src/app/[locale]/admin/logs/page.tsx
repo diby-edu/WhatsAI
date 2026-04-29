@@ -4,202 +4,224 @@ import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import {
     FileText, AlertCircle, CheckCircle, Info, User, Clock,
-    Search, Filter, Download, RefreshCw, Loader2, XCircle,
-    LogIn, LogOut, Bot, CreditCard, MessageSquare, Settings
+    Search, Download, RefreshCw, Loader2, XCircle,
+    Bot, CreditCard, Shield, Settings, LogIn, Trash2
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
+type LogCategory = 'tous' | 'auth' | 'paiements' | 'agents' | 'systeme' | 'admin'
+type LogType = 'info' | 'success' | 'warning' | 'error'
+
 interface LogEntry {
     id: string
-    type: 'info' | 'success' | 'warning' | 'error'
+    category: LogCategory
+    type: LogType
     action: string
     user: string
     details?: string
-    ip?: string
     date: string
+}
+
+const CATEGORIES: { key: LogCategory; label: string; icon: React.ElementType }[] = [
+    { key: 'tous', label: 'Tous', icon: FileText },
+    { key: 'auth', label: 'Auth', icon: LogIn },
+    { key: 'paiements', label: 'Paiements', icon: CreditCard },
+    { key: 'agents', label: 'Agents', icon: Bot },
+    { key: 'systeme', label: 'Système', icon: Settings },
+    { key: 'admin', label: 'Admin', icon: Shield },
+]
+
+const CATEGORY_COLOR: Record<LogCategory, string> = {
+    tous: '#94a3b8',
+    auth: '#60a5fa',
+    paiements: '#34d399',
+    agents: '#a78bfa',
+    systeme: '#f59e0b',
+    admin: '#f87171',
 }
 
 export default function AdminLogsPage() {
     const [logs, setLogs] = useState<LogEntry[]>([])
     const [loading, setLoading] = useState(true)
     const [refreshing, setRefreshing] = useState(false)
-    const [filter, setFilter] = useState('all')
+    const [category, setCategory] = useState<LogCategory>('tous')
+    const [typeFilter, setTypeFilter] = useState('all')
     const [searchQuery, setSearchQuery] = useState('')
 
-    useEffect(() => {
-        fetchLogs()
-    }, [])
+    useEffect(() => { fetchLogs() }, [])
 
     const fetchLogs = async () => {
         try {
             const supabase = createClient()
             const entries: LogEntry[] = []
+            const now = Date.now()
+            const days30 = 30 * 24 * 60 * 60 * 1000
 
-            // Fetch recent user activities
+            // ── AUTH ─────────────────────────────────────────────────────────
             const { data: profiles } = await supabase
                 .from('profiles')
                 .select('id, email, full_name, created_at, last_sign_in_at')
                 .order('created_at', { ascending: false })
-                .limit(20)
+                .limit(50)
 
-            profiles?.forEach(profile => {
-                // User registration log
-                const createdDate = new Date(profile.created_at)
-                if (Date.now() - createdDate.getTime() < 7 * 24 * 60 * 60 * 1000) {
+            profiles?.forEach(p => {
+                if (now - new Date(p.created_at).getTime() < days30) {
                     entries.push({
-                        id: `reg-${profile.id}`,
+                        id: `reg-${p.id}`,
+                        category: 'auth',
                         type: 'success',
                         action: 'Inscription utilisateur',
-                        user: profile.full_name || profile.email || 'Unknown',
-                        date: profile.created_at
+                        user: p.full_name || p.email || 'Inconnu',
+                        details: p.email,
+                        date: p.created_at
                     })
                 }
-
-                // Last sign in log
-                if (profile.last_sign_in_at) {
-                    const signInDate = new Date(profile.last_sign_in_at)
-                    if (Date.now() - signInDate.getTime() < 24 * 60 * 60 * 1000) {
-                        entries.push({
-                            id: `login-${profile.id}`,
-                            type: 'info',
-                            action: 'Connexion utilisateur',
-                            user: profile.full_name || profile.email || 'Unknown',
-                            date: profile.last_sign_in_at
-                        })
-                    }
-                }
-            })
-
-            // Fetch recent agents created
-            const { data: agents } = await supabase
-                .from('agents')
-                .select('id, name, created_at, user_id')
-                .order('created_at', { ascending: false })
-                .limit(10)
-
-            agents?.forEach(agent => {
-                const createdDate = new Date(agent.created_at)
-                if (Date.now() - createdDate.getTime() < 7 * 24 * 60 * 60 * 1000) {
+                if (p.last_sign_in_at && now - new Date(p.last_sign_in_at).getTime() < days30) {
                     entries.push({
-                        id: `agent-${agent.id}`,
-                        type: 'success',
-                        action: 'Agent IA créé',
-                        user: agent.name,
-                        details: `ID: ${agent.id.substring(0, 8)}...`,
-                        date: agent.created_at
-                    })
-                }
-            })
-
-            // Fetch recent conversations
-            const { data: conversations } = await supabase
-                .from('conversations')
-                .select('id, contact_phone, contact_name, created_at')
-                .order('created_at', { ascending: false })
-                .limit(10)
-
-            conversations?.forEach(conv => {
-                const createdDate = new Date(conv.created_at)
-                if (Date.now() - createdDate.getTime() < 3 * 24 * 60 * 60 * 1000) {
-                    entries.push({
-                        id: `conv-${conv.id}`,
+                        id: `login-${p.id}`,
+                        category: 'auth',
                         type: 'info',
-                        action: 'Nouvelle conversation WhatsApp',
-                        user: conv.contact_name || conv.contact_phone || 'Contact',
-                        date: conv.created_at
+                        action: 'Connexion',
+                        user: p.full_name || p.email || 'Inconnu',
+                        details: p.email,
+                        date: p.last_sign_in_at
                     })
                 }
             })
 
-            // Fetch recent subscriptions
+            // ── PAIEMENTS ─────────────────────────────────────────────────────
+            const { data: payments } = await supabase
+                .from('payments')
+                .select('id, amount, currency, status, payment_type, created_at, profiles(email, full_name)')
+                .order('created_at', { ascending: false })
+                .limit(30)
+
+            payments?.forEach((pay: any) => {
+                if (now - new Date(pay.created_at).getTime() < days30) {
+                    const isSuccess = pay.status === 'completed' || pay.status === 'success'
+                    const amount = pay.amount ? `${Number(pay.amount).toLocaleString('fr-FR')} ${pay.currency || 'XOF'}` : ''
+                    entries.push({
+                        id: `pay-${pay.id}`,
+                        category: 'paiements',
+                        type: isSuccess ? 'success' : pay.status === 'failed' ? 'error' : 'warning',
+                        action: pay.payment_type === 'subscription' ? 'Paiement abonnement' : pay.payment_type === 'credits' ? 'Achat crédits' : 'Paiement',
+                        user: pay.profiles?.full_name || pay.profiles?.email || 'Utilisateur',
+                        details: amount,
+                        date: pay.created_at
+                    })
+                }
+            })
+
             const { data: subscriptions } = await supabase
                 .from('subscriptions')
-                .select('id, status, created_at, profiles(email)')
+                .select('id, status, plan, created_at, profiles(email, full_name)')
                 .order('created_at', { ascending: false })
-                .limit(10)
+                .limit(20)
 
             subscriptions?.forEach((sub: any) => {
-                const createdDate = new Date(sub.created_at)
-                if (Date.now() - createdDate.getTime() < 7 * 24 * 60 * 60 * 1000) {
+                if (now - new Date(sub.created_at).getTime() < days30) {
                     entries.push({
                         id: `sub-${sub.id}`,
+                        category: 'paiements',
                         type: sub.status === 'active' ? 'success' : 'warning',
                         action: sub.status === 'active' ? 'Abonnement activé' : 'Abonnement en attente',
-                        user: sub.profiles?.email || 'Utilisateur',
+                        user: sub.profiles?.full_name || sub.profiles?.email || 'Utilisateur',
+                        details: sub.plan ? `Plan ${sub.plan}` : undefined,
                         date: sub.created_at
                     })
                 }
             })
 
-            // Sort all entries by date (newest first)
+            // ── AGENTS ────────────────────────────────────────────────────────
+            const { data: agents } = await supabase
+                .from('agents')
+                .select('id, name, created_at, whatsapp_ever_connected, whatsapp_connected, updated_at')
+                .order('created_at', { ascending: false })
+                .limit(30)
+
+            agents?.forEach(agent => {
+                if (now - new Date(agent.created_at).getTime() < days30) {
+                    entries.push({
+                        id: `agent-${agent.id}`,
+                        category: 'agents',
+                        type: 'success',
+                        action: 'Agent IA créé',
+                        user: agent.name,
+                        details: `ID: ${agent.id.substring(0, 8)}…`,
+                        date: agent.created_at
+                    })
+                }
+                if (agent.whatsapp_ever_connected && now - new Date(agent.updated_at).getTime() < days30) {
+                    entries.push({
+                        id: `wa-${agent.id}`,
+                        category: 'agents',
+                        type: agent.whatsapp_connected ? 'success' : 'warning',
+                        action: agent.whatsapp_connected ? 'WhatsApp connecté' : 'WhatsApp déconnecté',
+                        user: agent.name,
+                        date: agent.updated_at
+                    })
+                }
+            })
+
+            // ── SYSTÈME ───────────────────────────────────────────────────────
+            const { data: cronLogs } = await supabase
+                .from('system_deletion_audit_logs')
+                .select('id, email, deletion_reason, deletion_result, created_at')
+                .order('created_at', { ascending: false })
+                .limit(50)
+
+            cronLogs?.forEach(log => {
+                if (now - new Date(log.created_at).getTime() < days30) {
+                    entries.push({
+                        id: `cron-${log.id}`,
+                        category: 'systeme',
+                        type: log.deletion_result === 'deleted' ? 'success' : log.deletion_result === 'failed' ? 'error' : 'info',
+                        action: log.deletion_result === 'deleted' ? 'Compte test supprimé (cron)' : log.deletion_result === 'failed' ? 'Suppression cron échouée' : 'Cron ignoré',
+                        user: log.email || 'Système',
+                        details: log.deletion_reason,
+                        date: log.created_at
+                    })
+                }
+            })
+
             entries.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-
-            // If no entries, show placeholder logs
-            if (entries.length === 0) {
-                entries.push({
-                    id: 'system-1',
-                    type: 'info',
-                    action: 'Système démarré',
-                    user: 'System',
-                    date: new Date().toISOString()
-                })
-            }
-
-            setLogs(entries.slice(0, 50))
+            setLogs(entries.slice(0, 200))
         } catch (err) {
             console.error('Error fetching logs:', err)
-            setLogs([{
-                id: 'error-1',
-                type: 'error',
-                action: 'Erreur de chargement des logs',
-                user: 'System',
-                date: new Date().toISOString()
-            }])
         } finally {
             setLoading(false)
             setRefreshing(false)
         }
     }
 
-    const handleRefresh = () => {
-        setRefreshing(true)
-        fetchLogs()
-    }
+    const handleRefresh = () => { setRefreshing(true); fetchLogs() }
 
-    const getIcon = (type: string) => {
+    const getTypeIcon = (type: LogType) => {
         switch (type) {
-            case 'success': return <CheckCircle style={{ width: 18, height: 18, color: '#4ade80' }} />
-            case 'warning': return <AlertCircle style={{ width: 18, height: 18, color: '#fbbf24' }} />
-            case 'error': return <XCircle style={{ width: 18, height: 18, color: '#f87171' }} />
-            default: return <Info style={{ width: 18, height: 18, color: '#60a5fa' }} />
+            case 'success': return <CheckCircle style={{ width: 16, height: 16, color: '#4ade80' }} />
+            case 'warning': return <AlertCircle style={{ width: 16, height: 16, color: '#fbbf24' }} />
+            case 'error': return <XCircle style={{ width: 16, height: 16, color: '#f87171' }} />
+            default: return <Info style={{ width: 16, height: 16, color: '#60a5fa' }} />
         }
     }
 
-    const getTypeStyle = (type: string) => {
-        switch (type) {
-            case 'success': return { background: 'rgba(34, 197, 94, 0.15)', color: '#4ade80' }
-            case 'warning': return { background: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24' }
-            case 'error': return { background: 'rgba(239, 68, 68, 0.15)', color: '#f87171' }
-            default: return { background: 'rgba(96, 165, 250, 0.15)', color: '#60a5fa' }
-        }
+    const getCategoryIcon = (cat: LogCategory) => {
+        const C = CATEGORIES.find(c => c.key === cat)?.icon || FileText
+        return <C style={{ width: 14, height: 14 }} />
     }
 
-    const formatDate = (dateStr: string) => {
-        const date = new Date(dateStr)
-        return date.toLocaleDateString('fr-FR', {
-            day: '2-digit',
-            month: 'short',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        })
-    }
+    const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString('fr-FR', {
+        day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+    })
 
-    const filteredLogs = logs.filter(log => {
-        const matchesFilter = filter === 'all' || log.type === filter
-        const matchesSearch = log.action.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            log.user.toLowerCase().includes(searchQuery.toLowerCase())
-        return matchesFilter && matchesSearch
+    const filtered = logs.filter(log => {
+        const matchCat = category === 'tous' || log.category === category
+        const matchType = typeFilter === 'all' || log.type === typeFilter
+        const matchSearch = !searchQuery ||
+            log.action.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            log.user.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (log.details || '').toLowerCase().includes(searchQuery.toLowerCase())
+        return matchCat && matchType && matchSearch
     })
 
     if (loading) {
@@ -211,106 +233,94 @@ export default function AdminLogsPage() {
     }
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
                 <div>
-                    <h1 style={{ fontSize: 28, fontWeight: 700, color: 'white', marginBottom: 8 }}>Logs d'audit</h1>
-                    <p style={{ color: '#94a3b8' }}>Journal des activités du système ({logs.length} entrées)</p>
+                    <h1 style={{ fontSize: 26, fontWeight: 700, color: 'white', marginBottom: 4 }}>Logs Activité</h1>
+                    <p style={{ color: '#64748b', fontSize: 13 }}>{logs.length} entrées · 30 derniers jours</p>
                 </div>
-                <div style={{ display: 'flex', gap: 12 }}>
-                    <motion.button
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={handleRefresh}
-                        disabled={refreshing}
-                        style={{
-                            padding: '12px 16px',
-                            borderRadius: 12,
-                            background: 'rgba(30, 41, 59, 0.5)',
-                            border: '1px solid rgba(148, 163, 184, 0.1)',
-                            color: '#94a3b8',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 8
-                        }}
-                    >
-                        <RefreshCw style={{
-                            width: 16,
-                            height: 16,
-                            animation: refreshing ? 'spin 1s linear infinite' : 'none'
-                        }} />
+                <div style={{ display: 'flex', gap: 10 }}>
+                    <button onClick={handleRefresh} disabled={refreshing} style={{
+                        padding: '9px 14px', borderRadius: 10,
+                        background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(148, 163, 184, 0.1)',
+                        color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontSize: 13
+                    }}>
+                        <RefreshCw style={{ width: 14, height: 14, animation: refreshing ? 'spin 1s linear infinite' : 'none' }} />
                         Actualiser
-                    </motion.button>
-                    <button
-                        style={{
-                            padding: '12px 16px',
-                            borderRadius: 12,
-                            background: 'rgba(30, 41, 59, 0.5)',
-                            border: '1px solid rgba(148, 163, 184, 0.1)',
-                            color: '#94a3b8',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 8
-                        }}
-                    >
-                        <Download style={{ width: 16, height: 16 }} />
-                        Exporter
+                    </button>
+                    <button style={{
+                        padding: '9px 14px', borderRadius: 10,
+                        background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(148, 163, 184, 0.1)',
+                        color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontSize: 13
+                    }}>
+                        <Download style={{ width: 14, height: 14 }} /> Exporter
                     </button>
                 </div>
             </div>
 
-            {/* Filters */}
+            {/* Category tabs */}
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {CATEGORIES.map(({ key, label, icon: Icon }) => {
+                    const count = key === 'tous' ? logs.length : logs.filter(l => l.category === key).length
+                    const active = category === key
+                    const color = CATEGORY_COLOR[key]
+                    return (
+                        <button
+                            key={key}
+                            onClick={() => setCategory(key)}
+                            style={{
+                                display: 'flex', alignItems: 'center', gap: 6,
+                                padding: '7px 14px', borderRadius: 20, fontSize: 13, fontWeight: 500,
+                                cursor: 'pointer', transition: 'all 0.15s ease',
+                                backgroundColor: active ? `${color}20` : 'rgba(30, 41, 59, 0.5)',
+                                border: `1px solid ${active ? `${color}50` : 'rgba(148, 163, 184, 0.1)'}`,
+                                color: active ? color : '#64748b'
+                            }}
+                        >
+                            <Icon style={{ width: 13, height: 13 }} />
+                            {label}
+                            <span style={{
+                                fontSize: 11, fontWeight: 700,
+                                backgroundColor: active ? `${color}30` : 'rgba(148, 163, 184, 0.1)',
+                                color: active ? color : '#64748b',
+                                padding: '1px 6px', borderRadius: 10
+                            }}>{count}</span>
+                        </button>
+                    )
+                })}
+            </div>
+
+            {/* Search + type filter */}
             <div style={{
-                display: 'flex',
-                gap: 16,
-                flexWrap: 'wrap',
-                padding: 16,
-                background: 'rgba(30, 41, 59, 0.5)',
-                borderRadius: 16,
-                border: '1px solid rgba(148, 163, 184, 0.1)'
+                display: 'flex', gap: 12, flexWrap: 'wrap',
+                padding: 14, background: 'rgba(30, 41, 59, 0.5)',
+                borderRadius: 14, border: '1px solid rgba(148, 163, 184, 0.1)'
             }}>
                 <div style={{ flex: '1 1 250px', position: 'relative' }}>
-                    <Search style={{
-                        position: 'absolute',
-                        left: 14,
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        width: 18,
-                        height: 18,
-                        color: '#64748b'
-                    }} />
+                    <Search style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', width: 16, height: 16, color: '#64748b' }} />
                     <input
                         type="text"
-                        placeholder="Rechercher dans les logs..."
+                        placeholder="Rechercher action, utilisateur, détail…"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         style={{
-                            width: '100%',
-                            padding: '12px 12px 12px 44px',
-                            borderRadius: 10,
-                            background: 'rgba(15, 23, 42, 0.5)',
-                            border: '1px solid rgba(148, 163, 184, 0.1)',
-                            color: 'white',
-                            fontSize: 14
+                            width: '100%', padding: '10px 12px 10px 40px', borderRadius: 9,
+                            background: 'rgba(15, 23, 42, 0.5)', border: '1px solid rgba(148, 163, 184, 0.1)',
+                            color: 'white', fontSize: 13, outline: 'none'
                         }}
                     />
                 </div>
                 <select
-                    value={filter}
-                    onChange={(e) => setFilter(e.target.value)}
+                    value={typeFilter}
+                    onChange={(e) => setTypeFilter(e.target.value)}
                     style={{
-                        padding: '12px 16px',
-                        borderRadius: 10,
-                        background: 'rgba(15, 23, 42, 0.5)',
-                        border: '1px solid rgba(148, 163, 184, 0.1)',
-                        color: 'white',
-                        minWidth: 150
+                        padding: '10px 14px', borderRadius: 9, fontSize: 13,
+                        background: 'rgba(15, 23, 42, 0.5)', border: '1px solid rgba(148, 163, 184, 0.1)',
+                        color: 'white', minWidth: 140, outline: 'none'
                     }}
                 >
-                    <option value="all">Tous les types</option>
+                    <option value="all">Tous les niveaux</option>
                     <option value="info">Info</option>
                     <option value="success">Succès</option>
                     <option value="warning">Avertissement</option>
@@ -318,81 +328,64 @@ export default function AdminLogsPage() {
                 </select>
             </div>
 
-            {/* Stats */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
-                {[
-                    { label: 'Total', value: logs.length, color: '#94a3b8' },
-                    { label: 'Info', value: logs.filter(l => l.type === 'info').length, color: '#60a5fa' },
-                    { label: 'Succès', value: logs.filter(l => l.type === 'success').length, color: '#4ade80' },
-                    { label: 'Avertissements', value: logs.filter(l => l.type === 'warning').length, color: '#fbbf24' },
-                    { label: 'Erreurs', value: logs.filter(l => l.type === 'error').length, color: '#f87171' },
-                ].map(stat => (
-                    <div
-                        key={stat.label}
-                        style={{
-                            padding: 16,
-                            borderRadius: 12,
-                            background: 'rgba(30, 41, 59, 0.5)',
-                            border: '1px solid rgba(148, 163, 184, 0.1)',
-                            textAlign: 'center'
-                        }}
-                    >
-                        <div style={{ fontSize: 24, fontWeight: 700, color: stat.color }}>{stat.value}</div>
-                        <div style={{ fontSize: 13, color: '#64748b' }}>{stat.label}</div>
-                    </div>
-                ))}
+            {/* Results count */}
+            <div style={{ fontSize: 12, color: '#475569' }}>
+                <span style={{ color: '#94a3b8', fontWeight: 600 }}>{filtered.length}</span> résultat{filtered.length !== 1 ? 's' : ''}
+                {category !== 'tous' && <span> dans <span style={{ color: CATEGORY_COLOR[category] }}>{CATEGORIES.find(c => c.key === category)?.label}</span></span>}
             </div>
 
-            {/* Logs List */}
-            <div style={{
-                background: 'rgba(30, 41, 59, 0.5)',
-                border: '1px solid rgba(148, 163, 184, 0.1)',
-                borderRadius: 20,
-                overflow: 'hidden'
-            }}>
-                {filteredLogs.length === 0 ? (
-                    <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>
-                        <FileText style={{ width: 40, height: 40, marginBottom: 12, opacity: 0.5 }} />
-                        <p>Aucun log correspondant</p>
+            {/* Logs list */}
+            <div style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(148, 163, 184, 0.1)', borderRadius: 16, overflow: 'hidden' }}>
+                {filtered.length === 0 ? (
+                    <div style={{ padding: 48, textAlign: 'center', color: '#475569' }}>
+                        <FileText style={{ width: 36, height: 36, marginBottom: 12, opacity: 0.3, display: 'block', margin: '0 auto 12px' }} />
+                        <p style={{ fontSize: 14 }}>Aucun log correspondant</p>
                     </div>
                 ) : (
-                    filteredLogs.map((log, i) => (
+                    filtered.map((log, i) => (
                         <motion.div
                             key={log.id}
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: Math.min(i * 0.03, 0.5) }}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: Math.min(i * 0.02, 0.3) }}
                             style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 16,
-                                padding: '16px 24px',
-                                borderBottom: i < filteredLogs.length - 1 ? '1px solid rgba(148, 163, 184, 0.05)' : 'none'
+                                display: 'flex', alignItems: 'center', gap: 14,
+                                padding: '13px 20px',
+                                borderBottom: i < filtered.length - 1 ? '1px solid rgba(148, 163, 184, 0.04)' : 'none'
                             }}
                         >
-                            <div style={{
-                                width: 40,
-                                height: 40,
-                                borderRadius: 10,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                ...getTypeStyle(log.type)
-                            }}>
-                                {getIcon(log.type)}
-                            </div>
+                            {/* Type icon */}
+                            <div style={{ flexShrink: 0 }}>{getTypeIcon(log.type)}</div>
+
+                            {/* Content */}
                             <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={{ fontWeight: 500, color: 'white', marginBottom: 4 }}>{log.action}</div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: 13, color: '#64748b', flexWrap: 'wrap' }}>
-                                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                        <User style={{ width: 14, height: 14 }} />
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                                    <span style={{ fontWeight: 500, color: 'white', fontSize: 13 }}>{log.action}</span>
+                                    {/* Category badge */}
+                                    <span style={{
+                                        display: 'inline-flex', alignItems: 'center', gap: 3,
+                                        fontSize: 10, fontWeight: 600,
+                                        color: CATEGORY_COLOR[log.category],
+                                        backgroundColor: `${CATEGORY_COLOR[log.category]}15`,
+                                        padding: '2px 7px', borderRadius: 8,
+                                        textTransform: 'uppercase', letterSpacing: '0.04em'
+                                    }}>
+                                        {getCategoryIcon(log.category)}
+                                        {log.category}
+                                    </span>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 12, color: '#64748b', flexWrap: 'wrap' }}>
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                                        <User style={{ width: 11, height: 11 }} />
                                         {log.user}
                                     </span>
-                                    {log.details && <span>{log.details}</span>}
+                                    {log.details && <span style={{ color: '#475569' }}>{log.details}</span>}
                                 </div>
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#64748b', fontSize: 13, whiteSpace: 'nowrap' }}>
-                                <Clock style={{ width: 14, height: 14 }} />
+
+                            {/* Date */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#475569', fontSize: 12, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                                <Clock style={{ width: 12, height: 12 }} />
                                 {formatDate(log.date)}
                             </div>
                         </motion.div>
