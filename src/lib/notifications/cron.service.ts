@@ -34,6 +34,26 @@ function getAdminSupabase() {
     )
 }
 
+async function logCronRun(taskKey: string, fn: () => Promise<void>): Promise<void> {
+    const start = Date.now()
+    const supabase = getAdminSupabase()
+    try {
+        await fn()
+        await supabase.from('cron_run_logs').insert({
+            task_key: taskKey,
+            status: 'success',
+            duration_ms: Date.now() - start
+        })
+    } catch (err: any) {
+        await supabase.from('cron_run_logs').insert({
+            task_key: taskKey,
+            status: 'error',
+            duration_ms: Date.now() - start,
+            error_message: err?.message || String(err)
+        })
+    }
+}
+
 function getMailTransporter() {
     return nodemailer.createTransport({
         host: process.env.SMTP_HOST || 'mail.wazzapai.com',
@@ -1339,29 +1359,29 @@ export function initCronJobs(): void {
 
     // Schedule: every day at 8:00 AM UTC
     cron.schedule('0 8 * * *', () => {
-        checkExpiringSubscriptions()
-        checkExpiredSubscriptions()
-        checkExpiredPaidAccounts()
-        sendDailySummary()
+        logCronRun('expiring_subscriptions', checkExpiringSubscriptions)
+        logCronRun('expired_subscriptions', checkExpiredSubscriptions)
+        logCronRun('expired_paid_accounts', checkExpiredPaidAccounts)
+        logCronRun('daily_summary', sendDailySummary)
     }, {
         timezone: 'UTC'
     })
 
     // Daily at 22:30 UTC — agent archive lifecycle + credit expiry + 85% usage alert
     cron.schedule('30 22 * * *', () => {
-        handleArchivedAgentLifecycle()
-        handleCreditExpiry()
-        checkHighCreditUsage()
-        handlePaidAccountCleanup()
-        handleTestAccountCleanup()
+        logCronRun('agent_lifecycle', handleArchivedAgentLifecycle)
+        logCronRun('credit_expiry', handleCreditExpiry)
+        logCronRun('high_credit_usage', checkHighCreditUsage)
+        logCronRun('paid_account_cleanup', handlePaidAccountCleanup)
+        logCronRun('test_account_cleanup', handleTestAccountCleanup)
     }, {
         timezone: 'UTC'
     })
 
     // WhatsApp service health check: every 5 minutes
     cron.schedule('*/5 * * * *', () => {
-        checkWhatsAppService()
-        handlePlatformCatalogAutoSync()
+        logCronRun('whatsapp_health', checkWhatsAppService)
+        logCronRun('catalog_sync', handlePlatformCatalogAutoSync)
     }, {
         timezone: 'UTC'
     })

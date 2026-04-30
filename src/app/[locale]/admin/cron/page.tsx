@@ -15,13 +15,21 @@ interface CronAuditEntry {
     metadata: Record<string, unknown>
 }
 
+interface CronRunLog {
+    task_key: string
+    status: 'success' | 'error'
+    started_at: string
+    duration_ms: number | null
+    error_message: string | null
+}
+
 interface CronJob {
     key: string
     label: string
     description: string
     schedule: string
     lastRun: string | null
-    nextRun: string | null
+    nextRun: string | null | 'every-5min'
     lastStatus: 'success' | 'partial' | 'failed' | 'unknown'
     successCount: number
     failedCount: number
@@ -64,125 +72,64 @@ export default function AdminCronPage() {
         setRefreshing(true)
         const supabase = createClient()
 
-        const { data: logs } = await supabase
-            .from('system_deletion_audit_logs')
-            .select('id, user_id, email, deletion_reason, deletion_result, failure_message, created_at, metadata')
-            .order('created_at', { ascending: false })
+        // Fetch cron_run_logs pour toutes les tâches
+        const { data: runLogs } = await supabase
+            .from('cron_run_logs')
+            .select('task_key, status, started_at, duration_ms, error_message')
+            .order('started_at', { ascending: false })
             .limit(200)
 
-        const entries: CronAuditEntry[] = logs || []
+        const allRunLogs: CronRunLog[] = runLogs || []
 
-        // Groupe par batch (même seconde ~)
-        const cleanupEntries = entries.filter(e => e.deletion_reason === 'expired_test_account')
-        const lastRun = cleanupEntries[0]?.created_at || null
-        const recentBatch = lastRun
-            ? cleanupEntries.filter(e => Math.abs(new Date(e.created_at).getTime() - new Date(lastRun).getTime()) < 10000)
-            : []
+        // Extraire le dernier run et statut par tâche
+        const lastRunByTask: Record<string, string> = {}
+        const lastStatusByTask: Record<string, 'success' | 'error'> = {}
+        for (const log of allRunLogs) {
+            if (!lastRunByTask[log.task_key]) {
+                lastRunByTask[log.task_key] = log.started_at
+                lastStatusByTask[log.task_key] = log.status
+            }
+        }
 
-        const successCount = recentBatch.filter(e => e.deletion_result === 'deleted').length
-        const failedCount = recentBatch.filter(e => e.deletion_result === 'failed').length
-        const skippedCount = recentBatch.filter(e => e.deletion_result === 'skipped').length
+        // Garder aussi les audit logs détaillés pour test_account_cleanup
+        const { data: auditLogs } = await supabase
+            .from('system_deletion_audit_logs')
+            .select('id, user_id, email, deletion_reason, deletion_result, failure_message, created_at, metadata')
+            .eq('deletion_reason', 'expired_test_account')
+            .order('created_at', { ascending: false })
+            .limit(50)
 
-        const lastStatus = failedCount > 0 && successCount === 0 ? 'failed'
-            : failedCount > 0 ? 'partial'
-            : successCount > 0 ? 'success'
-            : cleanupEntries.length > 0 ? 'success'
-            : 'unknown'
+        const cleanupEntries: CronAuditEntry[] = auditLogs || []
+
+        const buildJob = (
+            key: string,
+            label: string,
+            description: string,
+            schedule: string,
+            scheduleHour: number | null
+        ): CronJob => {
+            const lastRun = lastRunByTask[key] || null
+            const rawStatus = lastStatusByTask[key]
+            const lastStatus: CronJob['lastStatus'] = rawStatus === 'success' ? 'success' : rawStatus === 'error' ? 'failed' : 'unknown'
+            const nextRun = scheduleHour !== null ? nextRunFrom(lastRun, scheduleHour) : 'every-5min'
+            return { key, label, description, schedule, lastRun, nextRun, lastStatus, successCount: 0, failedCount: 0, skippedCount: 0, recentLogs: [] }
+        }
 
         setJobs([
             // ── 22h30 UTC ──────────────────────────────────────────────────────
             {
-                key: 'test_account_cleanup',
-                label: 'Nettoyage comptes test expirés',
-                description: 'Supprime les comptes test dont la période de 7 jours est expirée et qui n\'ont pas souscrit.',
-                schedule: '22h30 UTC — quotidien',
-                lastRun,
-                nextRun: nextRunFrom(lastRun, 22),
-                lastStatus,
-                successCount,
-                failedCount,
-                skippedCount,
+                ...buildJob('test_account_cleanup', 'Nettoyage comptes test expirés', 'Supprime les comptes test dont la période de 7 jours est expirée et qui n\'ont pas souscrit.', '22h30 UTC — quotidien', 22),
                 recentLogs: cleanupEntries.slice(0, 20),
             },
-            {
-                key: 'paid_account_cleanup',
-                label: 'Nettoyage comptes payants expirés',
-                description: 'Passe en frozen_grace les abonnements expirés sans renouvellement. Supprime les comptes en grâce dépassée.',
-                schedule: '22h30 UTC — quotidien',
-                lastRun: null,
-                nextRun: nextRunFrom(null, 22),
-                lastStatus: 'unknown',
-                successCount: 0, failedCount: 0, skippedCount: 0,
-                recentLogs: [],
-            },
-            {
-                key: 'credit_expiry',
-                label: 'Expiration crédits & alerte 85%',
-                description: 'Gèle les crédits des comptes expirés. Envoie une alerte push/email aux utilisateurs ayant consommé plus de 85% de leurs crédits.',
-                schedule: '22h30 UTC — quotidien',
-                lastRun: null,
-                nextRun: nextRunFrom(null, 22),
-                lastStatus: 'unknown',
-                successCount: 0, failedCount: 0, skippedCount: 0,
-                recentLogs: [],
-            },
-            {
-                key: 'agent_lifecycle',
-                label: 'Archivage agents inactifs',
-                description: 'Archive les agents WhatsApp déconnectés depuis trop longtemps et nettoie leurs sessions.',
-                schedule: '22h30 UTC — quotidien',
-                lastRun: null,
-                nextRun: nextRunFrom(null, 22),
-                lastStatus: 'unknown',
-                successCount: 0, failedCount: 0, skippedCount: 0,
-                recentLogs: [],
-            },
+            buildJob('paid_account_cleanup', 'Nettoyage comptes payants expirés', 'Passe en frozen_grace les abonnements expirés sans renouvellement. Supprime les comptes en grâce dépassée.', '22h30 UTC — quotidien', 22),
+            buildJob('credit_expiry', 'Expiration crédits & alerte 85%', 'Gèle les crédits des comptes expirés. Envoie une alerte push/email aux utilisateurs ayant consommé plus de 85% de leurs crédits.', '22h30 UTC — quotidien', 22),
+            buildJob('agent_lifecycle', 'Archivage agents inactifs', 'Archive les agents WhatsApp déconnectés depuis trop longtemps et nettoie leurs sessions.', '22h30 UTC — quotidien', 22),
             // ── 08h00 UTC ──────────────────────────────────────────────────────
-            {
-                key: 'expiring_subscriptions',
-                label: 'Alertes abonnements expirant',
-                description: 'Envoie des notifications aux utilisateurs dont l\'abonnement expire dans 7 jours, 3 jours ou 1 jour.',
-                schedule: '08h00 UTC — quotidien',
-                lastRun: null,
-                nextRun: nextRunFrom(null, 8),
-                lastStatus: 'unknown',
-                successCount: 0, failedCount: 0, skippedCount: 0,
-                recentLogs: [],
-            },
-            {
-                key: 'daily_summary',
-                label: 'Résumé quotidien admin',
-                description: 'Envoie un résumé des métriques clés (conversations, commandes, revenus, crédits utilisés) aux admins.',
-                schedule: '08h00 UTC — quotidien',
-                lastRun: null,
-                nextRun: nextRunFrom(null, 8),
-                lastStatus: 'unknown',
-                successCount: 0, failedCount: 0, skippedCount: 0,
-                recentLogs: [],
-            },
+            buildJob('expiring_subscriptions', 'Alertes abonnements expirant', 'Envoie des notifications aux utilisateurs dont l\'abonnement expire dans 7 jours, 3 jours ou 1 jour.', '08h00 UTC — quotidien', 8),
+            buildJob('daily_summary', 'Résumé quotidien admin', 'Envoie un résumé des métriques clés (conversations, commandes, revenus, crédits utilisés) aux admins.', '08h00 UTC — quotidien', 8),
             // ── Toutes les 5 min ───────────────────────────────────────────────
-            {
-                key: 'whatsapp_health',
-                label: 'Health check WhatsApp',
-                description: 'Vérifie l\'état de tous les agents WhatsApp connectés. Relance les sessions déconnectées si possible.',
-                schedule: 'Toutes les 5 minutes',
-                lastRun: null,
-                nextRun: null,
-                lastStatus: 'unknown',
-                successCount: 0, failedCount: 0, skippedCount: 0,
-                recentLogs: [],
-            },
-            {
-                key: 'catalog_sync',
-                label: 'Sync catalogue produits',
-                description: 'Synchronise automatiquement les catalogues produits des agents avec les plateformes e-commerce connectées.',
-                schedule: 'Toutes les 5 minutes',
-                lastRun: null,
-                nextRun: null,
-                lastStatus: 'unknown',
-                successCount: 0, failedCount: 0, skippedCount: 0,
-                recentLogs: [],
-            },
+            buildJob('whatsapp_health', 'Health check WhatsApp', 'Vérifie l\'état de tous les agents WhatsApp connectés. Relance les sessions déconnectées si possible.', 'Toutes les 5 minutes', null),
+            buildJob('catalog_sync', 'Sync catalogue produits', 'Synchronise automatiquement les catalogues produits des agents avec les plateformes e-commerce connectées.', 'Toutes les 5 minutes', null),
         ])
         setLoading(false)
         setRefreshing(false)
@@ -272,7 +219,7 @@ export default function AdminCronPage() {
                                     <div>
                                         <div style={{ fontSize: 11, color: '#475569', marginBottom: 2 }}>PROCHAIN RUN</div>
                                         <div style={{ fontSize: 13, color: '#94a3b8' }}>
-                                            {job.nextRun ? formatDate(job.nextRun) : '—'}
+                                            {job.nextRun === 'every-5min' ? 'Dans < 5 min' : job.nextRun ? formatDate(job.nextRun) : '—'}
                                         </div>
                                     </div>
                                 </div>
