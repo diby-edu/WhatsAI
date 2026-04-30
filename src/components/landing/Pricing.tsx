@@ -436,7 +436,7 @@ export default function Pricing() {
                                         </div>
                                         <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
                                             <CreditCard size={9} />
-                                            {t('quotaCredits')}
+                                            {t('quotaCredits')}/{isYearly ? t('perYear') : t('perMonth')}
                                         </div>
                                         {plan.id !== 'free' && (
                                             <div style={{ fontSize: 9, color: plan.id === 'scale' ? '#a78bfa' : '#64748b', marginTop: 2 }}>
