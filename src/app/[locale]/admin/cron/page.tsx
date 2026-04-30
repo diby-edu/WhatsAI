@@ -35,6 +35,7 @@ interface CronJob {
     failedCount: number
     skippedCount: number
     recentLogs: CronAuditEntry[]
+    runLogs: CronRunLog[]
 }
 
 function formatDate(iso: string) {
@@ -112,7 +113,8 @@ export default function AdminCronPage() {
             const rawStatus = lastStatusByTask[key]
             const lastStatus: CronJob['lastStatus'] = rawStatus === 'success' ? 'success' : rawStatus === 'error' ? 'failed' : 'unknown'
             const nextRun = scheduleHour !== null ? nextRunFrom(lastRun, scheduleHour) : 'every-5min'
-            return { key, label, description, schedule, lastRun, nextRun, lastStatus, successCount: 0, failedCount: 0, skippedCount: 0, recentLogs: [] }
+            const runLogs = allRunLogs.filter(l => l.task_key === key).slice(0, 20)
+            return { key, label, description, schedule, lastRun, nextRun, lastStatus, successCount: 0, failedCount: 0, skippedCount: 0, recentLogs: [], runLogs }
         }
 
         setJobs([
@@ -266,11 +268,8 @@ export default function AdminCronPage() {
                     {/* Logs */}
                     {expanded === job.key && (
                         <div style={{ borderTop: '1px solid rgba(148, 163, 184, 0.08)' }}>
-                            {job.recentLogs.length === 0 ? (
-                                <div style={{ padding: 24, textAlign: 'center', color: '#475569', fontSize: 13 }}>
-                                    Aucun log disponible
-                                </div>
-                            ) : (
+                            {job.recentLogs.length > 0 ? (
+                                // Audit détaillé pour test_account_cleanup
                                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                     <thead>
                                         <tr style={{ borderBottom: '1px solid rgba(148, 163, 184, 0.06)' }}>
@@ -282,35 +281,56 @@ export default function AdminCronPage() {
                                     <tbody>
                                         {job.recentLogs.map((log) => (
                                             <tr key={log.id} style={{ borderBottom: '1px solid rgba(148, 163, 184, 0.04)' }}>
-                                                <td style={{ padding: '10px 16px', fontSize: 13, color: '#94a3b8' }}>
-                                                    {log.user_id.slice(0, 8)}…
-                                                </td>
-                                                <td style={{ padding: '10px 16px', fontSize: 13, color: '#94a3b8' }}>
-                                                    {log.email}
-                                                </td>
+                                                <td style={{ padding: '10px 16px', fontSize: 13, color: '#94a3b8' }}>{log.user_id.slice(0, 8)}…</td>
+                                                <td style={{ padding: '10px 16px', fontSize: 13, color: '#94a3b8' }}>{log.email}</td>
                                                 <td style={{ padding: '10px 16px' }}>
-                                                    <span style={{
-                                                        fontSize: 12, fontWeight: 500,
-                                                        color: RESULT_COLOR[log.deletion_result] || '#94a3b8',
-                                                        backgroundColor: `${RESULT_COLOR[log.deletion_result]}15`,
-                                                        padding: '3px 10px', borderRadius: 20
-                                                    }}>
+                                                    <span style={{ fontSize: 12, fontWeight: 500, color: RESULT_COLOR[log.deletion_result] || '#94a3b8', backgroundColor: `${RESULT_COLOR[log.deletion_result]}15`, padding: '3px 10px', borderRadius: 20 }}>
                                                         {log.deletion_result}
                                                     </span>
                                                 </td>
                                                 <td style={{ padding: '10px 16px', fontSize: 12, color: '#475569', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                    {log.failure_message
-                                                        ? (() => { try { return JSON.parse(log.failure_message)?.message || log.failure_message } catch { return log.failure_message } })()
-                                                        : '—'
-                                                    }
+                                                    {log.failure_message ? (() => { try { return JSON.parse(log.failure_message)?.message || log.failure_message } catch { return log.failure_message } })() : '—'}
+                                                </td>
+                                                <td style={{ padding: '10px 16px', fontSize: 12, color: '#475569', whiteSpace: 'nowrap' }}>{formatDate(log.created_at)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            ) : job.runLogs.length > 0 ? (
+                                // Logs d'exécution génériques pour toutes les autres tâches
+                                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                    <thead>
+                                        <tr style={{ borderBottom: '1px solid rgba(148, 163, 184, 0.06)' }}>
+                                            {['Statut', 'Durée', 'Erreur', 'Date'].map(h => (
+                                                <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {job.runLogs.map((log, i) => (
+                                            <tr key={i} style={{ borderBottom: '1px solid rgba(148, 163, 184, 0.04)' }}>
+                                                <td style={{ padding: '10px 16px' }}>
+                                                    <span style={{ fontSize: 12, fontWeight: 500, color: log.status === 'success' ? '#10b981' : '#ef4444', backgroundColor: log.status === 'success' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', padding: '3px 10px', borderRadius: 20 }}>
+                                                        {log.status === 'success' ? 'Succès' : 'Erreur'}
+                                                    </span>
+                                                </td>
+                                                <td style={{ padding: '10px 16px', fontSize: 13, color: '#94a3b8' }}>
+                                                    {log.duration_ms != null ? `${log.duration_ms} ms` : '—'}
+                                                </td>
+                                                <td style={{ padding: '10px 16px', fontSize: 12, color: '#475569', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                    {log.error_message || '—'}
                                                 </td>
                                                 <td style={{ padding: '10px 16px', fontSize: 12, color: '#475569', whiteSpace: 'nowrap' }}>
-                                                    {formatDate(log.created_at)}
+                                                    {formatDate(log.started_at)}
                                                 </td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
+                            ) : (
+                                <div style={{ padding: 24, textAlign: 'center', color: '#475569', fontSize: 13 }}>
+                                    Aucun log disponible
+                                </div>
                             )}
                         </div>
                     )}
