@@ -1,0 +1,13 @@
+
+> wazzap-clone@0.1.0 start
+> next start -p 3000
+
+▲ Next.js 16.1.1
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.38:3000
+
+✓ Starting...
+📱 WhatsApp is handled by standalone service (wazzapai-bot)
+✓ Ready in 8.4s
+⏰ [CRON] Cron jobs initialized — daily tasks at 8:00 AM + WhatsApp monitor every 5 min
+✅ Next.js app ready

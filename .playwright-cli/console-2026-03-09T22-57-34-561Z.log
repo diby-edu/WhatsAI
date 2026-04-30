@@ -1,0 +1,1267 @@
+[    2058ms] [ERROR] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+%s%s https://react.dev/link/hydration-mismatch 
+
+  ...
+    <ErrorBoundary errorComponent={function Error} errorStyles={<SegmentViewNode>} errorScripts={[...]}>
+      <ErrorBoundaryHandler pathname="/fr" errorComponent={function Error} errorStyles={<SegmentViewNode>} ...>
+        <LoadingBoundary name="fr/" loading={null}>
+          <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
+            <HTTPAccessFallbackErrorBoundary pathname="/fr" notFound={<SegmentViewNode>} forbidden={undefined} ...>
+              <RedirectBoundary>
+                <RedirectErrorBoundary router={{...}}>
+                  <InnerLayoutRouter url="/fr" tree={[...]} params={{locale:"fr"}} cacheNode={{rsc:<Fragment>, ...}} ...>
+                    <SegmentViewNode type="page" pagePath="[locale]/p...">
+                      <SegmentTrieNode>
+                      <ClientPageRoot Component={function Home} serverProvidedParams={{...}}>
+                        <Home params={Promise} searchParams={Promise}>
+                          <main>
+                            <script>
+                            <Navbar>
+                            <Hero>
+                              <section
+                                style={{position:"relative",minHeight:"100vh",display:"flex",alignItems:"center",paddingTop:100, ...}}
+-                               className="jsx-69d39b256eefee7a"
+                              >
+                                <div
+                                  style={{position:"absolute",inset:0,overflow:"hidden"}}
+-                                 className="jsx-69d39b256eefee7a"
+                                >
+                                  <motion.div>
+                                  <motion.div>
+                                  <div
+                                    style={{position:"absolute",inset:0,backgroundImage:"\n        ...",backgroundSize:"60px 60px"}}
+-                                   className="jsx-69d39b256eefee7a"
+                                  >
+                                <div
+                                  style={{width:"100%",maxWidth:1400,margin:"0 auto",padding:"0 24px",position:"relative",zIndex:10}}
+-                                 className="jsx-69d39b256eefee7a"
+                                >
+                                  <div
++                                   className="hero-grid"
+-                                   className="jsx-69d39b256eefee7a hero-grid"
+                                    style={{display:"grid",gridTemplateColumns:"repeat(2, ...",gap:80,alignItems:"center"}}
+                                  >
+                                    <div
++                                     className="hero-content"
+-                                     className="jsx-69d39b256eefee7a hero-content"
+                                    >
+                                      <motion.div initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} ...>
+                                        <div style={{display:"i...", ...}} ref={function useMotionRef.useCallback}>
+                                          <motion.div>
+                                          <span
+                                            style={{fontSize:14,color:"#25D366",fontWeight:600}}
+-                                           className="jsx-69d39b256eefee7a"
+                                          >
++                                           {"Propulsé par l'IA"}
+                                      <motion.h1 className="hero-title" initial={{opacity:0,y:30}} ...>
+                                        <h1 className="hero-title" style={{fontSize:"...", ...}} ...>
+                                          <span
+                                            style={{background:"linear-gra...",WebkitBackgroundClip:"text", ...}}
+-                                           className="jsx-69d39b256eefee7a"
+                                          >
+                                      <motion.p className="hero-subtitle" initial={{opacity:0,y:20}} ...>
+                                        <p className="hero-subtitle" style={{fontSize:"...", ...}} ...>
+                                          <span
+                                            style={{color:"white",fontWeight:500}}
+-                                           className="jsx-69d39b256eefee7a"
+                                          >
+                                          <span
+                                            style={{color:"#25D366",fontWeight:500}}
+-                                           className="jsx-69d39b256eefee7a"
+                                          >
+                                          ...
+                                      <motion.div initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} ...>
+                                        <div style={{display:"flex", ...}} ref={function useMotionRef.useCallback}>
+                                          <div
+                                            style={{display:"flex",alignItems:"center",gap:8,padding:"10px 16px",borderRadius:10, ...}}
+-                                           className="jsx-69d39b256eefee7a"
+                                          >
+                                            <Zap>
+                                            <span
+                                              style={{fontSize:14,color:"#e2e8f0",fontWeight:500}}
+-                                             className="jsx-69d39b256eefee7a"
+                                            >
++                                             {"Réponse en < 3 sec"}
+                                          <div
+                                            style={{display:"flex",alignItems:"center",gap:8,padding:"10px 16px",borderRadius:10, ...}}
+-                                           className="jsx-69d39b256eefee7a"
+                                          >
+                                            <Clock>
+                                            <span
+                                              style={{fontSize:14,color:"#e2e8f0",fontWeight:500}}
+-                                             className="jsx-69d39b256eefee7a"
+                                            >
++                                             Disponible 24h/24
+                                          <div
+                                            style={{display:"flex",alignItems:"center",gap:8,padding:"10px 16px",borderRadius:10, ...}}
+-                                           className="jsx-69d39b256eefee7a"
+                                          >
+                                            <Shield>
+                                            <span
+                                              style={{fontSize:14,color:"#e2e8f0",fontWeight:500}}
+-                                             className="jsx-69d39b256eefee7a"
+                                            >
++                                             Sans carte bancaire
+                                      <motion.div>
+                                      <motion.div className="hero-stats" initial={{opacity:0,y:20}} ...>
+                                        <div className="hero-stats" style={{display:"flex", ...}} ...>
+                                          <div
+                                            style={{display:"flex",alignItems:"center",gap:12}}
+-                                           className="jsx-69d39b256eefee7a"
+                                          >
+                                            <div
+                                              style={{width:44,height:44,borderRadius:12,background:"rgba(37, 2...",display:"flex", ...}}
+-                                             className="jsx-69d39b256eefee7a"
+                                            >
+                                            <div
+-                                             className="jsx-69d39b256eefee7a"
+                                            >
+                                              <div
+                                                style={{fontSize:22,fontWeight:700,color:"white"}}
+-                                               className="jsx-69d39b256eefee7a"
+                                              >
++                                               100+
+                                              <div
+                                                style={{fontSize:13,color:"#64748b"}}
+-                                               className="jsx-69d39b256eefee7a"
+                                              >
++                                               Entreprises
+                                          <div
+                                            style={{display:"flex",alignItems:"center",gap:12}}
+-                                           className="jsx-69d39b256eefee7a"
+                                          >
+                                            <div
+                                              style={{width:44,height:44,borderRadius:12,background:"rgba(37, 2...",display:"flex", ...}}
+-                                             className="jsx-69d39b256eefee7a"
+                                            >
+                                            <div
+-                                             className="jsx-69d39b256eefee7a"
+                                            >
+                                              <div
+                                                style={{fontSize:22,fontWeight:700,color:"white"}}
+-                                               className="jsx-69d39b256eefee7a"
+                                              >
++                                               10K+
+                                              <div
+                                                style={{fontSize:13,color:"#64748b"}}
+-                                               className="jsx-69d39b256eefee7a"
+                                              >
++                                               Messages/mois
+                                          <div
+                                            style={{display:"flex",alignItems:"center",gap:12}}
+-                                           className="jsx-69d39b256eefee7a"
+                                          >
+                                            <div
+                                              style={{width:44,height:44,borderRadius:12,background:"rgba(37, 2...",display:"flex", ...}}
+-                                             className="jsx-69d39b256eefee7a"
+                                            >
+                                            <div
+-                                             className="jsx-69d39b256eefee7a"
+                                            >
+                                              <div
+                                                style={{fontSize:22,fontWeight:700,color:"white"}}
+-                                               className="jsx-69d39b256eefee7a"
+                                              >
++                                               98%
+                                              <div
+                                                style={{fontSize:13,color:"#64748b"}}
+-                                               className="jsx-69d39b256eefee7a"
+                                              >
++                                               Satisfaction
+                                    <motion.div className="hero-phone" initial={{opacity:0,x:50}} ...>
+                                      <div className="hero-phone" style={{display:"flex", ...}} ...>
+                                        <div
+                                          style={{position:"absolute",width:400,height:400,borderRadius:"50%",background:"radial-gra...", ...}}
+-                                         className="jsx-69d39b256eefee7a"
+                                        >
+                                        <motion.div animate={{y:[...]}} transition={{duration:4, ...}} ...>
+                                          <div style={{width:340, ...}} ref={function useMotionRef.useCallback}>
+                                            <div
+                                              style={{position:"absolute",top:12,left:"50%",transform:"translateX...",width:120,height:28, ...}}
+-                                             className="jsx-69d39b256eefee7a"
+                                            >
+                                            <div
+                                              style={{width:"100%",height:"100%",borderRadius:35,overflow:"hidden",background:"#111b21"}}
+-                                             className="jsx-69d39b256eefee7a"
+                                            >
+                                              <div
+                                                style={{background:"#1f2c34",padding:"50px 16px ...",display:"flex",alignItems:"center", ...}}
+-                                               className="jsx-69d39b256eefee7a"
+                                              >
+                                                <div
+                                                  style={{width:40,height:40,borderRadius:"50%",background:"linear-gra...",display:"flex", ...}}
+-                                                 className="jsx-69d39b256eefee7a"
+                                                >
+                                                <div
+-                                                 className="jsx-69d39b256eefee7a"
+                                                >
+                                                  <div
+                                                    style={{color:"white",fontWeight:600,fontSize:16}}
+-                                                   className="jsx-69d39b256eefee7a"
+                                                  >
++                                                   Assistant WazzapAI
+                                                  <div
+                                                    style={{color:"#25D366",fontSize:12,display:"flex",alignItems:"center",gap:4}}
+-                                                   className="jsx-69d39b256eefee7a"
+                                                  >
+                                                    <div
+                                                      style={{width:8,height:8,borderRadius:"50%",background:"#25D366"}}
+-                                                     className="jsx-69d39b256eefee7a"
+                                                    >
+                                                    ...
+                                              <div
+                                                style={{padding:12,height:480,overflowY:"auto",background:"url(\"data...",display:"flex", ...}}
+-                                               className="jsx-69d39b256eefee7a"
+                                              >
+                                              <div
+                                                style={{position:"absolute",bottom:12,left:12,right:12,background:"#1f2c34",borderRadius:25, ...}}
+-                                               className="jsx-69d39b256eefee7a"
+                                              >
+                                                <div
+                                                  style={{flex:1,color:"rgba(255,2...",fontSize:14}}
+-                                                 className="jsx-69d39b256eefee7a"
+                                                >
++                                                 Écrire un message...
+                                                <div
+                                                  style={{width:40,height:40,borderRadius:"50%",background:"#25D366",display:"flex", ...}}
+-                                                 className="jsx-69d39b256eefee7a"
+                                                >
+                                        <motion.div animate={{y:[...], ...}} transition={{duration:5, ...}} ...>
+                                          <div style={{position:"...", ...}} ref={function useMotionRef.useCallback}>
+                                            <TrendingUp>
+                                            <div
+-                                             className="jsx-69d39b256eefee7a"
+                                            >
+                                              <div
+                                                style={{color:"white",fontWeight:600,fontSize:16}}
+-                                               className="jsx-69d39b256eefee7a"
+                                              >
++                                               +300%
+                                              <div
+                                                style={{color:"#94a3b8",fontSize:12}}
+-                                               className="jsx-69d39b256eefee7a"
+                                              >
++                                               Conversions
+                                        <motion.div animate={{y:[...], ...}} transition={{duration:4, ...}} ...>
+                                          <div style={{position:"...", ...}} ref={function useMotionRef.useCallback}>
+                                            <div
+                                              style={{display:"flex"}}
+-                                             className="jsx-69d39b256eefee7a"
+                                            >
+                                            <span
+                                              style={{color:"white",fontWeight:500,fontSize:14}}
+-                                             className="jsx-69d39b256eefee7a"
+                                            >
++                                             4.9/5
+                                ...
+                            <Problem>
+                            <BeforeAfter>
+                              <section
+                                id="before-after"
+                                style={{padding:"100px 24px",background:"#0f172a",position:"relative"}}
+-                               className="jsx-6ea9a332c135d46"
+                              >
+                                <div
+                                  style={{maxWidth:1000,margin:"0 auto",position:"relative",zIndex:1}}
+-                                 className="jsx-6ea9a332c135d46"
+                                >
+                                  <div
++                                   className="ba-grid"
+-                                   className="jsx-6ea9a332c135d46 ba-grid"
+                                    style={{display:"grid",gridTemplateColumns:"repeat(2, ...",gap:32,alignItems:"stretch"}}
+                                  >
+                                    <motion.div initial={{opacity:0,x:-40}} whileInView={{opacity:1,x:0}} ...>
+                                      <div style={{padding:36, ...}} ref={function useMotionRef.useCallback}>
+                                        <div
+                                          style={{position:"absolute",top:-50,right:-50,width:200,height:200,borderRadius:"50%",background:"rad...", ...}}
+-                                         className="jsx-6ea9a332c135d46"
+                                        >
+                                        <h3
+                                          style={{fontSize:24,fontWeight:700,color:"#fca5a5",marginBottom:28,display:"flex",alignItems:"center", ...}}
+-                                         className="jsx-6ea9a332c135d46"
+                                        >
+                                        <div
+                                          style={{display:"flex",flexDirection:"column",gap:16}}
+-                                         className="jsx-6ea9a332c135d46"
+                                        >
+                                          <motion.div initial={{opacity:0,x:-10}} whileInView={{opacity:1,x:0}} ...>
+                                            <div style={{display:"flex", ...}} ref={function useMotionRef.useCallback}>
+                                              <CircleX>
+                                              <span
+                                                style={{fontSize:15,color:"#cbd5e1",lineHeight:1.5}}
+-                                               className="jsx-6ea9a332c135d46"
+                                              >
++                                               Répondre manuellement à chaque message
+                                          <motion.div initial={{opacity:0,x:-10}} whileInView={{opacity:1,x:0}} ...>
+                                            <div style={{display:"flex", ...}} ref={function useMotionRef.useCallback}>
+                                              <CircleX>
+                                              <span
+                                                style={{fontSize:15,color:"#cbd5e1",lineHeight:1.5}}
+-                                               className="jsx-6ea9a332c135d46"
+                                              >
++                                               Messages oubliés
+                                          <motion.div initial={{opacity:0,x:-10}} whileInView={{opacity:1,x:0}} ...>
+                                            <div style={{display:"flex", ...}} ref={function useMotionRef.useCallback}>
+                                              <CircleX>
+                                              <span
+                                                style={{fontSize:15,color:"#cbd5e1",lineHeight:1.5}}
+-                                               className="jsx-6ea9a332c135d46"
+                                              >
++                                               Clients qui attendent trop longtemps
+                                          <motion.div initial={{opacity:0,x:-10}} whileInView={{opacity:1,x:0}} ...>
+                                            <div style={{display:"flex", ...}} ref={function useMotionRef.useCallback}>
+                                              <CircleX>
+                                              <span
+                                                style={{fontSize:15,color:"#cbd5e1",lineHeight:1.5}}
+-                                               className="jsx-6ea9a332c135d46"
+                                              >
++                                               Trop de conversations à gérer
+                                          <motion.div initial={{opacity:0,x:-10}} whileInView={{opacity:1,x:0}} ...>
+                                            <div style={{display:"flex", ...}} ref={function useMotionRef.useCallback}>
+                                              <CircleX>
+                                              <span
+                                                style={{fontSize:15,color:"#cbd5e1",lineHeight:1.5}}
+-                                               className="jsx-6ea9a332c135d46"
+                                              >
++                                               Ventes perdues
+                                    <motion.div initial={{opacity:0,x:40}} whileInView={{opacity:1,x:0}} ...>
+                                      <div style={{padding:36, ...}} ref={function useMotionRef.useCallback}>
+                                        <div
+                                          style={{position:"absolute",top:-50,right:-50,width:200,height:200,borderRadius:"50%",background:"rad...", ...}}
+-                                         className="jsx-6ea9a332c135d46"
+                                        >
+                                        <h3
+                                          style={{fontSize:24,fontWeight:700,color:"#6ee7b7",marginBottom:28,display:"flex",alignItems:"center", ...}}
+-                                         className="jsx-6ea9a332c135d46"
+                                        >
+                                        <div
+                                          style={{display:"flex",flexDirection:"column",gap:16}}
+-                                         className="jsx-6ea9a332c135d46"
+                                        >
+                                          <motion.div initial={{opacity:0,x:10}} whileInView={{opacity:1,x:0}} ...>
+                                            <div style={{display:"flex", ...}} ref={function useMotionRef.useCallback}>
+                                              <CircleCheckBig>
+                                              <span
+                                                style={{fontSize:15,color:"#cbd5e1",lineHeight:1.5}}
+-                                               className="jsx-6ea9a332c135d46"
+                                              >
++                                               Réponses instantanées
+                                          <motion.div initial={{opacity:0,x:10}} whileInView={{opacity:1,x:0}} ...>
+                                            <div style={{display:"flex", ...}} ref={function useMotionRef.useCallback}>
+                                              <CircleCheckBig>
+                                              <span
+                                                style={{fontSize:15,color:"#cbd5e1",lineHeight:1.5}}
+-                                               className="jsx-6ea9a332c135d46"
+                                              >
++                                               Conversations automatisées
+                                          <motion.div initial={{opacity:0,x:10}} whileInView={{opacity:1,x:0}} ...>
+                                            <div style={{display:"flex", ...}} ref={function useMotionRef.useCallback}>
+                                              <CircleCheckBig>
+                                              <span
+                                                style={{fontSize:15,color:"#cbd5e1",lineHeight:1.5}}
+-                                               className="jsx-6ea9a332c135d46"
+                                              >
++                                               Qualification automatique des prospects
+                                          <motion.div initial={{opacity:0,x:10}} whileInView={{opacity:1,x:0}} ...>
+                                            <div style={{display:"flex", ...}} ref={function useMotionRef.useCallback}>
+                                              <CircleCheckBig>
+                                              <span
+                                                style={{fontSize:15,color:"#cbd5e1",lineHeight:1.5}}
+-                                               className="jsx-6ea9a332c135d46"
+                                              >
++                                               Disponible 24h/24
+                                          <motion.div initial={{opacity:0,x:10}} whileInView={{opacity:1,x:0}} ...>
+                                            <div style={{display:"flex", ...}} ref={function useMotionRef.useCallback}>
+                                              <CircleCheckBig>
+                                              <span
+                                                style={{fontSize:15,color:"#cbd5e1",lineHeight:1.5}}
+-                                               className="jsx-6ea9a332c135d46"
+                                              >
++                                               Plus de ventes
+                                ...
+                            <HowItWorks>
+                              <section
+                                id="how-it-works"
+                                style={{padding:"100px 24px",background:"#020617",position:"relative"}}
+-                               className="jsx-26d308aae5385e19"
+                              >
+                                <div
+                                  style={{position:"absolute",top:0,left:0,right:0,height:1,background:"linear-gra..."}}
+-                                 className="jsx-26d308aae5385e19"
+                                >
+                                <div
+                                  style={{maxWidth:1200,margin:"0 auto",position:"relative",zIndex:1}}
+-                                 className="jsx-26d308aae5385e19"
+                                >
+                                  <motion.div initial={{opacity:0,y:30}} whileInView={{opacity:1,y:0}} ...>
+                                    <div style={{...}} ref={function useMotionRef.useCallback}>
+                                      <div
+                                        style={{display:"inline-flex",alignItems:"center",gap:8,padding:"8px 20px",borderRadius:100, ...}}
+-                                       className="jsx-26d308aae5385e19"
+                                      >
+                                        <Zap>
+                                        <span
+                                          style={{fontSize:14,color:"#25D366",fontWeight:600}}
+-                                         className="jsx-26d308aae5385e19"
+                                        >
++                                         {"Simple & Rapide"}
+                                      <h2
+                                        style={{fontSize:"clamp(32px...",fontWeight:700,color:"white",marginBottom:16,lineHeight:1.2}}
+-                                       className="jsx-26d308aae5385e19"
+                                      >
+                                        <span
+                                          style={{background:"linear-gra...",WebkitBackgroundClip:"text",WebkitTextFillColor:"t..."}}
+-                                         className="jsx-26d308aae5385e19"
+                                        >
+                                      <p
+                                        style={{fontSize:18,color:"#94a3b8",maxWidth:500,margin:"0 auto"}}
+-                                       className="jsx-26d308aae5385e19"
+                                      >
++                                       Aucune compétence technique requise.
+                                  <div
+                                    style={{display:"flex",justifyContent:"center",alignItems:"stretch",gap:24,flexWrap:"wrap"}}
+-                                   className="jsx-26d308aae5385e19"
+                                  >
+                                    <motion.div initial={{opacity:0,y:40}} whileInView={{opacity:1,y:0}} ...>
+                                      <div style={{flex:"1 1 ...", ...}} ref={function useMotionRef.useCallback}>
+                                        <div
+                                          style={{position:"absolute",right:-16,top:"50%",transform:"translateY...",zIndex:10,display:"flex", ...}}
++                                         className="step-arrow"
+-                                         className="jsx-26d308aae5385e19 step-arrow"
+                                        >
+                                        <motion.div whileHover={{y:-10, ...}} style={{flex:1,padding:36, ...}}>
+                                          <div style={{flex:1,padding:36, ...}} ref={function useMotionRef.useCallback}>
+                                            <div
+                                              style={{position:"absolute",top:16,right:16,fontSize:72,fontWeight:900,color:"rgba(148, ...", ...}}
+-                                             className="jsx-26d308aae5385e19"
+                                            >
++                                             01
+                                            <motion.div>
+                                            <h3
+                                              style={{fontSize:20,fontWeight:700,color:"white",marginBottom:12}}
+-                                             className="jsx-26d308aae5385e19"
+                                            >
++                                             Créez votre agent IA
+                                            <p
+                                              style={{fontSize:14,color:"#94a3b8",lineHeight:1.7}}
+-                                             className="jsx-26d308aae5385e19"
+                                            >
++                                             Configurez votre assistant en quelques clics.
+                                    <motion.div initial={{opacity:0,y:40}} whileInView={{opacity:1,y:0}} ...>
+                                      <div style={{flex:"1 1 ...", ...}} ref={function useMotionRef.useCallback}>
+                                        <div
+                                          style={{position:"absolute",right:-16,top:"50%",transform:"translateY...",zIndex:10,display:"flex", ...}}
++                                         className="step-arrow"
+-                                         className="jsx-26d308aae5385e19 step-arrow"
+                                        >
+                                        <motion.div whileHover={{y:-10, ...}} style={{flex:1,padding:36, ...}}>
+                                          <div style={{flex:1,padding:36, ...}} ref={function useMotionRef.useCallback}>
+                                            <div
+                                              style={{position:"absolute",top:16,right:16,fontSize:72,fontWeight:900,color:"rgba(148, ...", ...}}
+-                                             className="jsx-26d308aae5385e19"
+                                            >
++                                             02
+                                            <motion.div>
+                                            <h3
+                                              style={{fontSize:20,fontWeight:700,color:"white",marginBottom:12}}
+-                                             className="jsx-26d308aae5385e19"
+                                            >
++                                             Connectez votre WhatsApp
+                                            <p
+                                              style={{fontSize:14,color:"#94a3b8",lineHeight:1.7}}
+-                                             className="jsx-26d308aae5385e19"
+                                            >
++                                             Scannez le QR code pour connecter votre compte.
+                                    ...
+                                      <motion.div whileHover={{y:-10, ...}} style={{flex:1,padding:36, ...}}>
+                                        <div style={{flex:1,padding:36, ...}} ref={function useMotionRef.useCallback}>
+                                          <div
+                                            style={{position:"absolute",top:16,right:16,fontSize:72,fontWeight:900,color:"rgba(148, ...", ...}}
+-                                           className="jsx-26d308aae5385e19"
+                                          >
++                                           03
+                                          <motion.div>
+                                          <h3
+                                            style={{fontSize:20,fontWeight:700,color:"white",marginBottom:12}}
+-                                           className="jsx-26d308aae5385e19"
+                                          >
++                                           {"Laissez l'IA répondre à vos clients"}
+                                          <p
+                                            style={{fontSize:14,color:"#94a3b8",lineHeight:1.7}}
+-                                           className="jsx-26d308aae5385e19"
+                                          >
++                                           Votre agent répond automatiquement aux messages.
+                                  ...
+                                ...
+                            <BusinessTypes>
+                              <section
+                                id="business-types"
+                                style={{padding:"100px 24px",background:"linear-gra...",position:"relative"}}
+-                               className="jsx-277a84f0a2462acd"
+                              >
+                                <div
+                                  style={{position:"absolute",top:"50%",left:"50%",transform:"translate(...",width:1000,height:1000, ...}}
+-                                 className="jsx-277a84f0a2462acd"
+                                >
+                                <div
+                                  style={{maxWidth:1200,margin:"0 auto",position:"relative",zIndex:1}}
+-                                 className="jsx-277a84f0a2462acd"
+                                >
+                                  <motion.div initial={{opacity:0,y:30}} whileInView={{opacity:1,y:0}} ...>
+                                    <div style={{...}} ref={function useMotionRef.useCallback}>
+                                      <div
+                                        style={{display:"inline-flex",alignItems:"center",gap:8,padding:"8px 20px",borderRadius:100, ...}}
+-                                       className="jsx-277a84f0a2462acd"
+                                      >
+                                        <Building2>
+                                        <span
+                                          style={{fontSize:14,color:"#25D366",fontWeight:600}}
+-                                         className="jsx-277a84f0a2462acd"
+                                        >
++                                         Pour tous les business
+                                      <h2
+                                        style={{fontSize:"clamp(28px...",fontWeight:700,color:"white",marginBottom:16,lineHeight:1.2}}
+-                                       className="jsx-277a84f0a2462acd"
+                                      >
+                                        <span
+                                          style={{background:"linear-gra...",WebkitBackgroundClip:"text",WebkitTextFillColor:"t...", ...}}
+-                                         className="jsx-277a84f0a2462acd"
+                                        >
+                                      <p
+                                        style={{fontSize:18,color:"#94a3b8",maxWidth:600,margin:"0 auto"}}
+-                                       className="jsx-277a84f0a2462acd"
+                                      >
++                                       {"Quel que soit votre secteur, notre IA s'adapte à vos besoins."}
+                                  <div
++                                   className="bt-grid"
+-                                   className="jsx-277a84f0a2462acd bt-grid"
+                                    style={{display:"grid",gridTemplateColumns:"repeat(4, ...",gap:20}}
+                                  >
+                                    <motion.div initial={{opacity:0,y:30}} whileInView={{opacity:1,y:0}} ...>
+                                      <div style={{padding:28, ...}} ref={function useMotionRef.useCallback}>
+                                        <motion.div>
+                                        <div
+                                          style={{width:56,height:56,borderRadius:16,background:"linear-gra...",display:"flex",alignItems:"...", ...}}
+-                                         className="jsx-277a84f0a2462acd"
+                                        >
+                                        <h3
+                                          style={{fontSize:16,fontWeight:600,color:"white",marginBottom:8}}
+-                                         className="jsx-277a84f0a2462acd"
+                                        >
++                                         {"Restaurants & Traiteurs"}
+                                        <p
+                                          style={{fontSize:13,color:"#94a3b8",lineHeight:1.6,margin:0}}
+-                                         className="jsx-277a84f0a2462acd"
+                                        >
++                                         Prenez des commandes automatiquement et répondez instantanément aux clients.
+                                    <motion.div initial={{opacity:0,y:30}} whileInView={{opacity:1,y:0}} ...>
+                                      <div style={{padding:28, ...}} ref={function useMotionRef.useCallback}>
+                                        <motion.div>
+                                        <div
+                                          style={{width:56,height:56,borderRadius:16,background:"linear-gra...",display:"flex",alignItems:"...", ...}}
+-                                         className="jsx-277a84f0a2462acd"
+                                        >
+                                        <h3
+                                          style={{fontSize:16,fontWeight:600,color:"white",marginBottom:8}}
+-                                         className="jsx-277a84f0a2462acd"
+                                        >
++                                         {"E-commerce & Boutiques"}
+                                        <p
+                                          style={{fontSize:13,color:"#94a3b8",lineHeight:1.6,margin:0}}
+-                                         className="jsx-277a84f0a2462acd"
+                                        >
++                                         Répondez aux questions produits et transformez les conversations en ventes.
+                                    <motion.div initial={{opacity:0,y:30}} whileInView={{opacity:1,y:0}} ...>
+                                      <div style={{padding:28, ...}} ref={function useMotionRef.useCallback}>
+                                        <motion.div>
+                                        <div
+                                          style={{width:56,height:56,borderRadius:16,background:"linear-gra...",display:"flex",alignItems:"...", ...}}
+-                                         className="jsx-277a84f0a2462acd"
+                                        >
+                                        <h3
+                                          style={{fontSize:16,fontWeight:600,color:"white",marginBottom:8}}
+-                                         className="jsx-277a84f0a2462acd"
+                                        >
++                                         Immobilier
+                                        <p
+                                          style={{fontSize:13,color:"#94a3b8",lineHeight:1.6,margin:0}}
+-                                         className="jsx-277a84f0a2462acd"
+                                        >
++                                         Qualifiez automatiquement les prospects et planifiez les visites.
+                                    <motion.div initial={{opacity:0,y:30}} whileInView={{opacity:1,y:0}} ...>
+                                      <div style={{padding:28, ...}} ref={function useMotionRef.useCallback}>
+                                        <motion.div>
+                                        <div
+                                          style={{width:56,height:56,borderRadius:16,background:"linear-gra...",display:"flex",alignItems:"...", ...}}
+-                                         className="jsx-277a84f0a2462acd"
+                                        >
+                                        <h3
+                                          style={{fontSize:16,fontWeight:600,color:"white",marginBottom:8}}
+-                                         className="jsx-277a84f0a2462acd"
+                                        >
++                                         {"Services & Artisans"}
+                                        <p
+                                          style={{fontSize:13,color:"#94a3b8",lineHeight:1.6,margin:0}}
+-                                         className="jsx-277a84f0a2462acd"
+                                        >
++                                         Automatisez les réponses aux demandes clients et les devis.
+                                    <motion.div initial={{opacity:0,y:30}} whileInView={{opacity:1,y:0}} ...>
+                                      <div style={{padding:28, ...}} ref={function useMotionRef.useCallback}>
+                                        <motion.div>
+                                        <div
+                                          style={{width:56,height:56,borderRadius:16,background:"linear-gra...",display:"flex",alignItems:"...", ...}}
+-                                         className="jsx-277a84f0a2462acd"
+                                        >
+                                        <h3
+                                          style={{fontSize:16,fontWeight:600,color:"white",marginBottom:8}}
+-                                         className="jsx-277a84f0a2462acd"
+                                        >
++                                         {"Santé & Cliniques"}
+                                        <p
+                                          style={{fontSize:13,color:"#94a3b8",lineHeight:1.6,margin:0}}
+-                                         className="jsx-277a84f0a2462acd"
+                                        >
++                                         Automatisez la prise de rendez-vous et les rappels patients.
+                                    <motion.div initial={{opacity:0,y:30}} whileInView={{opacity:1,y:0}} ...>
+                                      <div style={{padding:28, ...}} ref={function useMotionRef.useCallback}>
+                                        <motion.div>
+                                        <div
+                                          style={{width:56,height:56,borderRadius:16,background:"linear-gra...",display:"flex",alignItems:"...", ...}}
+-                                         className="jsx-277a84f0a2462acd"
+                                        >
+                                        <h3
+                                          style={{fontSize:16,fontWeight:600,color:"white",marginBottom:8}}
+-                                         className="jsx-277a84f0a2462acd"
+                                        >
++                                         {"Éducation & Formations"}
+                                        <p
+                                          style={{fontSize:13,color:"#94a3b8",lineHeight:1.6,margin:0}}
+-                                         className="jsx-277a84f0a2462acd"
+                                        >
++                                         Répondez aux questions des étudiants et gérez les inscriptions.
+                                    <motion.div initial={{opacity:0,y:30}} whileInView={{opacity:1,y:0}} ...>
+                                      <div style={{padding:28, ...}} ref={function useMotionRef.useCallback}>
+                                        <motion.div>
+                                        <div
+                                          style={{width:56,height:56,borderRadius:16,background:"linear-gra...",display:"flex",alignItems:"...", ...}}
+-                                         className="jsx-277a84f0a2462acd"
+                                        >
+                                        <h3
+                                          style={{fontSize:16,fontWeight:600,color:"white",marginBottom:8}}
+-                                         className="jsx-277a84f0a2462acd"
+                                        >
++                                         {"Beauté & Bien-être"}
+                                        <p
+                                          style={{fontSize:13,color:"#94a3b8",lineHeight:1.6,margin:0}}
+-                                         className="jsx-277a84f0a2462acd"
+                                        >
++                                         Gérez les réservations et les demandes de services automatiquement.
+                                    <motion.div initial={{opacity:0,y:30}} whileInView={{opacity:1,y:0}} ...>
+                                      <div style={{padding:28, ...}} ref={function useMotionRef.useCallback}>
+                                        <motion.div>
+                                        <div
+                                          style={{width:56,height:56,borderRadius:16,background:"linear-gra...",display:"flex",alignItems:"...", ...}}
+-                                         className="jsx-277a84f0a2462acd"
+                                        >
+                                        <h3
+                                          style={{fontSize:16,fontWeight:600,color:"white",marginBottom:8}}
+-                                         className="jsx-277a84f0a2462acd"
+                                        >
++                                         {"Entreprises & PME"}
+                                        <p
+                                          style={{fontSize:13,color:"#94a3b8",lineHeight:1.6,margin:0}}
+-                                         className="jsx-277a84f0a2462acd"
+                                        >
++                                         Automatisez votre support client et la gestion des demandes.
+                                ...
+                            <ROICalculator>
+                              <section
+                                id="roi-calculator"
+                                style={{padding:"100px 24px",background:"linear-gra...",position:"relative"}}
+-                               className="jsx-f387f5bc9295049d"
+                              >
+                                <div
+                                  style={{position:"absolute",top:"50%",left:"50%",transform:"translate(...",width:800,height:800,background:"r...", ...}}
+-                                 className="jsx-f387f5bc9295049d"
+                                >
+                                <div
+                                  style={{maxWidth:700,margin:"0 auto",position:"relative",zIndex:1}}
+-                                 className="jsx-f387f5bc9295049d"
+                                >
+                                  <motion.div initial={{opacity:0,y:30}} whileInView={{opacity:1,y:0}} ...>
+                                    <div style={{...}} ref={function useMotionRef.useCallback}>
+                                      <div
+                                        style={{display:"inline-flex",alignItems:"center",gap:8,padding:"8px 20px",borderRadius:100, ...}}
+-                                       className="jsx-f387f5bc9295049d"
+                                      >
+                                        <Calculator>
+                                        <span
+                                          style={{fontSize:14,color:"#25D366",fontWeight:600}}
+-                                         className="jsx-f387f5bc9295049d"
+                                        >
++                                         Calculateur
+                                      <h2
+                                        style={{fontSize:"clamp(28px...",fontWeight:700,color:"white",marginBottom:16,lineHeight:1.2}}
+-                                       className="jsx-f387f5bc9295049d"
+                                      >
+                                        <span
+                                          style={{background:"linear-gra...",WebkitBackgroundClip:"text",WebkitTextFillColor:"t...", ...}}
+-                                         className="jsx-f387f5bc9295049d"
+                                        >
+                                        ...
+                                  <motion.div initial={{opacity:0,y:30}} whileInView={{opacity:1,y:0}} ...>
+                                    <div style={{padding:40, ...}} ref={function useMotionRef.useCallback}>
+                                      <div
+                                        style={{marginBottom:32}}
+-                                       className="jsx-f387f5bc9295049d"
+                                      >
+                                        <label
+                                          style={{display:"block",fontSize:15,color:"#e2e8f0",fontWeight:500,marginBottom:12}}
+-                                         className="jsx-f387f5bc9295049d"
+                                        >
++                                         Combien de messages clients recevez-vous par jour ?
+                                        <div
+                                          style={{display:"flex",alignItems:"center",gap:16}}
+-                                         className="jsx-f387f5bc9295049d"
+                                        >
+                                          <input
+                                            type="range"
+                                            min="5"
+                                            max="500"
+                                            value={50}
+                                            onChange={function ROICalculator[<input>.onChange]}
+                                            style={{flex:1,height:6,borderRadius:3,appearance:"none",background:"linear-gra...",cursor:"poi...", ...}}
+-                                           className="jsx-f387f5bc9295049d"
+                                          >
+                                          <span
+                                            style={{minWidth:50,textAlign:"right",fontWeight:700,fontSize:18,color:"#25D366"}}
+-                                           className="jsx-f387f5bc9295049d"
+                                          >
++                                           50
+                                      <div
+                                        style={{marginBottom:32}}
+-                                       className="jsx-f387f5bc9295049d"
+                                      >
+                                        <label
+                                          style={{display:"block",fontSize:15,color:"#e2e8f0",fontWeight:500,marginBottom:12}}
+-                                         className="jsx-f387f5bc9295049d"
+                                        >
++                                         Quel pourcentage devient client ?
+                                        <div
+                                          style={{display:"flex",alignItems:"center",gap:16}}
+-                                         className="jsx-f387f5bc9295049d"
+                                        >
+                                          <input
+                                            type="range"
+                                            min="1"
+                                            max="50"
+                                            value={10}
+                                            onChange={function ROICalculator[<input>.onChange]}
+                                            style={{flex:1,height:6,borderRadius:3,appearance:"none",background:"linear-gra...",cursor:"poi...", ...}}
+-                                           className="jsx-f387f5bc9295049d"
+                                          >
+                                          <span
+                                            style={{minWidth:50,textAlign:"right",fontWeight:700,fontSize:18,color:"#25D366"}}
+-                                           className="jsx-f387f5bc9295049d"
+                                          >
+                                      <div
+                                        style={{marginBottom:40}}
+-                                       className="jsx-f387f5bc9295049d"
+                                      >
+                                        <label
+                                          style={{display:"block",fontSize:15,color:"#e2e8f0",fontWeight:500,marginBottom:12}}
+-                                         className="jsx-f387f5bc9295049d"
+                                        >
++                                         {"Valeur moyenne d'une vente (FCFA)"}
+                                        <div
+                                          style={{display:"flex",alignItems:"center",gap:16}}
+-                                         className="jsx-f387f5bc9295049d"
+                                        >
+                                          <input
+                                            type="range"
+                                            min="1000"
+                                            max="100000"
+                                            step="1000"
+                                            value={15000}
+                                            onChange={function ROICalculator[<input>.onChange]}
+                                            style={{flex:1,height:6,borderRadius:3,appearance:"none",background:"linear-gra...",cursor:"poi...", ...}}
+-                                           className="jsx-f387f5bc9295049d"
+                                          >
+                                          <span
+                                            style={{minWidth:90,textAlign:"right",fontWeight:700,fontSize:18,color:"#25D366"}}
+-                                           className="jsx-f387f5bc9295049d"
+                                          >
++                                           15 000
+                                      <div
+                                        style={{padding:"28px 32px",borderRadius:20,background:"linear-gra...",border:"1px solid ...", ...}}
+-                                       className="jsx-f387f5bc9295049d"
+                                      >
+                                        <div
+                                          style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:8}}
+-                                         className="jsx-f387f5bc9295049d"
+                                        >
+                                          <TrendingUp>
+                                          <span
+                                            style={{fontSize:15,color:"#94a3b8",fontWeight:500}}
+-                                           className="jsx-f387f5bc9295049d"
+                                          >
++                                           Revenu mensuel potentiel
+                                        <div
+                                          style={{fontSize:"clamp(32px...",fontWeight:800,background:"linear-gra...", ...}}
+-                                         className="jsx-f387f5bc9295049d"
+                                        >
+                                      <p
+                                        style={{textAlign:"center",fontSize:14,color:"#64748b",marginBottom:28}}
+-                                       className="jsx-f387f5bc9295049d"
+                                      >
++                                       WazzapAI vous aide à répondre plus vite et augmenter ce revenu.
+                                      <div
+                                        style={{textAlign:"center"}}
+-                                       className="jsx-f387f5bc9295049d"
+                                      >
+                                ...
+                            <Pricing>
+                            <SocialProof>
+                              <section
+                                id="social-proof"
+                                style={{padding:"100px 24px",background:"#0f172a",position:"relative"}}
+-                               className="jsx-773e859be2e726f8"
+                              >
+                                <div
+                                  style={{position:"absolute",bottom:0,left:"50%",transform:"translateX...",width:600,height:600,background:"ra...", ...}}
+-                                 className="jsx-773e859be2e726f8"
+                                >
+                                <div
+                                  style={{maxWidth:1100,margin:"0 auto",position:"relative",zIndex:1}}
+-                                 className="jsx-773e859be2e726f8"
+                                >
+                                  <motion.div initial={{opacity:0,y:30}} whileInView={{opacity:1,y:0}} ...>
+                                    <div style={{...}} ref={function useMotionRef.useCallback}>
+                                      <div
+                                        style={{display:"inline-flex",alignItems:"center",gap:8,padding:"8px 20px",borderRadius:100, ...}}
+-                                       className="jsx-773e859be2e726f8"
+                                      >
+                                        <Star>
+                                        <span
+                                          style={{fontSize:14,color:"#25D366",fontWeight:600}}
+-                                         className="jsx-773e859be2e726f8"
+                                        >
++                                         Témoignages
+                                      <h2
+                                        style={{fontSize:"clamp(28px...",fontWeight:700,color:"white",marginBottom:16,lineHeight:1.2}}
+-                                       className="jsx-773e859be2e726f8"
+                                      >
+                                        <span
+                                          style={{background:"linear-gra...",WebkitBackgroundClip:"text",WebkitTextFillColor:"t...", ...}}
+-                                         className="jsx-773e859be2e726f8"
+                                        >
+                                      <p
+                                        style={{fontSize:18,color:"#94a3b8",maxWidth:500,margin:"0 auto"}}
+-                                       className="jsx-773e859be2e726f8"
+                                      >
++                                       Découvrez ce que nos clients disent de nous.
+                                  <motion.div initial={{opacity:0, ...}} whileInView={{opacity:1,scale:1}} ...>
+                                    <div style={{display:"flex", ...}} ref={function useMotionRef.useCallback}>
+                                      <div
+                                        style={{display:"inline-flex",alignItems:"center",gap:12,padding:"14px 28px",borderRadius:100, ...}}
+-                                       className="jsx-773e859be2e726f8"
+                                      >
+                                        <Users>
+                                        <span
+                                          style={{fontSize:16,fontWeight:700,color:"#25D366"}}
+-                                         className="jsx-773e859be2e726f8"
+                                        >
++                                         100+ entreprises nous font confiance
+                                  <div
++                                   className="sp-grid"
+-                                   className="jsx-773e859be2e726f8 sp-grid"
+                                    style={{display:"grid",gridTemplateColumns:"repeat(3, ...",gap:24}}
+                                  >
+                                    <motion.div initial={{opacity:0,y:30}} whileInView={{opacity:1,y:0}} ...>
+                                      <div style={{padding:32, ...}} ref={function useMotionRef.useCallback}>
+                                        <Quote>
+                                        <div
+                                          style={{display:"flex",gap:3,marginBottom:16}}
+-                                         className="jsx-773e859be2e726f8"
+                                        >
+                                        <p
+                                          style={{fontSize:15,color:"#e2e8f0",lineHeight:1.7,marginBottom:24,fontStyle:"italic"}}
+-                                         className="jsx-773e859be2e726f8"
+                                        >
+                                        <div
+                                          style={{display:"flex",alignItems:"center",gap:12}}
+-                                         className="jsx-773e859be2e726f8"
+                                        >
+                                          <div
+                                            style={{width:44,height:44,borderRadius:"50%",background:"linear-gra...",display:"flex", ...}}
+-                                           className="jsx-773e859be2e726f8"
+                                          >
++                                           A
+                                          <div
+-                                           className="jsx-773e859be2e726f8"
+                                          >
+                                            <div
+                                              style={{fontSize:15,fontWeight:600,color:"white"}}
+-                                             className="jsx-773e859be2e726f8"
+                                            >
++                                             Amadou K.
+                                            <div
+                                              style={{fontSize:13,color:"#64748b"}}
+-                                             className="jsx-773e859be2e726f8"
+                                            >
+                                    <motion.div initial={{opacity:0,y:30}} whileInView={{opacity:1,y:0}} ...>
+                                      <div style={{padding:32, ...}} ref={function useMotionRef.useCallback}>
+                                        <Quote>
+                                        <div
+                                          style={{display:"flex",gap:3,marginBottom:16}}
+-                                         className="jsx-773e859be2e726f8"
+                                        >
+                                        <p
+                                          style={{fontSize:15,color:"#e2e8f0",lineHeight:1.7,marginBottom:24,fontStyle:"italic"}}
+-                                         className="jsx-773e859be2e726f8"
+                                        >
+                                        <div
+                                          style={{display:"flex",alignItems:"center",gap:12}}
+-                                         className="jsx-773e859be2e726f8"
+                                        >
+                                          <div
+                                            style={{width:44,height:44,borderRadius:"50%",background:"linear-gra...",display:"flex", ...}}
+-                                           className="jsx-773e859be2e726f8"
+                                          >
++                                           F
+                                          <div
+-                                           className="jsx-773e859be2e726f8"
+                                          >
+                                            <div
+                                              style={{fontSize:15,fontWeight:600,color:"white"}}
+-                                             className="jsx-773e859be2e726f8"
+                                            >
++                                             Fatou D.
+                                            <div
+                                              style={{fontSize:13,color:"#64748b"}}
+-                                             className="jsx-773e859be2e726f8"
+                                            >
+                                    <motion.div initial={{opacity:0,y:30}} whileInView={{opacity:1,y:0}} ...>
+                                      <div style={{padding:32, ...}} ref={function useMotionRef.useCallback}>
+                                        <Quote>
+                                        <div
+                                          style={{display:"flex",gap:3,marginBottom:16}}
+-                                         className="jsx-773e859be2e726f8"
+                                        >
+                                        <p
+                                          style={{fontSize:15,color:"#e2e8f0",lineHeight:1.7,marginBottom:24,fontStyle:"italic"}}
+-                                         className="jsx-773e859be2e726f8"
+                                        >
+                                        <div
+                                          style={{display:"flex",alignItems:"center",gap:12}}
+-                                         className="jsx-773e859be2e726f8"
+                                        >
+                                          <div
+                                            style={{width:44,height:44,borderRadius:"50%",background:"linear-gra...",display:"flex", ...}}
+-                                           className="jsx-773e859be2e726f8"
+                                          >
++                                           I
+                                          <div
+-                                           className="jsx-773e859be2e726f8"
+                                          >
+                                            <div
+                                              style={{fontSize:15,fontWeight:600,color:"white"}}
+-                                             className="jsx-773e859be2e726f8"
+                                            >
++                                             Ibrahim M.
+                                            <div
+                                              style={{fontSize:13,color:"#64748b"}}
+-                                             className="jsx-773e859be2e726f8"
+                                            >
+                                ...
+                            <WhatsAppCommunity>
+                              <section id="community" style={{padding:"1...", ...}} className="jsx-2eeb83...">
+                                <div
+                                  style={{position:"absolute",top:"50%",left:"50%",transform:"translate(...",width:700,height:700,background:"r...", ...}}
+-                                 className="jsx-2eeb838bd3b96e52"
+                                >
+                                <div style={{maxWidth:1100, ...}} className="jsx-2eeb83...">
+                                  <motion.div initial={{opacity:0,y:30}} whileInView={{opacity:1,y:0}} ...>
+                                    <div style={{...}} ref={function useMotionRef.useCallback}>
+                                      <div
+                                        style={{display:"inline-flex",alignItems:"center",gap:8,padding:"8px 20px",borderRadius:100, ...}}
+-                                       className="jsx-2eeb838bd3b96e52"
+                                      >
+                                        <Users>
+                                        <span
+                                          style={{color:"#25D366",fontSize:13,fontWeight:600,letterSpacing:"0.05em"}}
+-                                         className="jsx-2eeb838bd3b96e52"
+                                        >
++                                         COMMUNAUTÉ
+                                      <h2
+                                        style={{fontSize:"clamp(28px...",fontWeight:800,color:"#f1f5f9",lineHeight:1.2,marginBottom:16}}
+-                                       className="jsx-2eeb838bd3b96e52"
+                                      >
+                                        <span
+                                          style={{background:"linear-gra...",WebkitBackgroundClip:"text",WebkitTextFillColor:"t..."}}
+-                                         className="jsx-2eeb838bd3b96e52"
+                                        >
++                                         communauté
+                                        ...
+                                      <p
+                                        style={{color:"#94a3b8",fontSize:18,maxWidth:520,margin:"0 auto 16px"}}
+-                                       className="jsx-2eeb838bd3b96e52"
+                                      >
++                                       Ils automatisent, ils partagent, ils réussissent
+                                      <div
+                                        style={{display:"inline-flex",alignItems:"center",gap:8,padding:"6px 16px",borderRadius:100, ...}}
+-                                       className="jsx-2eeb838bd3b96e52"
+                                      >
+                                        <div
+                                          style={{width:8,height:8,borderRadius:"50%",background:"#25D366",animation:"pulse 2s i..."}}
+-                                         className="jsx-2eeb838bd3b96e52"
+                                        >
+                                        <span
+                                          style={{color:"#64748b",fontSize:14}}
+-                                         className="jsx-2eeb838bd3b96e52"
+                                        >
++                                         +200 membres actifs
+                                  <div
+                                    style={{display:"grid",gridTemplateColumns:"repeat(aut...",gap:20,marginBottom:48}}
+-                                   className="jsx-2eeb838bd3b96e52"
+                                  >
+                                    <motion.div initial={{opacity:0,y:20}} whileInView={{opacity:1,y:0}} ...>
+                                      <div style={{padding:24, ...}} ref={function useMotionRef.useCallback}>
+                                        <div
+                                          style={{width:44,height:44,borderRadius:12,background:"#25D36618",border:"1px solid ...", ...}}
+-                                         className="jsx-2eeb838bd3b96e52"
+                                        >
+                                        <div
+-                                         className="jsx-2eeb838bd3b96e52"
+                                        >
+                                          <h3
+                                            style={{color:"#e2e8f0",fontWeight:700,fontSize:16,marginBottom:6}}
+-                                           className="jsx-2eeb838bd3b96e52"
+                                          >
++                                           Support rapide
+                                          <p
+                                            style={{color:"#64748b",fontSize:14,lineHeight:1.6}}
+-                                           className="jsx-2eeb838bd3b96e52"
+                                          >
++                                           Vos questions répondues en quelques minutes par la communauté
+                                    <motion.div initial={{opacity:0,y:20}} whileInView={{opacity:1,y:0}} ...>
+                                      <div style={{padding:24, ...}} ref={function useMotionRef.useCallback}>
+                                        <div
+                                          style={{width:44,height:44,borderRadius:12,background:"#f59e0b18",border:"1px solid ...", ...}}
+-                                         className="jsx-2eeb838bd3b96e52"
+                                        >
+                                        <div
+-                                         className="jsx-2eeb838bd3b96e52"
+                                        >
+                                          <h3
+                                            style={{color:"#e2e8f0",fontWeight:700,fontSize:16,marginBottom:6}}
+-                                           className="jsx-2eeb838bd3b96e52"
+                                          >
++                                           Tips exclusifs
+                                          <p
+                                            style={{color:"#64748b",fontSize:14,lineHeight:1.6}}
+-                                           className="jsx-2eeb838bd3b96e52"
+                                          >
++                                           Stratégies et scripts de vente testés par vos pairs entrepreneurs
+                                    <motion.div initial={{opacity:0,y:20}} whileInView={{opacity:1,y:0}} ...>
+                                      <div style={{padding:24, ...}} ref={function useMotionRef.useCallback}>
+                                        <div
+                                          style={{width:44,height:44,borderRadius:12,background:"#3b82f618",border:"1px solid ...", ...}}
+-                                         className="jsx-2eeb838bd3b96e52"
+                                        >
+                                        <div
+-                                         className="jsx-2eeb838bd3b96e52"
+                                        >
+                                          <h3
+                                            style={{color:"#e2e8f0",fontWeight:700,fontSize:16,marginBottom:6}}
+-                                           className="jsx-2eeb838bd3b96e52"
+                                          >
++                                           Avant tout le monde
+                                          <p
+                                            style={{color:"#64748b",fontSize:14,lineHeight:1.6}}
+-                                           className="jsx-2eeb838bd3b96e52"
+                                          >
++                                           Nouvelles fonctionnalités et offres membres en avant-première
+                                    <motion.div initial={{opacity:0,y:20}} whileInView={{opacity:1,y:0}} ...>
+                                      <div style={{padding:24, ...}} ref={function useMotionRef.useCallback}>
+                                        <div
+                                          style={{width:44,height:44,borderRadius:12,background:"#ec489918",border:"1px solid ...", ...}}
+-                                         className="jsx-2eeb838bd3b96e52"
+                                        >
+                                        <div
+-                                         className="jsx-2eeb838bd3b96e52"
+                                        >
+                                          <h3
+                                            style={{color:"#e2e8f0",fontWeight:700,fontSize:16,marginBottom:6}}
+-                                           className="jsx-2eeb838bd3b96e52"
+                                          >
++                                           Ressources gratuites
+                                          <p
+                                            style={{color:"#64748b",fontSize:14,lineHeight:1.6}}
+-                                           className="jsx-2eeb838bd3b96e52"
+                                          >
++                                           Templates de messages, guides et scripts de vente offerts
+                                  ...
+                                ...
+                            <FAQ>
+                            <FinalCTA>
+                            <Footer>
+                              <footer
+                                style={{position:"relative",paddingTop:48,paddingBottom:24,background:"linear-gra..."}}
+-                               className="jsx-ce462a0f7854d386"
+                              >
+                                <div
+                                  style={{position:"absolute",top:0,left:"10%",right:"10%",height:1,background:"linear-gra..."}}
+-                                 className="jsx-ce462a0f7854d386"
+                                >
+                                <div
+                                  style={{maxWidth:1200,margin:"0 auto",padding:"0 24px",position:"relative",zIndex:10}}
+-                                 className="jsx-ce462a0f7854d386"
+                                >
+                                  <div
+                                    style={{display:"grid",gridTemplateColumns:"repeat(aut...",gap:32,marginBottom:40}}
+-                                   className="jsx-ce462a0f7854d386"
+                                  >
+                                    <div
+-                                     className="jsx-ce462a0f7854d386"
+                                    >
+                                      <LinkComponent href="/" style={{...}}>
+                                        <a style={{...}} ref={function} onClick={function onClick} ...>
+                                          <div
+                                            style={{width:40,height:40,borderRadius:10,background:"linear-gra...",display:"flex", ...}}
+-                                           className="jsx-ce462a0f7854d386"
+                                          >
+                                          <span
+                                            style={{fontWeight:700,fontSize:20,background:"linear-gra...",WebkitBackgroundClip:"text", ...}}
+-                                           className="jsx-ce462a0f7854d386"
+                                          >
++                                           WazzapAI
+                                      <p
+                                        style={{color:"#64748b",fontSize:13,lineHeight:1.6,marginBottom:16}}
+-                                       className="jsx-ce462a0f7854d386"
+                                      >
++                                       {"L'IA qui répond à vos clients sur WhatsApp 24h/24."}
+                                      <div
+                                        style={{display:"flex",gap:8}}
+-                                       className="jsx-ce462a0f7854d386"
+                                      >
+                                    <div
+-                                     className="jsx-ce462a0f7854d386"
+                                    >
+                                      <h4
+                                        style={{color:"#e2e8f0",fontWeight:600,fontSize:14,marginBottom:16}}
+-                                       className="jsx-ce462a0f7854d386"
+                                      >
++                                       Produit
+                                      <ul
+                                        style={{listStyle:"none",padding:0,margin:0}}
+-                                       className="jsx-ce462a0f7854d386"
+                                      >
+                                        <li
+                                          style={{marginBottom:10}}
+-                                         className="jsx-ce462a0f7854d386"
+                                        >
+                                        <li
+                                          style={{marginBottom:10}}
+-                                         className="jsx-ce462a0f7854d386"
+                                        >
+                                        <li
+                                          style={{marginBottom:10}}
+-                                         className="jsx-ce462a0f7854d386"
+                                        >
+                                        <li
+                                          style={{marginBottom:10}}
+-                                         className="jsx-ce462a0f7854d386"
+                                        >
+                                          <a
+                                            href="https://chat.whatsapp.com/E7vbXhqS0o5D4Wn2lrdDGi"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            style={{color:"#25D366",textDecoration:"none",fontSize:14,transition:"color 0.2s"}}
+-                                           className="jsx-ce462a0f7854d386"
+                                          >
++                                           💬 Communauté WhatsApp
+                                    <div
+-                                     className="jsx-ce462a0f7854d386"
+                                    >
+                                      <h4
+                                        style={{color:"#e2e8f0",fontWeight:600,fontSize:14,marginBottom:16}}
+-                                       className="jsx-ce462a0f7854d386"
+                                      >
++                                       Entreprise
+                                      <ul
+                                        style={{listStyle:"none",padding:0,margin:0}}
+-                                       className="jsx-ce462a0f7854d386"
+                                      >
+                                        <li
+                                          style={{marginBottom:10}}
+-                                         className="jsx-ce462a0f7854d386"
+                                        >
+                                        <li
+                                          style={{marginBottom:10}}
+-                                         className="jsx-ce462a0f7854d386"
+                                        >
+                                    <div
+-                                     className="jsx-ce462a0f7854d386"
+                                    >
+                                      <h4
+                                        style={{color:"#e2e8f0",fontWeight:600,fontSize:14,marginBottom:16}}
+-                                       className="jsx-ce462a0f7854d386"
+                                      >
++                                       Légal
+                                      <ul
+                                        style={{listStyle:"none",padding:0,margin:0}}
+-                                       className="jsx-ce462a0f7854d386"
+                                      >
+                                        <li
+                                          style={{marginBottom:10}}
+-                                         className="jsx-ce462a0f7854d386"
+                                        >
+                                        <li
+                                          style={{marginBottom:10}}
+-                                         className="jsx-ce462a0f7854d386"
+                                        >
+                                        <li
+                                          style={{marginBottom:10}}
+-                                         className="jsx-ce462a0f7854d386"
+                                        >
+                                  <div
+                                    style={{paddingTop:24,borderTop:"1px solid ...",display:"flex",flexWrap:"wrap",justifyContent:"spac...", ...}}
+-                                   className="jsx-ce462a0f7854d386"
+                                  >
+                                    <p
+                                      style={{color:"#475569",fontSize:13}}
+-                                     className="jsx-ce462a0f7854d386"
+                                    >
++                                     © 2025 WazzapAI. Tous droits réservés.
+                                    <div
+                                      style={{display:"flex",alignItems:"center",gap:24,flexWrap:"wrap"}}
+-                                     className="jsx-ce462a0f7854d386"
+                                    >
+                                      <div
+                                        style={{display:"flex",alignItems:"center",gap:6,color:"#475569",fontSize:13}}
+-                                       className="jsx-ce462a0f7854d386"
+                                      >
+                                      <a
+                                        href="tel:+2250554585927"
+                                        style={{display:"flex",alignItems:"center",gap:6,color:"#475569",fontSize:13,textDecoration:"none"}}
+-                                       className="jsx-ce462a0f7854d386"
+                                      >
+                                      <div
+                                        style={{display:"flex",alignItems:"center",gap:6,color:"#475569",fontSize:13}}
+-                                       className="jsx-ce462a0f7854d386"
+                                      >
+                                ...
+                            ...
+                    ...
+                  ...
+ @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3128

@@ -165,11 +165,11 @@ function getPushPayload(type: AdminNotifType, data: AdminNotifData): PushNotific
     const { title, body } = getContent(type, data)
     const routeMap: Record<AdminNotifType, string> = {
         new_user: '/admin/users',
-        plan_upgrade: '/admin/subscriptions',
-        plan_downgrade: '/admin/subscriptions',
+        plan_upgrade: '/admin/payments',
+        plan_downgrade: '/admin/payments',
         payment_received: '/admin/payments',
         payment_failed: '/admin/payments',
-        subscription_cancelled: '/admin/subscriptions',
+        subscription_cancelled: '/admin/payments',
         agent_created: '/admin/agents',
         agent_connected: '/admin/agents',
         agent_disconnected: '/admin/agents',

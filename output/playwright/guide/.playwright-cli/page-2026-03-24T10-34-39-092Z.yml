@@ -1,0 +1,121 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - generic [ref=e4]:
+        - link "WazzapAI" [ref=e5] [cursor=pointer]:
+          - /url: /
+          - img [ref=e7]
+          - generic [ref=e9]: WazzapAI
+        - button [ref=e10] [cursor=pointer]:
+          - img [ref=e11]
+      - navigation [ref=e13]:
+        - link "Tableau de bord" [ref=e14] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e15]
+          - generic [ref=e20]: Tableau de bord
+        - link "Notifications" [ref=e21] [cursor=pointer]:
+          - /url: /dashboard/notifications
+          - img [ref=e22]
+          - generic [ref=e25]: Notifications
+        - link "Agents" [ref=e26] [cursor=pointer]:
+          - /url: /dashboard/agents
+          - img [ref=e27]
+          - generic [ref=e30]: Agents
+        - link "Conversations" [ref=e31] [cursor=pointer]:
+          - /url: /dashboard/conversations
+          - img [ref=e32]
+          - generic [ref=e35]: Conversations
+        - link "Produits" [ref=e36] [cursor=pointer]:
+          - /url: /dashboard/products
+          - img [ref=e37]
+          - generic [ref=e41]: Produits
+        - link "Commandes" [ref=e42] [cursor=pointer]:
+          - /url: /dashboard/orders
+          - img [ref=e43]
+          - generic [ref=e46]: Commandes
+        - link "Analytics" [ref=e47] [cursor=pointer]:
+          - /url: /dashboard/analytics
+          - img [ref=e48]
+          - generic [ref=e51]: Analytics
+        - link "Playground" [ref=e52] [cursor=pointer]:
+          - /url: /dashboard/playground
+          - img [ref=e53]
+          - generic [ref=e55]: Playground
+        - link "Facturation" [ref=e56] [cursor=pointer]:
+          - /url: /dashboard/billing
+          - img [ref=e57]
+          - generic [ref=e59]: Facturation
+        - link "Paramètres" [ref=e60] [cursor=pointer]:
+          - /url: /dashboard/settings
+          - img [ref=e61]
+          - generic [ref=e64]: Paramètres
+        - link "Aide" [ref=e65] [cursor=pointer]:
+          - /url: /dashboard/help
+          - img [ref=e66]
+          - generic [ref=e69]: Aide
+      - generic [ref=e70]:
+        - link "Aide" [ref=e71] [cursor=pointer]:
+          - /url: /dashboard/help
+          - img [ref=e72]
+          - generic [ref=e75]: Aide
+        - button "Déconnexion" [ref=e76] [cursor=pointer]:
+          - img [ref=e77]
+          - generic [ref=e80]: Déconnexion
+    - main [ref=e81]:
+      - generic [ref=e82]:
+        - generic [ref=e84]:
+          - img [ref=e85]
+          - textbox "Rechercher..." [ref=e88]
+        - button [ref=e90] [cursor=pointer]:
+          - img [ref=e91]
+        - link "G" [ref=e201] [cursor=pointer]:
+          - /url: /dashboard/settings
+          - generic [ref=e95]: G
+      - generic [ref=e97]:
+        - generic [ref=e98]:
+          - link "Retour aux agents" [ref=e99] [cursor=pointer]:
+            - /url: /dashboard/agents
+            - img [ref=e100]
+            - text: Retour aux agents
+          - heading "Créer un nouvel agent" [level=1] [ref=e102]
+          - paragraph [ref=e103]: Configurez votre assistant IA en quelques étapes
+        - generic [ref=e104]:
+          - img [ref=e202]
+          - img [ref=e261]
+          - img [ref=e119]
+          - img [ref=e126]
+          - img [ref=e132]
+          - img [ref=e137]
+          - img [ref=e143]
+        - heading "Mission" [level=2] [ref=e263]
+        - generic [ref=e266]:
+          - generic [ref=e267]: Choisissez une mission
+          - generic [ref=e268]:
+            - button "🛒 E-commerce / Boutique Vente de produits en ligne, catalogue, commandes" [ref=e269] [cursor=pointer]:
+              - heading "🛒 E-commerce / Boutique" [level=3] [ref=e270]
+              - paragraph [ref=e271]: Vente de produits en ligne, catalogue, commandes
+            - button "🍽️ Restaurant / Fast-food Commandes de plats, menu du jour, livraison" [ref=e272] [cursor=pointer]:
+              - heading "🍽️ Restaurant / Fast-food" [level=3] [ref=e273]
+              - paragraph [ref=e274]: Commandes de plats, menu du jour, livraison
+            - button "🏨 Hôtel / Hébergement Réservation de chambres, services hôteliers" [ref=e275] [cursor=pointer]:
+              - heading "🏨 Hôtel / Hébergement" [level=3] [ref=e276]
+              - paragraph [ref=e277]: Réservation de chambres, services hôteliers
+            - button "💇 Salon / Beauté Prise de rendez-vous, services beauté" [ref=e278] [cursor=pointer]:
+              - heading "💇 Salon / Beauté" [level=3] [ref=e279]
+              - paragraph [ref=e280]: Prise de rendez-vous, services beauté
+            - button "🔧 Services / Artisan Devis, interventions, prestations diverses" [ref=e281] [cursor=pointer]:
+              - heading "🔧 Services / Artisan" [level=3] [ref=e282]
+              - paragraph [ref=e283]: Devis, interventions, prestations diverses
+            - button "✏️ Personnalisé Créez votre propre mission sur mesure" [ref=e284] [cursor=pointer]:
+              - heading "✏️ Personnalisé" [level=3] [ref=e285]
+              - paragraph [ref=e286]: Créez votre propre mission sur mesure
+        - generic [ref=e192]:
+          - button "Précédent" [ref=e258] [cursor=pointer]:
+            - img [ref=e259]
+            - text: Précédent
+          - button "Suivant" [disabled] [ref=e193]:
+            - text: Suivant
+            - img [ref=e194]
+  - button [ref=e196] [cursor=pointer]:
+    - img [ref=e198]
+  - alert [ref=e200]

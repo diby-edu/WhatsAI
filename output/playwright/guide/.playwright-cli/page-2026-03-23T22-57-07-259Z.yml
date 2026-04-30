@@ -1,0 +1,99 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e7]:
+      - link "WazzapAI Automation" [ref=e8] [cursor=pointer]:
+        - /url: /
+        - img [ref=e10]
+        - generic [ref=e12]:
+          - text: WazzapAI
+          - generic [ref=e13]: Automation
+      - generic [ref=e14]:
+        - generic [ref=e15]:
+          - img [ref=e16]
+          - generic [ref=e19]: Essai gratuit 14 jours
+        - heading "Créez votre compte 🚀" [level=1] [ref=e20]
+        - paragraph [ref=e21]: Commencez votre essai gratuit de 14 jours
+      - generic [ref=e22]:
+        - generic [ref=e23]:
+          - generic [ref=e24]: Nom complet
+          - generic [ref=e25]:
+            - img [ref=e26]
+            - textbox "John Doe" [ref=e29]
+        - generic [ref=e30]:
+          - generic [ref=e31]: Email
+          - generic [ref=e32]:
+            - img [ref=e33]
+            - textbox "votre@email.com" [ref=e36]
+        - generic [ref=e37]:
+          - generic [ref=e38]: Mot de passe
+          - generic [ref=e39]:
+            - img [ref=e40]
+            - textbox "••••••••" [ref=e43]
+            - button [ref=e44] [cursor=pointer]:
+              - img [ref=e45]
+          - generic [ref=e48]:
+            - generic [ref=e49]:
+              - img [ref=e51]
+              - generic [ref=e53]: 8 caractères
+            - generic [ref=e54]:
+              - img [ref=e56]
+              - generic [ref=e58]: Majuscule
+            - generic [ref=e59]:
+              - img [ref=e61]
+              - generic [ref=e63]: Minuscule
+            - generic [ref=e64]:
+              - img [ref=e66]
+              - generic [ref=e68]: Chiffre
+        - generic [ref=e69]:
+          - generic [ref=e70]: Confirmer le mot de passe
+          - generic [ref=e71]:
+            - img [ref=e72]
+            - textbox "••••••••" [ref=e75]
+            - button [ref=e76] [cursor=pointer]:
+              - img [ref=e77]
+        - button "Créer mon compte" [ref=e80] [cursor=pointer]:
+          - text: Créer mon compte
+          - img [ref=e81]
+      - generic [ref=e85]: ou
+      - button "Continuer avec Google" [ref=e87] [cursor=pointer]:
+        - img [ref=e88]
+        - text: Continuer avec Google
+      - paragraph [ref=e93]:
+        - text: Déjà un compte ?
+        - link "Se connecter" [ref=e94] [cursor=pointer]:
+          - /url: /login
+    - generic [ref=e96]:
+      - generic [ref=e97]:
+        - img [ref=e98]
+        - generic [ref=e100]: +5,000 entreprises nous font confiance
+      - heading "Rejoignez les leaders qui automatisent leur WhatsApp" [level=2] [ref=e101]
+      - generic [ref=e102]:
+        - generic [ref=e103]:
+          - generic [ref=e104]: +300%
+          - generic [ref=e105]: Conversions
+        - generic [ref=e106]:
+          - generic [ref=e107]: 24/7
+          - generic [ref=e108]: Disponible
+        - generic [ref=e109]:
+          - generic [ref=e110]: <10s
+          - generic [ref=e111]: Réponse
+      - generic [ref=e112]:
+        - generic [ref=e113]:
+          - img [ref=e114]
+          - img [ref=e116]
+          - img [ref=e118]
+          - img [ref=e120]
+          - img [ref=e122]
+        - paragraph [ref=e124]: "\"WazzapAI a transformé notre service client. Nous répondons maintenant 24/7 et nos conversions ont augmenté de 280%.\""
+        - generic [ref=e125]:
+          - generic [ref=e126]: AK
+          - generic [ref=e127]:
+            - generic [ref=e128]: Aminata Koné
+            - generic [ref=e129]: CEO, TechShop CI
+  - button [ref=e130] [cursor=pointer]:
+    - img [ref=e132]
+  - link "WazzapAI" [ref=e134] [cursor=pointer]:
+    - /url: /
+    - img [ref=e136]
+    - generic [ref=e138]: WazzapAI
+  - alert [ref=e139]

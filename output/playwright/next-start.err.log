@@ -1,0 +1,3 @@
+FIREBASE_SERVICE_ACCOUNT_KEY not configured - push notifications disabled
+FIREBASE_SERVICE_ACCOUNT_KEY not configured - push notifications disabled
+⚠️ Redis not configured, falling back to in-memory rate limiting

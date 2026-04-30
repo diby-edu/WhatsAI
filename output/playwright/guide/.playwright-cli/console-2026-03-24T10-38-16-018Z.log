@@ -1,0 +1,1 @@
+[    1826ms] [ERROR] Failed to load resource: the server responded with a status of 400 () @ https://ktfnafsgoruyrscccsxy.supabase.co/rest/v1/orders?select=id%2Corder_number%2Ctotal_amount%2Ccreated_at&agent_id=in.%283832610b-ec5a-435c-ab0e-1ed9c115d841%29&created_at=gte.2026-03-23T10%3A38%3A17.334Z&order=created_at.desc&limit=10:0

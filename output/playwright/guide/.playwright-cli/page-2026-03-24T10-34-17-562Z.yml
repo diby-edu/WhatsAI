@@ -1,0 +1,153 @@
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - generic [ref=e4]:
+        - link "WazzapAI" [ref=e5] [cursor=pointer]:
+          - /url: /
+          - img [ref=e7]
+          - generic [ref=e9]: WazzapAI
+        - button [ref=e10] [cursor=pointer]:
+          - img [ref=e11]
+      - navigation [ref=e13]:
+        - link "Tableau de bord" [ref=e14] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e15]
+          - generic [ref=e20]: Tableau de bord
+        - link "Notifications" [ref=e21] [cursor=pointer]:
+          - /url: /dashboard/notifications
+          - img [ref=e22]
+          - generic [ref=e25]: Notifications
+        - link "Agents" [ref=e26] [cursor=pointer]:
+          - /url: /dashboard/agents
+          - img [ref=e27]
+          - generic [ref=e30]: Agents
+        - link "Conversations" [ref=e31] [cursor=pointer]:
+          - /url: /dashboard/conversations
+          - img [ref=e32]
+          - generic [ref=e35]: Conversations
+        - link "Produits" [ref=e36] [cursor=pointer]:
+          - /url: /dashboard/products
+          - img [ref=e37]
+          - generic [ref=e41]: Produits
+        - link "Commandes" [ref=e42] [cursor=pointer]:
+          - /url: /dashboard/orders
+          - img [ref=e43]
+          - generic [ref=e46]: Commandes
+        - link "Analytics" [ref=e47] [cursor=pointer]:
+          - /url: /dashboard/analytics
+          - img [ref=e48]
+          - generic [ref=e51]: Analytics
+        - link "Playground" [ref=e52] [cursor=pointer]:
+          - /url: /dashboard/playground
+          - img [ref=e53]
+          - generic [ref=e55]: Playground
+        - link "Facturation" [ref=e56] [cursor=pointer]:
+          - /url: /dashboard/billing
+          - img [ref=e57]
+          - generic [ref=e59]: Facturation
+        - link "Paramètres" [ref=e60] [cursor=pointer]:
+          - /url: /dashboard/settings
+          - img [ref=e61]
+          - generic [ref=e64]: Paramètres
+        - link "Aide" [ref=e65] [cursor=pointer]:
+          - /url: /dashboard/help
+          - img [ref=e66]
+          - generic [ref=e69]: Aide
+      - generic [ref=e70]:
+        - link "Aide" [ref=e71] [cursor=pointer]:
+          - /url: /dashboard/help
+          - img [ref=e72]
+          - generic [ref=e75]: Aide
+        - button "Déconnexion" [ref=e76] [cursor=pointer]:
+          - img [ref=e77]
+          - generic [ref=e80]: Déconnexion
+    - main [ref=e81]:
+      - generic [ref=e82]:
+        - generic [ref=e84]:
+          - img [ref=e85]
+          - textbox "Rechercher..." [ref=e88]
+        - button [ref=e90] [cursor=pointer]:
+          - img [ref=e91]
+        - link "G" [ref=e201] [cursor=pointer]:
+          - /url: /dashboard/settings
+          - generic [ref=e95]: G
+      - generic [ref=e97]:
+        - generic [ref=e98]:
+          - link "Retour aux agents" [ref=e99] [cursor=pointer]:
+            - /url: /dashboard/agents
+            - img [ref=e100]
+            - text: Retour aux agents
+          - heading "Créer un nouvel agent" [level=1] [ref=e102]
+          - paragraph [ref=e103]: Configurez votre assistant IA en quelques étapes
+        - generic [ref=e104]:
+          - img [ref=e202]
+          - img [ref=e113]
+          - img [ref=e119]
+          - img [ref=e126]
+          - img [ref=e132]
+          - img [ref=e137]
+          - img [ref=e143]
+        - heading "Horaires" [level=2] [ref=e204]
+        - generic [ref=e206]:
+          - generic [ref=e207]:
+            - generic [ref=e208]:
+              - text: 🌐 Ouvert 24h/24, 7j/7
+              - paragraph [ref=e209]: Service disponible en permanence
+            - button "Appliquer" [ref=e210] [cursor=pointer]
+          - generic [ref=e211]:
+            - generic [ref=e212]: lundi
+            - generic [ref=e213]:
+              - checkbox [checked] [ref=e214]
+              - textbox [ref=e215]: 09:00
+              - generic [ref=e216]: "-"
+              - textbox [ref=e217]: 18:00
+          - generic [ref=e218]:
+            - generic [ref=e219]: mardi
+            - generic [ref=e220]:
+              - checkbox [checked] [ref=e221]
+              - textbox [ref=e222]: 09:00
+              - generic [ref=e223]: "-"
+              - textbox [ref=e224]: 18:00
+          - generic [ref=e225]:
+            - generic [ref=e226]: mercredi
+            - generic [ref=e227]:
+              - checkbox [checked] [ref=e228]
+              - textbox [ref=e229]: 09:00
+              - generic [ref=e230]: "-"
+              - textbox [ref=e231]: 18:00
+          - generic [ref=e232]:
+            - generic [ref=e233]: jeudi
+            - generic [ref=e234]:
+              - checkbox [checked] [ref=e235]
+              - textbox [ref=e236]: 09:00
+              - generic [ref=e237]: "-"
+              - textbox [ref=e238]: 18:00
+          - generic [ref=e239]:
+            - generic [ref=e240]: vendredi
+            - generic [ref=e241]:
+              - checkbox [checked] [ref=e242]
+              - textbox [ref=e243]: 09:00
+              - generic [ref=e244]: "-"
+              - textbox [ref=e245]: 18:00
+          - generic [ref=e246]:
+            - generic [ref=e247]: samedi
+            - generic [ref=e248]:
+              - checkbox [checked] [ref=e249]
+              - textbox [ref=e250]: 10:00
+              - generic [ref=e251]: "-"
+              - textbox [ref=e252]: 16:00
+          - generic [ref=e253]:
+            - generic [ref=e254]: dimanche
+            - generic [ref=e255]:
+              - checkbox [ref=e256]
+              - generic [ref=e257]: Fermé
+        - generic [ref=e192]:
+          - button "Précédent" [ref=e258] [cursor=pointer]:
+            - img [ref=e259]
+            - text: Précédent
+          - button "Suivant" [active] [ref=e193] [cursor=pointer]:
+            - text: Suivant
+            - img [ref=e194]
+  - button [ref=e196] [cursor=pointer]:
+    - img [ref=e198]
+  - alert [ref=e200]

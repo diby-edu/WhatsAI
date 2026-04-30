@@ -245,12 +245,30 @@ async function checkExpiringSubscriptions(): Promise<void> {
         in7Days.setDate(in7Days.getDate() + 7)
 
         // Window: expire between now and 7 days from now
-        const { data: subscriptions, error } = await supabase
+        // Schema-safe: prefer "plan" (current schema), fallback to legacy "plan_id".
+        let subscriptions: any[] | null = null
+        let error: any = null
+
+        const primaryQuery = await supabase
             .from('subscriptions')
-            .select('user_id, plan_id, current_period_end, status')
+            .select('user_id, plan, current_period_end, status')
             .eq('status', 'active')
             .gte('current_period_end', now.toISOString())
             .lte('current_period_end', in7Days.toISOString())
+
+        if (primaryQuery.error?.code === '42703') {
+            const legacyQuery = await supabase
+                .from('subscriptions')
+                .select('user_id, plan_id, current_period_end, status')
+                .eq('status', 'active')
+                .gte('current_period_end', now.toISOString())
+                .lte('current_period_end', in7Days.toISOString())
+            subscriptions = legacyQuery.data
+            error = legacyQuery.error
+        } else {
+            subscriptions = primaryQuery.data
+            error = primaryQuery.error
+        }
 
         if (error) {
             console.error('⏰ [CRON] Error fetching subscriptions:', error)
@@ -295,8 +313,10 @@ async function checkExpiringSubscriptions(): Promise<void> {
                 })
 
                 // Send notification (push + email)
+                const planName = String((sub as any).plan || (sub as any).plan_id || 'WazzapAI')
+
                 await notify(sub.user_id, 'subscription_expiring', {
-                    planName: sub.plan_id || 'WazzapAI',
+                    planName,
                     daysLeft,
                     expiryDate: formattedDate
                 })
@@ -307,7 +327,11 @@ async function checkExpiringSubscriptions(): Promise<void> {
                     .insert({
                         user_id: sub.user_id,
                         type: 'subscription_expiring',
-                        data: { plan_id: sub.plan_id, days_left: daysLeft }
+                        data: {
+                            plan: (sub as any).plan || null,
+                            plan_id: (sub as any).plan_id || null,
+                            days_left: daysLeft
+                        }
                     })
 
                 console.log(`⏰ [CRON] Notified user ${sub.user_id} — ${daysLeft} days left`)

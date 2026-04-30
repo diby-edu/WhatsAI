@@ -1,0 +1,24 @@
+0 verbose cli C:\Program Files\nodejs\node.exe C:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js
+1 info using npm@11.6.2
+2 info using node@v24.11.1
+3 silly config load:file:C:\Program Files\nodejs\node_modules\npm\npmrc
+4 silly config load:file:H:\WHATSAPP\wazzap-clone\.npmrc
+5 silly config load:file:H:\WHATSAPP\wazzap-clone\output\playwright\user \.npmrc
+6 silly config load:file:H:\WHATSAPP\wazzap-clone\output\playwright\user\AppData\Roaming \npm\etc\npmrc
+7 verbose title npm exec playwright-cli --session landing open http://localhost:3000 --headed
+8 verbose argv "exec" "--package" "@playwright/cli" "--" "playwright-cli" "--session" "landing" "open" "http://localhost:3000" "--headed"
+9 verbose logfile logs-max:10 dir:H:\WHATSAPP\wazzap-clone\output\playwright\npm-cache\_logs\2026-03-09T22_07_41_573Z-
+10 verbose logfile H:\WHATSAPP\wazzap-clone\output\playwright\npm-cache\_logs\2026-03-09T22_07_41_573Z-debug-0.log
+11 silly logfile done cleaning log files
+12 silly packumentCache heap:4496293888 maxSize:1124073472 maxEntrySize:562036736
+13 http fetch GET https://registry.npmjs.org/@playwright%2fcli attempt 1 failed with EACCES
+14 http fetch GET https://registry.npmjs.org/@playwright%2fcli attempt 2 failed with EACCES
+15 http fetch GET https://registry.npmjs.org/@playwright%2fcli attempt 3 failed with EACCES
+16 http fetch GET 200 https://registry.npmjs.org/@playwright%2fcli 70104ms (cache stale)
+17 silly packumentCache heap:4496293888 maxSize:1124073472 maxEntrySize:562036736
+18 verbose cwd H:\WHATSAPP\wazzap-clone\output\playwright\landing
+19 verbose os Windows_NT 10.0.26200
+20 verbose node v24.11.1
+21 verbose npm  v11.6.2
+22 verbose exit 1
+23 verbose code 1
