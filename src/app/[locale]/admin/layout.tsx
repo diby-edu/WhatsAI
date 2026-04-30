@@ -64,7 +64,7 @@ const adminGroups: AdminGroup[] = [
         label: 'CLIENTS',
         items: [
             { href: '/admin/users', label: 'Utilisateurs', icon: Users },
-            { href: '/admin/subscriptions', label: 'Abonnements', icon: CreditCard },
+            { href: '/admin/subscriptions', label: 'Paiements', icon: CreditCard },
             { href: '/admin/payouts', label: 'Reversement', icon: Wallet },
         ]
     },
@@ -107,7 +107,6 @@ const adminGroups: AdminGroup[] = [
             { href: '/admin/credit-packs', label: 'Packs de Crédits', icon: Package },
             { href: '/admin/webhooks', label: 'Webhooks', icon: Webhook },
             { href: '/admin/settings', label: 'Paramètres', icon: Settings },
-            { href: '/admin/payments', label: 'Outils Dev', icon: TestTube2 },
         ]
     },
 ]
