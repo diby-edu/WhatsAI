@@ -432,7 +432,7 @@ export default function Pricing() {
                                 }}>
                                     <div style={{ textAlign: 'center' }}>
                                         <div style={{ fontSize: 22, fontWeight: 800, color: 'white', lineHeight: 1.1 }}>
-                                            {plan.credits.toLocaleString(locale)}
+                                            {(isYearly ? plan.credits * 12 : plan.credits).toLocaleString(locale)}
                                         </div>
                                         <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
                                             <CreditCard size={9} />
