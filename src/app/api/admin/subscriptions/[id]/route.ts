@@ -58,7 +58,7 @@ export async function PATCH(
                     .select('credits_included')
                     .eq('id', plan)
                     .single()
-                if (planData?.credits_included) creditsToAdd = planData.credits_included
+                if (planData?.credits_included) creditsToAdd = planData.credits_included * (billingPeriod === 'annual' ? 12 : 1)
             } catch { /* non-bloquant */ }
 
             const newLifecycle = plan === 'free' ? 'inactive' : 'paid_active'
