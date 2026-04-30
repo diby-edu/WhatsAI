@@ -1,0 +1,916 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - navigation [ref=e4]:
+      - generic [ref=e5]:
+        - link "WazzapAI Automation" [ref=e6] [cursor=pointer]:
+          - /url: /
+          - img [ref=e8]
+          - generic [ref=e11]:
+            - generic [ref=e12]: WazzapAI
+            - generic [ref=e13]: Automation
+        - generic [ref=e14]:
+          - link "Produit" [ref=e16] [cursor=pointer]:
+            - /url: "#features"
+            - text: Produit
+            - img [ref=e17]
+          - link "Tarifs" [ref=e20] [cursor=pointer]:
+            - /url: "#pricing"
+          - link "FAQ" [ref=e22] [cursor=pointer]:
+            - /url: "#faq"
+        - generic [ref=e23]:
+          - button "EN" [ref=e24] [cursor=pointer]:
+            - img [ref=e25]
+            - generic [ref=e28]: EN
+          - link "Connexion" [ref=e29] [cursor=pointer]:
+            - /url: /login
+          - link "Essai gratuit" [ref=e30] [cursor=pointer]:
+            - /url: /register
+            - button "Essai gratuit" [ref=e31]:
+              - img [ref=e32]
+              - text: Essai gratuit
+    - generic [ref=e41]:
+      - generic [ref=e42]:
+        - generic [ref=e43]:
+          - img [ref=e45]
+          - generic [ref=e48]: Propulsé par l'IA
+        - heading "Ne perdez plus de clients sur WhatsApp" [level=1] [ref=e49]
+        - paragraph [ref=e50]: WazzapAI répond automatiquement aux messages de vos clients 24h/24, qualifie vos prospects et vous aide à vendre plus — même quand vous dormez.
+        - generic [ref=e51]:
+          - generic [ref=e52]:
+            - img [ref=e53]
+            - generic [ref=e55]: Réponse en < 3 sec
+          - generic [ref=e56]:
+            - img [ref=e57]
+            - generic [ref=e60]: Disponible 24h/24
+          - generic [ref=e61]:
+            - img [ref=e62]
+            - generic [ref=e64]: Sans carte bancaire
+        - generic [ref=e65]:
+          - link "Commencer gratuitement" [ref=e66] [cursor=pointer]:
+            - /url: /register
+            - button "Commencer gratuitement" [ref=e67]:
+              - img [ref=e68]
+              - text: Commencer gratuitement
+              - img [ref=e70]
+          - link "Voir comment ça marche" [ref=e72] [cursor=pointer]:
+            - /url: "#how-it-works"
+            - button "Voir comment ça marche" [ref=e73]
+        - generic [ref=e74]:
+          - generic [ref=e75]:
+            - img [ref=e77]
+            - generic [ref=e82]:
+              - generic [ref=e83]: 100+
+              - generic [ref=e84]: Entreprises
+          - generic [ref=e85]:
+            - img [ref=e87]
+            - generic [ref=e89]:
+              - generic [ref=e90]: 10K+
+              - generic [ref=e91]: Messages/mois
+          - generic [ref=e92]:
+            - img [ref=e94]
+            - generic [ref=e96]:
+              - generic [ref=e97]: 98%
+              - generic [ref=e98]: Satisfaction
+      - generic [ref=e99]:
+        - generic [ref=e103]:
+          - generic [ref=e104]:
+            - img [ref=e106]
+            - generic [ref=e109]:
+              - generic [ref=e110]: Assistant WazzapAI
+              - generic [ref=e111]: En ligne
+          - generic [ref=e114]:
+            - generic [ref=e115]: Écrire un message...
+            - img [ref=e117]
+        - generic [ref=e120]:
+          - img [ref=e121]
+          - generic [ref=e124]:
+            - generic [ref=e125]: +300%
+            - generic [ref=e126]: Conversions
+        - generic [ref=e127]:
+          - generic [ref=e128]:
+            - img [ref=e129]
+            - img [ref=e131]
+            - img [ref=e133]
+            - img [ref=e135]
+            - img [ref=e137]
+          - generic [ref=e139]: 4.9/5
+    - generic [ref=e141]:
+      - generic [ref=e142]:
+        - generic [ref=e143]:
+          - img [ref=e144]
+          - generic [ref=e146]: ⚠️
+        - heading "Combien de ventes perdez-vous sur WhatsApp ?" [level=2] [ref=e147]
+        - paragraph [ref=e148]: Chaque jour, des entreprises perdent des clients simplement parce qu'elles ne peuvent pas répondre à tous les messages.
+        - paragraph [ref=e149]: "Les clients écrivent à toute heure : pendant que vous travaillez, pendant que vous êtes occupé, ou même pendant que vous dormez."
+      - generic [ref=e150]:
+        - generic [ref=e151]:
+          - img [ref=e152]
+          - generic [ref=e156]: Messages non répondus
+        - generic [ref=e157]:
+          - img [ref=e158]
+          - generic [ref=e162]: Réponses tardives
+        - generic [ref=e163]:
+          - img [ref=e164]
+          - generic [ref=e168]: Conversations impossibles à gérer
+        - generic [ref=e169]:
+          - img [ref=e170]
+          - generic [ref=e174]: Clients qui partent acheter ailleurs
+        - generic [ref=e175]:
+          - img [ref=e176]
+          - generic [ref=e180]: Stress lié à la gestion manuelle
+        - generic [ref=e181]:
+          - img [ref=e182]
+          - generic [ref=e186]: Opportunités de croissance manquées
+      - paragraph [ref=e188]: Chaque message ignoré peut être une vente perdue.
+    - generic [ref=e191]:
+      - generic [ref=e192]:
+        - heading "Sans WazzapAI" [level=3] [ref=e194]:
+          - img [ref=e195]
+          - text: Sans WazzapAI
+        - generic [ref=e199]:
+          - generic [ref=e200]:
+            - img [ref=e201]
+            - generic [ref=e205]: Répondre manuellement à chaque message
+          - generic [ref=e206]:
+            - img [ref=e207]
+            - generic [ref=e211]: Messages oubliés
+          - generic [ref=e212]:
+            - img [ref=e213]
+            - generic [ref=e217]: Clients qui attendent trop longtemps
+          - generic [ref=e218]:
+            - img [ref=e219]
+            - generic [ref=e223]: Trop de conversations à gérer
+          - generic [ref=e224]:
+            - img [ref=e225]
+            - generic [ref=e229]: Ventes perdues
+      - generic [ref=e230]:
+        - heading "Avec WazzapAI" [level=3] [ref=e232]:
+          - img [ref=e233]
+          - text: Avec WazzapAI
+        - generic [ref=e236]:
+          - generic [ref=e237]:
+            - img [ref=e238]
+            - generic [ref=e241]: Réponses instantanées
+          - generic [ref=e242]:
+            - img [ref=e243]
+            - generic [ref=e246]: Conversations automatisées
+          - generic [ref=e247]:
+            - img [ref=e248]
+            - generic [ref=e251]: Qualification automatique des prospects
+          - generic [ref=e252]:
+            - img [ref=e253]
+            - generic [ref=e256]: Disponible 24h/24
+          - generic [ref=e257]:
+            - img [ref=e258]
+            - generic [ref=e261]: Plus de ventes
+    - generic [ref=e264]:
+      - generic [ref=e265]:
+        - generic [ref=e266]:
+          - img [ref=e267]
+          - generic [ref=e269]: Simple & Rapide
+        - heading "Automatiser WhatsApp en moins de 5 minutes" [level=2] [ref=e270]
+        - paragraph [ref=e271]: Aucune compétence technique requise.
+      - generic [ref=e272]:
+        - generic [ref=e273]:
+          - img [ref=e276]
+          - generic [ref=e278]:
+            - generic [ref=e279]: "01"
+            - img [ref=e281]
+            - heading "Créez votre agent IA" [level=3] [ref=e284]
+            - paragraph [ref=e285]: Configurez votre assistant en quelques clics.
+        - generic [ref=e286]:
+          - img [ref=e289]
+          - generic [ref=e291]:
+            - generic [ref=e292]: "02"
+            - img [ref=e294]
+            - heading "Connectez votre WhatsApp" [level=3] [ref=e300]
+            - paragraph [ref=e301]: Scannez le QR code pour connecter votre compte.
+        - generic [ref=e303]:
+          - generic [ref=e304]: "03"
+          - img [ref=e306]
+          - heading "Laissez l'IA répondre à vos clients" [level=3] [ref=e308]
+          - paragraph [ref=e309]: Votre agent répond automatiquement aux messages.
+      - link "Commencer gratuitement" [ref=e311] [cursor=pointer]:
+        - /url: /register
+        - button "Commencer gratuitement" [ref=e312]:
+          - img [ref=e313]
+          - text: Commencer gratuitement
+          - img [ref=e315]
+    - generic [ref=e318]:
+      - generic [ref=e319]:
+        - generic [ref=e320]:
+          - img [ref=e321]
+          - generic [ref=e325]: Pour tous les business
+        - heading "WazzapAI s'adapte à votre activité" [level=2] [ref=e326]
+        - paragraph [ref=e327]: Quel que soit votre secteur, notre IA s'adapte à vos besoins.
+      - generic [ref=e328]:
+        - generic [ref=e329] [cursor=pointer]:
+          - img [ref=e332]
+          - heading "Restaurants & Traiteurs" [level=3] [ref=e337]
+          - paragraph [ref=e338]: Prenez des commandes automatiquement et répondez instantanément aux clients.
+        - generic [ref=e339] [cursor=pointer]:
+          - img [ref=e342]
+          - heading "E-commerce & Boutiques" [level=3] [ref=e346]
+          - paragraph [ref=e347]: Répondez aux questions produits et transformez les conversations en ventes.
+        - generic [ref=e348] [cursor=pointer]:
+          - img [ref=e351]
+          - heading "Immobilier" [level=3] [ref=e354]
+          - paragraph [ref=e355]: Qualifiez automatiquement les prospects et planifiez les visites.
+        - generic [ref=e356] [cursor=pointer]:
+          - img [ref=e359]
+          - heading "Services & Artisans" [level=3] [ref=e361]
+          - paragraph [ref=e362]: Automatisez les réponses aux demandes clients et les devis.
+        - generic [ref=e363] [cursor=pointer]:
+          - img [ref=e366]
+          - heading "Santé & Cliniques" [level=3] [ref=e368]
+          - paragraph [ref=e369]: Automatisez la prise de rendez-vous et les rappels patients.
+        - generic [ref=e370] [cursor=pointer]:
+          - img [ref=e373]
+          - heading "Éducation & Formations" [level=3] [ref=e376]
+          - paragraph [ref=e377]: Répondez aux questions des étudiants et gérez les inscriptions.
+        - generic [ref=e378] [cursor=pointer]:
+          - img [ref=e381]
+          - heading "Beauté & Bien-être" [level=3] [ref=e384]
+          - paragraph [ref=e385]: Gérez les réservations et les demandes de services automatiquement.
+        - generic [ref=e386] [cursor=pointer]:
+          - img [ref=e389]
+          - heading "Entreprises & PME" [level=3] [ref=e393]
+          - paragraph [ref=e394]: Automatisez votre support client et la gestion des demandes.
+    - generic [ref=e396]:
+      - generic [ref=e397]:
+        - generic [ref=e398]:
+          - img [ref=e399]
+          - generic [ref=e401]: Calculateur
+        - heading "Combien WhatsApp peut-il générer pour votre business ?" [level=2] [ref=e402]
+      - generic [ref=e403]:
+        - generic [ref=e404]:
+          - generic [ref=e405]: Combien de messages clients recevez-vous par jour ?
+          - generic [ref=e406]:
+            - slider [ref=e407] [cursor=pointer]: "50"
+            - generic [ref=e408]: "50"
+        - generic [ref=e409]:
+          - generic [ref=e410]: Quel pourcentage devient client ?
+          - generic [ref=e411]:
+            - slider [ref=e412] [cursor=pointer]: "10"
+            - generic [ref=e413]: 10%
+        - generic [ref=e414]:
+          - generic [ref=e415]: Valeur moyenne d'une vente (FCFA)
+          - generic [ref=e416]:
+            - slider [ref=e417] [cursor=pointer]: "15000"
+            - generic [ref=e418]: 15 000
+        - generic [ref=e419]:
+          - generic [ref=e420]:
+            - img [ref=e421]
+            - generic [ref=e424]: Revenu mensuel potentiel
+          - generic [ref=e425]: 2 250 000 FCFA
+        - paragraph [ref=e426]: WazzapAI vous aide à répondre plus vite et augmenter ce revenu.
+        - link "Commencer gratuitement" [ref=e428] [cursor=pointer]:
+          - /url: /register
+          - button "Commencer gratuitement" [ref=e429]:
+            - img [ref=e430]
+            - text: Commencer gratuitement
+            - img [ref=e432]
+    - generic [ref=e435]:
+      - generic [ref=e436]:
+        - heading "Des tarifs transparents" [level=2] [ref=e437]
+        - paragraph [ref=e438]: Choisissez le plan adapté à votre activité
+        - generic [ref=e439]:
+          - generic [ref=e440]:
+            - button "Mensuel" [ref=e441] [cursor=pointer]
+            - button "Annuel -17%" [ref=e442] [cursor=pointer]:
+              - text: Annuel
+              - generic [ref=e443]: "-17%"
+          - generic [ref=e444]:
+            - button "FCFA" [ref=e445] [cursor=pointer]
+            - button "$ USD" [ref=e446] [cursor=pointer]
+            - button "€ EUR" [ref=e447] [cursor=pointer]
+      - generic [ref=e448]:
+        - generic [ref=e449]:
+          - img [ref=e451]
+          - heading "Gratuit" [level=3] [ref=e453]
+          - generic [ref=e455]: Gratuit
+          - generic [ref=e456]:
+            - generic [ref=e457]:
+              - generic [ref=e458]: "50"
+              - generic [ref=e459]:
+                - img [ref=e460]
+                - text: crédits
+            - generic [ref=e462]:
+              - generic [ref=e463]: "1"
+              - generic [ref=e464]:
+                - img [ref=e465]
+                - text: agents
+            - generic [ref=e470]:
+              - generic [ref=e471]: "1"
+              - generic [ref=e472]:
+                - img [ref=e473]
+                - text: numéros
+          - generic [ref=e475]:
+            - generic [ref=e476]:
+              - img [ref=e478]
+              - generic [ref=e480]: Réponses automatiques 24/7
+            - generic [ref=e481]:
+              - img [ref=e483]
+              - generic [ref=e485]: Base de connaissances personnalisée
+            - generic [ref=e486]:
+              - img [ref=e488]
+              - generic [ref=e490]: Analytics et rapports
+            - generic [ref=e491]:
+              - img [ref=e493]
+              - generic [ref=e495]: Qualification de leads
+            - generic [ref=e496]:
+              - img [ref=e498]
+              - generic [ref=e500]: Historique illimité
+            - generic [ref=e501]:
+              - img [ref=e503]
+              - generic [ref=e505]: Templates de messages
+            - generic [ref=e506]:
+              - img [ref=e508]
+              - generic [ref=e510]: Support email inclus
+          - generic [ref=e511]:
+            - generic [ref=e512]:
+              - generic [ref=e514]: ✦
+              - generic [ref=e515]: 50 crédits offerts une seule fois
+            - generic [ref=e516]:
+              - generic [ref=e518]: ✦
+              - generic [ref=e519]: Pas de renouvellement automatique
+          - button "Essayer" [ref=e520] [cursor=pointer]:
+            - text: Essayer
+            - img [ref=e521]
+        - generic [ref=e523]:
+          - img [ref=e525]
+          - heading "Starter" [level=3] [ref=e527]
+          - generic [ref=e528]:
+            - generic [ref=e529]: 6 900 FCFA
+            - generic [ref=e530]: /mois
+            - generic [ref=e531]: ≈ quelques ventes suffisent pour payer cet abonnement
+          - generic [ref=e532]:
+            - generic [ref=e533]:
+              - generic [ref=e534]: "500"
+              - generic [ref=e535]:
+                - img [ref=e536]
+                - text: crédits
+              - generic [ref=e538]: Protégés 7j/expir.
+            - generic [ref=e539]:
+              - generic [ref=e540]: "1"
+              - generic [ref=e541]:
+                - img [ref=e542]
+                - text: agents
+            - generic [ref=e547]:
+              - generic [ref=e548]: "1"
+              - generic [ref=e549]:
+                - img [ref=e550]
+                - text: numéros
+          - generic [ref=e552]:
+            - generic [ref=e553]:
+              - img [ref=e555]
+              - generic [ref=e557]: Réponses automatiques 24/7
+            - generic [ref=e558]:
+              - img [ref=e560]
+              - generic [ref=e562]: Base de connaissances personnalisée
+            - generic [ref=e563]:
+              - img [ref=e565]
+              - generic [ref=e567]: Analytics et rapports
+            - generic [ref=e568]:
+              - img [ref=e570]
+              - generic [ref=e572]: Qualification de leads
+            - generic [ref=e573]:
+              - img [ref=e575]
+              - generic [ref=e577]: Historique illimité
+            - generic [ref=e578]:
+              - img [ref=e580]
+              - generic [ref=e582]: Templates de messages
+            - generic [ref=e583]:
+              - img [ref=e585]
+              - generic [ref=e587]: Support email inclus
+          - generic [ref=e588]:
+            - generic [ref=e589]:
+              - generic [ref=e591]: ✦
+              - generic [ref=e592]: "À l'expiration : crédits protégés (non perdus)"
+            - generic [ref=e593]:
+              - generic [ref=e595]: ✦
+              - generic [ref=e596]: "Au renouvellement : anciens + nouveaux crédits cumulés"
+            - generic [ref=e597]:
+              - generic [ref=e599]: ✦
+              - generic [ref=e600]: 1 agent réactivé, les autres désactivés 7j
+            - generic [ref=e601]:
+              - generic [ref=e603]: ✦
+              - generic [ref=e604]: "Sans renouvellement après 7j : crédits supprimés"
+          - button "Choisir" [ref=e605] [cursor=pointer]:
+            - text: Choisir
+            - img [ref=e606]
+        - generic [ref=e608]:
+          - generic [ref=e609]: ⭐ Plan recommandé
+          - img [ref=e611]
+          - heading "Pro" [level=3] [ref=e613]
+          - generic [ref=e614]:
+            - generic [ref=e615]: 19 900 FCFA
+            - generic [ref=e616]: /mois
+            - generic [ref=e617]: Idéal pour les entreprises qui reçoivent beaucoup de messages
+          - generic [ref=e618]:
+            - generic [ref=e619]:
+              - generic [ref=e620]: 2 500
+              - generic [ref=e621]:
+                - img [ref=e622]
+                - text: crédits
+              - generic [ref=e624]: Protégés 7j/expir.
+            - generic [ref=e625]:
+              - generic [ref=e626]: "3"
+              - generic [ref=e627]:
+                - img [ref=e628]
+                - text: agents
+            - generic [ref=e633]:
+              - generic [ref=e634]: "3"
+              - generic [ref=e635]:
+                - img [ref=e636]
+                - text: numéros
+          - generic [ref=e638]:
+            - generic [ref=e639]:
+              - img [ref=e641]
+              - generic [ref=e643]: Réponses automatiques 24/7
+            - generic [ref=e644]:
+              - img [ref=e646]
+              - generic [ref=e648]: Base de connaissances personnalisée
+            - generic [ref=e649]:
+              - img [ref=e651]
+              - generic [ref=e653]: Analytics et rapports
+            - generic [ref=e654]:
+              - img [ref=e656]
+              - generic [ref=e658]: Qualification de leads
+            - generic [ref=e659]:
+              - img [ref=e661]
+              - generic [ref=e663]: Historique illimité
+            - generic [ref=e664]:
+              - img [ref=e666]
+              - generic [ref=e668]: Templates de messages
+            - generic [ref=e669]:
+              - img [ref=e671]
+              - generic [ref=e673]: Support email inclus
+          - generic [ref=e674]:
+            - generic [ref=e675]:
+              - generic [ref=e677]: ✦
+              - generic [ref=e678]: "À l'expiration : crédits protégés (non perdus)"
+            - generic [ref=e679]:
+              - generic [ref=e681]: ✦
+              - generic [ref=e682]: "Au renouvellement : anciens + nouveaux crédits cumulés"
+            - generic [ref=e683]:
+              - generic [ref=e685]: ✦
+              - generic [ref=e686]: Agents excédentaires désactivés 7j (récupérables)
+            - generic [ref=e687]:
+              - generic [ref=e689]: ✦
+              - generic [ref=e690]: Alerte à 85% de consommation mensuelle
+            - generic [ref=e691]:
+              - generic [ref=e693]: ✦
+              - generic [ref=e694]: "Sans renouvellement après 7j : crédits supprimés"
+          - button "Choisir" [ref=e695] [cursor=pointer]:
+            - text: Choisir
+            - img [ref=e696]
+        - generic [ref=e698]:
+          - img [ref=e700]
+          - heading "Business" [level=3] [ref=e703]
+          - generic [ref=e704]:
+            - generic [ref=e705]: 54 900 FCFA
+            - generic [ref=e706]: /mois
+          - generic [ref=e707]:
+            - generic [ref=e708]:
+              - generic [ref=e709]: 8 000
+              - generic [ref=e710]:
+                - img [ref=e711]
+                - text: crédits
+              - generic [ref=e713]: Protégés 7j/expir.
+            - generic [ref=e714]:
+              - generic [ref=e715]: "6"
+              - generic [ref=e716]:
+                - img [ref=e717]
+                - text: agents
+            - generic [ref=e722]:
+              - generic [ref=e723]: "6"
+              - generic [ref=e724]:
+                - img [ref=e725]
+                - text: numéros
+          - generic [ref=e727]:
+            - generic [ref=e728]:
+              - img [ref=e730]
+              - generic [ref=e732]: Réponses automatiques 24/7
+            - generic [ref=e733]:
+              - img [ref=e735]
+              - generic [ref=e737]: Base de connaissances personnalisée
+            - generic [ref=e738]:
+              - img [ref=e740]
+              - generic [ref=e742]: Analytics et rapports
+            - generic [ref=e743]:
+              - img [ref=e745]
+              - generic [ref=e747]: Qualification de leads
+            - generic [ref=e748]:
+              - img [ref=e750]
+              - generic [ref=e752]: Historique illimité
+            - generic [ref=e753]:
+              - img [ref=e755]
+              - generic [ref=e757]: Templates de messages
+            - generic [ref=e758]:
+              - img [ref=e760]
+              - generic [ref=e762]: Support email inclus
+          - generic [ref=e763]:
+            - generic [ref=e764]:
+              - generic [ref=e766]: ✦
+              - generic [ref=e767]: "À l'expiration : crédits protégés (non perdus)"
+            - generic [ref=e768]:
+              - generic [ref=e770]: ✦
+              - generic [ref=e771]: "Au renouvellement : anciens + nouveaux crédits cumulés"
+            - generic [ref=e772]:
+              - generic [ref=e774]: ✦
+              - generic [ref=e775]: Agents excédentaires désactivés 7j (récupérables)
+            - generic [ref=e776]:
+              - generic [ref=e778]: ✦
+              - generic [ref=e779]: Alerte à 85% de consommation mensuelle
+            - generic [ref=e780]:
+              - generic [ref=e782]: ✦
+              - generic [ref=e783]: "Sans renouvellement après 7j : crédits supprimés"
+          - button "Choisir" [ref=e784] [cursor=pointer]:
+            - text: Choisir
+            - img [ref=e785]
+        - generic [ref=e787]:
+          - img [ref=e789]
+          - heading "Scale" [level=3] [ref=e794]
+          - generic [ref=e796]: ⭐ Rollover 20% • +2 000 crédits/mois
+          - generic [ref=e797]:
+            - generic [ref=e798]: 129 900 FCFA
+            - generic [ref=e799]: /mois
+          - generic [ref=e800]:
+            - generic [ref=e801]:
+              - generic [ref=e802]: 20 000
+              - generic [ref=e803]:
+                - img [ref=e804]
+                - text: crédits
+              - generic [ref=e806]: Rollover 20%
+            - generic [ref=e807]:
+              - generic [ref=e808]: ∞
+              - generic [ref=e809]:
+                - img [ref=e810]
+                - text: agents
+            - generic [ref=e815]:
+              - generic [ref=e816]: ∞
+              - generic [ref=e817]:
+                - img [ref=e818]
+                - text: numéros
+          - generic [ref=e820]:
+            - generic [ref=e821]:
+              - img [ref=e823]
+              - generic [ref=e825]: Réponses automatiques 24/7
+            - generic [ref=e826]:
+              - img [ref=e828]
+              - generic [ref=e830]: Base de connaissances personnalisée
+            - generic [ref=e831]:
+              - img [ref=e833]
+              - generic [ref=e835]: Analytics et rapports
+            - generic [ref=e836]:
+              - img [ref=e838]
+              - generic [ref=e840]: Qualification de leads
+            - generic [ref=e841]:
+              - img [ref=e843]
+              - generic [ref=e845]: Historique illimité
+            - generic [ref=e846]:
+              - img [ref=e848]
+              - generic [ref=e850]: Templates de messages
+            - generic [ref=e851]:
+              - img [ref=e853]
+              - generic [ref=e855]: Support email inclus
+          - generic [ref=e856]:
+            - generic [ref=e857]:
+              - generic [ref=e859]: ✦
+              - generic [ref=e860]: Rollover 20% des crédits non utilisés à chaque renouvellement
+            - generic [ref=e861]:
+              - generic [ref=e863]: ✦
+              - generic [ref=e864]: +2 000 crédits bonus offerts à chaque renouvellement
+            - generic [ref=e865]:
+              - generic [ref=e867]: ✦
+              - generic [ref=e868]: Crédits sécurisés et reportés (Scale actif)
+            - generic [ref=e869]:
+              - generic [ref=e871]: ✦
+              - generic [ref=e872]: Agents illimités — aucun archivage possible
+            - generic [ref=e873]:
+              - generic [ref=e875]: ✦
+              - generic [ref=e876]: Notification détaillée de votre bonus après chaque renouvellement
+          - button "Choisir" [ref=e877] [cursor=pointer]:
+            - text: Choisir
+            - img [ref=e878]
+      - generic [ref=e880]:
+        - heading "⚡ Ce qui se passe à l'expiration & au renouvellement" [level=4] [ref=e881]
+        - generic [ref=e882]:
+          - generic [ref=e883]:
+            - generic [ref=e884]: 📉 À l'expiration
+            - generic [ref=e885]:
+              - generic [ref=e886]: •
+              - text: Plan réduit au Free automatiquement
+            - generic [ref=e887]:
+              - generic [ref=e888]: •
+              - text: Crédits gelés (protégés) — non perdus immédiatement
+            - generic [ref=e889]:
+              - generic [ref=e890]: •
+              - text: Agents excédentaires archivés (non supprimés)
+            - generic [ref=e891]:
+              - generic [ref=e892]: •
+              - text: Seul 1 agent reste actif (limite Free)
+            - generic [ref=e893]:
+              - generic [ref=e894]: •
+              - text: IA en pause si crédits épuisés
+          - generic [ref=e895]:
+            - generic [ref=e896]: 🔄 À la souscription (dans les 7j)
+            - generic [ref=e897]:
+              - generic [ref=e898]: •
+              - text: Crédits sécurisés réactivés pleinement
+            - generic [ref=e899]:
+              - generic [ref=e900]: •
+              - text: Anciens crédits + nouveaux crédits cumulés
+            - generic [ref=e901]:
+              - generic [ref=e902]: •
+              - text: Plan restauré avec les quotas du plan choisi
+            - generic [ref=e903]:
+              - generic [ref=e904]: •
+              - text: Agents archivés récupérables
+            - generic [ref=e905]:
+              - generic [ref=e906]: •
+              - text: "Si >7j sans renouvellement : crédits définitivement supprimés"
+          - generic [ref=e907]:
+            - generic [ref=e908]: ⭐ Avantages exclusifs Scale
+            - generic [ref=e909]:
+              - generic [ref=e910]: •
+              - text: Rollover 20% des crédits non utilisés à chaque renouvellement
+            - generic [ref=e911]:
+              - generic [ref=e912]: •
+              - text: +2 000 crédits bonus offerts chaque mois
+            - generic [ref=e913]:
+              - generic [ref=e914]: •
+              - text: Crédits toujours sécurisés tant que Scale est actif
+            - generic [ref=e915]:
+              - generic [ref=e916]: •
+              - text: Agents illimités — aucun archivage possible
+            - generic [ref=e917]:
+              - generic [ref=e918]: •
+              - text: Notification de votre bonus de rollover après chaque renouvellement
+      - generic [ref=e919]:
+        - generic [ref=e920]:
+          - heading "Besoin d'une solution sur-mesure ?" [level=4] [ref=e921]
+          - paragraph [ref=e922]: Contactez-nous pour un plan personnalisé.
+        - button "Contacter l'équipe" [ref=e923] [cursor=pointer]:
+          - text: Contacter l'équipe
+          - img [ref=e924]
+    - generic [ref=e927]:
+      - generic [ref=e928]:
+        - generic [ref=e929]:
+          - img [ref=e930]
+          - generic [ref=e932]: Témoignages
+        - heading "Des entreprises utilisent déjà WazzapAI" [level=2] [ref=e933]
+        - paragraph [ref=e934]: Découvrez ce que nos clients disent de nous.
+      - generic [ref=e936]:
+        - img [ref=e937]
+        - generic [ref=e942]: 100+ entreprises nous font confiance
+      - generic [ref=e943]:
+        - generic [ref=e944]:
+          - img [ref=e945]
+          - generic [ref=e948]:
+            - img [ref=e949]
+            - img [ref=e951]
+            - img [ref=e953]
+            - img [ref=e955]
+            - img [ref=e957]
+          - paragraph [ref=e959]: “WazzapAI nous aide à répondre aux clients beaucoup plus rapidement. On ne perd plus aucune commande.”
+          - generic [ref=e960]:
+            - generic [ref=e961]: A
+            - generic [ref=e962]:
+              - generic [ref=e963]: Amadou K.
+              - generic [ref=e964]: Gérant — Restaurant Le Sahel
+        - generic [ref=e965]:
+          - img [ref=e966]
+          - generic [ref=e969]:
+            - img [ref=e970]
+            - img [ref=e972]
+            - img [ref=e974]
+            - img [ref=e976]
+            - img [ref=e978]
+          - paragraph [ref=e980]: “Depuis qu'on utilise WazzapAI, nos ventes ont augmenté de 40%. L'IA répond même la nuit !”
+          - generic [ref=e981]:
+            - generic [ref=e982]: F
+            - generic [ref=e983]:
+              - generic [ref=e984]: Fatou D.
+              - generic [ref=e985]: Fondatrice — Boutique Élégance
+        - generic [ref=e986]:
+          - img [ref=e987]
+          - generic [ref=e990]:
+            - img [ref=e991]
+            - img [ref=e993]
+            - img [ref=e995]
+            - img [ref=e997]
+            - img [ref=e999]
+          - paragraph [ref=e1001]: “Nos clients reçoivent une réponse en quelques secondes. C'est un vrai avantage concurrentiel.”
+          - generic [ref=e1002]:
+            - generic [ref=e1003]: I
+            - generic [ref=e1004]:
+              - generic [ref=e1005]: Ibrahim M.
+              - generic [ref=e1006]: Directeur — Agence Immobilière Vision
+    - generic [ref=e1008]:
+      - generic [ref=e1009]:
+        - generic [ref=e1010]:
+          - img [ref=e1011]
+          - generic [ref=e1016]: COMMUNAUTÉ
+        - heading "Rejoignez notre communauté d'entrepreneurs" [level=2] [ref=e1017]
+        - paragraph [ref=e1018]: Ils automatisent, ils partagent, ils réussissent
+        - generic [ref=e1021]: +200 membres actifs
+      - generic [ref=e1022]:
+        - generic [ref=e1023]:
+          - img [ref=e1025]
+          - generic [ref=e1027]:
+            - heading "Support rapide" [level=3] [ref=e1028]
+            - paragraph [ref=e1029]: Vos questions répondues en quelques minutes par la communauté
+        - generic [ref=e1030]:
+          - img [ref=e1032]
+          - generic [ref=e1034]:
+            - heading "Tips exclusifs" [level=3] [ref=e1035]
+            - paragraph [ref=e1036]: Stratégies et scripts de vente testés par vos pairs entrepreneurs
+        - generic [ref=e1037]:
+          - img [ref=e1039]
+          - generic [ref=e1042]:
+            - heading "Avant tout le monde" [level=3] [ref=e1043]
+            - paragraph [ref=e1044]: Nouvelles fonctionnalités et offres membres en avant-première
+        - generic [ref=e1045]:
+          - img [ref=e1047]
+          - generic [ref=e1051]:
+            - heading "Ressources gratuites" [level=3] [ref=e1052]
+            - paragraph [ref=e1053]: Templates de messages, guides et scripts de vente offerts
+      - generic [ref=e1054]:
+        - link "Rejoindre la communauté →" [ref=e1055] [cursor=pointer]:
+          - /url: https://chat.whatsapp.com/E7vbXhqS0o5D4Wn2lrdDGi
+          - img [ref=e1056]
+          - text: Rejoindre la communauté →
+        - paragraph [ref=e1058]: Gratuit • Zéro spam • Quittez à tout moment
+    - generic [ref=e1062]:
+      - generic [ref=e1063]:
+        - generic [ref=e1064]:
+          - img [ref=e1065]
+          - generic [ref=e1068]: FAQ
+        - heading "Questions fréquentes" [level=2] [ref=e1069]
+        - paragraph [ref=e1070]: Tout ce que vous devez savoir sur WazzapAI
+      - generic [ref=e1071]:
+        - button "Général Comment fonctionne WazzapAI ?" [ref=e1073] [cursor=pointer]:
+          - img [ref=e1075]
+          - generic [ref=e1077]:
+            - generic [ref=e1078]: Général
+            - heading "Comment fonctionne WazzapAI ?" [level=3] [ref=e1079]
+          - img [ref=e1081]
+        - button "Sécurité Est-ce que WhatsApp peut me bannir ?" [ref=e1084] [cursor=pointer]:
+          - img [ref=e1086]
+          - generic [ref=e1088]:
+            - generic [ref=e1089]: Sécurité
+            - heading "Est-ce que WhatsApp peut me bannir ?" [level=3] [ref=e1090]
+          - img [ref=e1092]
+        - button "Général Puis-je tester gratuitement ?" [ref=e1095] [cursor=pointer]:
+          - img [ref=e1097]
+          - generic [ref=e1100]:
+            - generic [ref=e1101]: Général
+            - heading "Puis-je tester gratuitement ?" [level=3] [ref=e1102]
+          - img [ref=e1104]
+        - button "Facturation Comment fonctionne le système de crédits ?" [ref=e1107] [cursor=pointer]:
+          - img [ref=e1109]
+          - generic [ref=e1111]:
+            - generic [ref=e1112]: Facturation
+            - heading "Comment fonctionne le système de crédits ?" [level=3] [ref=e1113]
+          - img [ref=e1115]
+        - button "Fonctionnalités Puis-je utiliser plusieurs numéros WhatsApp ?" [ref=e1118] [cursor=pointer]:
+          - img [ref=e1120]
+          - generic [ref=e1122]:
+            - generic [ref=e1123]: Fonctionnalités
+            - heading "Puis-je utiliser plusieurs numéros WhatsApp ?" [level=3] [ref=e1124]
+          - img [ref=e1126]
+        - button "Fonctionnalités L'IA peut-elle prendre des rendez-vous ?" [ref=e1129] [cursor=pointer]:
+          - img [ref=e1131]
+          - generic [ref=e1133]:
+            - generic [ref=e1134]: Fonctionnalités
+            - heading "L'IA peut-elle prendre des rendez-vous ?" [level=3] [ref=e1135]
+          - img [ref=e1137]
+        - button "Sécurité Mes données sont-elles sécurisées ?" [ref=e1140] [cursor=pointer]:
+          - img [ref=e1142]
+          - generic [ref=e1145]:
+            - generic [ref=e1146]: Sécurité
+            - heading "Mes données sont-elles sécurisées ?" [level=3] [ref=e1147]
+          - img [ref=e1149]
+        - button "Facturation Puis-je annuler à tout moment ?" [ref=e1152] [cursor=pointer]:
+          - img [ref=e1154]
+          - generic [ref=e1158]:
+            - generic [ref=e1159]: Facturation
+            - heading "Puis-je annuler à tout moment ?" [level=3] [ref=e1160]
+          - img [ref=e1162]
+        - button "Compte Que se passe-t-il après 7 jours sans renouvellement ?" [ref=e1165] [cursor=pointer]:
+          - img [ref=e1167]
+          - generic [ref=e1169]:
+            - generic [ref=e1170]: Compte
+            - heading "Que se passe-t-il après 7 jours sans renouvellement ?" [level=3] [ref=e1171]
+          - img [ref=e1173]
+        - button "Général Est-ce que WazzapAI fonctionne avec WhatsApp Business ?" [ref=e1176] [cursor=pointer]:
+          - img [ref=e1178]
+          - generic [ref=e1180]:
+            - generic [ref=e1181]: Général
+            - heading "Est-ce que WazzapAI fonctionne avec WhatsApp Business ?" [level=3] [ref=e1182]
+          - img [ref=e1184]
+        - button "Fonctionnalités Est-ce que je peux entraîner l'IA avec mes informations ?" [ref=e1187] [cursor=pointer]:
+          - img [ref=e1189]
+          - generic [ref=e1192]:
+            - generic [ref=e1193]: Fonctionnalités
+            - heading "Est-ce que je peux entraîner l'IA avec mes informations ?" [level=3] [ref=e1194]
+          - img [ref=e1196]
+    - generic [ref=e1202]:
+      - img [ref=e1205]
+      - heading "Commencez à automatiser vos conversations WhatsApp" [level=2] [ref=e1210]
+      - paragraph [ref=e1211]: Créez votre agent IA et commencez à répondre automatiquement aux clients.
+      - link "Créer mon agent gratuitement" [ref=e1213] [cursor=pointer]:
+        - /url: /register
+        - button "Créer mon agent gratuitement" [ref=e1214]:
+          - img [ref=e1215]
+          - text: Créer mon agent gratuitement
+          - img [ref=e1217]
+    - generic [ref=e1221]:
+      - generic [ref=e1222]:
+        - generic [ref=e1223]:
+          - link "WazzapAI" [ref=e1224] [cursor=pointer]:
+            - /url: /
+            - img [ref=e1226]
+            - generic [ref=e1228]: WazzapAI
+          - paragraph [ref=e1229]: L'IA qui répond à vos clients sur WhatsApp 24h/24.
+          - generic [ref=e1230]:
+            - link [ref=e1231] [cursor=pointer]:
+              - /url: https://twitter.com
+              - img [ref=e1232]
+            - link [ref=e1234] [cursor=pointer]:
+              - /url: https://linkedin.com
+              - img [ref=e1235]
+            - link [ref=e1239] [cursor=pointer]:
+              - /url: https://facebook.com
+              - img [ref=e1240]
+            - link [ref=e1242] [cursor=pointer]:
+              - /url: https://instagram.com
+              - img [ref=e1243]
+            - link [ref=e1246] [cursor=pointer]:
+              - /url: https://youtube.com
+              - img [ref=e1247]
+        - generic [ref=e1250]:
+          - heading "Produit" [level=4] [ref=e1251]
+          - list [ref=e1252]:
+            - listitem [ref=e1253]:
+              - link "Fonctionnalités" [ref=e1254] [cursor=pointer]:
+                - /url: "#features"
+            - listitem [ref=e1255]:
+              - link "Tarifs" [ref=e1256] [cursor=pointer]:
+                - /url: "#pricing"
+            - listitem [ref=e1257]:
+              - link "FAQ" [ref=e1258] [cursor=pointer]:
+                - /url: "#faq"
+            - listitem [ref=e1259]:
+              - link "💬 Communauté WhatsApp" [ref=e1260] [cursor=pointer]:
+                - /url: https://chat.whatsapp.com/E7vbXhqS0o5D4Wn2lrdDGi
+        - generic [ref=e1261]:
+          - heading "Entreprise" [level=4] [ref=e1262]
+          - list [ref=e1263]:
+            - listitem [ref=e1264]:
+              - link "À propos" [ref=e1265] [cursor=pointer]:
+                - /url: /about
+            - listitem [ref=e1266]:
+              - link "Contact" [ref=e1267] [cursor=pointer]:
+                - /url: /contact
+        - generic [ref=e1268]:
+          - heading "Légal" [level=4] [ref=e1269]
+          - list [ref=e1270]:
+            - listitem [ref=e1271]:
+              - link "Confidentialité" [ref=e1272] [cursor=pointer]:
+                - /url: /privacy
+            - listitem [ref=e1273]:
+              - link "Conditions" [ref=e1274] [cursor=pointer]:
+                - /url: /terms
+            - listitem [ref=e1275]:
+              - link "RGPD" [ref=e1276] [cursor=pointer]:
+                - /url: /gdpr
+      - generic [ref=e1277]:
+        - paragraph [ref=e1278]: © 2025 WazzapAI. Tous droits réservés.
+        - generic [ref=e1279]:
+          - generic [ref=e1280]:
+            - img [ref=e1281]
+            - text: support@wazzapai.com
+          - link "+225 05 54 58 59 27" [ref=e1284] [cursor=pointer]:
+            - /url: tel:+2250554585927
+            - img [ref=e1285]
+            - text: +225 05 54 58 59 27
+          - generic [ref=e1287]:
+            - img [ref=e1288]
+            - text: Abidjan, Côte d'Ivoire
+  - button [ref=e1291] [cursor=pointer]:
+    - img [ref=e1293]
+  - generic [ref=e1299] [cursor=pointer]:
+    - button "Open Next.js Dev Tools" [ref=e1300]:
+      - img [ref=e1301]
+    - generic [ref=e1304]:
+      - button "Open issues overlay" [ref=e1305]:
+        - generic [ref=e1306]:
+          - generic [ref=e1307]: "0"
+          - generic [ref=e1308]: "1"
+        - generic [ref=e1309]: Issue
+      - button "Collapse issues badge" [ref=e1310]:
+        - img [ref=e1311]
+  - alert [ref=e1313]

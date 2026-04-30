@@ -1,0 +1,142 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e99]:
+    - complementary [ref=e100]:
+      - generic [ref=e101]:
+        - link "WazzapAI" [ref=e102] [cursor=pointer]:
+          - /url: /
+          - img [ref=e104]
+          - generic [ref=e106]: WazzapAI
+        - button [ref=e107] [cursor=pointer]:
+          - img [ref=e108]
+      - navigation [ref=e110]:
+        - link "Tableau de bord" [ref=e111] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e112]
+          - generic [ref=e117]: Tableau de bord
+        - link "Notifications" [ref=e118] [cursor=pointer]:
+          - /url: /dashboard/notifications
+          - img [ref=e119]
+          - generic [ref=e122]: Notifications
+        - link "Agents" [ref=e123] [cursor=pointer]:
+          - /url: /dashboard/agents
+          - img [ref=e124]
+          - generic [ref=e127]: Agents
+        - link "Conversations" [ref=e128] [cursor=pointer]:
+          - /url: /dashboard/conversations
+          - img [ref=e129]
+          - generic [ref=e132]: Conversations
+        - link "Produits" [ref=e133] [cursor=pointer]:
+          - /url: /dashboard/products
+          - img [ref=e134]
+          - generic [ref=e138]: Produits
+        - link "Commandes" [ref=e139] [cursor=pointer]:
+          - /url: /dashboard/orders
+          - img [ref=e140]
+          - generic [ref=e143]: Commandes
+        - link "Analytics" [ref=e144] [cursor=pointer]:
+          - /url: /dashboard/analytics
+          - img [ref=e145]
+          - generic [ref=e148]: Analytics
+        - link "Playground" [ref=e149] [cursor=pointer]:
+          - /url: /dashboard/playground
+          - img [ref=e150]
+          - generic [ref=e152]: Playground
+        - link "Facturation" [ref=e153] [cursor=pointer]:
+          - /url: /dashboard/billing
+          - img [ref=e154]
+          - generic [ref=e156]: Facturation
+        - link "Paramètres" [ref=e157] [cursor=pointer]:
+          - /url: /dashboard/settings
+          - img [ref=e158]
+          - generic [ref=e161]: Paramètres
+        - link "Aide" [ref=e162] [cursor=pointer]:
+          - /url: /dashboard/help
+          - img [ref=e163]
+          - generic [ref=e166]: Aide
+      - generic [ref=e167]:
+        - link "Aide" [ref=e168] [cursor=pointer]:
+          - /url: /dashboard/help
+          - img [ref=e169]
+          - generic [ref=e172]: Aide
+        - button "Déconnexion" [ref=e173] [cursor=pointer]:
+          - img [ref=e174]
+          - generic [ref=e177]: Déconnexion
+    - main [ref=e178]:
+      - generic [ref=e179]:
+        - generic [ref=e181]:
+          - img [ref=e182]
+          - textbox "Rechercher..." [ref=e185]
+        - button [ref=e187] [cursor=pointer]:
+          - img [ref=e188]
+        - link "G" [ref=e191] [cursor=pointer]:
+          - /url: /dashboard/settings
+          - generic [ref=e192]: G
+      - generic [ref=e194]:
+        - generic [ref=e196]:
+          - heading "Tableau de bord" [level=1] [ref=e197]
+          - paragraph [ref=e198]: Bonjour Guide Demo ! Voici un aperçu de votre activité.
+        - generic [ref=e199]:
+          - generic [ref=e200]:
+            - generic [ref=e201]:
+              - img [ref=e203]
+              - img [ref=e206]
+            - generic [ref=e209]: "0"
+            - generic [ref=e210]: Messages ce mois
+          - generic [ref=e211]:
+            - generic [ref=e212]:
+              - img [ref=e214]
+              - img [ref=e220]
+            - generic [ref=e223]: 0/1
+            - generic [ref=e224]: Agents actifs
+          - generic [ref=e225]:
+            - generic [ref=e226]:
+              - img [ref=e228]
+              - img [ref=e232]
+            - generic [ref=e235]: "0"
+            - generic [ref=e236]: Conversations
+          - generic [ref=e237]:
+            - generic [ref=e238]:
+              - img [ref=e240]
+              - img [ref=e243]
+            - generic [ref=e246]: "50"
+            - generic [ref=e247]: Crédits restants
+          - generic [ref=e248]:
+            - generic [ref=e249]:
+              - img [ref=e251]
+              - img [ref=e254]
+            - generic [ref=e257]: FREE
+            - generic [ref=e258]: Plan actuel
+        - generic [ref=e259]:
+          - generic [ref=e261]:
+            - heading "Conversations récentes" [level=2] [ref=e262]
+            - link "Voir tout" [ref=e263] [cursor=pointer]:
+              - /url: /dashboard/conversations
+          - generic [ref=e264]:
+            - generic [ref=e265]:
+              - heading "Vos Agents" [level=2] [ref=e266]
+              - link "Gérer" [ref=e267] [cursor=pointer]:
+                - /url: /dashboard/agents
+            - link "+ Créer un nouvel agent" [ref=e269] [cursor=pointer]:
+              - /url: /dashboard/agents/new
+        - generic [ref=e270]:
+          - heading "Actions rapides" [level=2] [ref=e271]
+          - generic [ref=e272]:
+            - link "Créer un agent" [ref=e273] [cursor=pointer]:
+              - /url: /dashboard/agents/new
+              - img [ref=e274]
+              - text: Créer un agent
+            - link "Tester le chatbot" [ref=e277] [cursor=pointer]:
+              - /url: /dashboard/playground
+              - img [ref=e278]
+              - text: Tester le chatbot
+            - link "Voir conversations" [ref=e280] [cursor=pointer]:
+              - /url: /dashboard/conversations
+              - img [ref=e281]
+              - text: Voir conversations
+            - link "Acheter des crédits" [ref=e284] [cursor=pointer]:
+              - /url: /dashboard/billing
+              - img [ref=e285]
+              - text: Acheter des crédits
+  - button [ref=e87] [cursor=pointer]:
+    - img [ref=e89]
+  - alert [ref=e96]

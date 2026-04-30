@@ -1,0 +1,192 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - img "WhatsAI" [ref=e3]
+    - heading "Guide de demarrage WhatsAI avec captures reelles" [level=1] [ref=e4]
+    - paragraph [ref=e5]: "Version de test locale. Chaque slide affiche maintenant une vraie suite d'images : a chaque clic sur la fleche, l'image change et le commentaire change en meme temps."
+  - main [ref=e6]:
+    - generic [ref=e8]:
+      - generic [ref=e9]: Etape 1/7
+      - generic [ref=e10]: Inscription
+      - heading "Inscrivez-vous sur WhatsAI" [level=2] [ref=e11]
+      - paragraph [ref=e12]: Creez votre compte avec votre nom, votre email et votre mot de passe pour acceder a votre espace.
+      - generic [ref=e13]:
+        - generic [ref=e14]: Page register
+        - generic [ref=e15]: Champs du compte
+        - generic [ref=e16]: Creation du compte
+      - generic [ref=e17]:
+        - button "Etape precedente" [disabled] [ref=e18]: ←
+        - generic [ref=e19]:
+          - strong [ref=e21]: Image commentee
+          - img "Inscrivez-vous sur WhatsAI - Champ Nom complet" [ref=e27]
+        - button "Etape suivante" [ref=e28] [cursor=pointer]: →
+      - generic [ref=e29]: Commentaire 1 / 3
+      - article [ref=e30]:
+        - generic [ref=e31]: "1"
+        - generic [ref=e32]:
+          - heading "Champ Nom complet" [level=3] [ref=e33]
+          - paragraph [ref=e34]: Saisissez ici le nom de la personne ou de l'entreprise qui cree le compte.
+      - generic [ref=e35]:
+        - button "Afficher l'etape 1" [ref=e36] [cursor=pointer]
+        - button "Afficher l'etape 2" [ref=e37] [cursor=pointer]
+        - button "Afficher l'etape 3" [ref=e38] [cursor=pointer]
+      - generic [ref=e39]: "Astuce : utilisez un email que vous consultez souvent pour recevoir les informations importantes."
+    - generic [ref=e40]:
+      - generic [ref=e41]: Etape 2/7
+      - generic [ref=e42]: Agent
+      - heading "Creez votre agent" [level=2] [ref=e43]
+      - paragraph [ref=e44]: Ajoutez le nom de votre agent et completez ses informations pour lancer sa configuration.
+      - generic [ref=e45]:
+        - generic [ref=e46]: Menu Agents
+        - generic [ref=e47]: Nouvel agent
+        - generic [ref=e48]: Configuration
+      - generic [ref=e49]:
+        - button "Etape precedente" [disabled] [ref=e50]: ←
+        - generic [ref=e51]:
+          - strong [ref=e53]: Image commentee
+          - img "Creez votre agent - Etapes de configuration" [ref=e59]
+        - button "Etape suivante" [ref=e60] [cursor=pointer]: →
+      - generic [ref=e61]: Commentaire 1 / 3
+      - article [ref=e62]:
+        - generic [ref=e63]: "1"
+        - generic [ref=e64]:
+          - heading "Etapes de configuration" [level=3] [ref=e65]
+          - paragraph [ref=e66]: En haut, vous voyez les etapes du parcours de creation de l'agent.
+      - generic [ref=e67]:
+        - button "Afficher l'etape 1" [ref=e68] [cursor=pointer]
+        - button "Afficher l'etape 2" [ref=e69] [cursor=pointer]
+        - button "Afficher l'etape 3" [ref=e70] [cursor=pointer]
+      - generic [ref=e71]: "Astuce : choisissez un nom simple et facile a reconnaitre pour votre activite."
+    - generic [ref=e72]:
+      - generic [ref=e73]: Etape 3/7
+      - generic [ref=e74]: WhatsApp
+      - heading "Connectez WhatsApp" [level=2] [ref=e75]
+      - paragraph [ref=e76]: Ouvrez votre agent, generez le QR Code puis scannez-le avec votre telephone pour activer votre agent.
+      - generic [ref=e77]:
+        - generic [ref=e78]: "Statut : A connecter"
+        - generic [ref=e79]: "Action : QR Code"
+        - generic [ref=e80]: "Resultat : Connecte"
+      - generic [ref=e81]:
+        - button "Etape precedente" [disabled] [ref=e82]: ←
+        - generic [ref=e83]:
+          - strong [ref=e85]: Image commentee
+          - img "Connectez WhatsApp - Carte de l'agent" [ref=e91]
+        - button "Etape suivante" [ref=e92] [cursor=pointer]: →
+      - generic [ref=e93]: Commentaire 1 / 3
+      - article [ref=e94]:
+        - generic [ref=e95]: "1"
+        - generic [ref=e96]:
+          - heading "Carte de l'agent" [level=3] [ref=e97]
+          - paragraph [ref=e98]: Voici la carte de l'agent que vous voulez connecter a WhatsApp.
+      - generic [ref=e99]:
+        - button "Afficher l'etape 1" [ref=e100] [cursor=pointer]
+        - button "Afficher l'etape 2" [ref=e101] [cursor=pointer]
+        - button "Afficher l'etape 3" [ref=e102] [cursor=pointer]
+      - generic [ref=e103]: "Important : sans cette etape, votre agent est cree mais il n'est pas encore fonctionnel."
+    - generic [ref=e104]:
+      - generic [ref=e105]: Etape 4/7
+      - generic [ref=e106]: Catalogue
+      - heading "Ajoutez un produit physique" [level=2] [ref=e107]
+      - paragraph [ref=e108]: Creez un produit avec son nom, son prix, sa description et les informations utiles pour la livraison.
+      - generic [ref=e109]:
+        - generic [ref=e110]: "Type : Physique"
+        - generic [ref=e111]: Prix
+        - generic [ref=e112]: Livraison
+      - generic [ref=e113]:
+        - button "Etape precedente" [disabled] [ref=e114]: ←
+        - generic [ref=e115]:
+          - strong [ref=e117]: Image commentee
+          - img "Ajoutez un produit physique - Choisissez le type Physique" [ref=e123]
+        - button "Etape suivante" [ref=e124] [cursor=pointer]: →
+      - generic [ref=e125]: Commentaire 1 / 4
+      - article [ref=e126]:
+        - generic [ref=e127]: "1"
+        - generic [ref=e128]:
+          - heading "Choisissez le type Physique" [level=3] [ref=e129]
+          - paragraph [ref=e130]: Selectionnez cette option pour un produit que vous livrez reellement au client.
+      - generic [ref=e131]:
+        - button "Afficher l'etape 1" [ref=e132] [cursor=pointer]
+        - button "Afficher l'etape 2" [ref=e133] [cursor=pointer]
+        - button "Afficher l'etape 3" [ref=e134] [cursor=pointer]
+        - button "Afficher l'etape 4" [ref=e135] [cursor=pointer]
+      - generic [ref=e136]: "Astuce : une photo propre et une description claire augmentent la comprehension et la conversion."
+    - generic [ref=e137]:
+      - generic [ref=e138]: Etape 5/7
+      - generic [ref=e139]: Catalogue
+      - heading "Ajoutez un produit numerique" [level=2] [ref=e140]
+      - paragraph [ref=e141]: Creez un produit digital avec son nom, son prix et le contenu ou lien d'acces que vous allez livrer.
+      - generic [ref=e142]:
+        - generic [ref=e143]: "Type : Numerique"
+        - generic [ref=e144]: Acces digital
+        - generic [ref=e145]: Livraison
+      - generic [ref=e146]:
+        - button "Etape precedente" [disabled] [ref=e147]: ←
+        - generic [ref=e148]:
+          - strong [ref=e150]: Image commentee
+          - img "Ajoutez un produit numerique - Choisissez le type Numerique" [ref=e156]
+        - button "Etape suivante" [ref=e157] [cursor=pointer]: →
+      - generic [ref=e158]: Commentaire 1 / 4
+      - article [ref=e159]:
+        - generic [ref=e160]: "1"
+        - generic [ref=e161]:
+          - heading "Choisissez le type Numerique" [level=3] [ref=e162]
+          - paragraph [ref=e163]: Utilisez cette option pour ebook, formation, fichier, acces prive ou contenu digital.
+      - generic [ref=e164]:
+        - button "Afficher l'etape 1" [ref=e165] [cursor=pointer]
+        - button "Afficher l'etape 2" [ref=e166] [cursor=pointer]
+        - button "Afficher l'etape 3" [ref=e167] [cursor=pointer]
+        - button "Afficher l'etape 4" [ref=e168] [cursor=pointer]
+      - generic [ref=e169]: "Astuce : le plus important ici est la clarte du contenu livre et la facon d'y acceder."
+    - generic [ref=e170]:
+      - generic [ref=e171]: Etape 6/7
+      - generic [ref=e172]: Catalogue
+      - heading "Ajoutez un service" [level=2] [ref=e173]
+      - paragraph [ref=e174]: Creez un service avec son nom, son tarif, son delai et les conditions de realisation.
+      - generic [ref=e175]:
+        - generic [ref=e176]: "Type : Service"
+        - generic [ref=e177]: Tarif
+        - generic [ref=e178]: Delai
+      - generic [ref=e179]:
+        - button "Etape precedente" [disabled] [ref=e180]: ←
+        - generic [ref=e181]:
+          - strong [ref=e183]: Image commentee
+          - img "Ajoutez un service - Choisissez le type Service" [ref=e189]
+        - button "Etape suivante" [ref=e190] [cursor=pointer]: →
+      - generic [ref=e191]: Commentaire 1 / 4
+      - article [ref=e192]:
+        - generic [ref=e193]: "1"
+        - generic [ref=e194]:
+          - heading "Choisissez le type Service" [level=3] [ref=e195]
+          - paragraph [ref=e196]: Utilisez cette option pour une prestation vendue plutot qu'un objet ou un fichier.
+      - generic [ref=e197]:
+        - button "Afficher l'etape 1" [ref=e198] [cursor=pointer]
+        - button "Afficher l'etape 2" [ref=e199] [cursor=pointer]
+        - button "Afficher l'etape 3" [ref=e200] [cursor=pointer]
+        - button "Afficher l'etape 4" [ref=e201] [cursor=pointer]
+      - generic [ref=e202]: "Astuce : un service devient beaucoup plus facile a vendre quand la promesse, le perimetre et le delai sont explicites."
+    - generic [ref=e203]:
+      - generic [ref=e204]: Etape 7/7
+      - generic [ref=e205]: Dashboard
+      - heading "Comprenez votre dashboard" [level=2] [ref=e206]
+      - paragraph [ref=e207]: Votre menu vous permet de gerer vos agents, vos messages, vos produits, vos commandes, vos statistiques et vos reglages.
+      - generic [ref=e208]:
+        - generic [ref=e209]: Menu principal
+        - generic [ref=e210]: Navigation
+        - generic [ref=e211]: Modules utiles
+      - generic [ref=e212]:
+        - button "Etape precedente" [disabled] [ref=e213]: ←
+        - generic [ref=e214]:
+          - strong [ref=e216]: Image commentee
+          - img "Comprenez votre dashboard - Module Agents" [ref=e222]
+        - button "Etape suivante" [ref=e223] [cursor=pointer]: →
+      - generic [ref=e224]: Commentaire 1 / 4
+      - article [ref=e225]:
+        - generic [ref=e226]: "1"
+        - generic [ref=e227]:
+          - heading "Module Agents" [level=3] [ref=e228]
+          - paragraph [ref=e229]: Ce module sert a creer, connecter et gerer vos agents WhatsApp.
+      - generic [ref=e230]:
+        - button "Afficher l'etape 1" [ref=e231] [cursor=pointer]
+        - button "Afficher l'etape 2" [ref=e232] [cursor=pointer]
+        - button "Afficher l'etape 3" [ref=e233] [cursor=pointer]
+        - button "Afficher l'etape 4" [ref=e234] [cursor=pointer]
+      - generic [ref=e235]: "Astuce : au debut, concentre-toi surtout sur Agents, Products, Conversations et Orders."

@@ -1,0 +1,131 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - generic [ref=e4]:
+        - link "WazzapAI" [ref=e5] [cursor=pointer]:
+          - /url: /
+          - img [ref=e7]
+          - generic [ref=e9]: WazzapAI
+        - button [ref=e10] [cursor=pointer]:
+          - img [ref=e11]
+      - navigation [ref=e13]:
+        - link "Tableau de bord" [ref=e14] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e15]
+          - generic [ref=e20]: Tableau de bord
+        - link "Notifications" [ref=e21] [cursor=pointer]:
+          - /url: /dashboard/notifications
+          - img [ref=e22]
+          - generic [ref=e25]: Notifications
+        - link "Agents" [ref=e26] [cursor=pointer]:
+          - /url: /dashboard/agents
+          - img [ref=e27]
+          - generic [ref=e30]: Agents
+        - link "Conversations" [ref=e31] [cursor=pointer]:
+          - /url: /dashboard/conversations
+          - img [ref=e32]
+          - generic [ref=e35]: Conversations
+        - link "Produits" [ref=e36] [cursor=pointer]:
+          - /url: /dashboard/products
+          - img [ref=e37]
+          - generic [ref=e41]: Produits
+        - link "Commandes" [ref=e42] [cursor=pointer]:
+          - /url: /dashboard/orders
+          - img [ref=e43]
+          - generic [ref=e46]: Commandes
+        - link "Analytics" [ref=e47] [cursor=pointer]:
+          - /url: /dashboard/analytics
+          - img [ref=e48]
+          - generic [ref=e51]: Analytics
+        - link "Playground" [ref=e52] [cursor=pointer]:
+          - /url: /dashboard/playground
+          - img [ref=e53]
+          - generic [ref=e55]: Playground
+        - link "Facturation" [ref=e56] [cursor=pointer]:
+          - /url: /dashboard/billing
+          - img [ref=e57]
+          - generic [ref=e59]: Facturation
+        - link "Paramètres" [ref=e60] [cursor=pointer]:
+          - /url: /dashboard/settings
+          - img [ref=e61]
+          - generic [ref=e64]: Paramètres
+        - link "Aide" [ref=e65] [cursor=pointer]:
+          - /url: /dashboard/help
+          - img [ref=e66]
+          - generic [ref=e69]: Aide
+      - generic [ref=e70]:
+        - link "Aide" [ref=e71] [cursor=pointer]:
+          - /url: /dashboard/help
+          - img [ref=e72]
+          - generic [ref=e75]: Aide
+        - button "Déconnexion" [ref=e76] [cursor=pointer]:
+          - img [ref=e77]
+          - generic [ref=e80]: Déconnexion
+    - main [ref=e81]:
+      - generic [ref=e82]:
+        - generic [ref=e84]:
+          - img [ref=e85]
+          - textbox "Rechercher..." [ref=e88]
+        - button [ref=e90] [cursor=pointer]:
+          - img [ref=e91]
+        - link "?" [ref=e94] [cursor=pointer]:
+          - /url: /dashboard/settings
+          - generic [ref=e95]: "?"
+      - generic [ref=e97]:
+        - generic [ref=e98]:
+          - link "Retour aux produits" [ref=e99] [cursor=pointer]:
+            - /url: /dashboard/products
+            - img [ref=e100]
+            - text: Retour aux produits
+          - heading "Ajouter un Produit" [level=1] [ref=e102]
+          - paragraph [ref=e103]: Créez un produit que vos agents pourront vendre.
+        - generic [ref=e104]:
+          - img [ref=e107]
+          - img [ref=e114]
+          - img [ref=e121]
+        - heading "Identité" [level=2] [ref=e125]
+        - generic [ref=e127]:
+          - generic [ref=e128]:
+            - generic [ref=e129]: Type de produit
+            - generic [ref=e130]:
+              - button "📦 Physique Produit livrable" [ref=e131] [cursor=pointer]:
+                - generic [ref=e132]: 📦 Physique
+                - generic [ref=e133]: Produit livrable
+              - button "💻 Numérique Téléchargement" [ref=e134] [cursor=pointer]:
+                - generic [ref=e135]: 💻 Numérique
+                - generic [ref=e136]: Téléchargement
+              - button "🛠️ Service Prestation" [ref=e137] [cursor=pointer]:
+                - generic [ref=e138]: 🛠️ Service
+                - generic [ref=e139]: Prestation
+          - generic [ref=e140]:
+            - generic [ref=e141]: Images du produit (0/10)
+            - generic [ref=e143] [cursor=pointer]:
+              - img [ref=e144]
+              - generic [ref=e145]: Ajouter
+            - paragraph [ref=e146]: La première image sera l'image principale affichée
+          - generic [ref=e147]:
+            - generic [ref=e148]: Nom du Produit
+            - 'textbox "Ex: Bougie Vanille" [ref=e149]'
+          - generic [ref=e150]:
+            - generic [ref=e151]:
+              - generic [ref=e152]: Prix (USD)
+              - generic [ref=e153]:
+                - textbox "0" [ref=e154]
+                - img [ref=e155]
+            - generic [ref=e157]:
+              - generic [ref=e158]: Catégorie
+              - 'textbox "Ex: Maison" [ref=e159]'
+          - generic [ref=e160]:
+            - generic [ref=e161]: Agent Vendeur
+            - combobox [ref=e162]:
+              - option "Tous les agents" [selected]
+        - generic [ref=e163]:
+          - button "Précédent" [disabled]:
+            - img
+            - text: Précédent
+          - button "Suivant" [ref=e164] [cursor=pointer]:
+            - text: Suivant
+            - img [ref=e165]
+  - button [ref=e167] [cursor=pointer]:
+    - img [ref=e169]
+  - alert [ref=e171]

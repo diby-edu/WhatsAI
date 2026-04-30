@@ -1,0 +1,70 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e7]:
+      - generic [ref=e8]:
+        - generic [ref=e9]:
+          - img [ref=e10]
+          - generic [ref=e13]: Propulsé par GPT-4o
+        - heading "Automatisez WhatsApp avec l'IA" [level=1] [ref=e14]:
+          - text: Automatisez
+          - text: WhatsApp avec l'IA
+        - paragraph [ref=e15]: Répondez à vos clients 24/7, qualifiez vos leads et boostez vos ventes automatiquement.
+      - generic [ref=e16]:
+        - generic [ref=e17]:
+          - img [ref=e19]
+          - generic [ref=e21]:
+            - generic [ref=e22]: Réponses instantanées
+            - generic [ref=e23]: IA répond en moins de 10 secondes
+        - generic [ref=e24]:
+          - img [ref=e26]
+          - generic [ref=e28]:
+            - generic [ref=e29]: Sécurisé
+            - generic [ref=e30]: Vos données sont cryptées
+        - generic [ref=e31]:
+          - img [ref=e33]
+          - generic [ref=e38]:
+            - generic [ref=e39]: +5000 entreprises
+            - generic [ref=e40]: Font confiance à WazzapAI
+    - generic [ref=e42]:
+      - link "WazzapAI Automation" [ref=e43] [cursor=pointer]:
+        - /url: /
+        - img [ref=e45]
+        - generic [ref=e47]:
+          - text: WazzapAI
+          - generic [ref=e48]: Automation
+      - heading "Bon retour ! 👋" [level=1] [ref=e49]
+      - paragraph [ref=e50]: Connectez-vous pour accéder à votre dashboard
+      - generic [ref=e51]:
+        - generic [ref=e52]:
+          - generic [ref=e53]: Email
+          - generic [ref=e54]:
+            - img [ref=e55]
+            - textbox "votre@email.com" [ref=e58]
+        - generic [ref=e59]:
+          - generic [ref=e60]:
+            - generic [ref=e61]: Mot de passe
+            - link "Mot de passe oublié ?" [ref=e62] [cursor=pointer]:
+              - /url: /forgot-password
+          - generic [ref=e63]:
+            - img [ref=e64]
+            - textbox "••••••••" [ref=e67]
+            - button [ref=e68] [cursor=pointer]:
+              - img [ref=e69]
+        - button "Se connecter" [ref=e72] [cursor=pointer]:
+          - text: Se connecter
+          - img [ref=e73]
+      - generic [ref=e77]: ou continuer avec
+      - button "Continuer avec Google" [ref=e79] [cursor=pointer]:
+        - img [ref=e80]
+        - text: Continuer avec Google
+      - paragraph [ref=e85]:
+        - text: Pas encore de compte ?
+        - link "Créer un compte" [ref=e86] [cursor=pointer]:
+          - /url: /register
+  - button [ref=e87] [cursor=pointer]:
+    - img [ref=e89]
+  - link "WazzapAI" [ref=e91] [cursor=pointer]:
+    - /url: /
+    - img [ref=e93]
+    - generic [ref=e95]: WazzapAI
+  - alert [ref=e96]

@@ -1,0 +1,7 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - img "WhatsAI" [ref=e3]
+    - heading "Guide de demarrage WhatsAI avec captures reelles" [level=1] [ref=e4]
+    - paragraph [ref=e5]: "Version de test locale. Chaque slide affiche maintenant une vraie suite d'images : a chaque clic sur la fleche, l'image change et le commentaire change en meme temps."
+  - main [ref=e6]:
+    - generic [ref=e7]: Chargement du guide...

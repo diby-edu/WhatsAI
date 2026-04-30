@@ -64,7 +64,7 @@ const adminGroups: AdminGroup[] = [
         label: 'CLIENTS',
         items: [
             { href: '/admin/users', label: 'Utilisateurs', icon: Users },
-            { href: '/admin/subscriptions', label: 'Paiements', icon: CreditCard },
+            { href: '/admin/payments', label: 'Paiements', icon: CreditCard },
             { href: '/admin/payouts', label: 'Reversement', icon: Wallet },
         ]
     },

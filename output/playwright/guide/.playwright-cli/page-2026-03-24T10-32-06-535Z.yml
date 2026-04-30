@@ -1,0 +1,144 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - generic [ref=e4]:
+        - link "WazzapAI" [ref=e5] [cursor=pointer]:
+          - /url: /
+          - img [ref=e7]
+          - generic [ref=e9]: WazzapAI
+        - button [ref=e10] [cursor=pointer]:
+          - img [ref=e11]
+      - navigation [ref=e13]:
+        - link "Tableau de bord" [ref=e14] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e15]
+          - generic [ref=e20]: Tableau de bord
+        - link "Notifications" [ref=e21] [cursor=pointer]:
+          - /url: /dashboard/notifications
+          - img [ref=e22]
+          - generic [ref=e25]: Notifications
+        - link "Agents" [ref=e26] [cursor=pointer]:
+          - /url: /dashboard/agents
+          - img [ref=e27]
+          - generic [ref=e30]: Agents
+        - link "Conversations" [ref=e31] [cursor=pointer]:
+          - /url: /dashboard/conversations
+          - img [ref=e32]
+          - generic [ref=e35]: Conversations
+        - link "Produits" [ref=e36] [cursor=pointer]:
+          - /url: /dashboard/products
+          - img [ref=e37]
+          - generic [ref=e41]: Produits
+        - link "Commandes" [ref=e42] [cursor=pointer]:
+          - /url: /dashboard/orders
+          - img [ref=e43]
+          - generic [ref=e46]: Commandes
+        - link "Analytics" [ref=e47] [cursor=pointer]:
+          - /url: /dashboard/analytics
+          - img [ref=e48]
+          - generic [ref=e51]: Analytics
+        - link "Playground" [ref=e52] [cursor=pointer]:
+          - /url: /dashboard/playground
+          - img [ref=e53]
+          - generic [ref=e55]: Playground
+        - link "Facturation" [ref=e56] [cursor=pointer]:
+          - /url: /dashboard/billing
+          - img [ref=e57]
+          - generic [ref=e59]: Facturation
+        - link "Paramètres" [ref=e60] [cursor=pointer]:
+          - /url: /dashboard/settings
+          - img [ref=e61]
+          - generic [ref=e64]: Paramètres
+        - link "Aide" [ref=e65] [cursor=pointer]:
+          - /url: /dashboard/help
+          - img [ref=e66]
+          - generic [ref=e69]: Aide
+      - generic [ref=e70]:
+        - link "Aide" [ref=e71] [cursor=pointer]:
+          - /url: /dashboard/help
+          - img [ref=e72]
+          - generic [ref=e75]: Aide
+        - button "Déconnexion" [ref=e76] [cursor=pointer]:
+          - img [ref=e77]
+          - generic [ref=e80]: Déconnexion
+    - main [ref=e81]:
+      - generic [ref=e82]:
+        - generic [ref=e84]:
+          - img [ref=e85]
+          - textbox "Rechercher..." [ref=e88]
+        - button [ref=e90] [cursor=pointer]:
+          - img [ref=e91]
+        - link "?" [ref=e94] [cursor=pointer]:
+          - /url: /dashboard/settings
+          - generic [ref=e95]: "?"
+      - generic [ref=e97]:
+        - generic [ref=e98]:
+          - link "Retour aux agents" [ref=e99] [cursor=pointer]:
+            - /url: /dashboard/agents
+            - img [ref=e100]
+            - text: Retour aux agents
+          - heading "Créer un nouvel agent" [level=1] [ref=e102]
+          - paragraph [ref=e103]: Configurez votre assistant IA en quelques étapes
+        - generic [ref=e104]:
+          - img [ref=e107]
+          - img [ref=e113]
+          - img [ref=e119]
+          - img [ref=e126]
+          - img [ref=e132]
+          - img [ref=e137]
+          - img [ref=e143]
+        - heading "Informations" [level=2] [ref=e146]
+        - generic [ref=e148]:
+          - generic [ref=e149]:
+            - generic [ref=e150]: Nom de l'entreprise *
+            - 'textbox "Ex: Ma Boutique, Resto Chez Ali..." [ref=e151]'
+          - generic [ref=e152]:
+            - generic [ref=e153]:
+              - text: Description
+              - button "Description" [ref=e154] [cursor=pointer]:
+                - img [ref=e155]
+                - text: Générer (1 crédit)
+            - textbox "Décrivez brièvement le rôle de cet agent..." [ref=e158]
+            - generic [ref=e159]:
+              - paragraph [ref=e160]: "Dites-moi qui je suis ! Exemples :"
+              - list [ref=e161]:
+                - listitem [ref=e162]: "\"Assistant chaleureux pour une pizzeria, je tutoie les clients et je propose toujours le supplément fromage.\""
+                - listitem [ref=e163]: "\"Réceptionniste d'hôtel de luxe, poli et distingué, je demande toujours les dates de séjour.\""
+                - listitem [ref=e164]: "\"Vendeur expert en smartphone, technique mais accessible, je pousse à l'achat.\""
+          - generic [ref=e165]:
+            - checkbox "Boutique 100% en ligne (pas d'adresse physique) L'IA ne mentionnera jamais d'adresse physique." [ref=e166] [cursor=pointer]
+            - generic [ref=e167] [cursor=pointer]:
+              - text: Boutique 100% en ligne (pas d'adresse physique)
+              - generic [ref=e168]: L'IA ne mentionnera jamais d'adresse physique.
+          - generic [ref=e169]:
+            - generic [ref=e170]: Adresse Physique
+            - generic [ref=e171]:
+              - 'textbox "Ex: Abidjan, Cocody..." [ref=e172]'
+              - img [ref=e173]
+          - generic [ref=e176]:
+            - generic [ref=e177]:
+              - generic [ref=e178]: Latitude
+              - spinbutton [ref=e179]
+            - generic [ref=e180]:
+              - generic [ref=e181]:
+                - text: Longitude
+                - generic [ref=e182] [cursor=pointer]: Ma position
+              - spinbutton [ref=e183]
+          - generic [ref=e184]:
+            - generic [ref=e185]:
+              - generic [ref=e186]: Numéro d'Escalade / SAV *
+              - 'textbox "Ex: +225 07 07... (Indispensable pour l''IA)" [ref=e187]'
+              - paragraph [ref=e188]: Ce numéro est requis pour le SAV.
+            - generic [ref=e189]:
+              - generic [ref=e190]: Site Web
+              - textbox "https://" [ref=e191]
+        - generic [ref=e192]:
+          - button "Précédent" [disabled]:
+            - img
+            - text: Précédent
+          - button "Suivant" [disabled] [ref=e193]:
+            - text: Suivant
+            - img [ref=e194]
+  - button [ref=e196] [cursor=pointer]:
+    - img [ref=e198]
+  - alert [ref=e200]
