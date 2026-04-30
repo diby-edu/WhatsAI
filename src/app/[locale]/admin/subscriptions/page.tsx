@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
     CreditCard, Users, TrendingUp, FileText, Loader2, RefreshCw,
-    DollarSign, Edit, XCircle, Zap, X, Download, Search, Package
+    DollarSign, Edit, XCircle, Zap, X, Download, Search, Package, Eye
 } from 'lucide-react'
 
 interface Subscription {
@@ -32,14 +32,16 @@ interface Stats {
 }
 
 export default function AdminSubscriptionsPage() {
-    const [activeTab, setActiveTab] = useState<'subscriptions' | 'credits'>('subscriptions')
+    const [activeTab, setActiveTab] = useState<'subscriptions' | 'credits' | 'verify'>('subscriptions')
     const [subscriptions, setSubscriptions] = useState<Subscription[]>([])
     const [creditPayments, setCreditPayments] = useState<any[]>([])
+    const [allPayments, setAllPayments] = useState<any[]>([])
     const [stats, setStats] = useState<Stats>({ activeSubscriptions: 0, monthlyRevenue: 0, monthlyRevenueSub: 0, monthlyRevenueCredits: 0, totalRevenue: 0, totalRevenueSub: 0, totalRevenueCredits: 0, totalCreditPacksCount: 0, totalSubsCount: 0, newThisMonth: 0, totalUsers: 0 })
     const [loading, setLoading] = useState(true)
     const [refreshing, setRefreshing] = useState(false)
     const [editSub, setEditSub] = useState<Subscription | null>(null)
     const [actionLoading, setActionLoading] = useState<string | null>(null)
+    const [checkingPayment, setCheckingPayment] = useState<string | null>(null)
     const [isMobile, setIsMobile] = useState(false)
 
     // Filtres abonnements
@@ -49,6 +51,10 @@ export default function AdminSubscriptionsPage() {
     // Filtres packs de crédits
     const [creditSearch, setCreditSearch] = useState('')
     const [creditStatusFilter, setCreditStatusFilter] = useState('all')
+
+    // Filtres vérification paiements
+    const [verifySearch, setVerifySearch] = useState('')
+    const [verifyStatusFilter, setVerifyStatusFilter] = useState('all')
 
     useEffect(() => {
         const check = () => setIsMobile(window.innerWidth < 640)
@@ -72,8 +78,10 @@ export default function AdminSubscriptionsPage() {
             }
             if (payRes.ok) {
                 const data = await payRes.json()
-                const credits = (data.data?.payments || []).filter((p: any) => p.payment_type === 'credits')
+                const allPays = data.data?.payments || []
+                const credits = allPays.filter((p: any) => p.payment_type === 'credits')
                 setCreditPayments(credits)
+                setAllPayments(allPays)
             }
         } catch (err) {
             console.error('Error:', err)
@@ -102,6 +110,49 @@ export default function AdminSubscriptionsPage() {
         } finally {
             setActionLoading(null)
         }
+    }
+
+    const verifyPaymentStatus = async (transactionId: string) => {
+        setCheckingPayment(transactionId)
+        try {
+            const res = await fetch('/api/payments/status', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ transaction_id: transactionId })
+            })
+            const data = await res.json()
+            if (data.data?.status) {
+                const mapped = mapHostedStatus(data.data.status)
+                setAllPayments(prev => prev.map((p: any) =>
+                    p.transaction_id === transactionId ? { ...p, status: mapped } : p
+                ))
+            }
+        } catch (err) {
+            console.error('Error verifying:', err)
+        } finally {
+            setCheckingPayment(null)
+        }
+    }
+
+    const mapHostedStatus = (s: string): string => {
+        switch (s) {
+            case 'ACCEPTED': return 'completed'
+            case 'REFUSED': return 'failed'
+            case 'CANCELLED': return 'cancelled'
+            default: return 'pending'
+        }
+    }
+
+    const getVerifyStatusBadge = (status: string) => {
+        const map: Record<string, { bg: string; color: string; text: string }> = {
+            completed: { bg: 'rgba(34, 197, 94, 0.15)', color: '#4ade80', text: 'Réussi' },
+            pending: { bg: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24', text: 'En attente' },
+            processing: { bg: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24', text: 'En cours' },
+            failed: { bg: 'rgba(239, 68, 68, 0.15)', color: '#f87171', text: 'Échoué' },
+            cancelled: { bg: 'rgba(148, 163, 184, 0.15)', color: '#94a3b8', text: 'Annulé' },
+        }
+        const s = map[status] || map.pending
+        return <span style={{ padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, background: s.bg, color: s.color }}>{s.text}</span>
     }
 
     const exportCSV = () => {
@@ -170,6 +221,15 @@ export default function AdminSubscriptionsPage() {
         return matchSearch && matchStatus
     })
 
+    const filteredVerifyPayments = allPayments.filter((p: any) => {
+        const matchSearch = !verifySearch ||
+            (p.transaction_id || '').toLowerCase().includes(verifySearch.toLowerCase()) ||
+            (p.profiles?.email || p.user_email || '').toLowerCase().includes(verifySearch.toLowerCase()) ||
+            (p.profiles?.full_name || p.full_name || '').toLowerCase().includes(verifySearch.toLowerCase())
+        const matchStatus = verifyStatusFilter === 'all' || p.status === verifyStatusFilter
+        return matchSearch && matchStatus
+    })
+
     if (loading) {
         return (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 300 }}>
@@ -191,8 +251,8 @@ export default function AdminSubscriptionsPage() {
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
                 <div>
-                    <h1 style={{ fontSize: 28, fontWeight: 700, color: 'white', marginBottom: 8 }}>Abonnements</h1>
-                    <p style={{ color: '#94a3b8' }}>Gestion des abonnements et packs de crédits</p>
+                    <h1 style={{ fontSize: 28, fontWeight: 700, color: 'white', marginBottom: 8 }}>Paiements</h1>
+                    <p style={{ color: '#94a3b8' }}>Gestion des abonnements, packs de crédits et vérification des paiements</p>
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                     <button onClick={exportCSV} style={{
@@ -245,10 +305,37 @@ export default function AdminSubscriptionsPage() {
                     <Package size={14} style={{ display: 'inline', marginRight: 6 }} />
                     Packs de Crédits ({creditPayments.length})
                 </button>
+                <button style={tabStyle(activeTab === 'verify')} onClick={() => setActiveTab('verify')}>
+                    <Eye size={14} style={{ display: 'inline', marginRight: 6 }} />
+                    Vérification Paiement ({allPayments.length})
+                </button>
             </div>
 
             {/* Search + Filter bar */}
-            {activeTab === 'subscriptions' ? (
+            {activeTab === 'verify' ? (
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                    <div style={{
+                        flex: 1, display: 'flex', alignItems: 'center', gap: 8, minWidth: 200,
+                        padding: '10px 14px', background: 'rgba(30, 41, 59, 0.5)',
+                        border: '1px solid rgba(148, 163, 184, 0.1)', borderRadius: 10
+                    }}>
+                        <Search size={14} style={{ color: '#64748b', flexShrink: 0 }} />
+                        <input
+                            type="text" placeholder="Transaction ID, email, nom..."
+                            value={verifySearch} onChange={e => setVerifySearch(e.target.value)}
+                            style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: 'white', fontSize: 13 }}
+                        />
+                    </div>
+                    <select value={verifyStatusFilter} onChange={e => setVerifyStatusFilter(e.target.value)}
+                        style={{ padding: '10px 14px', background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(148, 163, 184, 0.1)', borderRadius: 10, color: 'white', fontSize: 13, cursor: 'pointer' }}>
+                        <option value="all">Tous les statuts</option>
+                        <option value="completed">Réussis</option>
+                        <option value="pending">En attente</option>
+                        <option value="processing">En cours</option>
+                        <option value="failed">Échoués</option>
+                    </select>
+                </div>
+            ) : activeTab === 'subscriptions' ? (
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                     <div style={{
                         flex: 1, display: 'flex', alignItems: 'center', gap: 8, minWidth: 200,
@@ -299,7 +386,76 @@ export default function AdminSubscriptionsPage() {
             <div style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(148, 163, 184, 0.1)', borderRadius: 16, overflow: 'hidden' }}>
                 <div className="admin-table-wrap" style={{ overflowX: 'auto' }}>
 
-                    {activeTab === 'subscriptions' ? (
+                    {activeTab === 'verify' ? (
+                        <table className="admin-table" style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
+                            <thead>
+                                <tr>
+                                    {['Transaction', 'Utilisateur', 'Montant', 'Provider', 'Statut', 'Date', 'Actions'].map(h => (
+                                        <th key={h} style={{
+                                            padding: '14px 16px', textAlign: 'left', fontSize: 10, fontWeight: 600,
+                                            textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b',
+                                            background: 'rgba(15, 23, 42, 0.5)', borderBottom: '1px solid rgba(148, 163, 184, 0.1)'
+                                        }}>{h}</th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filteredVerifyPayments.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={7} style={{ padding: 48, textAlign: 'center' }}>
+                                            <Eye style={{ width: 32, height: 32, color: '#64748b', margin: '0 auto 12px', display: 'block', opacity: 0.3 }} />
+                                            <h3 style={{ color: 'white', fontWeight: 600, marginBottom: 4 }}>Aucun paiement trouvé</h3>
+                                            <p style={{ color: '#64748b', fontSize: 13 }}>Les transactions apparaîtront ici.</p>
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    filteredVerifyPayments.map((p: any) => (
+                                        <tr key={p.id} style={{ borderBottom: '1px solid rgba(148, 163, 184, 0.05)' }}>
+                                            <td style={{ padding: '12px 16px', fontFamily: 'monospace', fontSize: 11, color: '#e2e8f0' }}>
+                                                {p.transaction_id ? `${p.transaction_id.slice(0, 14)}...` : 'N/A'}
+                                            </td>
+                                            <td style={{ padding: '12px 16px' }}>
+                                                <div style={{ color: 'white', fontSize: 13, fontWeight: 500 }}>{p.profiles?.full_name || p.full_name || '-'}</div>
+                                                <div style={{ color: '#64748b', fontSize: 11 }}>{p.profiles?.email || p.user_email || '-'}</div>
+                                            </td>
+                                            <td style={{ padding: '12px 16px', color: '#4ade80', fontWeight: 600, fontSize: 13 }}>
+                                                {(p.amount || 0).toLocaleString('fr-FR')} {p.currency || 'F'}
+                                            </td>
+                                            <td style={{ padding: '12px 16px', color: '#94a3b8', fontSize: 12, textTransform: 'uppercase' }}>
+                                                {p.payment_provider || p.payment_method || '-'}
+                                            </td>
+                                            <td style={{ padding: '12px 16px' }}>
+                                                {getVerifyStatusBadge(p.status)}
+                                            </td>
+                                            <td style={{ padding: '12px 16px', color: '#94a3b8', fontSize: 12 }}>
+                                                <div>{new Date(p.created_at).toLocaleDateString('fr-FR')}</div>
+                                                <div style={{ fontSize: 11, color: '#475569' }}>{new Date(p.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</div>
+                                            </td>
+                                            <td style={{ padding: '12px 16px' }}>
+                                                {p.transaction_id && (p.status === 'pending' || p.status === 'processing') && (
+                                                    <button
+                                                        onClick={() => verifyPaymentStatus(p.transaction_id)}
+                                                        disabled={checkingPayment === p.transaction_id}
+                                                        style={{
+                                                            padding: '6px 12px', borderRadius: 8,
+                                                            background: 'rgba(59, 130, 246, 0.15)', border: 'none',
+                                                            color: '#60a5fa', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                                                            display: 'flex', alignItems: 'center', gap: 4,
+                                                            opacity: checkingPayment === p.transaction_id ? 0.5 : 1
+                                                        }}>
+                                                        {checkingPayment === p.transaction_id
+                                                            ? <Loader2 style={{ width: 12, height: 12, animation: 'spin 1s linear infinite' }} />
+                                                            : <><Eye size={12} /> Vérifier</>
+                                                        }
+                                                    </button>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    ) : activeTab === 'subscriptions' ? (
                         <table className="admin-table" style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
                             <thead>
                                 <tr>
