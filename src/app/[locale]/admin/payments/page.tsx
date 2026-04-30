@@ -580,7 +580,7 @@ export default function AdminSubscriptionsPage() {
                     <EditSubModal
                         sub={editSub}
                         onClose={() => setEditSub(null)}
-                        onChangePlan={(plan) => handleAction(editSub.id, 'change_plan', { plan })}
+                        onChangePlan={(plan, billing_period) => handleAction(editSub.id, 'change_plan', { plan, billing_period })}
                         onSetCredits={(credits) => handleAction(editSub.id, 'set_credits', { credits })}
                     />
                 )}
@@ -591,9 +591,10 @@ export default function AdminSubscriptionsPage() {
 
 function EditSubModal({ sub, onClose, onChangePlan, onSetCredits }: {
     sub: Subscription; onClose: () => void
-    onChangePlan: (plan: string) => void; onSetCredits: (credits: number) => void
+    onChangePlan: (plan: string, billing_period: 'monthly' | 'annual') => void; onSetCredits: (credits: number) => void
 }) {
     const [plan, setPlan] = useState(sub.plan)
+    const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'annual'>('monthly')
     const [credits, setCredits] = useState(sub.credits)
 
     const inputStyle = {
@@ -622,6 +623,18 @@ function EditSubModal({ sub, onClose, onChangePlan, onSetCredits }: {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                     <div>
                         <label style={{ display: 'block', color: '#94a3b8', fontSize: 12, marginBottom: 4 }}>Changer le plan</label>
+                        <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                            {(['monthly', 'annual'] as const).map(p => (
+                                <button key={p} onClick={() => setBillingPeriod(p)} style={{
+                                    flex: 1, padding: '8px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                                    border: billingPeriod === p ? '1px solid #3b82f6' : '1px solid rgba(148,163,184,0.15)',
+                                    background: billingPeriod === p ? 'rgba(59,130,246,0.15)' : 'rgba(15,23,42,0.5)',
+                                    color: billingPeriod === p ? '#60a5fa' : '#64748b',
+                                }}>
+                                    {p === 'monthly' ? 'Mensuel' : 'Annuel'}
+                                </button>
+                            ))}
+                        </div>
                         <div style={{ display: 'flex', gap: 8 }}>
                             <select value={plan} onChange={e => setPlan(e.target.value)} style={{ ...inputStyle, flex: 1 }}>
                                 <option value="free">Free</option>
@@ -630,13 +643,18 @@ function EditSubModal({ sub, onClose, onChangePlan, onSetCredits }: {
                                 <option value="business">Business</option>
                                 <option value="scale">Scale</option>
                             </select>
-                            <button onClick={() => onChangePlan(plan)} style={{
+                            <button onClick={() => onChangePlan(plan, billingPeriod)} style={{
                                 padding: '10px 16px', borderRadius: 10, background: 'linear-gradient(135deg, #10b981, #059669)',
                                 border: 'none', color: 'white', fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap'
                             }}>
                                 Appliquer
                             </button>
                         </div>
+                        {plan !== 'free' && (
+                            <p style={{ fontSize: 11, color: '#64748b', marginTop: 6 }}>
+                                Échéance : {billingPeriod === 'annual' ? '+365 jours' : '+30 jours'} à partir d'aujourd'hui
+                            </p>
+                        )}
                     </div>
 
                     <div style={{ borderTop: '1px solid rgba(148, 163, 184, 0.1)', paddingTop: 14 }}>

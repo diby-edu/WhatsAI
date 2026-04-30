@@ -28,30 +28,58 @@ export async function PATCH(
     try {
         const { id } = await params
         const body = await request.json()
-        const { action, plan, credits } = body
+        const { action, plan, credits, billing_period } = body
 
         if (action === 'change_plan') {
             if (!plan) return errorResponse('Plan requis', 400)
             const validPlans = ['free', 'starter', 'pro', 'business', 'scale']
             if (!validPlans.includes(plan)) return errorResponse('Plan invalide', 400)
 
+            const billingPeriod: 'monthly' | 'annual' = billing_period === 'annual' ? 'annual' : 'monthly'
+
             // Get current plan to determine upgrade vs downgrade
             const { data: targetProfile } = await adminSupabase
                 .from('profiles')
-                .select('plan, email')
+                .select('plan, email, credits_balance')
                 .eq('id', id)
                 .single()
 
+            // Calculate paid_until
+            const now = new Date()
+            const paidUntil = plan === 'free' ? null : new Date(
+                now.getTime() + (billingPeriod === 'annual' ? 365 : 30) * 24 * 60 * 60 * 1000
+            )
+
+            // Fetch credits from subscription_plans
+            let creditsToAdd = 0
+            try {
+                const { data: planData } = await adminSupabase
+                    .from('subscription_plans')
+                    .select('credits_included')
+                    .eq('id', plan)
+                    .single()
+                if (planData?.credits_included) creditsToAdd = planData.credits_included
+            } catch { /* non-bloquant */ }
+
+            const newLifecycle = plan === 'free' ? 'inactive' : 'paid_active'
+            const newCredits = (targetProfile?.credits_balance || 0) + creditsToAdd
+
             const { error } = await adminSupabase
                 .from('profiles')
-                .update({ plan, subscription_plan: plan })
+                .update({
+                    plan,
+                    subscription_plan: plan,
+                    account_lifecycle_status: newLifecycle,
+                    paid_until: paidUntil?.toISOString() ?? null,
+                    credits_balance: newCredits,
+                })
                 .eq('id', id)
 
             if (error) throw error
-            await logAdminAction(user.id, 'change_subscription_plan', id, 'profile', { plan })
+            await logAdminAction(user.id, 'change_subscription_plan', id, 'profile', { plan, billing_period: billingPeriod, paid_until: paidUntil })
 
             // Notify admins of plan change
-            const planOrder = ['free', 'starter', 'pro', 'business']
+            const planOrder = ['free', 'starter', 'pro', 'business', 'scale']
             const previousPlan = targetProfile?.plan || 'free'
             const isUpgrade = planOrder.indexOf(plan) > planOrder.indexOf(previousPlan)
             notifyAdmins(isUpgrade ? 'plan_upgrade' : 'plan_downgrade', {
@@ -61,7 +89,7 @@ export async function PATCH(
                 previousPlan,
             }).catch(() => {})
 
-            return successResponse({ message: `Plan changé en ${plan}` })
+            return successResponse({ message: `Plan changé en ${plan} (${billingPeriod === 'annual' ? 'annuel' : 'mensuel'})` })
         }
 
         if (action === 'cancel') {
