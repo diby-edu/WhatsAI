@@ -11,18 +11,18 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
-import android.view.WindowManager;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
-import android.widget.FrameLayout;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.core.content.ContextCompat;
+import androidx.core.graphics.Insets;
 import androidx.core.splashscreen.SplashScreen;
+import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import com.getcapacitor.BridgeActivity;
 import com.google.firebase.messaging.FirebaseMessaging;
@@ -68,8 +68,9 @@ public class MainActivity extends BridgeActivity {
         // Set window background color to match status bar (prevents white line)
         getWindow().getDecorView().setBackgroundColor(STATUS_BAR_COLOR);
 
-        // Disable edge-to-edge immediately
-        WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
+        // Android 15+ enforces edge-to-edge for targetSdk 35+.
+        // We opt into a single insets path for all Android versions.
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
 
         // Apply status bar config immediately
         configureStatusBar();
@@ -184,38 +185,41 @@ public class MainActivity extends BridgeActivity {
     private void configureStatusBar() {
         Window window = getWindow();
 
-        // Clear any translucent flags
-        window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
-        window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_NAVIGATION);
-
-        // Add flag to draw system bar backgrounds
-        window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
-
-        // Set the status bar color to dark (matching app background)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            window.setStatusBarColor(STATUS_BAR_COLOR);
+        // Keep light-status/nav appearance disabled so icons stay white
+        // on our dark header background (without deprecated status bar color APIs).
+        WindowInsetsControllerCompat controller =
+            WindowCompat.getInsetsController(window, window.getDecorView());
+        if (controller != null) {
+            controller.setAppearanceLightStatusBars(false);
+            controller.setAppearanceLightNavigationBars(false);
         }
+    }
 
-        // Set WHITE icons on dark background (API 23+)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            View decorView = window.getDecorView();
-            int flags = decorView.getSystemUiVisibility();
-            // REMOVE light status bar flag = WHITE icons on dark bg
-            flags &= ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
-            // Remove any fullscreen/immersive flags that might hide the bar
-            flags &= ~View.SYSTEM_UI_FLAG_FULLSCREEN;
-            flags &= ~View.SYSTEM_UI_FLAG_HIDE_NAVIGATION;
-            flags &= ~View.SYSTEM_UI_FLAG_IMMERSIVE;
-            flags &= ~View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
-            decorView.setSystemUiVisibility(flags);
-        }
+    private void applySystemBarInsets(WebView webView) {
+        ViewCompat.setOnApplyWindowInsetsListener(webView, (view, windowInsets) -> {
+            int types = WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout();
+            Insets insets = windowInsets.getInsets(types);
 
-        // For API 30+ use modern API
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(window, window.getDecorView());
-            if (controller != null) {
-                controller.setAppearanceLightStatusBars(false); // false = WHITE icons
-            }
+            // Push WebView content away from status/navigation bars.
+            view.setPadding(insets.left, insets.top, insets.right, insets.bottom);
+
+            // We handled these insets natively; pass zeroed values down to avoid double-padding.
+            return new WindowInsetsCompat.Builder(windowInsets)
+                .setInsets(types, Insets.NONE)
+                .build();
+        });
+
+        ViewCompat.requestApplyInsets(webView);
+    }
+
+    private void configureWebViewContainer(WebView webView) {
+        // Set WebView background to match app chrome
+        webView.setBackgroundColor(STATUS_BAR_COLOR);
+
+        // Set parent container background too
+        ViewGroup parent = (ViewGroup) webView.getParent();
+        if (parent != null) {
+            parent.setBackgroundColor(STATUS_BAR_COLOR);
         }
     }
 
@@ -228,27 +232,8 @@ public class MainActivity extends BridgeActivity {
         if (webView != null) {
             WebSettings settings = webView.getSettings();
 
-            // CRITICAL: Add TOP MARGIN to push WebView below status bar
-            int statusBarHeight = getStatusBarHeight();
-            ViewGroup.LayoutParams params = webView.getLayoutParams();
-            if (params instanceof FrameLayout.LayoutParams) {
-                FrameLayout.LayoutParams frameParams = (FrameLayout.LayoutParams) params;
-                frameParams.topMargin = statusBarHeight;
-                webView.setLayoutParams(frameParams);
-            } else if (params instanceof ViewGroup.MarginLayoutParams) {
-                ViewGroup.MarginLayoutParams marginParams = (ViewGroup.MarginLayoutParams) params;
-                marginParams.topMargin = statusBarHeight;
-                webView.setLayoutParams(marginParams);
-            }
-
-            // Set WebView background to match status bar (fills the margin gap)
-            webView.setBackgroundColor(STATUS_BAR_COLOR);
-
-            // Also set parent container background
-            ViewGroup parent = (ViewGroup) webView.getParent();
-            if (parent != null) {
-                parent.setBackgroundColor(STATUS_BAR_COLOR);
-            }
+            applySystemBarInsets(webView);
+            configureWebViewContainer(webView);
 
             // Enable smooth scrolling
             webView.setOverScrollMode(WebView.OVER_SCROLL_ALWAYS);
@@ -274,14 +259,5 @@ public class MainActivity extends BridgeActivity {
 
             syncStoredTokenToWebView();
         }
-    }
-
-    private int getStatusBarHeight() {
-        int result = 0;
-        int resourceId = getResources().getIdentifier("status_bar_height", "dimen", "android");
-        if (resourceId > 0) {
-            result = getResources().getDimensionPixelSize(resourceId);
-        }
-        return result;
     }
 }

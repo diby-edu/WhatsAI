@@ -8,7 +8,6 @@
         <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
         <item name="colorAccent">@color/colorAccent</item>
         <!-- Status bar: dark background + white icons (same as mobile browser) -->
-        <item name="android:statusBarColor">#0f172a</item>
         <item name="android:windowLightStatusBar">false</item>
     </style>
 
@@ -17,7 +16,6 @@
         <item name="windowNoTitle">true</item>
         <item name="android:background">@null</item>
         <!-- Status bar: dark background + white icons (same as mobile browser) -->
-        <item name="android:statusBarColor">#0f172a</item>
         <item name="android:windowLightStatusBar">false</item>
     </style>
 

@@ -24,12 +24,6 @@ const config: CapacitorConfig = {
       resize: 'body',
       resizeOnFullScreen: true
     },
-    // Status bar: dark background with white icons (same as mobile browser)
-    StatusBar: {
-      backgroundColor: '#0f172a',
-      style: 'LIGHT',
-      overlaysWebView: false
-    },
     // Splash screen: Use native Android 12+ splash (disable Capacitor's)
     SplashScreen: {
       launchShowDuration: 0,
@@ -49,4 +43,3 @@ const config: CapacitorConfig = {
 };
 
 export default config;
-
