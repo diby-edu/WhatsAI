@@ -63,6 +63,7 @@ interface Agent {
     system_prompt?: string | null
     mission?: string | null
     product_types?: string[]
+    knowledge_count?: number
 }
 
 export default function AgentsPage() {
@@ -394,143 +395,84 @@ export default function AgentsPage() {
                         </div>
 
                         {/* Action buttons */}
-                        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-                            {/* Quick action icons */}
-                            <Link
-                                href={`/dashboard/agents/${agent.id}`}
-                                title={t('card.menu.edit')}
-                                style={{
-                                    width: 40,
-                                    height: 40,
-                                    borderRadius: 10,
-                                    backgroundColor: 'rgba(59, 130, 246, 0.15)',
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    transition: 'all 0.2s'
-                                }}
-                                onMouseEnter={(e) => {
-                                    e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.3)'
-                                    e.currentTarget.style.transform = 'scale(1.05)'
-                                }}
-                                onMouseLeave={(e) => {
-                                    e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.15)'
-                                    e.currentTarget.style.transform = 'scale(1)'
-                                }}
-                            >
-                                <Edit style={{ width: 18, height: 18, color: '#3b82f6' }} />
-                            </Link>
-                            <Link
-                                href={`/dashboard/agents/${agent.id}/knowledge`}
-                                title="Base de connaissances"
-                                style={{
-                                    width: 40,
-                                    height: 40,
-                                    borderRadius: 10,
-                                    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    transition: 'all 0.2s'
-                                }}
-                                onMouseEnter={(e) => {
-                                    e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.3)'
-                                    e.currentTarget.style.transform = 'scale(1.05)'
-                                }}
-                                onMouseLeave={(e) => {
-                                    e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.15)'
-                                    e.currentTarget.style.transform = 'scale(1)'
-                                }}
-                            >
-                                <BookOpen style={{ width: 18, height: 18, color: '#10b981' }} />
-                            </Link>
-                            {(agent.lead_collection_enabled || agent.agent_context || agent.fallback_contact_message || (agent.system_prompt || '').includes('en te basant uniquement')) && (
-                                <Link
-                                    href={`/dashboard/agents/${agent.id}/leads`}
-                                    title="Leads"
-                                    style={{
-                                        width: 40,
-                                        height: 40,
-                                        borderRadius: 10,
-                                        backgroundColor: 'rgba(139, 92, 246, 0.15)',
-                                        border: 'none',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        transition: 'all 0.2s'
-                                    }}
-                                    onMouseEnter={(e) => {
-                                        e.currentTarget.style.backgroundColor = 'rgba(139, 92, 246, 0.3)'
-                                        e.currentTarget.style.transform = 'scale(1.05)'
-                                    }}
-                                    onMouseLeave={(e) => {
-                                        e.currentTarget.style.backgroundColor = 'rgba(139, 92, 246, 0.15)'
-                                        e.currentTarget.style.transform = 'scale(1)'
-                                    }}
-                                >
-                                    <Users style={{ width: 18, height: 18, color: '#8b5cf6' }} />
+                        <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+
+                            {/* Modifier */}
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                                <Link href={`/dashboard/agents/${agent.id}`} title={t('card.menu.edit')}
+                                    style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: 'rgba(59, 130, 246, 0.15)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+                                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.3)'; e.currentTarget.style.transform = 'scale(1.05)' }}
+                                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.15)'; e.currentTarget.style.transform = 'scale(1)' }}>
+                                    <Edit style={{ width: 18, height: 18, color: '#3b82f6' }} />
                                 </Link>
+                                <span style={{ fontSize: 9, color: '#64748b', fontWeight: 500 }}>Modifier</span>
+                            </div>
+
+                            {/* Connaissances */}
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                                <Link href={`/dashboard/agents/${agent.id}/knowledge`} title="Base de connaissances"
+                                    style={{ width: 40, height: 40, borderRadius: 10, position: 'relative', backgroundColor: agent.knowledge_count === 0 ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)', border: agent.knowledge_count === 0 ? '1px solid rgba(239, 68, 68, 0.4)' : 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+                                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = agent.knowledge_count === 0 ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)'; e.currentTarget.style.transform = 'scale(1.05)' }}
+                                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = agent.knowledge_count === 0 ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)'; e.currentTarget.style.transform = 'scale(1)' }}>
+                                    <BookOpen style={{ width: 18, height: 18, color: agent.knowledge_count === 0 ? '#f87171' : '#10b981' }} />
+                                    {agent.knowledge_count === 0 && (
+                                        <span style={{ position: 'absolute', top: -4, right: -4, width: 14, height: 14, borderRadius: '50%', background: '#ef4444', color: 'white', fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px solid #0f172a' }}>!</span>
+                                    )}
+                                </Link>
+                                <span style={{ fontSize: 9, color: agent.knowledge_count === 0 ? '#f87171' : '#64748b', fontWeight: agent.knowledge_count === 0 ? 700 : 500 }}>
+                                    {agent.knowledge_count === 0 ? 'Vide !' : 'Connaissances'}
+                                </span>
+                            </div>
+
+                            {/* Leads */}
+                            {(agent.lead_collection_enabled || agent.agent_context || agent.fallback_contact_message || (agent.system_prompt || '').includes('en te basant uniquement')) && (
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                                    <Link href={`/dashboard/agents/${agent.id}/leads`} title="Leads"
+                                        style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: 'rgba(139, 92, 246, 0.15)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+                                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(139, 92, 246, 0.3)'; e.currentTarget.style.transform = 'scale(1.05)' }}
+                                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(139, 92, 246, 0.15)'; e.currentTarget.style.transform = 'scale(1)' }}>
+                                        <Users style={{ width: 18, height: 18, color: '#8b5cf6' }} />
+                                    </Link>
+                                    <span style={{ fontSize: 9, color: '#64748b', fontWeight: 500 }}>Leads</span>
+                                </div>
                             )}
-                            <button
-                                onClick={() => toggleAgentStatus(agent.id)}
-                                disabled={actionLoading === agent.id}
-                                title={agent.is_active ? t('card.menu.deactivate') : t('card.menu.activate')}
-                                style={{
-                                    width: 40,
-                                    height: 40,
-                                    borderRadius: 10,
-                                    backgroundColor: agent.is_active ? 'rgba(251, 191, 36, 0.15)' : 'rgba(16, 185, 129, 0.15)',
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    transition: 'all 0.2s'
-                                }}
-                                onMouseEnter={(e) => {
-                                    e.currentTarget.style.backgroundColor = agent.is_active ? 'rgba(251, 191, 36, 0.3)' : 'rgba(16, 185, 129, 0.3)'
-                                    e.currentTarget.style.transform = 'scale(1.05)'
-                                }}
-                                onMouseLeave={(e) => {
-                                    e.currentTarget.style.backgroundColor = agent.is_active ? 'rgba(251, 191, 36, 0.15)' : 'rgba(16, 185, 129, 0.15)'
-                                    e.currentTarget.style.transform = 'scale(1)'
-                                }}
-                            >
-                                <Power style={{ width: 18, height: 18, color: agent.is_active ? '#fbbf24' : '#10b981' }} />
-                            </button>
-                            <button
-                                onClick={() => deleteAgent(agent.id)}
-                                disabled={actionLoading === agent.id}
-                                title={t('card.menu.delete')}
-                                style={{
-                                    width: 40,
-                                    height: 40,
-                                    borderRadius: 10,
-                                    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    transition: 'all 0.2s'
-                                }}
-                                onMouseEnter={(e) => {
-                                    e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.3)'
-                                    e.currentTarget.style.transform = 'scale(1.05)'
-                                }}
-                                onMouseLeave={(e) => {
-                                    e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.15)'
-                                    e.currentTarget.style.transform = 'scale(1)'
-                                }}
-                            >
-                                <Trash2 style={{ width: 18, height: 18, color: '#ef4444' }} />
-                            </button>
+
+                            {/* Activer/Désactiver */}
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                                <button onClick={() => toggleAgentStatus(agent.id)} disabled={actionLoading === agent.id}
+                                    title={agent.is_active ? t('card.menu.deactivate') : t('card.menu.activate')}
+                                    style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: agent.is_active ? 'rgba(251, 191, 36, 0.15)' : 'rgba(16, 185, 129, 0.15)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+                                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = agent.is_active ? 'rgba(251, 191, 36, 0.3)' : 'rgba(16, 185, 129, 0.3)'; e.currentTarget.style.transform = 'scale(1.05)' }}
+                                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = agent.is_active ? 'rgba(251, 191, 36, 0.15)' : 'rgba(16, 185, 129, 0.15)'; e.currentTarget.style.transform = 'scale(1)' }}>
+                                    <Power style={{ width: 18, height: 18, color: agent.is_active ? '#fbbf24' : '#10b981' }} />
+                                </button>
+                                <span style={{ fontSize: 9, color: '#64748b', fontWeight: 500 }}>{agent.is_active ? 'Désactiver' : 'Activer'}</span>
+                            </div>
+
+                            {/* Supprimer */}
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                                <button onClick={() => deleteAgent(agent.id)} disabled={actionLoading === agent.id}
+                                    title={t('card.menu.delete')}
+                                    style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: 'rgba(239, 68, 68, 0.15)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+                                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.3)'; e.currentTarget.style.transform = 'scale(1.05)' }}
+                                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.15)'; e.currentTarget.style.transform = 'scale(1)' }}>
+                                    <Trash2 style={{ width: 18, height: 18, color: '#ef4444' }} />
+                                </button>
+                                <span style={{ fontSize: 9, color: '#64748b', fontWeight: 500 }}>Supprimer</span>
+                            </div>
                         </div>
+
+                        {/* Alerte base de connaissances vide */}
+                        {agent.knowledge_count === 0 && (
+                            <Link href={`/dashboard/agents/${agent.id}/knowledge`}
+                                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', marginBottom: 12, borderRadius: 8, background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.25)', textDecoration: 'none' }}>
+                                <span style={{ fontSize: 14 }}>⚠️</span>
+                                <div>
+                                    <div style={{ color: '#f87171', fontSize: 11, fontWeight: 700 }}>Base de connaissances vide</div>
+                                    <div style={{ color: '#94a3b8', fontSize: 10 }}>Ajoutez des informations pour que votre agent réponde correctement</div>
+                                </div>
+                            </Link>
+                        )}
 
                         {/* Main action buttons */}
                         <div style={{ display: 'flex', gap: 12 }}>
