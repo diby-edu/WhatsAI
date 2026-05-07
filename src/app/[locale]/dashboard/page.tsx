@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
+import OnboardingChecklist from '@/components/dashboard/OnboardingChecklist'
 
 export default function DashboardPage() {
     const t = useTranslations('Dashboard.overview')
@@ -139,6 +140,7 @@ export default function DashboardPage() {
     }
     return (
         <div className="dashboard-container" style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(16px, 4vw, 32px)', maxWidth: '100%', overflow: 'hidden' }}>
+            <OnboardingChecklist />
             {/* Header with user name and notification bell */}
             <div className="dashboard-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
                 <div>
