@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
 
     try {
         const [agentsRes, knowledgeRes, productsRes, conversationsRes] = await Promise.all([
-            supabase.from('agents').select('id, whatsapp_connected', { count: 'exact' }).eq('user_id', user.id),
+            supabase.from('agents').select('id, whatsapp_connected, mission', { count: 'exact' }).eq('user_id', user.id),
             supabase.from('knowledge_base').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
             supabase.from('products').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
             supabase.from('conversations').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
@@ -23,27 +23,15 @@ export async function GET(request: NextRequest) {
         const productCount = productsRes.count || 0
         const conversationCount = conversationsRes.count || 0
 
+        // Étape produits : pertinente seulement si au moins un agent n'est pas support_client
+        const needsProducts = agents.some((a: any) => a.mission !== 'support_client')
+
         const steps = [
-            {
-                key: 'agent_created',
-                done: agentCount > 0,
-            },
-            {
-                key: 'whatsapp_connected',
-                done: whatsappConnected,
-            },
-            {
-                key: 'knowledge_added',
-                done: knowledgeCount > 0,
-            },
-            {
-                key: 'products_added',
-                done: productCount > 0,
-            },
-            {
-                key: 'first_conversation',
-                done: conversationCount > 0,
-            },
+            { key: 'agent_created', done: agentCount > 0 },
+            { key: 'whatsapp_connected', done: whatsappConnected },
+            { key: 'knowledge_added', done: knowledgeCount > 0 },
+            ...(needsProducts ? [{ key: 'products_added', done: productCount > 0 }] : []),
+            { key: 'first_conversation', done: conversationCount > 0 },
         ]
 
         const allDone = steps.every(s => s.done)

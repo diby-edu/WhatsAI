@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
 
     const { data: agents, error } = await supabase
         .from('agents')
-        .select('*, conversations(count), products(product_type)')
+        .select('*, conversations(count), products(product_type), knowledge_base(count)')
         .eq('user_id', user!.id)
         .order('created_at', { ascending: false })
 
@@ -52,7 +52,8 @@ export async function GET(request: NextRequest) {
     const agentsWithCount = agents.map((agent: any) => ({
         ...agent,
         total_conversations: agent.conversations?.[0]?.count || 0,
-        product_types: [...new Set((agent.products || []).map((p: any) => p.product_type).filter(Boolean))]
+        product_types: [...new Set((agent.products || []).map((p: any) => p.product_type).filter(Boolean))],
+        knowledge_count: agent.knowledge_base?.[0]?.count || 0
     }))
 
     return successResponse({ agents: agentsWithCount })
