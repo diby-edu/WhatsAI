@@ -121,11 +121,24 @@ export default function AdminSubscriptionsPage() {
                 body: JSON.stringify({ transaction_id: transactionId })
             })
             const data = await res.json()
-            if (data.data?.status) {
-                const mapped = mapHostedStatus(data.data.status)
-                setAllPayments(prev => prev.map((p: any) =>
-                    p.transaction_id === transactionId ? { ...p, status: mapped } : p
-                ))
+            const rawStatus = data.data?.status || data.status || 'UNKNOWN'
+            const mapped = mapHostedStatus(rawStatus)
+
+            // Mettre à jour l'état local
+            setAllPayments(prev => prev.map((p: any) =>
+                p.transaction_id === transactionId ? { ...p, status: mapped } : p
+            ))
+
+            // Persister en DB si le statut est terminal (failed, completed, cancelled)
+            if (['failed', 'completed', 'cancelled'].includes(mapped)) {
+                const payment = allPayments.find((p: any) => p.transaction_id === transactionId)
+                if (payment?.id) {
+                    await fetch(`/api/admin/payments/${payment.id}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ status: mapped })
+                    })
+                }
             }
         } catch (err) {
             console.error('Error verifying:', err)
@@ -139,6 +152,7 @@ export default function AdminSubscriptionsPage() {
             case 'ACCEPTED': return 'completed'
             case 'REFUSED': return 'failed'
             case 'CANCELLED': return 'cancelled'
+            case 'UNKNOWN': return 'failed'
             default: return 'pending'
         }
     }
