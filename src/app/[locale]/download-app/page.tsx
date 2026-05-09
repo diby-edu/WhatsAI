@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useLocale } from 'next-intl'
 import { MessageCircle, Smartphone } from 'lucide-react'
 import { PLAY_STORE_URL } from '@/lib/utils'
 
@@ -9,16 +10,17 @@ const COUNTDOWN = 10
 
 export default function DownloadAppPage() {
     const router = useRouter()
+    const locale = useLocale()
     const [seconds, setSeconds] = useState(COUNTDOWN)
 
     useEffect(() => {
         if (seconds <= 0) {
-            router.push('/dashboard')
+            router.push(`/${locale}/dashboard`)
             return
         }
         const t = setTimeout(() => setSeconds(s => s - 1), 1000)
         return () => clearTimeout(t)
-    }, [seconds, router])
+    }, [seconds, router, locale])
 
     const handleContinue = async () => {
         try {
@@ -28,7 +30,7 @@ export default function DownloadAppPage() {
                 body: JSON.stringify({ app_banner_dismissed: true })
             })
         } catch { /* silencieux */ }
-        router.push('/dashboard')
+        router.push(`/${locale}/dashboard`)
     }
 
     const progress = ((COUNTDOWN - seconds) / COUNTDOWN) * 100

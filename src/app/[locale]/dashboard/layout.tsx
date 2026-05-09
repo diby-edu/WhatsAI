@@ -36,7 +36,7 @@ import {
     markAllDashboardNotificationsAsRead,
     markDashboardNotificationAsRead,
 } from '@/lib/notifications/user-notifications'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import { GlobalSearch } from '@/components/dashboard/GlobalSearch'
 import { useAndroidBackButton } from '@/hooks/useAndroidBackButton'
 import { BiometricLock } from '@/components/BiometricLock'
@@ -68,6 +68,7 @@ export default function DashboardLayout({
     children: React.ReactNode
 }) {
     const t = useTranslations('Dashboard.sidebar')
+    const locale = useLocale()
     const pathname = usePathname()
     const router = useRouter()
     const searchParams = useSearchParams()
@@ -155,7 +156,7 @@ export default function DashboardLayout({
         const isAndroid = /Android/i.test(navigator.userAgent)
         const isCapacitor = !!(window as any).Capacitor
         if (isAndroid && !isCapacitor && !appBannerDismissed) {
-            router.push('/download-app')
+            router.push(`/${locale}/download-app`)
         }
     }, [profileLoaded, appBannerDismissed, router])
 
