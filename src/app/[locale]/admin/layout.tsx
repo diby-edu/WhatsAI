@@ -43,7 +43,8 @@ import {
     Timer,
     Mail,
     SlidersHorizontal,
-    Webhook
+    Webhook,
+    Gift
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useAndroidBackButton } from '@/hooks/useAndroidBackButton'
@@ -83,6 +84,7 @@ const adminGroups: AdminGroup[] = [
         label: 'CROISSANCE',
         items: [
             { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
+            { href: '/admin/referrals', label: 'Parrainage', icon: Gift },
             { href: '/admin/features', label: 'Feature Flags', icon: ToggleRight },
             { href: '/admin/notifications', label: 'Notifications', icon: Bell },
         ]
