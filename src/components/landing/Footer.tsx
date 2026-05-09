@@ -8,7 +8,7 @@ import { useTranslations } from 'next-intl'
 const socialLinks = [
     { icon: Twitter, href: 'https://twitter.com', label: 'Twitter' },
     { icon: Linkedin, href: 'https://linkedin.com', label: 'LinkedIn' },
-    { icon: Facebook, href: 'https://facebook.com', label: 'Facebook' },
+    { icon: Facebook, href: 'https://www.facebook.com/profile.php?id=61562843493645', label: 'Facebook' },
     { icon: Instagram, href: 'https://instagram.com', label: 'Instagram' },
     { icon: Youtube, href: 'https://youtube.com', label: 'YouTube' },
 ]
