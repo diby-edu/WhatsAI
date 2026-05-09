@@ -3,17 +3,22 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale } from 'next-intl'
-import { MessageCircle, Smartphone } from 'lucide-react'
+import { MessageCircle, Bell, Zap, Shield, Star } from 'lucide-react'
 import { PLAY_STORE_URL } from '@/lib/utils'
 
-const COUNTDOWN = 10
+const COUNTDOWN = 20
+
+const features = [
+    { icon: Bell, text: 'Notifications instantanées' },
+    { icon: Zap, text: 'Réponses ultra-rapides' },
+    { icon: Shield, text: 'Connexion sécurisée' },
+]
 
 export default function DownloadAppPage() {
     const router = useRouter()
     const locale = useLocale()
     const [seconds, setSeconds] = useState(COUNTDOWN)
 
-    // Cookie de session au chargement → évite boucle infinie dans le middleware
     useEffect(() => {
         fetch('/api/android-dismiss', { method: 'POST' }).catch(() => {})
     }, [])
@@ -28,7 +33,6 @@ export default function DownloadAppPage() {
     }, [seconds, router, locale])
 
     const handleContinue = async () => {
-        // Cookie permanent → ne plus jamais afficher cette page
         try {
             await fetch('/api/android-dismiss?permanent=1', { method: 'POST' })
         } catch { /* silencieux */ }
@@ -36,119 +40,138 @@ export default function DownloadAppPage() {
     }
 
     const progress = ((COUNTDOWN - seconds) / COUNTDOWN) * 100
-    const radius = 36
+    const radius = 28
     const circumference = 2 * Math.PI * radius
     const strokeDashoffset = circumference - (progress / 100) * circumference
 
     return (
         <div style={{
             minHeight: '100vh',
-            backgroundColor: '#0f172a',
+            background: 'linear-gradient(160deg, #0a0f1e 0%, #0f1f2e 50%, #0a160f 100%)',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '24px',
-            fontFamily: 'system-ui, -apple-system, sans-serif'
+            padding: '32px 24px',
+            fontFamily: 'system-ui, -apple-system, sans-serif',
+            position: 'relative',
+            overflow: 'hidden',
         }}>
-            {/* Logo */}
+            {/* Glow background */}
             <div style={{
-                width: 72, height: 72, borderRadius: 20,
-                background: 'linear-gradient(135deg, #10b981, #059669)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                marginBottom: 24,
-                boxShadow: '0 0 40px rgba(16, 185, 129, 0.3)'
-            }}>
-                <MessageCircle style={{ width: 36, height: 36, color: 'white' }} />
+                position: 'absolute',
+                width: 400, height: 400,
+                borderRadius: '50%',
+                background: 'radial-gradient(circle, rgba(16,185,129,0.08) 0%, transparent 70%)',
+                top: '50%', left: '50%',
+                transform: 'translate(-50%, -60%)',
+                pointerEvents: 'none',
+            }} />
+
+            {/* Logo + app name */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 32 }}>
+                <div style={{
+                    width: 84, height: 84, borderRadius: 24,
+                    background: 'linear-gradient(135deg, #10b981 0%, #0891b2 100%)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    marginBottom: 16,
+                    boxShadow: '0 0 0 12px rgba(16,185,129,0.08), 0 20px 60px rgba(16,185,129,0.25)',
+                }}>
+                    <MessageCircle style={{ width: 42, height: 42, color: 'white' }} />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                    {[1,2,3,4,5].map(i => (
+                        <Star key={i} size={14} style={{ color: '#f59e0b', fill: '#f59e0b' }} />
+                    ))}
+                </div>
+                <span style={{ color: '#64748b', fontSize: 12 }}>4.8 · Google Play</span>
             </div>
 
-            {/* Titre */}
+            {/* Texte principal */}
             <h1 style={{
-                color: 'white', fontSize: 26, fontWeight: 800,
-                textAlign: 'center', margin: '0 0 12px'
+                color: 'white', fontSize: 28, fontWeight: 800,
+                textAlign: 'center', margin: '0 0 8px', lineHeight: 1.2,
+                letterSpacing: '-0.5px',
             }}>
-                WazzapAI est sur Android
+                Meilleure expérience<br />sur l&apos;app
             </h1>
             <p style={{
-                color: '#94a3b8', fontSize: 15, textAlign: 'center',
-                lineHeight: 1.6, maxWidth: 320, margin: '0 0 48px'
+                color: '#64748b', fontSize: 15, textAlign: 'center',
+                lineHeight: 1.7, maxWidth: 300, margin: '0 0 36px',
             }}>
-                Gérez vos agents, recevez les alertes en temps réel et répondez à vos clients depuis l&apos;application native.
+                Gérez vos agents WhatsApp et recevez les alertes en temps réel depuis l&apos;application native.
             </p>
 
-            {/* Compte à rebours circulaire */}
-            <div style={{ position: 'relative', marginBottom: 48 }}>
-                <svg width={100} height={100} style={{ transform: 'rotate(-90deg)' }}>
-                    <circle
-                        cx={50} cy={50} r={radius}
-                        fill="none"
-                        stroke="rgba(148,163,184,0.15)"
-                        strokeWidth={6}
-                    />
-                    <circle
-                        cx={50} cy={50} r={radius}
-                        fill="none"
-                        stroke="#10b981"
-                        strokeWidth={6}
-                        strokeLinecap="round"
-                        strokeDasharray={circumference}
-                        strokeDashoffset={strokeDashoffset}
-                        style={{ transition: 'stroke-dashoffset 0.9s linear' }}
-                    />
-                </svg>
-                <div style={{
-                    position: 'absolute', inset: 0,
-                    display: 'flex', flexDirection: 'column',
-                    alignItems: 'center', justifyContent: 'center'
-                }}>
-                    <span style={{ color: 'white', fontSize: 28, fontWeight: 800, lineHeight: 1 }}>
-                        {seconds}
-                    </span>
-                    <span style={{ color: '#64748b', fontSize: 10 }}>sec</span>
-                </div>
+            {/* Feature pills */}
+            <div style={{
+                display: 'flex', flexDirection: 'column', gap: 10,
+                width: '100%', maxWidth: 300, marginBottom: 40,
+            }}>
+                {features.map(({ icon: Icon, text }) => (
+                    <div key={text} style={{
+                        display: 'flex', alignItems: 'center', gap: 12,
+                        background: 'rgba(255,255,255,0.04)',
+                        border: '1px solid rgba(255,255,255,0.06)',
+                        borderRadius: 12, padding: '12px 16px',
+                    }}>
+                        <div style={{
+                            width: 32, height: 32, borderRadius: 8,
+                            background: 'rgba(16,185,129,0.12)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            flexShrink: 0,
+                        }}>
+                            <Icon size={16} style={{ color: '#10b981' }} />
+                        </div>
+                        <span style={{ color: '#cbd5e1', fontSize: 14, fontWeight: 500 }}>{text}</span>
+                    </div>
+                ))}
             </div>
 
-            {/* Boutons */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%', maxWidth: 320 }}>
-                <a
-                    href={PLAY_STORE_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ textDecoration: 'none' }}
-                >
+            {/* Bouton Play Store */}
+            <div style={{ width: '100%', maxWidth: 300, marginBottom: 12 }}>
+                <a href={PLAY_STORE_URL} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
                     <button style={{
                         width: '100%', padding: '18px',
                         borderRadius: 16, border: 'none',
-                        background: 'linear-gradient(135deg, #10b981, #0891b2)',
+                        background: 'linear-gradient(135deg, #10b981 0%, #0891b2 100%)',
                         color: 'white', fontWeight: 700, fontSize: 17,
-                        cursor: 'pointer', display: 'flex',
-                        alignItems: 'center', justifyContent: 'center', gap: 10
+                        cursor: 'pointer', letterSpacing: '0.2px',
+                        boxShadow: '0 8px 32px rgba(16,185,129,0.35)',
                     }}>
-                        <Smartphone size={22} />
                         Télécharger sur Google Play
                     </button>
                 </a>
+            </div>
 
+            {/* Bouton continuer + countdown */}
+            <div style={{ width: '100%', maxWidth: 300 }}>
                 <button
                     onClick={handleContinue}
                     style={{
-                        width: '100%', padding: '16px',
+                        width: '100%', padding: '15px',
                         borderRadius: 16,
-                        border: '1px solid rgba(148,163,184,0.2)',
-                        background: 'transparent', color: '#94a3b8',
-                        fontWeight: 500, fontSize: 15, cursor: 'pointer'
+                        border: '1px solid rgba(148,163,184,0.15)',
+                        background: 'rgba(255,255,255,0.03)',
+                        color: '#64748b', fontWeight: 500, fontSize: 14,
+                        cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
                     }}
                 >
-                    Continuer dans le navigateur
+                    {/* Mini cercle countdown */}
+                    <svg width={28} height={28} style={{ transform: 'rotate(-90deg)', flexShrink: 0 }}>
+                        <circle cx={14} cy={14} r={radius}
+                            fill="none" stroke="rgba(148,163,184,0.12)" strokeWidth={3} />
+                        <circle cx={14} cy={14} r={radius}
+                            fill="none" stroke="#10b981" strokeWidth={3}
+                            strokeLinecap="round"
+                            strokeDasharray={circumference}
+                            strokeDashoffset={strokeDashoffset}
+                            style={{ transition: 'stroke-dashoffset 0.9s linear' }}
+                        />
+                    </svg>
+                    Continuer dans le navigateur · {seconds}s
                 </button>
             </div>
-
-            <p style={{
-                color: '#334155', fontSize: 12,
-                marginTop: 32, textAlign: 'center'
-            }}>
-                Redirection automatique dans {seconds} seconde{seconds > 1 ? 's' : ''}
-            </p>
         </div>
     )
 }
