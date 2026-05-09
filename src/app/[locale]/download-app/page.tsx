@@ -13,6 +13,11 @@ export default function DownloadAppPage() {
     const locale = useLocale()
     const [seconds, setSeconds] = useState(COUNTDOWN)
 
+    // Cookie de session au chargement → évite boucle infinie dans le middleware
+    useEffect(() => {
+        fetch('/api/android-dismiss', { method: 'POST' }).catch(() => {})
+    }, [])
+
     useEffect(() => {
         if (seconds <= 0) {
             router.push(`/${locale}/dashboard`)
@@ -23,9 +28,9 @@ export default function DownloadAppPage() {
     }, [seconds, router, locale])
 
     const handleContinue = async () => {
-        // Poser le cookie via l'API puis rediriger
+        // Cookie permanent → ne plus jamais afficher cette page
         try {
-            await fetch('/api/android-dismiss', { method: 'POST' })
+            await fetch('/api/android-dismiss?permanent=1', { method: 'POST' })
         } catch { /* silencieux */ }
         router.push(`/${locale}/dashboard`)
     }

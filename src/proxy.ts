@@ -47,7 +47,8 @@ export async function proxy(request: NextRequest) {
     // ── Détection Android navigateur → page download-app ─────────────────────
     const ua = request.headers.get('user-agent') || ''
     const isAndroidBrowser = /Android/i.test(ua) && !/WazzapAI Android App/i.test(ua)
-    const appDismissed = request.cookies.get('android_app_dismissed')?.value === '1'
+    const appDismissed = request.cookies.get('android_app_dismissed')?.value === '1' ||
+        request.cookies.get('android_app_session')?.value === '1'
     const pathnameRaw = pathname.replace(/^\/(fr|en)(?=\/|$)/, '') || '/'
     const isDownloadAppPage = pathnameRaw === '/download-app'
     const isSkippedPath = pathname.startsWith('/api') || pathname.startsWith('/_next') ||
