@@ -37,7 +37,7 @@ export async function PATCH(request: NextRequest) {
         const body = await request.json()
 
         // Only allow specific fields to be updated
-        const allowedFields = ['full_name', 'phone', 'company', 'timezone', 'language', 'avatar_url', 'currency']
+        const allowedFields = ['full_name', 'phone', 'company', 'timezone', 'language', 'avatar_url', 'currency', 'app_banner_dismissed']
 
         const updates: Record<string, unknown> = {}
         for (const field of allowedFields) {
