@@ -18,8 +18,9 @@ export default function MobileAppPrompt() {
         const isAndroid = /Android/i.test(navigator.userAgent)
         const isCapacitor = !!(window as any).Capacitor
         const alreadyDismissed = sessionStorage.getItem(SESSION_KEY) === '1'
+        const debugMode = new URLSearchParams(window.location.search).get('mobile_debug') === '1'
 
-        if (isAndroid && !isCapacitor && !alreadyDismissed) {
+        if (debugMode || (isAndroid && !isCapacitor && !alreadyDismissed)) {
             // Délai léger pour ne pas bloquer le chargement
             const t = setTimeout(() => setVisible(true), 1500)
             return () => clearTimeout(t)
