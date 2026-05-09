@@ -44,6 +44,21 @@ export async function proxy(request: NextRequest) {
         response = NextResponse.next({ request })
     }
 
+    // ── Détection Android navigateur → page download-app ─────────────────────
+    const ua = request.headers.get('user-agent') || ''
+    const isAndroidBrowser = /Android/i.test(ua) && !/WazzapAI Android App/i.test(ua)
+    const appDismissed = request.cookies.get('android_app_dismissed')?.value === '1'
+    const pathnameRaw = pathname.replace(/^\/(fr|en)(?=\/|$)/, '') || '/'
+    const isDownloadAppPage = pathnameRaw === '/download-app'
+    const isSkippedPath = pathname.startsWith('/api') || pathname.startsWith('/_next') ||
+        pathname.startsWith('/auth') || isDownloadAppPage
+
+    if (isAndroidBrowser && !appDismissed && !isSkippedPath) {
+        const locale = getLocale(pathname)
+        return NextResponse.redirect(new URL(`/${locale}/download-app`, request.url))
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
         return response
     }

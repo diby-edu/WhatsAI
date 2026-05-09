@@ -23,12 +23,9 @@ export default function DownloadAppPage() {
     }, [seconds, router, locale])
 
     const handleContinue = async () => {
+        // Poser le cookie via l'API puis rediriger
         try {
-            await fetch('/api/profile', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ app_banner_dismissed: true })
-            })
+            await fetch('/api/android-dismiss', { method: 'POST' })
         } catch { /* silencieux */ }
         router.push(`/${locale}/dashboard`)
     }
