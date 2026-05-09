@@ -1,5 +1,6 @@
 import { isAdminRole } from '@/lib/api-utils'
 import { notifyAdmins } from '@/lib/notifications/admin-notify'
+import { applyReferralBonus } from '@/lib/referral'
 import { collectReconnectableAgentIds } from '@/lib/whatsapp/reactivation'
 import { checkHostedPaymentStatus, normalizePaymentProvider } from '@/lib/payments/provider'
 import { extractPaystackChannelInfo } from '@/lib/payments/paystack'
@@ -716,6 +717,11 @@ export async function finalizePaymentRecord(
             planName: planUpdated ? (getMetadata(payment).metadata?.plan_name || '') : undefined,
             creditsAdded,
         }).catch(() => {})
+
+        // Appliquer le bonus de parrainage si referral pending
+        applyReferralBonus(payment.user_id).catch(err =>
+            console.error('[REFERRAL] applyReferralBonus error:', err)
+        )
 
         return {
             ok: true,

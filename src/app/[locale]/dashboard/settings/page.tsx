@@ -21,7 +21,10 @@ import {
     Trash2,
     Smartphone,
     Camera,
-    Fingerprint
+    Fingerprint,
+    Gift,
+    Copy,
+    Star
 } from 'lucide-react'
 import { useBiometricAuth } from '@/hooks/useBiometricAuth'
 import { useTranslations } from 'next-intl'
@@ -79,6 +82,7 @@ export default function SettingsPage() {
         { id: 'profile', label: t('tabs.profile'), icon: User },
         { id: 'notifications', label: t('tabs.notifications'), icon: Bell },
         { id: 'security', label: t('tabs.security'), icon: Shield },
+        { id: 'referral', label: 'Parrainage', icon: Gift },
         { id: 'danger', label: t('tabs.danger'), icon: AlertTriangle }
     ]
 
@@ -159,10 +163,27 @@ export default function SettingsPage() {
     const [zoom, setZoom] = useState(1)
     const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null)
 
+    // Referral state
+    const [referralData, setReferralData] = useState<{
+        referral_code: string | null
+        total_referrals: number
+        confirmed: number
+        pending: number
+        credits_earned: number
+    } | null>(null)
+    const [referralLoading, setReferralLoading] = useState(false)
+    const [copiedRef, setCopiedRef] = useState(false)
+
     useEffect(() => {
         fetchProfile()
         fetchNotificationPreferences()
     }, [])
+
+    useEffect(() => {
+        if (activeTab === 'referral' && !referralData && !referralLoading) {
+            fetchReferralData()
+        }
+    }, [activeTab])
 
     const fetchProfile = async () => {
         try {
@@ -188,6 +209,29 @@ export default function SettingsPage() {
         } catch (err) {
             console.error('Error fetching notification preferences:', err)
         }
+    }
+
+    const fetchReferralData = async () => {
+        setReferralLoading(true)
+        try {
+            const res = await fetch('/api/referral/apply')
+            const data = await res.json()
+            if (data.data) {
+                setReferralData(data.data)
+            }
+        } catch (err) {
+            console.error('Error fetching referral data:', err)
+        } finally {
+            setReferralLoading(false)
+        }
+    }
+
+    const handleCopyReferralLink = () => {
+        if (!referralData?.referral_code) return
+        const link = `${window.location.origin}/fr/register?ref=${referralData.referral_code}`
+        navigator.clipboard.writeText(link)
+        setCopiedRef(true)
+        setTimeout(() => setCopiedRef(false), 2000)
     }
 
     const handleSaveProfile = async () => {
@@ -971,6 +1015,88 @@ export default function SettingsPage() {
                                                 </div>
                                             )}
                                         </div>
+                                    </div>
+                                )}
+                            </motion.div>
+                        )}
+
+                        {/* Referral Tab */}
+                        {activeTab === 'referral' && (
+                            <motion.div
+                                key="referral"
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -20 }}
+                                className="space-y-6"
+                            >
+                                <div>
+                                    <h2 className="text-xl font-semibold text-white mb-1">Parrainage</h2>
+                                    <p className="text-gray-400 text-sm">Invitez vos amis et gagnez des crédits ensemble.</p>
+                                </div>
+
+                                {referralLoading ? (
+                                    <div className="flex items-center justify-center py-12">
+                                        <Loader2 className="w-6 h-6 text-green-400 animate-spin" />
+                                    </div>
+                                ) : referralData ? (
+                                    <div className="space-y-4">
+                                        {/* Bonus info */}
+                                        <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4">
+                                            <div className="flex items-start gap-3">
+                                                <Gift className="w-5 h-5 text-green-400 mt-0.5 flex-shrink-0" />
+                                                <div>
+                                                    <p className="text-green-300 font-medium text-sm">+10 crédits pour vous et votre filleul</p>
+                                                    <p className="text-gray-400 text-xs mt-0.5">Les crédits sont offerts après le premier paiement validé de votre filleul.</p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Referral link */}
+                                        <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-3">
+                                            <p className="text-gray-400 text-sm font-medium">Votre lien de parrainage</p>
+                                            <div className="flex items-center gap-2">
+                                                <div className="flex-1 bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-300 font-mono truncate">
+                                                    {`${typeof window !== 'undefined' ? window.location.origin : ''}/fr/register?ref=${referralData.referral_code}`}
+                                                </div>
+                                                <button
+                                                    onClick={handleCopyReferralLink}
+                                                    className="flex items-center gap-2 px-3 py-2 bg-green-500/20 hover:bg-green-500/30 border border-green-500/30 rounded-lg text-green-400 text-sm transition-colors flex-shrink-0"
+                                                >
+                                                    {copiedRef ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                                                    {copiedRef ? 'Copié' : 'Copier'}
+                                                </button>
+                                            </div>
+                                            <p className="text-gray-500 text-xs">Code : <span className="text-gray-300 font-mono font-semibold">{referralData.referral_code}</span></p>
+                                        </div>
+
+                                        {/* Stats */}
+                                        <div className="grid grid-cols-3 gap-3">
+                                            <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-center">
+                                                <p className="text-2xl font-bold text-white">{referralData.total_referrals}</p>
+                                                <p className="text-gray-400 text-xs mt-1">Filleuls invités</p>
+                                            </div>
+                                            <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-center">
+                                                <p className="text-2xl font-bold text-green-400">{referralData.confirmed}</p>
+                                                <p className="text-gray-400 text-xs mt-1">Confirmés</p>
+                                            </div>
+                                            <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-center">
+                                                <div className="flex items-center justify-center gap-1">
+                                                    <Star className="w-4 h-4 text-yellow-400" />
+                                                    <p className="text-2xl font-bold text-yellow-400">{referralData.credits_earned}</p>
+                                                </div>
+                                                <p className="text-gray-400 text-xs mt-1">Crédits gagnés</p>
+                                            </div>
+                                        </div>
+
+                                        {referralData.pending > 0 && (
+                                            <p className="text-gray-500 text-xs text-center">
+                                                {referralData.pending} parrainage{referralData.pending > 1 ? 's' : ''} en attente de premier paiement
+                                            </p>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-12 text-gray-500 text-sm">
+                                        Impossible de charger les données de parrainage.
                                     </div>
                                 )}
                             </motion.div>

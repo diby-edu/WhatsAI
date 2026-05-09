@@ -26,6 +26,20 @@ function RegisterForm() {
     const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState(false)
     const [registrationsOpen, setRegistrationsOpen] = useState(true)
+    const [refCode, setRefCode] = useState('')
+
+    // Pré-remplir le code parrain depuis l'URL ?ref=
+    useEffect(() => {
+        const ref = searchParams.get('ref')
+        if (ref) setRefCode(ref.toUpperCase())
+    }, [searchParams])
+
+    // Stocker le code parrain dans un cookie avant toute redirection OAuth/email
+    const storeRefCodeCookie = () => {
+        if (refCode.trim()) {
+            document.cookie = `referral_code=${refCode.trim()}; path=/; max-age=3600; samesite=lax`
+        }
+    }
 
     useEffect(() => {
         const loadRuntimeConfig = async () => {
@@ -76,6 +90,7 @@ function RegisterForm() {
         }
 
         try {
+            storeRefCodeCookie()
             const supabase = createClient()
             const { error } = await supabase.auth.signUp({
                 email,
@@ -163,6 +178,7 @@ function RegisterForm() {
                 return
             }
 
+            storeRefCodeCookie()
             const { error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
@@ -641,6 +657,37 @@ function RegisterForm() {
                                     }
                                 </button>
                             </div>
+                        </div>
+
+                        {/* Champ code parrain (optionnel) */}
+                        <div>
+                            <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#94a3b8', marginBottom: 8 }}>
+                                Code parrain <span style={{ color: '#475569', fontSize: 12 }}>(optionnel)</span>
+                            </label>
+                            <div style={{ position: 'relative' }}>
+                                <div style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)' }}>
+                                    <Star style={{ width: 18, height: 18, color: '#f59e0b' }} />
+                                </div>
+                                <input
+                                    type="text"
+                                    placeholder="Ex: AB3F9C12"
+                                    value={refCode}
+                                    onChange={e => setRefCode(e.target.value.toUpperCase())}
+                                    maxLength={12}
+                                    style={{
+                                        width: '100%', padding: '14px 16px 14px 48px',
+                                        background: 'rgba(15, 23, 42, 0.5)', color: 'white',
+                                        fontSize: 14, fontFamily: 'monospace', letterSpacing: 2,
+                                        border: refCode.length > 0 ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid rgba(148, 163, 184, 0.1)',
+                                        borderRadius: 14, outline: 'none', boxSizing: 'border-box'
+                                    }}
+                                />
+                            </div>
+                            {refCode.length > 0 && (
+                                <p style={{ fontSize: 12, color: '#f59e0b', marginTop: 6 }}>
+                                    +10 crédits offerts après votre premier paiement
+                                </p>
+                            )}
                         </div>
 
                         <motion.button
