@@ -46,6 +46,7 @@ import { useNativeDeviceTokenSync } from '@/hooks/useNativeDeviceTokenSync'
 import { unregisterCurrentDeviceToken } from '@/lib/notifications/device-token-client'
 import { TestAccountCountdownBanner } from '@/components/dashboard/TestAccountCountdownBanner'
 import AppDownloadBanner from '@/components/dashboard/AppDownloadBanner'
+import MobileAppPrompt from '@/components/dashboard/MobileAppPrompt'
 
 type TestAccountBannerState = {
     bannerMode: 'test' | 'frozen_grace' | 'inactive' | null
@@ -1089,6 +1090,7 @@ export default function DashboardLayout({
                             {children}
                         </BiometricLock>
                     </CurrencyProvider>
+                    <MobileAppPrompt />
                 </div>
             </main>
         </div>
