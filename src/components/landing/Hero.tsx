@@ -1,7 +1,7 @@
 'use client'
 
 import { motion, AnimatePresence } from 'framer-motion'
-import { MessageCircle, Sparkles, Zap, ArrowRight, Star, Bot, CheckCircle, Clock, Users, Send, Shield, TrendingUp, Phone, Smartphone } from 'lucide-react'
+import { MessageCircle, Sparkles, Zap, ArrowRight, Star, Bot, CheckCircle, Clock, Users, Send, Shield, TrendingUp, Smartphone } from 'lucide-react'
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
@@ -288,24 +288,20 @@ export default function Hero() {
                             transition={{ duration: 0.5, delay: 0.35 }}
                             style={{ marginBottom: 32 }}
                         >
-                            <a href={PLAY_STORE_URL} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', display: 'inline-flex' }}>
-                                <motion.div
-                                    whileHover={{ scale: 1.04, boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }}
-                                    whileTap={{ scale: 0.97 }}
-                                    style={{
-                                        display: 'inline-flex', alignItems: 'center', gap: 10,
-                                        padding: '10px 20px', borderRadius: 12,
-                                        background: '#000', border: '1px solid rgba(255,255,255,0.15)',
-                                        cursor: 'pointer', boxShadow: '0 4px 16px rgba(0,0,0,0.3)'
-                                    }}
-                                >
-                                    <Smartphone style={{ width: 22, height: 22, color: 'white', flexShrink: 0 }} />
-                                    <div>
-                                        <div style={{ fontSize: 10, color: '#aaa', lineHeight: 1, marginBottom: 2 }}>Disponible sur</div>
-                                        <div style={{ fontSize: 15, fontWeight: 700, color: 'white', lineHeight: 1 }}>Google Play</div>
-                                    </div>
-                                </motion.div>
-                            </a>
+                            <motion.a
+                                href={PLAY_STORE_URL}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.97 }}
+                                style={{ textDecoration: 'none', display: 'inline-block' }}
+                            >
+                                <img
+                                    src="https://play.google.com/intl/en_us/badges/static/images/badges/fr_badge_web_generic.png"
+                                    alt="Disponible sur Google Play"
+                                    style={{ height: 60, width: 'auto', display: 'block' }}
+                                />
+                            </motion.a>
                         </motion.div>
 
                         {/* Trust Stats */}
