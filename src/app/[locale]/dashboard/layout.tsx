@@ -89,7 +89,6 @@ export default function DashboardLayout({
     const [sessionTimeoutHours, setSessionTimeoutHours] = useState<number | null>(null)
     const [testAccountBanner, setTestAccountBanner] = useState<TestAccountBannerState | null>(null)
     const [appBannerDismissed, setAppBannerDismissed] = useState(false)
-    const [profileLoaded, setProfileLoaded] = useState(false)
     const notifRef = useRef<HTMLDivElement>(null)
     const mobileNotifBtnRef = useRef<HTMLDivElement>(null)
     const mobileNotifDropdownRef = useRef<HTMLDivElement>(null)
@@ -146,19 +145,9 @@ export default function DashboardLayout({
                 setApiAccessEnabled(profile?.api_access_enabled ?? false)
                 setAppBannerDismissed(profile?.app_banner_dismissed ?? false)
             } catch (_) {}
-            finally { setProfileLoaded(true) }
         }
         checkApiAccess()
     }, [])
-
-    useEffect(() => {
-        if (!profileLoaded) return
-        const isAndroid = /Android/i.test(navigator.userAgent)
-        const isCapacitor = !!(window as any).Capacitor
-        if (isAndroid && !isCapacitor && !appBannerDismissed) {
-            router.push(`/${locale}/download-app`)
-        }
-    }, [profileLoaded, appBannerDismissed, router])
 
     useEffect(() => {
         let alive = true
