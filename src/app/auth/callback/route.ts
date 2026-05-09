@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { maybeNotifyNewUserOnce } from '@/lib/auth/new-user-notify'
+import { createPendingReferral } from '@/lib/referral'
 
 function buildRedirectUrl(origin: string, forwardedHost: string | null, path: string) {
     if (process.env.NODE_ENV !== 'development' && forwardedHost) {
@@ -61,6 +62,18 @@ export async function GET(request: Request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (error) {
         return NextResponse.redirect(`${origin}/login?error=auth_failed`)
+    }
+
+    // Appliquer le parrainage si un code était stocké avant l'OAuth
+    const refCode = cookieStore.get('referral_code')?.value
+    if (refCode) {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+            createPendingReferral(user.id, refCode).catch(err =>
+                console.error('[REFERRAL] callback error:', err)
+            )
+        }
+        cookieStore.delete('referral_code')
     }
 
     const redirectPath = await resolveOnboardingPath(supabase, next)
