@@ -124,6 +124,55 @@ function subscriptionExpiringTemplate(userName: string, planName: string, daysLe
     `)
 }
 
+function androidAppLaunchTemplate(userName: string): string {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://wazzapai.com'
+    const playStoreUrl = 'https://play.google.com/store/apps/details?id=com.wazzapai.app'
+    return baseTemplate(`
+        <h2 style="color: #10b981; margin: 0 0 16px 0; font-size: 22px;">WazzapAI est sur Android !</h2>
+        <p style="margin: 0 0 8px 0; font-size: 16px;">Bonjour <strong>${userName}</strong>,</p>
+        <p style="margin: 0 0 24px 0; color: #94a3b8;">Bonne nouvelle : <strong>WazzapAI est maintenant disponible sur Google Play.</strong></p>
+
+        <div style="background: rgba(16, 185, 129, 0.06); border: 1px solid rgba(16, 185, 129, 0.15); border-radius: 14px; padding: 20px; margin-bottom: 28px;">
+            <p style="margin: 0 0 12px 0; color: #cbd5e1; font-size: 14px; font-weight: 600;">L'application vous permet de :</p>
+            <table style="border-collapse: collapse; width: 100%;">
+                <tr><td style="padding: 6px 0; color: #94a3b8; font-size: 14px;">
+                    <span style="color: #10b981; margin-right: 8px;">✓</span> Recevoir des alertes instantanées dès qu'un client vous écrit
+                </td></tr>
+                <tr><td style="padding: 6px 0; color: #94a3b8; font-size: 14px;">
+                    <span style="color: #10b981; margin-right: 8px;">✓</span> Gérer vos agents WhatsApp depuis votre téléphone
+                </td></tr>
+                <tr><td style="padding: 6px 0; color: #94a3b8; font-size: 14px;">
+                    <span style="color: #10b981; margin-right: 8px;">✓</span> Consulter vos conversations et statistiques en temps réel
+                </td></tr>
+                <tr><td style="padding: 6px 0; color: #94a3b8; font-size: 14px;">
+                    <span style="color: #10b981; margin-right: 8px;">✓</span> Rester connecté sans ouvrir votre navigateur
+                </td></tr>
+            </table>
+        </div>
+
+        <div style="text-align: center; margin-bottom: 24px;">
+            <a href="${playStoreUrl}" target="_blank">
+                <img
+                    src="https://play.google.com/intl/en_us/badges/static/images/badges/fr_badge_web_generic.png"
+                    alt="Disponible sur Google Play"
+                    width="200"
+                    style="border-radius: 8px;"
+                />
+            </a>
+        </div>
+
+        <p style="margin: 0 0 4px 0; color: #64748b; font-size: 13px; text-align: center;">
+            L'application est gratuite et se connecte directement à votre compte existant —<br>aucune configuration supplémentaire requise.
+        </p>
+
+        <div style="border-top: 1px solid rgba(148,163,184,0.1); margin-top: 24px; padding-top: 16px; text-align: center;">
+            <a href="${appUrl}/dashboard" style="color: #64748b; font-size: 12px;">
+                Accéder au dashboard web
+            </a>
+        </div>
+    `)
+}
+
 // =============================================
 // Send Functions
 // =============================================
@@ -162,6 +211,25 @@ export async function sendCreditsDepletedEmail(toEmail: string, userName: string
     } catch (error) {
         console.error('Failed to send credits depleted email:', error)
         void logEmail(userId, toEmail, 'credits_depleted', subject, 'failed', String(error))
+        return false
+    }
+}
+
+export async function sendAndroidAppLaunchEmail(toEmail: string, userName: string, userId?: string): Promise<boolean> {
+    const subject = '📱 WazzapAI est maintenant disponible sur Android !'
+    try {
+        await transporter.sendMail({
+            from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
+            to: toEmail,
+            subject,
+            html: androidAppLaunchTemplate(userName),
+        })
+        console.log(`📧 Android app launch email sent to ${toEmail}`)
+        void logEmail(userId, toEmail, 'android_app_launch', subject, 'sent')
+        return true
+    } catch (error) {
+        console.error('Failed to send android app launch email:', error)
+        void logEmail(userId, toEmail, 'android_app_launch', subject, 'failed', String(error))
         return false
     }
 }
