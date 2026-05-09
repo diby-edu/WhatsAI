@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Smartphone, X } from 'lucide-react'
 import { PLAY_STORE_URL } from '@/lib/utils'
@@ -9,8 +10,10 @@ const SESSION_KEY = 'mobile_app_prompt_dismissed'
 
 export default function MobileAppPrompt() {
     const [visible, setVisible] = useState(false)
+    const [mounted, setMounted] = useState(false)
 
     useEffect(() => {
+        setMounted(true)
         // Détecter Android dans un navigateur (pas l'app Capacitor)
         const isAndroid = /Android/i.test(navigator.userAgent)
         const isCapacitor = !!(window as any).Capacitor
@@ -28,7 +31,9 @@ export default function MobileAppPrompt() {
         setVisible(false)
     }
 
-    return (
+    if (!mounted) return null
+
+    return createPortal(
         <AnimatePresence>
             {visible && (
                 <>
@@ -138,6 +143,7 @@ export default function MobileAppPrompt() {
                     </motion.div>
                 </>
             )}
-        </AnimatePresence>
+        </AnimatePresence>,
+        document.body
     )
 }
