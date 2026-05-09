@@ -45,6 +45,7 @@ import { useSessionTimeout } from '@/hooks/useSessionTimeout'
 import { useNativeDeviceTokenSync } from '@/hooks/useNativeDeviceTokenSync'
 import { unregisterCurrentDeviceToken } from '@/lib/notifications/device-token-client'
 import { TestAccountCountdownBanner } from '@/components/dashboard/TestAccountCountdownBanner'
+import AppDownloadBanner from '@/components/dashboard/AppDownloadBanner'
 
 type TestAccountBannerState = {
     bannerMode: 'test' | 'frozen_grace' | 'inactive' | null
@@ -85,6 +86,7 @@ export default function DashboardLayout({
     const [apiAccessEnabled, setApiAccessEnabled] = useState(false)
     const [sessionTimeoutHours, setSessionTimeoutHours] = useState<number | null>(null)
     const [testAccountBanner, setTestAccountBanner] = useState<TestAccountBannerState | null>(null)
+    const [appBannerDismissed, setAppBannerDismissed] = useState(false)
     const notifRef = useRef<HTMLDivElement>(null)
     const mobileNotifBtnRef = useRef<HTMLDivElement>(null)
     const mobileNotifDropdownRef = useRef<HTMLDivElement>(null)
@@ -135,10 +137,11 @@ export default function DashboardLayout({
                 if (!user) return
                 const { data: profile } = await supabase
                     .from('profiles')
-                    .select('api_access_enabled')
+                    .select('api_access_enabled, app_banner_dismissed')
                     .eq('id', user.id)
                     .single()
                 setApiAccessEnabled(profile?.api_access_enabled ?? false)
+                setAppBannerDismissed(profile?.app_banner_dismissed ?? false)
             } catch (_) {}
         }
         checkApiAccess()
@@ -1062,6 +1065,11 @@ export default function DashboardLayout({
                     boxSizing: 'border-box',
                     paddingBottom: isMobile ? '100px' : '40px'
                 }}>
+                    <AppDownloadBanner
+                        dismissed={appBannerDismissed}
+                        onDismissed={() => setAppBannerDismissed(true)}
+                    />
+
                     {testAccountBanner?.bannerMode && (
                         <TestAccountCountdownBanner
                             bannerMode={testAccountBanner.bannerMode}

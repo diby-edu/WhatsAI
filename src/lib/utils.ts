@@ -1,6 +1,9 @@
 import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 
+// URL de l'application sur le Play Store — à mettre à jour avec l'URL réelle
+export const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.wazzapai.app'
+
 export function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs))
 }
