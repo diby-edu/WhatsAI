@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
 
     try {
         const body = await request.json()
-        const { amount, customer_phone, customer_name, description, credits_to_add, test_mode } = body
+        const { amount, customer_phone, customer_name, description, credits_to_add } = body
 
         // Generate unique transaction ID
         const transactionId = `TXN_${Date.now()}_${Math.random().toString(36).substring(7)}`
@@ -49,7 +49,6 @@ export async function POST(request: NextRequest) {
             metadata: JSON.stringify({
                 user_id: user.id,
                 credits_to_add: credits_to_add || Math.floor(amount / 10),
-                test_mode: test_mode
             })
         }
 
