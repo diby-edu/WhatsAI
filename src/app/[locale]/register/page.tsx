@@ -397,7 +397,7 @@ function RegisterForm() {
                         }}>
                             <Sparkles style={{ width: 14, height: 14, color: '#c084fc' }} />
                             <span style={{ fontSize: 13, fontWeight: 500, color: '#c084fc' }}>
-                                Essai gratuit 14 jours
+                                Essai gratuit 7 jours
                             </span>
                         </div>
                         <h1 style={{ fontSize: 32, fontWeight: 700, color: 'white', marginBottom: 8 }}>
