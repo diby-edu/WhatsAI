@@ -24,15 +24,16 @@ export async function GET() {
     if (response) return response
 
     try {
-        const missing = requiredEnvVars.filter((envVar) => !process.env[envVar])
-        const configured = requiredEnvVars.filter((envVar) => !!process.env[envVar])
-        const optional = optionalEnvVars.filter((envVar) => !!process.env[envVar])
+        const missingCount = requiredEnvVars.filter((envVar) => !process.env[envVar]).length
+        const configuredCount = requiredEnvVars.filter((envVar) => !!process.env[envVar]).length
+        const optionalCount = optionalEnvVars.filter((envVar) => !!process.env[envVar]).length
 
         return successResponse({
-            missing,
-            configured: configured.length,
-            optionalConfigured: optional,
+            missing: missingCount,
+            configured: configuredCount,
+            optionalConfigured: optionalCount,
             total: requiredEnvVars.length,
+            allConfigured: missingCount === 0,
         })
     } catch (err: any) {
         return errorResponse(err.message || 'Erreur serveur', 500)

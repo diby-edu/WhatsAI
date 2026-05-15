@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
 
     const rateCheck = checkPublicRateLimit(apiKey!.id, userId!, normalizedPhone, apiKey!.rate_limit_per_minute)
     if (!rateCheck.allowed) {
-        logApiUsage(supabaseAdmin, { apiKeyId: apiKey!.id, userId: userId!, agentId: agent_id, endpoint: '/api/public/v1/send', method: 'POST', statusCode: 429, requestBody: body, responseMs: Date.now() - startTime, ipAddress: ip })
+        logApiUsage(supabaseAdmin, { apiKeyId: apiKey!.id, userId: userId!, agentId: agent_id, endpoint: '/api/public/v1/send', method: 'POST', statusCode: 429, requestBody: { agent_id, to: normalizedPhone }, responseMs: Date.now() - startTime, ipAddress: ip })
         return NextResponse.json({ error: rateCheck.reason, code: 'RATE_LIMIT' }, { status: 429, headers: rateCheck.headers })
     }
 
@@ -98,11 +98,11 @@ export async function POST(request: NextRequest) {
     })
 
     if (!queueResult.queued) {
-        logApiUsage(supabaseAdmin, { apiKeyId: apiKey!.id, userId: userId!, agentId: agent_id, endpoint: '/api/public/v1/send', method: 'POST', statusCode: 500, requestBody: body, responseMs: Date.now() - startTime, ipAddress: ip })
+        logApiUsage(supabaseAdmin, { apiKeyId: apiKey!.id, userId: userId!, agentId: agent_id, endpoint: '/api/public/v1/send', method: 'POST', statusCode: 500, requestBody: { agent_id, to: normalizedPhone }, responseMs: Date.now() - startTime, ipAddress: ip })
         return NextResponse.json({ error: 'Failed to queue message', code: 'QUEUE_FAILED' }, { status: 500, headers: rateCheck.headers })
     }
 
-    logApiUsage(supabaseAdmin, { apiKeyId: apiKey!.id, userId: userId!, agentId: agent_id, endpoint: '/api/public/v1/send', method: 'POST', statusCode: 200, requestBody: body, responseMs: Date.now() - startTime, ipAddress: ip })
+    logApiUsage(supabaseAdmin, { apiKeyId: apiKey!.id, userId: userId!, agentId: agent_id, endpoint: '/api/public/v1/send', method: 'POST', statusCode: 200, requestBody: { agent_id, to: normalizedPhone }, responseMs: Date.now() - startTime, ipAddress: ip })
 
     const responseBody = {
         success: true,

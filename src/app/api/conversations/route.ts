@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
         const { data: conversations, error } = await query
 
         if (error) {
-            return errorResponse(error.message, 500)
+            return errorResponse('Erreur serveur', 500)
         }
 
         // Optimized: Get message counts and last messages in batch queries
@@ -68,6 +68,7 @@ export async function GET(request: NextRequest) {
             .select('conversation_id, content, created_at')
             .in('conversation_id', conversationIds)
             .order('created_at', { ascending: false })
+            .limit(conversationIds.length)
 
         // Get last message per conversation
         const lastMessageMap: Record<string, { content: string; created_at: string }> = {}
