@@ -289,7 +289,7 @@ export default function AdminReferralsPage() {
                                     background: ref.bonus_given ? 'rgba(139,92,246,0.15)' : 'rgba(255,255,255,0.05)',
                                     color: ref.bonus_given ? '#a78bfa' : '#64748b'
                                 }}>
-                                    {ref.bonus_given ? <><Check style={{ width: 11, height: 11 }} /> +20 crédits</> : '—'}
+                                    {ref.bonus_given ? <><Check style={{ width: 11, height: 11 }} /> +10 crédits</> : '—'}
                                 </span>
                             </div>
 
