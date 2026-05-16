@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
 
         // Execute the update script
         // Note: This runs in the background so the webhook returns quickly
-        exec('/root/update-wazzapai.sh', (error, stdout, stderr) => {
+        exec('/root/WhatsAI/deploy.sh', (error, stdout, stderr) => {
             if (error) {
                 console.error('❌ Deployment error:', error)
                 console.error('stderr:', stderr)
