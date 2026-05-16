@@ -16,6 +16,21 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'play.google.com' },
     ],
   },
+  async headers() {
+    return [
+      // Public REST API — open CORS (auth via API key, not cookies)
+      // Les routes internes n'ont pas besoin de CORS explicite :
+      // elles sont protégées par same-origin + cookie-based auth.
+      {
+        source: '/api/public/:path*',
+        headers: [
+          { key: 'Access-Control-Allow-Origin', value: '*' },
+          { key: 'Access-Control-Allow-Methods', value: 'GET,POST,OPTIONS' },
+          { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization, X-Api-Key' },
+        ],
+      },
+    ]
+  },
 };
 
 import { withSentryConfig } from '@sentry/nextjs';
