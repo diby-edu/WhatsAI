@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import type { User } from '@supabase/supabase-js'
 
 // Create Supabase server client for API routes
 export async function createApiClient() {
@@ -91,6 +92,58 @@ export function paginatedResponse(data: any, count: number, page: number, size: 
             last_page: Math.ceil((count || 0) / (size || 10))
         }
     })
+}
+
+// =============================================
+// HOFs — withAuth / withAdminAuth
+// Usage (new routes):
+//   export const GET = withAuth(async (req, { user, supabase }) => { ... })
+//   export const POST = withAdminAuth(async (req, { user, supabase }) => { ... })
+// =============================================
+
+type ApiClient = Awaited<ReturnType<typeof createApiClient>>
+type RouteContext = { params?: Promise<Record<string, string>> }
+
+export type AuthContext = {
+    user: User
+    supabase: ApiClient
+}
+
+export type AdminAuthContext = AuthContext & {
+    role: string
+}
+
+export function withAuth(
+    handler: (request: NextRequest, ctx: AuthContext, routeCtx?: RouteContext) => Promise<NextResponse>
+) {
+    return async (request: NextRequest, routeCtx?: RouteContext): Promise<NextResponse> => {
+        const supabase = await createApiClient()
+        const { user, error } = await getAuthUser(supabase)
+        if (error || !user) return errorResponse('Unauthorized', 401)
+        return handler(request, { user, supabase }, routeCtx)
+    }
+}
+
+export function withAdminAuth(
+    handler: (request: NextRequest, ctx: AdminAuthContext, routeCtx?: RouteContext) => Promise<NextResponse>
+) {
+    return async (request: NextRequest, routeCtx?: RouteContext): Promise<NextResponse> => {
+        const supabase = await createApiClient()
+        const { user, error } = await getAuthUser(supabase)
+        if (error || !user) return errorResponse('Unauthorized', 401)
+
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single()
+
+        if (!isAdminRole(profile?.role)) {
+            return errorResponse('Accès réservé aux administrateurs', 403)
+        }
+
+        return handler(request, { user, supabase, role: profile!.role as string }, routeCtx)
+    }
 }
 
 /**
