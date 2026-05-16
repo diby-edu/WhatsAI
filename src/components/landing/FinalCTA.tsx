@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { MessageCircle, ArrowRight, Sparkles } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import Link from 'next/link'
+import Image from 'next/image'
 import { PLAY_STORE_URL } from '@/lib/utils'
 
 export default function FinalCTA() {
@@ -167,9 +168,11 @@ export default function FinalCTA() {
                         whileTap={{ scale: 0.97 }}
                         style={{ textDecoration: 'none', display: 'inline-block' }}
                     >
-                        <img
+                        <Image
                             src="https://play.google.com/intl/en_us/badges/static/images/badges/fr_badge_web_generic.png"
                             alt="Disponible sur Google Play"
+                            width={155}
+                            height={60}
                             style={{ height: 60, width: 'auto', display: 'block' }}
                         />
                     </motion.a>

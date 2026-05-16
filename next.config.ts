@@ -11,6 +11,11 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
+  images: {
+    remotePatterns: [
+      { protocol: 'https', hostname: 'play.google.com' },
+    ],
+  },
 };
 
 import { withSentryConfig } from '@sentry/nextjs';
