@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server'
+import { z } from 'zod'
 import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
 import { checkRateLimit, getClientIdentifier, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 import {
@@ -10,6 +11,23 @@ import {
     getFeexPayNetworkOption,
     resolveFeexPaySelection,
 } from '@/lib/payments/feexpay-networks'
+
+const InitializePaymentSchema = z.discriminatedUnion('type', [
+    z.object({
+        type: z.literal('subscription'),
+        planId: z.string().min(1),
+        feexpay_phone: z.string().optional(),
+        feexpay_country: z.string().optional(),
+        feexpay_network: z.string().optional(),
+    }),
+    z.object({
+        type: z.literal('credits'),
+        packId: z.string().min(1),
+        feexpay_phone: z.string().optional(),
+        feexpay_country: z.string().optional(),
+        feexpay_network: z.string().optional(),
+    }),
+])
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
@@ -31,8 +49,15 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-        const body = await request.json()
-        const { type, planId, packId } = body
+        const rawBody = await request.json()
+        const parsed = InitializePaymentSchema.safeParse(rawBody)
+        if (!parsed.success) {
+            return errorResponse('Données invalides : ' + parsed.error.errors.map(e => e.message).join(', '), 400)
+        }
+        const body = { ...rawBody, ...parsed.data }
+        const { type } = parsed.data
+        const planId = 'planId' in parsed.data ? parsed.data.planId : undefined
+        const packId = 'packId' in parsed.data ? parsed.data.packId : undefined
 
         // Get user profile
         const { data: profile } = await supabase
