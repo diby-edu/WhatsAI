@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Invalid phone number format. Use international format: +22507000000', code: 'INVALID_PHONE' }, { status: 400 })
     }
 
-    const rateCheck = checkPublicRateLimit(apiKey!.id, userId!, normalizedPhone, apiKey!.rate_limit_per_minute)
+    const rateCheck = await checkPublicRateLimit(apiKey!.id, userId!, normalizedPhone, apiKey!.rate_limit_per_minute)
     if (!rateCheck.allowed) {
         logApiUsage(supabaseAdmin, { apiKeyId: apiKey!.id, userId: userId!, agentId: agent_id, endpoint: '/api/public/v1/send', method: 'POST', statusCode: 429, requestBody: { agent_id, to: normalizedPhone }, responseMs: Date.now() - startTime, ipAddress: ip })
         return NextResponse.json({ error: rateCheck.reason, code: 'RATE_LIMIT' }, { status: 429, headers: rateCheck.headers })

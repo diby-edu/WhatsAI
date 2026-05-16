@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
         }, { status: 400 })
     }
 
-    const rateCheck = checkPublicRateLimit(apiKey!.id, userId!, normalizedPhone, apiKey!.rate_limit_per_minute)
+    const rateCheck = await checkPublicRateLimit(apiKey!.id, userId!, normalizedPhone, apiKey!.rate_limit_per_minute)
     if (!rateCheck.allowed) {
         logApiUsage(supabaseAdmin, {
             apiKeyId: apiKey!.id,

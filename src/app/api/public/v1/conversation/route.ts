@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     }
     const { apiKey, userId } = auth
 
-    const rateCheck = checkPublicRateLimit(apiKey!.id, userId!, null, apiKey!.rate_limit_per_minute)
+    const rateCheck = await checkPublicRateLimit(apiKey!.id, userId!, null, apiKey!.rate_limit_per_minute)
     if (!rateCheck.allowed) {
         return NextResponse.json({ error: rateCheck.reason, code: 'RATE_LIMIT' }, { status: 429, headers: rateCheck.headers })
     }
