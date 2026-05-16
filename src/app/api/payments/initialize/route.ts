@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
         const rawBody = await request.json()
         const parsed = InitializePaymentSchema.safeParse(rawBody)
         if (!parsed.success) {
-            return errorResponse('Données invalides : ' + parsed.error.errors.map(e => e.message).join(', '), 400)
+            return errorResponse('Données invalides : ' + parsed.error.issues.map(e => e.message).join(', '), 400)
         }
         const body = { ...rawBody, ...parsed.data }
         const { type } = parsed.data
