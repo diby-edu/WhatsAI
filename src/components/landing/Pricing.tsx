@@ -7,17 +7,7 @@ import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
 import { useTranslations, useLocale } from 'next-intl'
 import { formatPriceFromFcfa } from '@/lib/currency'
-
-interface Plan {
-    id: string
-    name: string
-    price_fcfa: number
-    credits: number
-    max_agents: number
-    max_whatsapp_numbers: number
-    is_popular: boolean
-    description: string
-}
+import { usePlans, type Plan } from '@/hooks/usePlans'
 
 type Currency = 'FCFA' | 'USD' | 'EUR'
 
@@ -39,13 +29,6 @@ const planGradients: Record<string, { bg: string; glow: string }> = {
     'Scale': { bg: 'linear-gradient(135deg, #8b5cf6, #a78bfa)', glow: 'rgba(139, 92, 246, 0.4)' },
 }
 
-const FALLBACK_PLANS: Plan[] = [
-    { id: 'free', name: 'Gratuit', price_fcfa: 0, credits: 10, max_agents: 1, max_whatsapp_numbers: 1, is_popular: false, description: 'Pour tester la plateforme' },
-    { id: 'starter', name: 'Starter', price_fcfa: 6900, credits: 500, max_agents: 1, max_whatsapp_numbers: 1, is_popular: false, description: '500 crédits · 1 agent' },
-    { id: 'pro', name: 'Pro', price_fcfa: 19900, credits: 2500, max_agents: 3, max_whatsapp_numbers: 3, is_popular: true, description: '2 500 crédits · 3 agents' },
-    { id: 'business', name: 'Business', price_fcfa: 54900, credits: 8000, max_agents: 6, max_whatsapp_numbers: 6, is_popular: false, description: '8 000 crédits · 6 agents' },
-    { id: 'scale', name: 'Scale', price_fcfa: 129900, credits: 20000, max_agents: -1, max_whatsapp_numbers: -1, is_popular: false, description: '20 000 crédits · Agents illimités' },
-]
 
 export default function Pricing() {
     const t = useTranslations('Pricing')
@@ -95,11 +78,11 @@ export default function Pricing() {
             { text: t('planFeature_scale_3'), highlight: false },
         ],
     }
+    const plans = usePlans()
     const [isYearly, setIsYearly] = useState(false)
     const [currency, setCurrency] = useState<Currency>('FCFA')
     const [isAuthenticated, setIsAuthenticated] = useState(false)
     const [loadingPlan, setLoadingPlan] = useState<string | null>(null)
-    const [plans, setPlans] = useState<Plan[]>(FALLBACK_PLANS)
     useEffect(() => {
         const checkAuth = async () => {
             try {
@@ -114,38 +97,6 @@ export default function Pricing() {
             }
         }
         checkAuth()
-    }, [])
-
-    useEffect(() => {
-        fetch('/api/plans')
-            .then(res => res.json())
-            .then(data => {
-                if (data.plans && data.plans.length > 0) {
-                    const formatted: Plan[] = data.plans.map((p: any) => ({
-                        id: p.id || 'unknown',
-                        name: p.name || 'Plan',
-                        price_fcfa: typeof p.price === 'number' ? p.price : (p.price_fcfa || 0),
-                        credits: p.credits_included || p.credits || 0,
-                        max_agents: p.max_agents ?? 1,
-                        max_whatsapp_numbers: p.max_whatsapp_numbers ?? 1,
-                        is_popular: p.is_popular || false,
-                        description: p.description || '',
-                    }))
-                    const hasFree = formatted.some(p => p.price_fcfa === 0 || p.id === 'free' || p.name.toLowerCase().includes('gratuit') || p.name.toLowerCase().includes('free'))
-                    if (!hasFree) {
-                        const fallbackFree = FALLBACK_PLANS.find(p => p.id === 'free')
-                        if (fallbackFree) formatted.unshift(fallbackFree)
-                    }
-                    // Ensure Scale plan always shows even if not yet in DB
-                    const hasScale = formatted.some(p => p.name.toLowerCase().includes('scale'))
-                    if (!hasScale) {
-                        const fallbackScale = FALLBACK_PLANS.find(p => p.id === 'scale')
-                        if (fallbackScale) formatted.push(fallbackScale)
-                    }
-                    setPlans(formatted)
-                }
-            })
-            .catch(() => { })
     }, [])
 
     const displayPrice = (priceFcfa: number): string => {
