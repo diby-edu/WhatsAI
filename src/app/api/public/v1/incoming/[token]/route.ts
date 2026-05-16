@@ -247,7 +247,7 @@ export async function POST(
         )
     }
 
-    const rateCheck = checkPublicRateLimit(
+    const rateCheck = await checkPublicRateLimit(
         `platform_conn_${connection.id}`,
         connection.user_id,
         null,
