@@ -1,5 +1,14 @@
 import { NextRequest } from 'next/server'
+import { z } from 'zod'
 import { createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
+
+const CinetPayInitiateSchema = z.object({
+    amount: z.number().positive('Le montant doit être positif').max(10_000_000, 'Montant trop élevé'),
+    customer_phone: z.string().max(20).optional(),
+    customer_name: z.string().max(100).optional(),
+    description: z.string().max(500).optional(),
+    credits_to_add: z.number().int().positive().max(100_000).optional(),
+})
 
 // CinetPay API configuration
 const CINETPAY_API_KEY = process.env.CINETPAY_API_KEY
@@ -20,8 +29,12 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-        const body = await request.json()
-        const { amount, customer_phone, customer_name, description, credits_to_add } = body
+        const rawBody = await request.json()
+        const parsed = CinetPayInitiateSchema.safeParse(rawBody)
+        if (!parsed.success) {
+            return errorResponse('Données invalides : ' + parsed.error.errors.map(e => e.message).join(', '), 400)
+        }
+        const { amount, customer_phone, customer_name, description, credits_to_add } = parsed.data
 
         // Generate unique transaction ID
         const transactionId = `TXN_${Date.now()}_${Math.random().toString(36).substring(7)}`
