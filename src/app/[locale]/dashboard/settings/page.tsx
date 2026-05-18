@@ -38,6 +38,7 @@ interface Profile {
     company: string
     currency?: string
     avatar_url?: string
+    phone_verified?: boolean
 }
 
 interface NotificationSettings {
@@ -162,6 +163,54 @@ export default function SettingsPage() {
     const [crop, setCrop] = useState({ x: 0, y: 0 })
     const [zoom, setZoom] = useState(1)
     const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null)
+
+    // OTP phone verification (settings)
+    const [otpStep, setOtpStep] = useState<'idle' | 'sending' | 'verify'>('idle')
+    const [otpCode, setOtpCode] = useState('')
+    const [otpCountdown, setOtpCountdown] = useState(0)
+    const [otpError, setOtpError] = useState<string | null>(null)
+    const [otpVerifying, setOtpVerifying] = useState(false)
+
+    const handleSendPhoneOtp = async () => {
+        setOtpError(null)
+        setOtpStep('sending')
+        try {
+            const res = await fetch('/api/phone-verify/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone: profile.phone }),
+            })
+            const data = await res.json()
+            if (!res.ok) { setOtpError(data.error || 'Erreur envoi'); setOtpStep('idle'); return }
+            setOtpStep('verify')
+            setOtpCountdown(180)
+        } catch { setOtpError('Erreur réseau'); setOtpStep('idle') }
+    }
+
+    const handleConfirmPhoneOtp = async () => {
+        if (!otpCode.trim() || otpVerifying) return
+        setOtpVerifying(true)
+        setOtpError(null)
+        try {
+            const res = await fetch('/api/phone-verify/confirm', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone: profile.phone, code: otpCode }),
+            })
+            const data = await res.json()
+            if (!res.ok) { setOtpError(data.error || 'Code incorrect'); setOtpVerifying(false); return }
+            setProfile(p => ({ ...p, phone_verified: true }))
+            setOtpStep('idle')
+            setOtpCode('')
+        } catch { setOtpError('Erreur réseau') }
+        setOtpVerifying(false)
+    }
+
+    useEffect(() => {
+        if (otpCountdown <= 0) return
+        const t = setTimeout(() => setOtpCountdown(c => c - 1), 1000)
+        return () => clearTimeout(t)
+    }, [otpCountdown])
 
     // Referral state
     const [referralData, setReferralData] = useState<{
@@ -564,9 +613,61 @@ export default function SettingsPage() {
                                         label={t('Profile.form.phone')}
                                         icon={Phone}
                                         value={profile.phone}
-                                        onChange={(v) => setProfile({ ...profile, phone: v })}
+                                        onChange={(v) => { setProfile({ ...profile, phone: v }); setOtpStep('idle') }}
                                         placeholder="+225 XX XX XX XX"
                                     />
+                                    {/* Vérification WhatsApp */}
+                                    {profile.phone_verified ? (
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#34d399' }}>
+                                            <Check size={14} /> Numéro WhatsApp vérifié
+                                        </div>
+                                    ) : (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                                <span style={{ fontSize: 13, color: '#f59e0b' }}>Numéro non vérifié</span>
+                                                {otpStep === 'idle' && (
+                                                    <button
+                                                        onClick={handleSendPhoneOtp}
+                                                        style={{ fontSize: 12, padding: '4px 12px', borderRadius: 6, border: 'none', background: 'rgba(16,185,129,0.15)', color: '#34d399', cursor: 'pointer', fontWeight: 600 }}
+                                                    >
+                                                        Vérifier via WhatsApp
+                                                    </button>
+                                                )}
+                                                {otpStep === 'sending' && <Loader2 size={14} style={{ animation: 'spin 1s linear infinite', color: '#64748b' }} />}
+                                            </div>
+                                            {otpStep === 'verify' && (
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                                    <div style={{ fontSize: 12, color: '#94a3b8' }}>
+                                                        Code envoyé au <strong style={{ color: 'white' }}>{profile.phone}</strong>
+                                                        {otpCountdown > 0 && <span> — expire dans {Math.floor(otpCountdown/60)}:{String(otpCountdown%60).padStart(2,'0')}</span>}
+                                                    </div>
+                                                    <div style={{ display: 'flex', gap: 8 }}>
+                                                        <input
+                                                            type="text"
+                                                            maxLength={6}
+                                                            value={otpCode}
+                                                            onChange={e => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                                                            placeholder="Code à 6 chiffres"
+                                                            style={{ flex: 1, padding: '8px 12px', borderRadius: 8, background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(100,116,139,0.3)', color: 'white', fontSize: 14, letterSpacing: 4 }}
+                                                        />
+                                                        <button
+                                                            onClick={handleConfirmPhoneOtp}
+                                                            disabled={otpCode.length < 6 || otpVerifying}
+                                                            style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: otpCode.length === 6 ? '#10b981' : 'rgba(100,116,139,0.2)', color: 'white', fontWeight: 600, fontSize: 13, cursor: otpCode.length === 6 ? 'pointer' : 'not-allowed' }}
+                                                        >
+                                                            {otpVerifying ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : 'Valider'}
+                                                        </button>
+                                                    </div>
+                                                    {otpCountdown === 0 && (
+                                                        <button onClick={handleSendPhoneOtp} style={{ fontSize: 12, color: '#60a5fa', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
+                                                            Renvoyer le code
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            )}
+                                            {otpError && <div style={{ fontSize: 12, color: '#f87171' }}>{otpError}</div>}
+                                        </div>
+                                    )}
                                     <InputField
                                         label={t('Profile.form.company')}
                                         icon={Building}

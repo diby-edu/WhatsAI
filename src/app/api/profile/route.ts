@@ -53,6 +53,7 @@ export async function PATCH(request: NextRequest) {
                     }
 
                     updates[field] = normalizedPhone
+                    updates['phone_verified'] = false // reset à chaque changement de numéro
                 } else {
                     updates[field] = body[field]
                 }

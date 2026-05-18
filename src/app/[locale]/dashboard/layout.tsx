@@ -46,6 +46,7 @@ import { useNativeDeviceTokenSync } from '@/hooks/useNativeDeviceTokenSync'
 import { unregisterCurrentDeviceToken } from '@/lib/notifications/device-token-client'
 import { TestAccountCountdownBanner } from '@/components/dashboard/TestAccountCountdownBanner'
 import AppDownloadBanner from '@/components/dashboard/AppDownloadBanner'
+import PhoneVerifyModal from '@/components/dashboard/PhoneVerifyModal'
 import MobileAppPrompt from '@/components/dashboard/MobileAppPrompt'
 
 type TestAccountBannerState = {
@@ -89,6 +90,9 @@ export default function DashboardLayout({
     const [sessionTimeoutHours, setSessionTimeoutHours] = useState<number | null>(null)
     const [testAccountBanner, setTestAccountBanner] = useState<TestAccountBannerState | null>(null)
     const [appBannerDismissed, setAppBannerDismissed] = useState(false)
+    const [phoneVerified, setPhoneVerified] = useState(true) // true par défaut pour éviter le flash
+    const [profilePhone, setProfilePhone] = useState<string | null>(null)
+    const [phoneModalDismissedSession, setPhoneModalDismissedSession] = useState(false)
     const notifRef = useRef<HTMLDivElement>(null)
     const mobileNotifBtnRef = useRef<HTMLDivElement>(null)
     const mobileNotifDropdownRef = useRef<HTMLDivElement>(null)
@@ -139,14 +143,22 @@ export default function DashboardLayout({
                 if (!user) return
                 const { data: profile } = await supabase
                     .from('profiles')
-                    .select('api_access_enabled, app_banner_dismissed')
+                    .select('api_access_enabled, app_banner_dismissed, phone_verified, phone')
                     .eq('id', user.id)
                     .single()
                 setApiAccessEnabled(profile?.api_access_enabled ?? false)
                 setAppBannerDismissed(profile?.app_banner_dismissed ?? false)
+                setPhoneVerified(profile?.phone_verified ?? false)
+                setProfilePhone(profile?.phone ?? null)
             } catch (_) {}
         }
         checkApiAccess()
+    }, [])
+
+    useEffect(() => {
+        if (sessionStorage.getItem('phone_verify_dismissed') === '1') {
+            setPhoneModalDismissedSession(true)
+        }
     }, [])
 
     useEffect(() => {
@@ -1071,6 +1083,13 @@ export default function DashboardLayout({
                         dismissed={appBannerDismissed}
                         onDismissed={() => setAppBannerDismissed(true)}
                     />
+                    {!phoneVerified && !phoneModalDismissedSession && (
+                        <PhoneVerifyModal
+                            currentPhone={profilePhone}
+                            onVerified={() => setPhoneVerified(true)}
+                            onDismiss={() => setPhoneModalDismissedSession(true)}
+                        />
+                    )}
 
                     {testAccountBanner?.bannerMode && (
                         <TestAccountCountdownBanner
