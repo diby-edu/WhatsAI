@@ -29,7 +29,7 @@ export function logApiUsage(supabase: SupabaseClient, params: {
         request_body: safeBody,
         response_ms: responseMs,
         ip_address: ipAddress || null,
-    }).then(() => {}).catch(() => {})
+    }).then(() => {}, () => {})
 }
 
 function sanitizeBody(body: Record<string, unknown>): Record<string, unknown> {

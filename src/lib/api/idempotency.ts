@@ -47,6 +47,5 @@ export function storeIdempotency(
             idempotency_key: idempotencyKey,
             response_body: responseBody,
         }, { onConflict: 'user_id,idempotency_key' })
-        .then(() => {})
-        .catch(() => {})
+        .then(() => {}, () => {})
 }
