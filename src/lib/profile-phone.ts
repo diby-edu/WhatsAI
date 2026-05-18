@@ -87,7 +87,7 @@ function digitsOnly(value: string) {
 }
 
 export function sanitizeLocalPhoneDigits(value: string) {
-    return digitsOnly(value).replace(/^0+/, '')
+    return digitsOnly(value)
 }
 
 export function buildInternationalPhone(countryDial: string, localPhone: string) {
