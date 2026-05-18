@@ -1,4 +1,5 @@
 import admin from 'firebase-admin';
+import { SupabaseClient } from '@supabase/supabase-js';
 
 const IS_BUILD_COMMAND = process.env.npm_lifecycle_event === 'build';
 
@@ -148,7 +149,7 @@ export const sendPushNotificationToMultiple = async (
  * Send notification to a user by user ID
  */
 export const sendNotificationToUser = async (
-    supabase: any,
+    supabase: SupabaseClient,
     userId: string,
     payload: PushNotificationPayload
 ): Promise<boolean> => {

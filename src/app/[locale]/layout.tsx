@@ -40,6 +40,7 @@ export const metadata: Metadata = {
 import WhatsAppButton from '@/components/landing/WhatsAppButton';
 import HomeButton from '@/components/HomeButton';
 import StatusBarInit from '@/components/StatusBarInit';
+import MotionProvider from '@/components/MotionProvider';
 
 export default async function RootLayout({
   children,
@@ -55,10 +56,12 @@ export default async function RootLayout({
     <html lang={locale} className="scroll-smooth" style={{ overflowY: 'scroll' }}>
       <body className={`${inter.variable} antialiased`}>
         <NextIntlClientProvider messages={messages} locale={locale} timeZone="Africa/Abidjan">
-          <StatusBarInit />
-          {children}
-          <WhatsAppButton />
-          <HomeButton />
+          <MotionProvider>
+            <StatusBarInit />
+            {children}
+            <WhatsAppButton />
+            <HomeButton />
+          </MotionProvider>
         </NextIntlClientProvider>
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-91PK2CR3EC"

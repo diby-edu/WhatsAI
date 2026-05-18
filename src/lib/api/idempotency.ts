@@ -1,3 +1,5 @@
+import { SupabaseClient } from '@supabase/supabase-js'
+
 /**
  * Gestion de l'idempotence pour l'API publique.
  * Garantit qu'une requête avec le même idempotency_key n'est exécutée qu'une seule fois.
@@ -11,7 +13,7 @@ const IDEMPOTENCY_TTL_HOURS = 24
  * Retourne la réponse cachée si oui, null sinon.
  */
 export async function checkIdempotency(
-    supabase: any,
+    supabase: SupabaseClient,
     userId: string,
     idempotencyKey: string
 ): Promise<Record<string, any> | null> {
@@ -33,7 +35,7 @@ export async function checkIdempotency(
  * Fire & forget — ne bloque pas la réponse.
  */
 export function storeIdempotency(
-    supabase: any,
+    supabase: SupabaseClient,
     userId: string,
     idempotencyKey: string,
     responseBody: Record<string, any>

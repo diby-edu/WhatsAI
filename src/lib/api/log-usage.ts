@@ -1,14 +1,16 @@
+import { SupabaseClient } from '@supabase/supabase-js'
+
 /**
  * Enregistre un appel API dans api_usage_logs (fire & forget).
  */
-export function logApiUsage(supabase: any, params: {
+export function logApiUsage(supabase: SupabaseClient, params: {
     apiKeyId: string
     userId: string
     agentId?: string | null
     endpoint: string
     method: string
     statusCode: number
-    requestBody?: any
+    requestBody?: Record<string, unknown>
     responseMs: number
     ipAddress?: string | null
 }) {
@@ -30,7 +32,7 @@ export function logApiUsage(supabase: any, params: {
     }).then(() => {}).catch(() => {})
 }
 
-function sanitizeBody(body: any): any {
+function sanitizeBody(body: Record<string, unknown>): Record<string, unknown> {
     if (!body || typeof body !== 'object') return body
     const clean = { ...body }
     // Supprimer les champs potentiellement sensibles
