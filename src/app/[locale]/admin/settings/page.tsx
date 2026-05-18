@@ -95,7 +95,7 @@ export default function AdminSettingsPage() {
     const [saved, setSaved] = useState(false)
 
     // OTP WhatsApp
-    const [otpStatus, setOtpStatus] = useState<'not_configured' | 'connecting' | 'connected' | 'disconnected'>('not_configured')
+    const [otpStatus, setOtpStatus] = useState<'not_configured' | 'connecting' | 'qr_ready' | 'connected' | 'disconnected'>('not_configured')
     const [otpQrCode, setOtpQrCode] = useState<string | null>(null)
     const [otpPhone, setOtpPhone] = useState<string | null>(null)
     const [otpLoading, setOtpLoading] = useState(false)
@@ -1121,10 +1121,15 @@ export default function AdminSettingsPage() {
                                         <span style={{ color: '#10b981', fontWeight: 600, fontSize: 14 }}>Connecté</span>
                                         {otpPhone && <span style={{ color: '#64748b', fontSize: 13 }}>— {otpPhone}</span>}
                                     </>
-                                ) : otpStatus === 'connecting' ? (
+                                ) : otpStatus === 'qr_ready' ? (
                                     <>
                                         <Loader2 size={16} style={{ color: '#f59e0b', animation: 'spin 1s linear infinite' }} />
-                                        <span style={{ color: '#f59e0b', fontWeight: 600, fontSize: 14 }}>En attente du scan QR…</span>
+                                        <span style={{ color: '#f59e0b', fontWeight: 600, fontSize: 14 }}>Scannez le QR code ci-dessous</span>
+                                    </>
+                                ) : otpStatus === 'connecting' ? (
+                                    <>
+                                        <Loader2 size={16} style={{ color: '#64748b', animation: 'spin 1s linear infinite' }} />
+                                        <span style={{ color: '#64748b', fontWeight: 600, fontSize: 14 }}>Génération du QR code…</span>
                                     </>
                                 ) : (
                                     <>
@@ -1137,7 +1142,7 @@ export default function AdminSettingsPage() {
                             </div>
 
                             {/* QR Code */}
-                            {otpQrCode && otpStatus === 'connecting' && (
+                            {otpQrCode && (otpStatus === 'qr_ready' || otpStatus === 'connecting') && (
                                 <div style={{ textAlign: 'center', marginBottom: 24 }}>
                                     <div style={{
                                         display: 'inline-block',
