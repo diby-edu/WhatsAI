@@ -424,9 +424,9 @@ export default function OnboardingPage() {
                             }} />
                             <input
                                 type="tel"
-                                placeholder="07 12 34 56 78"
+                                placeholder="0712345678"
                                 value={phoneNumber}
-                                onChange={e => { setPhoneNumber(e.target.value); if (error) setError(null) }}
+                                onChange={e => { setPhoneNumber(e.target.value.replace(/\D/g, '')); if (error) setError(null) }}
                                 style={{
                                     width: '100%', padding: '12px 14px 12px 34px',
                                     borderRadius: 10, boxSizing: 'border-box',
