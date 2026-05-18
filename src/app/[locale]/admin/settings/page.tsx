@@ -5,10 +5,10 @@ import { motion } from 'framer-motion'
 import {
     Save, Globe, Shield, CreditCard, Mail, AlertTriangle,
     Database, Key, Server, Bell, Palette, Lock, RefreshCw,
-    CheckCircle, Loader2, Users, Bot, Activity, Zap
+    CheckCircle, Loader2, Users, Bot, Activity, Zap, MessageCircle, Wifi, WifiOff
 } from 'lucide-react'
 
-type TabId = 'general' | 'ai' | 'payment' | 'email' | 'security' | 'advanced' | 'notifications'
+type TabId = 'general' | 'ai' | 'payment' | 'email' | 'security' | 'advanced' | 'notifications' | 'otp'
 
 interface Tab {
     id: TabId
@@ -24,6 +24,7 @@ const tabs: Tab[] = [
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'security', label: 'Sécurité', icon: Lock },
     { id: 'advanced', label: 'Avancé', icon: Server },
+    { id: 'otp', label: 'WhatsApp OTP', icon: MessageCircle },
 ]
 
 interface AdminNotificationSettings {
@@ -92,6 +93,12 @@ export default function AdminSettingsPage() {
     const [activeTab, setActiveTab] = useState<TabId>('general')
     const [saving, setSaving] = useState(false)
     const [saved, setSaved] = useState(false)
+
+    // OTP WhatsApp
+    const [otpStatus, setOtpStatus] = useState<'not_configured' | 'connecting' | 'connected' | 'disconnected'>('not_configured')
+    const [otpQrCode, setOtpQrCode] = useState<string | null>(null)
+    const [otpPhone, setOtpPhone] = useState<string | null>(null)
+    const [otpLoading, setOtpLoading] = useState(false)
     const [saveError, setSaveError] = useState<string | null>(null)
     const [isCompact, setIsCompact] = useState(false)
     const [providerReadiness, setProviderReadiness] = useState<{
@@ -250,6 +257,47 @@ export default function AdminSettingsPage() {
     useEffect(() => {
         fetchSettings()
     }, [])
+
+    // Fetch OTP status quand on ouvre l'onglet + polling si en cours de connexion
+    useEffect(() => {
+        if (activeTab !== 'otp') return
+        let cancelled = false
+        const poll = async () => {
+            try {
+                const res = await fetch('/api/admin/otp-whatsapp')
+                const data = await res.json()
+                if (cancelled) return
+                const d = data.data || {}
+                setOtpStatus(d.configured ? (d.status || 'disconnected') : 'not_configured')
+                setOtpQrCode(d.qrCode || null)
+                setOtpPhone(d.phone || null)
+            } catch { /* silencieux */ }
+        }
+        poll()
+        const interval = setInterval(poll, 3000)
+        return () => { cancelled = true; clearInterval(interval) }
+    }, [activeTab])
+
+    const handleOtpConnect = async () => {
+        setOtpLoading(true)
+        try {
+            await fetch('/api/admin/otp-whatsapp', { method: 'POST' })
+            setOtpStatus('connecting')
+            setOtpQrCode(null)
+        } catch { /* silencieux */ }
+        setOtpLoading(false)
+    }
+
+    const handleOtpDisconnect = async () => {
+        setOtpLoading(true)
+        try {
+            await fetch('/api/admin/otp-whatsapp', { method: 'DELETE' })
+            setOtpStatus('disconnected')
+            setOtpQrCode(null)
+            setOtpPhone(null)
+        } catch { /* silencieux */ }
+        setOtpLoading(false)
+    }
 
     const fetchSettings = async () => {
         try {
@@ -1045,6 +1093,102 @@ export default function AdminSettingsPage() {
                                 Purger
                             </button>
                         </SettingRow>
+                    </div>
+                )
+
+            case 'otp':
+                return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                        <div style={{
+                            padding: '20px 24px',
+                            borderRadius: 16,
+                            background: 'rgba(15,23,42,0.6)',
+                            border: '1px solid rgba(148,163,184,0.12)',
+                        }}>
+                            <h3 style={{ color: '#e2e8f0', fontSize: 16, fontWeight: 600, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <MessageCircle size={18} style={{ color: '#10b981' }} />
+                                Connexion WhatsApp — Envoi OTP
+                            </h3>
+                            <p style={{ color: '#64748b', fontSize: 13, marginBottom: 24 }}>
+                                Ce numéro dédié envoie les codes de vérification aux nouveaux utilisateurs. Il ne répond jamais aux messages reçus.
+                            </p>
+
+                            {/* Statut */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
+                                {otpStatus === 'connected' ? (
+                                    <>
+                                        <Wifi size={16} style={{ color: '#10b981' }} />
+                                        <span style={{ color: '#10b981', fontWeight: 600, fontSize: 14 }}>Connecté</span>
+                                        {otpPhone && <span style={{ color: '#64748b', fontSize: 13 }}>— {otpPhone}</span>}
+                                    </>
+                                ) : otpStatus === 'connecting' ? (
+                                    <>
+                                        <Loader2 size={16} style={{ color: '#f59e0b', animation: 'spin 1s linear infinite' }} />
+                                        <span style={{ color: '#f59e0b', fontWeight: 600, fontSize: 14 }}>En attente du scan QR…</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <WifiOff size={16} style={{ color: '#64748b' }} />
+                                        <span style={{ color: '#64748b', fontWeight: 600, fontSize: 14 }}>
+                                            {otpStatus === 'not_configured' ? 'Non configuré' : 'Déconnecté'}
+                                        </span>
+                                    </>
+                                )}
+                            </div>
+
+                            {/* QR Code */}
+                            {otpQrCode && otpStatus === 'connecting' && (
+                                <div style={{ textAlign: 'center', marginBottom: 24 }}>
+                                    <div style={{
+                                        display: 'inline-block',
+                                        padding: 16,
+                                        background: 'white',
+                                        borderRadius: 16,
+                                        marginBottom: 12,
+                                    }}>
+                                        <img src={otpQrCode} alt="QR Code WhatsApp OTP" width={200} height={200} style={{ display: 'block' }} />
+                                    </div>
+                                    <p style={{ color: '#94a3b8', fontSize: 13 }}>
+                                        Ouvrez WhatsApp sur la SIM dédiée → <strong>Appareils liés</strong> → <strong>Lier un appareil</strong>
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* Boutons */}
+                            <div style={{ display: 'flex', gap: 10 }}>
+                                {otpStatus !== 'connected' && (
+                                    <button
+                                        onClick={handleOtpConnect}
+                                        disabled={otpLoading}
+                                        style={{
+                                            padding: '10px 20px', borderRadius: 10, border: 'none',
+                                            background: 'linear-gradient(135deg, #10b981, #0891b2)',
+                                            color: 'white', fontWeight: 600, fontSize: 13,
+                                            cursor: otpLoading ? 'not-allowed' : 'pointer',
+                                            display: 'flex', alignItems: 'center', gap: 8,
+                                        }}
+                                    >
+                                        {otpLoading ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <RefreshCw size={14} />}
+                                        {otpStatus === 'not_configured' ? 'Initialiser' : 'Afficher le QR code'}
+                                    </button>
+                                )}
+                                {otpStatus === 'connected' && (
+                                    <button
+                                        onClick={handleOtpDisconnect}
+                                        disabled={otpLoading}
+                                        style={{
+                                            padding: '10px 20px', borderRadius: 10,
+                                            border: '1px solid rgba(239,68,68,0.3)',
+                                            background: 'rgba(239,68,68,0.08)',
+                                            color: '#f87171', fontWeight: 600, fontSize: 13,
+                                            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
+                                        }}
+                                    >
+                                        <WifiOff size={14} /> Déconnecter
+                                    </button>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 )
 
