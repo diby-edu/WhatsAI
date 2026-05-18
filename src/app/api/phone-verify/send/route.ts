@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { Redis } from '@upstash/redis'
-import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
+import { createClient } from '@supabase/supabase-js'
+import { createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
 import { sendWhatsAppMessage } from '@/lib/whatsapp/baileys'
 
 const OTP_TTL = 180 // 3 minutes
@@ -18,9 +19,12 @@ export async function POST(req: NextRequest) {
     const { phone } = await req.json()
     if (!phone) return errorResponse('Numéro requis', 400)
 
-    // Récupérer l'agent OTP système
-    const adminClient = createAdminClient()
-    const { data: otpAgent } = await adminClient
+    // Récupérer l'agent OTP via client service role direct (bypass RLS garanti)
+    const serviceClient = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+    const { data: otpAgent } = await serviceClient
         .from('agents')
         .select('id, whatsapp_connected')
         .eq('name', OTP_AGENT_NAME)
