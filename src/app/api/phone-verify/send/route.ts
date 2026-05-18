@@ -72,10 +72,10 @@ export async function POST(req: NextRequest) {
     // Stocker en Redis avec TTL
     await redis.set(`otp:${phone}`, JSON.stringify({ code, userId: user!.id }), { ex: OTP_TTL })
 
-    // Envoyer via WhatsApp — JID sans le "+"
-    const jid = phone.replace(/^\+/, '') + '@s.whatsapp.net'
+    // Envoyer via WhatsApp — passer le numéro brut (sans @) pour que le service fasse le lookup WA
+    const recipient = phone.replace(/^\+/, '') // ex: 225747094746
     const message = `🔐 *Votre code WazzapAI : ${code}*\n\nCe code est valable 3 minutes.\n\n⚠️ Ne répondez pas à ce message, il n'est pas surveillé.`
-    const result = await sendViaInternalService(agentId, jid, message)
+    const result = await sendViaInternalService(agentId, recipient, message)
 
     if (!result.success) {
         if (result.error === 'WhatsApp not connected') {
