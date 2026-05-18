@@ -2,13 +2,32 @@ import { NextRequest } from 'next/server'
 import { Redis } from '@upstash/redis'
 import { createClient } from '@supabase/supabase-js'
 import { createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
-import { sendWhatsAppMessage } from '@/lib/whatsapp/baileys'
 
 const OTP_TTL = 180 // 3 minutes
 const OTP_AGENT_NAME = '__otp_sender__'
+const INTERNAL_WS_URL = `http://127.0.0.1:${process.env.HEALTH_PORT || 3001}/send`
 
 function generateOtp(): string {
     return Math.floor(100000 + Math.random() * 900000).toString()
+}
+
+async function sendViaInternalService(agentId: string, jid: string, message: string): Promise<{ success: boolean; error?: string }> {
+    try {
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+        if (process.env.WHATSAPP_INTERNAL_API_TOKEN) {
+            headers['x-internal-token'] = process.env.WHATSAPP_INTERNAL_API_TOKEN
+        }
+        const res = await fetch(INTERNAL_WS_URL, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ agentId, to: jid, message }),
+            signal: AbortSignal.timeout(15000),
+        })
+        const data = await res.json() as { success: boolean; error?: string }
+        return data
+    } catch (err: any) {
+        return { success: false, error: err?.message || 'Internal service unreachable' }
+    }
 }
 
 export async function POST(req: NextRequest) {
@@ -56,7 +75,7 @@ export async function POST(req: NextRequest) {
     // Envoyer via WhatsApp — JID sans le "+"
     const jid = phone.replace(/^\+/, '') + '@s.whatsapp.net'
     const message = `🔐 *Votre code WazzapAI : ${code}*\n\nCe code est valable 3 minutes.\n\n⚠️ Ne répondez pas à ce message, il n'est pas surveillé.`
-    const result = await sendWhatsAppMessage(agentId, jid, message)
+    const result = await sendViaInternalService(agentId, jid, message)
 
     if (!result.success) {
         if (result.error === 'WhatsApp not connected') {
