@@ -1251,13 +1251,13 @@ export default function AdminSettingsPage() {
                                         onClick={handleOtpResetLimit}
                                         disabled={otpResetLoading || !otpResetPhone.trim()}
                                         style={{
-                                            padding: '8px 16px', borderRadius: 8, border: 'none',
+                                            padding: '8px 16px', borderRadius: 8,
                                             background: otpResetLoading ? 'rgba(100,116,139,0.3)' : 'rgba(59,130,246,0.2)',
                                             color: '#60a5fa', fontWeight: 600, fontSize: 13,
                                             cursor: otpResetLoading || !otpResetPhone.trim() ? 'not-allowed' : 'pointer',
                                             display: 'flex', alignItems: 'center', gap: 6,
                                             border: '1px solid rgba(59,130,246,0.3)',
-                                        } as any}
+                                        }}
                                     >
                                         {otpResetLoading ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <RefreshCw size={13} />}
                                         Réinitialiser
