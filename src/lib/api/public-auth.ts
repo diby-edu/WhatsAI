@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { NextRequest } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
 const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -71,7 +71,7 @@ export async function checkPublicApiAccessForUser(userId: string): Promise<Publi
 
 export async function authenticateApiKey(
     request: NextRequest,
-    supabase: any
+    supabase: SupabaseClient
 ): Promise<AuthResult> {
     const authHeader = request.headers.get('Authorization')
     if (!authHeader?.startsWith('Bearer ')) {

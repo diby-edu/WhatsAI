@@ -1,3 +1,4 @@
+import { SupabaseClient } from '@supabase/supabase-js'
 import { getAgentOperationalStatus, type AgentOperationalStatus } from '@/lib/admin/agent-status'
 
 export type BroadcastTargetSegment =
@@ -55,7 +56,7 @@ function isPlanSegment(segment: BroadcastTargetSegment) {
 }
 
 async function fetchProfiles(
-    adminSupabase: any,
+    adminSupabase: SupabaseClient,
     userIds?: string[],
     requireEmail?: boolean
 ): Promise<BroadcastRecipientProfile[]> {
@@ -76,7 +77,7 @@ async function fetchProfiles(
     return (data || []) as BroadcastRecipientProfile[]
 }
 
-async function getUserIdsForAgentStatus(adminSupabase: any, status: AgentOperationalStatus): Promise<string[]> {
+async function getUserIdsForAgentStatus(adminSupabase: SupabaseClient, status: AgentOperationalStatus): Promise<string[]> {
     const { data, error } = await adminSupabase
         .from('agents')
         .select('user_id, is_active, whatsapp_connected, whatsapp_status, whatsapp_phone, whatsapp_ever_connected')
@@ -97,7 +98,7 @@ async function getUserIdsForAgentStatus(adminSupabase: any, status: AgentOperati
 }
 
 export async function getProfilesForBroadcastSegment(
-    adminSupabase: any,
+    adminSupabase: SupabaseClient,
     segment?: string | null,
     options?: { requireEmail?: boolean }
 ): Promise<BroadcastRecipientProfile[]> {
@@ -128,11 +129,11 @@ export async function getProfilesForBroadcastSegment(
     return fetchProfiles(adminSupabase, userIds, options?.requireEmail)
 }
 
-export async function getUserIdsForBroadcastSegment(adminSupabase: any, segment?: string | null): Promise<string[]> {
+export async function getUserIdsForBroadcastSegment(adminSupabase: SupabaseClient, segment?: string | null): Promise<string[]> {
     const profiles = await getProfilesForBroadcastSegment(adminSupabase, segment)
     return profiles.map((profile) => profile.id).filter(Boolean)
 }
 
-export async function getEmailRecipientsForBroadcastSegment(adminSupabase: any, segment?: string | null) {
+export async function getEmailRecipientsForBroadcastSegment(adminSupabase: SupabaseClient, segment?: string | null) {
     return getProfilesForBroadcastSegment(adminSupabase, segment, { requireEmail: true })
 }
