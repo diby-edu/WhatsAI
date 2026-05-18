@@ -99,6 +99,9 @@ export default function AdminSettingsPage() {
     const [otpQrCode, setOtpQrCode] = useState<string | null>(null)
     const [otpPhone, setOtpPhone] = useState<string | null>(null)
     const [otpLoading, setOtpLoading] = useState(false)
+    const [otpResetPhone, setOtpResetPhone] = useState('')
+    const [otpResetLoading, setOtpResetLoading] = useState(false)
+    const [otpResetMsg, setOtpResetMsg] = useState<string | null>(null)
     const [saveError, setSaveError] = useState<string | null>(null)
     const [isCompact, setIsCompact] = useState(false)
     const [providerReadiness, setProviderReadiness] = useState<{
@@ -297,6 +300,29 @@ export default function AdminSettingsPage() {
             setOtpPhone(null)
         } catch { /* silencieux */ }
         setOtpLoading(false)
+    }
+
+    const handleOtpResetLimit = async () => {
+        if (!otpResetPhone.trim()) return
+        setOtpResetLoading(true)
+        setOtpResetMsg(null)
+        try {
+            const res = await fetch('/api/admin/otp-whatsapp/debug', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone: otpResetPhone.trim() }),
+            })
+            const data = await res.json()
+            if (data.data?.reset) {
+                setOtpResetMsg('Tentatives réinitialisées. L\'utilisateur peut retenter.')
+                setOtpResetPhone('')
+            } else {
+                setOtpResetMsg('Erreur : ' + (data.error || 'inconnue'))
+            }
+        } catch {
+            setOtpResetMsg('Erreur réseau')
+        }
+        setOtpResetLoading(false)
     }
 
     const fetchSettings = async () => {
@@ -1191,6 +1217,61 @@ export default function AdminSettingsPage() {
                                     >
                                         <WifiOff size={14} /> Déconnecter
                                     </button>
+                                )}
+                            </div>
+
+                            {/* Reset tentatives OTP */}
+                            <div style={{
+                                marginTop: 8,
+                                padding: 16,
+                                borderRadius: 12,
+                                background: 'rgba(15,23,42,0.4)',
+                                border: '1px solid rgba(100,116,139,0.2)',
+                            }}>
+                                <div style={{ fontWeight: 600, color: '#e2e8f0', fontSize: 13, marginBottom: 8 }}>
+                                    Réinitialiser les tentatives d'un utilisateur
+                                </div>
+                                <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 10 }}>
+                                    Si un utilisateur est bloqué ("Trop de tentatives"), saisissez son numéro international et cliquez Réinitialiser.
+                                </div>
+                                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                    <input
+                                        type="text"
+                                        value={otpResetPhone}
+                                        onChange={e => setOtpResetPhone(e.target.value)}
+                                        placeholder="ex: 225747094746"
+                                        style={{
+                                            flex: 1, padding: '8px 12px', borderRadius: 8,
+                                            background: 'rgba(15,23,42,0.6)',
+                                            border: '1px solid rgba(100,116,139,0.3)',
+                                            color: 'white', fontSize: 13,
+                                        }}
+                                    />
+                                    <button
+                                        onClick={handleOtpResetLimit}
+                                        disabled={otpResetLoading || !otpResetPhone.trim()}
+                                        style={{
+                                            padding: '8px 16px', borderRadius: 8, border: 'none',
+                                            background: otpResetLoading ? 'rgba(100,116,139,0.3)' : 'rgba(59,130,246,0.2)',
+                                            color: '#60a5fa', fontWeight: 600, fontSize: 13,
+                                            cursor: otpResetLoading || !otpResetPhone.trim() ? 'not-allowed' : 'pointer',
+                                            display: 'flex', alignItems: 'center', gap: 6,
+                                            border: '1px solid rgba(59,130,246,0.3)',
+                                        } as any}
+                                    >
+                                        {otpResetLoading ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <RefreshCw size={13} />}
+                                        Réinitialiser
+                                    </button>
+                                </div>
+                                {otpResetMsg && (
+                                    <div style={{
+                                        marginTop: 8, fontSize: 12, padding: '6px 10px', borderRadius: 6,
+                                        background: otpResetMsg.startsWith('Erreur') ? 'rgba(239,68,68,0.1)' : 'rgba(16,185,129,0.1)',
+                                        color: otpResetMsg.startsWith('Erreur') ? '#f87171' : '#34d399',
+                                        border: `1px solid ${otpResetMsg.startsWith('Erreur') ? 'rgba(239,68,68,0.2)' : 'rgba(16,185,129,0.2)'}`,
+                                    }}>
+                                        {otpResetMsg}
+                                    </div>
                                 )}
                             </div>
                         </div>
