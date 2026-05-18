@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { MessageCircle, ArrowRight, Loader2, Check, ChevronDown, Phone } from 'lucide-react'
+import { MessageCircle, ArrowRight, Loader2, Check, ChevronDown, Phone, RefreshCw, RotateCcw } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { PHONE_COUNTRY_CODES, buildInternationalPhone } from '@/lib/profile-phone'
 
@@ -33,6 +33,14 @@ export default function OnboardingPage() {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
+    // OTP
+    const [otpStep, setOtpStep] = useState(false)
+    const [otp, setOtp] = useState('')
+    const [otpCountdown, setOtpCountdown] = useState(0)
+    const [otpExpired, setOtpExpired] = useState(false)
+    const [otpError, setOtpError] = useState<string | null>(null)
+    const [verifyingOtp, setVerifyingOtp] = useState(false)
+
     // Auto-sélection quand l'indicatif saisi correspond exactement à un pays
     useEffect(() => {
         if (!dialSearch.startsWith('+') || dialSearch.length < 2) return
@@ -43,6 +51,18 @@ export default function OnboardingPage() {
             setDialSearch('')
         }
     }, [dialSearch])
+
+    // Countdown OTP
+    useEffect(() => {
+        if (!otpStep || otpCountdown <= 0) return
+        const t = setTimeout(() => {
+            setOtpCountdown(c => {
+                if (c <= 1) { setOtpExpired(true); return 0 }
+                return c - 1
+            })
+        }, 1000)
+        return () => clearTimeout(t)
+    }, [otpStep, otpCountdown])
 
     // Close dropdown on outside click
     useEffect(() => {
@@ -56,48 +76,93 @@ export default function OnboardingPage() {
         return () => document.removeEventListener('mousedown', handleClick)
     }, [])
 
-    const handleConfirm = async () => {
+    const saveProfileAndRedirect = async (fullPhone: string) => {
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) { router.push('/login'); return }
+
+        const { error: profileError } = await supabase
+            .from('profiles')
+            .update({ currency, language, onboarding_completed: true, phone: fullPhone, phone_verified: true })
+            .eq('id', user.id)
+
+        if (profileError) {
+            setOtpError('Erreur lors de la sauvegarde. Réessayez.')
+            setVerifyingOtp(false)
+            return
+        }
+        router.push(`/${language}/dashboard?welcome=test-account`)
+    }
+
+    const handleSendOtp = async () => {
         const fullPhone = buildInternationalPhone(selectedCountry.dial, phoneNumber)
         if (!currency) return
         if (!fullPhone) {
-            setError('Le numero de telephone est obligatoire et doit etre valide.')
+            setError('Le numéro de téléphone est obligatoire et doit être valide.')
             return
         }
         setLoading(true)
         setError(null)
-
         try {
-            const supabase = createClient()
-            const { data: { user } } = await supabase.auth.getUser()
-
-            if (!user) {
-                router.push('/login')
-                return
-            }
-
-            const updateData: Record<string, unknown> = {
-                currency,
-                language,
-                onboarding_completed: true,
-                phone: fullPhone,
-            }
-
-            const { error: profileError } = await supabase
-                .from('profiles')
-                .update(updateData)
-                .eq('id', user.id)
-
-            if (profileError) {
-                setError('Erreur lors de la sauvegarde. Réessayez.')
+            const res = await fetch('/api/phone-verify/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone: fullPhone }),
+            })
+            const data = await res.json()
+            if (!res.ok) {
+                setError(data.error || 'Erreur lors de l\'envoi du code.')
                 setLoading(false)
                 return
             }
-
-            // Redirect to dashboard in the selected language with a one-time test-account notice.
-            router.push(`/${language}/dashboard?welcome=test-account`)
+            setOtpStep(true)
+            setOtpCountdown(180)
+            setOtpExpired(false)
+            setOtp('')
+            setOtpError(null)
         } catch {
             setError('Une erreur est survenue. Réessayez.')
-            setLoading(false)
+        }
+        setLoading(false)
+    }
+
+    const handleResendOtp = async () => {
+        const fullPhone = buildInternationalPhone(selectedCountry.dial, phoneNumber)
+        if (!fullPhone) return
+        setOtpError(null)
+        setOtp('')
+        try {
+            await fetch('/api/phone-verify/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone: fullPhone }),
+            })
+        } catch { /* silencieux */ }
+        setOtpCountdown(180)
+        setOtpExpired(false)
+    }
+
+    const handleVerifyOtp = async () => {
+        const fullPhone = buildInternationalPhone(selectedCountry.dial, phoneNumber)
+        if (!otp || otp.length < 6) { setOtpError('Entrez le code à 6 chiffres.'); return }
+        setVerifyingOtp(true)
+        setOtpError(null)
+        try {
+            const res = await fetch('/api/phone-verify/confirm', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone: fullPhone, code: otp }),
+            })
+            const data = await res.json()
+            if (!res.ok) {
+                setOtpError(data.error || 'Code incorrect.')
+                setVerifyingOtp(false)
+                return
+            }
+            await saveProfileAndRedirect(fullPhone!)
+        } catch {
+            setOtpError('Une erreur est survenue. Réessayez.')
+            setVerifyingOtp(false)
         }
     }
 
@@ -384,29 +449,121 @@ export default function OnboardingPage() {
                         </div>
                     )}
 
-                    {/* CTA */}
-                    <motion.button
-                        whileHover={{ scale: currency ? 1.02 : 1 }}
-                        whileTap={{ scale: currency ? 0.98 : 1 }}
-                        onClick={handleConfirm}
-                        disabled={!currency || !buildInternationalPhone(selectedCountry.dial, phoneNumber) || loading}
-                        style={{
-                            width: '100%', padding: '14px 24px', borderRadius: 12, border: 'none',
-                            background: currency && buildInternationalPhone(selectedCountry.dial, phoneNumber)
-                                ? 'linear-gradient(135deg, #25D366, #128C7E)'
-                                : 'rgba(30,41,59,0.6)',
-                            color: currency && buildInternationalPhone(selectedCountry.dial, phoneNumber) ? 'white' : '#475569',
-                            fontWeight: 600, fontSize: 15,
-                            cursor: currency && buildInternationalPhone(selectedCountry.dial, phoneNumber) && !loading ? 'pointer' : 'not-allowed',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                            transition: 'all 0.2s',
-                        }}
-                    >
-                        {loading
-                            ? <><Loader2 style={{ width: 18, height: 18, animation: 'spin 1s linear infinite' }} /> Enregistrement…</>
-                            : <>Commencer <ArrowRight style={{ width: 18, height: 18 }} /></>
-                        }
-                    </motion.button>
+                    {/* Étape OTP */}
+                    {otpStep ? (
+                        <div>
+                            <p style={{ fontSize: 13, color: '#94a3b8', textAlign: 'center', marginBottom: 16 }}>
+                                Code envoyé au <strong style={{ color: 'white' }}>{buildInternationalPhone(selectedCountry.dial, phoneNumber)}</strong>
+                            </p>
+
+                            {/* Champ code */}
+                            <input
+                                type="number"
+                                placeholder="Code à 6 chiffres"
+                                value={otp}
+                                maxLength={6}
+                                onChange={e => { setOtp(e.target.value.slice(0, 6)); setOtpError(null) }}
+                                style={{
+                                    width: '100%', boxSizing: 'border-box',
+                                    padding: '16px', borderRadius: 12, border: '1px solid rgba(148,163,184,0.2)',
+                                    background: 'rgba(30,41,59,0.6)', color: 'white',
+                                    fontSize: 24, fontWeight: 700, textAlign: 'center',
+                                    outline: 'none', letterSpacing: 8, marginBottom: 12,
+                                }}
+                            />
+
+                            {otpError && (
+                                <div style={{
+                                    padding: '10px 14px', borderRadius: 10,
+                                    background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
+                                    color: '#fca5a5', fontSize: 13, marginBottom: 12,
+                                }}>
+                                    {otpError}
+                                </div>
+                            )}
+
+                            {/* Bouton Vérifier */}
+                            <motion.button
+                                whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                                onClick={handleVerifyOtp}
+                                disabled={verifyingOtp || otp.length < 6}
+                                style={{
+                                    width: '100%', padding: '14px', borderRadius: 12, border: 'none',
+                                    background: otp.length === 6 ? 'linear-gradient(135deg, #25D366, #128C7E)' : 'rgba(30,41,59,0.6)',
+                                    color: otp.length === 6 ? 'white' : '#475569',
+                                    fontWeight: 600, fontSize: 15, cursor: otp.length === 6 && !verifyingOtp ? 'pointer' : 'not-allowed',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                                    marginBottom: 16,
+                                }}
+                            >
+                                {verifyingOtp
+                                    ? <><Loader2 style={{ width: 18, height: 18, animation: 'spin 1s linear infinite' }} /> Vérification…</>
+                                    : <><Check style={{ width: 18, height: 18 }} /> Vérifier le code</>
+                                }
+                            </motion.button>
+
+                            {/* Countdown + actions */}
+                            {!otpExpired ? (
+                                <p style={{ textAlign: 'center', color: '#475569', fontSize: 13 }}>
+                                    Code expiré dans{' '}
+                                    <span style={{ color: '#94a3b8', fontWeight: 600 }}>
+                                        {Math.floor(otpCountdown / 60)}:{String(otpCountdown % 60).padStart(2, '0')}
+                                    </span>
+                                </p>
+                            ) : (
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                    <button
+                                        onClick={handleResendOtp}
+                                        style={{
+                                            flex: 1, padding: '12px', borderRadius: 10,
+                                            border: '1px solid rgba(37,211,102,0.3)',
+                                            background: 'rgba(37,211,102,0.06)',
+                                            color: '#25D366', fontWeight: 600, fontSize: 13,
+                                            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                                        }}
+                                    >
+                                        <RefreshCw size={14} /> Renvoyer le code
+                                    </button>
+                                    <button
+                                        onClick={() => { setOtpStep(false); setOtp(''); setOtpError(null) }}
+                                        style={{
+                                            flex: 1, padding: '12px', borderRadius: 10,
+                                            border: '1px solid rgba(148,163,184,0.15)',
+                                            background: 'rgba(255,255,255,0.03)',
+                                            color: '#64748b', fontWeight: 500, fontSize: 13,
+                                            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                                        }}
+                                    >
+                                        <RotateCcw size={14} /> Changer de numéro
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        /* CTA — Envoyer code */
+                        <motion.button
+                            whileHover={{ scale: currency ? 1.02 : 1 }}
+                            whileTap={{ scale: currency ? 0.98 : 1 }}
+                            onClick={handleSendOtp}
+                            disabled={!currency || !buildInternationalPhone(selectedCountry.dial, phoneNumber) || loading}
+                            style={{
+                                width: '100%', padding: '14px 24px', borderRadius: 12, border: 'none',
+                                background: currency && buildInternationalPhone(selectedCountry.dial, phoneNumber)
+                                    ? 'linear-gradient(135deg, #25D366, #128C7E)'
+                                    : 'rgba(30,41,59,0.6)',
+                                color: currency && buildInternationalPhone(selectedCountry.dial, phoneNumber) ? 'white' : '#475569',
+                                fontWeight: 600, fontSize: 15,
+                                cursor: currency && buildInternationalPhone(selectedCountry.dial, phoneNumber) && !loading ? 'pointer' : 'not-allowed',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                                transition: 'all 0.2s',
+                            }}
+                        >
+                            {loading
+                                ? <><Loader2 style={{ width: 18, height: 18, animation: 'spin 1s linear infinite' }} /> Envoi du code…</>
+                                : <>Recevoir mon code WhatsApp <ArrowRight style={{ width: 18, height: 18 }} /></>
+                            }
+                        </motion.button>
+                    )}
                 </div>
 
                 <p style={{ textAlign: 'center', marginTop: 14, fontSize: 11, color: '#334155' }}>
