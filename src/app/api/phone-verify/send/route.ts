@@ -1,9 +1,10 @@
 import { NextRequest } from 'next/server'
 import { Redis } from '@upstash/redis'
-import { createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
+import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
 import { sendWhatsAppMessage } from '@/lib/whatsapp/baileys'
 
 const OTP_TTL = 180 // 3 minutes
+const OTP_AGENT_NAME = '__otp_sender__'
 
 function generateOtp(): string {
     return Math.floor(100000 + Math.random() * 900000).toString()
@@ -17,8 +18,18 @@ export async function POST(req: NextRequest) {
     const { phone } = await req.json()
     if (!phone) return errorResponse('Numéro requis', 400)
 
-    const agentId = process.env.OTP_WHATSAPP_AGENT_ID
-    if (!agentId) return errorResponse('Service de vérification non configuré', 503)
+    // Récupérer l'agent OTP système
+    const adminClient = createAdminClient()
+    const { data: otpAgent } = await adminClient
+        .from('agents')
+        .select('id, whatsapp_connected')
+        .eq('name', OTP_AGENT_NAME)
+        .single()
+
+    if (!otpAgent?.whatsapp_connected) {
+        return errorResponse('Service de vérification WhatsApp non disponible', 503)
+    }
+    const agentId = otpAgent.id
 
     // Rate limit : max 3 envois par numéro par heure
     let redis: Redis | null = null
