@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { Redis } from '@upstash/redis'
 import { createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
+import { normalizeStoredPhone } from '@/lib/profile-phone'
 
 export async function POST(req: NextRequest) {
     const supabase = await createApiClient()
@@ -30,8 +31,9 @@ export async function POST(req: NextRequest) {
     if (parsed.userId !== user!.id) return errorResponse('Non autorisé', 401)
     if (parsed.code !== code.trim()) return errorResponse('Code incorrect', 400)
 
-    // Marquer le numéro comme vérifié
-    await supabase.from('profiles').update({ phone_verified: true }).eq('id', user!.id)
+    // Sauvegarder le numéro vérifié et marquer comme vérifié
+    const normalizedPhone = normalizeStoredPhone(phone) || phone
+    await supabase.from('profiles').update({ phone_verified: true, phone: normalizedPhone }).eq('id', user!.id)
 
     // Supprimer le code OTP
     await redis.del(`otp:${phone}`)
