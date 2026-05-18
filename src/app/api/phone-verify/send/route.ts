@@ -26,11 +26,12 @@ export async function POST(req: NextRequest) {
     )
     const { data: otpAgent } = await serviceClient
         .from('agents')
-        .select('id, whatsapp_connected')
+        .select('id, whatsapp_connected, whatsapp_status')
         .eq('name', OTP_AGENT_NAME)
         .single()
 
-    if (!otpAgent?.whatsapp_connected) {
+    const isReady = otpAgent?.whatsapp_connected || otpAgent?.whatsapp_status === 'connected'
+    if (!isReady) {
         return errorResponse('Service de vérification WhatsApp non disponible', 503)
     }
     const agentId = otpAgent.id
