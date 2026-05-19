@@ -45,9 +45,20 @@ async function handleSendImage(args, products, relevantDocs, userMessage) {
         console.log('🛠️ Executing tool: send_image')
         let { product_name, variant_value, selected_variants, image_url: directUrl } = args
 
+        // === MOUCHARD DEBUG ===
+        console.log('🔍 [DEBUG send_image] args:', JSON.stringify(args))
+        console.log('🔍 [DEBUG send_image] userMessage:', userMessage)
+        console.log('🔍 [DEBUG send_image] relevantDocs count:', relevantDocs ? relevantDocs.length : 0)
+        if (relevantDocs && relevantDocs.length > 0) {
+            relevantDocs.forEach((doc, i) => {
+                console.log(`🔍 [DEBUG doc[${i}]] image_url=${doc.image_url || 'NULL'} | image_label=${doc.image_label || 'NULL'} | extra_image_urls=${JSON.stringify(doc.extra_image_urls || [])}`)
+            })
+        }
+        // === FIN MOUCHARD ===
+
         // Cas 1 : URL directe fournie par l'IA (depuis la KB)
         if (directUrl) {
-            console.log(`📸 Image directe KB: ${directUrl}`)
+            console.log(`📸 CAS1 Image directe KB: ${directUrl}`)
             return JSON.stringify({
                 success: true,
                 action: 'send_image',
@@ -59,6 +70,7 @@ async function handleSendImage(args, products, relevantDocs, userMessage) {
         // Cas 2 : Chercher dans la KB (mode support) — fuzzy match label ou contenu
         if (relevantDocs && relevantDocs.length > 0 && product_name) {
             const searchName = product_name.toLowerCase()
+            console.log(`🔍 [DEBUG CAS2] searchName="${searchName}"`)
 
             // Chercher d'abord dans les extra_image_urls avec labels
             for (const doc of relevantDocs) {
@@ -66,30 +78,20 @@ async function handleSendImage(args, products, relevantDocs, userMessage) {
                 for (const item of extras) {
                     const url = typeof item === 'string' ? item : item?.url
                     const label = typeof item === 'string' ? null : item?.label
+                    console.log(`🔍 [DEBUG CAS2 extra] label="${label}" url="${url}" match=${url && label ? fuzzyIncludes(label.toLowerCase(), searchName) : false}`)
                     if (url && label && fuzzyIncludes(label.toLowerCase(), searchName)) {
-                        console.log(`📸 Image extra KB trouvée pour "${product_name}" — label: "${label}"`)
-                        return JSON.stringify({
-                            success: true,
-                            action: 'send_image',
-                            image_url: url,
-                            caption: label,
-                            product_name: label,
-                        })
+                        console.log(`📸 CAS2 Image extra KB trouvée pour "${product_name}" — label: "${label}"`)
+                        return JSON.stringify({ success: true, action: 'send_image', image_url: url, caption: label, product_name: label })
                     }
                 }
             }
 
             // Chercher par image_label sur l'image principale
             for (const doc of relevantDocs) {
+                console.log(`🔍 [DEBUG CAS2 main_label] image_label="${doc.image_label}" match=${doc.image_url && doc.image_label ? fuzzyIncludes(doc.image_label.toLowerCase(), searchName) : false}`)
                 if (doc.image_url && doc.image_label && fuzzyIncludes(doc.image_label.toLowerCase(), searchName)) {
-                    console.log(`📸 Image principale KB trouvée par label "${doc.image_label}" pour "${product_name}"`)
-                    return JSON.stringify({
-                        success: true,
-                        action: 'send_image',
-                        image_url: doc.image_url,
-                        caption: doc.image_label,
-                        product_name: doc.image_label,
-                    })
+                    console.log(`📸 CAS2 Image principale KB par label "${doc.image_label}" pour "${product_name}"`)
+                    return JSON.stringify({ success: true, action: 'send_image', image_url: doc.image_url, caption: doc.image_label, product_name: doc.image_label })
                 }
             }
 
@@ -102,36 +104,32 @@ async function handleSendImage(args, products, relevantDocs, userMessage) {
             )
             if (kbDoc) {
                 const hasMultipleImages = kbDoc.image_label || (Array.isArray(kbDoc.extra_image_urls) && kbDoc.extra_image_urls.length > 0)
+                console.log(`🔍 [DEBUG CAS2 fallback contenu] kbDoc trouvé, hasMultipleImages=${hasMultipleImages}`)
                 if (!hasMultipleImages) {
-                    console.log(`📸 Image principale KB trouvée pour "${product_name}"`)
-                    return JSON.stringify({
-                        success: true,
-                        action: 'send_image',
-                        image_url: kbDoc.image_url,
-                        caption: `Voici ${product_name} !`,
-                        product_name: product_name,
-                    })
+                    console.log(`📸 CAS2 fallback contenu pour "${product_name}"`)
+                    return JSON.stringify({ success: true, action: 'send_image', image_url: kbDoc.image_url, caption: `Voici ${product_name} !`, product_name: product_name })
                 }
             }
         }
 
         // Cas 2b : Matching sur le message utilisateur (filet de sécurité)
-        // L'IA peut avoir appelé avec product_name="Robe Élégance" (nom catalogue)
-        // au lieu du label KB — on cherche dans les labels KB via le message original
         if (userMessage && relevantDocs && relevantDocs.length > 0) {
             const msgLower = userMessage.toLowerCase()
+            console.log(`🔍 [DEBUG CAS2b] msgLower="${msgLower}"`)
             for (const doc of relevantDocs) {
                 const extras = Array.isArray(doc.extra_image_urls) ? doc.extra_image_urls : []
                 for (const item of extras) {
                     const url = typeof item === 'string' ? item : item?.url
                     const label = typeof item === 'string' ? null : item?.label
+                    console.log(`🔍 [DEBUG CAS2b extra] label="${label}" match=${url && label ? fuzzyIncludes(msgLower, label.toLowerCase()) : false}`)
                     if (url && label && fuzzyIncludes(msgLower, label.toLowerCase())) {
-                        console.log(`📸 Image KB trouvée via message utilisateur — label: "${label}"`)
+                        console.log(`📸 CAS2b Image KB via userMessage — label: "${label}"`)
                         return JSON.stringify({ success: true, action: 'send_image', image_url: url, caption: label, product_name: label })
                     }
                 }
+                console.log(`🔍 [DEBUG CAS2b main] image_label="${doc.image_label}" match=${doc.image_url && doc.image_label ? fuzzyIncludes(msgLower, doc.image_label.toLowerCase()) : false}`)
                 if (doc.image_url && doc.image_label && fuzzyIncludes(msgLower, doc.image_label.toLowerCase())) {
-                    console.log(`📸 Image principale KB via message utilisateur — label: "${doc.image_label}"`)
+                    console.log(`📸 CAS2b Image principale KB via userMessage — label: "${doc.image_label}"`)
                     return JSON.stringify({ success: true, action: 'send_image', image_url: doc.image_url, caption: doc.image_label, product_name: doc.image_label })
                 }
             }
