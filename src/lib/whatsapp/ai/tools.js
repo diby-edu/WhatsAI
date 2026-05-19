@@ -29,7 +29,7 @@ const {
 // ═══════════════════════════════════════════════════════════════
 
 async function handleToolCall(toolCall, agentId, customerPhone, products, conversationId, supabase, context = {}) {
-    const { relevantDocs } = context
+    const { relevantDocs, userMessage } = context
     const functionName = toolCall.function.name
     let args = {}
 
@@ -54,7 +54,7 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
             return await handleCreateBooking(args, agentId, products, conversationId, supabase)
 
         case 'send_image':
-            return await handleSendImage(args, products, relevantDocs)
+            return await handleSendImage(args, products, relevantDocs, userMessage)
 
         case 'create_restaurant_checkout':
             return await handleCreateRestaurantCheckout(args, agentId, products, conversationId, supabase)

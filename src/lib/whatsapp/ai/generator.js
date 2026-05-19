@@ -587,7 +587,7 @@ async function generateAIResponse(options, dependencies) {
                     products,
                     conversationId,
                     supabase,
-                    { relevantDocs }
+                    { relevantDocs, userMessage }
                 )
 
                 // Collecter les actions d'images pour envoi réel
