@@ -68,11 +68,12 @@ IMPORTANT - VARIANTES :
         type: 'function',
         function: {
             name: 'send_image',
-            description: 'Envoyer l\'image d\'un produit au client.',
+            description: 'Envoyer l\'image d\'un produit ou d\'un élément de la base de connaissances au client.',
             parameters: {
                 type: 'object',
                 properties: {
-                    product_name: { type: 'string', description: 'Nom du produit' },
+                    product_name: { type: 'string', description: 'Nom du produit ou label de l\'image à envoyer' },
+                    image_url: { type: 'string', description: 'URL directe de l\'image (à utiliser quand l\'image vient de la base de connaissances)' },
                     selected_variants: {
                         type: 'object',
                         description: 'Variantes sélectionnées. Ex: {"Couleur": "Rouge"}',
