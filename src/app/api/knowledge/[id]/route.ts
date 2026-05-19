@@ -82,7 +82,7 @@ export async function PATCH(
     }
 
     const body = await request.json()
-    const { title, content, image_url, extra_image_urls } = body
+    const { title, content, image_url, image_label, extra_image_urls } = body
 
     const { data: existingRows, error: existingError } = await supabase
         .from('knowledge_base')
@@ -191,6 +191,7 @@ export async function PATCH(
     // Images sur tous les chunks pour que le RAG les trouve peu importe le segment
     const imageUpdates: Record<string, unknown> = {}
     if (image_url !== undefined) imageUpdates.image_url = image_url || null
+    if (image_label !== undefined) imageUpdates.image_label = image_label || null
     if (extra_image_urls !== undefined) imageUpdates.extra_image_urls = extra_image_urls
 
     if (Object.keys(imageUpdates).length > 0) {
