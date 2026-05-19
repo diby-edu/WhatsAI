@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { exec } from 'child_process'
-import { promisify } from 'util'
+import { spawn } from 'child_process'
 import crypto from 'crypto'
-
-const execAsync = promisify(exec)
 
 // Secret for GitHub webhook verification - MUST be configured
 const DEPLOY_SECRET = process.env.DEPLOY_SECRET
@@ -56,17 +53,13 @@ export async function POST(request: NextRequest) {
         console.log('🚀 Starting automatic deployment...')
         console.log('📝 Commit:', data.head_commit?.message || 'Unknown')
 
-        // Execute the update script
-        // Note: This runs in the background so the webhook returns quickly
-        exec('/root/WhatsAI/deploy.sh', (error, stdout, stderr) => {
-            if (error) {
-                console.error('❌ Deployment error:', error)
-                console.error('stderr:', stderr)
-            } else {
-                console.log('✅ Deployment completed!')
-                console.log('stdout:', stdout)
-            }
+        // Execute the update script in a fully detached process so it
+        // survives when pm2 reloads this web app mid-deploy.
+        const child = spawn('/root/WhatsAI/deploy.sh', [], {
+            detached: true,
+            stdio: 'ignore',
         })
+        child.unref()
 
         return NextResponse.json({
             message: 'Deployment started',
