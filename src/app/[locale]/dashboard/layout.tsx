@@ -121,7 +121,6 @@ export default function DashboardLayout({
         { href: '/dashboard/billing', label: t('billing'), icon: CreditCard },
         { href: '/dashboard/developers', label: 'API', icon: Code2 },
         { href: '/dashboard/settings', label: t('settings'), icon: Settings },
-        { href: '/dashboard/help', label: t('help'), icon: HelpCircle },
     ]
 
     useEffect(() => {
@@ -769,13 +768,13 @@ export default function DashboardLayout({
                                         style={{
                                             display: 'flex', alignItems: 'center',
                                             gap: 10, padding: collapsed ? '6px' : '6px 10px',
-                                            borderRadius: 8, color: '#4b5563', fontWeight: 500, fontSize: 13,
+                                            borderRadius: 8, color: '#4b5563', fontWeight: 500, fontSize: 14,
                                             cursor: 'not-allowed', userSelect: 'none',
                                             justifyContent: collapsed ? 'center' : 'space-between',
                                         }}
                                     >
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                            <link.icon style={{ width: 17, height: 17, flexShrink: 0 }} />
+                                            <link.icon style={{ width: 18, height: 18, flexShrink: 0 }} />
                                             {!collapsed && <span>{link.label}</span>}
                                         </div>
                                         {!collapsed && (
@@ -799,7 +798,7 @@ export default function DashboardLayout({
                                     style={{
                                         display: 'flex', alignItems: 'center',
                                         gap: 10, padding: collapsed ? '6px' : '6px 10px',
-                                        borderRadius: 8, fontSize: 13,
+                                        borderRadius: 8, fontSize: 14,
                                         color: isActive ? '#34d399' : link.featured ? '#e2e8f0' : '#94a3b8',
                                         fontWeight: link.featured ? 600 : 500,
                                         textDecoration: 'none',
@@ -810,28 +809,11 @@ export default function DashboardLayout({
                                         paddingLeft: link.featured && !collapsed ? 8 : undefined,
                                     }}
                                 >
-                                    <link.icon style={{ width: 17, height: 17, flexShrink: 0 }} />
+                                    <link.icon style={{ width: 18, height: 18, flexShrink: 0 }} />
                                     {!collapsed && <span>{link.label}</span>}
                                 </Link>
                             )
                         })}
-                        {/* Déconnexion */}
-                        <button
-                            onClick={handleLogout}
-                            title={collapsed ? t('logout') : undefined}
-                            style={{
-                                display: 'flex', alignItems: 'center', gap: 10,
-                                padding: collapsed ? '6px' : '6px 10px',
-                                borderRadius: 8, color: '#f87171', fontWeight: 500, fontSize: 13,
-                                backgroundColor: 'transparent', border: 'none',
-                                cursor: 'pointer',
-                                justifyContent: collapsed ? 'center' : 'flex-start',
-                                width: '100%', marginTop: 2
-                            }}
-                        >
-                            <LogOut style={{ width: 17, height: 17, flexShrink: 0 }} />
-                            {!collapsed && <span>{t('logout')}</span>}
-                        </button>
                     </nav>
                 </aside>
             )}
@@ -1042,6 +1024,32 @@ export default function DashboardLayout({
                                 )}
                             </AnimatePresence>
                         </div>
+
+                        {/* Aide */}
+                        <Link href="/dashboard/help" title={t('help')} style={{ textDecoration: 'none', flexShrink: 0 }}>
+                            <div style={{
+                                padding: 10, borderRadius: 12,
+                                backgroundColor: '#1e293b',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                cursor: 'pointer'
+                            }}>
+                                <HelpCircle style={{ width: 20, height: 20, color: '#94a3b8' }} />
+                            </div>
+                        </Link>
+
+                        {/* Déconnexion */}
+                        <button
+                            onClick={handleLogout}
+                            title={t('logout')}
+                            style={{
+                                padding: 10, borderRadius: 12,
+                                backgroundColor: '#1e293b', border: 'none',
+                                cursor: 'pointer', flexShrink: 0,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center'
+                            }}
+                        >
+                            <LogOut style={{ width: 20, height: 20, color: '#f87171' }} />
+                        </button>
 
                         {/* User Avatar → Settings */}
                         <Link href="/dashboard/settings" style={{ textDecoration: 'none', flexShrink: 0 }}>
