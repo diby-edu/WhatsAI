@@ -490,7 +490,7 @@ async function generateAIResponse(options, dependencies) {
         // Injection dynamique si le message contient une demande d'image
         const hasImageKeyword = /\b(montre[z]?|photo[s]?|image[s]?|voir|affiche[z]?)\b/i.test(userMessage || '')
         if (hasImageKeyword) {
-            systemPrompt += '\n\n🚨 RAPPEL URGENT IMAGE : Ce message contient une demande d\'image. Règle STRICTE : appelle send_image UNIQUEMENT pour le(s) produit(s) où "image", "photo" ou "montrez" est explicitement demandé. Pour les questions "prix [produit]" → réponds UNIQUEMENT avec le prix en texte, AUCUNE image.'
+            systemPrompt += '\n\n🚨 RAPPEL URGENT IMAGE : Ce message contient une demande d\'image. Règle STRICTE : appelle send_image UNIQUEMENT pour le(s) produit(s) où "image", "photo" ou "montrez" est explicitement demandé. Pour les questions "prix [produit]" → réponds UNIQUEMENT avec le prix en texte, AUCUNE image.\n⚠️ RÈGLE CRITIQUE KB IMAGES : Si la section INFOS UTILES contient [IMAGES DISPONIBLES], tu DOIS utiliser le product_name ET le image_url EXACTS listés dans cette section — jamais le nom du produit catalogue. Ex : client demande "robe verte" → KB liste product_name="robe verte" image_url="https://..." → appelle send_image(product_name="robe verte", image_url="https://...").'
         }
 
         console.log(`📝 Prompt size: ${systemPrompt.length} chars`)
