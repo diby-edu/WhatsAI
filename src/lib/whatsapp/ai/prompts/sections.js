@@ -150,15 +150,14 @@ function buildKnowledgeSection(relevantDocs, maxDocs = null) {
 
         if (allImages.length === 1) {
             const { url, label } = allImages[0]
-            const desc = label ? `(${label}) ` : ''
-            line += `\n  [IMAGE DISPONIBLE ${desc}: ${url}] — Si le client demande une photo ou une image de cet élément, appelle send_image avec cette URL et caption = "${label || 'titre de l\'élément'}".`
+            const desc = label || 'image'
+            line += `\n  [IMAGE DISPONIBLE] — Si le client demande une photo, appelle send_image(product_name="${desc}", image_url="${url}").`
         } else if (allImages.length > 1) {
-            line += `\n  [${allImages.length} IMAGES DISPONIBLES] — Si le client demande des photos/images, envoie uniquement celle(s) correspondant à sa demande avec send_image :`
+            line += `\n  [${allImages.length} IMAGES DISPONIBLES] — Si le client demande une photo, appelle send_image avec product_name = label exact et image_url = URL correspondante. Envoie UNIQUEMENT l'image demandée :`
             allImages.forEach(({ url, label }, i) => {
                 const desc = label ? label : `Image ${i + 1}`
-                line += `\n    - ${desc}: ${url}`
+                line += `\n    - product_name="${desc}" → image_url="${url}"`
             })
-            line += `\n  (caption = label de l'image pour chaque envoi)`
         }
         return line
     }).join('\n\n')

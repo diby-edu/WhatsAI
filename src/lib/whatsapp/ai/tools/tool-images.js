@@ -56,9 +56,30 @@ async function handleSendImage(args, products, relevantDocs) {
             })
         }
 
-        // Cas 2 : Chercher dans la KB (mode support) — fuzzy match pour tolérer les fautes
+        // Cas 2 : Chercher dans la KB (mode support) — fuzzy match label ou contenu
         if (relevantDocs && relevantDocs.length > 0 && product_name) {
             const searchName = product_name.toLowerCase()
+
+            // Chercher d'abord dans les extra_image_urls avec labels
+            for (const doc of relevantDocs) {
+                const extras = Array.isArray(doc.extra_image_urls) ? doc.extra_image_urls : []
+                for (const item of extras) {
+                    const url = typeof item === 'string' ? item : item?.url
+                    const label = typeof item === 'string' ? null : item?.label
+                    if (url && label && fuzzyIncludes(label.toLowerCase(), searchName)) {
+                        console.log(`📸 Image extra KB trouvée pour "${product_name}" — label: "${label}"`)
+                        return JSON.stringify({
+                            success: true,
+                            action: 'send_image',
+                            image_url: url,
+                            caption: label,
+                            product_name: label,
+                        })
+                    }
+                }
+            }
+
+            // Chercher dans l'image principale (match sur titre ou contenu)
             const kbDoc = relevantDocs.find(d =>
                 d.image_url && (
                     fuzzyIncludes(d.content.toLowerCase(), searchName) ||
@@ -66,7 +87,7 @@ async function handleSendImage(args, products, relevantDocs) {
                 )
             )
             if (kbDoc) {
-                console.log(`📸 Image trouvée dans KB pour "${product_name}"`)
+                console.log(`📸 Image principale KB trouvée pour "${product_name}"`)
                 return JSON.stringify({
                     success: true,
                     action: 'send_image',
