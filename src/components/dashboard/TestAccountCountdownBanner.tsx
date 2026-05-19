@@ -47,8 +47,9 @@ export function TestAccountCountdownBanner({
     const [isMobile, setIsMobile] = useState(false)
     const [expanded, setExpanded] = useState(false)
     const [collapsedPC, setCollapsedPC] = useState(() => {
-        if (typeof window === 'undefined') return false
-        return localStorage.getItem('trial_banner_collapsed') === '1'
+        if (typeof window === 'undefined') return true
+        const stored = localStorage.getItem('trial_banner_collapsed')
+        return stored === null ? true : stored === '1'
     })
 
     const isPaidGraceBanner = bannerMode === 'frozen_grace'

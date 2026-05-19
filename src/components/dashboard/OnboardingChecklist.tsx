@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { CheckCircle2, Circle, ChevronDown, ChevronUp, ExternalLink, X } from 'lucide-react'
+import { CheckCircle2, Circle, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react'
 import Link from 'next/link'
 import { useLocale } from 'next-intl'
 
@@ -60,13 +60,9 @@ export default function OnboardingChecklist() {
     const [steps, setSteps] = useState<Step[]>([])
     const [allDone, setAllDone] = useState(false)
     const [loading, setLoading] = useState(true)
-    const [collapsed, setCollapsed] = useState(false)
-    const [dismissed, setDismissed] = useState(false)
     const [expandedKey, setExpandedKey] = useState<string | null>(null)
 
     useEffect(() => {
-        const isDismissed = localStorage.getItem('onboarding_dismissed') === 'true'
-        if (isDismissed) { setDismissed(true); setLoading(false); return }
         fetch('/api/dashboard/onboarding')
             .then(r => r.json())
             .then(d => {
@@ -78,12 +74,7 @@ export default function OnboardingChecklist() {
             .finally(() => setLoading(false))
     }, [])
 
-    const dismiss = () => {
-        localStorage.setItem('onboarding_dismissed', 'true')
-        setDismissed(true)
-    }
-
-    if (loading || dismissed || allDone) return null
+    if (loading || allDone) return null
 
     const doneCount = steps.filter(s => s.done).length
     const progress = steps.length > 0 ? Math.round((doneCount / steps.length) * 100) : 0
@@ -103,7 +94,7 @@ export default function OnboardingChecklist() {
             }}
         >
             {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: collapsed ? 0 : 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <div style={{
                         width: 40, height: 40, borderRadius: 12,
@@ -121,47 +112,29 @@ export default function OnboardingChecklist() {
                         </div>
                     </div>
                 </div>
-                <div style={{ display: 'flex', gap: 8 }}>
-                    <button
-                        onClick={() => setCollapsed(!collapsed)}
-                        style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', padding: 4 }}
-                    >
-                        {collapsed ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
-                    </button>
-                    <button
-                        onClick={dismiss}
-                        title="Ne plus afficher"
-                        style={{ background: 'none', border: 'none', color: '#475569', cursor: 'pointer', padding: 4 }}
-                    >
-                        <X size={16} />
-                    </button>
-                </div>
             </div>
 
             {/* Progress bar */}
-            {!collapsed && (
-                <div style={{ marginBottom: 20 }}>
-                    <div style={{ height: 4, background: 'rgba(148, 163, 184, 0.1)', borderRadius: 4, overflow: 'hidden' }}>
-                        <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ width: `${progress}%` }}
-                            transition={{ duration: 0.6, ease: 'easeOut' }}
-                            style={{ height: '100%', background: 'linear-gradient(90deg, #3b82f6, #10b981)', borderRadius: 4 }}
-                        />
-                    </div>
-                    <div style={{ color: '#64748b', fontSize: 11, marginTop: 4 }}>{progress}% complété</div>
+            <div style={{ marginBottom: 20 }}>
+                <div style={{ height: 4, background: 'rgba(148, 163, 184, 0.1)', borderRadius: 4, overflow: 'hidden' }}>
+                    <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${progress}%` }}
+                        transition={{ duration: 0.6, ease: 'easeOut' }}
+                        style={{ height: '100%', background: 'linear-gradient(90deg, #3b82f6, #10b981)', borderRadius: 4 }}
+                    />
                 </div>
-            )}
+                <div style={{ color: '#64748b', fontSize: 11, marginTop: 4 }}>{progress}% complété</div>
+            </div>
 
             {/* Steps */}
             <AnimatePresence>
-                {!collapsed && (
-                    <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
-                    >
+                <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+                >
                         {steps.map((step, i) => {
                             const config = STEP_CONFIG[step.key]
                             if (!config) return null
@@ -259,8 +232,7 @@ export default function OnboardingChecklist() {
                                 </div>
                             )
                         })}
-                    </motion.div>
-                )}
+                </motion.div>
             </AnimatePresence>
         </motion.div>
     )
