@@ -55,6 +55,7 @@ export default function AdminSubscriptionsPage() {
     // Filtres vérification paiements
     const [verifySearch, setVerifySearch] = useState('')
     const [verifyStatusFilter, setVerifyStatusFilter] = useState('all')
+    const [hideAbandoned, setHideAbandoned] = useState(true)
 
     useEffect(() => {
         const check = () => setIsMobile(window.innerWidth < 640)
@@ -241,8 +242,11 @@ export default function AdminSubscriptionsPage() {
             (p.profiles?.email || p.user_email || '').toLowerCase().includes(verifySearch.toLowerCase()) ||
             (p.profiles?.full_name || p.full_name || '').toLowerCase().includes(verifySearch.toLowerCase())
         const matchStatus = verifyStatusFilter === 'all' || p.status === verifyStatusFilter
-        return matchSearch && matchStatus
+        // Masquer les paiements abandonnés (jamais traités par l'agrégateur)
+        const matchAbandoned = !hideAbandoned || p.webhook_received === true || p.status === 'pending' || p.status === 'processing' || p.status === 'completed'
+        return matchSearch && matchStatus && matchAbandoned
     })
+    const abandonedCount = allPayments.filter((p: any) => !p.webhook_received && p.status === 'failed').length
 
     if (loading) {
         return (
@@ -348,6 +352,12 @@ export default function AdminSubscriptionsPage() {
                         <option value="processing">En cours</option>
                         <option value="failed">Échoués</option>
                     </select>
+                    <button
+                        onClick={() => setHideAbandoned(v => !v)}
+                        title={hideAbandoned ? `Afficher les ${abandonedCount} paiements abandonnés` : 'Masquer les paiements abandonnés'}
+                        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', borderRadius: 10, border: `1px solid ${hideAbandoned ? 'rgba(251,191,36,0.3)' : 'rgba(148,163,184,0.1)'}`, background: hideAbandoned ? 'rgba(251,191,36,0.08)' : 'rgba(30,41,59,0.5)', color: hideAbandoned ? '#fbbf24' : '#94a3b8', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                        {hideAbandoned ? `Abandonnés masqués (${abandonedCount})` : 'Masquer abandonnés'}
+                    </button>
                 </div>
             ) : activeTab === 'subscriptions' ? (
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>

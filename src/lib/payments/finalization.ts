@@ -26,6 +26,7 @@ export type PaymentRow = {
     metadata?: unknown
     payment_channel?: string | null
     payment_channel_detail?: string | null
+    webhook_received?: boolean | null
 }
 
 type SupabaseClientLike = any
@@ -450,6 +451,11 @@ export async function finalizePaymentRecord(
     providerPayload?: unknown
 ): Promise<PaymentFinalizationResult> {
     const providerStatus = normalizeProviderStatus(providerStatusInput)
+
+    // Marquer que l'agrégateur a bien traité ce paiement (webhook reçu)
+    if (!payment.webhook_received) {
+        await adminSupabase.from('payments').update({ webhook_received: true }).eq('id', payment.id)
+    }
 
     if (providerStatus === 'ACCEPTED') {
         if (payment.status === 'completed') {

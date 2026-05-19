@@ -46,6 +46,10 @@ export function TestAccountCountdownBanner({
     const [remainingMs, setRemainingMs] = useState(() => deadlineMs ? Math.max(0, deadlineMs - Date.now()) : 0)
     const [isMobile, setIsMobile] = useState(false)
     const [expanded, setExpanded] = useState(false)
+    const [collapsedPC, setCollapsedPC] = useState(() => {
+        if (typeof window === 'undefined') return false
+        return localStorage.getItem('trial_banner_collapsed') === '1'
+    })
 
     const isPaidGraceBanner = bannerMode === 'frozen_grace'
     const isPaidExpiredBanner = bannerMode === 'inactive'
@@ -247,51 +251,48 @@ export function TestAccountCountdownBanner({
         )
     }
 
+    const togglePC = () => {
+        const next = !collapsedPC
+        setCollapsedPC(next)
+        localStorage.setItem('trial_banner_collapsed', next ? '1' : '0')
+    }
+
     return (
-        <div
-            style={{
-                marginBottom: 20,
-                padding: 20,
-                borderRadius: 18,
-                border: `1px solid ${borderColor}`,
-                background: bg,
-                boxShadow: isAlert ? '0 10px 30px rgba(127, 29, 29, 0.18)' : '0 10px 30px rgba(120, 53, 15, 0.16)',
-            }}
-        >
-            <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+        <div style={{ marginBottom: 20, borderRadius: 18, border: `1px solid ${borderColor}`, background: bg, boxShadow: isAlert ? '0 10px 30px rgba(127, 29, 29, 0.18)' : '0 10px 30px rgba(120, 53, 15, 0.16)', overflow: 'hidden' }}>
+            {/* Header — toujours visible */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: collapsedPC ? '14px 20px' : '20px 20px 0 20px', cursor: 'pointer' }} onClick={togglePC}>
                 <div style={{ width: 46, height: 46, borderRadius: 14, background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    {isAlert
-                        ? <ShieldAlert style={{ width: 22, height: 22, color: accentColor }} />
-                        : <Clock4 style={{ width: 22, height: 22, color: accentColor }} />}
+                    {isAlert ? <ShieldAlert style={{ width: 22, height: 22, color: accentColor }} /> : <Clock4 style={{ width: 22, height: 22, color: accentColor }} />}
                 </div>
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <h3 style={{ margin: 0, color: 'white', fontSize: 16, fontWeight: 700 }}>{title}</h3>
+                    <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 12, fontWeight: 700, color: accentColor, background: badgeBg }}>{badgeLabel}</span>
+                    {collapsedPC && shouldRenderCountdown && (
+                        <span style={{ color: accentColor, fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{countdownInline}</span>
+                    )}
+                </div>
+                {collapsedPC
+                    ? <Link href="/dashboard/billing" onClick={e => e.stopPropagation()} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 16px', borderRadius: 8, background: ctaBg, color: 'white', fontWeight: 700, fontSize: 13, textDecoration: 'none', flexShrink: 0, boxShadow: ctaShadow }}>{ctaLabel} <ArrowRight style={{ width: 14, height: 14 }} /></Link>
+                    : null}
+                {collapsedPC
+                    ? <ChevronDown style={{ width: 18, height: 18, color: '#64748b', flexShrink: 0 }} />
+                    : <ChevronUp style={{ width: 18, height: 18, color: '#64748b', flexShrink: 0 }} />}
+            </div>
 
-                <div style={{ flex: 1, minWidth: 250 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
-                        <h3 style={{ margin: 0, color: 'white', fontSize: 18, fontWeight: 700 }}>{title}</h3>
-                        <span style={{ padding: '4px 10px', borderRadius: 999, fontSize: 12, fontWeight: 700, color: accentColor, background: badgeBg }}>
-                            {badgeLabel}
-                        </span>
-                    </div>
-
+            {/* Corps — visible seulement si déplié */}
+            {!collapsedPC && (
+                <div style={{ padding: '12px 20px 20px 20px' }}>
                     <p style={{ margin: '0 0 12px 0', color: '#e2e8f0', lineHeight: 1.6, fontSize: 14 }}>{description}</p>
-
                     {creditsSubMessage && (
                         <p style={{ margin: '0 0 10px 0', color: '#fbbf24', lineHeight: 1.5, fontSize: 13, fontStyle: 'italic' }}>{creditsSubMessage}</p>
                     )}
-
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
                         <AlertTriangle style={{ width: 16, height: 16, color: accentColor }} />
                         <span style={{ color: '#cbd5e1', fontSize: 13 }}>{actionLine}</span>
                     </div>
-
-                    <Link
-                        href="/dashboard/billing"
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 20px', borderRadius: 10, background: ctaBg, color: 'white', fontWeight: 700, fontSize: 14, textDecoration: 'none', marginBottom: 16, boxShadow: ctaShadow }}
-                    >
-                        {ctaLabel}
-                        <ArrowRight style={{ width: 16, height: 16 }} />
+                    <Link href="/dashboard/billing" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 20px', borderRadius: 10, background: ctaBg, color: 'white', fontWeight: 700, fontSize: 14, textDecoration: 'none', marginBottom: shouldRenderCountdown ? 16 : 0, boxShadow: ctaShadow }}>
+                        {ctaLabel} <ArrowRight style={{ width: 16, height: 16 }} />
                     </Link>
-
                     {shouldRenderCountdown && (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))', gap: 10, maxWidth: 460 }}>
                             {[
@@ -301,16 +302,14 @@ export function TestAccountCountdownBanner({
                                 { label: t('countdownSeconds'), value: countdown.seconds },
                             ].map((item) => (
                                 <div key={item.label} style={{ padding: '12px 10px', borderRadius: 14, background: 'rgba(15, 23, 42, 0.55)', border: '1px solid rgba(148, 163, 184, 0.12)', textAlign: 'center' }}>
-                                    <div style={{ color: 'white', fontSize: 24, fontWeight: 800, lineHeight: 1 }}>
-                                        {String(item.value).padStart(2, '0')}
-                                    </div>
+                                    <div style={{ color: 'white', fontSize: 24, fontWeight: 800, lineHeight: 1 }}>{String(item.value).padStart(2, '0')}</div>
                                     <div style={{ color: '#94a3b8', fontSize: 11, marginTop: 6 }}>{item.label}</div>
                                 </div>
                             ))}
                         </div>
                     )}
                 </div>
-            </div>
+            )}
         </div>
     )
 }
