@@ -44,6 +44,7 @@ export async function GET(request: NextRequest) {
                 admin_notes,
                 created_at,
                 completed_at,
+                webhook_received,
                 profiles (
                     email,
                     full_name
@@ -79,6 +80,7 @@ export async function GET(request: NextRequest) {
             updated_at: p.completed_at,
             email: p.profiles?.email || p.customer_email || 'N/A',
             full_name: p.profiles?.full_name || 'N/A',
+            webhook_received: p.webhook_received ?? false,
             profiles: p.profiles
         }))
 
