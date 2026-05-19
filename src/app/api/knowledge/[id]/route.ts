@@ -128,13 +128,9 @@ export async function PATCH(
                 chunk_index: index,
             }
 
-            if (index === 0) {
-                payload.image_url = resolvedImageUrl
-                payload.extra_image_urls = resolvedExtraImages
-            } else {
-                payload.image_url = null
-                payload.extra_image_urls = []
-            }
+            // Images sur tous les chunks pour que le RAG les trouve peu importe le segment
+            payload.image_url = resolvedImageUrl
+            payload.extra_image_urls = resolvedExtraImages
 
             const { error: updateError } = await supabase
                 .from('knowledge_base')
@@ -192,16 +188,15 @@ export async function PATCH(
         if (titleError) return errorResponse('Erreur mise a jour titre', 500)
     }
 
-    // Keep image metadata on chunk 0 only.
-    const chunk0Updates: Record<string, unknown> = {}
-    if (image_url !== undefined) chunk0Updates.image_url = image_url || null
-    if (extra_image_urls !== undefined) chunk0Updates.extra_image_urls = extra_image_urls
+    // Images sur tous les chunks pour que le RAG les trouve peu importe le segment
+    const imageUpdates: Record<string, unknown> = {}
+    if (image_url !== undefined) imageUpdates.image_url = image_url || null
+    if (extra_image_urls !== undefined) imageUpdates.extra_image_urls = extra_image_urls
 
-    if (Object.keys(chunk0Updates).length > 0) {
+    if (Object.keys(imageUpdates).length > 0) {
         const { error } = await supabase.from('knowledge_base')
-            .update(chunk0Updates)
+            .update(imageUpdates)
             .eq('source_id', id)
-            .eq('chunk_index', 0)
             .eq('user_id', user.id)
         if (error) return errorResponse('Erreur mise à jour', 500)
     }

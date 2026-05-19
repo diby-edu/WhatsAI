@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use, useRef } from 'react'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Plus, Trash2, FileText, Loader2, Upload, Link2, AlignLeft, Eye, X, ChevronDown, ChevronUp, ImageIcon, Pencil, QrCode } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, FileText, Loader2, Upload, Link2, AlignLeft, Eye, X, ChevronDown, ChevronUp, ImageIcon, Pencil, QrCode, Images } from 'lucide-react'
 import Link from 'next/link'
 import { createBrowserClient } from '@supabase/ssr'
 
@@ -56,12 +56,20 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
     const [submitting, setSubmitting] = useState(false)
     const [importError, setImportError] = useState<string | null>(null)
 
+    const MAX_EXTRA_IMAGES = 10
+
     // Text mode (add)
-    const [newDoc, setNewDoc] = useState({ title: '', content: '', image_url: '', extra_image_urls: [] as ExtraImage[] })
+    const [newDoc, setNewDoc] = useState({ title: '', content: '' })
 
     // Edit mode
     const [editingDoc, setEditingDoc] = useState<Document | null>(null)
-    const [editData, setEditData] = useState({ title: '', content: '', image_url: '', extra_image_urls: [] as ExtraImage[] })
+    const [editData, setEditData] = useState({ title: '', content: '' })
+
+    // Images modal
+    const [imageModalDoc, setImageModalDoc] = useState<Document | null>(null)
+    const [imageModalData, setImageModalData] = useState({ image_url: '', extra_image_urls: [] as ExtraImage[] })
+    const [imageModalSaving, setImageModalSaving] = useState(false)
+    const [imageModalUploading, setImageModalUploading] = useState(false)
     const [loadingEdit, setLoadingEdit] = useState(false)
     const [editSubmitting, setEditSubmitting] = useState(false)
     const [editError, setEditError] = useState<string | null>(null)
@@ -72,12 +80,9 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
     const fileInputRef = useRef<HTMLInputElement>(null)
 
     // Image upload
-    const [imageUploading, setImageUploading] = useState(false)
-    const [editImageUploading, setEditImageUploading] = useState(false)
-    const imageUploadRef = useRef<HTMLInputElement>(null)
-    const editImageUploadRef = useRef<HTMLInputElement>(null)
-    const extraImageUploadRef = useRef<HTMLInputElement>(null)
-    const editExtraImageUploadRef = useRef<HTMLInputElement>(null)
+    const [imageUploading] = useState(false)
+    const imageModalMainRef = useRef<HTMLInputElement>(null)
+    const imageModalExtraRef = useRef<HTMLInputElement>(null)
 
     const supabase = createBrowserClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -99,32 +104,53 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
         return data.publicUrl
     }
 
-    const uploadImageToStorage = async (file: File) => {
-        setImageUploading(true)
+    const uploadImageModalMain = async (file: File) => {
+        setImageModalUploading(true)
         const url = await uploadImage(file)
-        if (url) setNewDoc(prev => ({ ...prev, image_url: url }))
-        setImageUploading(false)
+        if (url) setImageModalData(prev => ({ ...prev, image_url: url }))
+        setImageModalUploading(false)
     }
 
-    const uploadExtraImageToStorage = async (file: File) => {
-        setImageUploading(true)
+    const uploadImageModalExtra = async (file: File) => {
+        setImageModalUploading(true)
         const url = await uploadImage(file)
-        if (url) setNewDoc(prev => ({ ...prev, extra_image_urls: [...prev.extra_image_urls, { url, label: '' }] }))
-        setImageUploading(false)
+        if (url) setImageModalData(prev => ({ ...prev, extra_image_urls: [...prev.extra_image_urls, { url, label: '' }] }))
+        setImageModalUploading(false)
     }
 
-    const uploadEditImageToStorage = async (file: File) => {
-        setEditImageUploading(true)
-        const url = await uploadImage(file)
-        if (url) setEditData(prev => ({ ...prev, image_url: url }))
-        setEditImageUploading(false)
+    const handleOpenImagesModal = (doc: Document) => {
+        setImageModalDoc(doc)
+        setImageModalData({
+            image_url: doc.image_url || '',
+            extra_image_urls: Array.isArray(doc.extra_image_urls)
+                ? doc.extra_image_urls.map((item: string | { url: string; label: string }) =>
+                    typeof item === 'string' ? { url: item, label: '' } : item
+                )
+                : []
+        })
     }
 
-    const uploadEditExtraImageToStorage = async (file: File) => {
-        setEditImageUploading(true)
-        const url = await uploadImage(file)
-        if (url) setEditData(prev => ({ ...prev, extra_image_urls: [...prev.extra_image_urls, { url, label: '' }] }))
-        setEditImageUploading(false)
+    const handleSaveImages = async () => {
+        if (!imageModalDoc) return
+        setImageModalSaving(true)
+        try {
+            await fetch(`/api/knowledge/${imageModalDoc.source_id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    image_url: imageModalData.image_url || null,
+                    extra_image_urls: imageModalData.extra_image_urls.length > 0 ? imageModalData.extra_image_urls : []
+                })
+            })
+            // Mettre à jour le document dans la liste locale
+            setDocuments(prev => prev.map(d => d.source_id === imageModalDoc.source_id
+                ? { ...d, image_url: imageModalData.image_url || null, extra_image_urls: imageModalData.extra_image_urls }
+                : d
+            ))
+            setImageModalDoc(null)
+        } finally {
+            setImageModalSaving(false)
+        }
     }
 
     // URL mode
@@ -155,7 +181,7 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
     const resetModal = () => {
         setIsAdding(false)
         setImportMode('text')
-        setNewDoc({ title: '', content: '', image_url: '', extra_image_urls: [] as ExtraImage[] })
+        setNewDoc({ title: '', content: '' })
         setPdfFile(null)
         setPdfTitle('')
         setUrlInput('')
@@ -175,9 +201,7 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
                 body: JSON.stringify({
                     agentId: id,
                     title: newDoc.title,
-                    content: newDoc.content,
-                    image_url: newDoc.image_url || null,
-                    extra_image_urls: newDoc.extra_image_urls.length > 0 ? newDoc.extra_image_urls : null
+                    content: newDoc.content
                 })
             })
             const data = await res.json()
@@ -250,16 +274,7 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
                 .map((segment: Segment) => String(segment.content || '').trim())
                 .filter(Boolean)
                 .join('\n\n')
-            setEditData({
-                title: doc.title,
-                content: mergedContent,
-                image_url: doc.image_url || '',
-                extra_image_urls: Array.isArray(doc.extra_image_urls)
-                    ? doc.extra_image_urls.map((item: string | { url: string; label: string }) =>
-                        typeof item === 'string' ? { url: item, label: '' } : item
-                    )
-                    : []
-            })
+            setEditData({ title: doc.title, content: mergedContent })
         } catch (e) {
             setEditError('Impossible de charger le document')
         } finally {
@@ -280,9 +295,7 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     title: editData.title,
-                    content: editData.content,
-                    image_url: editData.image_url || null,
-                    extra_image_urls: editData.extra_image_urls.length > 0 ? editData.extra_image_urls : []
+                    content: editData.content
                 })
             })
             if (res.ok) {
@@ -342,84 +355,6 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
         </button>
     )
 
-    // Bloc réutilisable pour la section images (ajout/édition) — sans barre URL
-    const ImageSection = ({
-        imageUrl, setImageUrl, extraUrls, setExtraUrls,
-        mainUploadRef, extraUploadRef, uploading,
-        onMainUpload, onExtraUpload
-    }: {
-        imageUrl: string, setImageUrl: (v: string) => void,
-        extraUrls: ExtraImage[], setExtraUrls: (v: ExtraImage[]) => void,
-        mainUploadRef: React.RefObject<HTMLInputElement | null>,
-        extraUploadRef: React.RefObject<HTMLInputElement | null>,
-        uploading: boolean,
-        onMainUpload: (f: File) => void,
-        onExtraUpload: (f: File) => void
-    }) => (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <label style={{ color: '#94a3b8', fontSize: 13, fontWeight: 500 }}>
-                Images <span style={{ color: '#475569', fontSize: 11, fontWeight: 400 }}>(optionnel)</span>
-            </label>
-
-            {/* Image principale */}
-            <div>
-                <p style={{ color: '#64748b', fontSize: 12, marginBottom: 6 }}>Principale</p>
-                {imageUrl ? (
-                    <div style={{ position: 'relative', display: 'inline-block' }}>
-                        <img src={imageUrl} alt="Principale" style={{ width: 140, height: 100, borderRadius: 8, objectFit: 'cover', border: '1px solid #334155', display: 'block' }}
-                            onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
-                        <button type="button" onClick={() => setImageUrl('')}
-                            style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '50%', width: 22, height: 22, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
-                            <X size={12} />
-                        </button>
-                        <span style={{ position: 'absolute', bottom: 4, left: 4, background: 'rgba(0,0,0,0.65)', color: '#fff', fontSize: 9, fontWeight: 600, padding: '1px 4px', borderRadius: 3, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                            {imageUrl.split('.').pop()?.split('?')[0]?.toUpperCase() || 'IMG'}
-                        </span>
-                    </div>
-                ) : (
-                    <button type="button" onClick={() => mainUploadRef.current?.click()} disabled={uploading}
-                        style={{ width: 140, height: 100, border: '2px dashed #334155', borderRadius: 8, background: 'transparent', color: '#475569', cursor: uploading ? 'not-allowed' : 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 12 }}>
-                        {uploading ? <Loader2 size={20} className="animate-spin" color="#10b981" /> : <><ImageIcon size={20} color="#475569" /><span>Upload</span></>}
-                    </button>
-                )}
-                <input ref={mainUploadRef} type="file" accept="image/jpeg,image/png,image/gif" style={{ display: 'none' }}
-                    onChange={e => { const f = e.target.files?.[0]; if (f) onMainUpload(f) }} />
-            </div>
-
-            {/* Images supplémentaires */}
-            <div>
-                <p style={{ color: '#64748b', fontSize: 12, marginBottom: 6 }}>Supplémentaires <span style={{ color: '#475569', fontSize: 11 }}>(avec label pour que l'IA envoie la bonne)</span></p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {extraUrls.map((item, idx) => (
-                        <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#1e293b', border: '1px solid #334155', borderRadius: 10, padding: 8 }}>
-                            <div style={{ position: 'relative', flexShrink: 0 }}>
-                                <img src={item.url} alt={`Extra ${idx + 1}`} style={{ width: 56, height: 56, borderRadius: 8, objectFit: 'cover', border: '1px solid #334155' }}
-                                    onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
-                                <button type="button" onClick={() => setExtraUrls(extraUrls.filter((_, i) => i !== idx))}
-                                    style={{ position: 'absolute', top: 2, right: 2, background: 'rgba(0,0,0,0.7)', border: 'none', borderRadius: '50%', width: 18, height: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
-                                    <X size={10} />
-                                </button>
-                            </div>
-                            <input
-                                type="text"
-                                placeholder='Label (ex: "Ford Focus Rouge")'
-                                value={item.label}
-                                onChange={e => setExtraUrls(extraUrls.map((it, i) => i === idx ? { ...it, label: e.target.value } : it))}
-                                style={{ ...inputStyle, flex: 1, padding: '8px 12px', fontSize: 13 }}
-                            />
-                        </div>
-                    ))}
-                    <button type="button" onClick={() => extraUploadRef.current?.click()} disabled={uploading}
-                        style={{ width: '100%', padding: '10px', border: '2px dashed #334155', borderRadius: 8, background: 'transparent', color: '#475569', cursor: uploading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 13 }}>
-                        <Plus size={16} color="#475569" />
-                        Ajouter une image supplémentaire
-                    </button>
-                    <input ref={extraUploadRef} type="file" accept="image/jpeg,image/png,image/gif" style={{ display: 'none' }}
-                        onChange={e => { const f = e.target.files?.[0]; if (f) onExtraUpload(f); if (e.target) e.target.value = '' }} />
-                </div>
-            </div>
-        </div>
-    )
 
     return (
         <div style={{ padding: 40, maxWidth: 1200, margin: '0 auto', minHeight: '100vh', background: '#0f172a' }}>
@@ -469,6 +404,10 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
                                     <button onClick={() => handleOpenEdit(doc)} title="Modifier"
                                         style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer' }}>
                                         <Pencil size={18} />
+                                    </button>
+                                    <button onClick={() => handleOpenImagesModal(doc)} title="Images"
+                                        style={{ background: 'transparent', border: 'none', color: doc.image_url ? '#10b981' : '#64748b', cursor: 'pointer' }}>
+                                        <Images size={18} />
                                     </button>
                                     <button onClick={() => handleDelete(doc)}
                                         style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer' }}>
@@ -571,33 +510,17 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
                             </div>
                         ) : (
                             <form onSubmit={handleSaveEdit}>
-                                {/* Layout 2 colonnes */}
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 220px', gap: 24, alignItems: 'start' }}>
-                                    {/* Colonne gauche : titre + contenu */}
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                                        <div>
-                                            <label style={{ display: 'block', color: '#94a3b8', marginBottom: 6, fontSize: 13 }}>Titre *</label>
-                                            <input type="text" required value={editData.title} onChange={e => setEditData({ ...editData, title: e.target.value })} style={inputStyle} />
-                                        </div>
-                                        <div>
-                                            <label style={{ display: 'block', color: '#94a3b8', marginBottom: 6, fontSize: 13 }}>Contenu</label>
-                                            <textarea value={editData.content} onChange={e => setEditData({ ...editData, content: e.target.value })}
-                                                style={{ ...inputStyle, height: 260, resize: 'vertical' }} />
-                                            <p style={{ color: '#64748b', fontSize: 11, marginTop: 3 }}>{editData.content.length} caractères</p>
-                                        </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                                    <div>
+                                        <label style={{ display: 'block', color: '#94a3b8', marginBottom: 6, fontSize: 13 }}>Titre *</label>
+                                        <input type="text" required value={editData.title} onChange={e => setEditData({ ...editData, title: e.target.value })} style={inputStyle} />
                                     </div>
-                                    {/* Colonne droite : images */}
-                                    <ImageSection
-                                        imageUrl={editData.image_url}
-                                        setImageUrl={v => setEditData({ ...editData, image_url: v })}
-                                        extraUrls={editData.extra_image_urls}
-                                        setExtraUrls={v => setEditData({ ...editData, extra_image_urls: v })}
-                                        mainUploadRef={editImageUploadRef}
-                                        extraUploadRef={editExtraImageUploadRef}
-                                        uploading={editImageUploading}
-                                        onMainUpload={uploadEditImageToStorage}
-                                        onExtraUpload={uploadEditExtraImageToStorage}
-                                    />
+                                    <div>
+                                        <label style={{ display: 'block', color: '#94a3b8', marginBottom: 6, fontSize: 13 }}>Contenu</label>
+                                        <textarea value={editData.content} onChange={e => setEditData({ ...editData, content: e.target.value })}
+                                            style={{ ...inputStyle, height: 260, resize: 'vertical' }} />
+                                        <p style={{ color: '#64748b', fontSize: 11, marginTop: 3 }}>{editData.content.length} caractères</p>
+                                    </div>
                                 </div>
                                 {editError && <p style={{ color: '#f87171', fontSize: 13, marginTop: 10 }}>{editError}</p>}
                                 <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 20 }}>
@@ -629,38 +552,22 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
 
                         {importMode === 'text' && (
                             <form onSubmit={handleAddText}>
-                                {/* Layout 2 colonnes */}
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 220px', gap: 24, alignItems: 'start' }}>
-                                    {/* Colonne gauche */}
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                                        <div>
-                                            <label style={{ display: 'block', color: '#94a3b8', marginBottom: 6, fontSize: 13 }}>Titre *</label>
-                                            <input type="text" required value={newDoc.title} onChange={e => setNewDoc({ ...newDoc, title: e.target.value })}
-                                                style={inputStyle} placeholder="Ex: Guide commandes et paiements" />
-                                        </div>
-                                        <div>
-                                            <label style={{ display: 'block', color: '#94a3b8', marginBottom: 6, fontSize: 13 }}>Contenu *</label>
-                                            <textarea required value={newDoc.content} onChange={e => setNewDoc({ ...newDoc, content: e.target.value })}
-                                                style={{ ...inputStyle, height: 260, resize: 'none' }}
-                                                placeholder="Sujet : Commandes et paiement&#10;Horaires support : Lun-Sam 8h-18h&#10;Delai de livraison : 24-48h&#10;Politique de retour : 7 jours&#10;..." />
-                                            <p style={{ color: '#64748b', fontSize: 11, marginTop: 3 }}>
-                                                {newDoc.content.length} caractères
-                                                {newDoc.content.length > 2000 ? ` — sera découpé en ~${Math.ceil(newDoc.content.length / 1800)} segments` : ''}
-                                            </p>
-                                        </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                                    <div>
+                                        <label style={{ display: 'block', color: '#94a3b8', marginBottom: 6, fontSize: 13 }}>Titre *</label>
+                                        <input type="text" required value={newDoc.title} onChange={e => setNewDoc({ ...newDoc, title: e.target.value })}
+                                            style={inputStyle} placeholder="Ex: Guide commandes et paiements" />
                                     </div>
-                                    {/* Colonne droite : images */}
-                                    <ImageSection
-                                        imageUrl={newDoc.image_url}
-                                        setImageUrl={v => setNewDoc({ ...newDoc, image_url: v })}
-                                        extraUrls={newDoc.extra_image_urls}
-                                        setExtraUrls={v => setNewDoc({ ...newDoc, extra_image_urls: v })}
-                                        mainUploadRef={imageUploadRef}
-                                        extraUploadRef={extraImageUploadRef}
-                                        uploading={imageUploading}
-                                        onMainUpload={uploadImageToStorage}
-                                        onExtraUpload={uploadExtraImageToStorage}
-                                    />
+                                    <div>
+                                        <label style={{ display: 'block', color: '#94a3b8', marginBottom: 6, fontSize: 13 }}>Contenu *</label>
+                                        <textarea required value={newDoc.content} onChange={e => setNewDoc({ ...newDoc, content: e.target.value })}
+                                            style={{ ...inputStyle, height: 260, resize: 'none' }}
+                                            placeholder="Sujet : Commandes et paiement&#10;Horaires support : Lun-Sam 8h-18h&#10;Delai de livraison : 24-48h&#10;Politique de retour : 7 jours&#10;..." />
+                                        <p style={{ color: '#64748b', fontSize: 11, marginTop: 3 }}>
+                                            {newDoc.content.length} caractères
+                                            {newDoc.content.length > 2000 ? ` — sera découpé en ~${Math.ceil(newDoc.content.length / 1800)} segments` : ''}
+                                        </p>
+                                    </div>
                                 </div>
                                 {importError && <p style={{ color: '#f87171', fontSize: 13, marginTop: 10 }}>{importError}</p>}
                                 <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 20 }}>
@@ -743,6 +650,101 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
                                 </div>
                             </form>
                         )}
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Images */}
+            {imageModalDoc && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+                    <div style={{ background: '#0f172a', width: '100%', maxWidth: 540, borderRadius: 24, padding: 28, border: '1px solid #334155', maxHeight: '90vh', overflowY: 'auto' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                            <div>
+                                <h2 style={{ color: 'white', fontSize: 18, fontWeight: 700 }}>Images</h2>
+                                <p style={{ color: '#64748b', fontSize: 13, marginTop: 2 }}>{imageModalDoc.title}</p>
+                            </div>
+                            <button onClick={() => setImageModalDoc(null)} style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer' }}><X size={22} /></button>
+                        </div>
+
+                        {/* Image principale */}
+                        <div style={{ marginBottom: 20 }}>
+                            <p style={{ color: '#94a3b8', fontSize: 13, fontWeight: 500, marginBottom: 8 }}>Image principale</p>
+                            {imageModalData.image_url ? (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                    <div style={{ position: 'relative' }}>
+                                        <img src={imageModalData.image_url} alt="Principale" style={{ width: 80, height: 80, borderRadius: 10, objectFit: 'cover', border: '1px solid #334155' }}
+                                            onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                                        <button type="button" onClick={() => setImageModalData(prev => ({ ...prev, image_url: '' }))}
+                                            style={{ position: 'absolute', top: 3, right: 3, background: 'rgba(0,0,0,0.7)', border: 'none', borderRadius: '50%', width: 20, height: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+                                            <X size={11} />
+                                        </button>
+                                    </div>
+                                    <button type="button" onClick={() => imageModalMainRef.current?.click()} disabled={imageModalUploading}
+                                        style={{ background: 'transparent', border: '1px solid #334155', color: '#94a3b8', padding: '8px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>
+                                        Changer
+                                    </button>
+                                </div>
+                            ) : (
+                                <button type="button" onClick={() => imageModalMainRef.current?.click()} disabled={imageModalUploading}
+                                    style={{ width: 80, height: 80, border: '2px dashed #334155', borderRadius: 10, background: 'transparent', color: '#475569', cursor: imageModalUploading ? 'not-allowed' : 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, fontSize: 11 }}>
+                                    {imageModalUploading ? <Loader2 size={18} className="animate-spin" color="#10b981" /> : <><ImageIcon size={18} color="#475569" /><span>Upload</span></>}
+                                </button>
+                            )}
+                            <input ref={imageModalMainRef} type="file" accept="image/jpeg,image/png,image/gif" style={{ display: 'none' }}
+                                onChange={e => { const f = e.target.files?.[0]; if (f) uploadImageModalMain(f); if (e.target) e.target.value = '' }} />
+                        </div>
+
+                        {/* Images supplémentaires avec labels */}
+                        <div>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                                <p style={{ color: '#94a3b8', fontSize: 13, fontWeight: 500 }}>
+                                    Images supplémentaires
+                                    <span style={{ color: '#475569', fontSize: 11, fontWeight: 400, marginLeft: 6 }}>({imageModalData.extra_image_urls.length}/{MAX_EXTRA_IMAGES})</span>
+                                </p>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                {imageModalData.extra_image_urls.map((item, idx) => (
+                                    <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#1e293b', border: '1px solid #334155', borderRadius: 10, padding: 8 }}>
+                                        <div style={{ position: 'relative', flexShrink: 0 }}>
+                                            <img src={item.url} alt={item.label || `Extra ${idx + 1}`} style={{ width: 56, height: 56, borderRadius: 8, objectFit: 'cover', border: '1px solid #334155' }}
+                                                onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                                            <button type="button" onClick={() => setImageModalData(prev => ({ ...prev, extra_image_urls: prev.extra_image_urls.filter((_, i) => i !== idx) }))}
+                                                style={{ position: 'absolute', top: 2, right: 2, background: 'rgba(0,0,0,0.7)', border: 'none', borderRadius: '50%', width: 18, height: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+                                                <X size={10} />
+                                            </button>
+                                        </div>
+                                        <input
+                                            type="text"
+                                            placeholder='Label (ex: "Ford Focus Rouge")'
+                                            value={item.label}
+                                            onChange={e => setImageModalData(prev => ({ ...prev, extra_image_urls: prev.extra_image_urls.map((it, i) => i === idx ? { ...it, label: e.target.value } : it) }))}
+                                            style={{ ...inputStyle, flex: 1, padding: '8px 12px', fontSize: 13 }}
+                                        />
+                                    </div>
+                                ))}
+                                {imageModalData.extra_image_urls.length < MAX_EXTRA_IMAGES ? (
+                                    <button type="button" onClick={() => imageModalExtraRef.current?.click()} disabled={imageModalUploading}
+                                        style={{ width: '100%', padding: '10px', border: '2px dashed #334155', borderRadius: 8, background: 'transparent', color: '#475569', cursor: imageModalUploading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 13 }}>
+                                        {imageModalUploading ? <Loader2 size={16} className="animate-spin" color="#10b981" /> : <><Plus size={16} color="#475569" />Ajouter une image</>}
+                                    </button>
+                                ) : (
+                                    <p style={{ color: '#f59e0b', fontSize: 12, textAlign: 'center', padding: '8px 0' }}>
+                                        Limite atteinte ({MAX_EXTRA_IMAGES}/{MAX_EXTRA_IMAGES}). Créez un nouveau document pour plus d'images.
+                                    </p>
+                                )}
+                                <input ref={imageModalExtraRef} type="file" accept="image/jpeg,image/png,image/gif" style={{ display: 'none' }}
+                                    onChange={e => { const f = e.target.files?.[0]; if (f) uploadImageModalExtra(f); if (e.target) e.target.value = '' }} />
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 24 }}>
+                            <button type="button" onClick={() => setImageModalDoc(null)} style={{ background: 'transparent', color: 'white', border: '1px solid #334155', padding: '11px 22px', borderRadius: 12, cursor: 'pointer' }}>Annuler</button>
+                            <button type="button" onClick={handleSaveImages} disabled={imageModalSaving}
+                                style={{ background: '#10b981', color: 'white', border: 'none', padding: '11px 22px', borderRadius: 12, fontWeight: 600, cursor: imageModalSaving ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                {imageModalSaving && <Loader2 size={16} className="animate-spin" />}
+                                Sauvegarder
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
