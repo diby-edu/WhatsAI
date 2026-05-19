@@ -26,7 +26,8 @@ import {
     ShoppingCart,
     Coins,
     TrendingUp,
-    Code2
+    Code2,
+    BookOpen
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { initWebPush } from '@/lib/notifications/web-push'
@@ -99,17 +100,28 @@ export default function DashboardLayout({
     const logoutInProgressRef = useRef(false)
 
     // Defined inside component to use hooks
-    const sidebarLinks = [
-        { href: '/dashboard', label: t('dashboard'), icon: LayoutDashboard },
-        { href: '/dashboard/notifications', label: 'Notifications', icon: Bell },
-        { href: '/dashboard/agents', label: t('agents'), icon: Bot },
+    type NavLink = { href: string; label: string; icon: React.ComponentType<{ style?: React.CSSProperties }> ; featured?: boolean }
+    type NavSeparator = { separator: true; label: string }
+    type NavItem = NavLink | NavSeparator
+
+    const sidebarLinks: NavItem[] = [
+        // ── EN VEDETTE ──────────────────────────────────────────────
+        { href: '/dashboard', label: t('dashboard'), icon: LayoutDashboard, featured: true },
+        { href: '/dashboard/agents', label: t('agents'), icon: Bot, featured: true },
+        { href: '/dashboard/knowledge', label: 'Base de connaissances', icon: BookOpen, featured: true },
+        { href: '/dashboard/products', label: t('products'), icon: Package, featured: true },
+        // ── QUOTIDIEN ───────────────────────────────────────────────
+        { separator: true, label: 'Quotidien' },
         { href: '/dashboard/conversations', label: t('conversations'), icon: MessagesSquare },
-        { href: '/dashboard/products', label: t('products'), icon: Package },
         { href: '/dashboard/orders', label: t('orders'), icon: ShoppingBag },
         { href: '/dashboard/analytics', label: t('analytics'), icon: TrendingUp },
-        { href: '/dashboard/developers', label: 'API', icon: Code2 },
+        { href: '/dashboard/notifications', label: 'Notifications', icon: Bell },
+        // ── COMPTE ──────────────────────────────────────────────────
+        { separator: true, label: 'Compte' },
         { href: '/dashboard/billing', label: t('billing'), icon: CreditCard },
         { href: '/dashboard/settings', label: t('settings'), icon: Settings },
+        { href: '/dashboard/developers', label: 'API', icon: Code2 },
+        { href: '/dashboard/help', label: t('help'), icon: HelpCircle },
     ]
 
     useEffect(() => {
@@ -597,14 +609,23 @@ export default function DashboardLayout({
                                 </Link>
                             </div>
                             <nav style={{ flex: 1, padding: 16, display: 'flex', flexDirection: 'column', gap: 4, overflowY: 'auto' }}>
-                                {sidebarLinks.map((link) => {
+                                {sidebarLinks.map((item, idx) => {
+                                    if ('separator' in item) {
+                                        return (
+                                            <div key={`sep-${idx}`} style={{ margin: '8px 0 4px', padding: '0 4px' }}>
+                                                <div style={{ borderTop: '1px solid rgba(148,163,184,0.1)', paddingTop: 6 }}>
+                                                    <span style={{ fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{item.label}</span>
+                                                </div>
+                                            </div>
+                                        )
+                                    }
+                                    const link = item as NavLink
                                     const isActive = pathname === link.href || (link.href !== '/dashboard' && pathname.startsWith(link.href))
                                     const isApiLocked = link.href === '/dashboard/developers' && !apiAccessEnabled
                                     if (isApiLocked) {
                                         return (
                                             <div
                                                 key={link.href}
-                                                title="Bientôt disponible"
                                                 style={{
                                                     display: 'flex', alignItems: 'center', gap: 12,
                                                     padding: '12px 14px', borderRadius: 12,
@@ -634,15 +655,14 @@ export default function DashboardLayout({
                                             href={link.href}
                                             onClick={() => setMobileMenuOpen(false)}
                                             style={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: 12,
-                                                padding: '12px 14px',
-                                                borderRadius: 12,
-                                                color: isActive ? '#34d399' : '#94a3b8',
-                                                fontWeight: 500,
+                                                display: 'flex', alignItems: 'center', gap: 12,
+                                                padding: '12px 14px', borderRadius: 12,
+                                                color: isActive ? '#34d399' : link.featured ? '#e2e8f0' : '#94a3b8',
+                                                fontWeight: link.featured ? 600 : 500,
                                                 textDecoration: 'none',
-                                                backgroundColor: isActive ? 'rgba(16, 185, 129, 0.1)' : 'transparent'
+                                                backgroundColor: isActive ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
+                                                borderLeft: link.featured ? `2px solid ${isActive ? '#34d399' : 'rgba(52,211,153,0.3)'}` : undefined,
+                                                paddingLeft: link.featured ? 12 : undefined,
                                             }}
                                         >
                                             <link.icon style={{ width: 20, height: 20 }} />
@@ -650,21 +670,14 @@ export default function DashboardLayout({
                                         </Link>
                                     )
                                 })}
-                                {/* Logout button right after menu items */}
                                 <button
                                     onClick={handleLogout}
                                     style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 12,
-                                        padding: '12px 14px',
-                                        borderRadius: 12,
-                                        color: '#f87171',
-                                        fontWeight: 500,
-                                        backgroundColor: 'transparent',
-                                        border: 'none',
-                                        cursor: 'pointer',
-                                        marginTop: 8
+                                        display: 'flex', alignItems: 'center', gap: 12,
+                                        padding: '12px 14px', borderRadius: 12,
+                                        color: '#f87171', fontWeight: 500,
+                                        backgroundColor: 'transparent', border: 'none',
+                                        cursor: 'pointer', marginTop: 4
                                     }}
                                 >
                                     <LogOut style={{ width: 20, height: 20 }} />
@@ -735,7 +748,17 @@ export default function DashboardLayout({
 
                     {/* Navigation */}
                     <nav style={{ flex: 1, padding: 8, display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto' }}>
-                        {sidebarLinks.map((link) => {
+                        {sidebarLinks.map((item, idx) => {
+                            if ('separator' in item) {
+                                return (
+                                    <div key={`sep-${idx}`} style={{ margin: '6px 0 4px', padding: collapsed ? '0 8px' : '0 10px' }}>
+                                        <div style={{ borderTop: '1px solid rgba(148,163,184,0.1)', paddingTop: 6 }}>
+                                            {!collapsed && <span style={{ fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{item.label}</span>}
+                                        </div>
+                                    </div>
+                                )
+                            }
+                            const link = item as NavLink
                             const isActive = pathname === link.href || (link.href !== '/dashboard' && pathname.startsWith(link.href))
                             const isApiLocked = link.href === '/dashboard/developers' && !apiAccessEnabled
                             if (isApiLocked) {
@@ -780,12 +803,14 @@ export default function DashboardLayout({
                                         gap: 12,
                                         padding: collapsed ? '8px' : '8px 14px',
                                         borderRadius: 10,
-                                        color: isActive ? '#34d399' : '#94a3b8',
-                                        fontWeight: 500,
+                                        color: isActive ? '#34d399' : link.featured ? '#e2e8f0' : '#94a3b8',
+                                        fontWeight: link.featured ? 600 : 500,
                                         textDecoration: 'none',
                                         backgroundColor: isActive ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
                                         justifyContent: collapsed ? 'center' : 'flex-start',
-                                        transition: 'all 0.2s ease'
+                                        transition: 'all 0.2s ease',
+                                        borderLeft: link.featured && !collapsed ? `2px solid ${isActive ? '#34d399' : 'rgba(52,211,153,0.3)'}` : undefined,
+                                        paddingLeft: link.featured && !collapsed ? 12 : undefined,
                                     }}
                                 >
                                     <link.icon style={{ width: 20, height: 20, flexShrink: 0 }} />
@@ -793,50 +818,24 @@ export default function DashboardLayout({
                                 </Link>
                             )
                         })}
-                    </nav>
-
-                    {/* Footer */}
-                    <div style={{ padding: 12, borderTop: '1px solid rgba(148, 163, 184, 0.1)', display: 'flex', flexDirection: 'column', gap: 4 }}>
-                        <Link
-                            href="/dashboard/help"
-                            title={collapsed ? t('help') : undefined}
-                            style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 12,
-                                padding: collapsed ? '12px' : '12px 14px',
-                                borderRadius: 12,
-                                color: '#94a3b8',
-                                fontWeight: 500,
-                                textDecoration: 'none',
-                                justifyContent: collapsed ? 'center' : 'flex-start'
-                            }}
-                        >
-                            <HelpCircle style={{ width: 20, height: 20, flexShrink: 0 }} />
-                            {!collapsed && <span>{t('help')}</span>}
-                        </Link>
+                        {/* Déconnexion */}
                         <button
                             onClick={handleLogout}
                             title={collapsed ? t('logout') : undefined}
                             style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 12,
-                                padding: collapsed ? '12px' : '12px 14px',
-                                borderRadius: 12,
-                                color: '#f87171',
-                                fontWeight: 500,
-                                backgroundColor: 'transparent',
-                                border: 'none',
+                                display: 'flex', alignItems: 'center', gap: 12,
+                                padding: collapsed ? '8px' : '8px 14px',
+                                borderRadius: 10, color: '#f87171', fontWeight: 500,
+                                backgroundColor: 'transparent', border: 'none',
                                 cursor: 'pointer',
                                 justifyContent: collapsed ? 'center' : 'flex-start',
-                                width: '100%'
+                                width: '100%', marginTop: 2
                             }}
                         >
                             <LogOut style={{ width: 20, height: 20, flexShrink: 0 }} />
                             {!collapsed && <span>{t('logout')}</span>}
                         </button>
-                    </div>
+                    </nav>
                 </aside>
             )}
 
