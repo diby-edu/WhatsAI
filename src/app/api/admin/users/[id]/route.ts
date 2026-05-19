@@ -83,6 +83,18 @@ export async function PATCH(
                 .update({ credits_balance: newBalance })
                 .eq('id', id)
             if (error) throw error
+            // Créer un enregistrement de paiement pour que ça apparaisse dans l'historique
+            await adminSupabase.from('payments').insert({
+                user_id: id,
+                amount_fcfa: 0,
+                status: 'completed',
+                payment_provider: 'admin',
+                payment_type: 'credits',
+                payment_method_source: 'manual',
+                description: `Crédits ajoutés manuellement (+${amount})`,
+                credits_purchased: Number(amount),
+                completed_at: new Date().toISOString()
+            })
             await logAdminAction(user.id, 'add_credits', id, 'profile', { amount, newBalance })
             return successResponse({ message: `+${amount} crédits ajoutés (nouveau solde : ${newBalance})` })
         }

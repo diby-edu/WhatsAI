@@ -76,6 +76,20 @@ export async function PATCH(
                 .eq('id', id)
 
             if (error) throw error
+            // Créer un enregistrement dans payments pour l'historique de facturation
+            if (plan !== 'free') {
+                await adminSupabase.from('payments').insert({
+                    user_id: id,
+                    amount_fcfa: 0,
+                    status: 'completed',
+                    payment_provider: 'admin',
+                    payment_type: 'subscription',
+                    payment_method_source: 'manual',
+                    description: `Abonnement ${plan} (${billingPeriod === 'annual' ? 'annuel' : 'mensuel'}) — ajouté manuellement`,
+                    credits_purchased: creditsToAdd,
+                    completed_at: new Date().toISOString()
+                })
+            }
             await logAdminAction(user.id, 'change_subscription_plan', id, 'profile', { plan, billing_period: billingPeriod, paid_until: paidUntil })
 
             // Notify admins of plan change
