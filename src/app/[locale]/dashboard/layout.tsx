@@ -119,8 +119,8 @@ export default function DashboardLayout({
         // ── COMPTE ──────────────────────────────────────────────────
         { separator: true, label: 'Compte' },
         { href: '/dashboard/billing', label: t('billing'), icon: CreditCard },
-        { href: '/dashboard/settings', label: t('settings'), icon: Settings },
         { href: '/dashboard/developers', label: 'API', icon: Code2 },
+        { href: '/dashboard/settings', label: t('settings'), icon: Settings },
         { href: '/dashboard/help', label: t('help'), icon: HelpCircle },
     ]
 
@@ -747,13 +747,13 @@ export default function DashboardLayout({
                     </div>
 
                     {/* Navigation */}
-                    <nav style={{ flex: 1, padding: 8, display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto' }}>
+                    <nav style={{ flex: 1, padding: '4px 6px', display: 'flex', flexDirection: 'column', gap: 1, overflowY: 'auto' }}>
                         {sidebarLinks.map((item, idx) => {
                             if ('separator' in item) {
                                 return (
-                                    <div key={`sep-${idx}`} style={{ margin: '6px 0 4px', padding: collapsed ? '0 8px' : '0 10px' }}>
-                                        <div style={{ borderTop: '1px solid rgba(148,163,184,0.1)', paddingTop: 6 }}>
-                                            {!collapsed && <span style={{ fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{item.label}</span>}
+                                    <div key={`sep-${idx}`} style={{ margin: '4px 0 2px', padding: collapsed ? '0 4px' : '0 8px' }}>
+                                        <div style={{ borderTop: '1px solid rgba(148,163,184,0.1)', paddingTop: 4 }}>
+                                            {!collapsed && <span style={{ fontSize: 9, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{item.label}</span>}
                                         </div>
                                     </div>
                                 )
@@ -768,15 +768,14 @@ export default function DashboardLayout({
                                         title={collapsed ? 'Bientôt disponible' : undefined}
                                         style={{
                                             display: 'flex', alignItems: 'center',
-                                            gap: 12, padding: collapsed ? '8px' : '8px 14px',
-                                            borderRadius: 10, color: '#4b5563', fontWeight: 500,
+                                            gap: 10, padding: collapsed ? '6px' : '6px 10px',
+                                            borderRadius: 8, color: '#4b5563', fontWeight: 500, fontSize: 13,
                                             cursor: 'not-allowed', userSelect: 'none',
                                             justifyContent: collapsed ? 'center' : 'space-between',
-                                            transition: 'all 0.2s ease'
                                         }}
                                     >
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                            <link.icon style={{ width: 20, height: 20, flexShrink: 0 }} />
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                            <link.icon style={{ width: 17, height: 17, flexShrink: 0 }} />
                                             {!collapsed && <span>{link.label}</span>}
                                         </div>
                                         {!collapsed && (
@@ -798,11 +797,9 @@ export default function DashboardLayout({
                                     href={link.href}
                                     title={collapsed ? link.label : undefined}
                                     style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 12,
-                                        padding: collapsed ? '8px' : '8px 14px',
-                                        borderRadius: 10,
+                                        display: 'flex', alignItems: 'center',
+                                        gap: 10, padding: collapsed ? '6px' : '6px 10px',
+                                        borderRadius: 8, fontSize: 13,
                                         color: isActive ? '#34d399' : link.featured ? '#e2e8f0' : '#94a3b8',
                                         fontWeight: link.featured ? 600 : 500,
                                         textDecoration: 'none',
@@ -810,10 +807,10 @@ export default function DashboardLayout({
                                         justifyContent: collapsed ? 'center' : 'flex-start',
                                         transition: 'all 0.2s ease',
                                         borderLeft: link.featured && !collapsed ? `2px solid ${isActive ? '#34d399' : 'rgba(52,211,153,0.3)'}` : undefined,
-                                        paddingLeft: link.featured && !collapsed ? 12 : undefined,
+                                        paddingLeft: link.featured && !collapsed ? 8 : undefined,
                                     }}
                                 >
-                                    <link.icon style={{ width: 20, height: 20, flexShrink: 0 }} />
+                                    <link.icon style={{ width: 17, height: 17, flexShrink: 0 }} />
                                     {!collapsed && <span>{link.label}</span>}
                                 </Link>
                             )
@@ -823,16 +820,16 @@ export default function DashboardLayout({
                             onClick={handleLogout}
                             title={collapsed ? t('logout') : undefined}
                             style={{
-                                display: 'flex', alignItems: 'center', gap: 12,
-                                padding: collapsed ? '8px' : '8px 14px',
-                                borderRadius: 10, color: '#f87171', fontWeight: 500,
+                                display: 'flex', alignItems: 'center', gap: 10,
+                                padding: collapsed ? '6px' : '6px 10px',
+                                borderRadius: 8, color: '#f87171', fontWeight: 500, fontSize: 13,
                                 backgroundColor: 'transparent', border: 'none',
                                 cursor: 'pointer',
                                 justifyContent: collapsed ? 'center' : 'flex-start',
                                 width: '100%', marginTop: 2
                             }}
                         >
-                            <LogOut style={{ width: 20, height: 20, flexShrink: 0 }} />
+                            <LogOut style={{ width: 17, height: 17, flexShrink: 0 }} />
                             {!collapsed && <span>{t('logout')}</span>}
                         </button>
                     </nav>
