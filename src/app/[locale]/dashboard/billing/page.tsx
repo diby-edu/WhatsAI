@@ -168,6 +168,7 @@ function BillingContent() {
         if (normalized === 'feexpay') return 'FeexPay'
         if (normalized === 'paydunya') return 'PayDunya'
         if (normalized === 'cinetpay') return 'CinetPay'
+        if (normalized === 'admin') return 'Ajout administrateur'
         return provider || 'Paiement'
     }
 
@@ -1577,8 +1578,11 @@ function BillingContent() {
                                             )}
                                         </div>
                                         <div style={{ textAlign: 'right' }}>
-                                            <div style={{ fontWeight: 600, color: 'white', fontSize: 14 }}>
-                                                {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF', maximumFractionDigits: 0 }).format(payment.amount_fcfa)}
+                                            <div style={{ fontWeight: 600, fontSize: 14, color: payment.payment_provider === 'admin' ? '#a855f7' : 'white' }}>
+                                                {payment.payment_provider === 'admin'
+                                                    ? 'Offert'
+                                                    : new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF', maximumFractionDigits: 0 }).format(payment.amount_fcfa)
+                                                }
                                             </div>
                                             <div style={{
                                                 fontSize: 11,

@@ -27,7 +27,8 @@ import {
     Coins,
     TrendingUp,
     Code2,
-    BookOpen
+    BookOpen,
+    Gift
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { initWebPush } from '@/lib/notifications/web-push'
@@ -846,10 +847,25 @@ export default function DashboardLayout({
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        gap: 16
+                        gap: 8
                     }}>
                         {/* Global Search */}
                         <GlobalSearch />
+
+                        {/* Icônes droites groupées */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+
+                        {/* Parrainage */}
+                        <Link href="/dashboard/settings?tab=referral" title="Parrainage" style={{ textDecoration: 'none', flexShrink: 0 }}>
+                            <div style={{
+                                padding: 10, borderRadius: 12,
+                                backgroundColor: '#1e293b',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                cursor: 'pointer'
+                            }}>
+                                <Gift style={{ width: 20, height: 20, color: '#a855f7' }} />
+                            </div>
+                        </Link>
 
                         {/* Notifications Bell */}
                         <div ref={notifRef} style={{ position: 'relative' }}>
@@ -1057,9 +1073,8 @@ export default function DashboardLayout({
                                 width: 38,
                                 height: 38,
                                 borderRadius: '50%',
-                                background: userAvatar ? `url(${userAvatar})` : 'linear-gradient(135deg, #10b981, #059669)',
-                                backgroundSize: 'cover',
-                                backgroundPosition: 'center',
+                                overflow: 'hidden',
+                                background: userAvatar ? 'transparent' : 'linear-gradient(135deg, #10b981, #059669)',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
@@ -1069,9 +1084,14 @@ export default function DashboardLayout({
                                 border: '2px solid rgba(16, 185, 129, 0.3)',
                                 cursor: 'pointer'
                             }}>
-                                {!userAvatar && (userName?.charAt(0)?.toUpperCase() || '?')}
+                                {userAvatar
+                                    ? <img src={userAvatar} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                                    : (userName?.charAt(0)?.toUpperCase() || '?')
+                                }
                             </div>
                         </Link>
+
+                        </div>{/* fin icônes droites */}
                     </div>
                 )}
 
