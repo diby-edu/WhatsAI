@@ -79,7 +79,21 @@ async function handleSendImage(args, products, relevantDocs) {
                 }
             }
 
-            // Chercher dans l'image principale (match sur titre ou contenu)
+            // Chercher par image_label sur l'image principale
+            for (const doc of relevantDocs) {
+                if (doc.image_url && doc.image_label && fuzzyIncludes(doc.image_label.toLowerCase(), searchName)) {
+                    console.log(`📸 Image principale KB trouvée par label "${doc.image_label}" pour "${product_name}"`)
+                    return JSON.stringify({
+                        success: true,
+                        action: 'send_image',
+                        image_url: doc.image_url,
+                        caption: doc.image_label,
+                        product_name: doc.image_label,
+                    })
+                }
+            }
+
+            // Fallback : match sur titre ou contenu (uniquement si doc sans extra images)
             const kbDoc = relevantDocs.find(d =>
                 d.image_url && (
                     fuzzyIncludes(d.content.toLowerCase(), searchName) ||
@@ -87,14 +101,17 @@ async function handleSendImage(args, products, relevantDocs) {
                 )
             )
             if (kbDoc) {
-                console.log(`📸 Image principale KB trouvée pour "${product_name}"`)
-                return JSON.stringify({
-                    success: true,
-                    action: 'send_image',
-                    image_url: kbDoc.image_url,
-                    caption: `Voici ${product_name} !`,
-                    product_name: product_name,
-                })
+                const hasMultipleImages = kbDoc.image_label || (Array.isArray(kbDoc.extra_image_urls) && kbDoc.extra_image_urls.length > 0)
+                if (!hasMultipleImages) {
+                    console.log(`📸 Image principale KB trouvée pour "${product_name}"`)
+                    return JSON.stringify({
+                        success: true,
+                        action: 'send_image',
+                        image_url: kbDoc.image_url,
+                        caption: `Voici ${product_name} !`,
+                        product_name: product_name,
+                    })
+                }
             }
         }
 
