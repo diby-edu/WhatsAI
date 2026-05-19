@@ -139,7 +139,8 @@ export async function POST(request: NextRequest) {
         if (image_url && isWebp(image_url)) {
             return errorResponse('Format WebP non supporté. Utilisez JPG ou PNG.', 400)
         }
-        if (Array.isArray(extra_image_urls) && extra_image_urls.some(isWebp)) {
+        const extractUrl = (item: string | { url: string }) => typeof item === 'string' ? item : item?.url
+        if (Array.isArray(extra_image_urls) && extra_image_urls.some(item => isWebp(extractUrl(item)))) {
             return errorResponse('Format WebP non supporté pour une ou plusieurs images. Utilisez JPG ou PNG.', 400)
         }
 

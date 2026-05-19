@@ -14,7 +14,12 @@ interface Document {
     chunk_index?: number
     chunks_count?: number
     image_url?: string | null
-    extra_image_urls?: string[]
+    extra_image_urls?: (string | { url: string; label: string })[]
+}
+
+interface ExtraImage {
+    url: string
+    label: string
 }
 
 interface Segment {
@@ -52,11 +57,11 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
     const [importError, setImportError] = useState<string | null>(null)
 
     // Text mode (add)
-    const [newDoc, setNewDoc] = useState({ title: '', content: '', image_url: '', extra_image_urls: [] as string[] })
+    const [newDoc, setNewDoc] = useState({ title: '', content: '', image_url: '', extra_image_urls: [] as ExtraImage[] })
 
     // Edit mode
     const [editingDoc, setEditingDoc] = useState<Document | null>(null)
-    const [editData, setEditData] = useState({ title: '', content: '', image_url: '', extra_image_urls: [] as string[] })
+    const [editData, setEditData] = useState({ title: '', content: '', image_url: '', extra_image_urls: [] as ExtraImage[] })
     const [loadingEdit, setLoadingEdit] = useState(false)
     const [editSubmitting, setEditSubmitting] = useState(false)
     const [editError, setEditError] = useState<string | null>(null)
@@ -104,7 +109,7 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
     const uploadExtraImageToStorage = async (file: File) => {
         setImageUploading(true)
         const url = await uploadImage(file)
-        if (url) setNewDoc(prev => ({ ...prev, extra_image_urls: [...prev.extra_image_urls, url] }))
+        if (url) setNewDoc(prev => ({ ...prev, extra_image_urls: [...prev.extra_image_urls, { url, label: '' }] }))
         setImageUploading(false)
     }
 
@@ -118,7 +123,7 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
     const uploadEditExtraImageToStorage = async (file: File) => {
         setEditImageUploading(true)
         const url = await uploadImage(file)
-        if (url) setEditData(prev => ({ ...prev, extra_image_urls: [...prev.extra_image_urls, url] }))
+        if (url) setEditData(prev => ({ ...prev, extra_image_urls: [...prev.extra_image_urls, { url, label: '' }] }))
         setEditImageUploading(false)
     }
 
@@ -150,7 +155,7 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
     const resetModal = () => {
         setIsAdding(false)
         setImportMode('text')
-        setNewDoc({ title: '', content: '', image_url: '', extra_image_urls: [] })
+        setNewDoc({ title: '', content: '', image_url: '', extra_image_urls: [] as ExtraImage[] })
         setPdfFile(null)
         setPdfTitle('')
         setUrlInput('')
@@ -249,7 +254,11 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
                 title: doc.title,
                 content: mergedContent,
                 image_url: doc.image_url || '',
-                extra_image_urls: Array.isArray(doc.extra_image_urls) ? doc.extra_image_urls : []
+                extra_image_urls: Array.isArray(doc.extra_image_urls)
+                    ? doc.extra_image_urls.map((item: string | { url: string; label: string }) =>
+                        typeof item === 'string' ? { url: item, label: '' } : item
+                    )
+                    : []
             })
         } catch (e) {
             setEditError('Impossible de charger le document')
@@ -340,7 +349,7 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
         onMainUpload, onExtraUpload
     }: {
         imageUrl: string, setImageUrl: (v: string) => void,
-        extraUrls: string[], setExtraUrls: (v: string[]) => void,
+        extraUrls: ExtraImage[], setExtraUrls: (v: ExtraImage[]) => void,
         mainUploadRef: React.RefObject<HTMLInputElement | null>,
         extraUploadRef: React.RefObject<HTMLInputElement | null>,
         uploading: boolean,
@@ -379,25 +388,31 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
 
             {/* Images supplémentaires */}
             <div>
-                <p style={{ color: '#64748b', fontSize: 12, marginBottom: 6 }}>Supplémentaires</p>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                    {extraUrls.map((url, idx) => (
-                        <div key={idx} style={{ position: 'relative' }}>
-                            <img src={url} alt={`Extra ${idx + 1}`} style={{ width: 64, height: 64, borderRadius: 8, objectFit: 'cover', border: '1px solid #334155' }}
-                                onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
-                            <button type="button" onClick={() => setExtraUrls(extraUrls.filter((_, i) => i !== idx))}
-                                style={{ position: 'absolute', top: 2, right: 2, background: 'rgba(0,0,0,0.7)', border: 'none', borderRadius: '50%', width: 18, height: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
-                                <X size={10} />
-                            </button>
-                            <span style={{ position: 'absolute', bottom: 3, left: 3, background: 'rgba(0,0,0,0.65)', color: '#fff', fontSize: 8, fontWeight: 600, padding: '1px 3px', borderRadius: 3, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                {url.split('.').pop()?.split('?')[0]?.toUpperCase() || 'IMG'}
-                            </span>
+                <p style={{ color: '#64748b', fontSize: 12, marginBottom: 6 }}>Supplémentaires <span style={{ color: '#475569', fontSize: 11 }}>(avec label pour que l'IA envoie la bonne)</span></p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {extraUrls.map((item, idx) => (
+                        <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#1e293b', border: '1px solid #334155', borderRadius: 10, padding: 8 }}>
+                            <div style={{ position: 'relative', flexShrink: 0 }}>
+                                <img src={item.url} alt={`Extra ${idx + 1}`} style={{ width: 56, height: 56, borderRadius: 8, objectFit: 'cover', border: '1px solid #334155' }}
+                                    onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                                <button type="button" onClick={() => setExtraUrls(extraUrls.filter((_, i) => i !== idx))}
+                                    style={{ position: 'absolute', top: 2, right: 2, background: 'rgba(0,0,0,0.7)', border: 'none', borderRadius: '50%', width: 18, height: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+                                    <X size={10} />
+                                </button>
+                            </div>
+                            <input
+                                type="text"
+                                placeholder='Label (ex: "Ford Focus Rouge")'
+                                value={item.label}
+                                onChange={e => setExtraUrls(extraUrls.map((it, i) => i === idx ? { ...it, label: e.target.value } : it))}
+                                style={{ ...inputStyle, flex: 1, padding: '8px 12px', fontSize: 13 }}
+                            />
                         </div>
                     ))}
                     <button type="button" onClick={() => extraUploadRef.current?.click()} disabled={uploading}
-                        style={{ width: 64, height: 64, border: '2px dashed #334155', borderRadius: 8, background: 'transparent', color: '#475569', cursor: uploading ? 'not-allowed' : 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, fontSize: 10 }}>
+                        style={{ width: '100%', padding: '10px', border: '2px dashed #334155', borderRadius: 8, background: 'transparent', color: '#475569', cursor: uploading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 13 }}>
                         <Plus size={16} color="#475569" />
-                        Ajouter
+                        Ajouter une image supplémentaire
                     </button>
                     <input ref={extraUploadRef} type="file" accept="image/jpeg,image/png,image/gif" style={{ display: 'none' }}
                         onChange={e => { const f = e.target.files?.[0]; if (f) onExtraUpload(f); if (e.target) e.target.value = '' }} />

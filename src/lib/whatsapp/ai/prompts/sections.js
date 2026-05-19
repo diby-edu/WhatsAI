@@ -137,21 +137,28 @@ function buildKnowledgeSection(relevantDocs, maxDocs = null) {
 
     const docs = docsToUse.map(d => {
         let line = `• ${d.content}`
-        // Image principale
-        const allImages = []
-        if (d.image_url) allImages.push(d.image_url)
-        // Images supplémentaires (extra_image_urls est un tableau JSON)
+        // Image principale (toujours une string URL, pas de label)
+        const allImages = [] // { url, label }
+        if (d.image_url) allImages.push({ url: d.image_url, label: null })
+        // Images supplémentaires : string (ancien format) ou {url, label} (nouveau format)
         const extras = Array.isArray(d.extra_image_urls) ? d.extra_image_urls : []
-        extras.forEach(url => { if (url) allImages.push(url) })
+        extras.forEach(item => {
+            if (!item) return
+            if (typeof item === 'string') allImages.push({ url: item, label: null })
+            else if (item.url) allImages.push({ url: item.url, label: item.label || null })
+        })
 
         if (allImages.length === 1) {
-            line += `\n  [IMAGE DISPONIBLE: ${allImages[0]}] — Si le client demande une photo ou une image de cet élément, appelle send_image avec cette URL et caption = titre de l'élément.`
+            const { url, label } = allImages[0]
+            const desc = label ? `(${label}) ` : ''
+            line += `\n  [IMAGE DISPONIBLE ${desc}: ${url}] — Si le client demande une photo ou une image de cet élément, appelle send_image avec cette URL et caption = "${label || 'titre de l\'élément'}".`
         } else if (allImages.length > 1) {
-            line += `\n  [${allImages.length} IMAGES DISPONIBLES] — Si le client demande des photos/images de cet élément, envoie-les une par une avec send_image :`
-            allImages.forEach((url, i) => {
-                line += `\n    - Image ${i + 1}: ${url}`
+            line += `\n  [${allImages.length} IMAGES DISPONIBLES] — Si le client demande des photos/images, envoie uniquement celle(s) correspondant à sa demande avec send_image :`
+            allImages.forEach(({ url, label }, i) => {
+                const desc = label ? label : `Image ${i + 1}`
+                line += `\n    - ${desc}: ${url}`
             })
-            line += `\n  (caption = titre de l'élément pour chaque image)`
+            line += `\n  (caption = label de l'image pour chaque envoi)`
         }
         return line
     }).join('\n\n')
