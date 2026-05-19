@@ -40,7 +40,7 @@ function fuzzyIncludes(haystack, needle) {
     })
 }
 
-async function handleSendImage(args, products, relevantDocs) {
+async function handleSendImage(args, products, relevantDocs, userMessage) {
     try {
         console.log('🛠️ Executing tool: send_image')
         let { product_name, variant_value, selected_variants, image_url: directUrl } = args
@@ -111,6 +111,28 @@ async function handleSendImage(args, products, relevantDocs) {
                         caption: `Voici ${product_name} !`,
                         product_name: product_name,
                     })
+                }
+            }
+        }
+
+        // Cas 2b : Matching sur le message utilisateur (filet de sécurité)
+        // L'IA peut avoir appelé avec product_name="Robe Élégance" (nom catalogue)
+        // au lieu du label KB — on cherche dans les labels KB via le message original
+        if (userMessage && relevantDocs && relevantDocs.length > 0) {
+            const msgLower = userMessage.toLowerCase()
+            for (const doc of relevantDocs) {
+                const extras = Array.isArray(doc.extra_image_urls) ? doc.extra_image_urls : []
+                for (const item of extras) {
+                    const url = typeof item === 'string' ? item : item?.url
+                    const label = typeof item === 'string' ? null : item?.label
+                    if (url && label && fuzzyIncludes(msgLower, label.toLowerCase())) {
+                        console.log(`📸 Image KB trouvée via message utilisateur — label: "${label}"`)
+                        return JSON.stringify({ success: true, action: 'send_image', image_url: url, caption: label, product_name: label })
+                    }
+                }
+                if (doc.image_url && doc.image_label && fuzzyIncludes(msgLower, doc.image_label.toLowerCase())) {
+                    console.log(`📸 Image principale KB via message utilisateur — label: "${doc.image_label}"`)
+                    return JSON.stringify({ success: true, action: 'send_image', image_url: doc.image_url, caption: doc.image_label, product_name: doc.image_label })
                 }
             }
         }
