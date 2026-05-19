@@ -746,7 +746,7 @@ export default function DashboardLayout({
                     </div>
 
                     {/* Navigation */}
-                    <nav style={{ flex: 1, padding: '4px 6px', display: 'flex', flexDirection: 'column', gap: 1, overflowY: 'auto' }}>
+                    <nav style={{ flex: 1, padding: '4px 8px', display: 'flex', flexDirection: 'column', gap: 1, overflowY: 'auto' }}>
                         {sidebarLinks.map((item, idx) => {
                             if ('separator' in item) {
                                 return (
@@ -768,13 +768,13 @@ export default function DashboardLayout({
                                         style={{
                                             display: 'flex', alignItems: 'center',
                                             gap: 10, padding: collapsed ? '6px' : '6px 10px',
-                                            borderRadius: 8, color: '#4b5563', fontWeight: 500, fontSize: 14,
+                                            borderRadius: 8, color: '#4b5563', fontWeight: 500, fontSize: 15,
                                             cursor: 'not-allowed', userSelect: 'none',
                                             justifyContent: collapsed ? 'center' : 'space-between',
                                         }}
                                     >
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                            <link.icon style={{ width: 18, height: 18, flexShrink: 0 }} />
+                                            <link.icon style={{ width: 20, height: 20, flexShrink: 0 }} />
                                             {!collapsed && <span>{link.label}</span>}
                                         </div>
                                         {!collapsed && (
@@ -797,8 +797,8 @@ export default function DashboardLayout({
                                     title={collapsed ? link.label : undefined}
                                     style={{
                                         display: 'flex', alignItems: 'center',
-                                        gap: 10, padding: collapsed ? '6px' : '6px 10px',
-                                        borderRadius: 8, fontSize: 14,
+                                        gap: 10, padding: collapsed ? '8px' : '8px 12px',
+                                        borderRadius: 8, fontSize: 15,
                                         color: isActive ? '#34d399' : link.featured ? '#e2e8f0' : '#94a3b8',
                                         fontWeight: link.featured ? 600 : 500,
                                         textDecoration: 'none',
@@ -809,7 +809,7 @@ export default function DashboardLayout({
                                         paddingLeft: link.featured && !collapsed ? 8 : undefined,
                                     }}
                                 >
-                                    <link.icon style={{ width: 18, height: 18, flexShrink: 0 }} />
+                                    <link.icon style={{ width: 20, height: 20, flexShrink: 0 }} />
                                     {!collapsed && <span>{link.label}</span>}
                                 </Link>
                             )
