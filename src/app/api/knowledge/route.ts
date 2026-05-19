@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
 
     const { data: dataFull, error: errorFull } = await supabase
         .from('knowledge_base')
-        .select('id, title, created_at, source_id, chunk_index, image_url, extra_image_urls')
+        .select('id, title, created_at, source_id, chunk_index, image_url, image_label, extra_image_urls')
         .eq('agent_id', agentId)
         .eq('user_id', user.id)
         .eq('chunk_index', 0)

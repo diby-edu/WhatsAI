@@ -137,9 +137,9 @@ function buildKnowledgeSection(relevantDocs, maxDocs = null) {
 
     const docs = docsToUse.map(d => {
         let line = `• ${d.content}`
-        // Image principale (toujours une string URL, pas de label)
+        // Image principale
         const allImages = [] // { url, label }
-        if (d.image_url) allImages.push({ url: d.image_url, label: null })
+        if (d.image_url) allImages.push({ url: d.image_url, label: d.image_label || null })
         // Images supplémentaires : string (ancien format) ou {url, label} (nouveau format)
         const extras = Array.isArray(d.extra_image_urls) ? d.extra_image_urls : []
         extras.forEach(item => {

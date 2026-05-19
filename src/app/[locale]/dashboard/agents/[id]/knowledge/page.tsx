@@ -67,7 +67,7 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
 
     // Images modal
     const [imageModalDoc, setImageModalDoc] = useState<Document | null>(null)
-    const [imageModalData, setImageModalData] = useState({ image_url: '', extra_image_urls: [] as ExtraImage[] })
+    const [imageModalData, setImageModalData] = useState({ image_url: '', image_label: '', extra_image_urls: [] as ExtraImage[] })
     const [imageModalSaving, setImageModalSaving] = useState(false)
     const [imageModalUploading, setImageModalUploading] = useState(false)
     const [loadingEdit, setLoadingEdit] = useState(false)
@@ -122,6 +122,7 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
         setImageModalDoc(doc)
         setImageModalData({
             image_url: doc.image_url || '',
+            image_label: (doc as any).image_label || '',
             extra_image_urls: Array.isArray(doc.extra_image_urls)
                 ? doc.extra_image_urls.map((item: string | { url: string; label: string }) =>
                     typeof item === 'string' ? { url: item, label: '' } : item
@@ -139,6 +140,7 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     image_url: imageModalData.image_url || null,
+                    image_label: imageModalData.image_label || null,
                     extra_image_urls: imageModalData.extra_image_urls.length > 0 ? imageModalData.extra_image_urls : []
                 })
             })
@@ -671,18 +673,23 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
                             <p style={{ color: '#94a3b8', fontSize: 13, fontWeight: 500, marginBottom: 8 }}>Image principale</p>
                             {imageModalData.image_url ? (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                    <div style={{ position: 'relative' }}>
+                                    <div style={{ position: 'relative', flexShrink: 0 }}>
                                         <img src={imageModalData.image_url} alt="Principale" style={{ width: 80, height: 80, borderRadius: 10, objectFit: 'cover', border: '1px solid #334155' }}
                                             onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
-                                        <button type="button" onClick={() => setImageModalData(prev => ({ ...prev, image_url: '' }))}
+                                        <button type="button" onClick={() => setImageModalData(prev => ({ ...prev, image_url: '', image_label: '' }))}
                                             style={{ position: 'absolute', top: 3, right: 3, background: 'rgba(0,0,0,0.7)', border: 'none', borderRadius: '50%', width: 20, height: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
                                             <X size={11} />
                                         </button>
                                     </div>
-                                    <button type="button" onClick={() => imageModalMainRef.current?.click()} disabled={imageModalUploading}
-                                        style={{ background: 'transparent', border: '1px solid #334155', color: '#94a3b8', padding: '8px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>
-                                        Changer
-                                    </button>
+                                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                        <input type="text" placeholder='Label (ex: "Robe Rouge")' value={imageModalData.image_label}
+                                            onChange={e => setImageModalData(prev => ({ ...prev, image_label: e.target.value }))}
+                                            style={{ ...inputStyle, padding: '8px 12px', fontSize: 13 }} />
+                                        <button type="button" onClick={() => imageModalMainRef.current?.click()} disabled={imageModalUploading}
+                                            style={{ background: 'transparent', border: '1px solid #334155', color: '#94a3b8', padding: '7px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 13, textAlign: 'left' }}>
+                                            Changer l'image
+                                        </button>
+                                    </div>
                                 </div>
                             ) : (
                                 <button type="button" onClick={() => imageModalMainRef.current?.click()} disabled={imageModalUploading}
