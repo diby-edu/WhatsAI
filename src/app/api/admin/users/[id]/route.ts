@@ -110,6 +110,17 @@ export async function PATCH(
                 .update({ credits_balance: newBalance })
                 .eq('id', id)
             if (error) throw error
+            await adminSupabase.from('payments').insert({
+                user_id: id,
+                amount_fcfa: 0,
+                status: 'completed',
+                payment_provider: 'admin',
+                payment_type: 'credits',
+                payment_method_source: 'manual',
+                description: `Crédits retirés manuellement (-${amount})`,
+                credits_purchased: -Number(amount),
+                completed_at: new Date().toISOString()
+            })
             await logAdminAction(user.id, 'subtract_credits', id, 'profile', { amount, newBalance })
             return successResponse({ message: `-${amount} crédits retirés (nouveau solde : ${newBalance})` })
         }
@@ -155,17 +166,31 @@ export async function PATCH(
             try {
                 const { data: planData } = await adminSupabase
                     .from('subscription_plans')
-                    .select('credits_included')
+                    .select('credits_included, name, price')
                     .eq('id', cleanUpdate.plan)
                     .single()
 
-                if (planData && planData.credits_included > 0) {
-                    const { data: currentProfile } = await adminSupabase
-                        .from('profiles').select('credits_balance').eq('id', id).single()
-                    const newBalance = (currentProfile?.credits_balance || 0) + planData.credits_included
-                    await adminSupabase.from('profiles')
-                        .update({ credits_balance: newBalance })
-                        .eq('id', id)
+                if (planData) {
+                    if (planData.credits_included > 0) {
+                        const { data: currentProfile } = await adminSupabase
+                            .from('profiles').select('credits_balance').eq('id', id).single()
+                        const newBalance = (currentProfile?.credits_balance || 0) + planData.credits_included
+                        await adminSupabase.from('profiles')
+                            .update({ credits_balance: newBalance })
+                            .eq('id', id)
+                    }
+                    // Créer un enregistrement dans l'historique
+                    await adminSupabase.from('payments').insert({
+                        user_id: id,
+                        amount_fcfa: 0,
+                        status: 'completed',
+                        payment_provider: 'admin',
+                        payment_type: 'subscription',
+                        payment_method_source: 'manual',
+                        description: `Abonnement ${planData.name || cleanUpdate.plan} attribué manuellement`,
+                        credits_purchased: planData.credits_included || 0,
+                        completed_at: new Date().toISOString()
+                    })
                 }
             } catch { /* non-bloquant */ }
         }

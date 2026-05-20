@@ -383,8 +383,11 @@ export default function SettingsPage() {
 
     const getCroppedImg = async (imageSrc: string, pixelCrop: any): Promise<Blob> => {
         const image = new Image()
-        image.src = imageSrc
-        await new Promise<void>((resolve) => { image.onload = () => resolve() })
+        await new Promise<void>((resolve, reject) => {
+            image.onload = () => resolve()
+            image.onerror = reject
+            image.src = imageSrc
+        })
         const canvas = document.createElement('canvas')
         const ctx = canvas.getContext('2d')!
         canvas.width = pixelCrop.width
@@ -1130,26 +1133,31 @@ export default function SettingsPage() {
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, x: -20 }}
                             >
-                                <h2 style={{ fontSize: 20, fontWeight: 600, color: 'white', marginBottom: 8 }}>Parrainage</h2>
-                                <p style={{ color: '#94a3b8', fontSize: 14, marginBottom: 24 }}>Invitez vos amis et gagnez des crédits ensemble.</p>
+                                <h2 style={{ fontSize: 20, fontWeight: 600, color: 'white', marginBottom: 24 }}>Parrainage</h2>
 
                                 {referralLoading ? (
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 0' }}>
                                         <Loader2 style={{ width: 24, height: 24, color: '#34d399' }} className="animate-spin" />
                                     </div>
                                 ) : referralData ? (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
                                         {/* Bonus info */}
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: -4 }}>
+                                            <Gift style={{ width: 20, height: 20, color: '#34d399' }} />
+                                            <h3 style={{ color: '#94a3b8', fontSize: 14, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, margin: 0 }}>
+                                                Programme de parrainage
+                                            </h3>
+                                        </div>
                                         <div style={{
-                                            background: 'rgba(16, 185, 129, 0.1)',
+                                            background: 'rgba(16, 185, 129, 0.08)',
                                             border: '1px solid rgba(16, 185, 129, 0.2)',
                                             borderRadius: 12,
-                                            padding: 16,
+                                            padding: '14px 16px',
                                             display: 'flex',
                                             alignItems: 'flex-start',
                                             gap: 12
                                         }}>
-                                            <Gift style={{ width: 20, height: 20, color: '#34d399', flexShrink: 0, marginTop: 2 }} />
                                             <div>
                                                 <p style={{ color: '#6ee7b7', fontWeight: 500, fontSize: 14, margin: 0, marginBottom: 4 }}>+10 crédits pour vous et votre filleul</p>
                                                 <p style={{ color: '#94a3b8', fontSize: 12, margin: 0 }}>Les crédits sont offerts après le premier paiement validé de votre filleul.</p>
@@ -1157,20 +1165,19 @@ export default function SettingsPage() {
                                         </div>
 
                                         {/* Referral link */}
-                                        <div style={{
-                                            background: 'rgba(148, 163, 184, 0.05)',
-                                            border: '1px solid rgba(148, 163, 184, 0.1)',
-                                            borderRadius: 12,
-                                            padding: 16
-                                        }}>
-                                            <p style={{ color: '#94a3b8', fontSize: 14, fontWeight: 500, marginBottom: 12 }}>Votre lien de parrainage</p>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: -4 }}>
+                                            <h3 style={{ color: '#94a3b8', fontSize: 14, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, margin: 0 }}>
+                                                Votre lien de parrainage
+                                            </h3>
+                                        </div>
+                                        <div>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                                                 <div style={{
                                                     flex: 1,
-                                                    background: 'rgba(0,0,0,0.3)',
-                                                    border: '1px solid rgba(148, 163, 184, 0.1)',
+                                                    background: 'rgba(15, 23, 42, 0.8)',
+                                                    border: '1px solid rgba(148, 163, 184, 0.15)',
                                                     borderRadius: 8,
-                                                    padding: '8px 12px',
+                                                    padding: '10px 12px',
                                                     fontSize: 13,
                                                     color: '#cbd5e1',
                                                     fontFamily: 'monospace',
@@ -1186,15 +1193,15 @@ export default function SettingsPage() {
                                                         display: 'flex',
                                                         alignItems: 'center',
                                                         gap: 8,
-                                                        padding: '8px 12px',
-                                                        background: 'rgba(16, 185, 129, 0.2)',
-                                                        border: '1px solid rgba(16, 185, 129, 0.3)',
+                                                        padding: '10px 16px',
+                                                        background: copiedRef ? 'rgba(16, 185, 129, 0.2)' : 'rgba(51, 65, 85, 0.5)',
+                                                        border: `1px solid ${copiedRef ? 'rgba(16, 185, 129, 0.3)' : 'rgba(148, 163, 184, 0.2)'}`,
                                                         borderRadius: 8,
-                                                        color: '#34d399',
+                                                        color: copiedRef ? '#34d399' : '#94a3b8',
                                                         fontSize: 13,
                                                         cursor: 'pointer',
                                                         flexShrink: 0,
-                                                        transition: 'background 0.2s'
+                                                        transition: 'all 0.2s'
                                                     }}
                                                 >
                                                     {copiedRef ? <Check style={{ width: 16, height: 16 }} /> : <Copy style={{ width: 16, height: 16 }} />}
@@ -1207,9 +1214,13 @@ export default function SettingsPage() {
                                         </div>
 
                                         {/* Stats */}
-                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: -4 }}>
+                                            <h3 style={{ color: '#94a3b8', fontSize: 14, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, margin: 0 }}>
+                                                Statistiques
+                                            </h3>
+                                        </div>
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 12 }}>
                                             <div style={{
-                                                background: 'rgba(148, 163, 184, 0.05)',
                                                 border: '1px solid rgba(148, 163, 184, 0.1)',
                                                 borderRadius: 12,
                                                 padding: 16,
@@ -1219,7 +1230,6 @@ export default function SettingsPage() {
                                                 <p style={{ color: '#94a3b8', fontSize: 12, margin: 0 }}>Filleuls invités</p>
                                             </div>
                                             <div style={{
-                                                background: 'rgba(148, 163, 184, 0.05)',
                                                 border: '1px solid rgba(148, 163, 184, 0.1)',
                                                 borderRadius: 12,
                                                 padding: 16,
@@ -1229,7 +1239,6 @@ export default function SettingsPage() {
                                                 <p style={{ color: '#94a3b8', fontSize: 12, margin: 0 }}>Confirmés</p>
                                             </div>
                                             <div style={{
-                                                background: 'rgba(148, 163, 184, 0.05)',
                                                 border: '1px solid rgba(148, 163, 184, 0.1)',
                                                 borderRadius: 12,
                                                 padding: 16,
@@ -1335,7 +1344,7 @@ export default function SettingsPage() {
                         <h3 style={{ color: 'white', fontWeight: 600, fontSize: 18, margin: 0 }}>
                             Recadrer la photo
                         </h3>
-                        <div style={{ position: 'relative', width: '100%', height: 320, background: '#0f172a', borderRadius: 12, overflow: 'hidden' }}>
+                        <div style={{ position: 'relative', width: '100%', height: 320, background: '#0f172a', borderRadius: 12 }}>
                             <Cropper
                                 image={rawImageSrc}
                                 crop={crop}
