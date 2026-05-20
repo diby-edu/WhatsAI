@@ -64,6 +64,7 @@ interface Payment {
     payment_channel?: string | null
     payment_channel_detail?: string | null
     reference?: string | null
+    credits?: number | null
     created_at: string
     completed_at?: string | null
 }
@@ -1578,9 +1579,11 @@ function BillingContent() {
                                             )}
                                         </div>
                                         <div style={{ textAlign: 'right' }}>
-                                            <div style={{ fontWeight: 600, fontSize: 14, color: payment.payment_provider === 'admin' ? '#a855f7' : 'white' }}>
+                                            <div style={{ fontWeight: 600, fontSize: 14, color: payment.payment_provider === 'admin' ? (payment.credits != null && payment.credits < 0 ? '#f87171' : '#a855f7') : 'white' }}>
                                                 {payment.payment_provider === 'admin'
-                                                    ? 'Offert'
+                                                    ? payment.credits != null && payment.credits < 0
+                                                        ? `${payment.credits} crédits`
+                                                        : 'Offert'
                                                     : new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF', maximumFractionDigits: 0 }).format(payment.amount_fcfa)
                                                 }
                                             </div>
