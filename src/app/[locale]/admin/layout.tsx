@@ -8,6 +8,7 @@ import {
     LayoutDashboard,
     Users,
     Bot,
+    BookOpen,
     MessagesSquare,
     CreditCard,
     Settings,
@@ -73,6 +74,7 @@ const adminGroups: AdminGroup[] = [
         label: 'PRODUIT',
         items: [
             { href: '/admin/agents', label: 'Agents IA', icon: Bot },
+            { href: '/admin/knowledge', label: 'Bases de connaissances', icon: BookOpen },
             { href: '/admin/conversations', label: 'Conversations', icon: MessagesSquare },
             { href: '/admin/leads', label: 'Leads', icon: Target },
             { href: '/admin/orders', label: 'Commandes', icon: ShoppingCart },
