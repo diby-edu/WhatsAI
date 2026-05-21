@@ -1478,44 +1478,51 @@ function BillingContent() {
                 </div>
             </div>
 
-            {/* Subscription Deadline History */}
+            {/* Historique des paiements (abonnements + crédits) */}
             <div>
                 <h2 style={{ fontSize: 16, fontWeight: 600, color: 'white', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
                     <Calendar style={{ width: 18, height: 18, color: '#60a5fa' }} />
-                    Historique des renouvellements
+                    Historique des paiements
                 </h2>
                 <div style={cardStyle}>
                     {subscriptionHistory.length === 0 ? (
                         <div style={{ textAlign: 'center', padding: 32, color: '#64748b' }}>
                             <Calendar style={{ width: 36, height: 36, margin: '0 auto 10px', opacity: 0.4 }} />
-                            <p style={{ fontSize: 13 }}>Aucun renouvellement enregistré</p>
+                            <p style={{ fontSize: 13 }}>Aucun paiement enregistré</p>
                         </div>
                     ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                             {subscriptionHistory.map((entry, i) => {
-                                const start = new Date(entry.period_start)
-                                const end = new Date(entry.period_end)
                                 const isManual = entry.source === 'manual'
+                                const isCredits = entry.payment_type === 'credits'
+                                const dotColor = isCredits ? '#a78bfa' : isManual ? '#fbbf24' : '#34d399'
                                 return (
                                     <div key={entry.id || i} style={{
                                         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                                         padding: '10px 12px', borderRadius: 8, background: 'rgba(51, 65, 85, 0.3)'
                                     }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                            <div style={{
-                                                width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
-                                                background: isManual ? '#fbbf24' : '#34d399'
-                                            }} />
+                                            <div style={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, background: dotColor }} />
                                             <div>
                                                 <div style={{ fontSize: 13, color: 'white', fontWeight: 500 }}>
-                                                    {start.toLocaleDateString('fr-FR')} → {end.toLocaleDateString('fr-FR')}
+                                                    {isCredits
+                                                        ? `+${entry.credits_added ?? '?'} crédits ajoutés`
+                                                        : entry.period_start && entry.period_end
+                                                            ? `${new Date(entry.period_start).toLocaleDateString('fr-FR')} → ${new Date(entry.period_end).toLocaleDateString('fr-FR')}`
+                                                            : new Date(entry.completed_at).toLocaleDateString('fr-FR')
+                                                    }
                                                 </div>
                                                 {entry.admin_notes && (
                                                     <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{entry.admin_notes}</div>
                                                 )}
                                             </div>
                                         </div>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                                            {isCredits && (
+                                                <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: 'rgba(167,139,250,0.12)', color: '#a78bfa' }}>
+                                                    Crédits
+                                                </span>
+                                            )}
                                             <span style={{
                                                 fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 4,
                                                 background: isManual ? 'rgba(251,191,36,0.1)' : 'rgba(52,211,153,0.1)',
