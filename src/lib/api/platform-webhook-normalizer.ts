@@ -42,6 +42,8 @@ export type NormalizedWebhookEvent = {
     cart?: NormalizedCart
     data?: Record<string, string | number | boolean>
     idempotencyHint?: string
+    mediaUrl?: string
+    mediaType?: 'document' | 'image'
 }
 
 function asObject(value: unknown): Record<string, unknown> {
@@ -200,39 +202,81 @@ function normalizeWooCommerce(topic: string, payload: Record<string, unknown>): 
 }
 
 function normalizeChariow(topic: string, payload: Record<string, unknown>): NormalizedWebhookEvent {
-    const customer = asObject(payload.customer)
-    const order = asObject(payload.order)
-    const cart = asObject(payload.cart)
-    const sale = asObject(payload.sale)
-    const eventKey = topic.replace('.', '_')
+    // Chariow Pulse payload structure:
+    // { purchase: { customer: { name, phone: { number }, email }, product: { name },
+    //               post_purchase: { files: [{ name, download_url }], licenses: [{ license_key }] },
+    //               amount, currency, id, reference } }
+    const purchase = asObject(payload.purchase)
+    const purchaseCustomer = asObject(purchase.customer)
+    const purchasePhone = asObject(purchaseCustomer.phone)
+    const product = asObject(purchase.product)
+    const postPurchase = asObject(purchase.post_purchase)
+    const files = Array.isArray(postPurchase.files) ? postPurchase.files : []
+    const licenses = Array.isArray(postPurchase.licenses) ? postPurchase.licenses : []
 
+    // Phone : prefer purchase.customer.phone.number, fallback to top-level
+    const phone =
+        asString(purchasePhone.number)
+        || asString(purchaseCustomer.phone as unknown)
+        || asString(payload.phone)
+
+    const customerName =
+        asString(purchaseCustomer.name)
+        || asString(payload.customer_name)
+
+    const email =
+        asString(purchaseCustomer.email)
+        || asString(payload.email)
+
+    // Download URL : first file's download_url
+    const firstFile = asObject(files[0])
+    const downloadUrl = asString(firstFile.download_url) || asString(firstFile.url)
+
+    // License key : first license's license_key
+    const firstLicense = asObject(licenses[0])
+    const licenseKey = asString(firstLicense.license_key) || asString(firstLicense.key)
+
+    const productName = asString(product.name)
+
+    // Event mapping — Chariow sends event in the topic or in payload.event
+    const eventKey = (topic || asString(payload.event) || '').toLowerCase().replace(/[.\s]/g, '_')
     let triggerEvent = 'custom'
-    if (eventKey === 'successful_sale' || eventKey === 'sale_success') triggerEvent = 'order_created'
-    else if (eventKey === 'payment_failed') triggerEvent = 'payment_failed'
-    else if (eventKey === 'abandoned_cart') triggerEvent = 'cart_abandoned'
+    if (['sale_success', 'successful_sale', 'vente_reussie', 'purchase_completed', 'order_paid'].some(k => eventKey.includes(k))) {
+        triggerEvent = 'payment_confirmed'
+    } else if (['payment_failed', 'sale_failed', 'vente_echouee'].some(k => eventKey.includes(k))) {
+        triggerEvent = 'payment_failed'
+    } else if (['cart_abandoned', 'abandoned_cart', 'panier_abandonne'].some(k => eventKey.includes(k))) {
+        triggerEvent = 'cart_abandoned'
+    }
+
+    const extraData: Record<string, string | number | boolean> = {}
+    if (downloadUrl) extraData.download_url = downloadUrl
+    if (licenseKey) extraData.license_key = licenseKey
+    if (productName) extraData.product_name = productName
+
+    const purchaseId = asString(purchase.id) || asString(payload.id)
+    const purchaseRef = asString(purchase.reference) || asString(payload.reference)
+    const amount = asNumber(purchase.amount) || asNumber(payload.amount)
+    const currency = asString(purchase.currency) || asString(payload.currency)
 
     return {
         provider: 'chariow',
         providerEvent: topic,
         triggerEvent,
-        customer: {
-            name: asString(customer.name) || asString(payload.customer_name),
-            phone: asString(customer.phone) || asString(payload.phone),
-            email: asString(customer.email),
-        },
+        customer: { name: customerName, phone, email },
         order: {
-            id: asString(order.id) || asString(sale.id),
-            reference: asString(order.reference) || asString(sale.reference),
-            total: asNumber(order.total) || asNumber(sale.total),
-            status: asString(order.status) || asString(sale.status),
+            id: purchaseId,
+            reference: purchaseRef || purchaseId,
+            total: amount,
+            status: triggerEvent === 'payment_confirmed' ? 'paid' : 'failed',
         },
         cart: {
-            id: asString(cart.id),
-            total: asNumber(cart.total),
-            currency: asString(cart.currency),
+            total: amount,
+            currency: currency ?? 'XOF',
         },
-        data: toPrimitiveData(payload),
-        idempotencyHint: asString(order.id) || asString(sale.id) || asString(payload.id),
+        data: { ...toPrimitiveData(payload), ...extraData },
+        idempotencyHint: purchaseId,
+        ...(downloadUrl ? { mediaUrl: downloadUrl, mediaType: 'document' as const } : {}),
     }
 }
 

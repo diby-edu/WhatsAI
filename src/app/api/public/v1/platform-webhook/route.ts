@@ -62,6 +62,11 @@ export async function POST(request: NextRequest) {
         ? asObject(body.payload)
         : body
 
+    // Permettre de forcer le provider via URL param : ?provider=chariow
+    // Utile quand la plateforme ne peut pas envoyer de header x-chariow-event
+    const urlProvider = request.nextUrl.searchParams.get('provider')
+    if (urlProvider && !body.provider) body.provider = urlProvider
+
     const { provider, providerEvent } = detectProviderFromRequest(request.headers, body)
     const normalized = normalizeWebhookEvent(provider, providerEvent, payload)
     const deliveryId = buildDeliveryId(request, body, normalized.idempotencyHint)
@@ -177,6 +182,8 @@ export async function POST(request: NextRequest) {
         userId: userId!,
         phone: normalizedPhone,
         message: generatedMessage,
+        mediaUrl: normalized.mediaUrl,
+        mediaType: normalized.mediaType,
         conversationMetadata: { external_context: externalContext },
         messageMetadata: {
             source: 'platform_webhook',

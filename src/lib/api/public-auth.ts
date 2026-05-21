@@ -74,11 +74,18 @@ export async function authenticateApiKey(
     supabase: SupabaseClient
 ): Promise<AuthResult> {
     const authHeader = request.headers.get('Authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
+    // Fallback: clé API en query param pour les plateformes (ex: Chariow) qui ne supportent pas les headers custom
+    const queryKey = request.nextUrl.searchParams.get('api_key')
+
+    let rawKey: string
+    if (authHeader?.startsWith('Bearer ')) {
+        rawKey = authHeader.slice(7).trim()
+    } else if (queryKey) {
+        rawKey = queryKey.trim()
+    } else {
         return { error: 'Missing Authorization header. Use: Bearer sk_live_...', status: 401 }
     }
 
-    const rawKey = authHeader.slice(7).trim()
     if (!rawKey.startsWith('sk_live_') && !rawKey.startsWith('sk_test_')) {
         return { error: 'Invalid API key format', status: 401 }
     }

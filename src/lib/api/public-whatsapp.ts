@@ -14,6 +14,8 @@ type QueuePublicAssistantMessageParams = {
     userId: string
     phone: string
     message: string
+    mediaUrl?: string
+    mediaType?: 'document' | 'image'
     conversationMetadata?: Record<string, unknown> | null
     messageMetadata?: Record<string, unknown> | null
 }
@@ -53,6 +55,8 @@ export async function queuePublicAssistantMessage(params: QueuePublicAssistantMe
         userId,
         phone,
         message,
+        mediaUrl,
+        mediaType,
         conversationMetadata,
         messageMetadata,
     } = params
@@ -104,6 +108,7 @@ export async function queuePublicAssistantMessage(params: QueuePublicAssistantMe
         agentId,
         to: phone,
         message,
+        ...(mediaUrl ? { mediaUrl, mediaType: mediaType ?? 'document' } : {}),
     })
 
     if (!queueResult.queued) {
