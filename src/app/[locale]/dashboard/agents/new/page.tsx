@@ -391,6 +391,8 @@ Regles:
             // Always force the secure template prompt, no manual override allowed
             systemPrompt: getMissionPrompt(template.id, nextEcommerceMode)
         }))
+        // Auto-advance to step 1 on mission selection
+        setCurrentStep(1)
     }
 
     const setEcommerceMode = (mode: 'native' | 'external_sync') => {
@@ -901,71 +903,6 @@ Regles:
                             </div>
                         )}
 
-                        {formData.mission === 'ecommerce' && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0' }}>
-                                    Mode e-commerce
-                                </label>
-                                <div className="agent-grid-2">
-                                    <button
-                                        type="button"
-                                        onClick={() => setEcommerceMode('native')}
-                                        style={{
-                                            padding: 16,
-                                            borderRadius: 12,
-                                            border: `2px solid ${formData.ecommerce_mode === 'native' ? '#10b981' : 'rgba(148, 163, 184, 0.1)'}`,
-                                            background: formData.ecommerce_mode === 'native' ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
-                                            textAlign: 'left',
-                                            cursor: 'pointer'
-                                        }}
-                                    >
-                                        <h3 style={{ fontWeight: 600, color: 'white', marginBottom: 4 }}>Native</h3>
-                                        <p style={{ fontSize: 13, color: '#94a3b8' }}>
-                                            Catalogue WazzapAI + commandes et checkout natifs.
-                                        </p>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => apiAccessEnabled && setEcommerceMode('external_sync')}
-                                        disabled={!apiAccessEnabled}
-                                        title={!apiAccessEnabled ? "Nécessite un abonnement API" : undefined}
-                                        style={{
-                                            padding: 16,
-                                            borderRadius: 12,
-                                            border: `2px solid ${!apiAccessEnabled ? 'rgba(148, 163, 184, 0.08)' : formData.ecommerce_mode === 'external_sync' ? '#0ea5e9' : 'rgba(148, 163, 184, 0.1)'}`,
-                                            background: !apiAccessEnabled ? 'rgba(255,255,255,0.02)' : formData.ecommerce_mode === 'external_sync' ? 'rgba(14, 165, 233, 0.12)' : 'transparent',
-                                            textAlign: 'left',
-                                            cursor: apiAccessEnabled ? 'pointer' : 'not-allowed',
-                                            opacity: apiAccessEnabled ? 1 : 0.45,
-                                            position: 'relative'
-                                        }}
-                                    >
-                                        <h3 style={{ fontWeight: 600, color: apiAccessEnabled ? 'white' : '#64748b', marginBottom: 4 }}>
-                                            Catalogue externe via API
-                                            {!apiAccessEnabled && <span style={{ fontSize: 11, fontWeight: 400, color: '#f59e0b', marginLeft: 8 }}>Abonnement API requis</span>}
-                                        </h3>
-                                        <p style={{ fontSize: 13, color: '#94a3b8' }}>
-                                            Catalogue synchronise par API + checkout gere par votre plateforme.
-                                        </p>
-                                    </button>
-                                </div>
-
-                                {isExternalSync && (
-                                    <div style={{
-                                        padding: 14,
-                                        background: 'rgba(14, 165, 233, 0.08)',
-                                        border: '1px solid rgba(14, 165, 233, 0.25)',
-                                        borderRadius: 12,
-                                        color: '#bae6fd',
-                                        fontSize: 13,
-                                        lineHeight: 1.6
-                                    }}>
-                                        Ce mode est prevu pour une plateforme connectee. Les produits viendront de l&apos;API publique
-                                        via <strong> /sync</strong>. Les commandes et paiements resteront geres hors du checkout natif WazzapAI.
-                                    </div>
-                                )}
-                            </div>
-                        )}
 
                         {isSupportClient && (
                             <div>
@@ -1048,10 +985,65 @@ Regles:
             case 1: // INFO
                 return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                        {formData.mission === 'ecommerce' && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0' }}>
+                                    Mode e-commerce
+                                </label>
+                                <div className="agent-grid-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setEcommerceMode('native')}
+                                        style={{
+                                            padding: 16,
+                                            borderRadius: 12,
+                                            border: `2px solid ${formData.ecommerce_mode === 'native' ? '#10b981' : 'rgba(148, 163, 184, 0.1)'}`,
+                                            background: formData.ecommerce_mode === 'native' ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
+                                            textAlign: 'left',
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        <h3 style={{ fontWeight: 600, color: 'white', marginBottom: 4 }}>Native</h3>
+                                        <p style={{ fontSize: 13, color: '#94a3b8' }}>
+                                            Catalogue WazzapAI + commandes et checkout natifs.
+                                        </p>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => apiAccessEnabled && setEcommerceMode('external_sync')}
+                                        disabled={!apiAccessEnabled}
+                                        title={!apiAccessEnabled ? "Nécessite un abonnement API" : undefined}
+                                        style={{
+                                            padding: 16,
+                                            borderRadius: 12,
+                                            border: `2px solid ${!apiAccessEnabled ? 'rgba(148, 163, 184, 0.08)' : formData.ecommerce_mode === 'external_sync' ? '#0ea5e9' : 'rgba(148, 163, 184, 0.1)'}`,
+                                            background: !apiAccessEnabled ? 'rgba(255,255,255,0.02)' : formData.ecommerce_mode === 'external_sync' ? 'rgba(14, 165, 233, 0.12)' : 'transparent',
+                                            textAlign: 'left',
+                                            cursor: apiAccessEnabled ? 'pointer' : 'not-allowed',
+                                            opacity: apiAccessEnabled ? 1 : 0.45,
+                                            position: 'relative'
+                                        }}
+                                    >
+                                        <h3 style={{ fontWeight: 600, color: apiAccessEnabled ? 'white' : '#64748b', marginBottom: 4 }}>
+                                            Catalogue externe via API
+                                            {!apiAccessEnabled && <span style={{ fontSize: 11, fontWeight: 400, color: '#f59e0b', marginLeft: 8 }}>Abonnement API requis</span>}
+                                        </h3>
+                                        <p style={{ fontSize: 13, color: '#94a3b8' }}>
+                                            Catalogue synchronisé par API + checkout géré par votre plateforme.
+                                        </p>
+                                    </button>
+                                </div>
+                                {isExternalSync && (
+                                    <div style={{ padding: 14, background: 'rgba(14, 165, 233, 0.08)', border: '1px solid rgba(14, 165, 233, 0.25)', borderRadius: 12, color: '#bae6fd', fontSize: 13, lineHeight: 1.6 }}>
+                                        Ce mode est prévu pour une plateforme connectée (Chariow, Shopify, WooCommerce...). Les produits viendront de l&apos;API publique via <strong>/sync</strong>. Les commandes et paiements restent gérés hors du checkout natif WazzapAI.
+                                    </div>
+                                )}
+                            </div>
+                        )}
                         {isExternalSync && (
                             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px', background: 'rgba(14, 165, 233, 0.08)', border: '1px solid rgba(14, 165, 233, 0.2)', borderRadius: 10, fontSize: 13, color: '#bae6fd' }}>
-                                <span>â„¹ï¸</span>
-                                <span>En mode external_sync, cette etape definit l'identite commerciale de l'agent. Le catalogue sera fourni par votre plateforme via l'API publique <strong>/sync</strong>.</span>
+                                <span>ℹ️</span>
+                                <span>Définissez ici l&apos;identité commerciale de votre agent. Le catalogue sera fourni par votre plateforme via l&apos;API publique <strong>/sync</strong>.</span>
                             </div>
                         )}
                         {isSupportClient && (
@@ -1403,7 +1395,23 @@ Regles:
 - Ne pas communiquer les stocks exacts
 
 📞 ESCALADE:
-- Renvoyer vers le conseiller au +225 07 XX XX XX XX pour toute demande complexe` : `Exemples de règles que l'IA doit respecter:
+- Renvoyer vers le conseiller au +225 07 XX XX XX XX pour toute demande complexe` : isExternalSync ? `Exemples de règles pour une boutique connectée à une plateforme externe:
+
+🌐 PLATEFORME:
+- Toutes les commandes et paiements se font sur notre site/plateforme
+- Ne jamais ouvrir un panier WazzapAI ni proposer le checkout interne
+
+📦 PRODUITS:
+- Ne présenter que les produits disponibles dans le catalogue synchronisé
+- Ne jamais inventer un prix, un stock ou une référence produit
+- En cas de doute sur la disponibilité, demander de vérifier sur le site
+
+📥 PRODUITS NUMÉRIQUES:
+- Après paiement confirmé, le fichier/lien est envoyé automatiquement
+- En cas de problème de téléchargement, orienter vers le SAV
+
+📞 ESCALADE:
+- Renvoyer vers le support au +225 07 XX XX XX XX pour toute réclamation` : `Exemples de règles que l'IA doit respecter:
 
 📦 LIVRAISON:
 - Livraison gratuite à partir de 50.000 FCFA
@@ -2248,20 +2256,41 @@ Regles:
                                 </p>
                                 {!isSupportClient && (
                                     <>
-                                        <button
-                                            onClick={goToKnowledgeBase}
-                                            style={buttonSecondaryStyle}
-                                        >
-                                            <Bot style={{ width: 18, height: 18 }} />
-                                            Ajouter une base de connaissance
-                                        </button>
-                                        <button
-                                            onClick={handleFinish}
-                                            style={buttonPrimaryStyle}
-                                        >
-                                            {t('Wizard.buttons.finish')}
-                                            <ArrowRight style={{ width: 20, height: 20 }} />
-                                        </button>
+                                        {isExternalSync ? (
+                                            <>
+                                                <button
+                                                    onClick={() => router.push('/dashboard/developers?tab=platform_connections')}
+                                                    style={buttonPrimaryStyle}
+                                                >
+                                                    <Globe style={{ width: 18, height: 18 }} />
+                                                    Configurer la connexion plateforme
+                                                </button>
+                                                <button
+                                                    onClick={handleFinish}
+                                                    style={buttonSecondaryStyle}
+                                                >
+                                                    {t('Wizard.buttons.finish')}
+                                                    <ArrowRight style={{ width: 20, height: 20 }} />
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <button
+                                                    onClick={goToKnowledgeBase}
+                                                    style={buttonSecondaryStyle}
+                                                >
+                                                    <Bot style={{ width: 18, height: 18 }} />
+                                                    Ajouter une base de connaissance
+                                                </button>
+                                                <button
+                                                    onClick={handleFinish}
+                                                    style={buttonPrimaryStyle}
+                                                >
+                                                    {t('Wizard.buttons.finish')}
+                                                    <ArrowRight style={{ width: 20, height: 20 }} />
+                                                </button>
+                                            </>
+                                        )}
                                     </>
                                 )}
                             </>
