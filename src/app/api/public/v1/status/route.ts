@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createAdminClient } from '@/lib/api-utils'
 import { authenticateApiKey, isAgentAllowed } from '@/lib/api/public-auth'
 import { logApiUsage } from '@/lib/api/log-usage'
 
 export const dynamic = 'force-dynamic'
 
-const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+const supabaseAdmin = createAdminClient()
 
 export async function GET(request: NextRequest) {
     const startTime = Date.now()
