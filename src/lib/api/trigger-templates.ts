@@ -7,6 +7,7 @@ export type TriggerEvent =
     | 'cart_abandoned'
     | 'order_created'
     | 'order_shipped'
+    | 'payment_confirmed'
     | 'payment_failed'
     | 'appointment_reminder'
     | 'welcome'
@@ -79,6 +80,22 @@ const templates: Record<string, TemplateBuilder> = {
             msg += `\n\nTotal : ${Number.isNaN(n) ? total : n.toLocaleString('fr-FR') + ' ' + currency}`
         }
         msg += `\n\nSouhaitez-vous finaliser votre commande ? Je suis là pour vous aider. 😊`
+        return msg
+    },
+
+    payment_confirmed: (ctx) => {
+        const name = customerName(ctx)
+        const ref = formatOrderReference(ctx.order?.reference || ctx.order?.id, '')
+        const downloadUrl = ctx.data?.download_url as string | undefined
+        const licenseKey = ctx.data?.license_key as string | undefined
+        const productName = ctx.data?.product_name as string | undefined
+
+        let msg = `Bonjour ${name} ! ✅\n\nVotre paiement${ref ? ` pour la commande *${ref}*` : ''} a bien été reçu.`
+        if (productName) msg += `\n\n📦 Produit : *${productName}*`
+        if (downloadUrl) msg += `\n📥 Téléchargement : ${downloadUrl}`
+        if (licenseKey) msg += `\n🔑 Clé de licence : \`${licenseKey}\``
+        if (!downloadUrl && !licenseKey) msg += `\n\nVous recevrez votre produit dans quelques instants.`
+        msg += `\n\nMerci pour votre achat ! 🙏`
         return msg
     },
 

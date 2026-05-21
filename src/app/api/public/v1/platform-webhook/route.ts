@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createAdminClient } from '@/lib/api-utils'
 import { authenticateApiKey, isAgentAllowed } from '@/lib/api/public-auth'
 import { checkPublicRateLimit } from '@/lib/api/rate-limit-public'
 import { logApiUsage } from '@/lib/api/log-usage'
@@ -7,34 +7,15 @@ import { checkIdempotency, storeIdempotency } from '@/lib/api/idempotency'
 import { buildTriggerMessage, type TriggerContext } from '@/lib/api/trigger-templates'
 import { queuePublicAssistantMessage } from '@/lib/api/public-whatsapp'
 import { detectProviderFromRequest, normalizeWebhookEvent } from '@/lib/api/platform-webhook-normalizer'
+import { normalizePhone, isValidPhone, asString } from '@/lib/api/shared'
 
 export const dynamic = 'force-dynamic'
 
-const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+const supabaseAdmin = createAdminClient()
 
 function asObject(value: unknown): Record<string, unknown> {
     if (typeof value !== 'object' || value === null || Array.isArray(value)) return {}
     return value as Record<string, unknown>
-}
-
-function asString(value: unknown): string | undefined {
-    if (typeof value !== 'string') return undefined
-    const next = value.trim()
-    return next.length > 0 ? next : undefined
-}
-
-function normalizePhone(phone: string): string {
-    const digits = phone.replace(/\D/g, '')
-    if (phone.startsWith('+')) return `+${digits}`
-    if (digits.length >= 10) return `+${digits}`
-    return phone
-}
-
-function isValidPhone(phone: string): boolean {
-    return /^\+\d{8,15}$/.test(phone)
 }
 
 function buildDeliveryId(request: NextRequest, body: Record<string, unknown>, fallback?: string): string | null {
