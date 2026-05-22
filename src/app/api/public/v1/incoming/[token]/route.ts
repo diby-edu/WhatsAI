@@ -85,7 +85,7 @@ export async function POST(
     }
 
     const rawBody = await request.text()
-    console.log(`[INCOMING][DEBUG] token=${token.slice(0, 12)}... body=${rawBody.slice(0, 500)}`)
+    console.log(`[INCOMING][DEBUG] token=${token.slice(0, 12)}... body=${rawBody.slice(0, 2000)}`)
     if (!rawBody || rawBody.trim().length === 0) {
         return NextResponse.json(
             {
