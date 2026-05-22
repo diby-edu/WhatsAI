@@ -21,7 +21,7 @@ import {
     Trash2
 } from 'lucide-react'
 
-type TabId = 'keys' | 'catalog_sync' | 'platform_connections' | 'webhooks' | 'logs' | 'documentation' | 'tests'
+type TabId = 'keys' | 'catalog_sync' | 'synced_products' | 'platform_connections' | 'webhooks' | 'logs' | 'documentation' | 'tests'
 type ScopeMode = 'all' | 'selected'
 
 interface AgentSummary {
@@ -128,6 +128,29 @@ interface PlatformSyncRunItem {
     started_at: string
     finished_at: string
     created_at: string
+}
+
+interface SyncedProduct {
+    id: string
+    agent_id: string
+    external_id: string
+    data: {
+        name?: string | null
+        description?: string | null
+        price?: number | null
+        original_price?: number | null
+        currency?: string | null
+        availability?: string | null
+        url?: string | null
+        image_url?: string | null
+        categories?: string[]
+        type?: string | null
+        provider?: string | null
+        raw_status?: string | null
+        synced_at?: string | null
+    }
+    created_at: string
+    updated_at: string | null
 }
 
 const WEBHOOK_EVENTS = [
@@ -301,6 +324,10 @@ export default function DevelopersPage() {
     const [loadingPlatformSyncRunsId, setLoadingPlatformSyncRunsId] = useState<string | null>(null)
     const [platformSyncRunsByConnection, setPlatformSyncRunsByConnection] = useState<Record<string, PlatformSyncRunItem[]>>({})
 
+    const [syncedProducts, setSyncedProducts] = useState<SyncedProduct[]>([])
+    const [syncedProductsLoading, setSyncedProductsLoading] = useState(false)
+    const [syncedProductsAgentFilter, setSyncedProductsAgentFilter] = useState<string>('all')
+
     const [showPlatformConnectionForm, setShowPlatformConnectionForm] = useState(false)
     const [creatingPlatformConnection, setCreatingPlatformConnection] = useState(false)
     const [newPlatformConnectionName, setNewPlatformConnectionName] = useState('')
@@ -391,6 +418,23 @@ export default function DevelopersPage() {
         }
     }, [])
 
+    const fetchSyncedProducts = useCallback(async (agentId?: string) => {
+        setSyncedProductsLoading(true)
+        try {
+            const url = agentId && agentId !== 'all'
+                ? `/api/developer/synced-products?agent_id=${agentId}`
+                : '/api/developer/synced-products'
+            const res = await fetch(url)
+            const result = await res.json()
+            if (!res.ok) throw new Error(result.error || 'Impossible de charger les produits')
+            setSyncedProducts(result.data || [])
+        } catch (error: any) {
+            setPageError(error.message || 'Impossible de charger les produits')
+        } finally {
+            setSyncedProductsLoading(false)
+        }
+    }, [])
+
     const fetchPlatformConnections = useCallback(async () => {
         setPlatformConnectionsLoading(true)
         try {
@@ -430,8 +474,8 @@ export default function DevelopersPage() {
 
     useEffect(() => {
         setPageError(null)
-        void Promise.all([fetchKeys(), fetchAgents(), fetchWebhooks(), fetchPlatformSyncConnections(), fetchPlatformConnections()])
-    }, [fetchAgents, fetchKeys, fetchWebhooks, fetchPlatformConnections, fetchPlatformSyncConnections])
+        void Promise.all([fetchKeys(), fetchAgents(), fetchWebhooks(), fetchPlatformSyncConnections(), fetchPlatformConnections(), fetchSyncedProducts()])
+    }, [fetchAgents, fetchKeys, fetchWebhooks, fetchPlatformConnections, fetchPlatformSyncConnections, fetchSyncedProducts])
 
     useEffect(() => {
         if (activeTab === 'logs') {
@@ -1120,6 +1164,7 @@ export default function DevelopersPage() {
     const tabs = [
         { id: 'keys' as const, label: 'Cles API', icon: Key, count: keys.length },
         { id: 'catalog_sync' as const, label: 'Sync catalogue', icon: RefreshCw, count: platformSyncConnections.length },
+        { id: 'synced_products' as const, label: 'Produits sync', icon: Shield, count: syncedProducts.length },
         { id: 'platform_connections' as const, label: 'Connexions plateforme directes', icon: Globe, count: platformConnections.length },
         { id: 'webhooks' as const, label: 'Webhooks', icon: Globe, count: webhooks.length },
         { id: 'logs' as const, label: 'Logs', icon: Activity, count: undefined },
@@ -2199,6 +2244,144 @@ export default function DevelopersPage() {
                             </div>
                         )}
                     </div>
+                </div>
+            )}
+
+            {activeTab === 'synced_products' && (
+                <div style={{ display: 'grid', gap: 16 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+                        <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary, #9ca3af)' }}>
+                            Produits synchronises depuis vos connexions externes. Votre agent utilise ces donnees pour repondre aux questions clients.
+                        </p>
+                        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                            <select
+                                value={syncedProductsAgentFilter}
+                                onChange={event => {
+                                    const val = event.target.value
+                                    setSyncedProductsAgentFilter(val)
+                                    fetchSyncedProducts(val)
+                                }}
+                                style={{ ...inputStyle, width: 'auto', minWidth: 180 }}
+                            >
+                                <option value="all">Tous les agents</option>
+                                {activeAgents.map(agent => (
+                                    <option key={agent.id} value={agent.id}>{agent.name}</option>
+                                ))}
+                            </select>
+                            <button
+                                onClick={() => fetchSyncedProducts(syncedProductsAgentFilter)}
+                                style={{ ...secondaryButtonStyle, display: 'flex', alignItems: 'center', gap: 6 }}
+                            >
+                                <RefreshCw size={13} />
+                                Rafraichir
+                            </button>
+                        </div>
+                    </div>
+
+                    {syncedProductsLoading ? (
+                        <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary, #9ca3af)', fontSize: 13 }}>
+                            Chargement...
+                        </div>
+                    ) : syncedProducts.length === 0 ? (
+                        <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary, #9ca3af)', fontSize: 13 }}>
+                            Aucun produit synchronise. Lancez une sync depuis l'onglet "Sync catalogue".
+                        </div>
+                    ) : (
+                        <div style={{ display: 'grid', gap: 10 }}>
+                            {syncedProducts.map(product => {
+                                const d = product.data
+                                const agentName = agentNameById.get(product.agent_id) || product.agent_id.slice(0, 8)
+                                return (
+                                    <div key={product.id} style={{
+                                        display: 'flex',
+                                        alignItems: 'flex-start',
+                                        gap: 14,
+                                        padding: '14px 16px',
+                                        borderRadius: 10,
+                                        border: '1px solid var(--border, #2a2a3e)',
+                                        background: 'rgba(255,255,255,0.02)',
+                                    }}>
+                                        <div style={{
+                                            width: 52,
+                                            height: 52,
+                                            borderRadius: 8,
+                                            background: 'rgba(255,255,255,0.06)',
+                                            flexShrink: 0,
+                                            overflow: 'hidden',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                        }}>
+                                            {d.image_url ? (
+                                                <img
+                                                    src={d.image_url}
+                                                    alt={d.name || ''}
+                                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                />
+                                            ) : (
+                                                <span style={{ fontSize: 22 }}>📦</span>
+                                            )}
+                                        </div>
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+                                                <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary, #fff)' }}>
+                                                    {d.name || product.external_id}
+                                                </span>
+                                                {d.provider && (
+                                                    <span style={{
+                                                        padding: '2px 8px',
+                                                        borderRadius: 999,
+                                                        background: 'rgba(37,211,102,0.12)',
+                                                        color: '#25d366',
+                                                        fontSize: 11,
+                                                        fontWeight: 600,
+                                                        textTransform: 'uppercase',
+                                                    }}>
+                                                        {d.provider}
+                                                    </span>
+                                                )}
+                                                <span style={{
+                                                    padding: '2px 8px',
+                                                    borderRadius: 999,
+                                                    background: 'rgba(255,255,255,0.06)',
+                                                    color: 'var(--text-secondary, #9ca3af)',
+                                                    fontSize: 11,
+                                                }}>
+                                                    {agentName}
+                                                </span>
+                                            </div>
+                                            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 12, color: 'var(--text-secondary, #9ca3af)', marginBottom: d.description ? 6 : 0 }}>
+                                                {d.price != null && (
+                                                    <span style={{ color: '#25d366', fontWeight: 600 }}>
+                                                        {Number(d.price).toLocaleString('fr-FR')} {d.currency || 'XOF'}
+                                                        {d.original_price != null && (
+                                                            <span style={{ marginLeft: 6, textDecoration: 'line-through', color: 'var(--text-secondary, #9ca3af)', fontWeight: 400 }}>
+                                                                {Number(d.original_price).toLocaleString('fr-FR')}
+                                                            </span>
+                                                        )}
+                                                    </span>
+                                                )}
+                                                {d.type && <span>Type : {d.type}</span>}
+                                                {d.url && (
+                                                    <a href={d.url} target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa' }}>
+                                                        Voir le produit
+                                                    </a>
+                                                )}
+                                                {d.synced_at && (
+                                                    <span>Sync : {new Date(d.synced_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                                                )}
+                                            </div>
+                                            {d.description && (
+                                                <p style={{ margin: 0, fontSize: 12, color: 'var(--text-secondary, #9ca3af)', lineHeight: 1.5, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                                                    {d.description}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    )}
                 </div>
             )}
 
