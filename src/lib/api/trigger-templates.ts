@@ -95,7 +95,7 @@ const templates: Record<string, TemplateBuilder> = {
         if (productName) msg += `\n\n📦 Produit : *${productName}*`
         if (downloadUrl) msg += `\n📥 Téléchargement : ${downloadUrl}`
         if (licenseKey) msg += `\n🔑 Clé de licence : \`${licenseKey}\``
-        if (portalUrl && !downloadUrl) msg += `\n🔗 Accédez à votre achat : ${portalUrl}`
+        if (portalUrl && !downloadUrl) msg += `\n📧 Consultez votre email pour télécharger votre produit (lien valable 15 min).\n🔗 Accès ultérieur : ${portalUrl}`
         if (!downloadUrl && !licenseKey && !portalUrl) msg += `\n\nVous recevrez votre produit dans quelques instants.`
         msg += `\n\nMerci pour votre achat ! 🙏`
         return msg
