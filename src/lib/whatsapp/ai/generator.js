@@ -436,7 +436,8 @@ async function generateAIResponse(options, dependencies) {
             : ''
 
         // 3. Construire le System Prompt
-        const isSupportClientMode = (products || []).length === 0 && hasKnowledgeBase
+        // external_sync : produits dans agent_external_data (pas dans products) → jamais support client
+        const isSupportClientMode = (products || []).length === 0 && hasKnowledgeBase && agent.ecommerce_mode !== 'external_sync'
         const activeEngineHint =
             hasRestaurantServiceProduct(products || []) && hasRestaurantStateData(restaurantState)
                 ? 'RESTAURANT'

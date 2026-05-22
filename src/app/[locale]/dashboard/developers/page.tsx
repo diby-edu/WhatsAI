@@ -143,11 +143,20 @@ interface SyncedProduct {
         availability?: string | null
         url?: string | null
         image_url?: string | null
+        images?: string[] | null
         categories?: string[]
+        category?: string | null
         type?: string | null
+        sku?: string | null
+        brand?: string | null
+        stock?: number | null
+        weight?: number | null
+        tags?: string[] | null
+        variants?: { name?: string | null; value?: string | null }[] | null
         provider?: string | null
         raw_status?: string | null
         synced_at?: string | null
+        [key: string]: unknown
     }
     created_at: string
     updated_at: string | null
@@ -327,6 +336,7 @@ export default function DevelopersPage() {
     const [syncedProducts, setSyncedProducts] = useState<SyncedProduct[]>([])
     const [syncedProductsLoading, setSyncedProductsLoading] = useState(false)
     const [syncedProductsAgentFilter, setSyncedProductsAgentFilter] = useState<string>('all')
+    const [expandedProductIds, setExpandedProductIds] = useState<Set<string>>(new Set())
 
     const [showPlatformConnectionForm, setShowPlatformConnectionForm] = useState(false)
     const [creatingPlatformConnection, setCreatingPlatformConnection] = useState(false)
@@ -2287,96 +2297,169 @@ export default function DevelopersPage() {
                             Aucun produit synchronise. Lancez une sync depuis l'onglet "Sync catalogue".
                         </div>
                     ) : (
-                        <div style={{ display: 'grid', gap: 10 }}>
+                        <div style={{ display: 'grid', gap: 8 }}>
                             {syncedProducts.map(product => {
                                 const d = product.data
                                 const agentName = agentNameById.get(product.agent_id) || product.agent_id.slice(0, 8)
+                                const isExpanded = expandedProductIds.has(product.id)
+                                const toggleExpanded = () => setExpandedProductIds(prev => {
+                                    const next = new Set(prev)
+                                    if (next.has(product.id)) next.delete(product.id)
+                                    else next.add(product.id)
+                                    return next
+                                })
                                 return (
                                     <div key={product.id} style={{
-                                        display: 'flex',
-                                        alignItems: 'flex-start',
-                                        gap: 14,
-                                        padding: '14px 16px',
                                         borderRadius: 10,
                                         border: '1px solid var(--border, #2a2a3e)',
                                         background: 'rgba(255,255,255,0.02)',
+                                        overflow: 'hidden',
                                     }}>
-                                        <div style={{
-                                            width: 52,
-                                            height: 52,
-                                            borderRadius: 8,
-                                            background: 'rgba(255,255,255,0.06)',
-                                            flexShrink: 0,
-                                            overflow: 'hidden',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                        }}>
-                                            {d.image_url ? (
-                                                <img
-                                                    src={d.image_url}
-                                                    alt={d.name || ''}
-                                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                                />
-                                            ) : (
-                                                <span style={{ fontSize: 22 }}>📦</span>
-                                            )}
-                                        </div>
-                                        <div style={{ flex: 1, minWidth: 0 }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
-                                                <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary, #fff)' }}>
-                                                    {d.name || product.external_id}
-                                                </span>
-                                                {d.provider && (
-                                                    <span style={{
-                                                        padding: '2px 8px',
-                                                        borderRadius: 999,
-                                                        background: 'rgba(37,211,102,0.12)',
-                                                        color: '#25d366',
-                                                        fontSize: 11,
-                                                        fontWeight: 600,
-                                                        textTransform: 'uppercase',
-                                                    }}>
-                                                        {d.provider}
-                                                    </span>
+                                        {/* Header — toujours visible, cliquable */}
+                                        <button
+                                            onClick={toggleExpanded}
+                                            style={{
+                                                width: '100%',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 12,
+                                                padding: '12px 14px',
+                                                background: 'none',
+                                                border: 'none',
+                                                cursor: 'pointer',
+                                                textAlign: 'left',
+                                            }}
+                                        >
+                                            <div style={{
+                                                width: 40,
+                                                height: 40,
+                                                borderRadius: 7,
+                                                background: 'rgba(255,255,255,0.06)',
+                                                flexShrink: 0,
+                                                overflow: 'hidden',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                            }}>
+                                                {d.image_url ? (
+                                                    <img
+                                                        src={d.image_url}
+                                                        alt={d.name || ''}
+                                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                    />
+                                                ) : (
+                                                    <span style={{ fontSize: 18 }}>📦</span>
                                                 )}
-                                                <span style={{
-                                                    padding: '2px 8px',
-                                                    borderRadius: 999,
-                                                    background: 'rgba(255,255,255,0.06)',
-                                                    color: 'var(--text-secondary, #9ca3af)',
-                                                    fontSize: 11,
-                                                }}>
-                                                    {agentName}
-                                                </span>
                                             </div>
-                                            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 12, color: 'var(--text-secondary, #9ca3af)', marginBottom: d.description ? 6 : 0 }}>
-                                                {d.price != null && (
-                                                    <span style={{ color: '#25d366', fontWeight: 600 }}>
-                                                        {Number(d.price).toLocaleString('fr-FR')} {d.currency || 'XOF'}
-                                                        {d.original_price != null && (
-                                                            <span style={{ marginLeft: 6, textDecoration: 'line-through', color: 'var(--text-secondary, #9ca3af)', fontWeight: 400 }}>
-                                                                {Number(d.original_price).toLocaleString('fr-FR')}
-                                                            </span>
-                                                        )}
+                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+                                                    <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--text-primary, #fff)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 220 }}>
+                                                        {d.name || product.external_id}
                                                     </span>
+                                                    {d.price != null && (
+                                                        <span style={{ fontSize: 12, color: '#25d366', fontWeight: 700, flexShrink: 0 }}>
+                                                            {Number(d.price).toLocaleString('fr-FR')} {d.currency || 'XOF'}
+                                                        </span>
+                                                    )}
+                                                    {d.provider && (
+                                                        <span style={{
+                                                            padding: '1px 7px',
+                                                            borderRadius: 999,
+                                                            background: 'rgba(37,211,102,0.12)',
+                                                            color: '#25d366',
+                                                            fontSize: 10,
+                                                            fontWeight: 600,
+                                                            textTransform: 'uppercase',
+                                                            flexShrink: 0,
+                                                        }}>
+                                                            {d.provider}
+                                                        </span>
+                                                    )}
+                                                    <span style={{
+                                                        padding: '1px 7px',
+                                                        borderRadius: 999,
+                                                        background: 'rgba(255,255,255,0.06)',
+                                                        color: 'var(--text-secondary, #9ca3af)',
+                                                        fontSize: 10,
+                                                        flexShrink: 0,
+                                                    }}>
+                                                        {agentName}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <ChevronDown
+                                                size={15}
+                                                style={{
+                                                    flexShrink: 0,
+                                                    color: 'var(--text-secondary, #9ca3af)',
+                                                    transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                                                    transition: 'transform 0.2s',
+                                                }}
+                                            />
+                                        </button>
+
+                                        {/* Détails — visibles uniquement si déplié */}
+                                        {isExpanded && (
+                                            <div style={{
+                                                padding: '0 14px 14px 14px',
+                                                borderTop: '1px solid var(--border, #2a2a3e)',
+                                                paddingTop: 12,
+                                                display: 'grid',
+                                                gap: 8,
+                                            }}>
+                                                <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 12, color: 'var(--text-secondary, #9ca3af)' }}>
+                                                    {d.original_price != null && (
+                                                        <span>Prix original : <span style={{ textDecoration: 'line-through' }}>{Number(d.original_price).toLocaleString('fr-FR')} {d.currency || 'XOF'}</span></span>
+                                                    )}
+                                                    {d.type && <span>Type : {d.type}</span>}
+                                                    {d.sku && <span>SKU : {d.sku}</span>}
+                                                    {d.brand && <span>Marque : {d.brand}</span>}
+                                                    {d.category && <span>Categorie : {d.category}</span>}
+                                                    {d.stock != null && <span>Stock : {d.stock}</span>}
+                                                    {d.weight != null && <span>Poids : {d.weight}</span>}
+                                                    {d.synced_at && (
+                                                        <span>Sync : {new Date(d.synced_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                                                    )}
+                                                </div>
+                                                {d.description && (
+                                                    <p style={{ margin: 0, fontSize: 12, color: 'var(--text-secondary, #9ca3af)', lineHeight: 1.5 }}>
+                                                        {d.description}
+                                                    </p>
                                                 )}
-                                                {d.type && <span>Type : {d.type}</span>}
                                                 {d.url && (
-                                                    <a href={d.url} target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa' }}>
-                                                        Voir le produit
+                                                    <a href={d.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#60a5fa' }}>
+                                                        Voir le produit →
                                                     </a>
                                                 )}
-                                                {d.synced_at && (
-                                                    <span>Sync : {new Date(d.synced_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                                                {Array.isArray(d.variants) && d.variants.length > 0 && (
+                                                    <div>
+                                                        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary, #9ca3af)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                                            Variantes ({d.variants.length})
+                                                        </div>
+                                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                                                            {d.variants.map((v: any, i: number) => (
+                                                                <span key={i} style={{
+                                                                    padding: '2px 8px',
+                                                                    borderRadius: 999,
+                                                                    background: 'rgba(255,255,255,0.06)',
+                                                                    color: 'var(--text-primary, #fff)',
+                                                                    fontSize: 11,
+                                                                }}>
+                                                                    {v.name || v.label || JSON.stringify(v)}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {Array.isArray(d.images) && d.images.length > 1 && (
+                                                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                                                        {d.images.slice(1, 5).map((img: string, i: number) => (
+                                                            <img key={i} src={img} alt="" style={{ width: 44, height: 44, borderRadius: 6, objectFit: 'cover', border: '1px solid var(--border, #2a2a3e)' }} />
+                                                        ))}
+                                                    </div>
                                                 )}
                                             </div>
-                                            {d.description && (
-                                                <p style={{ margin: 0, fontSize: 12, color: 'var(--text-secondary, #9ca3af)', lineHeight: 1.5, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
-                                                    {d.description}
-                                                </p>
-                                            )}
-                                        </div>
+                                        )}
                                     </div>
                                 )
                             })}

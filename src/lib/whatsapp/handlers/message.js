@@ -572,7 +572,8 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
         const hasKnowledgeBase = (kbCount || 0) > 0
 
         // Mode Support Client : pas de produits + KB → bypass total des flux transactionnels
-        const isSupportClientMode = (products || []).length === 0 && hasKnowledgeBase
+        // external_sync : produits dans agent_external_data (pas dans products) → jamais support client
+        const isSupportClientMode = (products || []).length === 0 && hasKnowledgeBase && agent.ecommerce_mode !== 'external_sync'
 
         const previousCartState = getCartState(conversation.metadata)
         const previousCheckoutState = getCheckoutState(conversation.metadata)
