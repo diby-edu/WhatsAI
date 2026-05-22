@@ -238,15 +238,25 @@ function normalizeChariow(topic: string, payload: Record<string, unknown>): Norm
     const licenseField = customFields.find(f => asString(f.name)?.toLowerCase().includes('license') || asString(f.name)?.toLowerCase().includes('licence'))
     const licenseKey = licenseField ? asString(licenseField.value) : undefined
 
-    // Event mapping
-    const eventKey = (topic || asString(payload.event) || '').toLowerCase().replace(/[.\s]/g, '_')
+    // Event mapping — exact Chariow event names (confirmed via debug)
+    const rawEvent = (topic || asString(payload.event) || '').toLowerCase().trim()
     let triggerEvent = 'custom'
-    if (['sale_success', 'successful_sale', 'vente_reussie', 'purchase_completed', 'order_paid'].some(k => eventKey.includes(k))) {
+    if (['successful.sale', 'sale.success'].includes(rawEvent)) {
         triggerEvent = 'payment_confirmed'
-    } else if (['payment_failed', 'sale_failed', 'vente_echouee'].some(k => eventKey.includes(k))) {
-        triggerEvent = 'payment_failed'
-    } else if (['cart_abandoned', 'abandoned_cart', 'panier_abandonne'].some(k => eventKey.includes(k))) {
+    } else if (['abandoned.sale', 'sale.abandoned'].includes(rawEvent)) {
         triggerEvent = 'cart_abandoned'
+    } else if (['failed.sale', 'sale.failed', 'failed.payment'].includes(rawEvent)) {
+        triggerEvent = 'payment_failed'
+    } else if (rawEvent === 'license.activated') {
+        triggerEvent = 'license_activated'
+    } else if (rawEvent === 'license.expired') {
+        triggerEvent = 'license_expired'
+    } else if (rawEvent === 'license.issued') {
+        triggerEvent = 'license_issued'
+    } else if (rawEvent === 'license.revoked') {
+        triggerEvent = 'license_revoked'
+    } else if (rawEvent === 'affiliate.joined') {
+        triggerEvent = 'affiliate_joined'
     }
 
     const extraData: Record<string, string | number | boolean> = {}

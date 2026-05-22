@@ -11,6 +11,11 @@ export type TriggerEvent =
     | 'payment_failed'
     | 'appointment_reminder'
     | 'welcome'
+    | 'license_activated'
+    | 'license_expired'
+    | 'license_issued'
+    | 'license_revoked'
+    | 'affiliate_joined'
     | 'custom'
 
 export interface TriggerContext {
@@ -132,6 +137,58 @@ const templates: Record<string, TemplateBuilder> = {
 
         let msg = `Bonjour ${name},\n\nNous n'avons pas pu traiter votre paiement${ref ? ` pour la commande *${ref}*` : ''}.`
         msg += `\n\nVoulez-vous réessayer ou choisir un autre mode de paiement ? Je peux vous guider. 🙏`
+        return msg
+    },
+
+    license_activated: (ctx) => {
+        const name = customerName(ctx)
+        const product = ctx.data?.product_name as string | undefined
+        const licenseKey = ctx.data?.license_key as string | undefined
+        const portal = ctx.data?.portal_url as string | undefined
+        let msg = `Bonjour ${name} ! 🔓\n\nVotre licence${product ? ` pour *${product}*` : ''} a été activée avec succès.`
+        if (licenseKey) msg += `\n\n🔑 Clé : \`${licenseKey}\``
+        if (portal) msg += `\n🔗 Gérer vos licences : ${portal}`
+        msg += `\n\nMerci pour votre confiance ! 🙏`
+        return msg
+    },
+
+    license_issued: (ctx) => {
+        const name = customerName(ctx)
+        const product = ctx.data?.product_name as string | undefined
+        const licenseKey = ctx.data?.license_key as string | undefined
+        const portal = ctx.data?.portal_url as string | undefined
+        let msg = `Bonjour ${name} ! 🎉\n\nVotre licence${product ? ` pour *${product}*` : ''} a été émise.`
+        if (licenseKey) msg += `\n\n🔑 Clé : \`${licenseKey}\``
+        if (portal) msg += `\n🔗 Accédez à votre licence : ${portal}`
+        return msg
+    },
+
+    license_expired: (ctx) => {
+        const name = customerName(ctx)
+        const product = ctx.data?.product_name as string | undefined
+        const portal = ctx.data?.portal_url as string | undefined
+        let msg = `Bonjour ${name},\n\nVotre licence${product ? ` pour *${product}*` : ''} a expiré.`
+        if (portal) msg += `\n\n🔗 Renouvelez votre licence : ${portal}`
+        msg += `\n\nBesoin d'aide ? Répondez à ce message.`
+        return msg
+    },
+
+    license_revoked: (ctx) => {
+        const name = customerName(ctx)
+        const product = ctx.data?.product_name as string | undefined
+        const portal = ctx.data?.portal_url as string | undefined
+        let msg = `Bonjour ${name},\n\nVotre licence${product ? ` pour *${product}*` : ''} a été révoquée.`
+        if (portal) msg += `\n\n🔗 Plus d'informations : ${portal}`
+        msg += `\n\nPour toute question, répondez à ce message.`
+        return msg
+    },
+
+    affiliate_joined: (ctx) => {
+        const name = customerName(ctx)
+        const portal = ctx.data?.portal_url as string | undefined
+        let msg = `Bonjour ${name} ! 🤝\n\nBienvenue dans notre programme d'affiliation !`
+        if (portal) msg += `\n\n🔗 Accédez à votre espace affilié : ${portal}`
+        msg += `\n\nMerci de nous rejoindre ! 🙏`
         return msg
     },
 
