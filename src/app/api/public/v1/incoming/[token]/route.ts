@@ -140,7 +140,6 @@ if (!rawBody || rawBody.trim().length === 0) {
         return NextResponse.json({ error: access.error, code: 'ACCESS_DENIED' }, { status: access.status || 403 })
     }
 
-    console.log(`[INCOMING][DEBUG] token=${token.slice(0, 12)}... body=${JSON.stringify(body).slice(0, 3000)}`)
     const provider = normalizeProvider(connection.provider)
     const payload = Object.keys(asObject(body.payload)).length > 0
         ? asObject(body.payload)
