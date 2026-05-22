@@ -154,6 +154,22 @@ export async function executePlatformSyncConnection(
             }
         }
 
+        // Remove products that are no longer in the provider (deleted, unpublished, filtered out)
+        if (!fetched.hasMore) {
+            const syncedIds = fetched.products.map(p => p.external_id)
+            const deleteQuery = admin
+                .from('agent_external_data')
+                .delete()
+                .eq('agent_id', connection.agent_id)
+                .eq('user_id', connection.user_id)
+                .eq('data_type', 'product')
+            if (syncedIds.length > 0) {
+                await deleteQuery.not('external_id', 'in', `(${syncedIds.join(',')})`)
+            } else {
+                await deleteQuery
+            }
+        }
+
         const finishedAt = toIso(new Date())
         await admin
             .from('api_platform_sync_connections')
