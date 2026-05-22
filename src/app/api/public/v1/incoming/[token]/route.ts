@@ -231,7 +231,7 @@ export async function POST(
     const rateCheck = await checkPublicRateLimit(
         `platform_conn_${connection.id}`,
         connection.user_id,
-        null,
+        normalizedPhone,
         connection.rate_limit_per_minute || 300
     )
     if (!rateCheck.allowed) {
@@ -324,6 +324,8 @@ export async function POST(
         userId: connection.user_id,
         phone: normalizedPhone,
         message: generatedMessage,
+        mediaUrl: normalized.mediaUrl,
+        mediaType: normalized.mediaType,
         conversationMetadata: { external_context: externalContext },
         messageMetadata: {
             source: 'platform_webhook_incoming',

@@ -84,6 +84,7 @@ export default function AgentWizardPage({
     const [currentStep, setCurrentStep] = useState(0)
     const [highlightEscalation, setHighlightEscalation] = useState(false)
     const [selectedMission, setSelectedMission] = useState('')
+    const [isExternalSync, setIsExternalSync] = useState(false)
     const isSupportClient = selectedMission === 'support_client'
 
     // Handle deep linking to tabs or focus fields
@@ -342,6 +343,9 @@ export default function AgentWizardPage({
                 (agent.system_prompt || '').includes('en te basant uniquement')
             ) {
                 setSelectedMission('support_client')
+            }
+            if (agent.ecommerce_mode === 'external_sync') {
+                setIsExternalSync(true)
             }
 
             setLoading(false)
@@ -1760,13 +1764,15 @@ export default function AgentWizardPage({
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
-                        <Link
-                            href={`/dashboard/agents/${agentId}/knowledge?from=whatsapp`}
-                            className="bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 transition-all"
-                        >
-                            <BookOpen size={16} />
-                            Base de connaissance
-                        </Link>
+                        {!isExternalSync && (
+                            <Link
+                                href={`/dashboard/agents/${agentId}/knowledge?from=whatsapp`}
+                                className="bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 transition-all"
+                            >
+                                <BookOpen size={16} />
+                                Base de connaissance
+                            </Link>
+                        )}
                         {isSupportClient && (
                             <Link
                                 href={`/dashboard/agents/${agentId}/leads`}
