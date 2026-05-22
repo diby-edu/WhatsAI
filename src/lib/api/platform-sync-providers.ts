@@ -275,41 +275,40 @@ function mapWooProduct(item: any): SyncProductRecord {
 }
 
 function mapChariowProduct(item: any): SyncProductRecord {
-    // API listing returns price as direct number; webhook returns {value, currency}
-    const price = typeof item?.price === 'object' && item?.price !== null
-        ? toNumber(item.price?.value)
-        : toNumber(item?.price)
+    // Chariow API: price is nested under item.pricing.current_price
+    const pricing = item?.pricing || {}
+    const currentPrice = pricing.current_price || pricing.price || {}
+    const price = toNumber(currentPrice.value)
+    const currency = asString(currentPrice.currency) || 'XOF'
 
-    const currency = typeof item?.price === 'object' && item?.price !== null
-        ? asString(item.price?.currency)
-        : asString(item?.currency)
+    // Sale price if applicable
+    const salePrice = pricing.sale_price ? toNumber(pricing.sale_price?.value) : null
+    const priceOff = asString(pricing.price_off)
 
-    const categories = Array.isArray(item?.categories)
-        ? item.categories.map((c: any) => asString(c?.name || c)).filter(Boolean)
+    const categories = item?.category?.value
+        ? [asString(item.category.label) || asString(item.category.value)].filter(Boolean) as string[]
         : []
 
-    const url = asString(item?.url)
-        || asString(item?.checkout_url)
-        || asString(item?.link)
-        || asString(item?.product_url)
-        || asString(item?.store_url)
+    const pictures = item?.pictures || {}
+    const imageUrl = asString(pictures.cover) || asString(pictures.thumbnail)
 
-    const imageUrl = asString(item?.thumbnail)
-        || asString(item?.image_url)
-        || asString(item?.cover)
-        || asString(item?.image)
+    const slug = asString(item?.slug)
+    const url = slug ? `https://chariow.com/products/${slug}` : null
 
     return {
         external_id: String(item?.id),
         data: {
             name: asString(item?.name),
-            description: stripHtml(item?.description || item?.short_description || ''),
-            price,
-            currency: currency || 'XOF',
+            description: stripHtml(item?.description || ''),
+            price: salePrice ?? price,
+            original_price: salePrice ? price : null,
+            price_off: priceOff,
+            currency,
             availability: 'in_stock',
             url,
             image_url: imageUrl,
             categories,
+            type: asString(item?.type),
             provider: 'chariow',
             raw_status: asString(item?.status),
             updated_at: asString(item?.updated_at),
@@ -433,10 +432,6 @@ export async function fetchProviderProducts(
 
             const payload = await res.json().catch(() => ({}))
             const batch = Array.isArray(payload) ? payload : (Array.isArray(payload?.data) ? payload.data : [])
-
-            if (page === 1 && batch.length > 0) {
-                console.log('[CHARIOW_SYNC_DEBUG] first product raw:', JSON.stringify(batch[0]).slice(0, 1000))
-            }
 
             if (!Array.isArray(batch) || batch.length === 0) break
 
