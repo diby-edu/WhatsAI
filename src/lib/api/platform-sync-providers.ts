@@ -275,18 +275,18 @@ function mapWooProduct(item: any): SyncProductRecord {
 }
 
 function mapChariowProduct(item: any): SyncProductRecord {
-    // TODO: remove after inspecting raw Chariow API response
-    console.log('[CHARIOW_RAW]', JSON.stringify(item, null, 2))
-
-    // Chariow API: price is nested under item.pricing.current_price
     const pricing = item?.pricing || {}
-    const currentPrice = pricing.current_price || pricing.price || {}
-    const price = toNumber(currentPrice.value)
-    const currency = asString(currentPrice.currency) || 'XOF'
+    // current_price = prix effectif payé par le client (après promo éventuelle)
+    // price = prix de base (avant promo)
+    const currentPrice = pricing.current_price || {}
+    const basePrice = pricing.price || {}
+    const effectivePrice = toNumber(currentPrice.value)
+    const currency = asString(currentPrice.currency) || asString(basePrice.currency) || 'XOF'
 
-    // Sale price if applicable
-    const salePrice = pricing.sale_price ? toNumber(pricing.sale_price?.value) : null
-    const priceOff = asString(pricing.price_off)
+    // S'il y a une promo : current_price < price → afficher current_price + barrer price
+    const basePriceValue = toNumber(basePrice.value)
+    const isOnSale = pricing.sale_price != null && basePriceValue != null && effectivePrice != null && basePriceValue > effectivePrice
+    const priceOff = asString(pricing.price_off) || null
 
     const categories = item?.category?.value
         ? [asString(item.category.label) || asString(item.category.value)].filter(Boolean) as string[]
@@ -295,53 +295,32 @@ function mapChariowProduct(item: any): SyncProductRecord {
     const pictures = item?.pictures || {}
     const imageUrl = asString(pictures.cover) || asString(pictures.thumbnail)
 
-    // Collect all available images
-    const allImages: string[] = []
-    if (pictures.cover) allImages.push(asString(pictures.cover)!)
-    if (pictures.thumbnail && pictures.thumbnail !== pictures.cover) allImages.push(asString(pictures.thumbnail)!)
-    if (Array.isArray(pictures.gallery)) {
-        for (const img of pictures.gallery) {
-            const src = asString(img?.url || img)
-            if (src && !allImages.includes(src)) allImages.push(src)
-        }
-    }
-
     const slug = asString(item?.slug)
     const url = slug ? `https://chariow.com/products/${slug}` : null
 
-    // Variants (options)
-    const rawOptions = Array.isArray(item?.options) ? item.options : []
-    const variants = rawOptions.length > 0
-        ? rawOptions.map((opt: any) => ({ name: asString(opt?.name || opt?.label || opt), value: asString(opt?.value) })).filter((v: any) => v.name)
-        : null
-
-    // Stock
-    const stock = item?.stock_quantity != null ? toNumber(item.stock_quantity)
-        : item?.stock != null ? toNumber(item.stock)
-        : null
+    // Stock : Chariow utilise `quantity` pour les produits physiques
+    const stock = item?.quantity != null ? toNumber(item.quantity) : null
 
     return {
         external_id: String(item?.id),
         data: {
             name: asString(item?.name),
             description: stripHtml(item?.description || ''),
-            price: salePrice ?? price,
-            original_price: salePrice ? price : null,
+            price: effectivePrice,
+            original_price: isOnSale ? basePriceValue : null,
             price_off: priceOff,
             currency,
             availability: stock != null ? (stock > 0 ? 'in_stock' : 'out_of_stock') : 'in_stock',
             url,
             image_url: imageUrl,
-            images: allImages.length > 0 ? allImages : null,
             categories,
             category: categories[0] || null,
             type: asString(item?.type),
-            sku: asString(item?.reference) || asString(item?.sku) || null,
-            brand: asString(item?.brand) || null,
+            pricing_type: asString(pricing.type) || null,
+            is_free: item?.is_free === true,
             stock,
-            weight: item?.weight != null ? toNumber(item.weight) : null,
-            tags: Array.isArray(item?.tags) ? item.tags.map((t: any) => asString(t)).filter(Boolean) : null,
-            variants,
+            sales_count: toNumber(item?.sales_count?.value) ?? null,
+            on_sale_until: asString(item?.on_sale_until) || null,
             provider: 'chariow',
             raw_status: asString(item?.status),
             updated_at: asString(item?.updated_at),
