@@ -1,4 +1,4 @@
-export type PlatformSyncProvider = 'woocommerce' | 'shopify'
+export type PlatformSyncProvider = 'woocommerce' | 'shopify' | 'chariow'
 
 export interface WooCredentials {
     store_url: string
@@ -12,7 +12,11 @@ export interface ShopifyCredentials {
     api_version: string
 }
 
-export type PlatformSyncCredentials = WooCredentials | ShopifyCredentials
+export interface ChariowCredentials {
+    api_key: string
+}
+
+export type PlatformSyncCredentials = WooCredentials | ShopifyCredentials | ChariowCredentials
 
 export interface SyncProductRecord {
     external_id: string
@@ -134,6 +138,18 @@ export function validatePlatformSyncCredentials(
         }
     }
 
+    if (provider === 'chariow') {
+        const apiKey = asString(body.api_key)
+        if (!apiKey) {
+            return { ok: false, error: 'Chariow credentials require api_key' }
+        }
+        return {
+            ok: true,
+            credentials: { api_key: apiKey } as ChariowCredentials,
+            hint: { api_key_preview: `${apiKey.slice(0, 8)}...` },
+        }
+    }
+
     const shopDomain = normalizeShopDomain(asString(body.shop_domain) || '')
     const token = asString(body.admin_api_token)
     const apiVersion = normalizeApiVersion(asString(body.api_version))
@@ -181,6 +197,28 @@ export async function testProviderConnection(
         }
 
         return { ok: true, statusCode: 200, summary: 'WooCommerce credentials are valid' }
+    }
+
+    if (provider === 'chariow') {
+        const chariow = credentials as ChariowCredentials
+        const res = await fetchWithTimeout('https://api.chariow.com/v1/products?limit=1', {
+            method: 'GET',
+            headers: {
+                Accept: 'application/json',
+                Authorization: `Bearer ${chariow.api_key}`,
+            },
+        }, 12000)
+
+        if (!res.ok) {
+            const text = await res.text()
+            return {
+                ok: false,
+                statusCode: res.status,
+                summary: `Chariow auth failed (${res.status}): ${text.slice(0, 220)}`,
+            }
+        }
+
+        return { ok: true, statusCode: 200, summary: 'Chariow credentials are valid' }
     }
 
     const shop = credentials as ShopifyCredentials
@@ -232,6 +270,33 @@ function mapWooProduct(item: any): SyncProductRecord {
             provider: 'woocommerce',
             raw_status: asString(item?.status),
             updated_at: asString(item?.date_modified_gmt) || asString(item?.date_modified),
+        },
+    }
+}
+
+function mapChariowProduct(item: any): SyncProductRecord {
+    const priceObj = item?.price || {}
+    const price = toNumber(priceObj.value)
+    const currency = asString(priceObj.currency)
+
+    const categories = Array.isArray(item?.categories)
+        ? item.categories.map((c: any) => asString(c?.name || c)).filter(Boolean)
+        : []
+
+    return {
+        external_id: String(item?.id),
+        data: {
+            name: asString(item?.name),
+            description: stripHtml(item?.description || item?.short_description || ''),
+            price,
+            currency: currency || 'XOF',
+            availability: 'in_stock',
+            url: asString(item?.url),
+            image_url: asString(item?.thumbnail) || asString(item?.image_url) || asString(item?.cover),
+            categories,
+            provider: 'chariow',
+            raw_status: asString(item?.status),
+            updated_at: asString(item?.updated_at),
         },
     }
 }
@@ -320,6 +385,53 @@ export async function fetchProviderProducts(
             }
 
             if (batch.length < perPage) {
+                break
+            }
+            page += 1
+        }
+
+        return { products, fetched: products.length, hasMore }
+    }
+
+    if (provider === 'chariow') {
+        const chariow = credentials as ChariowCredentials
+        const perPage = 50
+        let page = 1
+        const products: SyncProductRecord[] = []
+        let hasMore = false
+
+        while (products.length < cap) {
+            const url = `https://api.chariow.com/v1/products?limit=${perPage}&page=${page}`
+            const res = await fetchWithTimeout(url, {
+                method: 'GET',
+                headers: {
+                    Accept: 'application/json',
+                    Authorization: `Bearer ${chariow.api_key}`,
+                },
+            }, 20000)
+
+            if (!res.ok) {
+                const text = await res.text()
+                throw new Error(`Chariow product sync failed (${res.status}): ${text.slice(0, 240)}`)
+            }
+
+            const payload = await res.json().catch(() => ({}))
+            const batch = Array.isArray(payload) ? payload : (Array.isArray(payload?.data) ? payload.data : [])
+
+            if (!Array.isArray(batch) || batch.length === 0) break
+
+            for (const item of batch) {
+                if (products.length >= cap) {
+                    hasMore = true
+                    break
+                }
+                if (item?.id == null) continue
+                products.push(mapChariowProduct(item))
+            }
+
+            if (batch.length < perPage) break
+            if (products.length >= cap) {
+                hasMore = true
                 break
             }
             page += 1

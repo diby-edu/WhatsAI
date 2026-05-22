@@ -95,7 +95,7 @@ type PlatformEventOption = { value: string; label: string }
 interface PlatformSyncConnectionItem {
     id: string
     name: string
-    provider: 'woocommerce' | 'shopify'
+    provider: 'woocommerce' | 'shopify' | 'chariow'
     agent_id: string
     is_active: boolean
     auto_sync_enabled: boolean
@@ -149,6 +149,7 @@ const PLATFORM_PROVIDERS = [
 const PLATFORM_SYNC_PROVIDERS = [
     { value: 'woocommerce', label: 'WooCommerce' },
     { value: 'shopify', label: 'Shopify' },
+    { value: 'chariow', label: 'Chariow' },
 ] as const
 
 const PLATFORM_SYNC_INTERVAL_OPTIONS = [5, 10, 15, 30, 60, 180, 360, 720, 1440] as const
@@ -281,7 +282,7 @@ export default function DevelopersPage() {
     const [showPlatformSyncForm, setShowPlatformSyncForm] = useState(false)
     const [creatingPlatformSync, setCreatingPlatformSync] = useState(false)
     const [newPlatformSyncName, setNewPlatformSyncName] = useState('')
-    const [newPlatformSyncProvider, setNewPlatformSyncProvider] = useState<'woocommerce' | 'shopify'>('woocommerce')
+    const [newPlatformSyncProvider, setNewPlatformSyncProvider] = useState<'woocommerce' | 'shopify' | 'chariow'>('woocommerce')
     const [newPlatformSyncAgentId, setNewPlatformSyncAgentId] = useState('')
     const [newPlatformSyncAutoSyncEnabled, setNewPlatformSyncAutoSyncEnabled] = useState(false)
     const [newPlatformSyncIntervalMinutes, setNewPlatformSyncIntervalMinutes] = useState(15)
@@ -291,6 +292,7 @@ export default function DevelopersPage() {
     const [newShopifyDomain, setNewShopifyDomain] = useState('')
     const [newShopifyToken, setNewShopifyToken] = useState('')
     const [newShopifyApiVersion, setNewShopifyApiVersion] = useState('2024-10')
+    const [newChariowApiKey, setNewChariowApiKey] = useState('')
     const [testingPlatformSyncId, setTestingPlatformSyncId] = useState<string | null>(null)
     const [syncingPlatformSyncId, setSyncingPlatformSyncId] = useState<string | null>(null)
     const [savingPlatformSyncConfigId, setSavingPlatformSyncConfigId] = useState<string | null>(null)
@@ -799,6 +801,7 @@ export default function DevelopersPage() {
         setNewShopifyDomain('')
         setNewShopifyToken('')
         setNewShopifyApiVersion('2024-10')
+        setNewChariowApiKey('')
     }
 
     const createPlatformSyncConnection = async () => {
@@ -809,6 +812,10 @@ export default function DevelopersPage() {
                 store_url: newWooStoreUrl.trim(),
                 consumer_key: newWooConsumerKey.trim(),
                 consumer_secret: newWooConsumerSecret.trim(),
+            }
+            : newPlatformSyncProvider === 'chariow'
+            ? {
+                api_key: newChariowApiKey.trim(),
             }
             : {
                 shop_domain: newShopifyDomain.trim(),
@@ -1129,6 +1136,14 @@ export default function DevelopersPage() {
             && newWooStoreUrl.trim()
             && newWooConsumerKey.trim()
             && newWooConsumerSecret.trim()
+        )
+        : newPlatformSyncProvider === 'chariow'
+        ? Boolean(
+            newPlatformSyncName.trim()
+            && newPlatformSyncAgentId
+            && newPlatformSyncIntervalMinutes >= 5
+            && newPlatformSyncIntervalMinutes <= 1440
+            && newChariowApiKey.trim()
         )
         : Boolean(
             newPlatformSyncName.trim()
@@ -1747,7 +1762,7 @@ export default function DevelopersPage() {
                                     </label>
                                     <select
                                         value={newPlatformSyncProvider}
-                                        onChange={event => setNewPlatformSyncProvider(event.target.value as 'woocommerce' | 'shopify')}
+                                        onChange={event => setNewPlatformSyncProvider(event.target.value as 'woocommerce' | 'shopify' | 'chariow')}
                                         style={inputStyle}
                                     >
                                         {PLATFORM_SYNC_PROVIDERS.map(provider => (
@@ -1842,6 +1857,19 @@ export default function DevelopersPage() {
                                             />
                                         </div>
                                     </>
+                                ) : newPlatformSyncProvider === 'chariow' ? (
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'var(--text-secondary, #9ca3af)' }}>
+                                            Cle API Chariow
+                                        </label>
+                                        <input
+                                            value={newChariowApiKey}
+                                            onChange={event => setNewChariowApiKey(event.target.value)}
+                                            placeholder="chariow_api_xxxxxxxxxxxxxxxxx"
+                                            type="password"
+                                            style={inputStyle}
+                                        />
+                                    </div>
                                 ) : (
                                     <>
                                         <div>
@@ -2021,6 +2049,8 @@ export default function DevelopersPage() {
                                                 <div style={{ fontSize: 12, color: 'var(--text-secondary, #9ca3af)' }}>
                                                     {connection.provider === 'woocommerce'
                                                         ? `Boutique: ${String(connection.credentials_hint?.store_url_origin || 'non renseignee')}`
+                                                        : connection.provider === 'chariow'
+                                                        ? `Cle API: ${String(connection.credentials_hint?.api_key_preview || '...')}`
                                                         : `Shop: ${String(connection.credentials_hint?.shop_domain || 'non renseigne')} (API ${String(connection.credentials_hint?.api_version || '2024-10')})`}
                                                 </div>
 
