@@ -305,7 +305,6 @@ export default function DevelopersPage() {
     const [newPlatformProvider, setNewPlatformProvider] = useState<PlatformConnectionItem['provider']>('shopify')
     const [newPlatformAgentId, setNewPlatformAgentId] = useState('')
     const [newPlatformRateLimit, setNewPlatformRateLimit] = useState(60)
-    const [newPlatformAllowedEvents, setNewPlatformAllowedEvents] = useState<string[]>([])
     const [deletingPlatformConnectionId, setDeletingPlatformConnectionId] = useState<string | null>(null)
     const [rotatingPlatformConnectionId, setRotatingPlatformConnectionId] = useState<string | null>(null)
     const [revealedPlatformWebhookUrlIds, setRevealedPlatformWebhookUrlIds] = useState<Record<string, boolean>>({})
@@ -454,10 +453,6 @@ export default function DevelopersPage() {
         }
     }, [activeAgents, newPlatformSyncAgentId])
 
-    useEffect(() => {
-        const allowedValues = new Set((PLATFORM_EVENT_OPTIONS[newPlatformProvider] || []).map(option => option.value))
-        setNewPlatformAllowedEvents(prev => prev.filter(eventName => allowedValues.has(eventName)))
-    }, [newPlatformProvider])
 
     const formatDate = (iso: string) =>
         new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
@@ -1010,22 +1005,10 @@ export default function DevelopersPage() {
         }
     }
 
-    const toggleNewPlatformAllowedEvent = (eventName: string) => {
-        setNewPlatformAllowedEvents(prev => {
-            if (prev.includes(eventName)) {
-                return prev.filter(item => item !== eventName)
-            }
-            return [...prev, eventName]
-        })
-    }
-
-    const providerEventOptions = PLATFORM_EVENT_OPTIONS[newPlatformProvider] || []
-
     const resetPlatformConnectionForm = () => {
         setNewPlatformConnectionName('')
         setNewPlatformProvider('shopify')
         setNewPlatformRateLimit(60)
-        setNewPlatformAllowedEvents([])
     }
 
     const createPlatformConnection = async () => {
@@ -1043,7 +1026,7 @@ export default function DevelopersPage() {
                     provider: newPlatformProvider,
                     agent_id: newPlatformAgentId,
                     rate_limit_per_minute: newPlatformRateLimit,
-                    allowed_events: newPlatformAllowedEvents.length > 0 ? newPlatformAllowedEvents : null,
+                    allowed_events: null,
                 }),
             })
 
@@ -2358,88 +2341,6 @@ export default function DevelopersPage() {
                                     </div>
                                 </div>
 
-                                <div>
-                                    <label style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'var(--text-secondary, #9ca3af)' }}>
-                                        Evenements autorises (optionnel)
-                                    </label>
-                                    <details style={{
-                                        border: '1px solid var(--border, #2a2a3e)',
-                                        borderRadius: 10,
-                                        background: 'var(--input-bg, #0f0f1a)',
-                                        padding: '8px 10px',
-                                    }}>
-                                        <summary style={{
-                                            listStyle: 'none',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'space-between',
-                                            cursor: 'pointer',
-                                            color: 'var(--text-primary, #fff)',
-                                            fontSize: 13,
-                                            outline: 'none',
-                                            gap: 10,
-                                        }}>
-                                            <span>
-                                                {newPlatformAllowedEvents.length > 0
-                                                    ? `${newPlatformAllowedEvents.length} evenement(s) selectionne(s)`
-                                                    : 'Tous les evenements (aucun filtre)'}
-                                            </span>
-                                            <ChevronDown size={14} style={{ opacity: 0.85, flexShrink: 0 }} />
-                                        </summary>
-                                        <div style={{ marginTop: 10, display: 'grid', gap: 8 }}>
-                                            {providerEventOptions.map(option => (
-                                                <label
-                                                    key={option.value}
-                                                    style={{
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: 10,
-                                                        padding: '8px 10px',
-                                                        borderRadius: 8,
-                                                        background: 'rgba(255,255,255,0.03)',
-                                                        color: 'var(--text-primary, #fff)',
-                                                        fontSize: 13,
-                                                        cursor: 'pointer',
-                                                    }}
-                                                >
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={newPlatformAllowedEvents.includes(option.value)}
-                                                        onChange={() => toggleNewPlatformAllowedEvent(option.value)}
-                                                    />
-                                                    <span>{option.label}</span>
-                                                </label>
-                                            ))}
-                                        </div>
-                                    </details>
-                                    <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                                        <button
-                                            type="button"
-                                            onClick={() => setNewPlatformAllowedEvents([])}
-                                            style={secondaryButtonStyle}
-                                        >
-                                            Tout autoriser
-                                        </button>
-                                    </div>
-                                    {newPlatformAllowedEvents.length > 0 && (
-                                        <div style={{ marginTop: 8, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                                            {newPlatformAllowedEvents.map(eventName => (
-                                                <span
-                                                    key={eventName}
-                                                    style={{
-                                                        padding: '4px 8px',
-                                                        borderRadius: 999,
-                                                        background: 'rgba(16,185,129,0.15)',
-                                                        color: '#6ee7b7',
-                                                        fontSize: 11,
-                                                    }}
-                                                >
-                                                    {eventName}
-                                                </span>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
                             </div>
 
                             {agentsLoading ? (
