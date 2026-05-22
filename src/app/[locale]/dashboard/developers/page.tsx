@@ -1559,6 +1559,7 @@ export default function DevelopersPage() {
                                                         <AlertCircle size={14} />
                                                         Copie cette cle maintenant. Elle ne sera plus jamais reaffichee.
                                                     </div>
+                                                    {/* Section 1 : clé pour code custom */}
                                                     <div style={{
                                                         marginTop: 10,
                                                         padding: '12px 14px',
@@ -1567,17 +1568,61 @@ export default function DevelopersPage() {
                                                         background: 'rgba(255,255,255,0.03)',
                                                         fontSize: 12,
                                                         color: 'var(--text-secondary, #9ca3af)',
-                                                        lineHeight: 1.7,
                                                     }}>
-                                                        <div style={{ fontWeight: 600, color: 'var(--text-primary, #fff)', marginBottom: 6 }}>Comment utiliser cette cle</div>
-                                                        <div>Endpoint : <code style={{ background: 'rgba(255,255,255,0.06)', padding: '1px 5px', borderRadius: 4 }}>POST /api/public/v1/platform-webhook</code></div>
-                                                        <div style={{ marginTop: 4 }}>Header : <code style={{ background: 'rgba(255,255,255,0.06)', padding: '1px 5px', borderRadius: 4 }}>Authorization: Bearer {key.raw_key}</code></div>
-                                                        <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                                                            Plateforme sans header custom (ex: Chariow) : ajoutez <code style={{ background: 'rgba(255,255,255,0.06)', padding: '1px 5px', borderRadius: 4 }}>?api_key={key.raw_key}&amp;provider=chariow&amp;agent_id=VOTRE_UUID</code> directement dans l&apos;URL.
+                                                        <div style={{ fontWeight: 600, color: 'var(--text-primary, #fff)', marginBottom: 8 }}>Pour vos scripts / code custom</div>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                                                            <code style={{ background: 'rgba(255,255,255,0.06)', padding: '4px 8px', borderRadius: 6, wordBreak: 'break-all', flex: 1 }}>
+                                                                Authorization: Bearer {key.raw_key}
+                                                            </code>
+                                                            <button
+                                                                onClick={() => copyToClipboard(key.raw_key!, `key_raw_${key.id}`)}
+                                                                style={secondaryButtonStyle}
+                                                            >
+                                                                {copiedId === `key_raw_${key.id}` ? <Check size={13} color="#25d366" /> : <Copy size={13} />}
+                                                            </button>
                                                         </div>
-                                                        <div style={{ marginTop: 6 }}>
-                                                            Ou utilisez l&apos;onglet <strong style={{ color: 'var(--text-primary, #fff)' }}>Connexions plateforme directes</strong> pour Shopify / WooCommerce / Chariow — plus simple, URL prete a coller.
-                                                        </div>
+                                                    </div>
+
+                                                    {/* Section 2 : URLs prêtes par agent */}
+                                                    <div style={{
+                                                        marginTop: 10,
+                                                        padding: '12px 14px',
+                                                        borderRadius: 10,
+                                                        border: '1px solid rgba(37,211,102,0.15)',
+                                                        background: 'rgba(37,211,102,0.04)',
+                                                        fontSize: 12,
+                                                        color: 'var(--text-secondary, #9ca3af)',
+                                                    }}>
+                                                        <div style={{ fontWeight: 600, color: 'var(--text-primary, #fff)', marginBottom: 8 }}>URLs pretes a coller (Chariow / plateforme sans headers)</div>
+                                                        {key.allowed_agent_ids && key.allowed_agent_ids.length > 0 ? (
+                                                            key.allowed_agent_ids.map(agentId => {
+                                                                const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://wazzapai.com'
+                                                                const readyUrl = `${baseUrl}/api/public/v1/platform-webhook?api_key=${key.raw_key}&agent_id=${agentId}&provider=chariow`
+                                                                const urlCopyId = `ready_url_${key.id}_${agentId}`
+                                                                return (
+                                                                    <div key={agentId} style={{ marginBottom: 10 }}>
+                                                                        <div style={{ fontSize: 11, color: '#25d366', marginBottom: 4 }}>
+                                                                            {agentNameById.get(agentId) || agentId}
+                                                                        </div>
+                                                                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                                                                            <code style={{ background: 'rgba(255,255,255,0.06)', padding: '4px 8px', borderRadius: 6, wordBreak: 'break-all', flex: 1, lineHeight: 1.6 }}>
+                                                                                {readyUrl}
+                                                                            </code>
+                                                                            <button
+                                                                                onClick={() => copyToClipboard(readyUrl, urlCopyId)}
+                                                                                style={{ ...secondaryButtonStyle, flexShrink: 0 }}
+                                                                            >
+                                                                                {copiedId === urlCopyId ? <Check size={13} color="#25d366" /> : <Copy size={13} />}
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                )
+                                                            })
+                                                        ) : (
+                                                            <div style={{ color: 'var(--text-secondary, #9ca3af)', fontStyle: 'italic' }}>
+                                                                Ajoutez des agents autorises lors de la creation pour generer les URLs automatiquement.
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </>
                                             )}
