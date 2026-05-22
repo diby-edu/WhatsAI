@@ -95,13 +95,17 @@ export async function POST(request: NextRequest) {
 
         const { data: agentCheck } = await supabase
             .from('agents')
-            .select('id')
+            .select('id, ecommerce_mode')
             .eq('id', agentId)
             .eq('user_id', user.id)
             .single()
 
         if (!agentCheck) {
             return errorResponse('Agent not found or unauthorized', 403)
+        }
+
+        if (agentCheck.ecommerce_mode === 'external_sync') {
+            return errorResponse('Les agents en mode sync externe ne peuvent pas utiliser la base de connaissance', 403)
         }
 
         const arrayBuffer = await file.arrayBuffer()
