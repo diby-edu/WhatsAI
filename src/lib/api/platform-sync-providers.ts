@@ -275,13 +275,29 @@ function mapWooProduct(item: any): SyncProductRecord {
 }
 
 function mapChariowProduct(item: any): SyncProductRecord {
-    const priceObj = item?.price || {}
-    const price = toNumber(priceObj.value)
-    const currency = asString(priceObj.currency)
+    // API listing returns price as direct number; webhook returns {value, currency}
+    const price = typeof item?.price === 'object' && item?.price !== null
+        ? toNumber(item.price?.value)
+        : toNumber(item?.price)
+
+    const currency = typeof item?.price === 'object' && item?.price !== null
+        ? asString(item.price?.currency)
+        : asString(item?.currency)
 
     const categories = Array.isArray(item?.categories)
         ? item.categories.map((c: any) => asString(c?.name || c)).filter(Boolean)
         : []
+
+    const url = asString(item?.url)
+        || asString(item?.checkout_url)
+        || asString(item?.link)
+        || asString(item?.product_url)
+        || asString(item?.store_url)
+
+    const imageUrl = asString(item?.thumbnail)
+        || asString(item?.image_url)
+        || asString(item?.cover)
+        || asString(item?.image)
 
     return {
         external_id: String(item?.id),
@@ -291,8 +307,8 @@ function mapChariowProduct(item: any): SyncProductRecord {
             price,
             currency: currency || 'XOF',
             availability: 'in_stock',
-            url: asString(item?.url),
-            image_url: asString(item?.thumbnail) || asString(item?.image_url) || asString(item?.cover),
+            url,
+            image_url: imageUrl,
             categories,
             provider: 'chariow',
             raw_status: asString(item?.status),
@@ -401,7 +417,7 @@ export async function fetchProviderProducts(
         let hasMore = false
 
         while (products.length < cap) {
-            const url = `https://api.chariow.com/v1/products?limit=${perPage}&page=${page}`
+            const url = `https://api.chariow.com/v1/products?limit=${perPage}&page=${page}&status=published`
             const res = await fetchWithTimeout(url, {
                 method: 'GET',
                 headers: {
@@ -426,6 +442,8 @@ export async function fetchProviderProducts(
                     break
                 }
                 if (item?.id == null) continue
+                const status = asString(item?.status)
+                if (status && status !== 'published') continue
                 products.push(mapChariowProduct(item))
             }
 
