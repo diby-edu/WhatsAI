@@ -202,43 +202,43 @@ function normalizeWooCommerce(topic: string, payload: Record<string, unknown>): 
 }
 
 function normalizeChariow(topic: string, payload: Record<string, unknown>): NormalizedWebhookEvent {
-    // Chariow Pulse payload structure:
-    // { purchase: { customer: { name, phone: { number }, email }, product: { name },
-    //               post_purchase: { files: [{ name, download_url }], licenses: [{ license_key }] },
-    //               amount, currency, id, reference } }
-    const purchase = asObject(payload.purchase)
-    const purchaseCustomer = asObject(purchase.customer)
-    const purchasePhone = asObject(purchaseCustomer.phone)
-    const product = asObject(purchase.product)
-    const postPurchase = asObject(purchase.post_purchase)
-    const files = Array.isArray(postPurchase.files) ? postPurchase.files : []
-    const licenses = Array.isArray(postPurchase.licenses) ? postPurchase.licenses : []
+    // Chariow Pulse real payload structure (confirmed via debug):
+    // {
+    //   event: "successful.sale",
+    //   customer: { name, first_name, last_name, email, phone: "2250554585927", country },
+    //   product: { id, name, url, price: { value, currency } },
+    //   sale: { id, amount: { value, currency }, status, custom_fields: [{name, value}] }
+    // }
+    const customer = asObject(payload.customer)
+    const product = asObject(payload.product)
+    const sale = asObject(payload.sale)
+    const saleAmount = asObject(sale.amount)
+    const productPrice = asObject(product.price)
 
-    // Phone : prefer purchase.customer.phone.number, fallback to top-level
     const phone =
-        asString(purchasePhone.number)
-        || asString(purchaseCustomer.phone as unknown)
+        asString(customer.phone)
         || asString(payload.phone)
 
     const customerName =
-        asString(purchaseCustomer.name)
+        asString(customer.name)
+        || [asString(customer.first_name), asString(customer.last_name)].filter(Boolean).join(' ')
         || asString(payload.customer_name)
 
     const email =
-        asString(purchaseCustomer.email)
+        asString(customer.email)
         || asString(payload.email)
-
-    // Download URL : first file's download_url
-    const firstFile = asObject(files[0])
-    const downloadUrl = asString(firstFile.download_url) || asString(firstFile.url)
-
-    // License key : first license's license_key
-    const firstLicense = asObject(licenses[0])
-    const licenseKey = asString(firstLicense.license_key) || asString(firstLicense.key)
 
     const productName = asString(product.name)
 
-    // Event mapping — Chariow sends event in the topic or in payload.event
+    // Download URL : from product.url (digital product link)
+    const downloadUrl = asString(product.url)
+
+    // Look for license_key in sale.custom_fields
+    const customFields = Array.isArray(sale.custom_fields) ? sale.custom_fields as Array<Record<string, unknown>> : []
+    const licenseField = customFields.find(f => asString(f.name)?.toLowerCase().includes('license') || asString(f.name)?.toLowerCase().includes('licence'))
+    const licenseKey = licenseField ? asString(licenseField.value) : undefined
+
+    // Event mapping
     const eventKey = (topic || asString(payload.event) || '').toLowerCase().replace(/[.\s]/g, '_')
     let triggerEvent = 'custom'
     if (['sale_success', 'successful_sale', 'vente_reussie', 'purchase_completed', 'order_paid'].some(k => eventKey.includes(k))) {
@@ -254,10 +254,9 @@ function normalizeChariow(topic: string, payload: Record<string, unknown>): Norm
     if (licenseKey) extraData.license_key = licenseKey
     if (productName) extraData.product_name = productName
 
-    const purchaseId = asString(purchase.id) || asString(payload.id)
-    const purchaseRef = asString(purchase.reference) || asString(payload.reference)
-    const amount = asNumber(purchase.amount) || asNumber(payload.amount)
-    const currency = asString(purchase.currency) || asString(payload.currency)
+    const saleId = asString(sale.id) || asString(payload.id)
+    const amount = asNumber(saleAmount.value) || asNumber(productPrice.value)
+    const currency = asString(saleAmount.currency) || asString(productPrice.currency)
 
     return {
         provider: 'chariow',
@@ -265,8 +264,8 @@ function normalizeChariow(topic: string, payload: Record<string, unknown>): Norm
         triggerEvent,
         customer: { name: customerName, phone, email },
         order: {
-            id: purchaseId,
-            reference: purchaseRef || purchaseId,
+            id: saleId,
+            reference: saleId,
             total: amount,
             status: triggerEvent === 'payment_confirmed' ? 'paid' : 'failed',
         },
@@ -275,7 +274,7 @@ function normalizeChariow(topic: string, payload: Record<string, unknown>): Norm
             currency: currency ?? 'XOF',
         },
         data: { ...toPrimitiveData(payload), ...extraData },
-        idempotencyHint: purchaseId,
+        idempotencyHint: saleId,
         ...(downloadUrl ? { mediaUrl: downloadUrl, mediaType: 'document' as const } : {}),
     }
 }
