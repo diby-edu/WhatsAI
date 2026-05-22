@@ -434,6 +434,10 @@ export async function fetchProviderProducts(
             const payload = await res.json().catch(() => ({}))
             const batch = Array.isArray(payload) ? payload : (Array.isArray(payload?.data) ? payload.data : [])
 
+            if (page === 1 && batch.length > 0) {
+                console.log('[CHARIOW_SYNC_DEBUG] first product raw:', JSON.stringify(batch[0]).slice(0, 1000))
+            }
+
             if (!Array.isArray(batch) || batch.length === 0) break
 
             for (const item of batch) {
