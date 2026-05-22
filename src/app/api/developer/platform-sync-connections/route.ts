@@ -9,7 +9,7 @@ import {
 
 export const dynamic = 'force-dynamic'
 
-const SUPPORTED_PROVIDERS = new Set<PlatformSyncProvider>(['woocommerce', 'shopify'])
+const SUPPORTED_PROVIDERS = new Set<PlatformSyncProvider>(['woocommerce', 'shopify', 'chariow'])
 
 function asString(value: unknown): string | null {
     if (typeof value !== 'string') return null
@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Missing required field: agent_id' }, { status: 400 })
     }
     if (!provider || !SUPPORTED_PROVIDERS.has(provider)) {
-        return NextResponse.json({ error: 'Invalid provider. Allowed: woocommerce, shopify' }, { status: 400 })
+        return NextResponse.json({ error: 'Invalid provider. Allowed: woocommerce, shopify, chariow' }, { status: 400 })
     }
     if (syncIntervalMinutes < 5 || syncIntervalMinutes > 1440) {
         return NextResponse.json({ error: 'sync_interval_minutes must be between 5 and 1440' }, { status: 400 })
