@@ -90,11 +90,13 @@ const templates: Record<string, TemplateBuilder> = {
         const licenseKey = ctx.data?.license_key as string | undefined
         const productName = ctx.data?.product_name as string | undefined
 
+        const portalUrl = ctx.data?.portal_url as string | undefined
         let msg = `Bonjour ${name} ! ✅\n\nVotre paiement${ref ? ` pour la commande *${ref}*` : ''} a bien été reçu.`
         if (productName) msg += `\n\n📦 Produit : *${productName}*`
         if (downloadUrl) msg += `\n📥 Téléchargement : ${downloadUrl}`
         if (licenseKey) msg += `\n🔑 Clé de licence : \`${licenseKey}\``
-        if (!downloadUrl && !licenseKey) msg += `\n\nVous recevrez votre produit dans quelques instants.`
+        if (portalUrl && !downloadUrl) msg += `\n🔗 Accédez à votre achat : ${portalUrl}`
+        if (!downloadUrl && !licenseKey && !portalUrl) msg += `\n\nVous recevrez votre produit dans quelques instants.`
         msg += `\n\nMerci pour votre achat ! 🙏`
         return msg
     },

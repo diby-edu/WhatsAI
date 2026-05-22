@@ -230,8 +230,8 @@ function normalizeChariow(topic: string, payload: Record<string, unknown>): Norm
 
     const productName = asString(product.name)
 
-    // Download URL : from product.url (digital product link)
-    const downloadUrl = asString(product.url)
+    // Chariow has no direct download URL in payload — customer accesses via portal
+    const downloadUrl = undefined
 
     // Look for license_key in sale.custom_fields
     const customFields = Array.isArray(sale.custom_fields) ? sale.custom_fields as Array<Record<string, unknown>> : []
@@ -250,9 +250,9 @@ function normalizeChariow(topic: string, payload: Record<string, unknown>): Norm
     }
 
     const extraData: Record<string, string | number | boolean> = {}
-    if (downloadUrl) extraData.download_url = downloadUrl
     if (licenseKey) extraData.license_key = licenseKey
     if (productName) extraData.product_name = productName
+    extraData.portal_url = 'https://portal.chariow.com'
 
     const saleId = asString(sale.id) || asString(payload.id)
     const amount = asNumber(saleAmount.value) || asNumber(productPrice.value)
@@ -275,7 +275,6 @@ function normalizeChariow(topic: string, payload: Record<string, unknown>): Norm
         },
         data: { ...toPrimitiveData(payload), ...extraData },
         idempotencyHint: saleId,
-        ...(downloadUrl ? { mediaUrl: downloadUrl, mediaType: 'document' as const } : {}),
     }
 }
 
