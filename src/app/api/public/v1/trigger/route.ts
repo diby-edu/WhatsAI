@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
             endpoint: '/api/public/v1/trigger',
             method: 'POST',
             statusCode: 429,
-            requestBody: body,
+            requestBody: { agent_id, event, phone: normalizedPhone },
             responseMs: Date.now() - startTime,
             ipAddress: ip,
         })
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
             endpoint: '/api/public/v1/trigger',
             method: 'POST',
             statusCode: 500,
-            requestBody: body,
+            requestBody: { agent_id, event, phone: normalizedPhone },
             responseMs: Date.now() - startTime,
             ipAddress: ip,
         })
@@ -146,7 +146,7 @@ export async function POST(request: NextRequest) {
         endpoint: '/api/public/v1/trigger',
         method: 'POST',
         statusCode: 200,
-        requestBody: body,
+        requestBody: { agent_id, event, phone: normalizedPhone },
         responseMs,
         ipAddress: ip,
     })

@@ -170,10 +170,9 @@ const PLATFORM_EVENT_OPTIONS: Record<PlatformProvider, PlatformEventOption[]> = 
         { value: 'order.deleted', label: 'Commande supprimee (order.deleted)' },
     ],
     chariow: [
-        { value: 'successful.sale', label: 'Vente reussie (successful.sale)' },
-        { value: 'sale.success', label: 'Vente reussie alternative (sale.success)' },
-        { value: 'abandoned.cart', label: 'Panier abandonne (abandoned.cart)' },
-        { value: 'payment.failed', label: 'Paiement echoue (payment.failed)' },
+        { value: 'payment_confirmed', label: 'Vente reussie' },
+        { value: 'cart_abandoned', label: 'Panier abandonne' },
+        { value: 'payment_failed', label: 'Paiement echoue' },
     ],
     maketou: [
         { value: 'order_created', label: 'Commande creee (order_created)' },
@@ -305,8 +304,7 @@ export default function DevelopersPage() {
     const [newPlatformConnectionName, setNewPlatformConnectionName] = useState('')
     const [newPlatformProvider, setNewPlatformProvider] = useState<PlatformConnectionItem['provider']>('shopify')
     const [newPlatformAgentId, setNewPlatformAgentId] = useState('')
-    const [newPlatformExternalName, setNewPlatformExternalName] = useState('')
-    const [newPlatformRateLimit, setNewPlatformRateLimit] = useState(300)
+    const [newPlatformRateLimit, setNewPlatformRateLimit] = useState(60)
     const [newPlatformAllowedEvents, setNewPlatformAllowedEvents] = useState<string[]>([])
     const [deletingPlatformConnectionId, setDeletingPlatformConnectionId] = useState<string | null>(null)
     const [rotatingPlatformConnectionId, setRotatingPlatformConnectionId] = useState<string | null>(null)
@@ -1027,7 +1025,7 @@ export default function DevelopersPage() {
         setNewPlatformConnectionName('')
         setNewPlatformProvider('shopify')
         setNewPlatformExternalName('')
-        setNewPlatformRateLimit(300)
+        setNewPlatformRateLimit(60)
         setNewPlatformAllowedEvents([])
     }
 
@@ -1045,7 +1043,6 @@ export default function DevelopersPage() {
                     name: newPlatformConnectionName.trim(),
                     provider: newPlatformProvider,
                     agent_id: newPlatformAgentId,
-                    external_platform_name: newPlatformExternalName.trim() || null,
                     rate_limit_per_minute: newPlatformRateLimit,
                     allowed_events: newPlatformAllowedEvents.length > 0 ? newPlatformAllowedEvents : null,
                 }),
@@ -1242,6 +1239,9 @@ export default function DevelopersPage() {
 
             {activeTab === 'keys' && (
                 <div style={{ display: 'grid', gap: 20 }}>
+                    <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary, #9ca3af)', lineHeight: 1.5 }}>
+                        Pour envoyer des donnees a WazzapAI depuis votre propre code ou script. Passez la cle dans le header <code style={{ background: 'rgba(255,255,255,0.06)', padding: '1px 6px', borderRadius: 4 }}>Authorization: Bearer sk_live_...</code> de chaque requete.
+                    </p>
                     {showKeyForm && (
                         <div style={sectionStyle}>
                             <h2 style={{ margin: '0 0 16px', fontSize: 16, color: 'var(--text-primary, #fff)' }}>
@@ -1543,21 +1543,43 @@ export default function DevelopersPage() {
                                             </div>
 
                                             {revealedKeyId === key.id && key.raw_key && (
-                                                <div style={{
-                                                    marginTop: 12,
-                                                    padding: '10px 12px',
-                                                    borderRadius: 10,
-                                                    border: '1px solid rgba(245,158,11,0.3)',
-                                                    background: 'rgba(245,158,11,0.1)',
-                                                    color: '#f59e0b',
-                                                    fontSize: 13,
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: 8,
-                                                }}>
-                                                    <AlertCircle size={14} />
-                                                    Copie cette cle maintenant. Elle ne sera plus jamais reaffichee.
-                                                </div>
+                                                <>
+                                                    <div style={{
+                                                        marginTop: 12,
+                                                        padding: '10px 12px',
+                                                        borderRadius: 10,
+                                                        border: '1px solid rgba(245,158,11,0.3)',
+                                                        background: 'rgba(245,158,11,0.1)',
+                                                        color: '#f59e0b',
+                                                        fontSize: 13,
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: 8,
+                                                    }}>
+                                                        <AlertCircle size={14} />
+                                                        Copie cette cle maintenant. Elle ne sera plus jamais reaffichee.
+                                                    </div>
+                                                    <div style={{
+                                                        marginTop: 10,
+                                                        padding: '12px 14px',
+                                                        borderRadius: 10,
+                                                        border: '1px solid rgba(255,255,255,0.06)',
+                                                        background: 'rgba(255,255,255,0.03)',
+                                                        fontSize: 12,
+                                                        color: 'var(--text-secondary, #9ca3af)',
+                                                        lineHeight: 1.7,
+                                                    }}>
+                                                        <div style={{ fontWeight: 600, color: 'var(--text-primary, #fff)', marginBottom: 6 }}>Comment utiliser cette cle</div>
+                                                        <div>Endpoint : <code style={{ background: 'rgba(255,255,255,0.06)', padding: '1px 5px', borderRadius: 4 }}>POST /api/public/v1/platform-webhook</code></div>
+                                                        <div style={{ marginTop: 4 }}>Header : <code style={{ background: 'rgba(255,255,255,0.06)', padding: '1px 5px', borderRadius: 4 }}>Authorization: Bearer {key.raw_key}</code></div>
+                                                        <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                                                            Plateforme sans header custom (ex: Chariow) : ajoutez <code style={{ background: 'rgba(255,255,255,0.06)', padding: '1px 5px', borderRadius: 4 }}>?api_key={key.raw_key}&amp;provider=chariow&amp;agent_id=VOTRE_UUID</code> directement dans l&apos;URL.
+                                                        </div>
+                                                        <div style={{ marginTop: 6 }}>
+                                                            Ou utilisez l&apos;onglet <strong style={{ color: 'var(--text-primary, #fff)' }}>Connexions plateforme directes</strong> pour Shopify / WooCommerce / Chariow — plus simple, URL prete a coller.
+                                                        </div>
+                                                    </div>
+                                                </>
                                             )}
 
                                             {isExpanded && (
@@ -1664,6 +1686,9 @@ export default function DevelopersPage() {
 
             {activeTab === 'catalog_sync' && (
                 <div style={{ display: 'grid', gap: 20 }}>
+                    <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary, #9ca3af)', lineHeight: 1.5 }}>
+                        Envoyez votre catalogue produit externe vers WazzapAI pour que votre agent connaisse vos produits en temps reel (prix, stocks, descriptions).
+                    </p>
                     {showPlatformSyncForm && (
                         <div style={sectionStyle}>
                             <h2 style={{ margin: '0 0 16px', fontSize: 16, color: 'var(--text-primary, #fff)' }}>
@@ -2116,6 +2141,16 @@ export default function DevelopersPage() {
 
             {(activeTab === 'webhooks' || activeTab === 'platform_connections') && (
                 <div style={{ display: 'grid', gap: 20 }}>
+                    {activeTab === 'platform_connections' && (
+                        <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary, #9ca3af)', lineHeight: 1.5 }}>
+                            Pour Shopify, WooCommerce, Chariow ou Maketou — collez simplement l&apos;URL generee dans votre plateforme. Aucune cle API a gerer, l&apos;agent est deja configure dans la connexion.
+                        </p>
+                    )}
+                    {activeTab === 'webhooks' && (
+                        <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary, #9ca3af)', lineHeight: 1.5 }}>
+                            WazzapAI appellera votre URL a chaque evenement (message recu, conversation terminee, lead collecte...). Ideal pour connecter un CRM, Google Sheets ou Zapier.
+                        </p>
+                    )}
                     {activeTab === 'webhooks' && showWebhookForm && (
                         <div style={sectionStyle}>
                             <h2 style={{ margin: '0 0 16px', fontSize: 16, color: 'var(--text-primary, #fff)' }}>
@@ -2258,18 +2293,6 @@ export default function DevelopersPage() {
 
                                 <div>
                                     <label style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'var(--text-secondary, #9ca3af)' }}>
-                                        Nom externe (optionnel)
-                                    </label>
-                                    <input
-                                        value={newPlatformExternalName}
-                                        onChange={event => setNewPlatformExternalName(event.target.value)}
-                                        placeholder="Ex: shop-kono-live"
-                                        style={inputStyle}
-                                    />
-                                </div>
-
-                                <div>
-                                    <label style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'var(--text-secondary, #9ca3af)' }}>
                                         Limite req/min
                                     </label>
                                     <input
@@ -2280,6 +2303,9 @@ export default function DevelopersPage() {
                                         onChange={event => setNewPlatformRateLimit(Number(event.target.value))}
                                         style={inputStyle}
                                     />
+                                    <div style={{ fontSize: 11, color: 'var(--text-secondary, #9ca3af)', marginTop: 5, opacity: 0.7 }}>
+                                        60/min suffit pour la plupart des boutiques. Augmentez si vous avez un fort volume de commandes.
+                                    </div>
                                 </div>
 
                                 <div>
@@ -2512,6 +2538,33 @@ export default function DevelopersPage() {
                                                         >
                                                             {copiedId === `incoming_url_${connection.id}` ? 'Copiee' : 'Copier URL'}
                                                         </button>
+                                                    </div>
+
+                                                    <div style={{
+                                                        marginTop: 10,
+                                                        padding: '10px 12px',
+                                                        borderRadius: 8,
+                                                        border: '1px solid rgba(255,255,255,0.06)',
+                                                        background: 'rgba(255,255,255,0.03)',
+                                                        fontSize: 12,
+                                                        color: 'var(--text-secondary, #9ca3af)',
+                                                        lineHeight: 1.6,
+                                                    }}>
+                                                        {connection.provider === 'chariow' && (
+                                                            <>Chariow : Tableau de bord → <strong style={{ color: 'var(--text-primary, #fff)' }}>Pulses</strong> → Nouveau pulse → coller l&apos;URL ci-dessus dans &quot;URL de destination&quot;.</>
+                                                        )}
+                                                        {connection.provider === 'shopify' && (
+                                                            <>Shopify : Admin → <strong style={{ color: 'var(--text-primary, #fff)' }}>Settings → Notifications → Webhooks</strong> → Create webhook → coller l&apos;URL ci-dessus.</>
+                                                        )}
+                                                        {connection.provider === 'woocommerce' && (
+                                                            <>WooCommerce : Admin → <strong style={{ color: 'var(--text-primary, #fff)' }}>WooCommerce → Settings → Advanced → Webhooks</strong> → Add webhook → coller l&apos;URL ci-dessus.</>
+                                                        )}
+                                                        {connection.provider === 'maketou' && (
+                                                            <>Maketou : Tableau de bord → <strong style={{ color: 'var(--text-primary, #fff)' }}>Integrations → Webhooks</strong> → Ajouter → coller l&apos;URL ci-dessus.</>
+                                                        )}
+                                                        {connection.provider === 'generic' && (
+                                                            <>Coller l&apos;URL ci-dessus dans le champ &quot;Webhook URL&quot; de votre plateforme. Envoyer les evenements en POST JSON.</>
+                                                        )}
                                                     </div>
                                                 </div>
 
