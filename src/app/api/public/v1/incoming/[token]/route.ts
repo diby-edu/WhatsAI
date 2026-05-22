@@ -13,6 +13,7 @@ import {
 } from '@/lib/api/platform-webhook-normalizer'
 import { verifyIncomingWebhookSignature } from '@/lib/api/platform-webhook-security'
 import { normalizePhone, isValidPhone, asString } from '@/lib/api/shared'
+import { logApiUsage } from '@/lib/api/log-usage'
 
 export const dynamic = 'force-dynamic'
 
@@ -76,6 +77,8 @@ export async function POST(
     { params }: { params: Promise<{ token: string }> }
 ) {
     const { token } = await params
+    const startTime = Date.now()
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || null
 
     if (!token || token.length < 12) {
         return NextResponse.json({ error: 'Invalid webhook token', code: 'INVALID_TOKEN' }, { status: 400 })
@@ -236,6 +239,16 @@ export async function POST(
     )
     if (!rateCheck.allowed) {
         await updateConnectionStatus(connection.id, 429, rateCheck.reason || 'Rate limit reached')
+        logApiUsage(supabaseAdmin, {
+            userId: connection.user_id,
+            agentId: connection.agent_id,
+            endpoint: '/api/public/v1/incoming',
+            method: 'POST',
+            statusCode: 429,
+            requestBody: { provider, event: providerEvent, phone: normalizedPhone, connection_id: connection.id },
+            responseMs: Date.now() - startTime,
+            ipAddress: ip,
+        })
         return NextResponse.json(
             { error: rateCheck.reason, code: 'RATE_LIMIT' },
             { status: 429, headers: rateCheck.headers }
@@ -338,6 +351,16 @@ export async function POST(
 
     if (!queueResult.queued) {
         await updateConnectionStatus(connection.id, 500, 'Failed to queue outbound message')
+        logApiUsage(supabaseAdmin, {
+            userId: connection.user_id,
+            agentId: connection.agent_id,
+            endpoint: '/api/public/v1/incoming',
+            method: 'POST',
+            statusCode: 500,
+            requestBody: { provider, event: providerEvent, phone: normalizedPhone, connection_id: connection.id },
+            responseMs: Date.now() - startTime,
+            ipAddress: ip,
+        })
         return NextResponse.json(
             { error: 'Failed to queue message', code: 'QUEUE_FAILED' },
             { status: 500, headers: rateCheck.headers }
@@ -360,6 +383,16 @@ export async function POST(
 
     storeIdempotency(supabaseAdmin, connection.user_id, idempotencyKey, responseBody)
     await updateConnectionStatus(connection.id, 200, null)
+    logApiUsage(supabaseAdmin, {
+        userId: connection.user_id,
+        agentId: connection.agent_id,
+        endpoint: '/api/public/v1/incoming',
+        method: 'POST',
+        statusCode: 200,
+        requestBody: { provider, event: providerEvent, phone: normalizedPhone, connection_id: connection.id },
+        responseMs: Date.now() - startTime,
+        ipAddress: ip,
+    })
 
     return NextResponse.json(responseBody, { status: 200, headers: rateCheck.headers })
 }

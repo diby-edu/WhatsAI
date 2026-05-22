@@ -4,7 +4,7 @@ import { SupabaseClient } from '@supabase/supabase-js'
  * Enregistre un appel API dans api_usage_logs (fire & forget).
  */
 export function logApiUsage(supabase: SupabaseClient, params: {
-    apiKeyId: string
+    apiKeyId?: string | null
     userId: string
     agentId?: string | null
     endpoint: string
@@ -20,7 +20,7 @@ export function logApiUsage(supabase: SupabaseClient, params: {
     const safeBody = requestBody ? sanitizeBody(requestBody) : null
 
     supabase.from('api_usage_logs').insert({
-        api_key_id: apiKeyId,
+        api_key_id: apiKeyId || null,
         user_id: userId,
         agent_id: agentId || null,
         endpoint,
