@@ -1024,7 +1024,6 @@ export default function DevelopersPage() {
     const resetPlatformConnectionForm = () => {
         setNewPlatformConnectionName('')
         setNewPlatformProvider('shopify')
-        setNewPlatformExternalName('')
         setNewPlatformRateLimit(60)
         setNewPlatformAllowedEvents([])
     }
