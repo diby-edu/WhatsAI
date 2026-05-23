@@ -86,9 +86,9 @@ echo "🔄 [4/4] Redémarrage des services..."
 # Nettoyer les vieux processus fantômes
 pm2 delete wazzapai-web 2>/dev/null || true
 
-# Reload graceful pour le web (si supporte wait_ready)
+# Restart web (reload causait des InvariantError sur les manifests Next.js)
 # Restart pour le bot (sessions Baileys doivent être préservées)
-pm2 reload whatsai-web --update-env 2>/dev/null || pm2 restart whatsai-web 2>/dev/null || pm2 start ecosystem.config.js --only whatsai-web
+pm2 restart whatsai-web --update-env 2>/dev/null || pm2 start ecosystem.config.js --only whatsai-web
 pm2 restart whatsai-bot 2>/dev/null || pm2 start ecosystem.config.js --only whatsai-bot
 
 pm2 save 2>/dev/null || true
