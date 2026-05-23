@@ -53,13 +53,11 @@ export async function POST(request: NextRequest) {
         console.log('🚀 Starting automatic deployment...')
         console.log('📝 Commit:', data.head_commit?.message || 'Unknown')
 
-        // Execute the update script in a fully detached process so it
-        // survives when pm2 reloads this web app mid-deploy.
-        const { openSync } = await import('fs')
-        const logFd = openSync('/root/WhatsAI/deploy-auto.log', 'a')
-        const child = spawn('/root/WhatsAI/deploy.sh', [], {
+        // nohup + redirection shell : le script survit au restart pm2 de ce process
+        // (le fd hérité de openSync était fermé quand pm2 tuait whatsai-web)
+        const child = spawn('/bin/bash', ['-c', 'nohup /root/WhatsAI/deploy.sh >> /root/WhatsAI/deploy-auto.log 2>&1 &'], {
             detached: true,
-            stdio: ['ignore', logFd, logFd],
+            stdio: 'ignore',
         })
         child.unref()
 
