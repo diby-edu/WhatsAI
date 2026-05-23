@@ -335,6 +335,21 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             return
         }
 
+        // external_sync : canal notification uniquement — répondre avec le message de redirection et stopper
+        if (agent.ecommerce_mode === 'external_sync') {
+            const replyMsg = agent.external_sync_reply_message
+                ? agent.external_sync_reply_message.replace(/\{\{escalation_phone\}\}/g, agent.escalation_phone || '')
+                : null
+            if (replyMsg && replyMsg.trim()) {
+                const extSession = activeSessions.get(agentId)
+                if (extSession) {
+                    await MessagingService.sendText(extSession, message.from, replyMsg.trim()).catch(() => { })
+                }
+            }
+            console.log(`🔍 [handleMessage] BLOCKED (external_sync): reply sent agentId=${agentId}`)
+            return
+        }
+
         console.log(`🔍 [handleMessage] agent OK: ${agent.name} user_id=${agent.user_id}`)
 
         // 1.2 Vérifier les crédits
