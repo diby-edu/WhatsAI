@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
 
     try {
         const [agentsRes, knowledgeRes, productsRes, conversationsRes] = await Promise.all([
-            supabase.from('agents').select('id, whatsapp_connected, mission', { count: 'exact' }).eq('user_id', user.id),
+            supabase.from('agents').select('id, whatsapp_connected, mission, ecommerce_mode', { count: 'exact' }).eq('user_id', user.id),
             supabase.from('knowledge_base').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
             supabase.from('products').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
             supabase.from('conversations').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
@@ -23,14 +23,22 @@ export async function GET(request: NextRequest) {
         const productCount = productsRes.count || 0
         const conversationCount = conversationsRes.count || 0
 
-        // Étape produits : pertinente seulement si au moins un agent n'est pas support_client
-        const needsProducts = agents.some((a: any) => a.mission !== 'support_client')
+        // KB : non requise si tous les agents sont external_sync (produits via API)
+        const needsKnowledge = agents.some((a: any) => a.ecommerce_mode !== 'external_sync')
+        // Produits manuels : non requis si tous les agents sont support_client ou external_sync
+        const needsManualProducts = agents.some((a: any) => a.mission !== 'support_client' && a.ecommerce_mode !== 'external_sync')
 
         const steps = [
             { key: 'agent_created', done: agentCount > 0 },
             { key: 'whatsapp_connected', done: whatsappConnected },
-            { key: 'knowledge_added', done: knowledgeCount > 0 },
-            ...(needsProducts ? [{ key: 'products_added', done: productCount > 0 }] : []),
+            {
+                key: 'knowledge_added',
+                done: !needsKnowledge || knowledgeCount > 0,
+                note: !needsKnowledge ? 'Vos produits sont synchronisés via API — base de connaissances non requise.' : null,
+            },
+            ...(needsManualProducts ? [{ key: 'products_added', done: productCount > 0 }] : [
+                { key: 'products_added', done: true, note: 'Catalogue synchronisé automatiquement via votre API produits.' }
+            ]),
             { key: 'first_conversation', done: conversationCount > 0 },
         ]
 
