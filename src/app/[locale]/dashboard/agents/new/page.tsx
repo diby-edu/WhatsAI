@@ -1073,6 +1073,7 @@ Regles:
                             />
                         </div>
 
+                        {!isExternalSync && (
                         <div>
                             <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
                                 {t('Form.description.label')}
@@ -1097,11 +1098,6 @@ Regles:
                                     Générer (1 crédit)
                                 </button>
                             </label>
-                            {isExternalSync && (
-                                <div style={{ marginBottom: 10, padding: '10px 12px', borderRadius: 10, background: 'rgba(14, 165, 233, 0.08)', border: '1px solid rgba(14, 165, 233, 0.2)', color: '#bae6fd', fontSize: 12, lineHeight: 1.6 }}>
-                                    Description libre — elle est stockée mais non utilisée par l&apos;IA (cet agent n&apos;a pas de comportement conversationnel).
-                                </div>
-                            )}
                             <textarea
                                 value={formData.description}
                                 onChange={(e) => updateFormData('description', e.target.value)}
@@ -1118,9 +1114,10 @@ Regles:
                                 </ul>
                             </div>
                         </div>
+                        )}
 
                         {/* Toggle boutique en ligne */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: 'rgba(99, 102, 241, 0.08)', border: '1px solid rgba(99, 102, 241, 0.2)', borderRadius: 10 }}>
+                        {!isExternalSync && <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: 'rgba(99, 102, 241, 0.08)', border: '1px solid rgba(99, 102, 241, 0.2)', borderRadius: 10 }}>
                             <input
                                 type="checkbox"
                                 id="is_online_only"
@@ -1132,10 +1129,10 @@ Regles:
                                 Boutique 100% en ligne (pas d'adresse physique)
                                 <span style={{ display: 'block', fontSize: 11, color: '#64748b', marginTop: 2 }}>L'IA ne mentionnera jamais d'adresse physique.</span>
                             </label>
-                        </div>
+                        </div>}
 
                         {/* NEW FIELDS: Address & Contact */}
-                        <div style={{ display: formData.is_online_only ? 'none' : undefined }}>
+                        {!isExternalSync && <div style={{ display: formData.is_online_only ? 'none' : undefined }}>
                             <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
                                 Adresse Physique
                             </label>
@@ -1149,9 +1146,9 @@ Regles:
                                 />
                                 <MapPin size={16} style={{ position: 'absolute', right: 12, top: 12, color: '#94a3b8' }} />
                             </div>
-                        </div>
+                        </div>}
 
-                        <div className="agent-grid-2" style={{ display: formData.is_online_only ? 'none' : undefined }}>
+                        {!isExternalSync && <div className="agent-grid-2" style={{ display: formData.is_online_only ? 'none' : undefined }}>
                             <div>
                                 <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
                                     Latitude
@@ -1177,7 +1174,7 @@ Regles:
                                     style={inputStyle}
                                 />
                             </div>
-                        </div>
+                        </div>}
 
                         <div className="agent-grid-2">
                             <div>
