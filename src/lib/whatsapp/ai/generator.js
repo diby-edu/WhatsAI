@@ -330,6 +330,7 @@ async function generateAIResponse(options, dependencies) {
 
         // Data Sync API — ajouter les données externes synchronisées (produits, FAQ, etc.)
         // Guard strict : si table absente ou erreur → aucun impact sur le flux existant
+        let hasExternalData = false
         try {
             const { data: externalData } = await supabase
                 .from('agent_external_data')
@@ -353,6 +354,7 @@ async function generateAIResponse(options, dependencies) {
                     return { content: lines.filter(Boolean).join(' — ') }
                 }).filter(doc => doc.content.length > 0)
                 relevantDocs = [...(relevantDocs || []), ...extraDocs]
+                hasExternalData = extraDocs.length > 0
             }
         } catch (_) {
             // Silencieux — le RAG normal fonctionne sans les données externes
@@ -442,6 +444,8 @@ async function generateAIResponse(options, dependencies) {
             hasRestaurantServiceProduct(products || []) && hasRestaurantStateData(restaurantState)
                 ? 'RESTAURANT'
                 : null
+        // external_sync : les produits externes dans relevantDocs jouent le rôle de KB
+        const effectiveHasKnowledgeBase = hasKnowledgeBase || hasExternalData
         let systemPrompt = buildAdaptiveSystemPrompt(
             agent,
             products || [],
@@ -452,7 +456,7 @@ async function generateAIResponse(options, dependencies) {
             options.formattedHours || formattedHours || 'Non spécifiés',
             options.justOrdered || false, // Passer le flag de reset
             userMessage || '', // v2.19: Intent Detection Context
-            hasKnowledgeBase,
+            effectiveHasKnowledgeBase,
             activeEngineHint
         )
         if (!isSupportClientMode) {
