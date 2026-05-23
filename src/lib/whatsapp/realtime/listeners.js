@@ -88,9 +88,15 @@ function setupRealtimeListeners(context) {
                 if (is_active === false) {
                     const session = activeSessions.get(id)
                     if (session) {
-                        console.log(`[REALTIME] Agent deactivated - closing orphan socket (${id})`)
-                        try { session.socket.end() } catch (_) { }
-                        activeSessions.delete(id)
+                        if (whatsapp_connected === true || whatsapp_status === 'open') {
+                            // Soft pause : le socket reste vivant, message.js bloque le traitement
+                            console.log(`[REALTIME] Agent soft-paused - socket kept alive (${id})`)
+                        } else {
+                            // Hard deactivation (plan expiré, admin) : on ferme le socket
+                            console.log(`[REALTIME] Agent deactivated - closing orphan socket (${id})`)
+                            try { session.socket.end() } catch (_) { }
+                            activeSessions.delete(id)
+                        }
                     }
                     pendingConnections.delete(id)
                     return
@@ -104,6 +110,28 @@ function setupRealtimeListeners(context) {
                         activeSessions.delete(id)
                     }
                     pendingConnections.delete(id)
+                    return
+                }
+
+                // Réactivation avec socket encore vivant (soft pause → active, sans redémarrage bot)
+                if (is_active === true && whatsapp_status === 'open' && activeSessions.has(id)) {
+                    console.log(`[REALTIME] Agent reactivated with live socket - no reconnect needed (${id})`)
+                    pendingConnections.delete(id)
+                    return
+                }
+
+                // Réactivation après redémarrage bot (socket mort, whatsapp_status='open') :
+                // on déclenche initSession directement sans passer par 'connecting'
+                if (is_active === true && whatsapp_status === 'open' && !activeSessions.has(id)) {
+                    console.log(`[REALTIME] Agent reactivated but socket dead (bot restarted) - reconnecting (${id})`)
+                    if (!pendingConnections.has(id)) {
+                        const { initSession } = require('../handlers/session')
+                        if (typeof context.scheduleSessionInit === 'function') {
+                            context.scheduleSessionInit(context, { id, name, whatsapp_status: 'connecting' }, 99)
+                        } else {
+                            initSession(context, id, name, 99)
+                        }
+                    }
                     return
                 }
 
