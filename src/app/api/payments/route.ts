@@ -19,6 +19,7 @@ export async function GET(_request: NextRequest) {
                 status,
                 payment_provider,
                 payment_type,
+                payment_method_source,
                 description,
                 credits_purchased,
                 provider_transaction_id,
@@ -29,7 +30,7 @@ export async function GET(_request: NextRequest) {
             `)
             .eq('user_id', user.id)
             .order('created_at', { ascending: false })
-            .limit(20)
+            .limit(50)
 
         if (error) {
             console.error('Error fetching payments:', error)
@@ -45,6 +46,8 @@ export async function GET(_request: NextRequest) {
                     : 'Achat de credits'
             ),
             status: payment.status,
+            payment_type: payment.payment_type,
+            source: payment.payment_method_source === 'manual' ? 'manual' : 'automatic',
             payment_provider: payment.payment_provider,
             payment_channel: payment.payment_channel,
             payment_channel_detail: payment.payment_channel_detail,
@@ -53,6 +56,37 @@ export async function GET(_request: NextRequest) {
             created_at: payment.created_at,
             completed_at: payment.completed_at,
         }))
+
+        // Entrée synthétique si l'abonnement actif n'a pas d'entrée dans payments
+        const hasSubscriptionEntry = formattedPayments.some(p => p.payment_type === 'subscription' && p.status === 'completed')
+        if (!hasSubscriptionEntry) {
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('plan, paid_until')
+                .eq('id', user.id)
+                .single()
+
+            if (profile?.plan && profile.plan !== 'free' && profile.paid_until) {
+                const paidUntil = new Date(profile.paid_until)
+                if (paidUntil > new Date()) {
+                    formattedPayments.unshift({
+                        id: 'synthetic_sub',
+                        amount_fcfa: 0,
+                        description: `Abonnement ${profile.plan} — actif jusqu'au ${paidUntil.toLocaleDateString('fr-FR')}`,
+                        status: 'completed',
+                        payment_type: 'subscription',
+                        source: 'manual',
+                        payment_provider: 'admin',
+                        payment_channel: null,
+                        payment_channel_detail: null,
+                        credits: null,
+                        reference: null,
+                        created_at: null,
+                        completed_at: profile.paid_until,
+                    })
+                }
+            }
+        }
 
         return successResponse({ payments: formattedPayments })
     } catch (err) {

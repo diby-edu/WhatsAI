@@ -1478,71 +1478,7 @@ function BillingContent() {
                 </div>
             </div>
 
-            {/* Historique des paiements (abonnements + crédits) */}
-            <div>
-                <h2 style={{ fontSize: 16, fontWeight: 600, color: 'white', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Calendar style={{ width: 18, height: 18, color: '#60a5fa' }} />
-                    Historique des paiements
-                </h2>
-                <div style={cardStyle}>
-                    {subscriptionHistory.length === 0 ? (
-                        <div style={{ textAlign: 'center', padding: 32, color: '#64748b' }}>
-                            <Calendar style={{ width: 36, height: 36, margin: '0 auto 10px', opacity: 0.4 }} />
-                            <p style={{ fontSize: 13 }}>Aucun paiement enregistré</p>
-                        </div>
-                    ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                            {subscriptionHistory.map((entry, i) => {
-                                const isManual = entry.source === 'manual'
-                                const isCredits = entry.payment_type === 'credits'
-                                const dotColor = isCredits ? '#a78bfa' : isManual ? '#fbbf24' : '#34d399'
-                                return (
-                                    <div key={entry.id || i} style={{
-                                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                        padding: '10px 12px', borderRadius: 8, background: 'rgba(51, 65, 85, 0.3)'
-                                    }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                            <div style={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, background: dotColor }} />
-                                            <div>
-                                                <div style={{ fontSize: 13, color: 'white', fontWeight: 500 }}>
-                                                    {isCredits
-                                                        ? `+${entry.credits_added ?? '?'} crédits ajoutés`
-                                                        : entry.period_start && entry.period_end
-                                                            ? `${new Date(entry.period_start).toLocaleDateString('fr-FR')} → ${new Date(entry.period_end).toLocaleDateString('fr-FR')}`
-                                                            : new Date(entry.completed_at).toLocaleDateString('fr-FR')
-                                                    }
-                                                </div>
-                                                {entry.admin_notes && (
-                                                    <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{entry.admin_notes}</div>
-                                                )}
-                                            </div>
-                                        </div>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                                            {isCredits && (
-                                                <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: 'rgba(167,139,250,0.12)', color: '#a78bfa' }}>
-                                                    Crédits
-                                                </span>
-                                            )}
-                                            <span style={{
-                                                fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 4,
-                                                background: isManual ? 'rgba(251,191,36,0.1)' : 'rgba(52,211,153,0.1)',
-                                                color: isManual ? '#fbbf24' : '#34d399'
-                                            }}>
-                                                {isManual ? 'Manuel' : 'Auto'}
-                                            </span>
-                                            <span style={{ fontSize: 13, fontWeight: 600, color: 'white' }}>
-                                                {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF', maximumFractionDigits: 0 }).format(entry.amount_fcfa)}
-                                            </span>
-                                        </div>
-                                    </div>
-                                )
-                            })}
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            {/* Payment History */}
+            {/* Historique des paiements */}
             <div>
                 <h2 style={{ fontSize: 16, fontWeight: 600, color: 'white', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
                     <CreditCard style={{ width: 18, height: 18, color: '#34d399' }} />
@@ -1572,20 +1508,37 @@ function BillingContent() {
                                         }}
                                     >
                                         <div>
-                                            <div style={{ fontWeight: 500, color: 'white', fontSize: 14 }}>{payment.description}</div>
-                                            <div style={{ fontSize: 12, color: '#64748b' }}>
-                                                {getHistoryTimestamp(payment)}
-                                            </div>
-                                            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
-                                                {getHistoryProviderLine(payment)}
-                                            </div>
-                                            {payment.reference && (
-                                                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
-                                                    Ref: {payment.reference}
+                                                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flex: 1 }}>
+                                            <div style={{ flex: 1 }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
+                                                    {(payment as any).payment_type === 'subscription' && (
+                                                        <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 4, background: 'rgba(52,211,153,0.12)', color: '#34d399' }}>
+                                                            Abonnement
+                                                        </span>
+                                                    )}
+                                                    {(payment as any).payment_type === 'credits' && (
+                                                        <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 4, background: 'rgba(167,139,250,0.12)', color: '#a78bfa' }}>
+                                                            Crédits
+                                                        </span>
+                                                    )}
+                                                    {(payment as any).source === 'manual' && (
+                                                        <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 4, background: 'rgba(251,191,36,0.1)', color: '#fbbf24' }}>
+                                                            Manuel
+                                                        </span>
+                                                    )}
                                                 </div>
-                                            )}
+                                                <div style={{ fontWeight: 500, color: 'white', fontSize: 14 }}>{payment.description}</div>
+                                                <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
+                                                    {getHistoryTimestamp(payment)}
+                                                </div>
+                                                {payment.reference && (
+                                                    <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
+                                                        Ref: {payment.reference}
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
-                                        <div style={{ textAlign: 'right' }}>
+                                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
                                             <div style={{ fontWeight: 600, fontSize: 14, color: payment.payment_provider === 'admin' ? (payment.credits != null && payment.credits < 0 ? '#f87171' : '#a855f7') : 'white' }}>
                                                 {payment.payment_provider === 'admin'
                                                     ? payment.credits != null && payment.credits < 0
@@ -1594,10 +1547,7 @@ function BillingContent() {
                                                     : new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF', maximumFractionDigits: 0 }).format(payment.amount_fcfa)
                                                 }
                                             </div>
-                                            <div style={{
-                                                fontSize: 11,
-                                                color: statusMeta.color
-                                            }}>
+                                            <div style={{ fontSize: 11, color: statusMeta.color }}>
                                                 {statusMeta.label}
                                             </div>
                                         </div>
