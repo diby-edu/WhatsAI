@@ -211,6 +211,21 @@ function getEmailContent(type, userName, data) {
                     <a href="${APP_URL}/dashboard/billing" style="display: inline-block; background: linear-gradient(135deg, #ef4444, #dc2626); color: white; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px;">Recharger maintenant</a>
                 `)
             }
+        case 'agent_status_change':
+            if (data.agentStatus !== 'disconnected') return null
+            return {
+                subject: `⚠️ Votre agent "${data.agentName || 'Agent'}" est déconnecté de WhatsApp`,
+                html: baseEmailTemplate(`
+                    <h2 style="color: #f59e0b; margin: 0 0 16px 0; font-size: 22px;">⚠️ Agent déconnecté</h2>
+                    <p style="margin: 0 0 12px 0; font-size: 16px;">Bonjour <strong>${userName}</strong>,</p>
+                    <p style="margin: 0 0 20px 0; color: #94a3b8;">Votre agent <strong>"${data.agentName || 'Agent'}"</strong> vient de se déconnecter de WhatsApp. Il ne peut plus recevoir ni répondre aux messages.</p>
+                    <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+                        <p style="margin: 0 0 8px 0; color: #f59e0b; font-weight: 600;">Que faire ?</p>
+                        <p style="margin: 0; color: #94a3b8; font-size: 14px;">Reconnectez votre agent en scannant le QR code depuis votre dashboard. Vous aurez besoin de votre téléphone avec le numéro WhatsApp associé à cet agent.</p>
+                    </div>
+                    <a href="${APP_URL}/dashboard/agents" style="display: inline-block; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px;">Reconnecter mon agent</a>
+                `)
+            }
         case 'payment_received':
             return {
                 subject: `💰 Paiement reçu — ${data.paymentAmount?.toLocaleString('fr-FR') || 0} FCFA`,
@@ -241,12 +256,12 @@ const PREF_MAP = {
     new_booking: { push: 'push_new_booking' },
     new_conversation: { push: 'push_new_conversation' },
     escalation: { push: 'push_escalation' },
-    agent_status_change: { push: 'push_agent_status_change' },
+    agent_status_change: { push: 'push_agent_status_change', email: 'email_agent_status_change' },
     stock_out: { push: 'push_stock_out' }
 }
 
 // Email-eligible types (only these types send emails from bot)
-const EMAIL_TYPES = ['low_credits', 'credits_depleted', 'payment_received']
+const EMAIL_TYPES = ['low_credits', 'credits_depleted', 'payment_received', 'agent_status_change']
 
 // =============================================
 // Main Notify Function
