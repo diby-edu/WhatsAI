@@ -187,7 +187,12 @@ export default function OnboardingChecklist() {
                                                 )}
                                             </div>
                                             <div style={{ color: '#64748b', fontSize: 12, marginTop: 2 }}>
-                                                {step.note || config.description}
+                                                {config.description}
+                                                {step.note && (
+                                                    <span style={{ display: 'block', fontSize: 11, color: '#475569', fontStyle: 'italic', marginTop: 2 }}>
+                                                        {step.note}
+                                                    </span>
+                                                )}
                                             </div>
                                         </div>
                                         {!step.done && (
