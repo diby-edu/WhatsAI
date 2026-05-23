@@ -569,10 +569,6 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
         })
 
         socket.ev.on('messages.upsert', async ({ messages: msgs, type }) => {
-            // 🔍 MOUCHARD — log brut avant tout filtrage
-            const spySample = msgs[0]?.key || {}
-            console.log(`🔍 [SPY][${agentName}] messages.upsert type=${type} count=${msgs.length} fromMe=${spySample.fromMe} remoteJid=${spySample.remoteJid || 'none'}`)
-
             const actionableMessages = msgs.filter(msg => shouldProcessUpsertMessage(type, msg))
 
             const processableMessages = actionableMessages.filter(msg => !isIgnorableIncomingMessage(msg))
