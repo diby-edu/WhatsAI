@@ -1037,7 +1037,7 @@ Regles:
                                             {!apiAccessEnabled && <span style={{ fontSize: 11, fontWeight: 400, color: '#f59e0b', marginLeft: 8 }}>Abonnement API requis</span>}
                                         </h3>
                                         <p style={{ fontSize: 13, color: '#94a3b8' }}>
-                                            Catalogue synchronisé par API + checkout géré par votre plateforme.
+                                            Canal de notification WhatsApp — commandes et paiements gérés sur votre plateforme.
                                         </p>
                                     </button>
                                 </div>
@@ -1099,7 +1099,7 @@ Regles:
                             </label>
                             {isExternalSync && (
                                 <div style={{ marginBottom: 10, padding: '10px 12px', borderRadius: 10, background: 'rgba(14, 165, 233, 0.08)', border: '1px solid rgba(14, 165, 233, 0.2)', color: '#bae6fd', fontSize: 12, lineHeight: 1.6 }}>
-                                    En mode external_sync, rappelez ici que le catalogue vient de l&apos;API, que le checkout natif WazzapAI ne doit jamais s&apos;ouvrir, et que l&apos;achat doit se faire sur votre plateforme.
+                                    Description libre — elle est stockée mais non utilisée par l&apos;IA (cet agent n&apos;a pas de comportement conversationnel).
                                 </div>
                             )}
                             <textarea
@@ -1517,21 +1517,6 @@ Regles:
                                 <option value="ar">العربية</option>
                             </select>
                         </div>
-
-                        {isExternalSync && (
-                            <div style={{
-                                padding: 16,
-                                borderRadius: 12,
-                                background: 'rgba(14, 165, 233, 0.08)',
-                                border: '1px solid rgba(14, 165, 233, 0.2)',
-                                color: '#bae6fd',
-                                fontSize: 13,
-                                lineHeight: 1.6
-                            }}>
-                                En mode <strong>external_sync</strong>, WazzapAI n&apos;utilise pas le checkout natif.
-                                Le catalogue vient de <strong>/sync</strong> et les evenements metier viennent de <strong>/trigger</strong>.
-                            </div>
-                        )}
 
                         {/* Voice Settings (Premium) — hidden, text-only responses */}
                         <div style={{ display: 'none' }}>
@@ -2388,7 +2373,10 @@ Regles:
 
             {/* Progress steps */}
             <div className="agent-stepper" style={{ display: 'flex', alignItems: 'center', justifyContent: isCompact ? 'flex-start' : 'center', marginBottom: 32, gap: 8 }}>
-                {steps.map((step, index) => (
+                {steps
+                    .map((step, index) => ({ ...step, originalIndex: index }))
+                    .filter(step => !isExternalSync || !['hours', 'personality', 'rules'].includes(step.id))
+                    .map((step, visIndex, visArr) => (
                     <div key={step.id} style={{ display: 'flex', alignItems: 'center' }}>
                         <div style={{
                             width: isCompact ? 34 : 40,
@@ -2397,24 +2385,24 @@ Regles:
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            background: index < currentStep
+                            background: step.originalIndex < currentStep
                                 ? '#10b981'
-                                : index === currentStep
+                                : step.originalIndex === currentStep
                                     ? 'rgba(16, 185, 129, 0.2)'
                                     : 'rgba(51, 65, 85, 0.5)',
-                            color: index <= currentStep ? '#34d399' : '#64748b'
+                            color: step.originalIndex <= currentStep ? '#34d399' : '#64748b'
                         }}>
-                            {index < currentStep ? (
+                            {step.originalIndex < currentStep ? (
                                 <Check style={{ width: 20, height: 20, color: 'white' }} />
                             ) : (
                                 <step.icon style={{ width: 20, height: 20 }} />
                             )}
                         </div>
-                        {index < steps.length - 1 && (
+                        {visIndex < visArr.length - 1 && (
                             <div style={{
                                 width: isCompact ? 24 : 40,
                                 height: 4,
-                                background: index < currentStep ? '#10b981' : 'rgba(51, 65, 85, 0.5)',
+                                background: step.originalIndex < currentStep ? '#10b981' : 'rgba(51, 65, 85, 0.5)',
                                 borderRadius: 2
                             }} />
                         )}
