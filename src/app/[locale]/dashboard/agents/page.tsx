@@ -64,6 +64,7 @@ interface Agent {
     mission?: string | null
     product_types?: string[]
     knowledge_count?: number
+    ecommerce_mode?: string | null
 }
 
 export default function AgentsPage() {
