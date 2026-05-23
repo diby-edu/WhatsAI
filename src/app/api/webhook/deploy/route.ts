@@ -55,9 +55,11 @@ export async function POST(request: NextRequest) {
 
         // Execute the update script in a fully detached process so it
         // survives when pm2 reloads this web app mid-deploy.
+        const { openSync } = await import('fs')
+        const logFd = openSync('/root/WhatsAI/deploy-auto.log', 'a')
         const child = spawn('/root/WhatsAI/deploy.sh', [], {
             detached: true,
-            stdio: 'ignore',
+            stdio: ['ignore', logFd, logFd],
         })
         child.unref()
 
