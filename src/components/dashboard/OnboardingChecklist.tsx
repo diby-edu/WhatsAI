@@ -9,6 +9,7 @@ import { useLocale } from 'next-intl'
 interface Step {
     key: string
     done: boolean
+    note?: string | null
 }
 
 const STEP_CONFIG: Record<string, {
@@ -186,7 +187,7 @@ export default function OnboardingChecklist() {
                                                 )}
                                             </div>
                                             <div style={{ color: '#64748b', fontSize: 12, marginTop: 2 }}>
-                                                {config.description}
+                                                {step.note || config.description}
                                             </div>
                                         </div>
                                         {!step.done && (
