@@ -221,6 +221,8 @@ export default function AgentWizardPage({
         // Live Query API
         live_query_url: '',
         live_query_secret: '',
+        // External Sync — message envoyé quand un client répond
+        external_sync_reply_message: '',
     })
 
     useEffect(() => {
@@ -333,6 +335,7 @@ export default function AgentWizardPage({
                 fallback_contact_message: agent.fallback_contact_message || '',
                 live_query_url: agent.live_query_url || '',
                 live_query_secret: agent.live_query_secret || '',
+                external_sync_reply_message: agent.external_sync_reply_message || '',
             })
 
             // Detect mission type for UX
@@ -355,13 +358,17 @@ export default function AgentWizardPage({
         }
     }
 
-    // Navigation helpers — Support Client skips step 2 (Horaires)
-    // STEPS: 0=mission, 1=info, 2=hours, 3=personality, 4=rules, 5=settings, 6=whatsapp
+    // Navigation helpers
+    // STEPS: 0=info, 1=hours, 2=personality, 3=rules, 4=settings, 5=whatsapp
     const getNextStep = (from: number) => {
+        if (isExternalSync && from === 0) return 4 // skip hours(1), personality(2), rules(3)
+        if (isExternalSync && from === 4) return 5
         if (isSupportClient && from === 0) return 2 // skip hours (index 1)
         return Math.min(STEPS.length - 1, from + 1)
     }
     const getPrevStep = (from: number) => {
+        if (isExternalSync && from === 4) return 0 // skip rules(3), personality(2), hours(1)
+        if (isExternalSync && from === 5) return 4
         if (isSupportClient && from === 2) return 0 // skip hours (index 1)
         return Math.max(0, from - 1)
     }
@@ -372,7 +379,7 @@ export default function AgentWizardPage({
         // Validation Rule: Escalation Phone is mandatory
         if (!silent && (!formData.escalation_phone || formData.escalation_phone.trim() === '')) {
             alert("⚠️ Le Numéro d'Escalade / SAV est obligatoire pour garantir le support client.")
-            setCurrentStep(1) // Go to Identity tab (index 1 after reorder)
+            setCurrentStep(0) // Go to Identity tab (index 0)
             setHighlightEscalation(true)
             setTimeout(() => setHighlightEscalation(false), 5000)
             return
@@ -1168,6 +1175,33 @@ export default function AgentWizardPage({
                     color: 'white',
                     outline: 'none'
                 }
+
+                if (isExternalSync) {
+                    return (
+                        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px', background: 'rgba(14, 165, 233, 0.08)', border: '1px solid rgba(14, 165, 233, 0.2)', borderRadius: 10, fontSize: 13, color: '#bae6fd' }}>
+                                <span>ℹ️</span>
+                                <span>Ce canal ne génère pas de réponses IA. Configurez ici le message envoyé automatiquement quand un client répond à vos notifications.</span>
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
+                                    Message de redirection *
+                                </label>
+                                <textarea
+                                    value={formData.external_sync_reply_message}
+                                    onChange={e => setFormData({ ...formData, external_sync_reply_message: e.target.value })}
+                                    placeholder={`Ex: Bonjour ! Pour toute question, contactez notre équipe au {{escalation_phone}}.`}
+                                    rows={4}
+                                    style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid rgba(148, 163, 184, 0.1)', background: 'rgba(30, 41, 59, 0.5)', color: 'white', outline: 'none', resize: 'vertical', fontFamily: 'inherit', fontSize: 13 }}
+                                />
+                                <p style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
+                                    Utilisez <code style={{ background: 'rgba(255,255,255,0.05)', padding: '1px 4px', borderRadius: 3 }}>{'{{escalation_phone}}'}</code> pour insérer automatiquement le numéro d&apos;escalade configuré dans l&apos;onglet Identité.
+                                </p>
+                            </div>
+                        </motion.div>
+                    )
+                }
+
                 return (
                     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                         {/* Settings - Only Temperature and Language */}
@@ -1803,9 +1837,12 @@ export default function AgentWizardPage({
                             style={{ width: `${(currentStep / (STEPS.length - 1)) * 100}%` }}
                         ></div>
 
-                        {STEPS.map((step, index) => {
-                            const isActive = index === currentStep
-                            const isCompleted = index < currentStep
+                        {STEPS
+                            .map((step, index) => ({ ...step, originalIndex: index }))
+                            .filter(step => !isExternalSync || !['hours', 'personality', 'rules'].includes(step.id))
+                            .map((step) => {
+                            const isActive = step.originalIndex === currentStep
+                            const isCompleted = step.originalIndex < currentStep
                             return (
                                 <button
                                     key={step.id}
@@ -1815,7 +1852,7 @@ export default function AgentWizardPage({
                                             alert("🛡️ SÉCURITÉ : Veuillez vérifier la cohérence de vos règles (Cliquez sur 'Vérifier') avant de quitter cette étape.")
                                             return
                                         }
-                                        setCurrentStep(index)
+                                        setCurrentStep(step.originalIndex)
                                     }}
                                     className={`relative z-10 flex flex-col items-center gap-2 group focus:outline-none`}
                                 >
