@@ -280,6 +280,7 @@ export default function AgentsPage() {
                     const operationalDetail = getAgentOperationalDetail(agent)
                     const operationalColors = getAgentOperationalColors(operationalStatus)
                     const StatusIcon = operationalStatus === 'qr_ready' ? MessageSquare : Smartphone
+                    const kbEmpty = agent.knowledge_count === 0 && agent.ecommerce_mode !== 'external_sync'
 
                     return (
                     <motion.div
@@ -412,16 +413,16 @@ export default function AgentsPage() {
                             {/* Connaissances */}
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                                 <Link href={`/dashboard/agents/${agent.id}/knowledge`} title="Base de connaissances"
-                                    style={{ width: 40, height: 40, borderRadius: 10, position: 'relative', backgroundColor: agent.knowledge_count === 0 ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)', border: agent.knowledge_count === 0 ? '1px solid rgba(239, 68, 68, 0.4)' : 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
-                                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = agent.knowledge_count === 0 ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)'; e.currentTarget.style.transform = 'scale(1.05)' }}
-                                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = agent.knowledge_count === 0 ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)'; e.currentTarget.style.transform = 'scale(1)' }}>
-                                    <BookOpen style={{ width: 18, height: 18, color: agent.knowledge_count === 0 ? '#f87171' : '#10b981' }} />
-                                    {agent.knowledge_count === 0 && (
+                                    style={{ width: 40, height: 40, borderRadius: 10, position: 'relative', backgroundColor: kbEmpty ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)', border: kbEmpty ? '1px solid rgba(239, 68, 68, 0.4)' : 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+                                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = kbEmpty ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)'; e.currentTarget.style.transform = 'scale(1.05)' }}
+                                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = kbEmpty ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)'; e.currentTarget.style.transform = 'scale(1)' }}>
+                                    <BookOpen style={{ width: 18, height: 18, color: kbEmpty ? '#f87171' : '#10b981' }} />
+                                    {kbEmpty && (
                                         <span style={{ position: 'absolute', top: -4, right: -4, width: 14, height: 14, borderRadius: '50%', background: '#ef4444', color: 'white', fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px solid #0f172a' }}>!</span>
                                     )}
                                 </Link>
-                                <span style={{ fontSize: 9, color: agent.knowledge_count === 0 ? '#f87171' : '#64748b', fontWeight: agent.knowledge_count === 0 ? 700 : 500 }}>
-                                    {agent.knowledge_count === 0 ? 'Vide !' : 'Connaissances'}
+                                <span style={{ fontSize: 9, color: kbEmpty ? '#f87171' : '#64748b', fontWeight: kbEmpty ? 700 : 500 }}>
+                                    {kbEmpty ? 'Vide !' : 'Connaissances'}
                                 </span>
                             </div>
 
