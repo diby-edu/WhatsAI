@@ -132,7 +132,9 @@ export async function PATCH(
             // Fallback contact
             'fallback_contact_message',
             // Live Query API
-            'live_query_url', 'live_query_secret'
+            'live_query_url', 'live_query_secret',
+            // Agent API (external_sync) — message envoyé quand un client répond à une notification
+            'external_sync_reply_message'
         ]
 
         const updates: Record<string, any> = {}
