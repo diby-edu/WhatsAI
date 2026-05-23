@@ -1521,11 +1521,12 @@ function BillingContent() {
                                                             Crédits
                                                         </span>
                                                     )}
-                                                    {(payment as any).source === 'manual' && (
-                                                        <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 4, background: 'rgba(251,191,36,0.1)', color: '#fbbf24' }}>
-                                                            Manuel
-                                                        </span>
-                                                    )}
+                                                    <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 4,
+                                                        background: (payment as any).source === 'manual' ? 'rgba(251,191,36,0.1)' : 'rgba(52,211,153,0.1)',
+                                                        color: (payment as any).source === 'manual' ? '#fbbf24' : '#34d399'
+                                                    }}>
+                                                        {(payment as any).source === 'manual' ? 'Manuel' : 'Auto'}
+                                                    </span>
                                                 </div>
                                                 <div style={{ fontWeight: 500, color: 'white', fontSize: 14 }}>{payment.description}</div>
                                                 <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
