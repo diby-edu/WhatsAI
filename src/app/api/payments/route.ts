@@ -66,13 +66,16 @@ export async function GET(_request: NextRequest) {
                 .eq('id', user.id)
                 .single()
 
-            if (profile?.plan && profile.plan !== 'free' && profile.paid_until) {
-                const paidUntil = new Date(profile.paid_until)
-                if (paidUntil > new Date()) {
+            if (profile?.plan && profile.plan !== 'free') {
+                const paidUntil = profile.paid_until ? new Date(profile.paid_until) : null
+                const isActive = !paidUntil || paidUntil > new Date()
+                if (isActive) {
                     formattedPayments.unshift({
                         id: 'synthetic_sub',
                         amount_fcfa: 0,
-                        description: `Abonnement ${profile.plan} — actif jusqu'au ${paidUntil.toLocaleDateString('fr-FR')}`,
+                        description: paidUntil
+                            ? `Abonnement ${profile.plan} — actif jusqu'au ${paidUntil.toLocaleDateString('fr-FR')}`
+                            : `Abonnement ${profile.plan} — actif`,
                         status: 'completed',
                         payment_type: 'subscription',
                         source: 'manual',
