@@ -188,6 +188,7 @@ export async function POST(request: NextRequest) {
                 escalation_phone: body.escalation_phone || null,
                 live_query_url: body.live_query_url || null,
                 live_query_secret: body.live_query_secret || null,
+                external_sync_reply_message: body.external_sync_reply_message || null,
                 ...restaurantDepositSettings
             })
             .select()

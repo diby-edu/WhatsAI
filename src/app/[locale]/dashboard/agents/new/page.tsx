@@ -181,7 +181,9 @@ export default function NewAgentPage() {
         // SUPPORT
         fallback_contact_message: '',
         live_query_url: '',
-        live_query_secret: ''
+        live_query_secret: '',
+        // Agent API (external_sync)
+        external_sync_reply_message: ''
     })
 
     const steps = [
@@ -418,6 +420,7 @@ Regles:
             case 4: // Rules
                 return conflictStatus !== 'conflict'
             case 5: // Settings
+                if (isExternalSync) return formData.external_sync_reply_message.trim() !== ''
                 return true
             case 6: // WhatsApp
                 return true
@@ -428,12 +431,16 @@ Regles:
 
     // Calcul du prochain/précédent step en tenant compte des skips Support Client
     const getNextStep = (from: number) => {
+        // Agent API : skip Horaires (2), Personnalité (3), Règles (4)
+        if (isExternalSync && from === 1) return 5
         // Support Client : skip step 2 (Horaires)
         if (isSupportClient && from === 1) return 3
         return Math.min(steps.length - 1, from + 1)
     }
 
     const getPrevStep = (from: number) => {
+        // Agent API : skip back par-dessus Horaires, Personnalité, Règles
+        if (isExternalSync && from === 5) return 1
         // Support Client : skip step 2 (Horaires)
         if (isSupportClient && from === 3) return 1
         return Math.max(0, from - 1)
@@ -608,6 +615,7 @@ Regles:
                     fallback_contact_message: formData.fallback_contact_message || null,
                     live_query_url: formData.live_query_url || null,
                     live_query_secret: formData.live_query_secret || null,
+                    external_sync_reply_message: formData.external_sync_reply_message || null,
                     mission: formData.mission || null,
                 }),
             })
@@ -1035,7 +1043,7 @@ Regles:
                                 </div>
                                 {isExternalSync && (
                                     <div style={{ padding: 14, background: 'rgba(14, 165, 233, 0.08)', border: '1px solid rgba(14, 165, 233, 0.25)', borderRadius: 12, color: '#bae6fd', fontSize: 13, lineHeight: 1.6 }}>
-                                        Ce mode est prévu pour une plateforme connectée (Chariow, Shopify, WooCommerce...). Les produits viendront de l&apos;API publique via <strong>/sync</strong>. Les commandes et paiements restent gérés hors du checkout natif WazzapAI.
+                                        Ce mode est prévu pour une plateforme connectée (Chariow, Shopify, WooCommerce...). Votre agent servira uniquement de canal de notification WhatsApp — les commandes et paiements restent gérés sur votre plateforme.
                                     </div>
                                 )}
                             </div>
@@ -1043,7 +1051,7 @@ Regles:
                         {isExternalSync && (
                             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px', background: 'rgba(14, 165, 233, 0.08)', border: '1px solid rgba(14, 165, 233, 0.2)', borderRadius: 10, fontSize: 13, color: '#bae6fd' }}>
                                 <span>ℹ️</span>
-                                <span>Définissez ici l&apos;identité commerciale de votre agent. Le catalogue sera fourni par votre plateforme via l&apos;API publique <strong>/sync</strong>.</span>
+                                <span>Définissez ici l&apos;identité de votre agent. Il servira de canal de notification WhatsApp pour votre plateforme.</span>
                             </div>
                         )}
                         {isSupportClient && (
@@ -1470,6 +1478,28 @@ Regles:
                 )
 
             case 5: // SETTINGS
+                if (isExternalSync) return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                        <div style={{ padding: 14, background: 'rgba(14, 165, 233, 0.08)', border: '1px solid rgba(14, 165, 233, 0.25)', borderRadius: 12, color: '#bae6fd', fontSize: 13, lineHeight: 1.6 }}>
+                            Quand un client répond à une notification, votre agent enverra ce message automatiquement puis redirigera vers le numéro de support.
+                        </div>
+                        <div>
+                            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
+                                Message de redirection <span style={{ color: '#ef4444' }}>*</span>
+                            </label>
+                            <textarea
+                                value={formData.external_sync_reply_message}
+                                onChange={(e) => updateFormData('external_sync_reply_message', e.target.value)}
+                                placeholder={`Merci pour votre message. Pour toute assistance, contactez notre équipe au ${formData.escalation_phone || '[numéro d\'escalade]'}.`}
+                                rows={4}
+                                style={{ ...inputStyle, resize: 'vertical' as const }}
+                            />
+                            <p style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
+                                Ce message est envoyé une seule fois quand le client écrit à votre agent.
+                            </p>
+                        </div>
+                    </div>
+                )
                 return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                         <div>
