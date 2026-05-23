@@ -462,8 +462,8 @@ export default function AgentsPage() {
                             </div>
                         </div>
 
-                        {/* Alerte base de connaissances vide */}
-                        {agent.knowledge_count === 0 && (
+                        {/* Alerte base de connaissances vide (pas pour les agents API externe) */}
+                        {agent.knowledge_count === 0 && agent.ecommerce_mode !== 'external_sync' && (
                             <Link href={`/dashboard/agents/${agent.id}/knowledge`}
                                 style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', marginBottom: 12, borderRadius: 8, background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.25)', textDecoration: 'none' }}>
                                 <span style={{ fontSize: 14 }}>⚠️</span>
