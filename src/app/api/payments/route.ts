@@ -66,28 +66,25 @@ export async function GET(_request: NextRequest) {
                 .eq('id', user.id)
                 .single()
 
-            if (profile?.plan && profile.plan !== 'free') {
+            if (profile?.plan) {
                 const paidUntil = profile.paid_until ? new Date(profile.paid_until) : null
-                const isActive = !paidUntil || paidUntil > new Date()
-                if (isActive) {
-                    formattedPayments.unshift({
-                        id: 'synthetic_sub',
-                        amount_fcfa: 0,
-                        description: paidUntil
-                            ? `Abonnement ${profile.plan} — actif jusqu'au ${paidUntil.toLocaleDateString('fr-FR')}`
-                            : `Abonnement ${profile.plan} — actif`,
-                        status: 'completed',
-                        payment_type: 'subscription',
-                        source: 'manual',
-                        payment_provider: 'admin',
-                        payment_channel: null,
-                        payment_channel_detail: null,
-                        credits: null,
-                        reference: null,
-                        created_at: null,
-                        completed_at: profile.paid_until,
-                    })
-                }
+                formattedPayments.unshift({
+                    id: 'synthetic_sub',
+                    amount_fcfa: 0,
+                    description: paidUntil
+                        ? `Abonnement ${profile.plan} — jusqu'au ${paidUntil.toLocaleDateString('fr-FR')}`
+                        : `Abonnement ${profile.plan} — illimité`,
+                    status: 'completed',
+                    payment_type: 'subscription',
+                    source: 'manual',
+                    payment_provider: 'admin',
+                    payment_channel: null,
+                    payment_channel_detail: null,
+                    credits: null,
+                    reference: null,
+                    created_at: null,
+                    completed_at: profile.paid_until,
+                })
             }
         }
 
