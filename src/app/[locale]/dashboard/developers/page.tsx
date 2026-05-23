@@ -1167,8 +1167,6 @@ export default function DevelopersPage() {
 
     const tabs = [
         { id: 'keys' as const, label: 'Cles API', icon: Key, count: keys.length },
-        { id: 'catalog_sync' as const, label: 'Sync catalogue', icon: RefreshCw, count: platformSyncConnections.length },
-        { id: 'synced_products' as const, label: 'Produits sync', icon: Shield, count: syncedProducts.length },
         { id: 'platform_connections' as const, label: 'Connexions plateforme directes', icon: Globe, count: platformConnections.length },
         { id: 'webhooks' as const, label: 'Webhooks', icon: Globe, count: webhooks.length },
         { id: 'logs' as const, label: 'Logs', icon: Activity, count: undefined },
