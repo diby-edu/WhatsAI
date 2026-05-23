@@ -71,7 +71,7 @@ export default function Error({
 
             <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
                 <button
-                    onClick={reset}
+                    onClick={() => window.location.reload()}
                     style={{
                         display: 'flex',
                         alignItems: 'center',

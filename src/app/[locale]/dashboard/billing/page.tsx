@@ -100,6 +100,7 @@ function BillingContent() {
     const [isLoading, setIsLoading] = useState<string | null>(null)
     const [userData, setUserData] = useState<UserData | null>(null)
     const [subscriptionEnd, setSubscriptionEnd] = useState<string | null>(null)
+    const [profilePaidUntil, setProfilePaidUntil] = useState<string | null>(null)
     const [creditsIncluded, setCreditsIncluded] = useState<number>(0)
     const [creditsFrozenAt, setCreditsFrozenAt] = useState<string | null>(null)
     const [creditsExpireAt, setCreditsExpireAt] = useState<string | null>(null)
@@ -406,12 +407,13 @@ function BillingContent() {
 
                 const { data: profileExtra } = await supabase
                     .from('profiles')
-                    .select('credits_frozen_at, credits_expire_at, account_lifecycle_status')
+                    .select('credits_frozen_at, credits_expire_at, account_lifecycle_status, paid_until')
                     .eq('id', user.id)
                     .single()
                 setCreditsFrozenAt(profileExtra?.credits_frozen_at || null)
                 setCreditsExpireAt(profileExtra?.credits_expire_at || null)
                 setLifecycleStatus(profileExtra?.account_lifecycle_status || null)
+                setProfilePaidUntil(profileExtra?.paid_until || null)
             }
         } catch (err) {
             console.error('Error fetching data:', err)
@@ -1150,19 +1152,22 @@ function BillingContent() {
                         </div>
                         <div>
                             <div style={{ fontSize: 12, color: '#64748b' }}>Échéance</div>
-                            <div style={{ fontSize: 18, fontWeight: 700, color: subscriptionEnd ? 'white' : '#64748b' }}>
-                                {subscriptionEnd
-                                    ? new Date(subscriptionEnd).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
-                                    : currentPlan === 'free'
-                                        ? 'Plan gratuit'
-                                        : lifecycleStatus === null
-                                            ? 'Compte test'
-                                            : lifecycleStatus === 'frozen_grace'
-                                                ? 'En période de grâce'
-                                                : lifecycleStatus === 'inactive'
-                                                    ? 'Compte suspendu'
-                                                    : 'Géré manuellement'}
-                            </div>
+                            {(() => {
+                                const dateStr = subscriptionEnd || profilePaidUntil
+                                return (
+                                    <div style={{ fontSize: 18, fontWeight: 700, color: dateStr ? 'white' : '#64748b' }}>
+                                        {dateStr
+                                            ? new Date(dateStr).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                                            : currentPlan === 'free'
+                                                ? 'Plan gratuit'
+                                                : lifecycleStatus === 'frozen_grace'
+                                                    ? 'En période de grâce'
+                                                    : lifecycleStatus === 'inactive'
+                                                        ? 'Compte suspendu'
+                                                        : 'Illimité'}
+                                    </div>
+                                )
+                            })()}
                         </div>
                     </div>
                 </motion.div>
