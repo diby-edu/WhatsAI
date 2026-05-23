@@ -1507,8 +1507,7 @@ function BillingContent() {
                                             background: 'rgba(51, 65, 85, 0.3)'
                                         }}
                                     >
-                                        <div>
-                                                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flex: 1 }}>
+                                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flex: 1 }}>
                                             <div style={{ flex: 1 }}>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
                                                     {(payment as any).payment_type === 'subscription' && (
