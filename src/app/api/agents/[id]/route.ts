@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
 import { normalizeAgentPaymentMode } from '@/lib/payments/payment-mode-display'
-import { buildAgentDeactivationUpdate, buildAgentReactivationUpdate } from '@/lib/whatsapp/agent-lifecycle'
+import { buildAgentDeactivationUpdate, buildAgentReactivationUpdate, buildAgentSoftPauseUpdate } from '@/lib/whatsapp/agent-lifecycle'
 import { buildAccountLifecycleAccessState, getAccountLifecycleBlockMessage } from '@/lib/account-lifecycle'
 
 function normalizeRestaurantDepositSettings(body: any) {
@@ -259,7 +259,8 @@ export async function PATCH(
         }
 
         if (updates.is_active === false) {
-            Object.assign(updates, buildAgentDeactivationUpdate())
+            // Soft pause : garde le socket WhatsApp vivant pour éviter le phantom session au retour
+            Object.assign(updates, buildAgentSoftPauseUpdate())
         }
 
         const { data: agent, error } = await supabase
