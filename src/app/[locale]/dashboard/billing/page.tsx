@@ -1155,16 +1155,14 @@ function BillingContent() {
                             {(() => {
                                 const dateStr = subscriptionEnd || profilePaidUntil
                                 return (
-                                    <div style={{ fontSize: 18, fontWeight: 700, color: dateStr ? 'white' : '#64748b' }}>
+                                    <div style={{ fontSize: 18, fontWeight: 700, color: dateStr ? 'white' : '#94a3b8' }}>
                                         {dateStr
                                             ? new Date(dateStr).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
-                                            : currentPlan === 'free'
-                                                ? 'Plan gratuit'
-                                                : lifecycleStatus === 'frozen_grace'
-                                                    ? 'En période de grâce'
-                                                    : lifecycleStatus === 'inactive'
-                                                        ? 'Compte suspendu'
-                                                        : 'Illimité'}
+                                            : lifecycleStatus === 'frozen_grace'
+                                                ? 'En période de grâce'
+                                                : lifecycleStatus === 'inactive'
+                                                    ? 'Compte suspendu'
+                                                    : 'Illimité'}
                                     </div>
                                 )
                             })()}
