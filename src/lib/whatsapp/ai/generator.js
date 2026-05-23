@@ -354,7 +354,7 @@ async function generateAIResponse(options, dependencies) {
                     return { content: lines.filter(Boolean).join(' — ') }
                 }).filter(doc => doc.content.length > 0)
                 relevantDocs = [...(relevantDocs || []), ...extraDocs]
-                hasExternalData = extraDocs.length > 0
+                hasExternalData = extraDocs.length > 0 && agent.ecommerce_mode === 'external_sync'
             }
         } catch (_) {
             // Silencieux — le RAG normal fonctionne sans les données externes
