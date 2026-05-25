@@ -66,7 +66,7 @@ export async function GET(_request: NextRequest) {
                 .eq('id', user.id)
                 .single()
 
-            if (profile?.plan) {
+            if (profile?.plan && profile.plan !== 'free') {
                 const paidUntil = profile.paid_until ? new Date(profile.paid_until) : null
                 formattedPayments.unshift({
                     id: 'synthetic_sub',
