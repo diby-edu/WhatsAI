@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Cropper from 'react-easy-crop'
 import 'react-easy-crop/react-easy-crop.css'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -77,6 +78,7 @@ interface NotificationSettings {
 export default function SettingsPage() {
     const t = useTranslations('Settings')
     const { setCurrency } = useCurrency()
+    const searchParams = useSearchParams()
 
     // Note: The tabs configuration depends on translations, so it's defined inside the component or using a memo
     const tabs = [
@@ -87,7 +89,9 @@ export default function SettingsPage() {
         { id: 'danger', label: t('tabs.danger'), icon: AlertTriangle }
     ]
 
-    const [activeTab, setActiveTab] = useState('profile')
+    const validTabs = tabs.map(t => t.id)
+    const tabFromUrl = searchParams.get('tab') ?? ''
+    const [activeTab, setActiveTab] = useState(validTabs.includes(tabFromUrl) ? tabFromUrl : 'profile')
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [saved, setSaved] = useState(false)
