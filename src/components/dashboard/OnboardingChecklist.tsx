@@ -189,8 +189,8 @@ export default function OnboardingChecklist() {
                                             <div style={{ color: '#64748b', fontSize: 12, marginTop: 2 }}>
                                                 {config.description}
                                                 {step.note && (
-                                                    <span style={{ display: 'block', fontSize: 11, color: '#475569', fontStyle: 'italic', marginTop: 2 }}>
-                                                        {step.note}
+                                                    <span style={{ display: 'block', fontSize: 12, color: '#38bdf8', fontWeight: 500, marginTop: 4, background: 'rgba(56,189,248,0.08)', borderRadius: 6, padding: '3px 8px' }}>
+                                                        ℹ️ {step.note}
                                                     </span>
                                                 )}
                                             </div>
