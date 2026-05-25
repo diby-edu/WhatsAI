@@ -57,9 +57,9 @@ const faqs: FAQItem[] = [
 ]
 
 const guides = [
-    { title: "Guide de démarrage rapide", description: "Apprenez les bases en 5 minutes", icon: Book },
-    { title: "Configuration avancée", description: "Optimisez votre agent IA", icon: Bot },
-    { title: "Tutoriels vidéo", description: "Formations pas à pas", icon: Video }
+    { title: "Guide de démarrage rapide", description: "Apprenez les bases en 5 minutes", icon: Book, href: null },
+    { title: "Configuration avancée", description: "Optimisez votre agent IA", icon: Bot, href: null },
+    { title: "Communauté WhatsApp", description: "Rejoignez notre groupe d'entraide", icon: Users, href: "https://chat.whatsapp.com/E7vbXhqS0o5D4Wn2lrdDGi" }
 ]
 
 export default function HelpPage() {
@@ -227,19 +227,22 @@ export default function HelpPage() {
                     {guides.map((guide, i) => (
                         <motion.div
                             key={i}
-                            whileHover={{ scale: 1.02, borderColor: 'rgba(168, 85, 247, 0.3)' }}
+                            whileHover={{ scale: 1.02, borderColor: guide.href ? 'rgba(37, 211, 102, 0.3)' : 'rgba(168, 85, 247, 0.3)' }}
                             style={{
                                 background: 'rgba(30, 41, 59, 0.5)',
                                 border: '1px solid rgba(148, 163, 184, 0.1)',
                                 borderRadius: 14,
                                 padding: 20,
-                                cursor: 'pointer',
-                                transition: 'all 0.2s'
+                                cursor: guide.href ? 'pointer' : 'default',
+                                transition: 'all 0.2s',
+                                opacity: guide.href ? 1 : 0.5
                             }}
+                            onClick={() => guide.href && window.open(guide.href, '_blank')}
                         >
-                            <guide.icon style={{ width: 28, height: 28, color: '#a855f7', marginBottom: 12 }} />
+                            <guide.icon style={{ width: 28, height: 28, color: guide.href ? '#25D366' : '#a855f7', marginBottom: 12 }} />
                             <h3 style={{ color: 'white', fontWeight: 600, fontSize: 15, marginBottom: 4 }}>
                                 {guide.title}
+                                {!guide.href && <span style={{ fontSize: 10, fontWeight: 600, color: '#64748b', background: 'rgba(100,116,139,0.15)', padding: '2px 6px', borderRadius: 10, marginLeft: 8 }}>BIENTÔT</span>}
                             </h3>
                             <p style={{ color: '#64748b', fontSize: 13 }}>{guide.description}</p>
                         </motion.div>
