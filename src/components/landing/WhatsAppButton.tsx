@@ -15,11 +15,8 @@ export default function WhatsAppButton() {
 
     // Numéro WhatsApp de contact (format international sans +)
     const whatsappNumber = '2250554585927'
-    const defaultMessage = t('message')
-
     const handleWhatsAppClick = () => {
-        const url = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(defaultMessage)}`
-        window.open(url, '_blank')
+        window.open(`https://wa.me/${whatsappNumber}`, '_blank')
     }
 
     return (

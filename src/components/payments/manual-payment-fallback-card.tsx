@@ -19,10 +19,7 @@ const OFFICIAL_WHATSAPP = '+2250554585927'
 export default function ManualPaymentFallbackCard({ compact = false }: ManualPaymentFallbackCardProps) {
     const whatsappLink = useMemo(() => {
         const phoneDigits = OFFICIAL_WHATSAPP.replace(/\D+/g, '')
-        const prefilled = encodeURIComponent(
-            'Bonjour WazzapAI, jai fait un transfert manuel. Voici ma capture de paiement.'
-        )
-        return `https://wa.me/${phoneDigits}?text=${prefilled}`
+        return `https://wa.me/${phoneDigits}`
     }, [])
 
     return (

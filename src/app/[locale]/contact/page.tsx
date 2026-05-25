@@ -34,7 +34,7 @@ export default function ContactPage() {
                 <div style={{ display: 'grid', gap: 24 }}>
                     {/* WhatsApp */}
                     <a
-                        href="https://wa.me/2250554585927?text=Bonjour%20!%20Je%20souhaite%20en%20savoir%20plus%20sur%20WazzapAI."
+                        href="https://wa.me/2250554585927"
                         target="_blank"
                         rel="noopener noreferrer"
                         style={{
