@@ -479,25 +479,6 @@ export default function AgentsPage() {
                         {/* Main action buttons */}
                         <div style={{ display: 'flex', gap: 12 }}>
                             <Link
-                                href={`/dashboard/playground?agent=${agent.id}`}
-                                style={{
-                                    flex: 1,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    padding: '10px 16px',
-                                    borderRadius: 10,
-                                    background: 'rgba(51, 65, 85, 0.5)',
-                                    color: 'white',
-                                    fontSize: 14,
-                                    fontWeight: 500,
-                                    textDecoration: 'none',
-                                    cursor: 'pointer'
-                                }}
-                            >
-                                {t('card.test')}
-                            </Link>
-                            <Link
                                 href={`/dashboard/agents/${agent.id}?tab=whatsapp`}
                                 style={{
                                     flex: 1,
