@@ -35,6 +35,10 @@ import {
 
 const QR_CONNECTION_ERROR_MESSAGE = 'Le scan a echoue avant la fin de la connexion. Generez un nouveau QR code puis rescanez depuis WhatsApp.'
 
+function isValidEscalationPhone(value: string): boolean {
+    return /^\+\d{6,15}$/.test((value || '').trim())
+}
+
 function normalizePairingPhoneInput(value: string): string | null {
     const trimmed = (value || '').trim()
     if (!trimmed) return null
@@ -411,10 +415,10 @@ Regles:
     const canProceed = () => {
         switch (currentStep) {
             case 0:
-                if (agentType === 'api') return true
+                if (agentType === 'api') return formData.name.trim() !== '' && isValidEscalationPhone(formData.escalation_phone) && formData.external_sync_reply_message.trim() !== ''
                 return agentType === 'conversationnel' && formData.mission !== ''
             case 1: // Info
-                return formData.name.trim() !== '' && formData.escalation_phone.trim() !== ''
+                return formData.name.trim() !== '' && isValidEscalationPhone(formData.escalation_phone)
             case 2: // Hours
                 return true
             case 3: // Personality
@@ -433,6 +437,8 @@ Regles:
 
     // Calcul du prochain/précédent step en tenant compte des skips Support Client
     const getNextStep = (from: number) => {
+        // Agent API : step 0 → WhatsApp directement (champs déjà dans step 0)
+        if (isExternalSync && from === 0) return 6
         // Agent API : skip Horaires (2), Personnalité (3), Règles (4)
         if (isExternalSync && from === 1) return 5
         // Support Client : skip step 2 (Horaires)
@@ -441,6 +447,8 @@ Regles:
     }
 
     const getPrevStep = (from: number) => {
+        // Agent API : WhatsApp → step 0 directement
+        if (isExternalSync && from === 6) return 0
         // Agent API : skip back par-dessus Horaires, Personnalité, Règles
         if (isExternalSync && from === 5) return 1
         // Support Client : skip step 2 (Horaires)
@@ -748,7 +756,7 @@ Regles:
                 } else if (newPairingCode) {
                     if (!pairingCodeShownRef.current) {
                         pairingCodeShownRef.current = true
-                        setCountdown(90)
+                        setCountdown(180)
                     }
                     setPairingCode(newPairingCode)
                     setQrCode(null)
@@ -917,10 +925,56 @@ Regles:
                             </div>
                         </div>
 
-                        {/* Info agent API */}
+                        {/* Champs inline — agent API */}
                         {agentType === 'api' && (
-                            <div style={{ padding: 14, background: 'rgba(14, 165, 233, 0.08)', border: '1px solid rgba(14, 165, 233, 0.25)', borderRadius: 12, color: '#bae6fd', fontSize: 13, lineHeight: 1.6 }}>
-                                Ce mode est prévu pour une plateforme connectée (Chariow, Shopify, WooCommerce...). Votre agent servira uniquement de canal de notification WhatsApp — les commandes et paiements restent gérés sur votre plateforme.
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                                <div style={{ padding: 14, background: 'rgba(14, 165, 233, 0.08)', border: '1px solid rgba(14, 165, 233, 0.25)', borderRadius: 12, color: '#bae6fd', fontSize: 13, lineHeight: 1.6 }}>
+                                    Votre agent servira uniquement de canal de notification WhatsApp. Les commandes et paiements restent gérés sur votre plateforme (Chariow, Shopify, WooCommerce...).
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
+                                        Nom de l'agent *
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={formData.name}
+                                        onChange={(e) => updateFormData('name', e.target.value)}
+                                        placeholder="Ex: Boutique Chez Marie"
+                                        style={inputStyle}
+                                    />
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
+                                        Numéro d'escalade / SAV * <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 400 }}>(format : +225XXXXXXXXX)</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={formData.escalation_phone}
+                                        onChange={(e) => updateFormData('escalation_phone', e.target.value)}
+                                        placeholder="+2250701010101"
+                                        style={{
+                                            ...inputStyle,
+                                            border: formData.escalation_phone && !isValidEscalationPhone(formData.escalation_phone) ? '1px solid #f87171' : inputStyle.border
+                                        }}
+                                    />
+                                    {formData.escalation_phone && !isValidEscalationPhone(formData.escalation_phone) && (
+                                        <p style={{ fontSize: 11, color: '#f87171', marginTop: 4 }}>
+                                            Format invalide. Exemple : +2250701010101 (+ indicatif + numéro, chiffres uniquement)
+                                        </p>
+                                    )}
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
+                                        Message de redirection * <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 400 }}>(envoyé quand un client vous répond)</span>
+                                    </label>
+                                    <textarea
+                                        value={formData.external_sync_reply_message}
+                                        onChange={(e) => updateFormData('external_sync_reply_message', e.target.value)}
+                                        placeholder={`Merci pour votre message. Pour toute assistance, contactez notre équipe au ${formData.escalation_phone || '+225XXXXXXXXX'}.`}
+                                        rows={4}
+                                        style={{ ...inputStyle, resize: 'vertical' as const }}
+                                    />
+                                </div>
                             </div>
                         )}
 
@@ -1196,22 +1250,23 @@ Regles:
                         <div className="agent-grid-2">
                             <div>
                                 <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                    Numéro d'Escalade / SAV *
+                                    Numéro d'Escalade / SAV * <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 400 }}>(+indicatif)</span>
                                 </label>
                                 <input
                                     type="text"
                                     value={formData.escalation_phone}
                                     onChange={(e) => updateFormData('escalation_phone', e.target.value)}
-                                    placeholder="Ex: +225 07 07... (Indispensable pour l'IA)"
+                                    placeholder="+2250701010101"
                                     style={{
                                         ...inputStyle,
-                                        border: (formData.escalation_phone.trim() === '') ? '1px solid #f87171' : inputStyle.border
+                                        border: !isValidEscalationPhone(formData.escalation_phone) ? '1px solid #f87171' : inputStyle.border
                                     }}
                                 />
                                 <p style={{ fontSize: 11, color: '#f87171', marginTop: 4 }}>
-                                    {formData.escalation_phone.trim() === '' ? 'Ce numéro est requis pour le SAV.' : ''}
+                                    {!isValidEscalationPhone(formData.escalation_phone) ? 'Format : +225XXXXXXXXX (+ indicatif obligatoire, chiffres uniquement)' : ''}
                                 </p>
                             </div>
+                            {!isExternalSync && (
                             <div>
                                 <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
                                     Site Web
@@ -1224,6 +1279,7 @@ Regles:
                                     style={inputStyle}
                                 />
                             </div>
+                            )}
                         </div>
                     </div>
                 )
