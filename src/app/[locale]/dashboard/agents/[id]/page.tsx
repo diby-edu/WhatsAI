@@ -45,6 +45,12 @@ import {
 
 const QR_CONNECTION_ERROR_MESSAGE = 'Le scan a echoue avant la fin de la connexion. Generez un nouveau QR code puis rescanez depuis WhatsApp.'
 
+function sanitizeEscalationPhone(value: string): string {
+    const raw = value || ''
+    const digits = raw.replace(/[^\d]/g, '')
+    return raw.startsWith('+') ? '+' + digits : digits
+}
+
 function normalizePairingPhoneInput(value: string): string | null {
     const trimmed = (value || '').trim()
     if (!trimmed) return null
@@ -675,7 +681,7 @@ export default function AgentWizardPage({
                                 </label>
                                 <input
                                     value={formData.escalation_phone}
-                                    onChange={e => setFormData({ ...formData, escalation_phone: e.target.value })}
+                                    onChange={e => setFormData({ ...formData, escalation_phone: sanitizeEscalationPhone(e.target.value) })}
 
                                     placeholder="+225 07 XX XX XX XX"
                                     style={{

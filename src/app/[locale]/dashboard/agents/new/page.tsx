@@ -39,6 +39,12 @@ function isValidEscalationPhone(value: string): boolean {
     return /^\+\d{6,15}$/.test((value || '').trim())
 }
 
+function sanitizeEscalationPhone(value: string): string {
+    const raw = value || ''
+    const digits = raw.replace(/[^\d]/g, '')
+    return raw.startsWith('+') ? '+' + digits : digits
+}
+
 function normalizePairingPhoneInput(value: string): string | null {
     const trimmed = (value || '').trim()
     if (!trimmed) return null
@@ -950,7 +956,7 @@ Regles:
                                     <input
                                         type="text"
                                         value={formData.escalation_phone}
-                                        onChange={(e) => updateFormData('escalation_phone', e.target.value)}
+                                        onChange={(e) => updateFormData('escalation_phone', sanitizeEscalationPhone(e.target.value))}
                                         placeholder="+2250701010101"
                                         style={{
                                             ...inputStyle,
