@@ -60,6 +60,7 @@ export default function NewAgentPage() {
     const [showSupportModal, setShowSupportModal] = useState(false)
     const [featureFlags, setFeatureFlags] = useState<Record<string, boolean>>({})
     const [apiAccessEnabled, setApiAccessEnabled] = useState(false)
+    const [agentType, setAgentType] = useState<'' | 'conversationnel' | 'api'>('')
 
     useEffect(() => {
         fetch('/api/features')
@@ -187,7 +188,7 @@ export default function NewAgentPage() {
     })
 
     const steps = [
-        { id: 'mission', title: t('Wizard.steps.mission'), icon: Target },
+        { id: 'mission', title: "Type d'agent", icon: Target },
         { id: 'info', title: t('Wizard.steps.info'), icon: Bot },
         { id: 'hours', title: 'Horaires', icon: Clock },
         { id: 'personality', title: t('Wizard.steps.personality'), icon: Sparkles },
@@ -409,8 +410,9 @@ Regles:
 
     const canProceed = () => {
         switch (currentStep) {
-            case 0: // Mission (new step 0)
-                return formData.mission !== ''
+            case 0:
+                if (agentType === 'api') return true
+                return agentType === 'conversationnel' && formData.mission !== ''
             case 1: // Info
                 return formData.name.trim() !== '' && formData.escalation_phone.trim() !== ''
             case 2: // Hours
@@ -850,48 +852,119 @@ Regles:
 
     const renderStepContent = () => {
         switch (currentStep) {
-            case 0: // MISSION (new step 0)
+            case 0: // TYPE D'AGENT
                 return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                        {/* Choix du type */}
                         <div>
                             <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 16 }}>
-                                {t('Form.mission.label')}
+                                Quel type d&apos;agent souhaitez-vous créer ?
                             </label>
-                            <div className="agent-grid-3">
-                                {missionTemplates.map((template) => {
-                                    const flagKey = `agent_${template.id}`
-                                    // support_client est toujours actif, les autres vérifient le flag
-                                    const isEnabled = template.id === 'support_client' || Object.keys(featureFlags).length === 0 || featureFlags[flagKey] !== false
-                                    return (
-                                    <button
-                                        key={template.id}
-                                        onClick={() => isEnabled && selectMissionTemplate(template)}
-                                        disabled={!isEnabled}
-                                        style={{
-                                            padding: 16,
-                                            border: `2px solid ${formData.mission === template.id ? '#10b981' : isEnabled ? 'rgba(148, 163, 184, 0.1)' : 'rgba(148, 163, 184, 0.05)'}`,
-                                            borderRadius: 12,
-                                            textAlign: 'left',
-                                            background: formData.mission === template.id ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
-                                            cursor: isEnabled ? 'pointer' : 'not-allowed',
-                                            opacity: isEnabled ? 1 : 0.45,
-                                            position: 'relative' as const
-                                        }}
-                                    >
-                                        {!isEnabled && (
-                                            <span style={{ position: 'absolute', top: 8, right: 8, fontSize: 10, fontWeight: 700, color: '#64748b', background: 'rgba(100,116,139,0.15)', padding: '2px 7px', borderRadius: 20, letterSpacing: '0.05em' }}>
-                                                BIENTÔT
-                                            </span>
-                                        )}
-                                        <h3 style={{ fontWeight: 600, color: isEnabled ? 'white' : '#64748b', marginBottom: 4 }}>{template.title}</h3>
-                                        <p style={{ fontSize: 13, color: '#64748b' }}>{template.description}</p>
-                                    </button>
-                                    )
-                                })}
+                            <div className="agent-grid-2">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setAgentType('conversationnel')
+                                        setFormData(prev => ({ ...prev, mission: '', ecommerce_mode: 'native' }))
+                                    }}
+                                    style={{
+                                        padding: 20,
+                                        border: `2px solid ${agentType === 'conversationnel' ? '#10b981' : 'rgba(148, 163, 184, 0.1)'}`,
+                                        borderRadius: 12,
+                                        textAlign: 'left',
+                                        background: agentType === 'conversationnel' ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    <h3 style={{ fontWeight: 600, color: 'white', marginBottom: 6 }}>Agent Conversationnel</h3>
+                                    <p style={{ fontSize: 13, color: '#94a3b8' }}>
+                                        IA qui discute avec vos clients — e-commerce, restaurant, hôtel, SAV...
+                                    </p>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        if (!apiAccessEnabled) return
+                                        setAgentType('api')
+                                        setFormData(prev => ({
+                                            ...prev,
+                                            mission: 'ecommerce',
+                                            ecommerce_mode: 'external_sync',
+                                            systemPrompt: getMissionPrompt('ecommerce', 'external_sync')
+                                        }))
+                                    }}
+                                    disabled={!apiAccessEnabled}
+                                    title={!apiAccessEnabled ? 'Nécessite un abonnement API' : undefined}
+                                    style={{
+                                        padding: 20,
+                                        border: `2px solid ${!apiAccessEnabled ? 'rgba(148, 163, 184, 0.08)' : agentType === 'api' ? '#0ea5e9' : 'rgba(148, 163, 184, 0.1)'}`,
+                                        borderRadius: 12,
+                                        textAlign: 'left',
+                                        background: !apiAccessEnabled ? 'rgba(255,255,255,0.02)' : agentType === 'api' ? 'rgba(14, 165, 233, 0.12)' : 'transparent',
+                                        cursor: apiAccessEnabled ? 'pointer' : 'not-allowed',
+                                        opacity: apiAccessEnabled ? 1 : 0.45,
+                                        position: 'relative' as const
+                                    }}
+                                >
+                                    <h3 style={{ fontWeight: 600, color: apiAccessEnabled ? 'white' : '#64748b', marginBottom: 6 }}>
+                                        Canal Notification API
+                                        {!apiAccessEnabled && <span style={{ fontSize: 11, fontWeight: 400, color: '#f59e0b', marginLeft: 8 }}>Abonnement API requis</span>}
+                                    </h3>
+                                    <p style={{ fontSize: 13, color: '#94a3b8' }}>
+                                        Canal WhatsApp pour plateforme externe — Shopify, Chariow, WooCommerce...
+                                    </p>
+                                </button>
                             </div>
                         </div>
 
-                        {formData.mission && (
+                        {/* Info agent API */}
+                        {agentType === 'api' && (
+                            <div style={{ padding: 14, background: 'rgba(14, 165, 233, 0.08)', border: '1px solid rgba(14, 165, 233, 0.25)', borderRadius: 12, color: '#bae6fd', fontSize: 13, lineHeight: 1.6 }}>
+                                Ce mode est prévu pour une plateforme connectée (Chariow, Shopify, WooCommerce...). Votre agent servira uniquement de canal de notification WhatsApp — les commandes et paiements restent gérés sur votre plateforme.
+                            </div>
+                        )}
+
+                        {/* Grille des missions — conversationnel uniquement */}
+                        {agentType === 'conversationnel' && (
+                            <div>
+                                <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 16 }}>
+                                    {t('Form.mission.label')}
+                                </label>
+                                <div className="agent-grid-3">
+                                    {missionTemplates.map((template) => {
+                                        const flagKey = `agent_${template.id}`
+                                        const isEnabled = template.id === 'support_client' || Object.keys(featureFlags).length === 0 || featureFlags[flagKey] !== false
+                                        return (
+                                            <button
+                                                key={template.id}
+                                                onClick={() => isEnabled && selectMissionTemplate(template)}
+                                                disabled={!isEnabled}
+                                                style={{
+                                                    padding: 16,
+                                                    border: `2px solid ${formData.mission === template.id ? '#10b981' : isEnabled ? 'rgba(148, 163, 184, 0.1)' : 'rgba(148, 163, 184, 0.05)'}`,
+                                                    borderRadius: 12,
+                                                    textAlign: 'left',
+                                                    background: formData.mission === template.id ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
+                                                    cursor: isEnabled ? 'pointer' : 'not-allowed',
+                                                    opacity: isEnabled ? 1 : 0.45,
+                                                    position: 'relative' as const
+                                                }}
+                                            >
+                                                {!isEnabled && (
+                                                    <span style={{ position: 'absolute', top: 8, right: 8, fontSize: 10, fontWeight: 700, color: '#64748b', background: 'rgba(100,116,139,0.15)', padding: '2px 7px', borderRadius: 20, letterSpacing: '0.05em' }}>
+                                                        BIENTÔT
+                                                    </span>
+                                                )}
+                                                <h3 style={{ fontWeight: 600, color: isEnabled ? 'white' : '#64748b', marginBottom: 4 }}>{template.title}</h3>
+                                                <p style={{ fontSize: 13, color: '#64748b' }}>{template.description}</p>
+                                            </button>
+                                        )
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
+                        {formData.mission && agentType === 'conversationnel' && (
                             <div style={{
                                 padding: 16,
                                 background: 'rgba(16, 185, 129, 0.05)',
@@ -905,12 +978,11 @@ Regles:
                                 <div>
                                     <h4 style={{ color: '#34d399', fontWeight: 600, fontSize: 14 }}>Mode Sécurisé Activé</h4>
                                     <p style={{ color: '#94a3b8', fontSize: 13 }}>
-                                        L'IA est maintenant configurée pour suivre strictement le scénario <strong>{missionTemplates.find(tmpl => tmpl.id === formData.mission)?.title}</strong>.
+                                        L&apos;IA est maintenant configurée pour suivre strictement le scénario <strong>{missionTemplates.find(tmpl => tmpl.id === formData.mission)?.title}</strong>.
                                     </p>
                                 </div>
                             </div>
                         )}
-
 
                         {isSupportClient && (
                             <div>
@@ -944,7 +1016,7 @@ Regles:
                         {isSupportClient && (
                             <div>
                                 <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                    Message d'accueil (optionnel)
+                                    Message d&apos;accueil (optionnel)
                                 </label>
                                 <textarea
                                     value={formData.welcome_message}
@@ -966,7 +1038,7 @@ Regles:
                                     }}
                                 />
                                 <p style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
-                                    Affiché après le nom de l'agent lors du premier message. Ex: "Bonjour ! Je suis l'assistant de X. <i>votre texte ici</i>"
+                                    Affiché après le nom de l&apos;agent lors du premier message.
                                 </p>
                             </div>
                         )}
@@ -983,7 +1055,7 @@ Regles:
                                     style={{ width: '100%', background: '#1e293b', border: '1px solid #334155', padding: 12, borderRadius: 12, color: 'white', outline: 'none', fontSize: 14 }}
                                 />
                                 <p style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
-                                    Phrase ajoutée automatiquement quand l'agent n'a pas l'information. Laissez vide pour un comportement par défaut.
+                                    Phrase ajoutée automatiquement quand l&apos;agent n&apos;a pas l&apos;information. Laissez vide pour un comportement par défaut.
                                 </p>
                             </div>
                         )}
@@ -993,61 +1065,6 @@ Regles:
             case 1: // INFO
                 return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                        {formData.mission === 'ecommerce' && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0' }}>
-                                    Mode e-commerce
-                                </label>
-                                <div className="agent-grid-2">
-                                    <button
-                                        type="button"
-                                        onClick={() => setEcommerceMode('native')}
-                                        style={{
-                                            padding: 16,
-                                            borderRadius: 12,
-                                            border: `2px solid ${formData.ecommerce_mode === 'native' ? '#10b981' : 'rgba(148, 163, 184, 0.1)'}`,
-                                            background: formData.ecommerce_mode === 'native' ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
-                                            textAlign: 'left',
-                                            cursor: 'pointer'
-                                        }}
-                                    >
-                                        <h3 style={{ fontWeight: 600, color: 'white', marginBottom: 4 }}>Native</h3>
-                                        <p style={{ fontSize: 13, color: '#94a3b8' }}>
-                                            Catalogue WazzapAI + commandes et checkout natifs.
-                                        </p>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => apiAccessEnabled && setEcommerceMode('external_sync')}
-                                        disabled={!apiAccessEnabled}
-                                        title={!apiAccessEnabled ? "Nécessite un abonnement API" : undefined}
-                                        style={{
-                                            padding: 16,
-                                            borderRadius: 12,
-                                            border: `2px solid ${!apiAccessEnabled ? 'rgba(148, 163, 184, 0.08)' : formData.ecommerce_mode === 'external_sync' ? '#0ea5e9' : 'rgba(148, 163, 184, 0.1)'}`,
-                                            background: !apiAccessEnabled ? 'rgba(255,255,255,0.02)' : formData.ecommerce_mode === 'external_sync' ? 'rgba(14, 165, 233, 0.12)' : 'transparent',
-                                            textAlign: 'left',
-                                            cursor: apiAccessEnabled ? 'pointer' : 'not-allowed',
-                                            opacity: apiAccessEnabled ? 1 : 0.45,
-                                            position: 'relative'
-                                        }}
-                                    >
-                                        <h3 style={{ fontWeight: 600, color: apiAccessEnabled ? 'white' : '#64748b', marginBottom: 4 }}>
-                                            Catalogue externe via API
-                                            {!apiAccessEnabled && <span style={{ fontSize: 11, fontWeight: 400, color: '#f59e0b', marginLeft: 8 }}>Abonnement API requis</span>}
-                                        </h3>
-                                        <p style={{ fontSize: 13, color: '#94a3b8' }}>
-                                            Canal de notification WhatsApp — commandes et paiements gérés sur votre plateforme.
-                                        </p>
-                                    </button>
-                                </div>
-                                {isExternalSync && (
-                                    <div style={{ padding: 14, background: 'rgba(14, 165, 233, 0.08)', border: '1px solid rgba(14, 165, 233, 0.25)', borderRadius: 12, color: '#bae6fd', fontSize: 13, lineHeight: 1.6 }}>
-                                        Ce mode est prévu pour une plateforme connectée (Chariow, Shopify, WooCommerce...). Votre agent servira uniquement de canal de notification WhatsApp — les commandes et paiements restent gérés sur votre plateforme.
-                                    </div>
-                                )}
-                            </div>
-                        )}
                         {isExternalSync && (
                             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px', background: 'rgba(14, 165, 233, 0.08)', border: '1px solid rgba(14, 165, 233, 0.2)', borderRadius: 10, fontSize: 13, color: '#bae6fd' }}>
                                 <span>ℹ️</span>
