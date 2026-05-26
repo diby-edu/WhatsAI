@@ -129,8 +129,7 @@ html {
 section,
 div,
 main {
-  transform: translateZ(0);
-  -webkit-transform: translateZ(0);
+  position: relative;
 }
 
 /* Scrollbar Styling */

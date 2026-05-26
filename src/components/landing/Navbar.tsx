@@ -134,22 +134,23 @@ export default function Navbar() {
                         {/* Desktop Navigation */}
                         {!isMobile && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                {navLinks.map((link) => (
-                                    <Link
-                                        key={link.label}
-                                        href={link.href}
-                                        style={{
-                                            padding: '10px 16px',
-                                            color: '#cbd5e1',
-                                            fontWeight: 500,
-                                            textDecoration: 'none',
-                                            borderRadius: 12,
-                                            transition: 'all 0.2s ease'
-                                        }}
-                                    >
-                                        {link.label}
-                                    </Link>
-                                ))}
+                                {navLinks.map((link) => {
+                                    const isHash = link.href.startsWith('#')
+                                    const style = {
+                                        padding: '10px 16px',
+                                        color: '#cbd5e1',
+                                        fontWeight: 500,
+                                        textDecoration: 'none',
+                                        borderRadius: 12,
+                                        transition: 'all 0.2s ease',
+                                        display: 'block'
+                                    }
+                                    return isHash ? (
+                                        <a key={link.label} href={link.href} style={style}>{link.label}</a>
+                                    ) : (
+                                        <Link key={link.label} href={link.href} style={style}>{link.label}</Link>
+                                    )
+                                })}
                             </div>
                         )}
 
@@ -356,23 +357,22 @@ export default function Navbar() {
                                 </div>
 
                                 <nav style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                                    {navLinks.map((link) => (
-                                        <Link
-                                            key={link.label}
-                                            href={link.href}
-                                            onClick={() => setMobileMenuOpen(false)}
-                                            style={{
-                                                display: 'block',
-                                                padding: '12px 16px',
-                                                color: '#e2e8f0',
-                                                textDecoration: 'none',
-                                                borderRadius: 12,
-                                                transition: 'all 0.2s ease'
-                                            }}
-                                        >
-                                            {link.label}
-                                        </Link>
-                                    ))}
+                                    {navLinks.map((link) => {
+                                        const isHash = link.href.startsWith('#')
+                                        const style = {
+                                            display: 'block',
+                                            padding: '12px 16px',
+                                            color: '#e2e8f0',
+                                            textDecoration: 'none',
+                                            borderRadius: 12,
+                                            transition: 'all 0.2s ease'
+                                        }
+                                        return isHash ? (
+                                            <a key={link.label} href={link.href} style={style} onClick={() => setMobileMenuOpen(false)}>{link.label}</a>
+                                        ) : (
+                                            <Link key={link.label} href={link.href} style={style} onClick={() => setMobileMenuOpen(false)}>{link.label}</Link>
+                                        )
+                                    })}
                                 </nav>
 
                                 <div style={{ marginTop: 32, display: 'flex', flexDirection: 'column', gap: 12 }}>
