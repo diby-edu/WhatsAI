@@ -1,6 +1,13 @@
 import { NextRequest } from 'next/server'
+import { z } from 'zod'
 import { createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
 import { getManualProductsBlockedReason } from '@/lib/agents/ecommerce-mode'
+
+const CreateProductSchema = z.object({
+    name: z.string().min(1, 'Le nom du produit est requis').max(200),
+    price_fcfa: z.number().min(0, 'Le prix ne peut pas être négatif').optional(),
+    product_type: z.enum(['product', 'service', 'booking', 'digital']).optional(),
+})
 
 function normalizeRestaurantMenuFields(body: any) {
     const isRestaurantService = body.product_type === 'service' && body.service_subtype === 'restaurant'
@@ -59,6 +66,12 @@ export async function POST(request: NextRequest) {
 
     try {
         const body = await request.json()
+
+        const parsed = CreateProductSchema.safeParse(body)
+        if (!parsed.success) {
+            return errorResponse('Données invalides : ' + parsed.error.issues.map(e => e.message).join(', '), 400)
+        }
+
         const restaurantMenuFields = normalizeRestaurantMenuFields(body)
 
         // v2.19: Mandatory service_subtype validation

@@ -1,10 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { createAdminClient, createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
 import { notifyAdmins } from '@/lib/notifications/admin-notify'
 import { getAIRuntimeSettings } from '@/lib/admin/settings'
 import { normalizeAgentPaymentMode } from '@/lib/payments/payment-mode-display'
 import { buildAccountLifecycleAccessState, getAccountLifecycleBlockMessage } from '@/lib/account-lifecycle'
 import { resolveAgentEcommerceMode } from '@/lib/agents/ecommerce-mode'
+
+const CreateAgentSchema = z.object({
+    name: z.string().min(1, "Le nom de l'agent est requis").max(150),
+    temperature: z.number().min(0).max(2).optional(),
+    max_tokens: z.number().int().min(1).max(32768).optional(),
+    response_delay_seconds: z.number().min(0).max(300).optional(),
+})
 
 function normalizeRestaurantDepositSettings(body: any) {
     const enabled = !!body.restaurant_deposit_enabled
@@ -70,16 +78,17 @@ export async function POST(request: NextRequest) {
 
     try {
         const body = await request.json()
+
+        const parsed = CreateAgentSchema.safeParse(body)
+        if (!parsed.success) {
+            return errorResponse('Données invalides : ' + parsed.error.issues.map(e => e.message).join(', '), 400)
+        }
+
         const adminSupabase = createAdminClient()
         const aiDefaults = await getAIRuntimeSettings(adminSupabase)
         const restaurantDepositSettings = normalizeRestaurantDepositSettings(body)
         const paymentMode = normalizeAgentPaymentMode(body.payment_mode)
         const ecommerceMode = resolveAgentEcommerceMode(body.mission, body.ecommerce_mode)
-
-        // Validate required fields
-        if (!body.name) {
-            return errorResponse('Le nom de l\'agent est requis', 400)
-        }
 
         // Check agent limit based on plan (reads from DB so admin changes take effect)
         let { data: profile, error: profileError } = await supabase
