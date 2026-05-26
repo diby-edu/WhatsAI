@@ -22,6 +22,7 @@ import {
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { useToast } from '@/components/ui/Toast'
+import { GA } from '@/lib/analytics'
 import { Clock, Shield, MapPin, Globe } from 'lucide-react'
 import {
     type AgentPaymentMode,
@@ -666,6 +667,7 @@ Regles:
             }
 
             setCreatedAgent(agent)
+            GA.agentCreated(agentType === 'api' ? 'api' : formData.mission, agentType)
             setCurrentStep(6) // Move to WhatsApp step
         } catch (err) {
             console.error('[ERROR] Agent creation error:', err)

@@ -32,6 +32,7 @@ import {
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { useToast } from '@/components/ui/Toast'
+import { GA } from '@/lib/analytics'
 import {
     type AgentPaymentMode,
     AUTOMATIC_PAYMENT_MODE_DESCRIPTION,
@@ -535,6 +536,7 @@ export default function AgentWizardPage({
                     setPairingCode(null)
                     setWhatsappErrorMessage(null)
                     setRetryWithFreshQr(false)
+                    GA.whatsappConnected(connectionMode)
                     clearInterval(interval)
                 } else if (result.status === 'paused' || result.paused) {
                     setWhatsappStatus('idle')
