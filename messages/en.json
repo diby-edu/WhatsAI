@@ -540,7 +540,8 @@
                 "messages": "Messages this month",
                 "agents": "Active Agents",
                 "conversations": "Conversations",
-                "credits": "Remaining Credits"
+                "credits": "Remaining Credits",
+                "currentPlan": "Current Plan"
             },
             "recentConversations": "Recent Conversations",
             "viewAll": "View all",
@@ -603,7 +604,9 @@
                 "mission": "Mission",
                 "personality": "Personality",
                 "settings": "Settings",
-                "whatsapp": "WhatsApp"
+                "whatsapp": "WhatsApp",
+                "hours": "Hours",
+                "rules": "Rules"
             },
             "buttons": {
                 "next": "Next",
@@ -653,7 +656,11 @@
                 "maxTokens": "Max Tokens",
                 "active": "Agent Active",
                 "save": "Save",
-                "saving": "Saving..."
+                "saving": "Saving...",
+                "voiceResponse": "Voice Responses",
+                "voiceDescription": "The AI will respond with voice notes.",
+                "voiceId": "Assistant voice",
+                "voiceCostWarning": "Warning: Each voice response costs {cost} credits."
             },
             "summary": {
                 "title": "Summary",
@@ -736,7 +743,19 @@
             "scanPrompt": "Scan the QR code to link this agent to your WhatsApp account.",
             "openWhatsapp": "Open WhatsApp on your phone > Linked Devices > Link a Device",
             "connectedSuccess": "Connected!",
-            "error": "Error"
+            "error": "Error",
+            "errors": {
+                "noAgent": "Agent not found. Please try creating it again."
+            }
+        },
+        "WeekDays": {
+            "monday": "monday",
+            "tuesday": "tuesday",
+            "wednesday": "wednesday",
+            "thursday": "thursday",
+            "friday": "friday",
+            "saturday": "saturday",
+            "sunday": "sunday"
         }
     },
     "Conversations": {
@@ -769,7 +788,15 @@
             },
             "emptyMessages": "No messages in this conversation",
             "footer": "{count} messages • Started on {date}",
-            "inputPlaceholder": "Type a message..."
+            "inputPlaceholder": "Type a message...",
+            "send": "Send",
+            "delete": {
+                "title": "Delete conversation",
+                "confirm": "Are you sure you want to delete this conversation? This action is irreversible.",
+                "confirmBtn": "Delete",
+                "cancel": "Cancel",
+                "deleting": "Deleting..."
+            }
         }
     },
     "Settings": {
@@ -929,7 +956,8 @@
             "popular": "Popular",
             "current": "Current Plan",
             "choose": "Select",
-            "price_unit": "$/mo"
+            "price_unit": "$/mo",
+            "period": "month"
         },
         "Credits": {
             "title": "Buy Credits",
@@ -939,6 +967,7 @@
         "History": {
             "title": "Payment History",
             "empty": "No payments yet",
+            "reference": "Reference",
             "status": {
                 "completed": "Success",
                 "failed": "Failed"
@@ -1024,7 +1053,8 @@
                 "noDescription": "No description",
                 "productOrService": "Is this a product or a service?",
                 "product": "Product",
-                "service": "Service"
+                "service": "Service",
+                "virtual": "Virtual Product"
             },
             "details": {
                 "title": "Product or service details",
