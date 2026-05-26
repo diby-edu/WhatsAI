@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
+import { useToast } from '@/components/ui/Toast'
 import { Clock, Shield, MapPin, Globe } from 'lucide-react'
 import {
     type AgentPaymentMode,
@@ -61,6 +62,7 @@ export default function NewAgentPage() {
     const t = useTranslations('Agents')
     const tCommon = useTranslations('Agents.connect') // specialized namespace if needed or just access via t('connect...')
     const router = useRouter()
+    const toast = useToast()
     const [currentStep, setCurrentStep] = useState(0)
     const [isCompact, setIsCompact] = useState(false)
     const [loading, setLoading] = useState(false)
@@ -465,7 +467,7 @@ Regles:
     // AI Generation
     const handleGenerate = async () => {
         if (!formData.name) {
-            alert("Nom requis")
+            toast.error("Nom requis")
             return
         }
         setGenerating(true)
@@ -484,7 +486,7 @@ Regles:
             if (res.ok && data.data?.text) {
                 updateFormData('description', data.data.text)
             } else {
-                alert(data.error)
+                toast.error(data.error || 'Erreur de génération')
             }
         } catch (e) {
             console.error(e)
@@ -498,7 +500,7 @@ Regles:
 
     const getLocation = () => {
         if (!navigator.geolocation) {
-            alert("La géolocalisation n'est pas supportée par votre navigateur")
+            toast.error("La géolocalisation n'est pas supportée par votre navigateur")
             return
         }
 
@@ -528,7 +530,7 @@ Regles:
                         msg = "Délai d'attente dépassé. Réessayez."
                         break
                 }
-                alert(`❌ Erreur GPS: ${msg}${action}`)
+                toast.error(`Erreur GPS: ${msg}${action}`)
             },
             {
                 enableHighAccuracy: false, // Lower accuracy for faster response

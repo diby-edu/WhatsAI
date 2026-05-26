@@ -21,6 +21,7 @@ import {
 import Link from 'next/link'
 import { createBrowserClient } from '@supabase/ssr'
 import { useTranslations } from 'next-intl'
+import { useToast } from '@/components/ui/Toast'
 import ProductVariantsEditor, { VariantGroup, ProductCombination } from '@/components/dashboard/ProductVariantsEditor'
 import { convertToFcfa, convertFromFcfa } from '@/lib/currency'
 import { getManualProductsBlockedReason } from '@/lib/agents/ecommerce-mode'
@@ -36,6 +37,7 @@ const RESTAURANT_MENU_SECTIONS = [
 export default function NewProductPage() {
     const t = useTranslations('Products.Wizard')
     const router = useRouter()
+    const toast = useToast()
     const fileInputRef = useRef<HTMLInputElement>(null)
 
     const [currentStep, setCurrentStep] = useState(0)
@@ -361,13 +363,13 @@ export default function NewProductPage() {
         const remaining = 10 - formData.images.length
 
         if (remaining <= 0) {
-            alert('Maximum 10 images autorisées')
+            toast.error('Maximum 10 images autorisées')
             return
         }
 
         const filesToUpload = files.slice(0, remaining)
         if (files.length > remaining) {
-            alert(`Seulement ${remaining} image(s) peuvent être ajoutées (max 10)`)
+            toast.error(`Seulement ${remaining} image(s) peuvent être ajoutées (max 10)`)
         }
 
         setUploading(true)
@@ -402,7 +404,7 @@ export default function NewProductPage() {
                 image_url: prev.image_url || uploadedUrls[0] || ''
             }))
         } catch (error: any) {
-            alert(`Erreur upload: ${error.message || 'Erreur de téléchargement'}`)
+            toast.error(`Erreur upload: ${error.message || 'Erreur de téléchargement'}`)
         } finally {
             setUploading(false)
         }
@@ -414,7 +416,7 @@ export default function NewProductPage() {
 
         const MAX_SIZE = 50 * 1024 * 1024 // 50 MB
         if (file.size > MAX_SIZE) {
-            alert('Fichier trop volumineux. Limite : 50 MB.')
+            toast.error('Fichier trop volumineux. Limite : 50 MB.')
             e.target.value = ''
             return
         }
@@ -438,7 +440,7 @@ export default function NewProductPage() {
             setDigitalContent(publicUrlData.publicUrl)
             setDigitalFileName(file.name)
         } catch (err: any) {
-            alert(`Erreur upload : ${err.message || 'Erreur inconnue'}`)
+            toast.error(`Erreur upload : ${err.message || 'Erreur inconnue'}`)
         } finally {
             setUploadingDigital(false)
             e.target.value = ''
@@ -474,7 +476,7 @@ export default function NewProductPage() {
     const handleSave = async () => {
         // v2.19: Validate mandatory service_subtype for Services
         if (formData.product_type === 'service' && !formData.service_subtype) {
-            alert('Veuillez sélectionner une catégorie de service (Hôtel, Restaurant, etc.)')
+            toast.error('Veuillez sélectionner une catégorie de service (Hôtel, Restaurant, etc.)')
             setCurrentStep(0) // Go back to step with selector
             return
         }
@@ -534,7 +536,7 @@ export default function NewProductPage() {
 
             router.push('/dashboard/products')
         } catch (error) {
-            alert('Erreur lors de la création')
+            toast.error('Erreur lors de la création')
         } finally {
             setLoading(false)
         }
@@ -543,11 +545,11 @@ export default function NewProductPage() {
     const handleSaveBatch = async () => {
         const validItems = batchItems.filter(item => item.name.trim() !== '')
         if (validItems.length === 0) {
-            alert('Ajoutez au moins un article avec un nom.')
+            toast.error('Ajoutez au moins un article avec un nom.')
             return
         }
         if (!formData.menu_section_slug) {
-            alert('Choisissez une rubrique de la carte avant de sauvegarder.')
+            toast.error('Choisissez une rubrique de la carte avant de sauvegarder.')
             return
         }
         setBatchLoading(true)
@@ -582,12 +584,12 @@ export default function NewProductPage() {
             )
             const failed = results.filter(r => !r.ok).length
             if (failed > 0) {
-                alert(`${validItems.length - failed} article(s) créés, ${failed} échec(s).`)
+                toast.error(`${validItems.length - failed} article(s) créés, ${failed} échec(s).`)
             } else {
                 router.push('/dashboard/products')
             }
         } catch {
-            alert('Erreur lors de la création en masse.')
+            toast.error('Erreur lors de la création en masse.')
         } finally {
             setBatchLoading(false)
         }
@@ -1136,7 +1138,7 @@ export default function NewProductPage() {
                                     type="button"
                                     onClick={async () => {
                                         if (!formData.description || formData.description.length < 10) {
-                                            alert('Description trop courte (min 10 caractères)')
+                                            toast.error('Description trop courte (min 10 caractères)')
                                             return
                                         }
                                         setAnalyzing(true)
@@ -1184,10 +1186,10 @@ export default function NewProductPage() {
                                                     variants: variantsInLocal
                                                 }))
                                             } else {
-                                                alert(data.error || 'Erreur d\'analyse')
+                                                toast.error(data.error || "Erreur d'analyse")
                                             }
                                         } catch (e) {
-                                            alert('Erreur de connexion')
+                                            toast.error('Erreur de connexion')
                                         } finally {
                                             setAnalyzing(false)
                                         }

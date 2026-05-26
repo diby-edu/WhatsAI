@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import { useTranslations, useFormatter } from 'next-intl'
 import { useCurrency } from '@/contexts/CurrencyContext'
+import { useToast } from '@/components/ui/Toast'
 import { createClient } from '@/lib/supabase/client'
 import ManualPaymentFallbackCard from '@/components/payments/manual-payment-fallback-card'
 import {
@@ -96,6 +97,7 @@ function BillingContent() {
     const pathname = usePathname()
     const searchParams = useSearchParams()
     const { formatFromFcfa } = useCurrency()
+    const toast = useToast()
 
     const [isLoading, setIsLoading] = useState<string | null>(null)
     const [userData, setUserData] = useState<UserData | null>(null)
@@ -533,11 +535,11 @@ function BillingContent() {
             if (data.data?.paymentUrl) {
                 window.location.href = data.data.paymentUrl
             } else {
-                alert(data.error || 'Erreur lors de l\'initialisation du paiement')
+                toast.error(data.error || "Erreur lors de l'initialisation du paiement")
             }
         } catch (err) {
             console.error(err)
-            alert('Erreur réseau')
+            toast.error('Erreur réseau')
         } finally {
             setIsLoading(null)
         }
@@ -556,11 +558,11 @@ function BillingContent() {
             if (data.data?.paymentUrl) {
                 window.location.href = data.data.paymentUrl
             } else {
-                alert(data.error || 'Erreur lors de l\'initialisation du paiement')
+                toast.error(data.error || "Erreur lors de l'initialisation du paiement")
             }
         } catch (err) {
             console.error(err)
-            alert('Erreur réseau')
+            toast.error('Erreur réseau')
         } finally {
             setIsLoading(null)
         }
@@ -740,7 +742,7 @@ function BillingContent() {
             }
             const message = String(err?.message || 'Erreur reseau')
             setFeexPayError(message)
-            alert(message)
+            toast.error(message)
         }
     }
 
@@ -753,7 +755,7 @@ function BillingContent() {
         try {
             await initializePaymentV2({ type: 'subscription', planId }, planId)
         } catch (err: any) {
-            alert(String(err?.message || 'Erreur reseau'))
+            toast.error(String(err?.message || 'Erreur reseau'))
         }
     }
 
@@ -766,7 +768,7 @@ function BillingContent() {
         try {
             await initializePaymentV2({ type: 'credits', packId }, packId)
         } catch (err: any) {
-            alert(String(err?.message || 'Erreur reseau'))
+            toast.error(String(err?.message || 'Erreur reseau'))
         }
     }
 

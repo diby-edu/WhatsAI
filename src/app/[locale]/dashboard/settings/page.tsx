@@ -30,6 +30,7 @@ import {
 import { useBiometricAuth } from '@/hooks/useBiometricAuth'
 import { useTranslations } from 'next-intl'
 import { useCurrency } from '@/contexts/CurrencyContext'
+import { useToast } from '@/components/ui/Toast'
 
 interface Profile {
     id: string
@@ -78,6 +79,7 @@ interface NotificationSettings {
 export default function SettingsPage() {
     const t = useTranslations('Settings')
     const { setCurrency } = useCurrency()
+    const toast = useToast()
     const searchParams = useSearchParams()
 
     // Note: The tabs configuration depends on translations, so it's defined inside the component or using a memo
@@ -334,11 +336,11 @@ export default function SettingsPage() {
 
     const handleChangePassword = async () => {
         if (passwords.new !== passwords.confirm) {
-            alert(t('Security.errorMatch'))
+            toast.error(t('Security.errorMatch'))
             return
         }
         if (passwords.new.length < 6) {
-            alert('Le mot de passe doit contenir au moins 6 caractères')
+            toast.error('Le mot de passe doit contenir au moins 6 caractères')
             return
         }
         setSaving(true)
@@ -349,7 +351,7 @@ export default function SettingsPage() {
                 password: passwords.new
             })
             if (error) {
-                alert(error.message || 'Erreur lors du changement de mot de passe')
+                toast.error(error.message || 'Erreur lors du changement de mot de passe')
             } else {
                 setSaved(true)
                 setPasswords({ current: '', new: '', confirm: '' })
@@ -357,7 +359,7 @@ export default function SettingsPage() {
             }
         } catch (err) {
             console.error('Password change error:', err)
-            alert('Erreur inattendue')
+            toast.error('Erreur inattendue')
         } finally {
             setSaving(false)
         }
@@ -367,7 +369,7 @@ export default function SettingsPage() {
         const file = e.target.files?.[0]
         if (!file) return
         if (file.size > 10 * 1024 * 1024) {
-            alert('Image trop volumineuse. Maximum 10MB')
+            toast.error('Image trop volumineuse. Maximum 10MB')
             return
         }
         const reader = new FileReader()
@@ -414,7 +416,7 @@ export default function SettingsPage() {
                 .upload(filePath, croppedBlob, { upsert: true, contentType: 'image/jpeg' })
             if (uploadError) {
                 console.error('Upload error:', uploadError)
-                alert('Erreur lors de l\'upload')
+                toast.error("Erreur lors de l'upload")
                 return
             }
             const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath)
@@ -429,7 +431,7 @@ export default function SettingsPage() {
             }
         } catch (err) {
             console.error('Avatar upload error:', err)
-            alert('Erreur inattendue')
+            toast.error('Erreur inattendue')
         } finally {
             setUploadingAvatar(false)
         }
@@ -1306,11 +1308,9 @@ export default function SettingsPage() {
                                             cursor: 'pointer',
                                             transition: 'all 0.2s'
                                         }}
-                                        onClick={() => {
-                                            if (confirm(t('Danger.deleteAccount.confirm'))) {
-                                                // Implement delete account
-                                                alert(t('Danger.deleteAccount.support'))
-                                            }
+                                        onClick={async () => {
+                                            const ok = await toast.confirm({ title: t('Danger.deleteAccount.confirm'), confirmLabel: 'Supprimer', danger: true })
+                                            if (ok) toast.info(t('Danger.deleteAccount.support'))
                                         }}
                                     >
                                         <Trash2 style={{ width: 18, height: 18 }} />

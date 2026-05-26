@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
+import { useToast } from '@/components/ui/Toast'
 import {
     getAgentOperationalColors,
     getAgentOperationalDetail,
@@ -69,6 +70,7 @@ interface Agent {
 
 export default function AgentsPage() {
     const t = useTranslations('Agents.Page')
+    const toast = useToast()
     const [agents, setAgents] = useState<Agent[]>([])
     const [loading, setLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState('')
@@ -146,26 +148,28 @@ export default function AgentsPage() {
     }
 
     const deleteAgent = async (id: string) => {
-        if (!confirm(t('card.deleteConfirm'))) {
-            setMenuOpen(null)
-            return
-        }
+        const agent = agents.find(a => a.id === id)
+        const ok = await toast.confirm({
+            title: 'Supprimer cet agent ?',
+            message: agent?.name ? `L'agent "${agent.name}" sera définitivement supprimé.` : t('card.deleteConfirm'),
+            confirmLabel: 'Supprimer',
+            danger: true,
+        })
+        if (!ok) { setMenuOpen(null); return }
 
         setActionLoading(id)
         try {
-            const res = await fetch(`/api/agents/${id}`, {
-                method: 'DELETE',
-            })
-
+            const res = await fetch(`/api/agents/${id}`, { method: 'DELETE' })
             if (res.ok) {
                 setAgents(agents.filter(a => a.id !== id))
+                toast.success('Agent supprimé.')
             } else {
                 const data = await res.json().catch(() => ({}))
-                alert(data.error || 'Suppression échouée. Veuillez réessayer.')
+                toast.error(data.error || 'Suppression échouée. Veuillez réessayer.')
             }
         } catch (err) {
             console.error('Error deleting agent:', err)
-            alert('Erreur réseau. Veuillez réessayer.')
+            toast.error('Erreur réseau. Veuillez réessayer.')
         } finally {
             setActionLoading(null)
             setMenuOpen(null)

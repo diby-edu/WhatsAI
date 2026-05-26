@@ -3,6 +3,7 @@
 import { useState, useEffect, use } from 'react'
 import { ArrowLeft, Trash2, Users, Phone, Mail, Tag, Calendar, MapPin, Building2 } from 'lucide-react'
 import Link from 'next/link'
+import { useToast } from '@/components/ui/Toast'
 
 interface Lead {
     id: string
@@ -21,6 +22,7 @@ export default function AgentLeadsPage({ params }: { params: Promise<{ id: strin
     const [leads, setLeads] = useState<Lead[]>([])
     const [loading, setLoading] = useState(true)
     const [deleting, setDeleting] = useState<string | null>(null)
+    const toast = useToast()
 
     useEffect(() => { fetchLeads() }, [id])
 
@@ -38,11 +40,13 @@ export default function AgentLeadsPage({ params }: { params: Promise<{ id: strin
     }
 
     const deleteLead = async (leadId: string) => {
-        if (!confirm('Supprimer ce lead ?')) return
+        const ok = await toast.confirm({ title: 'Supprimer ce lead ?', confirmLabel: 'Supprimer', danger: true })
+        if (!ok) return
         setDeleting(leadId)
         try {
             await fetch(`/api/leads?id=${leadId}`, { method: 'DELETE' })
             setLeads(prev => prev.filter(l => l.id !== leadId))
+            toast.success('Lead supprimé.')
         } finally {
             setDeleting(null)
         }

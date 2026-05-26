@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import { ArrowLeft, Plus, Trash2, FileText, Loader2, Upload, Link2, AlignLeft, Eye, X, ChevronDown, ChevronUp, ImageIcon, Pencil, QrCode, Images } from 'lucide-react'
 import Link from 'next/link'
 import { createBrowserClient } from '@supabase/ssr'
+import { useToast } from '@/components/ui/Toast'
 
 interface Document {
     id: string
@@ -73,6 +74,7 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
     const [loadingEdit, setLoadingEdit] = useState(false)
     const [editSubmitting, setEditSubmitting] = useState(false)
     const [editError, setEditError] = useState<string | null>(null)
+    const toast = useToast()
 
     // PDF mode
     const [pdfFile, setPdfFile] = useState<File | null>(null)
@@ -93,7 +95,7 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
 
     const uploadImage = async (file: File): Promise<string | null> => {
         if (!ALLOWED_IMAGE_TYPES.includes(file.type) || file.name.toLowerCase().endsWith('.webp')) {
-            alert('Format non supporté. Utilisez JPG, PNG ou GIF uniquement (pas de WebP).')
+            toast.error('Format non supporté. Utilisez JPG, PNG ou GIF uniquement (pas de WebP).')
             return null
         }
         const ext = file.name.split('.').pop()
@@ -330,11 +332,12 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
     }
 
     const handleDelete = async (doc: Document) => {
-        if (!confirm('Supprimer ce document ?')) return
+        const ok = await toast.confirm({ title: 'Supprimer ce document ?', message: doc.title || undefined, confirmLabel: 'Supprimer', danger: true })
+        if (!ok) return
         const deleteId = doc.source_id || doc.id
         try {
             const res = await fetch(`/api/knowledge/${deleteId}`, { method: 'DELETE' })
-            if (res.ok) setDocuments(documents.filter(d => (d.source_id || d.id) !== deleteId))
+            if (res.ok) { setDocuments(documents.filter(d => (d.source_id || d.id) !== deleteId)); toast.success('Document supprimé.') }
         } catch (e) {
             console.error(e)
         }

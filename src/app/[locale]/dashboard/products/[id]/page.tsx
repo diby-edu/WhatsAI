@@ -28,6 +28,7 @@ import { useTranslations } from 'next-intl'
 import ProductVariantsEditor, { VariantGroup, ProductCombination } from '@/components/dashboard/ProductVariantsEditor'
 import { convertFromFcfa, convertToFcfa } from '@/lib/currency'
 import { getManualProductsBlockedReason } from '@/lib/agents/ecommerce-mode'
+import { useToast } from '@/components/ui/Toast'
 
 const RESTAURANT_MENU_SECTIONS = [
     { id: 'starters', label: 'Entrees' },
@@ -58,6 +59,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     const fileInputRef = useRef<HTMLInputElement>(null)
 
     const [currentStep, setCurrentStep] = useState(0)
+    const toast = useToast()
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [uploading, setUploading] = useState(false)
@@ -244,13 +246,13 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
         const remaining = 10 - formData.images.length
 
         if (remaining <= 0) {
-            alert('Maximum 10 images autorisées')
+            toast.error('Maximum 10 images autorisées')
             return
         }
 
         const filesToUpload = files.slice(0, remaining)
         if (files.length > remaining) {
-            alert(`Seulement ${remaining} image(s) peuvent être ajoutées (max 10)`)
+            toast.warning(`Seulement ${remaining} image(s) peuvent être ajoutées (max 10)`)
         }
 
         setUploading(true)
@@ -284,7 +286,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                 image_url: prev.image_url || uploadedUrls[0] || ''
             }))
         } catch (error: any) {
-            alert(`Erreur upload: ${error.message || 'Erreur de téléchargement'}`)
+            toast.error(`Erreur upload: ${error.message || 'Erreur de téléchargement'}`)
         } finally {
             setUploading(false)
         }
@@ -371,16 +373,17 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                 console.error('Save error:', errData)
                 throw new Error(errData?.error || 'Failed')
             }
-            if (!silent) alert('Produit sauvegardé !')
+            if (!silent) toast.success('Produit sauvegardé.')
         } catch (error: any) {
-            if (!silent) alert(`Erreur sauvegarde : ${error?.message || 'inconnue'}`)
+            if (!silent) toast.error(`Erreur sauvegarde : ${error?.message || 'inconnue'}`)
         } finally {
             if (!silent) setSaving(false)
         }
     }
 
     const handleDelete = async () => {
-        if (!confirm('Supprimer ce produit ?')) return
+        const ok = await toast.confirm({ title: 'Supprimer ce produit ?', message: 'Cette action est irréversible.', confirmLabel: 'Supprimer', danger: true })
+        if (!ok) return
         try {
             const res = await fetch(`/api/products/${productId}`, { method: 'DELETE' })
             if (res.ok) router.push('/dashboard/products')
@@ -645,7 +648,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                                     type="button"
                                     onClick={async () => {
                                         if (!formData.description || formData.description.length < 10) {
-                                            alert('Description trop courte (min 10 caractères)')
+                                            toast.error('Description trop courte (min 10 caractères)')
                                             return
                                         }
                                         setAnalyzing(true)
@@ -692,10 +695,10 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                                                     variants: variantsInLocal
                                                 }))
                                             } else {
-                                                alert(data.error || 'Erreur d\'analyse')
+                                                toast.error(data.error || "Erreur d'analyse")
                                             }
                                         } catch (e) {
-                                            alert('Erreur de connexion')
+                                            toast.error('Erreur de connexion')
                                         } finally {
                                             setAnalyzing(false)
                                         }

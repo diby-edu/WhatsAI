@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, use } from 'react'
+import { useState, useEffect, use, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -31,6 +31,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
+import { useToast } from '@/components/ui/Toast'
 import {
     type AgentPaymentMode,
     AUTOMATIC_PAYMENT_MODE_DESCRIPTION,
@@ -84,9 +85,12 @@ export default function AgentWizardPage({
     const sp = use(searchParams)
     const router = useRouter()
     const t = useTranslations('Agents')
+    const toast = useToast()
 
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
+    const [isDirty, setIsDirty] = useState(false)
+    const isInitializedRef = useRef(false)
     const [currentStep, setCurrentStep] = useState(0)
     const [highlightEscalation, setHighlightEscalation] = useState(false)
     const [selectedMission, setSelectedMission] = useState('')
@@ -230,6 +234,27 @@ export default function AgentWizardPage({
         // External Sync — message envoyé quand un client répond
         external_sync_reply_message: '',
     })
+
+    // Ctrl+S → save
+    useEffect(() => {
+        const onKeyDown = (e: KeyboardEvent) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault()
+                handleSave()
+            }
+        }
+        window.addEventListener('keydown', onKeyDown)
+        return () => window.removeEventListener('keydown', onKeyDown)
+    }, [formData])
+
+    // Track unsaved changes — skip the initial load
+    useEffect(() => {
+        if (!isInitializedRef.current) {
+            isInitializedRef.current = true
+            return
+        }
+        setIsDirty(true)
+    }, [formData])
 
     useEffect(() => {
         fetchAgent()
@@ -384,8 +409,8 @@ export default function AgentWizardPage({
 
         // Validation Rule: Escalation Phone is mandatory
         if (!silent && (!formData.escalation_phone || formData.escalation_phone.trim() === '')) {
-            alert("⚠️ Le Numéro d'Escalade / SAV est obligatoire pour garantir le support client.")
-            setCurrentStep(0) // Go to Identity tab (index 0)
+            toast.error("Numéro d'Escalade / SAV obligatoire pour garantir le support client.")
+            setCurrentStep(0)
             setHighlightEscalation(true)
             setTimeout(() => setHighlightEscalation(false), 5000)
             return
@@ -399,9 +424,10 @@ export default function AgentWizardPage({
                 body: JSON.stringify(formData)
             })
             if (!res.ok) throw new Error('Failed to save')
-            if (!silent) alert('Sauvegardé avec succès !')
+            if (!silent) toast.success('Agent sauvegardé.')
+            setIsDirty(false)
         } catch (err) {
-            if (!silent) alert('Erreur lors de la sauvegarde')
+            if (!silent) toast.error('Erreur lors de la sauvegarde.')
         } finally {
             if (!silent) setSaving(false)
         }
@@ -410,7 +436,7 @@ export default function AgentWizardPage({
     // --- WhatsApp Logic (Copied from previous) ---
     const connectWhatsApp = async () => {
         if (!formData.is_active) {
-            alert("Activez d'abord l'agent avant de connecter WhatsApp.")
+            toast.warning("Activez d'abord l'agent avant de connecter WhatsApp.")
             return
         }
 
@@ -419,7 +445,7 @@ export default function AgentWizardPage({
             : null
 
         if (connectionMode === 'pairing_code' && !normalizedPairingPhone) {
-            alert('Entrez un numero mobile valide avec indicatif pays (ex: +2250700000000).')
+            toast.error('Numéro mobile invalide. Exemple : +2250700000000')
             return
         }
 
@@ -474,13 +500,15 @@ export default function AgentWizardPage({
     }
 
     const disconnectWhatsApp = async () => {
-        if (!confirm('Déconnecter WhatsApp ?')) return
+        const ok = await toast.confirm({ title: 'Déconnecter WhatsApp ?', message: 'Le numéro sera déconnecté de cet agent.', confirmLabel: 'Déconnecter', danger: true })
+        if (!ok) return
         try {
             await fetch(`/api/whatsapp/connect?agentId=${agentId}&logout=true`, { method: 'DELETE' })
             setWhatsappStatus('idle')
             setQrCode(null)
             setPairingCode(null)
             setConnectedPhone(null)
+            toast.success('WhatsApp déconnecté.')
         } catch (err) { console.error(err) }
     }
 
@@ -561,7 +589,7 @@ export default function AgentWizardPage({
                 }
 
                 const getLocation = () => {
-                    if (!navigator.geolocation) return alert('Géolocalisation non supportée')
+                    if (!navigator.geolocation) { toast.error('Géolocalisation non supportée'); return }
                     navigator.geolocation.getCurrentPosition(
                         (pos) => {
                             setFormData(prev => ({
@@ -570,7 +598,7 @@ export default function AgentWizardPage({
                                 longitude: pos.coords.longitude
                             }))
                         },
-                        (err) => alert('Erreur de localisation : ' + err.message)
+                        (err) => toast.error('Erreur de localisation : ' + err.message)
                     )
                 }
 
@@ -847,10 +875,11 @@ export default function AgentWizardPage({
                     support_client: `Tu es l'assistant de ${formData.name || '[Nom de l\'entreprise]'}.\nTon rôle est de répondre aux questions des clients en te basant uniquement sur les informations que tu connais.\nNe jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact direct.`,
                     custom: `Tu es un assistant virtuel professionnel et polyvalent. Ton rôle est d'accueillir les visiteurs, de répondre à leurs questions sur l'entreprise et de noter leurs coordonnées si nécessaire. Sois toujours courtois, bref et précis.`,
                 }
-                const applyTemplate = (templateId: string) => {
+                const applyTemplate = async (templateId: string) => {
                     const currentPrompt = formData.system_prompt
                     if (currentPrompt && currentPrompt.trim().length > 30) {
-                        if (!window.confirm('Remplacer le prompt actuel par ce template ?')) return
+                        const ok = await toast.confirm({ title: 'Remplacer le prompt ?', message: 'Le prompt actuel sera remplacé par ce template.', confirmLabel: 'Remplacer', danger: true })
+                        if (!ok) return
                     }
                     setSelectedMission(templateId)
                     setFormData({ ...formData, system_prompt: missionPrompts[templateId] || '' })
@@ -1824,11 +1853,16 @@ export default function AgentWizardPage({
                             return (
                                 <button
                                     key={step.id}
-                                    onClick={() => {
+                                    onClick={async () => {
                                         // Block navigation if rules conflict
                                         if (STEPS[currentStep].id === 'rules' && formData.custom_rules.length > 5 && conflictStatus !== 'safe') {
-                                            alert("🛡️ SÉCURITÉ : Veuillez vérifier la cohérence de vos règles (Cliquez sur 'Vérifier') avant de quitter cette étape.")
+                                            toast.warning("Vérifiez la cohérence de vos règles (Cliquez sur 'Vérifier') avant de quitter cette étape.")
                                             return
+                                        }
+                                        if (isDirty) {
+                                            const save = await toast.confirm({ title: 'Modifications non sauvegardées', message: 'Sauvegarder avant de continuer ?', confirmLabel: 'Sauvegarder', cancelLabel: 'Ignorer' })
+                                            if (save) await handleSave(true)
+                                            else setIsDirty(false)
                                         }
                                         setCurrentStep(step.originalIndex)
                                     }}
@@ -1861,7 +1895,14 @@ export default function AgentWizardPage({
             <div className="fixed bottom-0 left-0 w-full bg-slate-900/90 backdrop-blur border-t border-slate-800 p-4 z-20">
                 <div className="max-w-3xl mx-auto flex justify-between items-center">
                     <button
-                        onClick={() => setCurrentStep(prev => getPrevStep(prev))}
+                        onClick={async () => {
+                            if (isDirty) {
+                                const save = await toast.confirm({ title: 'Modifications non sauvegardées', message: 'Sauvegarder avant de continuer ?', confirmLabel: 'Sauvegarder', cancelLabel: 'Ignorer' })
+                                if (save) await handleSave(true)
+                                else setIsDirty(false)
+                            }
+                            setCurrentStep(prev => getPrevStep(prev))
+                        }}
                         disabled={currentStep === 0}
                         className={`px-6 py-3 rounded-xl font-bold flex items-center gap-2 ${currentStep === 0 ? 'opacity-0 pointer-events-none' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
                     >
@@ -1873,7 +1914,7 @@ export default function AgentWizardPage({
                             onClick={() => {
                                 // Block if rules conflict
                                 if (STEPS[currentStep].id === 'rules' && formData.custom_rules.length > 5 && conflictStatus !== 'safe') {
-                                    alert("🛡️ SÉCURITÉ : Veuillez vérifier la cohérence de vos règles (Cliquez sur 'Vérifier') avant de continuer.")
+                                    toast.warning("Vérifiez la cohérence de vos règles (Cliquez sur 'Vérifier') avant de continuer.")
                                     return
                                 }
                                 handleSave(true) // Auto-save
@@ -1887,7 +1928,7 @@ export default function AgentWizardPage({
                         <button
                             onClick={() => {
                                 if (STEPS[currentStep].id === 'rules' && formData.custom_rules.length > 5 && conflictStatus !== 'safe') {
-                                    alert("🛡️ SÉCURITÉ : Veuillez vérifier la cohérence des règles avant de terminer.")
+                                    toast.warning("Vérifiez la cohérence des règles avant de terminer.")
                                     return
                                 }
                                 router.push('/dashboard/agents')

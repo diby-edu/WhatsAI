@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { useTranslations, useFormatter } from 'next-intl'
 import { useCurrency } from '@/contexts/CurrencyContext'
+import { useToast } from '@/components/ui/Toast'
 
 interface Order {
     id: string
@@ -82,6 +83,7 @@ export default function OrdersPage() {
     const [screenshotModal, setScreenshotModal] = useState<string | null>(null)
     const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null)
     const { formatFromFcfa } = useCurrency()
+    const toast = useToast()
 
     useEffect(() => {
         fetchOrders()
@@ -132,7 +134,7 @@ export default function OrdersPage() {
                 fetchOrders()
             } else {
                 const data = await res.json()
-                alert(data.error || 'Erreur lors du changement de statut')
+                toast.error(data.error || 'Erreur lors du changement de statut')
             }
         } catch (err) {
             console.error('Status change error:', err)
@@ -153,7 +155,7 @@ export default function OrdersPage() {
                 fetchBookings()
             } else {
                 const data = await res.json()
-                alert(data.error || 'Erreur lors du changement de statut')
+                toast.error(data.error || 'Erreur lors du changement de statut')
             }
         } catch (err) {
             console.error('Booking status change error:', err)
@@ -174,7 +176,7 @@ export default function OrdersPage() {
                 fetchBookings()
             } else {
                 const data = await res.json()
-                alert(data.error || 'Erreur lors de la mise a jour du paiement')
+                toast.error(data.error || 'Erreur lors de la mise à jour du paiement')
             }
         } catch (err) {
             console.error('Booking deposit status change error:', err)
@@ -422,11 +424,11 @@ export default function OrdersPage() {
                 fetchOrders()
             } else {
                 const data = await res.json()
-                alert(data.error || 'Erreur lors de la vérification')
+                toast.error(data.error || 'Erreur lors de la vérification')
             }
         } catch (err) {
             console.error('Verify error:', err)
-            alert('Erreur réseau')
+            toast.error('Erreur réseau')
         } finally {
             setVerifyingId(null)
         }
