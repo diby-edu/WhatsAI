@@ -135,6 +135,14 @@ export async function proxy(request: NextRequest) {
         return response
     }
 
+    // Email confirmation check (email/password uniquement — OAuth est pré-vérifié)
+    const isEmailProvider = user.app_metadata?.provider === 'email'
+    const emailConfirmed = !!user.email_confirmed_at
+    const isConfirmEmailPage = pathnameWithoutLocale.startsWith('/confirm-email')
+    if (isEmailProvider && !emailConfirmed && isProtectedRoute && !isConfirmEmailPage) {
+        return redirectTo(request, locale, '/confirm-email')
+    }
+
     const needsProfileState = isProtectedRoute || isAuthPage
 
     if (!needsProfileState) {
@@ -171,6 +179,19 @@ export async function proxy(request: NextRequest) {
             isWithinPath(pathnameWithoutLocale, '/complete-profile')
         ) {
             return redirectTo(request, locale, '/admin')
+        }
+
+        // 2FA check : seulement si le compte admin a enrollé un facteur TOTP
+        // (fail-open : si la vérification échoue, on ne bloque pas l'accès)
+        if (isWithinPath(pathnameWithoutLocale, '/admin') && !isWithinPath(pathnameWithoutLocale, '/admin/mfa')) {
+            try {
+                const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+                if (aalData?.nextLevel === 'aal2' && aalData?.currentLevel !== 'aal2') {
+                    return redirectTo(request, locale, '/admin/mfa/verify')
+                }
+            } catch {
+                // silencieux : on ne bloque pas si MFA indisponible
+            }
         }
 
         return response

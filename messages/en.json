@@ -659,8 +659,8 @@
                 "saving": "Saving...",
                 "voiceResponse": "Voice Responses",
                 "voiceDescription": "The AI will respond with voice notes.",
-                "voiceId": "Assistant voice",
-                "voiceCostWarning": "Warning: Each voice response costs {cost} credits."
+                "voiceId": "Assistant Voice",
+                "voiceCostWarning": "Note: Each voice response costs {cost} credits."
             },
             "summary": {
                 "title": "Summary",
@@ -749,13 +749,13 @@
             }
         },
         "WeekDays": {
-            "monday": "monday",
-            "tuesday": "tuesday",
-            "wednesday": "wednesday",
-            "thursday": "thursday",
-            "friday": "friday",
-            "saturday": "saturday",
-            "sunday": "sunday"
+            "monday": "Monday",
+            "tuesday": "Tuesday",
+            "wednesday": "Wednesday",
+            "thursday": "Thursday",
+            "friday": "Friday",
+            "saturday": "Saturday",
+            "sunday": "Sunday"
         }
     },
     "Conversations": {
@@ -791,7 +791,7 @@
             "inputPlaceholder": "Type a message...",
             "send": "Send",
             "delete": {
-                "title": "Delete conversation",
+                "title": "Delete Conversation",
                 "confirm": "Are you sure you want to delete this conversation? This action is irreversible.",
                 "confirmBtn": "Delete",
                 "cancel": "Cancel",
