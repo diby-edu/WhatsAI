@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
-import { MessageCircle, Menu, X, ChevronDown, Sparkles, LayoutDashboard, Globe } from 'lucide-react'
+import { MessageCircle, Menu, X, Sparkles, LayoutDashboard, Globe } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useTranslations, useLocale } from 'next-intl'
 import { usePathname, useRouter } from 'next/navigation'
@@ -26,21 +26,15 @@ export default function Navbar() {
     }
 
     const navLinks = [
-        {
-            label: t('product'),
-            href: '#features',
-            children: [
-                { label: t('features'), href: '#features' },
-                { label: t('howItWorks'), href: '#how-it-works' },
-            ]
-        },
+        { label: t('features'), href: '#features' },
+        { label: t('howItWorks'), href: '#how-it-works' },
         { label: t('pricing'), href: '#pricing' },
         { label: t('faq'), href: '#faq' },
+        { label: t('download'), href: `/${locale}/download-app` },
     ]
 
     const [scrolled, setScrolled] = useState(false)
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-    const [activeDropdown, setActiveDropdown] = useState<string | null>(null)
     const [isMobile, setIsMobile] = useState(false)
     const [isAuthenticated, setIsAuthenticated] = useState(false)
 
@@ -141,79 +135,20 @@ export default function Navbar() {
                         {!isMobile && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                                 {navLinks.map((link) => (
-                                    <div
+                                    <Link
                                         key={link.label}
-                                        style={{ position: 'relative' }}
-                                        onMouseEnter={() => link.children && setActiveDropdown(link.label)}
-                                        onMouseLeave={() => setActiveDropdown(null)}
+                                        href={link.href}
+                                        style={{
+                                            padding: '10px 16px',
+                                            color: '#cbd5e1',
+                                            fontWeight: 500,
+                                            textDecoration: 'none',
+                                            borderRadius: 12,
+                                            transition: 'all 0.2s ease'
+                                        }}
                                     >
-                                        <Link
-                                            href={link.href}
-                                            style={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: 4,
-                                                padding: '10px 16px',
-                                                color: '#cbd5e1',
-                                                fontWeight: 500,
-                                                textDecoration: 'none',
-                                                borderRadius: 12,
-                                                transition: 'all 0.2s ease'
-                                            }}
-                                        >
-                                            {link.label}
-                                            {link.children && (
-                                                <ChevronDown style={{
-                                                    width: 16,
-                                                    height: 16,
-                                                    transition: 'transform 0.2s ease',
-                                                    transform: activeDropdown === link.label ? 'rotate(180deg)' : 'rotate(0deg)'
-                                                }} />
-                                            )}
-                                        </Link>
-
-                                        {/* Dropdown */}
-                                        <AnimatePresence>
-                                            {link.children && activeDropdown === link.label && (
-                                                <motion.div
-                                                    initial={{ opacity: 0, y: 10 }}
-                                                    animate={{ opacity: 1, y: 0 }}
-                                                    exit={{ opacity: 0, y: 10 }}
-                                                    transition={{ duration: 0.2 }}
-                                                    style={{
-                                                        position: 'absolute',
-                                                        top: '100%',
-                                                        left: 0,
-                                                        marginTop: 8,
-                                                        width: 224,
-                                                        background: 'rgba(15, 23, 42, 0.95)',
-                                                        backdropFilter: 'blur(20px)',
-                                                        border: '1px solid rgba(148, 163, 184, 0.1)',
-                                                        borderRadius: 16,
-                                                        overflow: 'hidden',
-                                                        padding: 8
-                                                    }}
-                                                >
-                                                    {link.children.map((child) => (
-                                                        <Link
-                                                            key={child.label}
-                                                            href={child.href}
-                                                            style={{
-                                                                display: 'block',
-                                                                padding: '12px 16px',
-                                                                color: '#cbd5e1',
-                                                                textDecoration: 'none',
-                                                                borderRadius: 12,
-                                                                transition: 'all 0.2s ease'
-                                                            }}
-                                                        >
-                                                            {child.label}
-                                                        </Link>
-                                                    ))}
-                                                </motion.div>
-                                            )}
-                                        </AnimatePresence>
-                                    </div>
+                                        {link.label}
+                                    </Link>
                                 ))}
                             </div>
                         )}
@@ -422,46 +357,21 @@ export default function Navbar() {
 
                                 <nav style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                                     {navLinks.map((link) => (
-                                        <div key={link.label}>
-                                            <Link
-                                                href={link.href}
-                                                onClick={() => setMobileMenuOpen(false)}
-                                                style={{
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'space-between',
-                                                    padding: '12px 16px',
-                                                    color: '#e2e8f0',
-                                                    textDecoration: 'none',
-                                                    borderRadius: 12,
-                                                    transition: 'all 0.2s ease'
-                                                }}
-                                            >
-                                                {link.label}
-                                                {link.children && <ChevronDown style={{ width: 16, height: 16 }} />}
-                                            </Link>
-                                            {link.children && (
-                                                <div style={{ marginLeft: 16, marginTop: 4, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                                                    {link.children.map((child) => (
-                                                        <Link
-                                                            key={child.label}
-                                                            href={child.href}
-                                                            onClick={() => setMobileMenuOpen(false)}
-                                                            style={{
-                                                                display: 'block',
-                                                                padding: '8px 16px',
-                                                                fontSize: 14,
-                                                                color: '#94a3b8',
-                                                                textDecoration: 'none',
-                                                                borderRadius: 12
-                                                            }}
-                                                        >
-                                                            {child.label}
-                                                        </Link>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
+                                        <Link
+                                            key={link.label}
+                                            href={link.href}
+                                            onClick={() => setMobileMenuOpen(false)}
+                                            style={{
+                                                display: 'block',
+                                                padding: '12px 16px',
+                                                color: '#e2e8f0',
+                                                textDecoration: 'none',
+                                                borderRadius: 12,
+                                                transition: 'all 0.2s ease'
+                                            }}
+                                        >
+                                            {link.label}
+                                        </Link>
                                     ))}
                                 </nav>
 

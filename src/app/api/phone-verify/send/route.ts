@@ -1,7 +1,12 @@
 import { NextRequest } from 'next/server'
+import { z } from 'zod'
 import { Redis } from '@upstash/redis'
 import { createClient } from '@supabase/supabase-js'
 import { createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
+
+const SendOtpSchema = z.object({
+    phone: z.string().regex(/^\+\d{7,15}$/, 'Numéro invalide — format international requis (ex: +22507000000)'),
+})
 
 const OTP_TTL = 180 // 3 minutes
 const OTP_AGENT_NAME = '__otp_sender__'
@@ -35,8 +40,12 @@ export async function POST(req: NextRequest) {
     const { user, error: authError } = await getAuthUser(supabase)
     if (authError) return errorResponse(authError, 401)
 
-    const { phone } = await req.json()
-    if (!phone) return errorResponse('Numéro requis', 400)
+    const rawBody = await req.json()
+    const parsed = SendOtpSchema.safeParse(rawBody)
+    if (!parsed.success) {
+        return errorResponse(parsed.error.issues[0].message, 400)
+    }
+    const { phone } = parsed.data
 
     // Récupérer l'agent OTP via client service role direct (bypass RLS garanti)
     const serviceClient = createClient(
