@@ -6,7 +6,7 @@ import { getManualProductsBlockedReason } from '@/lib/agents/ecommerce-mode'
 const CreateProductSchema = z.object({
     name: z.string().min(1, 'Le nom du produit est requis').max(200),
     price_fcfa: z.number().min(0, 'Le prix ne peut pas être négatif').optional(),
-    product_type: z.enum(['product', 'service', 'booking', 'digital']).optional(),
+    product_type: z.enum(['product', 'service', 'booking', 'digital', 'virtual']).optional(),
 })
 
 function normalizeRestaurantMenuFields(body: any) {
