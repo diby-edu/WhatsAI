@@ -50,6 +50,7 @@ import { TestAccountCountdownBanner } from '@/components/dashboard/TestAccountCo
 import AppDownloadBanner from '@/components/dashboard/AppDownloadBanner'
 import PhoneVerifyModal from '@/components/dashboard/PhoneVerifyModal'
 import MobileAppPrompt from '@/components/dashboard/MobileAppPrompt'
+import { ToastProvider } from '@/components/ui/Toast'
 
 type TestAccountBannerState = {
     bannerMode: 'test' | 'frozen_grace' | 'inactive' | null
@@ -1131,7 +1132,9 @@ export default function DashboardLayout({
 
                     <CurrencyProvider>
                         <BiometricLock>
-                            {children}
+                            <ToastProvider>
+                                {children}
+                            </ToastProvider>
                         </BiometricLock>
                     </CurrencyProvider>
                     <MobileAppPrompt />

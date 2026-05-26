@@ -38,6 +38,33 @@ export async function GET(request: NextRequest) {
             messageCount = count || 0
         }
 
+        // 3b. Conversations ce mois
+        const startOfMonth = new Date()
+        startOfMonth.setDate(1)
+        startOfMonth.setHours(0, 0, 0, 0)
+
+        let conversationCount = 0
+        if (agentIds.length > 0) {
+            const { count } = await supabase
+                .from('conversations')
+                .select('*', { count: 'exact', head: true })
+                .in('agent_id', agentIds)
+                .gte('created_at', startOfMonth.toISOString())
+            conversationCount = count || 0
+        }
+
+        // 3c. Crédits consommés ce mois (messages IA role=assistant)
+        let creditsConsumed = 0
+        if (agentIds.length > 0) {
+            const { count } = await supabase
+                .from('messages')
+                .select('*', { count: 'exact', head: true })
+                .in('agent_id', agentIds)
+                .eq('role', 'assistant')
+                .gte('created_at', startOfMonth.toISOString())
+            creditsConsumed = count || 0
+        }
+
         // 3. Sales Over Time (Last 30 days)
         const thirtyDaysAgo = new Date()
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
@@ -102,7 +129,10 @@ export async function GET(request: NextRequest) {
                 totalSales,
                 totalOrders,
                 averageOrderValue: totalOrders > 0 ? Math.round(totalSales / totalOrders) : 0,
-                totalMessages: messageCount
+                totalMessages: messageCount,
+                conversationCount,
+                creditsConsumed,
+                orderRate: conversationCount > 0 ? Math.round((totalOrders / conversationCount) * 100) : null
             },
             chartData,
             topProducts

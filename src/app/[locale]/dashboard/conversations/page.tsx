@@ -28,6 +28,20 @@ export default function DashboardConversationsPage() {
     const [searchTerm, setSearchTerm] = useState('')
     const [activeTab, setActiveTab] = useState<Tab>('all')
     const hasLoadedRef = useRef(false)
+    const prevCountRef = useRef<number | null>(null)
+    const newCountRef = useRef(0)
+
+    // Reset title when user focuses the tab
+    useEffect(() => {
+        const onVisibilityChange = () => {
+            if (!document.hidden) {
+                newCountRef.current = 0
+                document.title = 'Conversations — WazzapAI'
+            }
+        }
+        document.addEventListener('visibilitychange', onVisibilityChange)
+        return () => document.removeEventListener('visibilitychange', onVisibilityChange)
+    }, [])
 
     useEffect(() => {
         fetchConversations()
@@ -59,9 +73,18 @@ export default function DashboardConversationsPage() {
             const res = await fetch(`/api/conversations?${params.toString()}`, { cache: 'no-store' })
             const data = await res.json()
             if (data.data?.conversations) {
+                const next: Conversation[] = data.data.conversations
+                // Badge titre onglet : détecter de nouvelles conversations
+                if (silent && hasLoadedRef.current && prevCountRef.current !== null) {
+                    const added = next.length - prevCountRef.current
+                    if (added > 0 && document.hidden) {
+                        newCountRef.current += added
+                        document.title = `(${newCountRef.current}) Conversations — WazzapAI`
+                    }
+                }
+                prevCountRef.current = next.length
                 hasLoadedRef.current = true
                 setConversations(prev => {
-                    const next = data.data.conversations
                     const unchanged =
                         prev.length === next.length &&
                         prev.every((conversation, index) => {

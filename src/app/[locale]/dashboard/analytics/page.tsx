@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import { DollarSign, ShoppingBag, MessageSquare, TrendingUp, Loader2, Package } from 'lucide-react'
+import { DollarSign, ShoppingBag, MessageSquare, TrendingUp, Loader2, Package, Zap, Users, BarChart2 } from 'lucide-react'
 
 export default function AnalyticsPage() {
     const [data, setData] = useState({
@@ -11,7 +11,10 @@ export default function AnalyticsPage() {
             totalSales: 0,
             totalOrders: 0,
             averageOrderValue: 0,
-            totalMessages: 0
+            totalMessages: 0,
+            conversationCount: 0,
+            creditsConsumed: 0,
+            orderRate: null as number | null
         },
         chartData: [] as { date: string; sales: number }[],
         topProducts: [] as { name: string; quantity: number; revenue: number }[]
@@ -46,6 +49,34 @@ export default function AnalyticsPage() {
 
     const cards = [
         {
+            title: 'Conversations ce mois',
+            value: data.kpi.conversationCount,
+            icon: Users,
+            color: '#3b82f6',
+            bg: 'rgba(59, 130, 246, 0.1)'
+        },
+        {
+            title: 'Messages IA',
+            value: data.kpi.totalMessages,
+            icon: MessageSquare,
+            color: '#8b5cf6',
+            bg: 'rgba(139, 92, 246, 0.1)'
+        },
+        {
+            title: 'Crédits consommés ce mois',
+            value: data.kpi.creditsConsumed,
+            icon: Zap,
+            color: '#f59e0b',
+            bg: 'rgba(245, 158, 11, 0.1)'
+        },
+        {
+            title: 'Taux de commande',
+            value: data.kpi.orderRate !== null ? `${data.kpi.orderRate}%` : '—',
+            icon: BarChart2,
+            color: '#10b981',
+            bg: 'rgba(16, 185, 129, 0.1)'
+        },
+        {
             title: 'Chiffre d\'Affaires',
             value: formatFCFA(data.kpi.totalSales),
             icon: DollarSign,
@@ -65,13 +96,6 @@ export default function AnalyticsPage() {
             icon: TrendingUp,
             color: '#f59e0b',
             bg: 'rgba(245, 158, 11, 0.1)'
-        },
-        {
-            title: 'Messages IA',
-            value: data.kpi.totalMessages,
-            icon: MessageSquare,
-            color: '#8b5cf6',
-            bg: 'rgba(139, 92, 246, 0.1)'
         }
     ]
 

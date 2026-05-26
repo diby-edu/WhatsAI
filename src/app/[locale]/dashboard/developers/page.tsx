@@ -20,6 +20,7 @@ import {
     Shield,
     Trash2
 } from 'lucide-react'
+import { useToast } from '@/components/ui/Toast'
 
 type TabId = 'keys' | 'catalog_sync' | 'synced_products' | 'platform_connections' | 'webhooks' | 'logs' | 'documentation' | 'tests'
 type ScopeMode = 'all' | 'selected'
@@ -261,6 +262,7 @@ function normalizeScopeMode(allowedAgentIds: string[] | null | undefined): Scope
 }
 
 export default function DevelopersPage() {
+    const toast = useToast()
     const [activeTab, setActiveTab] = useState<TabId>('keys')
     const [pageError, setPageError] = useState<string | null>(null)
 
@@ -678,9 +680,8 @@ export default function DevelopersPage() {
     }
 
     const deleteKey = async (id: string) => {
-        if (!confirm('Supprimer definitivement cette cle API ? Les integrations qui l utilisent s arreteront.')) {
-            return
-        }
+        const ok = await toast.confirm({ title: 'Supprimer cette clé API ?', message: 'Les intégrations qui l\'utilisent s\'arrêteront.', confirmLabel: 'Supprimer', danger: true })
+        if (!ok) return
 
         setDeletingKeyId(id)
         setPageError(null)
@@ -818,7 +819,8 @@ export default function DevelopersPage() {
     }
 
     const deleteWebhook = async (id: string) => {
-        if (!confirm('Supprimer ce webhook ?')) return
+        const ok = await toast.confirm({ title: 'Supprimer ce webhook ?', confirmLabel: 'Supprimer', danger: true })
+        if (!ok) return
 
         setDeletingWebhookId(id)
         setPageError(null)
@@ -1034,7 +1036,8 @@ export default function DevelopersPage() {
     }
 
     const deletePlatformSyncConnection = async (id: string) => {
-        if (!confirm('Supprimer cette connexion de sync catalogue ?')) return
+        const ok = await toast.confirm({ title: 'Supprimer cette connexion de sync catalogue ?', confirmLabel: 'Supprimer', danger: true })
+        if (!ok) return
 
         setDeletingPlatformSyncId(id)
         setPageError(null)
@@ -1145,7 +1148,8 @@ export default function DevelopersPage() {
     }
 
     const deletePlatformConnection = async (id: string) => {
-        if (!confirm('Supprimer cette connexion plateforme ?')) return
+        const ok = await toast.confirm({ title: 'Supprimer cette connexion plateforme ?', confirmLabel: 'Supprimer', danger: true })
+        if (!ok) return
 
         setDeletingPlatformConnectionId(id)
         setPageError(null)

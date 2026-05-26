@@ -10,6 +10,7 @@ import {
 import Link from 'next/link'
 import { useTranslations, useFormatter } from 'next-intl'
 import { useCurrency } from '@/contexts/CurrencyContext'
+import { useToast } from '@/components/ui/Toast'
 
 interface Variant {
     id: string
@@ -48,6 +49,7 @@ export default function ProductsPage() {
     const t = useTranslations('Products.List')
     const format = useFormatter()
     const router = useRouter()
+    const toast = useToast()
     const { formatFromFcfa } = useCurrency()
     const [products, setProducts] = useState<Product[]>([])
     const [agents, setAgents] = useState<Agent[]>([])
@@ -91,7 +93,8 @@ export default function ProductsPage() {
     }
 
     const deleteProduct = async (id: string) => {
-        if (!confirm(t('delete_confirm'))) return
+        const ok = await toast.confirm({ title: t('delete_confirm'), confirmLabel: 'Supprimer', danger: true })
+        if (!ok) return
         try {
             await fetch(`/api/products/${id}`, { method: 'DELETE' })
             setProducts(products.filter(p => p.id !== id))
@@ -102,7 +105,8 @@ export default function ProductsPage() {
 
     const deleteSelected = async () => {
         if (selectedIds.size === 0) return
-        if (!confirm(`Supprimer ${selectedIds.size} produit(s) ?`)) return
+        const ok = await toast.confirm({ title: `Supprimer ${selectedIds.size} produit(s) ?`, confirmLabel: 'Supprimer', danger: true })
+        if (!ok) return
         setDeletingSelected(true)
         try {
             await Promise.all(
