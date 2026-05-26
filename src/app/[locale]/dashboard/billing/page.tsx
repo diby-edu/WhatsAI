@@ -22,6 +22,7 @@ import {
 import { useTranslations, useFormatter } from 'next-intl'
 import { useCurrency } from '@/contexts/CurrencyContext'
 import { useToast } from '@/components/ui/Toast'
+import { GA } from '@/lib/analytics'
 import { createClient } from '@/lib/supabase/client'
 import ManualPaymentFallbackCard from '@/components/payments/manual-payment-fallback-card'
 import {
@@ -533,6 +534,7 @@ function BillingContent() {
             const data = await res.json()
 
             if (data.data?.paymentUrl) {
+                GA.paymentInitiated('subscription', planId)
                 window.location.href = data.data.paymentUrl
             } else {
                 toast.error(data.error || "Erreur lors de l'initialisation du paiement")
@@ -556,6 +558,7 @@ function BillingContent() {
             const data = await res.json()
 
             if (data.data?.paymentUrl) {
+                GA.paymentInitiated('credits', packId)
                 window.location.href = data.data.paymentUrl
             } else {
                 toast.error(data.error || "Erreur lors de l'initialisation du paiement")

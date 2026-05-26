@@ -22,7 +22,9 @@ import Link from 'next/link'
 import { createBrowserClient } from '@supabase/ssr'
 import { useTranslations } from 'next-intl'
 import { useToast } from '@/components/ui/Toast'
-import ProductVariantsEditor, { VariantGroup, ProductCombination } from '@/components/dashboard/ProductVariantsEditor'
+import dynamic from 'next/dynamic'
+import type { VariantGroup, ProductCombination } from '@/components/dashboard/ProductVariantsEditor'
+const ProductVariantsEditor = dynamic(() => import('@/components/dashboard/ProductVariantsEditor'), { ssr: false })
 import { convertToFcfa, convertFromFcfa } from '@/lib/currency'
 import { getManualProductsBlockedReason } from '@/lib/agents/ecommerce-mode'
 

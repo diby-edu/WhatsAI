@@ -7,6 +7,7 @@ import { motion } from 'framer-motion'
 import { MessageCircle, Mail, Lock, User, Loader2, Eye, EyeOff, Check, Sparkles, ArrowRight, Star } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { resolvePostAuthPath } from '@/lib/auth/post-auth'
+import { GA } from '@/lib/analytics'
 import { useTranslations } from 'next-intl'
 
 function RegisterForm() {
@@ -108,6 +109,7 @@ function RegisterForm() {
             if (error) {
                 setError(error.message)
             } else {
+                GA.userRegistered('email')
                 setSuccess(true)
             }
         } catch (err) {
@@ -172,6 +174,7 @@ function RegisterForm() {
                     })
                 }
 
+                GA.userRegistered('google')
                 const nextPath = await resolvePostAuthPath(supabase)
                 router.push(nextPath)
                 router.refresh()
