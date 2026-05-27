@@ -390,6 +390,17 @@ export default function AgentWizardPage({
         }
     }
 
+    // Redirection après connexion WhatsApp selon type d'agent
+    const redirectAfterWhatsappConnect = () => {
+        if (isExternalSync) {
+            router.push('/dashboard/developers')
+        } else if (selectedMission === 'support_client') {
+            router.push(`/dashboard/agents/${agentId}/knowledge`)
+        } else {
+            router.push('/dashboard/products')
+        }
+    }
+
     // Navigation helpers
     // STEPS: 0=info, 1=hours, 2=personality, 3=rules, 4=settings, 5=whatsapp
     const getNextStep = (from: number) => {
@@ -488,6 +499,7 @@ export default function AgentWizardPage({
                 setPairingCode(null)
                 setCountdown(null)
                 setRetryWithFreshQr(false)
+                redirectAfterWhatsappConnect()
             }
         } catch (err) {
             console.error(err)
@@ -538,6 +550,7 @@ export default function AgentWizardPage({
                     setRetryWithFreshQr(false)
                     GA.whatsappConnected(connectionMode)
                     clearInterval(interval)
+                    redirectAfterWhatsappConnect()
                 } else if (result.status === 'paused' || result.paused) {
                     setWhatsappStatus('idle')
                     setQrCode(null)
