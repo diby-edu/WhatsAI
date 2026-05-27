@@ -52,17 +52,14 @@ export async function POST(req: NextRequest) {
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
-    const { data: otpAgent } = await serviceClient
-        .from('agents')
-        .select('id, whatsapp_connected, whatsapp_status')
-        .eq('name', OTP_AGENT_NAME)
-        .single()
 
-    const isReady = otpAgent?.whatsapp_connected || otpAgent?.whatsapp_status === 'connected'
-    if (!isReady) {
-        return errorResponse('Service de vérification WhatsApp non disponible', 503)
-    }
-    const agentId = otpAgent.id
+    // Vérifier le flag otp_bypass_enabled
+    const { data: bypassFlag } = await serviceClient
+        .from('feature_flags')
+        .select('enabled')
+        .eq('key', 'otp_bypass_enabled')
+        .maybeSingle()
+    const otpBypass = bypassFlag?.enabled === true
 
     // Rate limit : max 3 envois par numéro par heure
     let redis: Redis | null = null
@@ -76,10 +73,28 @@ export async function POST(req: NextRequest) {
         return errorResponse('Erreur de configuration Redis', 503)
     }
 
+    // Mode bypass : stocker marqueur et retourner succès sans envoyer de message
+    if (otpBypass) {
+        await redis!.set(`otp:${phone}`, JSON.stringify({ code: 'BYPASS', userId: user!.id, bypass: true }), { ex: OTP_TTL })
+        return successResponse({ sent: true, expiresIn: OTP_TTL, bypass: true })
+    }
+
+    const { data: otpAgent } = await serviceClient
+        .from('agents')
+        .select('id, whatsapp_connected, whatsapp_status')
+        .eq('name', OTP_AGENT_NAME)
+        .single()
+
+    const isReady = otpAgent?.whatsapp_connected || otpAgent?.whatsapp_status === 'connected'
+    if (!isReady) {
+        return errorResponse('Service de vérification WhatsApp non disponible', 503)
+    }
+    const agentId = otpAgent.id
+
     const code = generateOtp()
 
     // Stocker en Redis avec TTL
-    await redis.set(`otp:${phone}`, JSON.stringify({ code, userId: user!.id }), { ex: OTP_TTL })
+    await redis!.set(`otp:${phone}`, JSON.stringify({ code, userId: user!.id }), { ex: OTP_TTL })
 
     // Envoyer via WhatsApp — passer le numéro brut (sans @) pour que le service fasse le lookup WA
     const recipient = phone.replace(/^\+/, '') // ex: 225747094746

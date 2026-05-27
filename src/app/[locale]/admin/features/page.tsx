@@ -40,6 +40,7 @@ const ALL_FEATURES: Omit<FeatureFlag, 'enabled'>[] = [
     { id: '5', name: 'Mode Maintenance', key: 'maintenance_mode', description: 'Désactive temporairement tous les bots et affiche un message de maintenance', icon: AlertTriangle, category: 'Système' },
     { id: '6', name: 'Inscriptions Ouvertes', key: 'registrations_open', description: "Permet aux nouveaux utilisateurs de s'inscrire sur la plateforme", icon: Globe, category: 'Système' },
     { id: '7', name: 'Paiements', key: 'payments_enabled', description: 'Active les paiements pour les crédits et abonnements', icon: Shield, category: 'Système' },
+    { id: '17', name: 'Bypass OTP WhatsApp', key: 'otp_bypass_enabled', description: "Désactive l'envoi du code OTP WhatsApp — le numéro est vérifié automatiquement (à utiliser uniquement si l'expéditeur OTP est bloqué)", icon: AlertTriangle, category: 'Système' },
     { id: '8',  name: 'E-commerce / Boutique',  key: 'agent_ecommerce',  description: 'Mission E-commerce disponible à la création d\'agent', icon: ShoppingCart,    category: 'Missions' },
     { id: '9',  name: 'Restaurant / Fast-food', key: 'agent_restaurant', description: 'Mission Restaurant disponible à la création d\'agent',   icon: UtensilsCrossed, category: 'Missions' },
     { id: '10', name: 'Hôtel / Hébergement',    key: 'agent_hotel',     description: 'Mission Hôtel disponible à la création d\'agent',         icon: Hotel,           category: 'Missions' },

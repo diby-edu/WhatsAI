@@ -115,6 +115,18 @@ export default function OnboardingPage() {
                 setLoading(false)
                 return
             }
+            // Mode bypass : vérification automatique sans afficher le formulaire OTP
+            if (data.data?.bypass) {
+                const confirmRes = await fetch('/api/phone-verify/confirm', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phone: fullPhone, code: 'BYPASS' }),
+                })
+                if (confirmRes.ok) {
+                    await saveProfileAndRedirect(fullPhone!)
+                    return
+                }
+            }
             setOtpStep(true)
             setOtpCountdown(180)
             setOtpExpired(false)
