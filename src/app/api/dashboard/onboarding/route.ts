@@ -9,11 +9,12 @@ export async function GET(_request: NextRequest) {
     if (authError || !user) return errorResponse(authError || 'Unauthorized', 401)
 
     try {
-        const [agentsRes, knowledgeRes, productsRes, conversationsRes] = await Promise.all([
+        const [agentsRes, knowledgeRes, productsRes, conversationsRes, platformRes] = await Promise.all([
             supabase.from('agents').select('id, whatsapp_connected, mission, ecommerce_mode', { count: 'exact' }).eq('user_id', user.id),
             supabase.from('knowledge_base').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
             supabase.from('products').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
             supabase.from('conversations').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+            supabase.from('api_platform_connections').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
         ])
 
         const agents = agentsRes.data || []
@@ -22,6 +23,7 @@ export async function GET(_request: NextRequest) {
         const knowledgeCount = knowledgeRes.count || 0
         const productCount = productsRes.count || 0
         const conversationCount = conversationsRes.count || 0
+        const platformConnectionCount = platformRes.count || 0
 
         const hasApiAgent = agents.some((a: any) => a.ecommerce_mode === 'external_sync')
 
@@ -41,6 +43,7 @@ export async function GET(_request: NextRequest) {
         const step2Done = whatsappConnected
         const step3Done = !needsKnowledge || knowledgeCount > 0
         const step4Done = !needsManualProducts || productCount > 0
+        const platformConfigured = platformConnectionCount > 0
 
         // Notes contextuelles — affichées uniquement si un agent existe
         const knowledgeNote = step1Done && !needsKnowledge
@@ -55,23 +58,40 @@ export async function GET(_request: NextRequest) {
                 : 'Agent support — aucun catalogue produits requis.'
             : null
 
+        // Étape plateforme : verrouillée si WhatsApp non connecté, absente pour agents non-API
+        const platformStep = hasApiAgent ? [{
+            key: 'platform_configured',
+            done: platformConfigured,
+            locked: step2Done === false,
+            note: null,
+        }] : []
+
+        // first_conversation verrouillée tant que toutes les étapes requises ne sont pas faites
+        const firstConvLocked = step2Done === false
+            || step3Done === false
+            || step4Done === false
+            || (hasApiAgent && platformConfigured === false)
+
         const steps = [
-            { key: 'agent_created',      done: step1Done,              locked: false,                                    note: null },
-            { key: 'whatsapp_connected', done: step2Done,              locked: !step1Done,                               note: null },
-            { key: 'knowledge_added',    done: step3Done,              locked: agentCount === 0 && needsKnowledge,                        note: knowledgeNote },
-            { key: 'products_added',     done: step4Done,              locked: agentCount === 0 && needsManualProducts,                   note: productsNote },
-            { key: 'first_conversation', done: conversationCount > 0,  locked: step2Done === false || step3Done === false || step4Done === false, note: null },
+            { key: 'agent_created',      done: step1Done,             locked: false,                                    note: null },
+            { key: 'whatsapp_connected', done: step2Done,             locked: step1Done === false,                      note: null },
+            { key: 'knowledge_added',    done: step3Done,             locked: agentCount === 0 && needsKnowledge,       note: knowledgeNote },
+            { key: 'products_added',     done: step4Done,             locked: agentCount === 0 && needsManualProducts,  note: productsNote },
+            ...platformStep,
+            { key: 'first_conversation', done: conversationCount > 0, locked: firstConvLocked,                         note: null },
         ]
 
         // Texte bannière — pointe toujours vers la prochaine étape requise
         let nextAction: string
-        if (!step1Done) {
+        if (step1Done === false) {
             nextAction = 'Créez votre premier agent IA pour démarrer'
-        } else if (!step2Done) {
+        } else if (step2Done === false) {
             nextAction = 'Connectez un numéro WhatsApp à votre agent pour recevoir des messages'
-        } else if (!step3Done) {
+        } else if (hasApiAgent && platformConfigured === false) {
+            nextAction = 'Configurez votre connexion plateforme dans le module Développeurs'
+        } else if (step3Done === false) {
             nextAction = 'Ajoutez des connaissances pour que votre agent réponde correctement'
-        } else if (!step4Done) {
+        } else if (step4Done === false) {
             nextAction = 'Ajoutez vos produits pour que votre agent puisse prendre des commandes'
         } else {
             nextAction = 'Envoyez un message à votre numéro WhatsApp pour tester votre agent'

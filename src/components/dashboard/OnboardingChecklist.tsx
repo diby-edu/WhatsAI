@@ -48,6 +48,13 @@ const STEP_CONFIG: Record<string, {
         href: '/dashboard/products',
         cta: 'Gérer mes produits',
     },
+    platform_configured: {
+        title: 'Configurer la connexion plateforme',
+        description: 'Connectez votre boutique (Shopify, WooCommerce, Chariow…) à votre agent.',
+        detail: 'Dans le module Développeurs, configurez une connexion directe à votre plateforme e-commerce. Cela permet à votre agent de recevoir les événements (commandes, paiements, abandons de panier) et de répondre automatiquement à vos clients.',
+        href: '/dashboard/developers',
+        cta: 'Configurer la plateforme',
+    },
     first_conversation: {
         title: 'Tester votre agent',
         description: 'Envoyez un premier message à votre numéro WhatsApp connecté.',
