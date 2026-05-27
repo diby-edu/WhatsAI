@@ -209,6 +209,13 @@ function normalizeChariow(topic: string, payload: Record<string, unknown>): Norm
     //   product: { id, name, url, price: { value, currency } },
     //   sale: { id, amount: { value, currency }, status, custom_fields: [{name, value}] }
     // }
+
+    // LOG TEMPORAIRE — à retirer après debug abandoned/failed payload
+    const rawEvent = (topic || asString(payload.event) || '').toLowerCase().trim()
+    if (['abandoned.sale', 'sale.abandoned', 'failed.sale', 'sale.failed', 'failed.payment'].includes(rawEvent)) {
+        console.log('[CHARIOW DEBUG] raw payload:', JSON.stringify(payload, null, 2))
+    }
+
     const customer = asObject(payload.customer)
     const product = asObject(payload.product)
     const sale = asObject(payload.sale)
