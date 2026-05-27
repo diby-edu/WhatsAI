@@ -393,7 +393,7 @@ export default function AgentWizardPage({
     // Redirection après connexion WhatsApp selon type d'agent
     const redirectAfterWhatsappConnect = () => {
         if (isExternalSync) {
-            router.push('/dashboard/conversations')
+            router.push('/dashboard/developers')
         } else if (selectedMission === 'support_client') {
             router.push(`/dashboard/agents/${agentId}/knowledge`)
         } else {
