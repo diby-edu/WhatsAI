@@ -21,7 +21,7 @@ const STEP_CONFIG: Record<string, {
 }> = {
     agent_created: {
         title: 'Créer votre agent IA',
-        description: 'Votre agent est créé. C\'est votre assistant virtuel WhatsApp.',
+        description: 'Créez votre premier agent IA, votre assistant virtuel WhatsApp.',
         detail: 'L\'agent IA répond automatiquement aux messages de vos clients 24h/24. Vous pouvez créer plusieurs agents selon vos besoins (boutique, restaurant, support…).',
         href: '/dashboard/agents',
         cta: 'Gérer mes agents',
