@@ -188,6 +188,19 @@ export default function SettingsPage() {
             })
             const data = await res.json()
             if (!res.ok) { setOtpError(data.error || 'Erreur envoi'); setOtpStep('idle'); return }
+            // Mode bypass : vérification automatique
+            if (data.data?.bypass) {
+                const confirmRes = await fetch('/api/phone-verify/confirm', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phone: profile.phone, code: 'BYPASS' }),
+                })
+                if (confirmRes.ok) {
+                    setProfile(p => ({ ...p, phone_verified: true }))
+                    setOtpStep('idle')
+                    return
+                }
+            }
             setOtpStep('verify')
             setOtpCountdown(180)
         } catch { setOtpError('Erreur réseau'); setOtpStep('idle') }
