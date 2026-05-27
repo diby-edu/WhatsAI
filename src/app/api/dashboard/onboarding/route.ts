@@ -3,7 +3,7 @@ import { createApiClient, getAuthUser, errorResponse, successResponse } from '@/
 
 export const dynamic = 'force-dynamic'
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
     const supabase = await createApiClient()
     const { user, error: authError } = await getAuthUser(supabase)
     if (authError || !user) return errorResponse(authError || 'Unauthorized', 401)
@@ -23,30 +23,62 @@ export async function GET(request: NextRequest) {
         const productCount = productsRes.count || 0
         const conversationCount = conversationsRes.count || 0
 
-        // KB : non requise si tous les agents sont external_sync (produits via API)
-        // Si aucun agent, on considère que la KB est requise (étape pas encore complétable)
-        const needsKnowledge = agentCount === 0 || agents.some((a: any) => a.ecommerce_mode !== 'external_sync')
-        // Produits manuels : non requis si tous les agents sont support_client ou external_sync
-        // Si aucun agent, on considère que les produits sont requis (étape pas encore complétable)
-        const needsManualProducts = agentCount === 0 || agents.some((a: any) => a.mission !== 'support_client' && a.ecommerce_mode !== 'external_sync')
+        const hasApiAgent = agents.some((a: any) => a.ecommerce_mode === 'external_sync')
+
+        // KB requise uniquement pour les agents support non-API
+        // Si aucun agent : on considère qu'elle est requise (étape verrouillée)
+        const needsKnowledge = agentCount === 0 || agents.some((a: any) =>
+            a.mission === 'support_client' && a.ecommerce_mode !== 'external_sync'
+        )
+
+        // Produits requis si au moins un agent n'est ni support ni API
+        // Si aucun agent : on considère qu'ils sont requis (étape verrouillée)
+        const needsManualProducts = agentCount === 0 || agents.some((a: any) =>
+            a.mission !== 'support_client' && a.ecommerce_mode !== 'external_sync'
+        )
+
+        const step1Done = agentCount > 0
+        const step2Done = whatsappConnected
+        const step3Done = !needsKnowledge || knowledgeCount > 0
+        const step4Done = !needsManualProducts || productCount > 0
+
+        // Notes contextuelles — affichées uniquement si un agent existe
+        const knowledgeNote = step1Done && !needsKnowledge
+            ? hasApiAgent
+                ? 'Vos produits sont synchronisés via API — base de connaissances non requise.'
+                : 'Optionnel — ajoutez des connaissances pour améliorer les réponses de votre agent.'
+            : null
+
+        const productsNote = step1Done && !needsManualProducts
+            ? hasApiAgent
+                ? 'Catalogue synchronisé automatiquement via votre API produits.'
+                : 'Agent support — aucun catalogue produits requis.'
+            : null
 
         const steps = [
-            { key: 'agent_created', done: agentCount > 0 },
-            { key: 'whatsapp_connected', done: whatsappConnected },
-            {
-                key: 'knowledge_added',
-                done: !needsKnowledge || knowledgeCount > 0,
-                note: !needsKnowledge ? 'Vos produits sont synchronisés via API — base de connaissances non requise.' : null,
-            },
-            ...(needsManualProducts ? [{ key: 'products_added', done: productCount > 0 }] : [
-                { key: 'products_added', done: true, note: 'Catalogue synchronisé automatiquement via votre API produits.' }
-            ]),
-            { key: 'first_conversation', done: conversationCount > 0 },
+            { key: 'agent_created',      done: step1Done,              locked: false,                                    note: null },
+            { key: 'whatsapp_connected', done: step2Done,              locked: !step1Done,                               note: null },
+            { key: 'knowledge_added',    done: step3Done,              locked: agentCount === 0 && needsKnowledge,                        note: knowledgeNote },
+            { key: 'products_added',     done: step4Done,              locked: agentCount === 0 && needsManualProducts,                   note: productsNote },
+            { key: 'first_conversation', done: conversationCount > 0,  locked: step2Done === false || step3Done === false || step4Done === false, note: null },
         ]
 
-        const allDone = steps.every(s => s.done)
+        // Texte bannière — pointe toujours vers la prochaine étape requise
+        let nextAction: string
+        if (!step1Done) {
+            nextAction = 'Créez votre premier agent IA pour démarrer'
+        } else if (!step2Done) {
+            nextAction = 'Connectez un numéro WhatsApp à votre agent pour recevoir des messages'
+        } else if (!step3Done) {
+            nextAction = 'Ajoutez des connaissances pour que votre agent réponde correctement'
+        } else if (!step4Done) {
+            nextAction = 'Ajoutez vos produits pour que votre agent puisse prendre des commandes'
+        } else {
+            nextAction = 'Envoyez un message à votre numéro WhatsApp pour tester votre agent'
+        }
 
-        return successResponse({ steps, allDone })
+        const allDone = steps.every(s => s.done)
+        return successResponse({ steps, allDone, nextAction })
     } catch (err: any) {
         return errorResponse(err.message || 'Erreur serveur', 500)
     }
