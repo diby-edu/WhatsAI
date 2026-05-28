@@ -456,7 +456,7 @@ export default function AdminSubscriptionsPage() {
                                                 <div style={{ fontSize: 11, color: '#475569' }}>{new Date(p.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</div>
                                             </td>
                                             <td style={{ padding: '12px 16px' }}>
-                                                {p.transaction_id && (p.status === 'pending' || p.status === 'processing') && (
+                                                {p.transaction_id && (p.status === 'pending' || p.status === 'processing' || p.status === 'failed') && (
                                                     <button
                                                         onClick={() => verifyPaymentStatus(p.transaction_id)}
                                                         disabled={checkingPayment === p.transaction_id}
