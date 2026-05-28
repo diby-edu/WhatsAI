@@ -22,7 +22,7 @@ import {
 } from 'lucide-react'
 import { useToast } from '@/components/ui/Toast'
 
-type TabId = 'keys' | 'catalog_sync' | 'synced_products' | 'platform_connections' | 'webhooks' | 'logs' | 'documentation' | 'tests'
+type TabId = 'catalog_sync' | 'synced_products' | 'platform_connections' | 'webhooks' | 'logs' | 'documentation' | 'tests'
 type ScopeMode = 'all' | 'selected'
 
 interface AgentSummary {
@@ -91,6 +91,7 @@ interface PlatformConnectionItem {
 }
 
 type PlatformProvider = PlatformConnectionItem['provider']
+type FormProvider = PlatformProvider | 'api_key'
 type PlatformEventOption = { value: string; label: string }
 
 interface PlatformSyncConnectionItem {
@@ -166,12 +167,22 @@ const WEBHOOK_EVENTS = [
 ] as const
 
 const PLATFORM_PROVIDERS = [
-    { value: 'shopify', label: 'Shopify' },
-    { value: 'woocommerce', label: 'WooCommerce' },
-    { value: 'chariow', label: 'Chariow' },
-    { value: 'maketou', label: 'Maketou' },
-    { value: 'generic', label: 'Generic (custom)' },
+    { value: 'shopify',    label: 'Shopify',    group: 'ecommerce' },
+    { value: 'woocommerce',label: 'WooCommerce',group: 'ecommerce' },
+    { value: 'chariow',   label: 'Chariow',    group: 'ecommerce' },
+    { value: 'maketou',   label: 'Maketou',    group: 'ecommerce' },
+    { value: 'generic',   label: 'Webhook générique (ta plateforme → WazzapAI)', group: 'advanced' },
+    { value: 'api_key',   label: 'Code personnalisé (ton code → WazzapAI)',      group: 'advanced' },
 ] as const
+
+const PROVIDER_DESCRIPTIONS: Record<string, string> = {
+    shopify:     "Collez l'URL générée dans les paramètres webhook de votre boutique Shopify.",
+    woocommerce: "Collez l'URL générée dans WooCommerce → Extensions → Webhooks.",
+    chariow:     "Collez l'URL générée dans Chariow Pulse.",
+    maketou:     "Collez l'URL générée dans les paramètres de votre boutique Maketou.",
+    generic:     "Collez l'URL générée dans les paramètres webhook de votre plateforme. Aucun code requis.",
+    api_key:     "Utilisez la clé générée dans votre code pour appeler WazzapAI. Nécessite un développeur.",
+}
 
 const PLATFORM_SYNC_PROVIDERS = [
     { value: 'woocommerce', label: 'WooCommerce' },
@@ -263,7 +274,7 @@ function normalizeScopeMode(allowedAgentIds: string[] | null | undefined): Scope
 
 export default function DevelopersPage() {
     const toast = useToast()
-    const [activeTab, setActiveTab] = useState<TabId>('keys')
+    const [activeTab, setActiveTab] = useState<TabId>('platform_connections')
     const [pageError, setPageError] = useState<string | null>(null)
 
     const [keys, setKeys] = useState<ApiKey[]>([])
@@ -337,7 +348,7 @@ export default function DevelopersPage() {
     const [showPlatformConnectionForm, setShowPlatformConnectionForm] = useState(false)
     const [creatingPlatformConnection, setCreatingPlatformConnection] = useState(false)
     const [newPlatformConnectionName, setNewPlatformConnectionName] = useState('')
-    const [newPlatformProvider, setNewPlatformProvider] = useState<PlatformConnectionItem['provider']>('shopify')
+    const [newPlatformProvider, setNewPlatformProvider] = useState<FormProvider>('shopify')
     const [newPlatformAgentId, setNewPlatformAgentId] = useState('')
     const [newPlatformRateLimit, setNewPlatformRateLimit] = useState(60)
     const [deletingPlatformConnectionId, setDeletingPlatformConnectionId] = useState<string | null>(null)
@@ -351,6 +362,11 @@ export default function DevelopersPage() {
 
     const activeAgents = useMemo(
         () => agents.filter(agent => !agent.archived_at && agent.ecommerce_mode === 'external_sync'),
+        [agents]
+    )
+
+    const allActiveAgents = useMemo(
+        () => agents.filter(agent => !agent.archived_at),
         [agents]
     )
 
@@ -612,7 +628,7 @@ export default function DevelopersPage() {
             setRevealedKeyId(createdKey.id)
             resetKeyForm()
             setShowKeyForm(false)
-            setActiveTab('keys')
+            setActiveTab('platform_connections')
         } catch (error: any) {
             setPageError(error.message || 'Erreur lors de la creation de la cle')
         } finally {
@@ -1070,8 +1086,40 @@ export default function DevelopersPage() {
     }
 
     const createPlatformConnection = async () => {
-        if (!newPlatformConnectionName.trim() || !newPlatformAgentId) return
+        if (!newPlatformConnectionName.trim()) return
 
+        // Cas API key : créer une clé via l'endpoint keys
+        if (newPlatformProvider === 'api_key') {
+            setCreatingPlatformConnection(true)
+            setPageError(null)
+            try {
+                const res = await fetch('/api/developer/keys', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: newPlatformConnectionName.trim(),
+                        environment: newKeyEnv,
+                        rate_limit_per_minute: newKeyLimit,
+                        allowed_agent_ids: newKeyAllowedAgentIds.length > 0 ? newKeyAllowedAgentIds : null,
+                    }),
+                })
+                const result = await res.json()
+                if (!res.ok) throw new Error(result.error || 'Erreur lors de la creation de la cle')
+                const createdKey: ApiKey = result.data
+                setKeys(prev => [createdKey, ...prev])
+                setExpandedKeyId(createdKey.id)
+                setRevealedKeyId(createdKey.id)
+                resetPlatformConnectionForm()
+                setShowPlatformConnectionForm(false)
+            } catch (error: any) {
+                setPageError(error.message || 'Erreur lors de la creation de la cle')
+            } finally {
+                setCreatingPlatformConnection(false)
+            }
+            return
+        }
+
+        if (!newPlatformAgentId) return
         setCreatingPlatformConnection(true)
         setPageError(null)
 
@@ -1081,7 +1129,7 @@ export default function DevelopersPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     name: newPlatformConnectionName.trim(),
-                    provider: newPlatformProvider,
+                    provider: newPlatformProvider as PlatformProvider,
                     agent_id: newPlatformAgentId,
                     rate_limit_per_minute: newPlatformRateLimit,
                     allowed_events: null,
@@ -1170,8 +1218,7 @@ export default function DevelopersPage() {
     }
 
     const tabs = [
-        { id: 'keys' as const, label: 'Cles API', icon: Key, count: keys.length },
-        { id: 'platform_connections' as const, label: 'Connexions plateforme directes', icon: Globe, count: platformConnections.length },
+        { id: 'platform_connections' as const, label: 'API', icon: Globe, count: keys.length + platformConnections.length },
         { id: 'webhooks' as const, label: 'Webhooks', icon: Globe, count: webhooks.length },
         { id: 'logs' as const, label: 'Logs', icon: Activity, count: undefined },
         { id: 'documentation' as const, label: 'Documentation', icon: BookOpen, count: undefined },
@@ -1285,155 +1332,18 @@ export default function DevelopersPage() {
                 })}
             </div>
 
-            {activeTab === 'keys' && (
+            {activeTab === 'platform_connections' && (
                 <div style={{ display: 'grid', gap: 20 }}>
-                    <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary, #9ca3af)', lineHeight: 1.5 }}>
-                        Pour envoyer des donnees a WazzapAI depuis votre propre code ou script. Passez la cle dans le header <code style={{ background: 'rgba(255,255,255,0.06)', padding: '1px 6px', borderRadius: 4 }}>Authorization: Bearer sk_live_...</code> de chaque requete.
-                    </p>
-                    {showKeyForm && (
-                        <div style={sectionStyle}>
-                            <h2 style={{ margin: '0 0 16px', fontSize: 16, color: 'var(--text-primary, #fff)' }}>
-                                Creer une cle API
-                            </h2>
-
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
-                                <div>
-                                    <label style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'var(--text-secondary, #9ca3af)' }}>
-                                        Nom
-                                    </label>
-                                    <input
-                                        value={newKeyName}
-                                        onChange={event => setNewKeyName(event.target.value)}
-                                        placeholder="Ex: Integration Shopify"
-                                        style={inputStyle}
-                                    />
-                                </div>
-
-                                <div>
-                                    <label style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'var(--text-secondary, #9ca3af)' }}>
-                                        Environnement
-                                    </label>
-                                    <select
-                                        value={newKeyEnv}
-                                        onChange={event => setNewKeyEnv(event.target.value as 'live' | 'test')}
-                                        style={inputStyle}
-                                    >
-                                        <option value="live">Live</option>
-                                        <option value="test">Test</option>
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'var(--text-secondary, #9ca3af)' }}>
-                                        Requetes par minute
-                                    </label>
-                                    <input
-                                        type="number"
-                                        min={1}
-                                        max={1000}
-                                        value={newKeyLimit}
-                                        onChange={event => setNewKeyLimit(Number(event.target.value))}
-                                        style={inputStyle}
-                                    />
-                                </div>
-                            </div>
-
-                            <div style={{ marginTop: 18 }}>
-                                <div style={{ fontSize: 12, marginBottom: 4, color: 'var(--text-secondary, #9ca3af)' }}>
-                                    Agents autorisés
-                                </div>
-                                <div style={{ fontSize: 11, color: 'var(--text-secondary, #9ca3af)', marginBottom: 10, opacity: 0.7 }}>
-                                    Laissez tout décoché pour autoriser tous vos agents catalogue.
-                                </div>
-                                <div style={{
-                                    border: '1px solid var(--border, #2a2a3e)',
-                                    borderRadius: 12,
-                                    padding: 14,
-                                    background: 'rgba(255,255,255,0.02)',
-                                }}>
-                                    {agentsLoading ? (
-                                        <div style={{ color: 'var(--text-secondary, #9ca3af)', fontSize: 13 }}>Chargement des agents...</div>
-                                    ) : activeAgents.length === 0 ? (
-                                        <div style={{ color: '#f59e0b', fontSize: 13 }}>
-                                            Aucun agent en mode catalogue externe. Activez ce mode dans les paramètres de l'agent.
-                                        </div>
-                                    ) : (
-                                        <div style={{ display: 'grid', gap: 8 }}>
-                                            {activeAgents.map(agent => (
-                                                <label
-                                                    key={agent.id}
-                                                    style={{
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: 10,
-                                                        padding: '8px 10px',
-                                                        borderRadius: 8,
-                                                        background: 'rgba(255,255,255,0.03)',
-                                                        color: 'var(--text-primary, #fff)',
-                                                        fontSize: 13,
-                                                        cursor: 'pointer',
-                                                    }}
-                                                >
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={newKeyAllowedAgentIds.includes(agent.id)}
-                                                        onChange={() => toggleAgentSelection(newKeyAllowedAgentIds, agent.id, setNewKeyAllowedAgentIds)}
-                                                    />
-                                                    <span>{agent.name}</span>
-                                                    {!agent.is_active && (
-                                                        <span style={{ color: '#f59e0b', fontSize: 11 }}>(inactif)</span>
-                                                    )}
-                                                </label>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            <div style={{ display: 'flex', gap: 10, marginTop: 18, flexWrap: 'wrap' }}>
-                                <button
-                                    onClick={createKey}
-                                    disabled={creatingKey || !newKeyName.trim()}
-                                    style={{
-                                        ...primaryButtonStyle,
-                                        opacity: creatingKey || !newKeyName.trim() ? 0.6 : 1,
-                                        cursor: creatingKey ? 'not-allowed' : 'pointer',
-                                    }}
-                                >
-                                    {creatingKey ? 'Creation...' : 'Creer la cle'}
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        resetKeyForm()
-                                        setShowKeyForm(false)
-                                    }}
-                                    style={secondaryButtonStyle}
-                                >
-                                    Annuler
-                                </button>
-                            </div>
-                        </div>
-                    )}
-
                     <div style={sectionStyle}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
                             <h2 style={{ margin: 0, fontSize: 16, color: 'var(--text-primary, #fff)', display: 'flex', alignItems: 'center', gap: 8 }}>
                                 <Key size={16} />
-                                Cles API ({keys.length})
+                                Clés API ({keys.length})
                             </h2>
-                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                                <button
-                                    onClick={() => setShowKeyForm(value => !value)}
-                                    style={primaryButtonStyle}
-                                >
-                                    <Plus size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
-                                    Nouvelle cle
-                                </button>
-                                <button onClick={() => void fetchKeys()} style={secondaryButtonStyle}>
-                                    <RefreshCw size={13} style={{ marginRight: 6, verticalAlign: 'middle' }} />
-                                    Rafraichir
-                                </button>
-                            </div>
+                            <button onClick={() => void fetchKeys()} style={secondaryButtonStyle}>
+                                <RefreshCw size={13} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+                                Rafraichir
+                            </button>
                         </div>
 
                         {keysLoading ? (
@@ -2442,7 +2352,7 @@ export default function DevelopersPage() {
                 <div style={{ display: 'grid', gap: 20 }}>
                     {activeTab === 'platform_connections' && (
                         <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary, #9ca3af)', lineHeight: 1.5 }}>
-                            Pour Shopify, WooCommerce, Chariow ou Maketou — collez simplement l&apos;URL generee dans votre plateforme. Aucune cle API a gerer, l&apos;agent est deja configure dans la connexion.
+                            Connectez vos plateformes (Shopify, WooCommerce, Chariow…) via webhook, ou générez une clé API pour intégrer WazzapAI depuis votre propre code.
                         </p>
                     )}
                     {activeTab === 'webhooks' && (
@@ -2558,62 +2468,129 @@ export default function DevelopersPage() {
 
                                 <div>
                                     <label style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'var(--text-secondary, #9ca3af)' }}>
-                                        Plateforme
+                                        Type de connexion
                                     </label>
                                     <select
                                         value={newPlatformProvider}
-                                        onChange={event => setNewPlatformProvider(event.target.value as PlatformConnectionItem['provider'])}
+                                        onChange={event => setNewPlatformProvider(event.target.value as FormProvider)}
                                         style={inputStyle}
                                     >
-                                        {PLATFORM_PROVIDERS.map(provider => (
-                                            <option key={provider.value} value={provider.value}>
-                                                {provider.label}
-                                            </option>
-                                        ))}
+                                        <optgroup label="Plateformes e-commerce">
+                                            {PLATFORM_PROVIDERS.filter(p => p.group === 'ecommerce').map(provider => (
+                                                <option key={provider.value} value={provider.value}>{provider.label}</option>
+                                            ))}
+                                        </optgroup>
+                                        <optgroup label="Avancé">
+                                            {PLATFORM_PROVIDERS.filter(p => p.group === 'advanced').map(provider => (
+                                                <option key={provider.value} value={provider.value}>{provider.label}</option>
+                                            ))}
+                                        </optgroup>
                                     </select>
+                                    {PROVIDER_DESCRIPTIONS[newPlatformProvider] && (
+                                        <div style={{ fontSize: 11, color: 'var(--text-secondary, #9ca3af)', marginTop: 5, opacity: 0.8 }}>
+                                            {PROVIDER_DESCRIPTIONS[newPlatformProvider]}
+                                        </div>
+                                    )}
                                 </div>
 
-                                <div>
-                                    <label style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'var(--text-secondary, #9ca3af)' }}>
-                                        Agent cible
-                                    </label>
-                                    <select
-                                        value={newPlatformAgentId}
-                                        onChange={event => setNewPlatformAgentId(event.target.value)}
-                                        style={inputStyle}
-                                    >
-                                        {activeAgents.map(agent => (
-                                            <option key={agent.id} value={agent.id}>
-                                                {agent.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'var(--text-secondary, #9ca3af)' }}>
-                                        Limite req/min
-                                    </label>
-                                    <input
-                                        type="number"
-                                        min={30}
-                                        max={5000}
-                                        value={newPlatformRateLimit}
-                                        onChange={event => setNewPlatformRateLimit(Number(event.target.value))}
-                                        style={inputStyle}
-                                    />
-                                    <div style={{ fontSize: 11, color: 'var(--text-secondary, #9ca3af)', marginTop: 5, opacity: 0.7 }}>
-                                        60/min suffit pour la plupart des boutiques. Augmentez si vous avez un fort volume de commandes.
-                                    </div>
-                                </div>
+                                {newPlatformProvider === 'api_key' ? (
+                                    <>
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'var(--text-secondary, #9ca3af)' }}>
+                                                Environnement
+                                            </label>
+                                            <select
+                                                value={newKeyEnv}
+                                                onChange={event => setNewKeyEnv(event.target.value as 'live' | 'test')}
+                                                style={inputStyle}
+                                            >
+                                                <option value="live">Live</option>
+                                                <option value="test">Test</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'var(--text-secondary, #9ca3af)' }}>
+                                                Requetes par minute
+                                            </label>
+                                            <input
+                                                type="number"
+                                                min={1}
+                                                max={1000}
+                                                value={newKeyLimit}
+                                                onChange={event => setNewKeyLimit(Number(event.target.value))}
+                                                style={inputStyle}
+                                            />
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'var(--text-secondary, #9ca3af)' }}>
+                                                Agent cible
+                                            </label>
+                                            <select
+                                                value={newPlatformAgentId}
+                                                onChange={event => setNewPlatformAgentId(event.target.value)}
+                                                style={inputStyle}
+                                            >
+                                                {activeAgents.map(agent => (
+                                                    <option key={agent.id} value={agent.id}>{agent.name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'var(--text-secondary, #9ca3af)' }}>
+                                                Limite req/min
+                                            </label>
+                                            <input
+                                                type="number"
+                                                min={30}
+                                                max={5000}
+                                                value={newPlatformRateLimit}
+                                                onChange={event => setNewPlatformRateLimit(Number(event.target.value))}
+                                                style={inputStyle}
+                                            />
+                                            <div style={{ fontSize: 11, color: 'var(--text-secondary, #9ca3af)', marginTop: 5, opacity: 0.7 }}>
+                                                60/min suffit pour la plupart des boutiques.
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
 
                             </div>
 
-                            {agentsLoading ? (
+                            {newPlatformProvider === 'api_key' && (
+                                <div style={{ marginTop: 14 }}>
+                                    <div style={{ fontSize: 12, marginBottom: 4, color: 'var(--text-secondary, #9ca3af)' }}>Agents autorisés</div>
+                                    <div style={{ fontSize: 11, color: 'var(--text-secondary, #9ca3af)', marginBottom: 10, opacity: 0.7 }}>
+                                        Laissez tout décoché pour autoriser tous vos agents.
+                                    </div>
+                                    <div style={{ border: '1px solid var(--border, #2a2a3e)', borderRadius: 12, padding: 14, background: 'rgba(255,255,255,0.02)' }}>
+                                        {agentsLoading ? (
+                                            <div style={{ color: 'var(--text-secondary, #9ca3af)', fontSize: 13 }}>Chargement...</div>
+                                        ) : (
+                                            <div style={{ display: 'grid', gap: 8 }}>
+                                                {allActiveAgents.map(agent => (
+                                                    <label key={agent.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 8, background: 'rgba(255,255,255,0.03)', color: 'var(--text-primary, #fff)', fontSize: 13, cursor: 'pointer' }}>
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={newKeyAllowedAgentIds.includes(agent.id)}
+                                                            onChange={() => toggleAgentSelection(newKeyAllowedAgentIds, agent.id, setNewKeyAllowedAgentIds)}
+                                                        />
+                                                        <span>{agent.name}</span>
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {newPlatformProvider !== 'api_key' && agentsLoading ? (
                                 <div style={{ marginTop: 12, color: 'var(--text-secondary, #9ca3af)', fontSize: 13 }}>
                                     Chargement des agents...
                                 </div>
-                            ) : activeAgents.length === 0 ? (
+                            ) : newPlatformProvider !== 'api_key' && activeAgents.length === 0 ? (
                                 <div style={{ marginTop: 12, color: '#f59e0b', fontSize: 13 }}>
                                     Aucun agent externe disponible. Creez un agent avec ecommerce_mode = external_sync.
                                 </div>
