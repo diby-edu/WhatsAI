@@ -67,7 +67,7 @@ const adminGroups: AdminGroup[] = [
         items: [
             { href: '/admin/users', label: 'Utilisateurs', icon: Users },
             { href: '/admin/payments', label: 'Paiements', icon: CreditCard },
-            { href: '/admin/payouts', label: 'Reversement', icon: Wallet },
+            { href: '/admin/payouts', label: 'Reversements', icon: Wallet },
         ]
     },
     {
@@ -79,7 +79,13 @@ const adminGroups: AdminGroup[] = [
             { href: '/admin/leads', label: 'Leads', icon: Target },
             { href: '/admin/orders', label: 'Commandes', icon: ShoppingCart },
             { href: '/admin/bookings', label: 'Réservations', icon: Calendar },
+        ]
+    },
+    {
+        label: 'DIFFUSION',
+        items: [
             { href: '/admin/broadcasts', label: 'Broadcasts', icon: Send },
+            { href: '/admin/notifications', label: 'Notifications', icon: Bell },
         ]
     },
     {
@@ -88,15 +94,14 @@ const adminGroups: AdminGroup[] = [
             { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
             { href: '/admin/referrals', label: 'Parrainage', icon: Gift },
             { href: '/admin/features', label: 'Feature Flags', icon: ToggleRight },
-            { href: '/admin/notifications', label: 'Notifications', icon: Bell },
         ]
     },
     {
         label: 'OPÉRATIONS',
         items: [
             { href: '/admin/cron', label: 'Tâches planifiées', icon: Timer },
-            { href: '/admin/quotas', label: 'Quotas & Limites', icon: SlidersHorizontal },
             { href: '/admin/emails', label: 'Emails transactionnels', icon: Mail },
+            { href: '/admin/webhooks', label: 'Webhooks', icon: Webhook },
             { href: '/admin/audit-logs', label: 'Audit Trail', icon: FileText },
             { href: '/admin/logs', label: 'Logs Activité', icon: Clock },
             { href: '/admin/api-monitoring', label: 'API Monitoring', icon: Code2 },
@@ -109,7 +114,7 @@ const adminGroups: AdminGroup[] = [
         items: [
             { href: '/admin/plans', label: 'Plans', icon: Zap },
             { href: '/admin/credit-packs', label: 'Packs de Crédits', icon: Package },
-            { href: '/admin/webhooks', label: 'Webhooks', icon: Webhook },
+            { href: '/admin/quotas', label: 'Quotas & Limites', icon: SlidersHorizontal },
             { href: '/admin/settings', label: 'Paramètres', icon: Settings },
         ]
     },

@@ -2,793 +2,540 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import {
-    BookOpen, Bot, Users, FileText, ArrowLeft, ArrowRight,
-    Plus, Pencil, Trash2, RefreshCw, Search, X, Save,
-    ChevronRight, AlertCircle, Check
+    BookOpen, Plus, Pencil, Trash2, RefreshCw, Search, X, Save,
+    ChevronDown, ChevronUp, Bot, User, FileText, AlertCircle, Check, ArrowLeftRight
 } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface Agent { id: string; name: string; kb_count: number }
-
-interface UserRow {
-    id: string
-    full_name?: string
-    email?: string
-    agents: Agent[]
-}
-
-interface Document {
+interface KBDoc {
     id: string
     source_id: string
     title: string
+    agent_id: string
+    agent_name: string
+    owner_email: string
+    owner_name: string
+    chunks_count: number
     created_at: string
-    kb_count?: number
-    chunks_count?: number
-    image_url?: string
-    image_label?: string
-    extra_image_urls?: { url: string; label?: string }[]
+    image_url?: string | null
 }
 
-interface Segment { id: string; chunk_index: number; content: string; title: string }
+interface AgentOption {
+    id: string
+    name: string
+    owner_email: string
+}
 
-type View = 'users' | 'agents' | 'docs' | 'edit'
-
-// ─── Toast minimal ─────────────────────────────────────────────────────────────
-
-function useToast() {
-    const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
-    const show = useCallback((msg: string, type: 'success' | 'error' = 'success') => {
-        setToast({ msg, type })
-        setTimeout(() => setToast(null), 3000)
-    }, [])
-    return { toast, show }
+interface Segment {
+    id: string
+    chunk_index: number
+    content: string
+    title: string
 }
 
 // ─── Page principale ──────────────────────────────────────────────────────────
 
 export default function AdminKnowledgePage() {
-    const { toast, show } = useToast()
-
-    // Navigation
-    const [view, setView] = useState<View>('users')
-    const [selectedUser, setSelectedUser] = useState<UserRow | null>(null)
-    const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null)
-    const [editDoc, setEditDoc] = useState<Document | null>(null)
-
-    // Data
-    const [users, setUsers] = useState<UserRow[]>([])
-    const [docs, setDocs] = useState<Document[]>([])
-    const [segments, setSegments] = useState<Segment[]>([])
-    const [allAgents, setAllAgents] = useState<{ id: string; name: string; userId: string }[]>([])
-    const [loading, setLoading] = useState(false)
+    const [docs, setDocs] = useState<KBDoc[]>([])
+    const [agents, setAgents] = useState<AgentOption[]>([])
+    const [loading, setLoading] = useState(true)
     const [search, setSearch] = useState('')
+    const [agentFilter, setAgentFilter] = useState('all')
 
-    // Formulaire ajout/édition
-    const [formTitle, setFormTitle] = useState('')
-    const [formContent, setFormContent] = useState('')
-    const [formImageUrl, setFormImageUrl] = useState('')
-    const [formImageLabel, setFormImageLabel] = useState('')
-    const [formSaving, setFormSaving] = useState(false)
+    // Toast
+    const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
+    const showToast = useCallback((msg: string, type: 'success' | 'error' = 'success') => {
+        setToast({ msg, type })
+        setTimeout(() => setToast(null), 3500)
+    }, [])
 
-    // Modal suppression
-    const [deleteTarget, setDeleteTarget] = useState<Document | null>(null)
+    // Formulaire création
+    const [showCreate, setShowCreate] = useState(false)
+    const [createAgentId, setCreateAgentId] = useState('')
+    const [createTitle, setCreateTitle] = useState('')
+    const [createContent, setCreateContent] = useState('')
+    const [creating, setCreating] = useState(false)
 
-    // Modal réaffectation
-    const [reassignTarget, setReassignTarget] = useState<Document | null>(null)
+    // Edition
+    const [editDoc, setEditDoc] = useState<KBDoc | null>(null)
+    const [editTitle, setEditTitle] = useState('')
+    const [editContent, setEditContent] = useState('')
+    const [editSegments, setEditSegments] = useState<Segment[]>([])
+    const [loadingSegments, setLoadingSegments] = useState(false)
+    const [saving, setSaving] = useState(false)
+
+    // Réaffectation
+    const [reassignDoc, setReassignDoc] = useState<KBDoc | null>(null)
     const [reassignAgentId, setReassignAgentId] = useState('')
+    const [reassigning, setReassigning] = useState(false)
 
-    // Modal ajout
-    const [showAddForm, setShowAddForm] = useState(false)
+    // Suppression
+    const [deleteDoc, setDeleteDoc] = useState<KBDoc | null>(null)
+    const [deleting, setDeleting] = useState(false)
 
-    // ─── Chargement initial ───────────────────────────────────────────────────
+    // Contenu développé
+    const [expandedId, setExpandedId] = useState<string | null>(null)
 
-    const loadUsers = useCallback(async () => {
+    // ─── Fetch ────────────────────────────────────────────────────────────────
+
+    const fetchAll = useCallback(async () => {
         setLoading(true)
         try {
-            const r = await fetch('/api/admin/knowledge')
-            const j = await r.json()
-            setUsers(j.data?.users || [])
-        } catch {
-            show('Erreur chargement', 'error')
-        } finally {
-            setLoading(false)
-        }
-    }, [show])
-
-    useEffect(() => { loadUsers() }, [loadUsers])
-
-    // Charger tous les agents (pour réaffectation)
-    useEffect(() => {
-        fetch('/api/admin/knowledge').then(r => r.json()).then(j => {
-            const list: { id: string; name: string; userId: string }[] = []
-            for (const u of j.data?.users || []) {
-                for (const a of u.agents || []) {
-                    list.push({ id: a.id, name: a.name, userId: u.id })
-                }
+            const res = await fetch('/api/admin/knowledge?mode=docs')
+            const data = await res.json()
+            setDocs(data.data?.documents || [])
+            setAgents(data.data?.agents || [])
+            if ((data.data?.agents || []).length > 0 && !createAgentId) {
+                setCreateAgentId(data.data.agents[0].id)
             }
-            setAllAgents(list)
-        }).catch(() => {})
-    }, [])
-
-    // ─── Chargement documents d'un agent ─────────────────────────────────────
-
-    const loadDocs = useCallback(async (agentId: string) => {
-        setLoading(true)
-        try {
-            const r = await fetch(`/api/admin/knowledge/agent/${agentId}`)
-            const j = await r.json()
-            setDocs(j.data?.documents || [])
         } catch {
-            show('Erreur chargement documents', 'error')
+            showToast('Erreur chargement des bases de connaissances', 'error')
         } finally {
             setLoading(false)
         }
-    }, [show])
-
-    // ─── Chargement segments d'un doc ────────────────────────────────────────
-
-    const loadSegments = useCallback(async (sourceId: string) => {
-        try {
-            const r = await fetch(`/api/admin/knowledge/doc/${sourceId}`)
-            const j = await r.json()
-            setSegments(j.data?.segments || [])
-        } catch {
-            setSegments([])
-        }
     }, [])
 
-    // ─── Actions ──────────────────────────────────────────────────────────────
+    useEffect(() => { fetchAll() }, [fetchAll])
 
-    const handleSelectUser = (u: UserRow) => {
-        setSelectedUser(u)
-        setView('agents')
-    }
+    // ─── Création ─────────────────────────────────────────────────────────────
 
-    const handleSelectAgent = (a: Agent) => {
-        setSelectedAgent(a)
-        loadDocs(a.id)
-        setView('docs')
-    }
-
-    const handleEditDoc = async (doc: Document) => {
-        setEditDoc(doc)
-        setFormTitle(doc.title)
-        setFormImageUrl(doc.image_url || '')
-        setFormImageLabel(doc.image_label || '')
-        setFormContent('')
-        await loadSegments(doc.source_id)
-        setView('edit')
-    }
-
-    // Populer le contenu depuis les segments une fois chargés
-    useEffect(() => {
-        if (view === 'edit' && segments.length > 0 && !formContent) {
-            setFormContent(segments.map(s => s.content).join('\n\n---\n\n'))
-        }
-    }, [view, segments, formContent])
-
-    const handleSaveEdit = async () => {
-        if (!editDoc || !formTitle.trim()) return
-        setFormSaving(true)
+    const handleCreate = async () => {
+        if (!createTitle.trim() || !createContent.trim() || !createAgentId) return
+        setCreating(true)
         try {
-            const body: Record<string, unknown> = { title: formTitle }
-            if (formContent.trim()) body.content = formContent
-            if (formImageUrl !== undefined) body.image_url = formImageUrl
-            if (formImageLabel !== undefined) body.image_label = formImageLabel
-
-            const r = await fetch(`/api/admin/knowledge/doc/${editDoc.source_id}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body)
-            })
-            if (!r.ok) throw new Error()
-            show('Document mis à jour')
-            setView('docs')
-            if (selectedAgent) loadDocs(selectedAgent.id)
-        } catch {
-            show('Erreur mise à jour', 'error')
-        } finally {
-            setFormSaving(false)
-        }
-    }
-
-    const handleDeleteDoc = async () => {
-        if (!deleteTarget) return
-        try {
-            const r = await fetch(`/api/admin/knowledge/doc/${deleteTarget.source_id}`, { method: 'DELETE' })
-            if (!r.ok) throw new Error()
-            show('Document supprimé')
-            setDeleteTarget(null)
-            if (selectedAgent) loadDocs(selectedAgent.id)
-        } catch {
-            show('Erreur suppression', 'error')
-        }
-    }
-
-    const handleReassign = async () => {
-        if (!reassignTarget || !reassignAgentId) return
-        try {
-            const r = await fetch(`/api/admin/knowledge/doc/${reassignTarget.source_id}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ target_agent_id: reassignAgentId })
-            })
-            if (!r.ok) throw new Error()
-            show('Document réaffecté')
-            setReassignTarget(null)
-            setReassignAgentId('')
-            if (selectedAgent) loadDocs(selectedAgent.id)
-        } catch {
-            show('Erreur réaffectation', 'error')
-        }
-    }
-
-    const handleAddDoc = async () => {
-        if (!selectedAgent || !formTitle.trim() || !formContent.trim()) return
-        setFormSaving(true)
-        try {
-            const r = await fetch(`/api/admin/knowledge/agent/${selectedAgent.id}`, {
+            const res = await fetch(`/api/admin/knowledge/agent/${createAgentId}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    title: formTitle,
-                    content: formContent,
-                    image_url: formImageUrl || undefined
-                })
+                body: JSON.stringify({ title: createTitle.trim(), content: createContent.trim() }),
             })
-            if (!r.ok) throw new Error()
-            show('Document ajouté')
-            setShowAddForm(false)
-            setFormTitle('')
-            setFormContent('')
-            setFormImageUrl('')
-            loadDocs(selectedAgent.id)
-        } catch {
-            show('Erreur ajout document', 'error')
+            if (!res.ok) throw new Error((await res.json()).error || 'Erreur')
+            showToast('Document créé avec succès')
+            setShowCreate(false)
+            setCreateTitle('')
+            setCreateContent('')
+            fetchAll()
+        } catch (e: any) {
+            showToast(e.message || 'Erreur création', 'error')
         } finally {
-            setFormSaving(false)
+            setCreating(false)
         }
     }
 
-    // ─── Styles communs ───────────────────────────────────────────────────────
+    // ─── Edition ──────────────────────────────────────────────────────────────
 
-    const card = {
-        background: 'rgba(30, 41, 59, 0.6)',
-        border: '1px solid rgba(148, 163, 184, 0.08)',
-        borderRadius: 16,
-        padding: '20px 24px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 16,
-        cursor: 'pointer',
-        transition: 'all 0.2s ease',
-        textDecoration: 'none',
-    } as const
+    const openEdit = async (doc: KBDoc) => {
+        setEditDoc(doc)
+        setEditTitle(doc.title)
+        setEditContent('')
+        setLoadingSegments(true)
+        try {
+            const res = await fetch(`/api/admin/knowledge/doc/${doc.source_id}`)
+            const data = await res.json()
+            const segs: Segment[] = data.data?.segments || []
+            setEditSegments(segs)
+            setEditContent(segs.map(s => s.content).join('\n\n---\n\n'))
+        } catch {
+            showToast('Erreur chargement du contenu', 'error')
+        } finally {
+            setLoadingSegments(false)
+        }
+    }
 
-    const btn = (color = '#10b981') => ({
+    const handleSave = async () => {
+        if (!editDoc || !editTitle.trim()) return
+        setSaving(true)
+        try {
+            const body: Record<string, string> = { title: editTitle.trim() }
+            if (editContent.trim()) body.content = editContent.trim()
+            const res = await fetch(`/api/admin/knowledge/doc/${editDoc.source_id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            })
+            if (!res.ok) throw new Error((await res.json()).error || 'Erreur')
+            showToast('Document mis à jour')
+            setEditDoc(null)
+            fetchAll()
+        } catch (e: any) {
+            showToast(e.message || 'Erreur sauvegarde', 'error')
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    // ─── Réaffectation ────────────────────────────────────────────────────────
+
+    const handleReassign = async () => {
+        if (!reassignDoc || !reassignAgentId || reassignAgentId === reassignDoc.agent_id) return
+        setReassigning(true)
+        try {
+            const res = await fetch(`/api/admin/knowledge/doc/${reassignDoc.source_id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ target_agent_id: reassignAgentId }),
+            })
+            if (!res.ok) throw new Error((await res.json()).error || 'Erreur')
+            showToast('Document réaffecté avec succès')
+            setReassignDoc(null)
+            fetchAll()
+        } catch (e: any) {
+            showToast(e.message || 'Erreur réaffectation', 'error')
+        } finally {
+            setReassigning(false)
+        }
+    }
+
+    // ─── Suppression ──────────────────────────────────────────────────────────
+
+    const handleDelete = async () => {
+        if (!deleteDoc) return
+        setDeleting(true)
+        try {
+            const res = await fetch(`/api/admin/knowledge/doc/${deleteDoc.source_id}`, { method: 'DELETE' })
+            if (!res.ok) throw new Error((await res.json()).error || 'Erreur')
+            showToast('Document supprimé')
+            setDeleteDoc(null)
+            fetchAll()
+        } catch (e: any) {
+            showToast(e.message || 'Erreur suppression', 'error')
+        } finally {
+            setDeleting(false)
+        }
+    }
+
+    // ─── Filtrage ─────────────────────────────────────────────────────────────
+
+    const filtered = docs.filter(doc => {
+        const matchSearch = !search ||
+            doc.title.toLowerCase().includes(search.toLowerCase()) ||
+            doc.agent_name.toLowerCase().includes(search.toLowerCase()) ||
+            doc.owner_email.toLowerCase().includes(search.toLowerCase())
+        const matchAgent = agentFilter === 'all' || doc.agent_id === agentFilter
+        return matchSearch && matchAgent
+    })
+
+    // ─── Styles ───────────────────────────────────────────────────────────────
+
+    const card: React.CSSProperties = {
+        background: 'rgba(15,23,42,0.6)',
+        border: '1px solid rgba(148,163,184,0.1)',
+        borderRadius: 14,
+        padding: 20,
+    }
+
+    const btn = (color = '#60a5fa'): React.CSSProperties => ({
         display: 'inline-flex', alignItems: 'center', gap: 6,
-        padding: '8px 16px', borderRadius: 10, border: 'none',
-        background: color === 'red'
-            ? 'rgba(239, 68, 68, 0.15)'
-            : color === 'blue'
-                ? 'rgba(59, 130, 246, 0.15)'
-                : color === 'gray'
-                    ? 'rgba(148, 163, 184, 0.1)'
-                    : `rgba(16, 185, 129, 0.15)`,
-        color: color === 'red' ? '#f87171'
-            : color === 'blue' ? '#60a5fa'
-                : color === 'gray' ? '#94a3b8'
-                    : '#34d399',
-        fontWeight: 600, fontSize: 13, cursor: 'pointer',
-    } as const)
+        padding: '6px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
+        fontSize: 12, fontWeight: 600, background: `${color}18`, color,
+    })
 
-    // ─── Breadcrumb ───────────────────────────────────────────────────────────
+    const input: React.CSSProperties = {
+        width: '100%', padding: '9px 12px', borderRadius: 8,
+        border: '1px solid rgba(148,163,184,0.15)', background: 'rgba(255,255,255,0.04)',
+        color: '#e2e8f0', fontSize: 13, outline: 'none', boxSizing: 'border-box',
+    }
 
-    const Breadcrumb = () => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 24, fontSize: 13, color: '#64748b', flexWrap: 'wrap' }}>
-            <span
-                style={{ cursor: 'pointer', color: view !== 'users' ? '#34d399' : '#94a3b8' }}
-                onClick={() => { setView('users'); setSelectedUser(null); setSelectedAgent(null) }}
-            >
-                Utilisateurs
-            </span>
-            {selectedUser && (
-                <>
-                    <ChevronRight style={{ width: 12, height: 12 }} />
-                    <span
-                        style={{ cursor: 'pointer', color: view !== 'agents' ? '#34d399' : '#94a3b8' }}
-                        onClick={() => { setView('agents'); setSelectedAgent(null) }}
-                    >
-                        {selectedUser.full_name || selectedUser.email || selectedUser.id.slice(0, 8)}
-                    </span>
-                </>
-            )}
-            {selectedAgent && (
-                <>
-                    <ChevronRight style={{ width: 12, height: 12 }} />
-                    <span
-                        style={{ cursor: 'pointer', color: view !== 'docs' ? '#34d399' : '#94a3b8' }}
-                        onClick={() => { setView('docs'); setEditDoc(null) }}
-                    >
-                        {selectedAgent.name}
-                    </span>
-                </>
-            )}
-            {view === 'edit' && editDoc && (
-                <>
-                    <ChevronRight style={{ width: 12, height: 12 }} />
-                    <span style={{ color: '#94a3b8' }}>Édition</span>
-                </>
-            )}
-        </div>
-    )
-
-    // ─── Filtrage search ──────────────────────────────────────────────────────
-
-    const filteredUsers = users.filter(u =>
-        !search || (u.full_name || u.email || '').toLowerCase().includes(search.toLowerCase())
-    )
-
-    const filteredDocs = docs.filter(d =>
-        !search || d.title.toLowerCase().includes(search.toLowerCase())
-    )
+    const textarea: React.CSSProperties = {
+        ...input, minHeight: 160, resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.6,
+    }
 
     // ─── Render ───────────────────────────────────────────────────────────────
 
     return (
-        <div style={{ padding: 'clamp(16px, 4vw, 32px)', maxWidth: 960, margin: '0 auto' }}>
+        <div style={{ padding: '24px', maxWidth: 1100, margin: '0 auto', fontFamily: 'inherit' }}>
 
             {/* Toast */}
             {toast && (
                 <div style={{
                     position: 'fixed', top: 20, right: 20, zIndex: 9999,
-                    padding: '12px 20px', borderRadius: 12, fontWeight: 600, fontSize: 14,
-                    background: toast.type === 'success' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                    color: toast.type === 'success' ? '#34d399' : '#f87171',
-                    border: `1px solid ${toast.type === 'success' ? 'rgba(52, 211, 153, 0.3)' : 'rgba(248, 113, 113, 0.3)'}`,
-                    display: 'flex', alignItems: 'center', gap: 8
+                    padding: '12px 18px', borderRadius: 10, fontWeight: 600, fontSize: 13,
+                    background: toast.type === 'success' ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
+                    border: `1px solid ${toast.type === 'success' ? 'rgba(34,197,94,0.4)' : 'rgba(239,68,68,0.4)'}`,
+                    color: toast.type === 'success' ? '#4ade80' : '#f87171',
+                    display: 'flex', alignItems: 'center', gap: 8,
                 }}>
-                    {toast.type === 'success' ? <Check style={{ width: 16, height: 16 }} /> : <AlertCircle style={{ width: 16, height: 16 }} />}
+                    {toast.type === 'success' ? <Check size={14} /> : <AlertCircle size={14} />}
                     {toast.msg}
                 </div>
             )}
 
             {/* En-tête */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-                <div style={{
-                    width: 44, height: 44, borderRadius: 14,
-                    background: 'rgba(16, 185, 129, 0.12)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
-                }}>
-                    <BookOpen style={{ width: 22, height: 22, color: '#34d399' }} />
-                </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
                 <div>
-                    <h1 style={{ margin: 0, color: 'white', fontSize: 22, fontWeight: 700 }}>
+                    <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#f1f5f9', display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <BookOpen size={20} style={{ color: '#818cf8' }} />
                         Bases de connaissances
                     </h1>
-                    <p style={{ margin: 0, color: '#64748b', fontSize: 14 }}>
-                        Gérer les KB de tous les agents
+                    <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748b' }}>
+                        {docs.length} document{docs.length !== 1 ? 's' : ''} au total · Créez, modifiez ou réaffectez des documents entre agents.
                     </p>
                 </div>
-                <button onClick={loadUsers} style={{ ...btn('gray'), marginLeft: 'auto' }}>
-                    <RefreshCw style={{ width: 14, height: 14 }} />
-                    Actualiser
-                </button>
+                <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={fetchAll} style={btn('#94a3b8')}>
+                        <RefreshCw size={13} />
+                        Rafraîchir
+                    </button>
+                    <button
+                        onClick={() => setShowCreate(v => !v)}
+                        style={{
+                            ...btn('#818cf8'),
+                            background: 'rgba(129,140,248,0.15)',
+                            border: '1px solid rgba(129,140,248,0.3)',
+                            padding: '8px 16px',
+                            fontSize: 13,
+                        }}
+                    >
+                        <Plus size={14} />
+                        Ajouter un document
+                    </button>
+                </div>
             </div>
 
-            <Breadcrumb />
+            {/* Formulaire création */}
+            {showCreate && (
+                <div style={{ ...card, marginBottom: 20, border: '1px solid rgba(129,140,248,0.25)' }}>
+                    <h3 style={{ margin: '0 0 16px', fontSize: 15, color: '#e2e8f0', display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <FileText size={15} style={{ color: '#818cf8' }} />
+                        Nouveau document
+                    </h3>
+                    <div style={{ display: 'grid', gap: 12 }}>
+                        <div>
+                            <label style={{ display: 'block', fontSize: 11, color: '#64748b', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Agent cible *</label>
+                            <select
+                                value={createAgentId}
+                                onChange={e => setCreateAgentId(e.target.value)}
+                                style={{ ...input }}
+                            >
+                                {agents.map(a => (
+                                    <option key={a.id} value={a.id}>{a.name} — {a.owner_email}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <label style={{ display: 'block', fontSize: 11, color: '#64748b', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Titre *</label>
+                            <input value={createTitle} onChange={e => setCreateTitle(e.target.value)} placeholder="Ex : FAQ livraison, Politique retours…" style={input} />
+                        </div>
+                        <div>
+                            <label style={{ display: 'block', fontSize: 11, color: '#64748b', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Contenu *</label>
+                            <p style={{ margin: '0 0 6px', fontSize: 11, color: '#475569' }}>Séparez les sections avec <code style={{ background: 'rgba(255,255,255,0.06)', padding: '1px 5px', borderRadius: 4 }}>---</code> pour créer plusieurs chunks.</p>
+                            <textarea value={createContent} onChange={e => setCreateContent(e.target.value)} placeholder="Rédigez le contenu de la base de connaissance…" style={textarea} />
+                        </div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                            <button
+                                onClick={handleCreate}
+                                disabled={creating || !createTitle.trim() || !createContent.trim() || !createAgentId}
+                                style={{ ...btn('#4ade80'), padding: '8px 16px', fontSize: 13, opacity: creating || !createTitle.trim() || !createContent.trim() ? 0.5 : 1 }}
+                            >
+                                {creating ? <RefreshCw size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Save size={13} />}
+                                {creating ? 'Création…' : 'Créer'}
+                            </button>
+                            <button onClick={() => setShowCreate(false)} style={btn('#94a3b8')}>
+                                <X size={13} /> Annuler
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
-            {/* Barre de recherche */}
-            {(view === 'users' || view === 'docs') && (
-                <div style={{
-                    display: 'flex', alignItems: 'center', gap: 10,
-                    background: 'rgba(30, 41, 59, 0.5)',
-                    border: '1px solid rgba(148, 163, 184, 0.1)',
-                    borderRadius: 12, padding: '10px 16px', marginBottom: 20
-                }}>
-                    <Search style={{ width: 16, height: 16, color: '#64748b', flexShrink: 0 }} />
+            {/* Barre recherche + filtre */}
+            <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+                <div style={{ flex: 1, minWidth: 200, position: 'relative' }}>
+                    <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#475569' }} />
                     <input
                         value={search}
                         onChange={e => setSearch(e.target.value)}
-                        placeholder={view === 'users' ? 'Chercher un utilisateur...' : 'Chercher un document...'}
-                        style={{
-                            flex: 1, background: 'transparent', border: 'none', outline: 'none',
-                            color: 'white', fontSize: 14
-                        }}
+                        placeholder="Rechercher par titre, agent, propriétaire…"
+                        style={{ ...input, paddingLeft: 30 }}
                     />
-                    {search && (
-                        <X style={{ width: 14, height: 14, color: '#64748b', cursor: 'pointer' }}
-                            onClick={() => setSearch('')} />
-                    )}
                 </div>
-            )}
-
-            {/* ── VUE : UTILISATEURS ── */}
-            {view === 'users' && (
-                <div>
-                    {loading ? (
-                        <Skeleton />
-                    ) : filteredUsers.length === 0 ? (
-                        <Empty icon={<Users style={{ width: 40, height: 40, color: '#334155' }} />}
-                            msg="Aucun utilisateur avec des agents" />
-                    ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                            {filteredUsers.map(u => (
-                                <div key={u.id} style={card}
-                                    onClick={() => handleSelectUser(u)}
-                                    onMouseEnter={e => hoverOn(e)}
-                                    onMouseLeave={e => hoverOff(e)}
-                                >
-                                    <div style={{
-                                        width: 42, height: 42, borderRadius: 12, flexShrink: 0,
-                                        background: 'rgba(59, 130, 246, 0.12)',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center'
-                                    }}>
-                                        <Users style={{ width: 20, height: 20, color: '#60a5fa' }} />
-                                    </div>
-                                    <div style={{ flex: 1, minWidth: 0 }}>
-                                        <div style={{ color: 'white', fontWeight: 600, fontSize: 15 }}>
-                                            {u.full_name || 'Sans nom'}
-                                        </div>
-                                        <div style={{ color: '#64748b', fontSize: 13, marginTop: 2 }}>
-                                            {u.email} — {u.agents.length} agent{u.agents.length !== 1 ? 's' : ''}
-                                        </div>
-                                    </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#34d399', fontSize: 13, fontWeight: 600 }}>
-                                        Voir <ArrowRight style={{ width: 13, height: 13 }} />
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {/* ── VUE : AGENTS D'UN USER ── */}
-            {view === 'agents' && selectedUser && (
-                <div>
-                    <button onClick={() => { setView('users'); setSelectedUser(null) }}
-                        style={{ ...btn('gray'), marginBottom: 16 }}>
-                        <ArrowLeft style={{ width: 14, height: 14 }} /> Retour
-                    </button>
-                    {selectedUser.agents.length === 0 ? (
-                        <Empty icon={<Bot style={{ width: 40, height: 40, color: '#334155' }} />}
-                            msg="Cet utilisateur n'a pas d'agents" />
-                    ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                            {selectedUser.agents.map(a => (
-                                <div key={a.id} style={card}
-                                    onClick={() => handleSelectAgent(a)}
-                                    onMouseEnter={e => hoverOn(e)}
-                                    onMouseLeave={e => hoverOff(e)}
-                                >
-                                    <div style={{
-                                        width: 42, height: 42, borderRadius: 12, flexShrink: 0,
-                                        background: 'rgba(16, 185, 129, 0.12)',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center'
-                                    }}>
-                                        <Bot style={{ width: 20, height: 20, color: '#34d399' }} />
-                                    </div>
-                                    <div style={{ flex: 1, minWidth: 0 }}>
-                                        <div style={{ color: 'white', fontWeight: 600, fontSize: 15 }}>
-                                            {a.name}
-                                        </div>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#64748b', fontSize: 13, marginTop: 2 }}>
-                                            <FileText style={{ width: 12, height: 12 }} />
-                                            {a.kb_count} document{a.kb_count !== 1 ? 's' : ''}
-                                        </div>
-                                    </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#34d399', fontSize: 13, fontWeight: 600 }}>
-                                        Gérer <ArrowRight style={{ width: 13, height: 13 }} />
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {/* ── VUE : DOCUMENTS D'UN AGENT ── */}
-            {view === 'docs' && selectedAgent && (
-                <div>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
-                        <button onClick={() => { setView('agents'); setSelectedAgent(null) }}
-                            style={btn('gray')}>
-                            <ArrowLeft style={{ width: 14, height: 14 }} /> Retour
-                        </button>
-                        <button onClick={() => {
-                            setFormTitle(''); setFormContent(''); setFormImageUrl(''); setFormImageLabel('')
-                            setShowAddForm(true)
-                        }} style={btn()}>
-                            <Plus style={{ width: 14, height: 14 }} /> Ajouter un document
-                        </button>
-                    </div>
-
-                    {/* Formulaire ajout */}
-                    {showAddForm && (
-                        <div style={{
-                            background: 'rgba(16, 185, 129, 0.06)',
-                            border: '1px solid rgba(52, 211, 153, 0.2)',
-                            borderRadius: 16, padding: 20, marginBottom: 16
-                        }}>
-                            <h3 style={{ margin: '0 0 16px', color: 'white', fontSize: 15, fontWeight: 600 }}>
-                                Nouveau document
-                            </h3>
-                            <FormFields
-                                title={formTitle} setTitle={setFormTitle}
-                                content={formContent} setContent={setFormContent}
-                                imageUrl={formImageUrl} setImageUrl={setFormImageUrl}
-                                imageLabel={formImageLabel} setImageLabel={setFormImageLabel}
-                            />
-                            <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                                <button onClick={handleAddDoc} disabled={formSaving} style={btn()}>
-                                    {formSaving ? <RefreshCw style={{ width: 13, height: 13 }} /> : <Save style={{ width: 13, height: 13 }} />}
-                                    {formSaving ? 'Enregistrement...' : 'Enregistrer'}
-                                </button>
-                                <button onClick={() => setShowAddForm(false)} style={btn('gray')}>
-                                    <X style={{ width: 13, height: 13 }} /> Annuler
-                                </button>
-                            </div>
-                        </div>
-                    )}
-
-                    {loading ? <Skeleton /> : filteredDocs.length === 0 ? (
-                        <Empty icon={<FileText style={{ width: 40, height: 40, color: '#334155' }} />}
-                            msg="Aucun document dans cette base de connaissances" />
-                    ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                            {filteredDocs.map(doc => (
-                                <div key={doc.source_id} style={{
-                                    ...card, cursor: 'default', flexWrap: 'wrap' as const
-                                }}>
-                                    <div style={{
-                                        width: 40, height: 40, borderRadius: 10, flexShrink: 0,
-                                        background: 'rgba(148, 163, 184, 0.08)',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center'
-                                    }}>
-                                        <FileText style={{ width: 18, height: 18, color: '#94a3b8' }} />
-                                    </div>
-                                    <div style={{ flex: 1, minWidth: 0 }}>
-                                        <div style={{ color: 'white', fontWeight: 600, fontSize: 14 }}>
-                                            {doc.title}
-                                        </div>
-                                        <div style={{ color: '#64748b', fontSize: 12, marginTop: 2 }}>
-                                            {doc.chunks_count} chunk{doc.chunks_count !== 1 ? 's' : ''}
-                                            {' · '}
-                                            {new Date(doc.created_at).toLocaleDateString('fr-FR')}
-                                        </div>
-                                    </div>
-                                    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                                        <button onClick={() => handleEditDoc(doc)} style={btn('blue')}>
-                                            <Pencil style={{ width: 12, height: 12 }} />
-                                            Éditer
-                                        </button>
-                                        <button onClick={() => {
-                                            setReassignTarget(doc)
-                                            setReassignAgentId('')
-                                        }} style={btn('gray')}>
-                                            <RefreshCw style={{ width: 12, height: 12 }} />
-                                            Affecter
-                                        </button>
-                                        <button onClick={() => setDeleteTarget(doc)} style={btn('red')}>
-                                            <Trash2 style={{ width: 12, height: 12 }} />
-                                            Supprimer
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {/* ── VUE : ÉDITION DOCUMENT ── */}
-            {view === 'edit' && editDoc && (
-                <div>
-                    <button onClick={() => { setView('docs'); setEditDoc(null) }}
-                        style={{ ...btn('gray'), marginBottom: 20 }}>
-                        <ArrowLeft style={{ width: 14, height: 14 }} /> Retour
-                    </button>
-                    <div style={{
-                        background: 'rgba(30, 41, 59, 0.6)',
-                        border: '1px solid rgba(148, 163, 184, 0.08)',
-                        borderRadius: 16, padding: 24
-                    }}>
-                        <h3 style={{ margin: '0 0 20px', color: 'white', fontSize: 16, fontWeight: 700 }}>
-                            Éditer : {editDoc.title}
-                        </h3>
-                        <FormFields
-                            title={formTitle} setTitle={setFormTitle}
-                            content={formContent} setContent={setFormContent}
-                            imageUrl={formImageUrl} setImageUrl={setFormImageUrl}
-                            imageLabel={formImageLabel} setImageLabel={setFormImageLabel}
-                        />
-                        <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-                            <button onClick={handleSaveEdit} disabled={formSaving} style={btn()}>
-                                {formSaving ? <RefreshCw style={{ width: 13, height: 13 }} /> : <Save style={{ width: 13, height: 13 }} />}
-                                {formSaving ? 'Enregistrement...' : 'Enregistrer les modifications'}
-                            </button>
-                            <button onClick={() => { setView('docs'); setEditDoc(null) }} style={btn('gray')}>
-                                <X style={{ width: 13, height: 13 }} /> Annuler
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* ── MODAL SUPPRESSION ── */}
-            {deleteTarget && (
-                <Modal onClose={() => setDeleteTarget(null)}>
-                    <div style={{ textAlign: 'center' }}>
-                        <div style={{
-                            width: 48, height: 48, borderRadius: '50%',
-                            background: 'rgba(239, 68, 68, 0.12)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px'
-                        }}>
-                            <Trash2 style={{ width: 22, height: 22, color: '#f87171' }} />
-                        </div>
-                        <h3 style={{ margin: '0 0 8px', color: 'white', fontSize: 16, fontWeight: 700 }}>
-                            Supprimer ce document ?
-                        </h3>
-                        <p style={{ margin: '0 0 24px', color: '#94a3b8', fontSize: 14 }}>
-                            &quot;{deleteTarget.title}&quot; sera définitivement supprimé avec tous ses chunks.
-                        </p>
-                        <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
-                            <button onClick={handleDeleteDoc} style={{
-                                padding: '10px 20px', borderRadius: 10, border: 'none',
-                                background: '#ef4444', color: 'white', fontWeight: 600, fontSize: 14, cursor: 'pointer'
-                            }}>Supprimer</button>
-                            <button onClick={() => setDeleteTarget(null)} style={btn('gray')}>Annuler</button>
-                        </div>
-                    </div>
-                </Modal>
-            )}
-
-            {/* ── MODAL RÉAFFECTATION ── */}
-            {reassignTarget && (
-                <Modal onClose={() => setReassignTarget(null)}>
-                    <h3 style={{ margin: '0 0 16px', color: 'white', fontSize: 16, fontWeight: 700 }}>
-                        Affecter à un autre agent
-                    </h3>
-                    <p style={{ margin: '0 0 12px', color: '#94a3b8', fontSize: 14 }}>
-                        Document : &quot;{reassignTarget.title}&quot;
-                    </p>
-                    <select
-                        value={reassignAgentId}
-                        onChange={e => setReassignAgentId(e.target.value)}
-                        style={{
-                            width: '100%', padding: '10px 14px', borderRadius: 10,
-                            background: 'rgba(15, 23, 42, 0.8)',
-                            border: '1px solid rgba(148, 163, 184, 0.15)',
-                            color: 'white', fontSize: 14, marginBottom: 16, outline: 'none'
-                        }}
-                    >
-                        <option value="">-- Choisir un agent --</option>
-                        {allAgents
-                            .filter(a => a.id !== selectedAgent?.id)
-                            .map(a => (
-                                <option key={a.id} value={a.id}>{a.name}</option>
-                            ))
-                        }
-                    </select>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                        <button
-                            onClick={handleReassign}
-                            disabled={!reassignAgentId}
-                            style={{
-                                padding: '10px 20px', borderRadius: 10, border: 'none',
-                                background: reassignAgentId ? 'linear-gradient(135deg, #10b981, #059669)' : 'rgba(148,163,184,0.1)',
-                                color: reassignAgentId ? 'white' : '#64748b',
-                                fontWeight: 600, fontSize: 14, cursor: reassignAgentId ? 'pointer' : 'not-allowed'
-                            }}
-                        >
-                            Affecter
-                        </button>
-                        <button onClick={() => setReassignTarget(null)} style={btn('gray')}>Annuler</button>
-                    </div>
-                </Modal>
-            )}
-        </div>
-    )
-}
-
-// ─── Composants utilitaires ───────────────────────────────────────────────────
-
-function FormFields({ title, setTitle, content, setContent, imageUrl, setImageUrl, imageLabel, setImageLabel }: {
-    title: string; setTitle: (v: string) => void
-    content: string; setContent: (v: string) => void
-    imageUrl: string; setImageUrl: (v: string) => void
-    imageLabel: string; setImageLabel: (v: string) => void
-}) {
-    const input = {
-        width: '100%', padding: '10px 14px', borderRadius: 10, boxSizing: 'border-box' as const,
-        background: 'rgba(15, 23, 42, 0.8)',
-        border: '1px solid rgba(148, 163, 184, 0.15)',
-        color: 'white', fontSize: 14, outline: 'none', marginBottom: 10
-    }
-    const label = { display: 'block', color: '#94a3b8', fontSize: 12, fontWeight: 600, marginBottom: 4, textTransform: 'uppercase' as const, letterSpacing: '0.05em' }
-
-    return (
-        <>
-            <label style={label}>Titre</label>
-            <input value={title} onChange={e => setTitle(e.target.value)} style={input} placeholder="Titre du document" />
-
-            <label style={label}>Contenu</label>
-            <textarea
-                value={content}
-                onChange={e => setContent(e.target.value)}
-                rows={10}
-                style={{ ...input, resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.6 }}
-                placeholder="Contenu du document (utilisez --- pour séparer les sections FAQ)"
-            />
-
-            <label style={label}>Image principale (URL)</label>
-            <input value={imageUrl} onChange={e => setImageUrl(e.target.value)} style={input} placeholder="https://..." />
-
-            <label style={label}>Label image</label>
-            <input value={imageLabel} onChange={e => setImageLabel(e.target.value)} style={input} placeholder="Nom affiché dans le bot" />
-        </>
-    )
-}
-
-function Modal({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
-    return (
-        <div style={{
-            position: 'fixed', inset: 0, zIndex: 9998,
-            background: 'rgba(0,0,0,0.7)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: 20
-        }} onClick={onClose}>
-            <div style={{
-                background: '#0f172a',
-                border: '1px solid rgba(148, 163, 184, 0.15)',
-                borderRadius: 20, padding: 28,
-                maxWidth: 440, width: '100%'
-            }} onClick={e => e.stopPropagation()}>
-                {children}
+                <select value={agentFilter} onChange={e => setAgentFilter(e.target.value)} style={{ ...input, width: 'auto', minWidth: 180 }}>
+                    <option value="all">Tous les agents</option>
+                    {agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </select>
             </div>
+
+            {/* Contenu principal */}
+            {loading ? (
+                <div style={{ textAlign: 'center', padding: 60, color: '#475569', fontSize: 13 }}>Chargement…</div>
+            ) : filtered.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: 60, color: '#475569', fontSize: 13 }}>
+                    {docs.length === 0 ? 'Aucun document de connaissance créé.' : 'Aucun résultat pour cette recherche.'}
+                </div>
+            ) : (
+                <div style={{ display: 'grid', gap: 10 }}>
+                    {filtered.map(doc => {
+                        const isExpanded = expandedId === doc.source_id
+                        const isEditing = editDoc?.source_id === doc.source_id
+                        const isReassigning = reassignDoc?.source_id === doc.source_id
+                        const isDeleting = deleteDoc?.source_id === doc.source_id
+
+                        return (
+                            <div key={doc.id} style={{ ...card, padding: 0, overflow: 'hidden' }}>
+                                {/* Ligne principale */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', flexWrap: 'wrap' }}>
+                                    {/* Icône */}
+                                    <div style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(129,140,248,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                        <FileText size={15} style={{ color: '#818cf8' }} />
+                                    </div>
+
+                                    {/* Infos */}
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{ fontSize: 14, fontWeight: 600, color: '#e2e8f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{doc.title}</div>
+                                        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 4, fontSize: 11, color: '#64748b' }}>
+                                            <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                                                <Bot size={10} /> {doc.agent_name}
+                                            </span>
+                                            <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                                                <User size={10} /> {doc.owner_email}
+                                            </span>
+                                            <span>{doc.chunks_count} chunk{doc.chunks_count !== 1 ? 's' : ''}</span>
+                                            <span>{new Date(doc.created_at).toLocaleDateString('fr-FR')}</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Actions */}
+                                    <div style={{ display: 'flex', gap: 6, flexShrink: 0, flexWrap: 'wrap' }}>
+                                        <button
+                                            onClick={() => setExpandedId(isExpanded ? null : doc.source_id)}
+                                            style={btn('#94a3b8')}
+                                            title="Voir le contenu"
+                                        >
+                                            {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                                            Contenu
+                                        </button>
+                                        <button onClick={() => openEdit(doc)} style={btn('#60a5fa')} title="Modifier">
+                                            <Pencil size={13} /> Modifier
+                                        </button>
+                                        <button
+                                            onClick={() => { setReassignDoc(doc); setReassignAgentId(doc.agent_id) }}
+                                            style={btn('#f59e0b')}
+                                            title="Réaffecter à un autre agent"
+                                        >
+                                            <ArrowLeftRight size={13} /> Réaffecter
+                                        </button>
+                                        <button onClick={() => setDeleteDoc(doc)} style={btn('#f87171')} title="Supprimer">
+                                            <Trash2 size={13} /> Supprimer
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Panneau contenu (expand) */}
+                                {isExpanded && (
+                                    <div style={{ borderTop: '1px solid rgba(148,163,184,0.08)', padding: '14px 16px', background: 'rgba(0,0,0,0.2)' }}>
+                                        <div style={{ fontSize: 11, color: '#64748b', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Chunks</div>
+                                        {editSegments.length === 0 ? (
+                                            <button onClick={() => openEdit(doc)} style={{ background: 'none', border: 'none', color: '#818cf8', cursor: 'pointer', fontSize: 12 }}>
+                                                Cliquer sur Modifier pour charger le contenu
+                                            </button>
+                                        ) : (
+                                            <div style={{ display: 'grid', gap: 8 }}>
+                                                {editSegments.map(seg => (
+                                                    <div key={seg.id} style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(148,163,184,0.08)', fontSize: 12, color: '#94a3b8', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                                                        <span style={{ fontSize: 10, color: '#475569', display: 'block', marginBottom: 4 }}>Chunk {seg.chunk_index + 1}</span>
+                                                        {seg.content}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Panneau édition */}
+                                {isEditing && (
+                                    <div style={{ borderTop: '1px solid rgba(129,140,248,0.2)', padding: '16px', background: 'rgba(129,140,248,0.04)' }}>
+                                        <div style={{ fontSize: 13, fontWeight: 600, color: '#818cf8', marginBottom: 12 }}>Modifier le document</div>
+                                        {loadingSegments ? (
+                                            <div style={{ color: '#64748b', fontSize: 12 }}>Chargement du contenu…</div>
+                                        ) : (
+                                            <div style={{ display: 'grid', gap: 12 }}>
+                                                <div>
+                                                    <label style={{ display: 'block', fontSize: 11, color: '#64748b', marginBottom: 5 }}>Titre</label>
+                                                    <input value={editTitle} onChange={e => setEditTitle(e.target.value)} style={input} />
+                                                </div>
+                                                <div>
+                                                    <label style={{ display: 'block', fontSize: 11, color: '#64748b', marginBottom: 5 }}>
+                                                        Contenu — séparez les sections avec <code style={{ background: 'rgba(255,255,255,0.06)', padding: '1px 4px', borderRadius: 3 }}>---</code>
+                                                    </label>
+                                                    <textarea value={editContent} onChange={e => setEditContent(e.target.value)} style={textarea} />
+                                                </div>
+                                                <div style={{ display: 'flex', gap: 8 }}>
+                                                    <button
+                                                        onClick={handleSave}
+                                                        disabled={saving || !editTitle.trim()}
+                                                        style={{ ...btn('#4ade80'), padding: '8px 14px', fontSize: 13, opacity: saving ? 0.5 : 1 }}
+                                                    >
+                                                        {saving ? <RefreshCw size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Save size={13} />}
+                                                        {saving ? 'Sauvegarde…' : 'Sauvegarder'}
+                                                    </button>
+                                                    <button onClick={() => setEditDoc(null)} style={btn('#94a3b8')}>
+                                                        <X size={13} /> Annuler
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Panneau réaffectation */}
+                                {isReassigning && (
+                                    <div style={{ borderTop: '1px solid rgba(245,158,11,0.2)', padding: '16px', background: 'rgba(245,158,11,0.04)' }}>
+                                        <div style={{ fontSize: 13, fontWeight: 600, color: '#f59e0b', marginBottom: 12 }}>Réaffecter à un autre agent</div>
+                                        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                                            <select
+                                                value={reassignAgentId}
+                                                onChange={e => setReassignAgentId(e.target.value)}
+                                                style={{ ...input, width: 'auto', flex: 1, minWidth: 200 }}
+                                            >
+                                                {agents.map(a => (
+                                                    <option key={a.id} value={a.id}>{a.name} — {a.owner_email}</option>
+                                                ))}
+                                            </select>
+                                            <button
+                                                onClick={handleReassign}
+                                                disabled={reassigning || reassignAgentId === doc.agent_id}
+                                                style={{ ...btn('#f59e0b'), padding: '8px 14px', fontSize: 13, opacity: reassigning || reassignAgentId === doc.agent_id ? 0.5 : 1 }}
+                                            >
+                                                {reassigning ? <RefreshCw size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <ArrowLeftRight size={13} />}
+                                                {reassigning ? 'Réaffectation…' : 'Confirmer'}
+                                            </button>
+                                            <button onClick={() => setReassignDoc(null)} style={btn('#94a3b8')}>
+                                                <X size={13} /> Annuler
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Panneau suppression */}
+                                {isDeleting && (
+                                    <div style={{ borderTop: '1px solid rgba(248,113,113,0.2)', padding: '14px 16px', background: 'rgba(248,113,113,0.05)', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                                        <AlertCircle size={14} style={{ color: '#f87171', flexShrink: 0 }} />
+                                        <span style={{ fontSize: 13, color: '#fca5a5', flex: 1 }}>
+                                            Supprimer <strong>"{doc.title}"</strong> ? Cette action est irréversible.
+                                        </span>
+                                        <button
+                                            onClick={handleDelete}
+                                            disabled={deleting}
+                                            style={{ ...btn('#f87171'), padding: '7px 14px', fontSize: 13, opacity: deleting ? 0.5 : 1 }}
+                                        >
+                                            {deleting ? <RefreshCw size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Trash2 size={13} />}
+                                            {deleting ? 'Suppression…' : 'Supprimer définitivement'}
+                                        </button>
+                                        <button onClick={() => setDeleteDoc(null)} style={btn('#94a3b8')}>
+                                            <X size={13} /> Annuler
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )
+                    })}
+                </div>
+            )}
+
+            <style>{`
+                @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+                select option { background: #1e293b; color: #e2e8f0; }
+            `}</style>
         </div>
     )
-}
-
-function Skeleton() {
-    return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {[1, 2, 3].map(i => (
-                <div key={i} style={{
-                    height: 80, borderRadius: 16,
-                    background: 'rgba(30, 41, 59, 0.5)',
-                    border: '1px solid rgba(148, 163, 184, 0.08)',
-                    animation: 'pulse 1.5s ease-in-out infinite'
-                }} />
-            ))}
-        </div>
-    )
-}
-
-function Empty({ icon, msg }: { icon: React.ReactNode; msg: string }) {
-    return (
-        <div style={{
-            textAlign: 'center', padding: '64px 24px',
-            background: 'rgba(30, 41, 59, 0.4)',
-            border: '1px solid rgba(148, 163, 184, 0.08)',
-            borderRadius: 20
-        }}>
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>{icon}</div>
-            <p style={{ color: '#64748b', margin: 0, fontSize: 14 }}>{msg}</p>
-        </div>
-    )
-}
-
-function hoverOn(e: React.MouseEvent<HTMLDivElement>) {
-    const el = e.currentTarget as HTMLElement
-    el.style.borderColor = 'rgba(52, 211, 153, 0.3)'
-    el.style.background = 'rgba(16, 185, 129, 0.06)'
-}
-
-function hoverOff(e: React.MouseEvent<HTMLDivElement>) {
-    const el = e.currentTarget as HTMLElement
-    el.style.borderColor = 'rgba(148, 163, 184, 0.08)'
-    el.style.background = 'rgba(30, 41, 59, 0.6)'
 }
