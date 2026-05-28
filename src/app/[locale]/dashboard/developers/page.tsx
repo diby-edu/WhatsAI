@@ -175,6 +175,15 @@ const PLATFORM_PROVIDERS = [
     { value: 'api_key',   label: 'Code personnalisé (ton code → WazzapAI)',      group: 'advanced' },
 ] as const
 
+const PROVIDER_PLACEHOLDERS: Record<string, string> = {
+    shopify:     'Ex: Boutique Shopify principale',
+    woocommerce: 'Ex: Boutique WooCommerce principale',
+    chariow:     'Ex: Boutique Chariow',
+    maketou:     'Ex: Ma boutique Maketou',
+    generic:     'Ex: Ma plateforme custom',
+    api_key:     'Ex: Ma clé API principale',
+}
+
 const PROVIDER_DESCRIPTIONS: Record<string, string> = {
     shopify:     "Collez l'URL générée dans les paramètres webhook de votre boutique Shopify.",
     woocommerce: "Collez l'URL générée dans WooCommerce → Extensions → Webhooks.",
@@ -2322,17 +2331,6 @@ export default function DevelopersPage() {
 
             {(activeTab === 'webhooks' || activeTab === 'platform_connections') && (
                 <div style={{ display: 'grid', gap: 20 }}>
-                    {activeTab === 'platform_connections' && (
-                        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                            <button
-                                onClick={() => setShowPlatformConnectionForm(v => !v)}
-                                style={primaryButtonStyle}
-                            >
-                                <Plus size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
-                                Nouvelle connexion
-                            </button>
-                        </div>
-                    )}
                     {activeTab === 'webhooks' && (
                         <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary, #9ca3af)', lineHeight: 1.5 }}>
                             WazzapAI appellera votre URL a chaque evenement (message recu, conversation terminee, lead collecte...). Ideal pour connecter un CRM, Google Sheets ou Zapier.
@@ -2428,18 +2426,18 @@ export default function DevelopersPage() {
                     {activeTab === 'platform_connections' && showPlatformConnectionForm && (
                         <div style={sectionStyle}>
                             <h2 style={{ margin: '0 0 16px', fontSize: 16, color: 'var(--text-primary, #fff)' }}>
-                                Creer une connexion plateforme directe
+                                {newPlatformProvider === 'api_key' ? 'Créer une clé API' : 'Créer une connexion plateforme directe'}
                             </h2>
 
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
                                 <div>
                                     <label style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'var(--text-secondary, #9ca3af)' }}>
-                                        Nom de la connexion
+                                        {newPlatformProvider === 'api_key' ? 'Nom de la clé' : 'Nom de la connexion'}
                                     </label>
                                     <input
                                         value={newPlatformConnectionName}
                                         onChange={event => setNewPlatformConnectionName(event.target.value)}
-                                        placeholder="Ex: Boutique Shopify principale"
+                                        placeholder={PROVIDER_PLACEHOLDERS[newPlatformProvider] ?? 'Ex: Ma connexion'}
                                         style={inputStyle}
                                     />
                                 </div>
@@ -2583,7 +2581,7 @@ export default function DevelopersPage() {
                                         opacity: creatingPlatformConnection || !newPlatformConnectionName.trim() || !newPlatformAgentId || activeAgents.length === 0 ? 0.6 : 1,
                                     }}
                                 >
-                                    {creatingPlatformConnection ? 'Creation...' : 'Creer la connexion'}
+                                    {creatingPlatformConnection ? 'Creation...' : newPlatformProvider === 'api_key' ? 'Créer la clé' : 'Créer la connexion'}
                                 </button>
                                 <button
                                     onClick={() => {
