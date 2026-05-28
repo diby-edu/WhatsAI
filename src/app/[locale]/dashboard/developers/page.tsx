@@ -291,7 +291,7 @@ export default function DevelopersPage() {
     const [logsLoading, setLogsLoading] = useState(false)
     const [agentsLoading, setAgentsLoading] = useState(true)
 
-    const [showKeyForm, setShowKeyForm] = useState(false)
+    const [showKeyForm] = useState(false)
     const [creatingKey, setCreatingKey] = useState(false)
     const [newKeyName, setNewKeyName] = useState('')
     const [newKeyEnv, setNewKeyEnv] = useState<'live' | 'test'>('live')
@@ -627,7 +627,6 @@ export default function DevelopersPage() {
             setExpandedKeyId(createdKey.id)
             setRevealedKeyId(createdKey.id)
             resetKeyForm()
-            setShowKeyForm(false)
             setActiveTab('platform_connections')
         } catch (error: any) {
             setPageError(error.message || 'Erreur lors de la creation de la cle')
