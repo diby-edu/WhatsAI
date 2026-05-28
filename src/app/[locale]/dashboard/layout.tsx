@@ -28,7 +28,8 @@ import {
     TrendingUp,
     Code2,
     BookOpen,
-    Gift
+    Gift,
+    Target
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { initWebPush } from '@/lib/notifications/web-push'
@@ -115,6 +116,7 @@ export default function DashboardLayout({
         // ── QUOTIDIEN ───────────────────────────────────────────────
         { separator: true, label: 'Quotidien' },
         { href: '/dashboard/conversations', label: t('conversations'), icon: MessagesSquare },
+        { href: '/dashboard/leads', label: 'Leads', icon: Target },
         { href: '/dashboard/orders', label: t('orders'), icon: ShoppingBag },
         { href: '/dashboard/analytics', label: t('analytics'), icon: TrendingUp },
         { href: '/dashboard/notifications', label: 'Notifications', icon: Bell },

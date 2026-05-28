@@ -3,35 +3,52 @@ import { createApiClient, createAdminClient, getAuthUser, errorResponse, success
 import { notify } from '@/lib/notifications/notification.service'
 import { triggerWebhooks } from '@/lib/webhooks/webhook.service'
 
-// GET /api/leads?agentId=xxx — liste les leads d'un agent
+// GET /api/leads?agentId=xxx — leads d'un agent spécifique
+// GET /api/leads — tous les leads de l'utilisateur (tous agents)
 export async function GET(request: NextRequest) {
     const supabase = await createApiClient()
     const { user, error: authError } = await getAuthUser(supabase)
     if (authError || !user) return errorResponse('Unauthorized', 401)
 
     const agentId = request.nextUrl.searchParams.get('agentId')
-    if (!agentId) return errorResponse('agentId requis', 400)
 
     try {
-        // Vérifier que l'agent appartient à l'utilisateur
-        const { data: agent } = await supabase
-            .from('agents')
-            .select('id')
-            .eq('id', agentId)
-            .eq('user_id', user.id)
-            .single()
+        if (agentId) {
+            // Mode par agent : vérifier que l'agent appartient à l'utilisateur
+            const { data: agent } = await supabase
+                .from('agents')
+                .select('id')
+                .eq('id', agentId)
+                .eq('user_id', user.id)
+                .single()
 
-        if (!agent) return errorResponse('Agent introuvable', 404)
+            if (!agent) return errorResponse('Agent introuvable', 404)
 
+            const { data: leads, error } = await supabase
+                .from('leads')
+                .select('*')
+                .eq('agent_id', agentId)
+                .order('created_at', { ascending: false })
+
+            if (error) throw error
+            return successResponse({ leads: leads || [] })
+        }
+
+        // Mode global : tous les leads de l'utilisateur avec nom d'agent
         const { data: leads, error } = await supabase
             .from('leads')
-            .select('*')
-            .eq('agent_id', agentId)
+            .select('*, agents(id, name)')
+            .eq('user_id', user.id)
             .order('created_at', { ascending: false })
 
         if (error) throw error
 
-        return successResponse({ leads: leads || [] })
+        const enriched = (leads || []).map((l: any) => ({
+            ...l,
+            agent_name: l.agents?.name || '—',
+        }))
+
+        return successResponse({ leads: enriched })
     } catch (err) {
         console.error('Error fetching leads:', err)
         return errorResponse('Erreur serveur', 500)
