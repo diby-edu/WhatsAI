@@ -1233,16 +1233,16 @@ export default function DevelopersPage() {
                         API publique
                     </h1>
                     <p style={{ margin: '6px 0 0', fontSize: 14, color: 'var(--text-secondary, #9ca3af)', maxWidth: 760 }}>
-                        Onglet API : connectez vos plateformes ou votre code pour envoyer des evenements vers WazzapAI. Onglet Webhooks : recevez les evenements WazzapAI sur votre propre URL. Onglet Logs : suivez chaque appel. Onglet Tests : exemples prets a copier.
+                        Onglet API : connectez vos plateformes ou votre code pour envoyer des événements vers WazzapAI. Onglet Webhooks : recevez les événements WazzapAI sur votre propre URL. Onglet Logs : suivez chaque appel. Onglet Tests : exemples prêts à copier.
                     </p>
                 </div>
                 {activeTab === 'platform_connections' && (
                     <button
                         onClick={() => setShowPlatformConnectionForm(v => !v)}
-                        style={primaryButtonStyle}
+                        className="btn-create-key"
                     >
-                        <Plus size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
-                        Nouvelle connexion
+                        <span className="plus-icon">+</span>
+                        Créer une clé
                     </button>
                 )}
             </div>
@@ -1680,12 +1680,12 @@ export default function DevelopersPage() {
                 <div style={{ display: 'grid', gap: 20 }}>
                     {activeTab === 'platform_connections' && (
                         <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary, #9ca3af)', lineHeight: 1.5 }}>
-                            <strong style={{ color: 'var(--text-primary, #fff)' }}>Entrees vers WazzapAI.</strong> Connectez une plateforme (Shopify, WooCommerce, Chariow…) ou generez une cle API pour que votre propre code puisse envoyer des evenements a WazzapAI — commande passee, paiement recu, livraison effectuee, etc. WazzapAI repond ensuite automatiquement au client sur WhatsApp.
+                            <strong style={{ color: 'var(--text-primary, #fff)' }}>Entrées vers WazzapAI.</strong> Connectez une plateforme (Shopify, WooCommerce, Chariow…) ou générez une clé API pour que votre propre code puisse envoyer des événements à WazzapAI — commande passée, paiement reçu, livraison effectuée, etc. WazzapAI répond ensuite automatiquement au client sur WhatsApp.
                         </p>
                     )}
                     {activeTab === 'webhooks' && (
                         <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary, #9ca3af)', lineHeight: 1.5 }}>
-                            <strong style={{ color: 'var(--text-primary, #fff)' }}>Sorties depuis WazzapAI.</strong> Chaque fois qu un evenement se produit dans WazzapAI (message recu, lead collecte, conversation terminee…), WazzapAI envoie automatiquement les donnees vers l URL de votre choix — Google Sheets, Airtable, votre CRM, Make, Zapier ou tout autre outil capable de recevoir un POST JSON.
+                            <strong style={{ color: 'var(--text-primary, #fff)' }}>Sorties depuis WazzapAI.</strong> Chaque fois qu'un événement se produit dans WazzapAI (message reçu, lead collecté, conversation terminée…), WazzapAI envoie automatiquement les données vers l'URL de votre choix — Google Sheets, Airtable, votre CRM, Make, Zapier ou tout autre outil capable de recevoir un POST JSON.
                         </p>
                     )}
                     {activeTab === 'webhooks' && showWebhookForm && (
@@ -2615,7 +2615,7 @@ export default function DevelopersPage() {
                             <div>1. Une cle sans scope agent peut appeler tous tes agents autorises sur le compte.</div>
                             <div>2. Une cle avec scope agent limite strictement les endpoints publics a ces agents la.</div>
                             <div>3. Utilise toujours un <code style={{ background: 'rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: 4 }}>idempotency_key</code> pour les evenements retry-cotes plateforme.</div>
-                            <div>4. Les webhooks servent pour la sortie d evenements WazzapAI vers ta plateforme; les connexions API (cles sk_live_*) servent pour les appels entrants de ta plateforme vers WazzapAI.</div>
+                            <div>4. Les webhooks servent pour la sortie d'événements WazzapAI vers ta plateforme ; les connexions API (clés sk_live_*) servent pour les appels entrants de ta plateforme vers WazzapAI.</div>
                             <div>5. En mode direct <code style={{ background: 'rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: 4 }}>/incoming/{'{'}webhook_token{'}'}</code>, protege toujours le flux avec la signature HMAC de la plateforme.</div>
                         </div>
                     </div>
@@ -2777,6 +2777,38 @@ export default function DevelopersPage() {
                 @keyframes spin {
                     from { transform: rotate(0deg); }
                     to { transform: rotate(360deg); }
+                }
+                @keyframes pulse-glow {
+                    0%, 100% { box-shadow: 0 0 0 0 rgba(37,211,102,0.5), 0 4px 14px rgba(37,211,102,0.3); }
+                    50%       { box-shadow: 0 0 0 10px rgba(37,211,102,0), 0 4px 14px rgba(37,211,102,0.3); }
+                }
+                .btn-create-key {
+                    background: linear-gradient(135deg, #25d366, #1aab55);
+                    color: #fff;
+                    border: 1.5px solid rgba(37,211,102,0.6);
+                    border-radius: 10px;
+                    padding: 11px 22px;
+                    font-size: 14px;
+                    font-weight: 700;
+                    cursor: pointer;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 7px;
+                    animation: pulse-glow 2s ease-in-out infinite;
+                    transition: box-shadow 0.2s;
+                    font-family: inherit;
+                }
+                .btn-create-key:hover {
+                    box-shadow: 0 0 0 4px rgba(37,211,102,0.2), 0 6px 20px rgba(37,211,102,0.5);
+                }
+                .btn-create-key .plus-icon {
+                    display: inline-block;
+                    font-size: 18px;
+                    line-height: 1;
+                    transition: transform 0.25s ease;
+                }
+                .btn-create-key:hover .plus-icon {
+                    transform: rotate(90deg);
                 }
             `}</style>
         </div>
