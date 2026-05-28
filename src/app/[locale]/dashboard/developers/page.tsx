@@ -291,7 +291,6 @@ export default function DevelopersPage() {
     const [logsLoading, setLogsLoading] = useState(false)
     const [agentsLoading, setAgentsLoading] = useState(true)
 
-    const [showKeyForm] = useState(false)
     const [creatingKey, setCreatingKey] = useState(false)
     const [newKeyName, setNewKeyName] = useState('')
     const [newKeyEnv, setNewKeyEnv] = useState<'live' | 'test'>('live')
@@ -597,42 +596,6 @@ export default function DevelopersPage() {
         setNewKeyLimit(60)
         setNewKeyScopeMode('all')
         setNewKeyAllowedAgentIds([])
-    }
-
-    const createKey = async () => {
-        if (!newKeyName.trim()) return
-
-        setCreatingKey(true)
-        setPageError(null)
-
-        try {
-            const res = await fetch('/api/developer/keys', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    name: newKeyName.trim(),
-                    environment: newKeyEnv,
-                    rate_limit_per_minute: newKeyLimit,
-                    allowed_agent_ids: newKeyAllowedAgentIds.length > 0 ? newKeyAllowedAgentIds : null,
-                }),
-            })
-
-            const result = await res.json()
-            if (!res.ok) {
-                throw new Error(result.error || 'Erreur lors de la creation de la cle')
-            }
-
-            const createdKey: ApiKey = result.data
-            setKeys(prev => [createdKey, ...prev])
-            setExpandedKeyId(createdKey.id)
-            setRevealedKeyId(createdKey.id)
-            resetKeyForm()
-            setActiveTab('platform_connections')
-        } catch (error: any) {
-            setPageError(error.message || 'Erreur lors de la creation de la cle')
-        } finally {
-            setCreatingKey(false)
-        }
     }
 
     const toggleKey = async (key: ApiKey) => {
@@ -1128,7 +1091,7 @@ export default function DevelopersPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     name: newPlatformConnectionName.trim(),
-                    provider: newPlatformProvider as PlatformProvider,
+                    provider: newPlatformProvider,
                     agent_id: newPlatformAgentId,
                     rate_limit_per_minute: newPlatformRateLimit,
                     allowed_events: null,
@@ -1262,7 +1225,15 @@ export default function DevelopersPage() {
                         Connectez vos plateformes ou générez une clé API pour intégrer WazzapAI depuis votre code. Gérez aussi vos webhooks sortants, consultez les logs et testez via les onglets dédiés.
                     </p>
                 </div>
-
+                {activeTab === 'platform_connections' && (
+                    <button
+                        onClick={() => setShowPlatformConnectionForm(v => !v)}
+                        style={primaryButtonStyle}
+                    >
+                        <Plus size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+                        Nouvelle connexion
+                    </button>
+                )}
             </div>
 
             {pageError && (
@@ -2628,7 +2599,7 @@ export default function DevelopersPage() {
                     )}
 
                     {activeTab === 'platform_connections' && (
-                    <div style={{ ...sectionStyle, order: 1 } as React.CSSProperties}>
+                    <div style={{ ...sectionStyle, order: 1 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
                             <h2 style={{ margin: 0, fontSize: 16, color: 'var(--text-primary, #fff)', display: 'flex', alignItems: 'center', gap: 8 }}>
                                 <Globe size={16} />
