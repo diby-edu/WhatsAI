@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
 
     let query = admin
         .from('api_usage_logs')
-        .select('id, api_key_id, agent_id, endpoint, method, status_code, response_ms, ip_address, created_at')
+        .select('id, api_key_id, agent_id, endpoint, method, status_code, response_ms, ip_address, request_body, created_at')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .range(offset, offset + limit - 1)
