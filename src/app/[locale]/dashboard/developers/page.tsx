@@ -1260,7 +1260,7 @@ export default function DevelopersPage() {
                         API publique
                     </h1>
                     <p style={{ margin: '6px 0 0', fontSize: 14, color: 'var(--text-secondary, #9ca3af)', maxWidth: 760 }}>
-                        Gere tes cles API, tes connexions plateforme entrantes, tes webhooks sortants, puis valide le tout via les onglets Documentation et Tests sans changer le comportement prod des endpoints publics.
+                        Connectez vos plateformes ou générez une clé API pour intégrer WazzapAI depuis votre code. Gérez aussi vos webhooks sortants, consultez les logs et testez via les onglets dédiés.
                     </p>
                 </div>
 
@@ -1332,8 +1332,10 @@ export default function DevelopersPage() {
                 })}
             </div>
 
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
             {activeTab === 'platform_connections' && (
-                <div style={{ display: 'grid', gap: 20 }}>
+                <div style={{ display: 'grid', gap: 20, order: 2 }}>
                     <div style={sectionStyle}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
                             <h2 style={{ margin: 0, fontSize: 16, color: 'var(--text-primary, #fff)', display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -2351,9 +2353,15 @@ export default function DevelopersPage() {
             {(activeTab === 'webhooks' || activeTab === 'platform_connections') && (
                 <div style={{ display: 'grid', gap: 20 }}>
                     {activeTab === 'platform_connections' && (
-                        <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary, #9ca3af)', lineHeight: 1.5 }}>
-                            Connectez vos plateformes (Shopify, WooCommerce, Chariow…) via webhook, ou générez une clé API pour intégrer WazzapAI depuis votre propre code.
-                        </p>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                            <button
+                                onClick={() => setShowPlatformConnectionForm(v => !v)}
+                                style={primaryButtonStyle}
+                            >
+                                <Plus size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+                                Nouvelle connexion
+                            </button>
+                        </div>
                     )}
                     {activeTab === 'webhooks' && (
                         <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary, #9ca3af)', lineHeight: 1.5 }}>
@@ -2621,25 +2629,16 @@ export default function DevelopersPage() {
                     )}
 
                     {activeTab === 'platform_connections' && (
-                    <div style={sectionStyle}>
+                    <div style={{ ...sectionStyle, order: 1 } as React.CSSProperties}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
                             <h2 style={{ margin: 0, fontSize: 16, color: 'var(--text-primary, #fff)', display: 'flex', alignItems: 'center', gap: 8 }}>
                                 <Globe size={16} />
                                 Connexions plateforme directes ({platformConnections.length})
                             </h2>
-                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                                <button
-                                    onClick={() => setShowPlatformConnectionForm(value => !value)}
-                                    style={primaryButtonStyle}
-                                >
-                                    <Plus size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
-                                    Nouvelle connexion plateforme
-                                </button>
-                                <button onClick={() => void fetchPlatformConnections()} style={secondaryButtonStyle}>
-                                    <RefreshCw size={13} style={{ marginRight: 6, verticalAlign: 'middle' }} />
-                                    Rafraichir
-                                </button>
-                            </div>
+                            <button onClick={() => void fetchPlatformConnections()} style={secondaryButtonStyle}>
+                                <RefreshCw size={13} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+                                Rafraichir
+                            </button>
                         </div>
 
                         {platformConnectionsLoading ? (
@@ -3407,6 +3406,8 @@ export default function DevelopersPage() {
                     </div>
                 </div>
             )}
+
+            </div>{/* end flex sections wrapper */}
 
             <style>{`
                 @keyframes spin {
