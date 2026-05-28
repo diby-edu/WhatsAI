@@ -22,7 +22,7 @@ import {
 } from 'lucide-react'
 import { useToast } from '@/components/ui/Toast'
 
-type TabId = 'catalog_sync' | 'synced_products' | 'platform_connections' | 'webhooks' | 'logs' | 'documentation' | 'tests'
+type TabId = 'platform_connections' | 'webhooks' | 'logs' | 'documentation' | 'tests'
 type ScopeMode = 'all' | 'selected'
 
 interface AgentSummary {
@@ -57,6 +57,7 @@ interface UsageLog {
     status_code: number
     response_ms: number
     ip_address: string | null
+    request_body: Record<string, unknown> | null
     created_at: string
 }
 
@@ -298,6 +299,7 @@ export default function DevelopersPage() {
     const [platformSyncConnectionsLoading, setPlatformSyncConnectionsLoading] = useState(true)
     const [platformConnectionsLoading, setPlatformConnectionsLoading] = useState(true)
     const [logsLoading, setLogsLoading] = useState(false)
+    const [expandedLogIds, setExpandedLogIds] = useState<Set<string>>(new Set())
     const [agentsLoading, setAgentsLoading] = useState(true)
 
     const [creatingKey, setCreatingKey] = useState(false)
@@ -886,7 +888,7 @@ export default function DevelopersPage() {
             setPlatformSyncConnections(prev => [result.data, ...prev])
             resetPlatformSyncForm()
             setShowPlatformSyncForm(false)
-            setActiveTab('catalog_sync')
+            setActiveTab('platform_connections')
         } catch (error: any) {
             setPageError(error.message || 'Impossible de creer la connexion de sync')
         } finally {
@@ -1231,7 +1233,7 @@ export default function DevelopersPage() {
                         API publique
                     </h1>
                     <p style={{ margin: '6px 0 0', fontSize: 14, color: 'var(--text-secondary, #9ca3af)', maxWidth: 760 }}>
-                        Connectez vos plateformes ou générez une clé API pour intégrer WazzapAI depuis votre code. Gérez aussi vos webhooks sortants, consultez les logs et testez via les onglets dédiés.
+                        Onglet API : connectez vos plateformes ou votre code pour envoyer des evenements vers WazzapAI. Onglet Webhooks : recevez les evenements WazzapAI sur votre propre URL. Onglet Logs : suivez chaque appel. Onglet Tests : exemples prets a copier.
                     </p>
                 </div>
                 {activeTab === 'platform_connections' && (
@@ -1674,666 +1676,16 @@ export default function DevelopersPage() {
                 </div>
             )}
 
-            {activeTab === 'catalog_sync' && (
-                <div style={{ display: 'grid', gap: 20 }}>
-                    <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary, #9ca3af)', lineHeight: 1.5 }}>
-                        Envoyez votre catalogue produit externe vers WazzapAI pour que votre agent connaisse vos produits en temps reel (prix, stocks, descriptions).
-                    </p>
-                    {showPlatformSyncForm && (
-                        <div style={sectionStyle}>
-                            <h2 style={{ margin: '0 0 16px', fontSize: 16, color: 'var(--text-primary, #fff)' }}>
-                                Creer une connexion de sync catalogue
-                            </h2>
-
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
-                                <div>
-                                    <label style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'var(--text-secondary, #9ca3af)' }}>
-                                        Nom de la connexion
-                                    </label>
-                                    <input
-                                        value={newPlatformSyncName}
-                                        onChange={event => setNewPlatformSyncName(event.target.value)}
-                                        placeholder="Ex: Woo principal - sync catalogue"
-                                        style={inputStyle}
-                                    />
-                                </div>
-
-                                <div>
-                                    <label style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'var(--text-secondary, #9ca3af)' }}>
-                                        Plateforme
-                                    </label>
-                                    <select
-                                        value={newPlatformSyncProvider}
-                                        onChange={event => setNewPlatformSyncProvider(event.target.value as 'woocommerce' | 'shopify' | 'chariow')}
-                                        style={inputStyle}
-                                    >
-                                        {PLATFORM_SYNC_PROVIDERS.map(provider => (
-                                            <option key={provider.value} value={provider.value}>
-                                                {provider.label}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'var(--text-secondary, #9ca3af)' }}>
-                                        Agent cible
-                                    </label>
-                                    <select
-                                        value={newPlatformSyncAgentId}
-                                        onChange={event => setNewPlatformSyncAgentId(event.target.value)}
-                                        style={inputStyle}
-                                    >
-                                        {activeAgents.map(agent => (
-                                            <option key={agent.id} value={agent.id}>
-                                                {agent.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'var(--text-secondary, #9ca3af)' }}>
-                                        Auto-sync catalogue
-                                    </label>
-                                    <select
-                                        value={newPlatformSyncAutoSyncEnabled ? 'on' : 'off'}
-                                        onChange={event => setNewPlatformSyncAutoSyncEnabled(event.target.value === 'on')}
-                                        style={inputStyle}
-                                    >
-                                        <option value="off">Desactive</option>
-                                        <option value="on">Active</option>
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'var(--text-secondary, #9ca3af)' }}>
-                                        Intervalle auto-sync
-                                    </label>
-                                    <select
-                                        value={String(newPlatformSyncIntervalMinutes)}
-                                        onChange={event => setNewPlatformSyncIntervalMinutes(Number(event.target.value))}
-                                        style={inputStyle}
-                                    >
-                                        {PLATFORM_SYNC_INTERVAL_OPTIONS.map(minutes => (
-                                            <option key={minutes} value={String(minutes)}>
-                                                {minutes >= 60 ? `${minutes / 60}h` : `${minutes} min`}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                {newPlatformSyncProvider === 'woocommerce' ? (
-                                    <>
-                                        <div>
-                                            <label style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'var(--text-secondary, #9ca3af)' }}>
-                                                URL boutique Woo
-                                            </label>
-                                            <input
-                                                value={newWooStoreUrl}
-                                                onChange={event => setNewWooStoreUrl(event.target.value)}
-                                                placeholder="https://votre-boutique.com"
-                                                style={inputStyle}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'var(--text-secondary, #9ca3af)' }}>
-                                                Consumer key
-                                            </label>
-                                            <input
-                                                value={newWooConsumerKey}
-                                                onChange={event => setNewWooConsumerKey(event.target.value)}
-                                                placeholder="ck_xxxxxxxxxxxxxxxxx"
-                                                style={inputStyle}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'var(--text-secondary, #9ca3af)' }}>
-                                                Consumer secret
-                                            </label>
-                                            <input
-                                                value={newWooConsumerSecret}
-                                                onChange={event => setNewWooConsumerSecret(event.target.value)}
-                                                placeholder="cs_xxxxxxxxxxxxxxxxx"
-                                                style={inputStyle}
-                                            />
-                                        </div>
-                                    </>
-                                ) : newPlatformSyncProvider === 'chariow' ? (
-                                    <div>
-                                        <label style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'var(--text-secondary, #9ca3af)' }}>
-                                            Cle API Chariow
-                                        </label>
-                                        <input
-                                            value={newChariowApiKey}
-                                            onChange={event => setNewChariowApiKey(event.target.value)}
-                                            placeholder="chariow_api_xxxxxxxxxxxxxxxxx"
-                                            type="password"
-                                            style={inputStyle}
-                                        />
-                                    </div>
-                                ) : (
-                                    <>
-                                        <div>
-                                            <label style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'var(--text-secondary, #9ca3af)' }}>
-                                                Domaine Shopify
-                                            </label>
-                                            <input
-                                                value={newShopifyDomain}
-                                                onChange={event => setNewShopifyDomain(event.target.value)}
-                                                placeholder="votre-boutique.myshopify.com"
-                                                style={inputStyle}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'var(--text-secondary, #9ca3af)' }}>
-                                                Admin API token
-                                            </label>
-                                            <input
-                                                value={newShopifyToken}
-                                                onChange={event => setNewShopifyToken(event.target.value)}
-                                                placeholder="shpat_xxxxxxxxxxxxxxxxx"
-                                                style={inputStyle}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'var(--text-secondary, #9ca3af)' }}>
-                                                API version
-                                            </label>
-                                            <input
-                                                value={newShopifyApiVersion}
-                                                onChange={event => setNewShopifyApiVersion(event.target.value)}
-                                                placeholder="2024-10"
-                                                style={inputStyle}
-                                            />
-                                        </div>
-                                    </>
-                                )}
-                            </div>
-
-                            {agentsLoading ? (
-                                <div style={{ marginTop: 12, color: 'var(--text-secondary, #9ca3af)', fontSize: 13 }}>
-                                    Chargement des agents...
-                                </div>
-                            ) : activeAgents.length === 0 ? (
-                                <div style={{ marginTop: 12, color: '#f59e0b', fontSize: 13 }}>
-                                    Aucun agent externe disponible. Creez un agent avec ecommerce_mode = external_sync.
-                                </div>
-                            ) : null}
-
-                            <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
-                                <button
-                                    onClick={createPlatformSyncConnection}
-                                    disabled={creatingPlatformSync || !canCreatePlatformSync || activeAgents.length === 0}
-                                    style={{
-                                        ...primaryButtonStyle,
-                                        opacity: creatingPlatformSync || !canCreatePlatformSync || activeAgents.length === 0 ? 0.6 : 1,
-                                    }}
-                                >
-                                    {creatingPlatformSync ? 'Creation...' : 'Creer la connexion sync'}
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        resetPlatformSyncForm()
-                                        setShowPlatformSyncForm(false)
-                                    }}
-                                    style={secondaryButtonStyle}
-                                >
-                                    Annuler
-                                </button>
-                            </div>
-                        </div>
-                    )}
-
-                    <div style={sectionStyle}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
-                            <h2 style={{ margin: 0, fontSize: 16, color: 'var(--text-primary, #fff)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <RefreshCw size={16} />
-                                Sync catalogue ({platformSyncConnections.length})
-                            </h2>
-                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                                <button
-                                    onClick={() => setShowPlatformSyncForm(value => !value)}
-                                    style={primaryButtonStyle}
-                                >
-                                    <Plus size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
-                                    Nouvelle connexion sync
-                                </button>
-                                <button onClick={() => void fetchPlatformSyncConnections()} style={secondaryButtonStyle}>
-                                    <RefreshCw size={13} style={{ marginRight: 6, verticalAlign: 'middle' }} />
-                                    Rafraichir
-                                </button>
-                            </div>
-                        </div>
-
-                        {platformSyncConnectionsLoading ? (
-                            <div style={{ color: 'var(--text-secondary, #9ca3af)', textAlign: 'center', padding: 30 }}>Chargement...</div>
-                        ) : platformSyncConnections.length === 0 ? (
-                            <div style={{ color: 'var(--text-secondary, #9ca3af)', textAlign: 'center', padding: 30 }}>
-                                Aucune connexion de sync catalogue configuree.
-                            </div>
-                        ) : (
-                            <div style={{ display: 'grid', gap: 12 }}>
-                                {platformSyncConnections.map(connection => (
-                                    <div
-                                        key={connection.id}
-                                        style={{
-                                            borderRadius: 14,
-                                            border: '1px solid var(--border, #2a2a3e)',
-                                            background: 'rgba(255,255,255,0.02)',
-                                            padding: 16,
-                                            opacity: connection.is_active ? 1 : 0.72,
-                                        }}
-                                    >
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                                            <div style={{ display: 'grid', gap: 6 }}>
-                                                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                                                    <span style={{ fontSize: 15, color: 'var(--text-primary, #fff)', fontWeight: 600 }}>
-                                                        {connection.name}
-                                                    </span>
-                                                    <span style={{
-                                                        padding: '4px 8px',
-                                                        borderRadius: 999,
-                                                        background: 'rgba(37, 211, 102, 0.15)',
-                                                        color: '#25d366',
-                                                        fontSize: 11,
-                                                        textTransform: 'uppercase',
-                                                        fontWeight: 700,
-                                                    }}>
-                                                        {connection.provider}
-                                                    </span>
-                                                    <span style={{
-                                                        padding: '4px 8px',
-                                                        borderRadius: 999,
-                                                        background: 'rgba(59,130,246,0.12)',
-                                                        color: '#93c5fd',
-                                                        fontSize: 11,
-                                                    }}>
-                                                        {agentNameById.get(connection.agent_id) || connection.agent_id}
-                                                    </span>
-                                                </div>
-
-                                                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', fontSize: 12, color: 'var(--text-secondary, #9ca3af)' }}>
-                                                    <span>Creee le {formatDate(connection.created_at)}</span>
-                                                    <span>Dernier test: {connection.last_tested_at ? formatTime(connection.last_tested_at) : 'jamais'}</span>
-                                                    {connection.last_test_status_code != null && (
-                                                        <span style={{ color: statusColor(connection.last_test_status_code) }}>
-                                                            Test HTTP {connection.last_test_status_code}
-                                                        </span>
-                                                    )}
-                                                    <span>Derniere sync: {connection.last_synced_at ? formatTime(connection.last_synced_at) : 'jamais'}</span>
-                                                    <span>Auto-sync: {connection.auto_sync_enabled ? 'actif' : 'off'}</span>
-                                                    <span>Intervalle: {connection.sync_interval_minutes || 15} min</span>
-                                                    {connection.next_retry_at && (
-                                                        <span style={{ color: '#f59e0b' }}>
-                                                            Prochain retry: {formatTime(connection.next_retry_at)}
-                                                        </span>
-                                                    )}
-                                                    <span>Retry count: {connection.retry_count || 0}</span>
-                                                    <span style={{
-                                                        color: connection.last_sync_status === 'success'
-                                                            ? '#22c55e'
-                                                            : connection.last_sync_status === 'failed'
-                                                                ? '#ef4444'
-                                                                : 'var(--text-secondary, #9ca3af)'
-                                                    }}>
-                                                        Etat sync: {connection.last_sync_status}
-                                                    </span>
-                                                    <span>Elements sync: {connection.last_sync_count || 0}</span>
-                                                    {connection.last_sync_started_at && (
-                                                        <span>Debut run: {formatTime(connection.last_sync_started_at)}</span>
-                                                    )}
-                                                    {connection.last_sync_finished_at && (
-                                                        <span>Fin run: {formatTime(connection.last_sync_finished_at)}</span>
-                                                    )}
-                                                </div>
-
-                                                <div style={{ fontSize: 12, color: 'var(--text-secondary, #9ca3af)' }}>
-                                                    {connection.provider === 'woocommerce'
-                                                        ? `Boutique: ${String(connection.credentials_hint?.store_url_origin || 'non renseignee')}`
-                                                        : connection.provider === 'chariow'
-                                                        ? `Cle API: ${String(connection.credentials_hint?.api_key_preview || '...')}`
-                                                        : `Shop: ${String(connection.credentials_hint?.shop_domain || 'non renseigne')} (API ${String(connection.credentials_hint?.api_version || '2024-10')})`}
-                                                </div>
-
-                                                {connection.last_test_error && (
-                                                    <div style={{ color: '#fca5a5', fontSize: 12 }}>
-                                                        Erreur test: {connection.last_test_error}
-                                                    </div>
-                                                )}
-
-                                                {connection.last_sync_error && (
-                                                    <div style={{ color: '#fca5a5', fontSize: 12 }}>
-                                                        Erreur sync: {connection.last_sync_error}
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                                                <select
-                                                    value={String(connection.sync_interval_minutes || 15)}
-                                                    onChange={event => void changePlatformSyncInterval(connection, Number(event.target.value))}
-                                                    disabled={savingPlatformSyncConfigId === connection.id || !connection.auto_sync_enabled}
-                                                    style={{ ...inputStyle, minWidth: 120, width: 'auto', opacity: connection.auto_sync_enabled ? 1 : 0.6 }}
-                                                >
-                                                    {PLATFORM_SYNC_INTERVAL_OPTIONS.map(minutes => (
-                                                        <option key={minutes} value={String(minutes)}>
-                                                            {minutes >= 60 ? `${minutes / 60}h` : `${minutes} min`}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                                <button
-                                                    onClick={() => void testPlatformSyncConnection(connection.id)}
-                                                    disabled={testingPlatformSyncId === connection.id}
-                                                    style={secondaryButtonStyle}
-                                                >
-                                                    {testingPlatformSyncId === connection.id ? 'Test...' : 'Tester connexion'}
-                                                </button>
-                                                <button
-                                                    onClick={() => void syncNowPlatformSyncConnection(connection.id)}
-                                                    disabled={syncingPlatformSyncId === connection.id || !connection.is_active}
-                                                    style={secondaryButtonStyle}
-                                                >
-                                                    {syncingPlatformSyncId === connection.id ? 'Sync...' : 'Sync maintenant'}
-                                                </button>
-                                                <button
-                                                    onClick={() => void togglePlatformSyncAuto(connection)}
-                                                    disabled={savingPlatformSyncConfigId === connection.id}
-                                                    style={{
-                                                        ...secondaryButtonStyle,
-                                                        color: connection.auto_sync_enabled ? '#25d366' : 'var(--text-secondary, #9ca3af)',
-                                                        opacity: savingPlatformSyncConfigId === connection.id ? 0.6 : 1,
-                                                    }}
-                                                >
-                                                    {connection.auto_sync_enabled ? 'Auto-sync ON' : 'Auto-sync OFF'}
-                                                </button>
-                                                <button
-                                                    onClick={() => void togglePlatformSyncConnection(connection)}
-                                                    disabled={savingPlatformSyncConfigId === connection.id}
-                                                    style={{
-                                                        ...secondaryButtonStyle,
-                                                        color: connection.is_active ? '#25d366' : '#ef4444',
-                                                        opacity: savingPlatformSyncConfigId === connection.id ? 0.6 : 1,
-                                                    }}
-                                                >
-                                                    <Power size={13} style={{ marginRight: 6, verticalAlign: 'middle' }} />
-                                                    {connection.is_active ? 'Desactiver' : 'Activer'}
-                                                </button>
-                                                <button
-                                                    onClick={() => void togglePlatformSyncRuns(connection.id)}
-                                                    style={secondaryButtonStyle}
-                                                >
-                                                    {expandedPlatformSyncRunsId === connection.id ? 'Masquer runs' : 'Voir runs'}
-                                                </button>
-                                                <button
-                                                    onClick={() => void deletePlatformSyncConnection(connection.id)}
-                                                    disabled={deletingPlatformSyncId === connection.id}
-                                                    style={{
-                                                        ...secondaryButtonStyle,
-                                                        color: '#ef4444',
-                                                        opacity: deletingPlatformSyncId === connection.id ? 0.6 : 1,
-                                                    }}
-                                                >
-                                                    {deletingPlatformSyncId === connection.id ? (
-                                                        <RefreshCw size={13} style={{ marginRight: 6, verticalAlign: 'middle', animation: 'spin 1s linear infinite' }} />
-                                                    ) : (
-                                                        <Trash2 size={13} style={{ marginRight: 6, verticalAlign: 'middle' }} />
-                                                    )}
-                                                    Supprimer
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        {expandedPlatformSyncRunsId === connection.id && (
-                                            <div
-                                                style={{
-                                                    marginTop: 14,
-                                                    paddingTop: 12,
-                                                    borderTop: '1px solid rgba(255,255,255,0.08)',
-                                                    display: 'grid',
-                                                    gap: 8,
-                                                }}
-                                            >
-                                                {loadingPlatformSyncRunsId === connection.id ? (
-                                                    <div style={{ fontSize: 12, color: 'var(--text-secondary, #9ca3af)' }}>
-                                                        Chargement des runs...
-                                                    </div>
-                                                ) : (platformSyncRunsByConnection[connection.id] || []).length === 0 ? (
-                                                    <div style={{ fontSize: 12, color: 'var(--text-secondary, #9ca3af)' }}>
-                                                        Aucun run enregistre pour cette connexion.
-                                                    </div>
-                                                ) : (
-                                                    (platformSyncRunsByConnection[connection.id] || []).map(run => (
-                                                        <div
-                                                            key={run.id}
-                                                            style={{
-                                                                border: '1px solid var(--border, #2a2a3e)',
-                                                                borderRadius: 10,
-                                                                padding: '8px 10px',
-                                                                fontSize: 12,
-                                                                display: 'flex',
-                                                                gap: 10,
-                                                                flexWrap: 'wrap',
-                                                                alignItems: 'center',
-                                                            }}
-                                                        >
-                                                            <span style={{ color: run.status === 'success' ? '#22c55e' : '#ef4444', fontWeight: 700 }}>
-                                                                {run.status.toUpperCase()}
-                                                            </span>
-                                                            <span>Source: {run.trigger_source}</span>
-                                                            <span>Fetched: {run.fetched_count}</span>
-                                                            <span>Synced: {run.synced_count}</span>
-                                                            <span>Has more: {run.has_more ? 'oui' : 'non'}</span>
-                                                            <span>Debut: {formatTime(run.started_at)}</span>
-                                                            <span>Fin: {formatTime(run.finished_at)}</span>
-                                                            {run.error && (
-                                                                <span style={{ color: '#fca5a5' }}>
-                                                                    Erreur: {run.error}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    ))
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
-
-            {activeTab === 'synced_products' && (
-                <div style={{ display: 'grid', gap: 16 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-                        <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary, #9ca3af)' }}>
-                            Produits synchronises depuis vos connexions externes. Votre agent utilise ces donnees pour repondre aux questions clients.
-                        </p>
-                        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-                            <select
-                                value={syncedProductsAgentFilter}
-                                onChange={event => {
-                                    const val = event.target.value
-                                    setSyncedProductsAgentFilter(val)
-                                    fetchSyncedProducts(val)
-                                }}
-                                style={{ ...inputStyle, width: 'auto', minWidth: 180 }}
-                            >
-                                <option value="all">Tous les agents</option>
-                                {activeAgents.map(agent => (
-                                    <option key={agent.id} value={agent.id}>{agent.name}</option>
-                                ))}
-                            </select>
-                            <button
-                                onClick={() => fetchSyncedProducts(syncedProductsAgentFilter)}
-                                style={{ ...secondaryButtonStyle, display: 'flex', alignItems: 'center', gap: 6 }}
-                            >
-                                <RefreshCw size={13} />
-                                Rafraichir
-                            </button>
-                        </div>
-                    </div>
-
-                    {syncedProductsLoading ? (
-                        <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary, #9ca3af)', fontSize: 13 }}>
-                            Chargement...
-                        </div>
-                    ) : syncedProducts.length === 0 ? (
-                        <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary, #9ca3af)', fontSize: 13 }}>
-                            Aucun produit synchronise. Lancez une sync depuis l'onglet "Sync catalogue".
-                        </div>
-                    ) : (
-                        <div style={{ display: 'grid', gap: 8 }}>
-                            {syncedProducts.map(product => {
-                                const d = product.data
-                                const agentName = agentNameById.get(product.agent_id) || product.agent_id.slice(0, 8)
-                                const isExpanded = expandedProductIds.has(product.id)
-                                const toggleExpanded = () => setExpandedProductIds(prev => {
-                                    const next = new Set(prev)
-                                    if (next.has(product.id)) next.delete(product.id)
-                                    else next.add(product.id)
-                                    return next
-                                })
-                                return (
-                                    <div key={product.id} style={{
-                                        borderRadius: 10,
-                                        border: '1px solid var(--border, #2a2a3e)',
-                                        background: 'rgba(255,255,255,0.02)',
-                                        overflow: 'hidden',
-                                    }}>
-                                        {/* Header — toujours visible, cliquable */}
-                                        <button
-                                            onClick={toggleExpanded}
-                                            style={{
-                                                width: '100%',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: 12,
-                                                padding: '12px 14px',
-                                                background: 'none',
-                                                border: 'none',
-                                                cursor: 'pointer',
-                                                textAlign: 'left',
-                                            }}
-                                        >
-                                            <div style={{
-                                                width: 40,
-                                                height: 40,
-                                                borderRadius: 7,
-                                                background: 'rgba(255,255,255,0.06)',
-                                                flexShrink: 0,
-                                                overflow: 'hidden',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                            }}>
-                                                {d.image_url ? (
-                                                    <img
-                                                        src={d.image_url}
-                                                        alt={d.name || ''}
-                                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                                    />
-                                                ) : (
-                                                    <span style={{ fontSize: 18 }}>📦</span>
-                                                )}
-                                            </div>
-                                            <div style={{ flex: 1, minWidth: 0 }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
-                                                    <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--text-primary, #fff)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 220 }}>
-                                                        {d.name || product.external_id}
-                                                    </span>
-                                                    {d.price != null && (
-                                                        <span style={{ fontSize: 12, color: '#25d366', fontWeight: 700, flexShrink: 0 }}>
-                                                            {Number(d.price).toLocaleString('fr-FR')} {d.currency || 'XOF'}
-                                                        </span>
-                                                    )}
-                                                    {d.provider && (
-                                                        <span style={{
-                                                            padding: '1px 7px',
-                                                            borderRadius: 999,
-                                                            background: 'rgba(37,211,102,0.12)',
-                                                            color: '#25d366',
-                                                            fontSize: 10,
-                                                            fontWeight: 600,
-                                                            textTransform: 'uppercase',
-                                                            flexShrink: 0,
-                                                        }}>
-                                                            {d.provider}
-                                                        </span>
-                                                    )}
-                                                    <span style={{
-                                                        padding: '1px 7px',
-                                                        borderRadius: 999,
-                                                        background: 'rgba(255,255,255,0.06)',
-                                                        color: 'var(--text-secondary, #9ca3af)',
-                                                        fontSize: 10,
-                                                        flexShrink: 0,
-                                                    }}>
-                                                        {agentName}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <ChevronDown
-                                                size={15}
-                                                style={{
-                                                    flexShrink: 0,
-                                                    color: 'var(--text-secondary, #9ca3af)',
-                                                    transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-                                                    transition: 'transform 0.2s',
-                                                }}
-                                            />
-                                        </button>
-
-                                        {/* Détails — visibles uniquement si déplié */}
-                                        {isExpanded && (
-                                            <div style={{
-                                                padding: '0 14px 14px 14px',
-                                                borderTop: '1px solid var(--border, #2a2a3e)',
-                                                paddingTop: 12,
-                                                display: 'grid',
-                                                gap: 8,
-                                            }}>
-                                                <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 12, color: 'var(--text-secondary, #9ca3af)' }}>
-                                                    {d.original_price != null && (
-                                                        <span>Prix original : <span style={{ textDecoration: 'line-through' }}>{Number(d.original_price).toLocaleString('fr-FR')} {d.currency || 'XOF'}</span></span>
-                                                    )}
-                                                    {(d as any).price_off && <span style={{ color: '#f87171' }}>-{(d as any).price_off}</span>}
-                                                    {d.type && <span>Type : {d.type}</span>}
-                                                    {(d as any).pricing_type && <span>Paiement : {(d as any).pricing_type}</span>}
-                                                    {d.category && <span>Categorie : {d.category}</span>}
-                                                    {d.stock != null && <span>Stock : {d.stock}</span>}
-                                                    {(d as any).sales_count != null && <span>Ventes : {(d as any).sales_count}</span>}
-                                                    {(d as any).on_sale_until && <span>Promo jusqu'au : {new Date((d as any).on_sale_until).toLocaleDateString('fr-FR')}</span>}
-                                                    {d.synced_at && (
-                                                        <span>Sync : {new Date(d.synced_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
-                                                    )}
-                                                </div>
-                                                {d.description && (
-                                                    <p style={{ margin: 0, fontSize: 12, color: 'var(--text-secondary, #9ca3af)', lineHeight: 1.5 }}>
-                                                        {d.description}
-                                                    </p>
-                                                )}
-                                                {d.url && (
-                                                    <a href={d.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#60a5fa' }}>
-                                                        Voir le produit →
-                                                    </a>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                )
-                            })}
-                        </div>
-                    )}
-                </div>
-            )}
-
             {(activeTab === 'webhooks' || activeTab === 'platform_connections') && (
                 <div style={{ display: 'grid', gap: 20 }}>
+                    {activeTab === 'platform_connections' && (
+                        <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary, #9ca3af)', lineHeight: 1.5 }}>
+                            <strong style={{ color: 'var(--text-primary, #fff)' }}>Entrees vers WazzapAI.</strong> Connectez une plateforme (Shopify, WooCommerce, Chariow…) ou generez une cle API pour que votre propre code puisse envoyer des evenements a WazzapAI — commande passee, paiement recu, livraison effectuee, etc. WazzapAI repond ensuite automatiquement au client sur WhatsApp.
+                        </p>
+                    )}
                     {activeTab === 'webhooks' && (
                         <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary, #9ca3af)', lineHeight: 1.5 }}>
-                            WazzapAI appellera votre URL a chaque evenement (message recu, conversation terminee, lead collecte...). Ideal pour connecter un CRM, Google Sheets ou Zapier.
+                            <strong style={{ color: 'var(--text-primary, #fff)' }}>Sorties depuis WazzapAI.</strong> Chaque fois qu un evenement se produit dans WazzapAI (message recu, lead collecte, conversation terminee…), WazzapAI envoie automatiquement les donnees vers l URL de votre choix — Google Sheets, Airtable, votre CRM, Make, Zapier ou tout autre outil capable de recevoir un POST JSON.
                         </p>
                     )}
                     {activeTab === 'webhooks' && showWebhookForm && (
@@ -3133,35 +2485,79 @@ export default function DevelopersPage() {
                                 <span>Latence</span>
                                 <span>Date</span>
                             </div>
-                            {logs.map(log => (
-                                <div
-                                    key={log.id}
-                                    style={{
-                                        display: 'grid',
-                                        gridTemplateColumns: '80px 1fr 90px 90px auto',
-                                        padding: '10px 16px',
-                                        borderBottom: '1px solid rgba(255,255,255,0.04)',
-                                        fontSize: 13,
-                                        alignItems: 'center',
-                                    }}
-                                >
-                                    <span style={{ color: statusColor(log.status_code), fontWeight: 700, fontFamily: 'monospace' }}>
-                                        {log.status_code}
-                                    </span>
-                                    <span style={{ color: 'var(--text-primary, #fff)', fontFamily: 'monospace', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                        {log.endpoint}
-                                    </span>
-                                    <span style={{ color: 'var(--text-secondary, #9ca3af)', fontSize: 12 }}>
-                                        {log.method}
-                                    </span>
-                                    <span style={{ color: log.response_ms > 2000 ? '#f59e0b' : 'var(--text-secondary, #9ca3af)', fontSize: 12 }}>
-                                        {log.response_ms}ms
-                                    </span>
-                                    <span style={{ color: 'var(--text-secondary, #9ca3af)', fontSize: 11, whiteSpace: 'nowrap' }}>
-                                        {formatTime(log.created_at)}
-                                    </span>
-                                </div>
-                            ))}
+                            {logs.map(log => {
+                                const isError = log.status_code >= 400
+                                const isExpanded = expandedLogIds.has(log.id)
+                                const toggleLog = () => {
+                                    if (!isError) return
+                                    setExpandedLogIds(prev => {
+                                        const next = new Set(prev)
+                                        if (next.has(log.id)) next.delete(log.id)
+                                        else next.add(log.id)
+                                        return next
+                                    })
+                                }
+                                return (
+                                    <div key={log.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                                        <div
+                                            onClick={toggleLog}
+                                            style={{
+                                                display: 'grid',
+                                                gridTemplateColumns: '80px 1fr 90px 90px auto',
+                                                padding: '10px 16px',
+                                                fontSize: 13,
+                                                alignItems: 'center',
+                                                cursor: isError ? 'pointer' : 'default',
+                                            }}
+                                        >
+                                            <span style={{ color: statusColor(log.status_code), fontWeight: 700, fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: 5 }}>
+                                                {log.status_code}
+                                                {isError && <span style={{ fontSize: 10, opacity: 0.7 }}>{isExpanded ? '▲' : '▼'}</span>}
+                                            </span>
+                                            <span style={{ color: 'var(--text-primary, #fff)', fontFamily: 'monospace', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                {log.endpoint}
+                                            </span>
+                                            <span style={{ color: 'var(--text-secondary, #9ca3af)', fontSize: 12 }}>
+                                                {log.method}
+                                            </span>
+                                            <span style={{ color: log.response_ms > 2000 ? '#f59e0b' : 'var(--text-secondary, #9ca3af)', fontSize: 12 }}>
+                                                {log.response_ms}ms
+                                            </span>
+                                            <span style={{ color: 'var(--text-secondary, #9ca3af)', fontSize: 11, whiteSpace: 'nowrap' }}>
+                                                {formatTime(log.created_at)}
+                                            </span>
+                                        </div>
+                                        {isError && isExpanded && (
+                                            <div style={{
+                                                padding: '8px 16px 12px',
+                                                background: 'rgba(239,68,68,0.05)',
+                                                borderTop: '1px solid rgba(239,68,68,0.15)',
+                                            }}>
+                                                <div style={{ fontSize: 11, color: '#fca5a5', marginBottom: 6, fontWeight: 600 }}>
+                                                    Payload de la requete
+                                                </div>
+                                                <pre style={{
+                                                    margin: 0,
+                                                    fontSize: 11,
+                                                    color: '#fde68a',
+                                                    background: 'rgba(0,0,0,0.3)',
+                                                    padding: '8px 10px',
+                                                    borderRadius: 8,
+                                                    overflowX: 'auto',
+                                                    whiteSpace: 'pre-wrap',
+                                                    wordBreak: 'break-all',
+                                                    lineHeight: 1.5,
+                                                }}>
+                                                    {log.request_body ? JSON.stringify(log.request_body, null, 2) : '(aucun payload enregistre)'}
+                                                </pre>
+                                                <div style={{ fontSize: 11, color: 'var(--text-secondary, #9ca3af)', marginTop: 6 }}>
+                                                    IP : {log.ip_address || '—'} · Agent : {log.agent_id ? log.agent_id.slice(0, 8) + '…' : '—'}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )
+                            })}
                         </div>
                     )}
                 </div>
@@ -3219,7 +2615,7 @@ export default function DevelopersPage() {
                             <div>1. Une cle sans scope agent peut appeler tous tes agents autorises sur le compte.</div>
                             <div>2. Une cle avec scope agent limite strictement les endpoints publics a ces agents la.</div>
                             <div>3. Utilise toujours un <code style={{ background: 'rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: 4 }}>idempotency_key</code> pour les evenements retry-cotes plateforme.</div>
-                            <div>4. Les webhooks servent pour la sortie d evenements WazzapAI vers ta plateforme; les cles API servent pour les appels entrants de ta plateforme vers WazzapAI.</div>
+                            <div>4. Les webhooks servent pour la sortie d evenements WazzapAI vers ta plateforme; les connexions API (cles sk_live_*) servent pour les appels entrants de ta plateforme vers WazzapAI.</div>
                             <div>5. En mode direct <code style={{ background: 'rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: 4 }}>/incoming/{'{'}webhook_token{'}'}</code>, protege toujours le flux avec la signature HMAC de la plateforme.</div>
                         </div>
                     </div>
