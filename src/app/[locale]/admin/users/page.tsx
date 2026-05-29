@@ -382,7 +382,7 @@ export default function AdminUsersPage() {
                                         <td style={{ padding: '12px 16px' }}>
                                             <div style={{ display: 'flex', gap: 4 }}>
                                                 <ActionBtn icon={Edit} color="#f59e0b" bg="rgba(245, 158, 11, 0.1)" title="Modifier"
-                                                    onClick={() => setEditUser(u)} loading={actionLoading === u.id} />
+                                                    onClick={() => { setEditUser(u); window.scrollTo({ top: 0, behavior: 'smooth' }) }} loading={actionLoading === u.id} />
                                                 <ActionBtn icon={Zap} color="#60a5fa" bg="rgba(59, 130, 246, 0.1)" title="Reset"
                                                     onClick={() => { if (confirm(`Reset crédits de ${u.name} ?`)) handleAction(u.id, 'reset_credits') }}
                                                     loading={actionLoading === u.id} />
@@ -606,12 +606,14 @@ function EditUserModal({ user, onClose, onSave, onSetCredits, onAddCredits, onSu
                 style={{
                     position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
                     zIndex: 101, width: 'min(460px, 92vw)', background: '#1e293b', border: '1px solid rgba(148, 163, 184, 0.15)',
-                    borderRadius: 16, padding: 'clamp(16px, 4vw, 24px)', boxShadow: '0 20px 50px rgba(0,0,0,0.5)', maxHeight: '90vh', overflowY: 'auto'
+                    borderRadius: 16, boxShadow: '0 20px 50px rgba(0,0,0,0.5)', maxHeight: '90vh',
+                    display: 'flex', flexDirection: 'column', overflow: 'hidden'
                 }}
             >
-                <button onClick={onClose} style={{ position: 'absolute', top: 12, right: 12, background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}>
+                <button onClick={onClose} style={{ position: 'absolute', top: 12, right: 12, background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', zIndex: 1 }}>
                     <X size={18} />
                 </button>
+                <div style={{ overflowY: 'auto', padding: 'clamp(16px, 4vw, 24px)', flex: 1 }}>
                 <h2 style={{ fontSize: 18, fontWeight: 700, color: 'white', marginBottom: 4 }}>Modifier l'utilisateur</h2>
                 <p style={{ fontSize: 13, color: '#64748b', marginBottom: 20 }}>{user.email}</p>
 
@@ -689,6 +691,7 @@ function EditUserModal({ user, onClose, onSave, onSetCredits, onAddCredits, onSu
                             <UserX size={14} /> Rétrograder User
                         </button>
                     </div>
+                </div>
                 </div>
             </motion.div>
         </>
