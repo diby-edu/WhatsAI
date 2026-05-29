@@ -230,9 +230,10 @@ function normalizeChariow(topic: string, payload: Record<string, unknown>): Norm
         || asString(payload.email)
 
     const productName = asString(product.name)
-
-    // Chariow has no direct download URL in payload — customer accesses via portal
-    const downloadUrl = undefined
+    const productUrl = asString(product.url)
+    const amountFormatted = asString(saleAmount.formatted)
+    const store = asObject(payload.store)
+    const storeUrl = asString(store.url)
 
     // Look for license_key in sale.custom_fields
     const customFields = Array.isArray(sale.custom_fields) ? sale.custom_fields as Array<Record<string, unknown>> : []
@@ -263,6 +264,9 @@ function normalizeChariow(topic: string, payload: Record<string, unknown>): Norm
     const extraData: Record<string, string | number | boolean> = {}
     if (licenseKey) extraData.license_key = licenseKey
     if (productName) extraData.product_name = productName
+    if (productUrl) extraData.product_url = productUrl
+    if (storeUrl) extraData.store_url = storeUrl
+    if (amountFormatted) extraData.amount_formatted = amountFormatted
     extraData.portal_url = 'https://portal.chariow.com'
 
     const saleId = asString(sale.id) || asString(payload.id)
@@ -283,6 +287,7 @@ function normalizeChariow(topic: string, payload: Record<string, unknown>): Norm
         cart: {
             total: amount,
             currency: currency ?? 'XOF',
+            items: productName ? [{ name: productName }] : [],
         },
         data: { ...toPrimitiveData(payload), ...extraData },
         idempotencyHint: saleId,

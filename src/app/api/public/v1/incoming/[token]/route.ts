@@ -99,7 +99,6 @@ if (!rawBody || rawBody.trim().length === 0) {
     let body: Record<string, unknown>
     try {
         body = asObject(JSON.parse(rawBody))
-        console.log('[CHARIOW_DEBUG]', JSON.stringify(body, null, 2))
     } catch {
         try {
             const formBody = new URLSearchParams(rawBody)
