@@ -73,18 +73,22 @@ const templates: Record<string, TemplateBuilder> = {
         const items = ctx.cart?.items ?? []
         const total = ctx.cart?.total
         const currency = ctx.cart?.currency ?? 'FCFA'
+        const amountFormatted = ctx.data?.amount_formatted as string | undefined
+        const storeUrl = ctx.data?.store_url as string | undefined
 
         const itemLines = items.length > 0
             ? items.map(i => `• ${i.name}${i.variant ? ` (${i.variant})` : ''}${i.qty && i.qty > 1 ? ` × ${i.qty}` : ''}`).join('\n')
             : null
 
-        let msg = `Bonjour ${name} ! 👋\n\nVous avez des articles qui vous attendent dans votre panier :`
+        let msg = `Bonjour ${name} ! 👋\n\nVous avez laissé quelque chose derrière vous :`
         if (itemLines) msg += `\n\n${itemLines}`
-        if (total != null) {
+        if (amountFormatted) {
+            msg += `\nTotal : ${amountFormatted}`
+        } else if (total != null) {
             const n = Number(total)
             msg += `\n\nTotal : ${Number.isNaN(n) ? total : n.toLocaleString('fr-FR') + ' ' + currency}`
         }
-        msg += `\n\nSouhaitez-vous finaliser votre commande ? Je suis là pour vous aider. 😊`
+        if (storeUrl) msg += `\n\n🛒 Reprendre votre commande : ${storeUrl}`
         return msg
     },
 
@@ -94,13 +98,28 @@ const templates: Record<string, TemplateBuilder> = {
         const downloadUrl = ctx.data?.download_url as string | undefined
         const licenseKey = ctx.data?.license_key as string | undefined
         const productName = ctx.data?.product_name as string | undefined
-
         const portalUrl = ctx.data?.portal_url as string | undefined
-        let msg = `Bonjour ${name} ! ✅\n\nVotre paiement${ref ? ` pour la commande *${ref}*` : ''} a bien été reçu.`
+        const amountFormatted = ctx.data?.amount_formatted as string | undefined
+        const total = ctx.order?.total
+        const currency = ctx.cart?.currency ?? 'FCFA'
+
+        let amountStr: string | undefined
+        if (amountFormatted) {
+            amountStr = amountFormatted
+        } else if (total != null) {
+            const n = Number(total)
+            amountStr = Number.isNaN(n) ? String(total) : n.toLocaleString('fr-FR') + ' ' + currency
+        }
+
+        const password = ref ? ref.replace(/^#/, '') : undefined
+
+        let msg = `Bonjour ${name} ! ✅\n\n`
+        msg += amountStr ? `Votre paiement de *${amountStr}* a bien été reçu.` : `Votre paiement a bien été reçu.`
         if (productName) msg += `\n\n📦 Produit : *${productName}*`
         if (downloadUrl) msg += `\n📥 Téléchargement : ${downloadUrl}`
         if (licenseKey) msg += `\n🔑 Clé de licence : \`${licenseKey}\``
-        if (portalUrl && !downloadUrl) msg += `\n📧 Consultez votre email pour accéder à votre achat.\n🔗 Espace client : ${portalUrl}`
+        else if (password && !downloadUrl) msg += `\n🔑 Mot de passe du fichier : ${password}`
+        if (portalUrl && !downloadUrl) msg += `\n🔗 Accéder à votre achat : ${portalUrl}`
         if (!downloadUrl && !licenseKey && !portalUrl) msg += `\n\nVous recevrez votre produit dans quelques instants.`
         msg += `\n\nMerci pour votre achat ! 🙏`
         return msg
@@ -133,10 +152,31 @@ const templates: Record<string, TemplateBuilder> = {
 
     payment_failed: (ctx) => {
         const name = customerName(ctx)
-        const ref = formatOrderReference(ctx.order?.reference || ctx.order?.id, '')
+        const productName = ctx.data?.product_name as string | undefined
+        const productUrl = ctx.data?.product_url as string | undefined
+        const amountFormatted = ctx.data?.amount_formatted as string | undefined
+        const total = ctx.order?.total
+        const currency = ctx.cart?.currency ?? 'FCFA'
 
-        let msg = `Bonjour ${name},\n\nNous n'avons pas pu traiter votre paiement${ref ? ` pour la commande *${ref}*` : ''}.`
-        msg += `\n\nVoulez-vous réessayer ou choisir un autre mode de paiement ? Je peux vous guider. 🙏`
+        let amountStr: string | undefined
+        if (amountFormatted) {
+            amountStr = amountFormatted
+        } else if (total != null) {
+            const n = Number(total)
+            amountStr = Number.isNaN(n) ? String(total) : n.toLocaleString('fr-FR') + ' ' + currency
+        }
+
+        let msg = `Bonjour ${name},\n\n`
+        if (amountStr && productName) {
+            msg += `Votre paiement de *${amountStr}* pour *${productName}* n'a pas pu être traité.`
+        } else if (amountStr) {
+            msg += `Votre paiement de *${amountStr}* n'a pas pu être traité.`
+        } else if (productName) {
+            msg += `Votre paiement pour *${productName}* n'a pas pu être traité.`
+        } else {
+            msg += `Nous n'avons pas pu traiter votre paiement.`
+        }
+        if (productUrl) msg += `\n\n🔄 Réessayez votre achat : ${productUrl}`
         return msg
     },
 
