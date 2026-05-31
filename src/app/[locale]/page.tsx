@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Navbar, Hero, Features, HowItWorks, Pricing, FAQ, Footer, Problem, BeforeAfter, BusinessTypes, ROICalculator, SocialProof, WhatsAppCommunity, FinalCTA } from '@/components/landing'
+import { Navbar, Hero, Features, HowItWorks, Pricing, FAQ, Footer, Problem, BeforeAfter, BusinessTypes, ROICalculator, SocialProof, WhatsAppCommunity, FinalCTA, ApiSection } from '@/components/landing'
 import { MessageCircle, X } from 'lucide-react'
 
 const COMMUNITY_LINK = 'https://chat.whatsapp.com/E7vbXhqS0o5D4Wn2lrdDGi'
@@ -125,6 +125,7 @@ export default function Home() {
       <HowItWorks />
       <BusinessTypes />
       <ROICalculator />
+      <ApiSection />
       <Pricing />
       <SocialProof />
       <WhatsAppCommunity />
