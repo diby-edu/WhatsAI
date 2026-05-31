@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { useUpgradeModal } from '@/contexts/UpgradeModalContext'
 import { motion } from 'framer-motion'
 import {
     Bot,
@@ -63,6 +64,7 @@ export default function NewAgentPage() {
     const t = useTranslations('Agents')
     const tCommon = useTranslations('Agents.connect') // specialized namespace if needed or just access via t('connect...')
     const router = useRouter()
+    const { openUpgradeModal } = useUpgradeModal()
     const toast = useToast()
     const [currentStep, setCurrentStep] = useState(0)
     const [isCompact, setIsCompact] = useState(false)
@@ -132,7 +134,8 @@ export default function NewAgentPage() {
                 const agentsData = await agentsRes.json()
                 const count = agentsData.data?.agents?.length ?? 0
                 if (count >= limit) {
-                    router.replace('/dashboard/billing')
+                    openUpgradeModal('agent_limit')
+                    router.replace('/dashboard/agents')
                 }
             } catch {
                 // Non-critical — let user proceed if check fails

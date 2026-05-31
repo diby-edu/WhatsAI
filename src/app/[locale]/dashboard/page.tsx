@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { useUpgradeModal } from '@/contexts/UpgradeModalContext'
 import { motion } from 'framer-motion'
 import {
     MessageSquare,
@@ -22,6 +23,7 @@ import OnboardingChecklist from '@/components/dashboard/OnboardingChecklist'
 
 export default function DashboardPage() {
     const t = useTranslations('Dashboard.overview')
+    const { openUpgradeModal } = useUpgradeModal()
     const [stats, setStats] = useState<any[]>([])
     const [agents, setAgents] = useState<any[]>([])
     const [recentConversations, setRecentConversations] = useState<any[]>([])
@@ -132,6 +134,15 @@ export default function DashboardPage() {
             // Set user name from profile
             if (data.data?.stats?.userName) {
                 setUserName(data.data.stats.userName)
+            }
+
+            // Trigger low credits modal for free users
+            if (data.data?.stats) {
+                const s = data.data.stats
+                const plan = (s.plan || 'free').toLowerCase()
+                if (plan === 'free' && (s.credits ?? 0) < 5) {
+                    openUpgradeModal('low_credits')
+                }
             }
 
         } catch (err) {

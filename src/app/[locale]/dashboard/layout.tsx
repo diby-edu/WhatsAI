@@ -52,6 +52,8 @@ import AppDownloadBanner from '@/components/dashboard/AppDownloadBanner'
 import PhoneVerifyModal from '@/components/dashboard/PhoneVerifyModal'
 import MobileAppPrompt from '@/components/dashboard/MobileAppPrompt'
 import { ToastProvider } from '@/components/ui/Toast'
+import { UpgradeModalProvider, useUpgradeModal } from '@/contexts/UpgradeModalContext'
+import UpgradeModal from '@/components/dashboard/UpgradeModal'
 
 type TestAccountBannerState = {
     bannerMode: 'test' | 'frozen_grace' | 'inactive' | null
@@ -65,6 +67,21 @@ type TestAccountBannerState = {
     lifecycleStatus?: 'test' | 'paid_active' | 'frozen_grace' | 'inactive'
     hasUnusedCredits?: boolean
     isTestGraceMode?: boolean
+}
+
+function UpgradeSessionWatcher({ plan }: { plan: string }) {
+    const { openUpgradeModal } = useUpgradeModal()
+    useEffect(() => {
+        if (plan !== 'free') return
+        if (typeof sessionStorage === 'undefined') return
+        if (sessionStorage.getItem('upgrade_session_shown') === '1') return
+        const t = setTimeout(() => {
+            sessionStorage.setItem('upgrade_session_shown', '1')
+            openUpgradeModal('session')
+        }, 30000)
+        return () => clearTimeout(t)
+    }, [plan, openUpgradeModal])
+    return null
 }
 
 export default function DashboardLayout({
@@ -97,6 +114,8 @@ export default function DashboardLayout({
     const [phoneVerified, setPhoneVerified] = useState(true) // true par défaut pour éviter le flash
     const [profilePhone, setProfilePhone] = useState<string | null>(null)
     const [phoneModalDismissedSession, setPhoneModalDismissedSession] = useState(false)
+    const [userPlan, setUserPlan] = useState<string>('free')
+    const [userCredits, setUserCredits] = useState<number>(0)
     const notifRef = useRef<HTMLDivElement>(null)
     const mobileNotifBtnRef = useRef<HTMLDivElement>(null)
     const mobileNotifDropdownRef = useRef<HTMLDivElement>(null)
@@ -158,13 +177,15 @@ export default function DashboardLayout({
                 if (!user) return
                 const { data: profile } = await supabase
                     .from('profiles')
-                    .select('api_access_enabled, app_banner_dismissed, phone_verified, phone')
+                    .select('api_access_enabled, app_banner_dismissed, phone_verified, phone, plan, credits')
                     .eq('id', user.id)
                     .single()
                 setApiAccessEnabled(profile?.api_access_enabled ?? false)
                 setAppBannerDismissed(profile?.app_banner_dismissed ?? false)
                 setPhoneVerified(profile?.phone_verified ?? false)
                 setProfilePhone(profile?.phone ?? null)
+                setUserPlan((profile?.plan || 'free').toLowerCase())
+                setUserCredits(profile?.credits ?? 0)
             } catch (_) {}
         }
         checkApiAccess()
@@ -1132,13 +1153,17 @@ export default function DashboardLayout({
                         />
                     )}
 
-                    <CurrencyProvider>
-                        <BiometricLock>
-                            <ToastProvider>
-                                {children}
-                            </ToastProvider>
-                        </BiometricLock>
-                    </CurrencyProvider>
+                    <UpgradeModalProvider>
+                        <UpgradeSessionWatcher plan={userPlan} />
+                        <UpgradeModal />
+                        <CurrencyProvider>
+                            <BiometricLock>
+                                <ToastProvider>
+                                    {children}
+                                </ToastProvider>
+                            </BiometricLock>
+                        </CurrencyProvider>
+                    </UpgradeModalProvider>
                     <MobileAppPrompt />
                 </div>
             </main>
