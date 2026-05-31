@@ -28,6 +28,7 @@ export default function Navbar() {
     const navLinks = [
         { label: t('features'), href: '#features' },
         { label: t('howItWorks'), href: '#how-it-works' },
+        { label: t('api'), href: '#api' },
         { label: t('pricing'), href: '#pricing' },
         { label: t('faq'), href: '#faq' },
         { label: t('download'), href: `/${locale}/download-app` },
