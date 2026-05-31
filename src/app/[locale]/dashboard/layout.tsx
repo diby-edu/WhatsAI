@@ -107,7 +107,8 @@ export default function DashboardLayout({
     const [unreadCount, setUnreadCount] = useState(0)
     const [userAvatar, setUserAvatar] = useState<string | null>(null)
     const [userName, setUserName] = useState<string>('')
-    const [apiAccessEnabled, setApiAccessEnabled] = useState(false)
+    const [apiAccessEnabled, setApiAccessEnabled] = useState<boolean | null>(null)
+    const [profileLoaded, setProfileLoaded] = useState(false)
     const [sessionTimeoutHours, setSessionTimeoutHours] = useState<number | null>(null)
     const [testAccountBanner, setTestAccountBanner] = useState<TestAccountBannerState | null>(null)
     const [appBannerDismissed, setAppBannerDismissed] = useState(false)
@@ -180,13 +181,15 @@ export default function DashboardLayout({
                     .select('api_access_enabled, app_banner_dismissed, phone_verified, phone, plan, credits')
                     .eq('id', user.id)
                     .single()
-                setApiAccessEnabled(profile?.api_access_enabled ?? false)
+                setApiAccessEnabled(profile?.api_access_enabled ?? null)
                 setAppBannerDismissed(profile?.app_banner_dismissed ?? false)
                 setPhoneVerified(profile?.phone_verified ?? false)
                 setProfilePhone(profile?.phone ?? null)
                 setUserPlan((profile?.plan || 'free').toLowerCase())
                 setUserCredits(profile?.credits ?? 0)
-            } catch (_) {}
+            } catch (_) {} finally {
+                setProfileLoaded(true)
+            }
         }
         checkApiAccess()
     }, [])
@@ -645,7 +648,8 @@ export default function DashboardLayout({
                                     }
                                     const link = item as NavLink
                                     const isActive = pathname === link.href || (link.href !== '/dashboard' && pathname.startsWith(link.href))
-                                    const isApiLocked = link.href === '/dashboard/developers' && !apiAccessEnabled
+                                    const planHasApi = ['pro', 'business', 'scale'].includes(userPlan)
+                                    const isApiLocked = profileLoaded && link.href === '/dashboard/developers' && (apiAccessEnabled === false || (!planHasApi && apiAccessEnabled !== true))
                                     if (isApiLocked) {
                                         return (
                                             <div
@@ -664,11 +668,11 @@ export default function DashboardLayout({
                                                 </div>
                                                 <span style={{
                                                     fontSize: 9, fontWeight: 700, padding: '2px 5px',
-                                                    borderRadius: 4, background: 'rgba(245,158,11,0.15)',
-                                                    color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.05em',
+                                                    borderRadius: 4, background: 'rgba(100,116,139,0.15)',
+                                                    color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em',
                                                     whiteSpace: 'nowrap'
                                                 }}>
-                                                    Bientôt
+                                                    Off
                                                 </span>
                                             </div>
                                         )
@@ -784,12 +788,13 @@ export default function DashboardLayout({
                             }
                             const link = item as NavLink
                             const isActive = pathname === link.href || (link.href !== '/dashboard' && pathname.startsWith(link.href))
-                            const isApiLocked = link.href === '/dashboard/developers' && !apiAccessEnabled
+                            const planHasApi2 = ['pro', 'business', 'scale'].includes(userPlan)
+                            const isApiLocked = profileLoaded && link.href === '/dashboard/developers' && (apiAccessEnabled === false || (!planHasApi2 && apiAccessEnabled !== true))
                             if (isApiLocked) {
                                 return (
                                     <div
                                         key={link.href}
-                                        title={collapsed ? 'Bientôt disponible' : undefined}
+                                        title={collapsed ? 'Accès désactivé' : undefined}
                                         style={{
                                             display: 'flex', alignItems: 'center',
                                             gap: 10, padding: collapsed ? '6px' : '6px 10px',
@@ -805,11 +810,11 @@ export default function DashboardLayout({
                                         {!collapsed && (
                                             <span style={{
                                                 fontSize: 9, fontWeight: 700, padding: '2px 5px',
-                                                borderRadius: 4, background: 'rgba(245,158,11,0.15)',
-                                                color: '#f59e0b', textTransform: 'uppercase',
+                                                borderRadius: 4, background: 'rgba(100,116,139,0.15)',
+                                                color: '#64748b', textTransform: 'uppercase',
                                                 letterSpacing: '0.05em', whiteSpace: 'nowrap'
                                             }}>
-                                                Bientôt
+                                                Off
                                             </span>
                                         )}
                                     </div>

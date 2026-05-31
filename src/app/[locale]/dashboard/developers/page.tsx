@@ -286,6 +286,30 @@ export default function DevelopersPage() {
     const toast = useToast()
     const [activeTab, setActiveTab] = useState<TabId>('platform_connections')
     const [pageError, setPageError] = useState<string | null>(null)
+    const [userPlan, setUserPlan] = useState<string | null>(null)
+    const [apiAccessEnabled, setApiAccessEnabled] = useState<boolean | null>(null)
+    const [enabledPlatforms, setEnabledPlatforms] = useState<string[]>(['chariow', 'generic', 'api_key'])
+
+    useEffect(() => {
+        const loadAccess = async () => {
+            try {
+                const [profileRes, configRes] = await Promise.all([
+                    fetch('/api/profile'),
+                    fetch('/api/public/runtime-config'),
+                ])
+                const profileJson = await profileRes.json()
+                const profile = profileJson.data || profileJson
+                setUserPlan((profile.plan || 'free').toLowerCase())
+                setApiAccessEnabled(profile.api_access_enabled ?? null)
+
+                const configJson = await configRes.json()
+                if (Array.isArray(configJson.data?.enabledPlatforms)) {
+                    setEnabledPlatforms(configJson.data.enabledPlatforms)
+                }
+            } catch { setUserPlan('free') }
+        }
+        loadAccess()
+    }, [])
 
     const [keys, setKeys] = useState<ApiKey[]>([])
     const [webhooks, setWebhooks] = useState<WebhookItem[]>([])
@@ -1225,6 +1249,40 @@ export default function DevelopersPage() {
             && newShopifyToken.trim()
         )
 
+    const planHasApi = userPlan !== null && ['pro', 'business', 'scale'].includes(userPlan)
+    const isDisabledByAdmin = apiAccessEnabled === false
+
+    if (userPlan !== null && !planHasApi && apiAccessEnabled !== true) {
+        return (
+            <div style={{ padding: 24, maxWidth: 600, margin: '80px auto', textAlign: 'center' }}>
+                <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
+                <h2 style={{ fontSize: 22, fontWeight: 700, color: '#f1f5f9', marginBottom: 8 }}>Mode Développeur — Plan Pro requis</h2>
+                <p style={{ color: '#94a3b8', fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>
+                    L'accès à l'API WazzapAI vous permet de connecter votre boutique, votre CRM ou tout outil externe directement à WhatsApp. Disponible à partir du plan <strong style={{ color: '#34d399' }}>Pro</strong>.
+                </p>
+                <a href="/dashboard/billing" style={{
+                    display: 'inline-block', padding: '12px 28px', borderRadius: 10,
+                    background: 'linear-gradient(135deg, #25d366, #1aab55)',
+                    color: '#fff', fontWeight: 700, fontSize: 15, textDecoration: 'none'
+                }}>
+                    Passer au plan Pro
+                </a>
+            </div>
+        )
+    }
+
+    if (isDisabledByAdmin) {
+        return (
+            <div style={{ padding: 24, maxWidth: 600, margin: '80px auto', textAlign: 'center' }}>
+                <div style={{ fontSize: 48, marginBottom: 16 }}>⚙️</div>
+                <h2 style={{ fontSize: 22, fontWeight: 700, color: '#f1f5f9', marginBottom: 8 }}>Accès API désactivé</h2>
+                <p style={{ color: '#94a3b8', fontSize: 14, lineHeight: 1.6 }}>
+                    L'accès à l'API a été temporairement désactivé pour votre compte. Contactez le support pour plus d'informations.
+                </p>
+            </div>
+        )
+    }
+
     return (
         <div style={{ padding: 24, maxWidth: 1180, margin: '0 auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap' }}>
@@ -1804,12 +1862,12 @@ export default function DevelopersPage() {
                                         style={inputStyle}
                                     >
                                         <optgroup label="Plateformes e-commerce">
-                                            {PLATFORM_PROVIDERS.filter(p => p.group === 'ecommerce').map(provider => (
+                                            {PLATFORM_PROVIDERS.filter(p => p.group === 'ecommerce' && enabledPlatforms.includes(p.value)).map(provider => (
                                                 <option key={provider.value} value={provider.value}>{provider.label}</option>
                                             ))}
                                         </optgroup>
                                         <optgroup label="Avancé">
-                                            {PLATFORM_PROVIDERS.filter(p => p.group === 'advanced').map(provider => (
+                                            {PLATFORM_PROVIDERS.filter(p => p.group === 'advanced' && enabledPlatforms.includes(p.value)).map(provider => (
                                                 <option key={provider.value} value={provider.value}>{provider.label}</option>
                                             ))}
                                         </optgroup>

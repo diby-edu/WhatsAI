@@ -64,7 +64,18 @@ interface LogEntry {
     created_at: string
 }
 
-type Tab = 'overview' | 'users' | 'keys' | 'logs'
+type Tab = 'overview' | 'users' | 'keys' | 'logs' | 'platforms'
+
+const ALL_PLATFORMS = [
+    { value: 'chariow',     label: 'Chariow',                    verified: true },
+    { value: 'shopify',     label: 'Shopify',                    verified: false },
+    { value: 'woocommerce', label: 'WooCommerce',                verified: false },
+    { value: 'maketou',     label: 'Maketou',                    verified: false },
+    { value: 'generic',     label: 'Webhook générique',           verified: true },
+    { value: 'api_key',     label: 'Code personnalisé (API key)', verified: true },
+]
+
+const DEFAULT_ENABLED = ['chariow', 'generic', 'api_key']
 
 export default function ApiMonitoringPage() {
     const [tab, setTab] = useState<Tab>('overview')
@@ -80,6 +91,8 @@ export default function ApiMonitoringPage() {
     const [savingGlobal, setSavingGlobal] = useState(false)
     const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set())
     const [dailyPeriod, setDailyPeriod] = useState<7 | 14 | 30>(14)
+    const [enabledPlatforms, setEnabledPlatforms] = useState<string[]>(DEFAULT_ENABLED)
+    const [savingPlatforms, setSavingPlatforms] = useState(false)
 
     const fetchStats = useCallback(async () => {
         setLoading(true)
@@ -138,13 +151,44 @@ export default function ApiMonitoringPage() {
         } catch (_) {}
     }, [])
 
+    const fetchEnabledPlatforms = useCallback(async () => {
+        try {
+            const res = await fetch('/api/admin/platforms')
+            const result = await res.json()
+            if (Array.isArray(result.data?.enabledPlatforms)) {
+                setEnabledPlatforms(result.data.enabledPlatforms)
+            }
+        } catch (_) {}
+    }, [])
+
+    const savePlatforms = async (platforms: string[]) => {
+        setSavingPlatforms(true)
+        try {
+            await fetch('/api/admin/platforms', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ enabledPlatforms: platforms })
+            })
+            setEnabledPlatforms(platforms)
+        } finally { setSavingPlatforms(false) }
+    }
+
+    const togglePlatform = (value: string) => {
+        const next = enabledPlatforms.includes(value)
+            ? enabledPlatforms.filter(p => p !== value)
+            : [...enabledPlatforms, value]
+        savePlatforms(next)
+    }
+
     useEffect(() => {
         fetchGlobalFlag()
+        fetchEnabledPlatforms()
         if (tab === 'overview') fetchStats()
         else if (tab === 'users') fetchUsers()
         else if (tab === 'keys') fetchKeys()
         else if (tab === 'logs') fetchLogs()
-    }, [tab, fetchStats, fetchUsers, fetchKeys, fetchLogs, fetchGlobalFlag])
+        else if (tab === 'platforms') fetchEnabledPlatforms()
+    }, [tab, fetchStats, fetchUsers, fetchKeys, fetchLogs, fetchGlobalFlag, fetchEnabledPlatforms])
 
     useEffect(() => {
         if (tab === 'users') fetchUsers()
@@ -298,10 +342,11 @@ export default function ApiMonitoringPage() {
             {/* Tabs */}
             <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'var(--card-bg, #1a1a2e)', borderRadius: 10, padding: 4, width: 'fit-content' }}>
                 {([
-                    { id: 'overview', label: 'Vue d\'ensemble', icon: BarChart3 },
-                    { id: 'users',    label: 'Accès utilisateurs', icon: Users },
-                    { id: 'keys',     label: 'Clés API', icon: Key },
-                    { id: 'logs',     label: 'Logs', icon: Activity },
+                    { id: 'overview',   label: 'Vue d\'ensemble',    icon: BarChart3 },
+                    { id: 'users',      label: 'Accès utilisateurs', icon: Users },
+                    { id: 'keys',       label: 'Clés API',           icon: Key },
+                    { id: 'logs',       label: 'Logs',               icon: Activity },
+                    { id: 'platforms',  label: 'Plateformes',        icon: Globe },
                 ] as { id: Tab; label: string; icon: any }[]).map(t => (
                     <button key={t.id} onClick={() => setTab(t.id)} style={tabStyle(t.id)}>
                         <t.icon size={14} style={{ display: 'inline', marginRight: 6 }} />
@@ -777,6 +822,49 @@ export default function ApiMonitoringPage() {
                             </span>
                         </div>
                     ))}
+                </div>
+            )}
+
+            {tab === 'platforms' && (
+                <div style={{ maxWidth: 680 }}>
+                    <h3 style={{ fontSize: 16, fontWeight: 700, color: '#f1f5f9', marginBottom: 6 }}>Plateformes disponibles</h3>
+                    <p style={{ color: '#64748b', fontSize: 13, marginBottom: 20 }}>
+                        Activez ou désactivez les plateformes accessibles aux utilisateurs dans leur module API.
+                        Les plateformes non vérifiées sont désactivées par défaut.
+                    </p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        {ALL_PLATFORMS.map(p => {
+                            const isEnabled = enabledPlatforms.includes(p.value)
+                            return (
+                                <div key={p.value} style={{
+                                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                    padding: '14px 18px', borderRadius: 10,
+                                    background: 'rgba(30,41,59,0.6)',
+                                    border: `1px solid ${isEnabled ? 'rgba(37,211,102,0.2)' : 'rgba(100,116,139,0.15)'}`,
+                                }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                        <span style={{ fontSize: 15, fontWeight: 600, color: isEnabled ? '#f1f5f9' : '#64748b' }}>{p.label}</span>
+                                        {p.verified
+                                            ? <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'rgba(37,211,102,0.1)', color: '#25d366', fontWeight: 700 }}>Vérifié</span>
+                                            : <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'rgba(245,158,11,0.1)', color: '#f59e0b', fontWeight: 700 }}>Non vérifié</span>
+                                        }
+                                    </div>
+                                    <button
+                                        disabled={savingPlatforms}
+                                        onClick={() => togglePlatform(p.value)}
+                                        style={{
+                                            padding: '6px 14px', borderRadius: 7, border: 'none', cursor: 'pointer',
+                                            fontWeight: 600, fontSize: 12,
+                                            background: isEnabled ? 'rgba(239,68,68,0.1)' : 'rgba(37,211,102,0.15)',
+                                            color: isEnabled ? '#ef4444' : '#25d366',
+                                        }}
+                                    >
+                                        {savingPlatforms ? '...' : isEnabled ? 'Désactiver' : 'Activer'}
+                                    </button>
+                                </div>
+                            )
+                        })}
+                    </div>
                 </div>
             )}
 
