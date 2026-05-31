@@ -2,6 +2,8 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { ensurePaymentProviderReady, normalizePaymentProvider } from '@/lib/payments/provider'
 import { buildAgentDeactivationUpdate } from '@/lib/whatsapp/agent-lifecycle'
 
+export const DEFAULT_ENABLED_PLATFORMS = ['chariow', 'generic', 'api_key']
+
 export const DEFAULT_ADMIN_SETTINGS = {
     appName: 'WazzapAI',
     appDescription: "Plateforme d'automatisation WhatsApp avec IA",
@@ -198,33 +200,40 @@ export async function getAIRuntimeSettings(adminSupabase: SupabaseClient) {
 }
 
 export async function getPublicRuntimeConfig(adminSupabase: SupabaseClient) {
-    const [featureRows, appRows] = await Promise.all([
+    const [featureRows, appRows, platformRow] = await Promise.all([
         adminSupabase
             .from('feature_flags')
             .select('key, enabled')
             .in('key', Object.values(FEATURE_FLAG_KEYS)),
         fetchAppSettingsRows(adminSupabase, ['requireEmailVerification', 'sessionTimeout', 'maxLoginAttempts']),
+        adminSupabase.from('app_settings').select('value').eq('key', 'enabled_platforms').maybeSingle(),
     ])
 
-    const result = {
+    let enabledPlatforms: string[] = DEFAULT_ENABLED_PLATFORMS
+    if (platformRow.data?.value) {
+        try { enabledPlatforms = JSON.parse(platformRow.data.value) } catch { /* use default */ }
+    }
+
+    const result: Record<string, any> = {
         maintenanceMode: DEFAULT_ADMIN_SETTINGS.maintenanceMode,
         allowRegistrations: DEFAULT_ADMIN_SETTINGS.allowRegistrations,
         requireEmailVerification: DEFAULT_ADMIN_SETTINGS.requireEmailVerification,
         sessionTimeout: DEFAULT_ADMIN_SETTINGS.sessionTimeout,
         maxLoginAttempts: DEFAULT_ADMIN_SETTINGS.maxLoginAttempts,
+        enabledPlatforms,
     }
 
     for (const flag of featureRows.data || []) {
         const uiKey = Object.entries(FEATURE_FLAG_KEYS).find(([, value]) => value === flag.key)?.[0]
         if (uiKey && uiKey in result) {
-            ;(result as Record<string, any>)[uiKey] = flag.enabled === true
+            result[uiKey] = flag.enabled === true
         }
     }
 
     for (const row of appRows) {
         const uiKey = getUiKeyFromDbKey(row.key)
         if (uiKey in result) {
-            ;(result as Record<string, any>)[uiKey] = coerceSettingValue(uiKey, row.value)
+            result[uiKey] = coerceSettingValue(uiKey, row.value)
         }
     }
 

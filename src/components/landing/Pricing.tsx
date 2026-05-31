@@ -58,24 +58,27 @@ export default function Pricing() {
             { text: t('planFeature_starter_3') },
         ],
         pro: [
-            { text: t('planFeature_pro_0') },
+            { text: t('planFeature_pro_0'), highlight: true },
             { text: t('planFeature_pro_1') },
             { text: t('planFeature_pro_2') },
             { text: t('planFeature_pro_3') },
             { text: t('planFeature_pro_4') },
+            { text: t('planFeature_pro_5') },
         ],
         business: [
-            { text: t('planFeature_business_0') },
+            { text: t('planFeature_business_0'), highlight: true },
             { text: t('planFeature_business_1') },
             { text: t('planFeature_business_2') },
             { text: t('planFeature_business_3') },
             { text: t('planFeature_business_4') },
+            { text: t('planFeature_business_5') },
         ],
         scale: [
             { text: t('planFeature_scale_0'), highlight: true },
             { text: t('planFeature_scale_1'), highlight: true },
             { text: t('planFeature_scale_2'), highlight: true },
-            { text: t('planFeature_scale_3'), highlight: false },
+            { text: t('planFeature_scale_3'), highlight: true },
+            { text: t('planFeature_scale_4'), highlight: false },
         ],
     }
     const plans = usePlans()
