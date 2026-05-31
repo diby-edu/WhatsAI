@@ -48,7 +48,7 @@ interface UserAccess {
     email: string | null
     phone: string | null
     plan: string | null
-    api_access_enabled: boolean
+    api_access_enabled: boolean | null
     created_at: string
 }
 
@@ -212,17 +212,18 @@ export default function ApiMonitoringPage() {
         }
     }
 
-    const toggleUserAccess = async (userId: string, current: boolean) => {
+    const toggleUserAccess = async (userId: string, effectivelyActive: boolean) => {
         setTogglingId(userId)
+        const newValue = !effectivelyActive
         try {
             const res = await fetch('/api/admin/api-users-access', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: userId, api_access_enabled: !current })
+                body: JSON.stringify({ user_id: userId, api_access_enabled: newValue })
             })
             if (res.ok) {
                 setUsers(prev => prev.map(u =>
-                    u.id === userId ? { ...u, api_access_enabled: !current } : u
+                    u.id === userId ? { ...u, api_access_enabled: newValue } : u
                 ))
             }
         } finally {
@@ -670,28 +671,39 @@ export default function ApiMonitoringPage() {
                                 }}>
                                     {u.plan || 'free'}
                                 </span>
-                                <span style={{
-                                    display: 'flex', alignItems: 'center', gap: 5, fontSize: 12,
-                                    color: u.api_access_enabled ? '#25d366' : '#9ca3af'
-                                }}>
-                                    {u.api_access_enabled
-                                        ? <><CheckCircle size={12} /> Activé</>
-                                        : <><Shield size={12} /> Désactivé</>
-                                    }
-                                </span>
-                                <button
-                                    onClick={() => toggleUserAccess(u.id, u.api_access_enabled)}
-                                    disabled={togglingId === u.id}
-                                    style={{
-                                        padding: '5px 10px', borderRadius: 7, border: 'none', cursor: 'pointer',
-                                        fontSize: 12, fontWeight: 600,
-                                        background: u.api_access_enabled ? 'rgba(239,68,68,0.1)' : 'rgba(37,211,102,0.15)',
-                                        color: u.api_access_enabled ? '#ef4444' : '#25d366',
-                                        opacity: togglingId === u.id ? 0.5 : 1
-                                    }}
-                                >
-                                    {togglingId === u.id ? '...' : u.api_access_enabled ? 'Bloquer' : 'Activer'}
-                                </button>
+                                {(() => {
+                                    const planHasApi = ['pro', 'business', 'scale'].includes((u.plan || '').toLowerCase())
+                                    const effectivelyActive = u.api_access_enabled === true || (u.api_access_enabled === null && planHasApi)
+                                    const statusLabel = u.api_access_enabled === false
+                                        ? 'Bloqué'
+                                        : u.api_access_enabled === true
+                                            ? 'Actif (manuel)'
+                                            : planHasApi ? 'Actif (plan)' : 'Inactif'
+                                    const statusColor = effectivelyActive ? '#25d366' : u.api_access_enabled === false ? '#ef4444' : '#9ca3af'
+                                    return (<>
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: statusColor }}>
+                                            {effectivelyActive
+                                                ? <><CheckCircle size={12} /> {statusLabel}</>
+                                                : u.api_access_enabled === false
+                                                    ? <><Shield size={12} /> {statusLabel}</>
+                                                    : <><Shield size={12} /> {statusLabel}</>
+                                            }
+                                        </span>
+                                        <button
+                                            onClick={() => toggleUserAccess(u.id, effectivelyActive)}
+                                            disabled={togglingId === u.id}
+                                            style={{
+                                                padding: '5px 10px', borderRadius: 7, border: 'none', cursor: 'pointer',
+                                                fontSize: 12, fontWeight: 600,
+                                                background: effectivelyActive ? 'rgba(239,68,68,0.1)' : 'rgba(37,211,102,0.15)',
+                                                color: effectivelyActive ? '#ef4444' : '#25d366',
+                                                opacity: togglingId === u.id ? 0.5 : 1
+                                            }}
+                                        >
+                                            {togglingId === u.id ? '...' : effectivelyActive ? 'Bloquer' : 'Activer'}
+                                        </button>
+                                    </>)
+                                })()}
                             </div>
                         ))}
                     </div>

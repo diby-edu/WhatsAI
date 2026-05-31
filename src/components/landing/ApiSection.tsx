@@ -38,7 +38,7 @@ const CAPABILITIES = [
 
 export default function ApiSection() {
     return (
-        <section style={{
+        <section id="api" style={{
             padding: '80px 24px',
             background: 'linear-gradient(180deg, #0a0f1e 0%, #060b17 100%)',
             position: 'relative',
