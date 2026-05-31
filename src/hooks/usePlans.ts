@@ -29,8 +29,15 @@ export function usePlans(): Plan[] {
             .then(res => res.json())
             .then(data => {
                 if (data.plans && data.plans.length > 0) {
+                    const NAME_TO_ID: Record<string, string> = {
+                        gratuit: 'free', free: 'free',
+                        starter: 'starter',
+                        pro: 'pro',
+                        business: 'business',
+                        scale: 'scale',
+                    }
                     const formatted: Plan[] = data.plans.map((p: Record<string, unknown>) => ({
-                        id: (p.id as string) || 'unknown',
+                        id: NAME_TO_ID[(p.name as string || '').toLowerCase()] || (p.id as string) || 'unknown',
                         name: (p.name as string) || 'Plan',
                         price_fcfa: typeof p.price === 'number' ? p.price : ((p.price_fcfa as number) || 0),
                         credits: (p.credits_included as number) || (p.credits as number) || 0,
