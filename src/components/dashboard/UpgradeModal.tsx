@@ -23,7 +23,7 @@ const REASON_SUBTITLE: Record<UpgradeReason, string> = {
     feature_locked: 'Cette fonctionnalité est disponible à partir du plan Starter.',
 }
 
-function PlanCard({ plan, featured }: { plan: typeof FALLBACK_PLANS[0]; featured: boolean }) {
+function PlanCard({ plan, featured, onClose }: { plan: typeof FALLBACK_PLANS[0]; featured: boolean; onClose: () => void }) {
     return (
         <div style={{
             background: featured ? 'rgba(16, 185, 129, 0.08)' : 'rgba(15, 23, 42, 0.6)',
@@ -78,6 +78,7 @@ function PlanCard({ plan, featured }: { plan: typeof FALLBACK_PLANS[0]; featured
 
             <Link
                 href="/dashboard/billing"
+                onClick={onClose}
                 style={{
                     display: 'block',
                     textAlign: 'center',
@@ -189,7 +190,7 @@ export default function UpgradeModal() {
                 {/* Plans */}
                 <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                     {PAID_PLANS.map(plan => (
-                        <PlanCard key={plan.id} plan={plan} featured={plan.is_popular} />
+                        <PlanCard key={plan.id} plan={plan} featured={plan.is_popular} onClose={closeUpgradeModal} />
                     ))}
                 </div>
 
@@ -209,6 +210,7 @@ export default function UpgradeModal() {
                     </div>
                     <Link
                         href="/dashboard/billing"
+                        onClick={closeUpgradeModal}
                         style={{
                             color: '#10b981',
                             fontSize: 13,
