@@ -1,6 +1,7 @@
 ﻿'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import {
     Bot,
@@ -19,6 +20,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
+import { useUpgradeModal } from '@/contexts/UpgradeModalContext'
 import { useToast } from '@/components/ui/Toast'
 import {
     getAgentOperationalColors,
@@ -71,6 +73,8 @@ interface Agent {
 export default function AgentsPage() {
     const t = useTranslations('Agents.Page')
     const toast = useToast()
+    const router = useRouter()
+    const { openUpgradeModal } = useUpgradeModal()
     const [agents, setAgents] = useState<Agent[]>([])
     const [loading, setLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState('')
@@ -207,8 +211,8 @@ export default function AgentsPage() {
                         </span>
                     )}
                     {atLimit ? (
-                        <Link
-                            href="/dashboard/billing"
+                        <button
+                            onClick={() => openUpgradeModal('agent_limit')}
                             style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
@@ -218,13 +222,14 @@ export default function AgentsPage() {
                                 background: 'linear-gradient(135deg, #f59e0b, #d97706)',
                                 color: 'white',
                                 fontWeight: 600,
-                                textDecoration: 'none',
+                                border: 'none',
+                                cursor: 'pointer',
                                 fontSize: 14
                             }}
                         >
                             <Plus style={{ width: 20, height: 20 }} />
-                            Passer au plan supÃ©rieur
-                        </Link>
+                            Passer au plan supérieur
+                        </button>
                     ) : (
                         <Link
                             href="/dashboard/agents/new"
@@ -512,8 +517,8 @@ export default function AgentsPage() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: filteredAgents.length * 0.1 }}
                 >
-                    <Link
-                        href={atLimit ? '/dashboard/billing' : '/dashboard/agents/new'}
+                    <div
+                        onClick={() => atLimit ? openUpgradeModal('agent_limit') : router.push('/dashboard/agents/new')}
                         style={{
                             ...cardStyle,
                             display: 'flex',
@@ -524,7 +529,7 @@ export default function AgentsPage() {
                             border: atLimit
                                 ? '2px dashed rgba(245, 158, 11, 0.4)'
                                 : '2px dashed rgba(148, 163, 184, 0.2)',
-                            textDecoration: 'none'
+                            cursor: 'pointer',
                         }}
                     >
                         <div style={{
@@ -542,14 +547,14 @@ export default function AgentsPage() {
                                 : <Plus style={{ width: 32, height: 32, color: '#64748b' }} />}
                         </div>
                         <span style={{ fontSize: 18, fontWeight: 500, color: atLimit ? '#f59e0b' : '#94a3b8' }}>
-                            {atLimit ? 'Passer au plan supÃ©rieur' : t('emptyState.button')}
+                            {atLimit ? 'Passer au plan supérieur' : t('emptyState.button')}
                         </span>
                         <span style={{ fontSize: 14, color: '#64748b', marginTop: 4 }}>
                             {atLimit
                                 ? `Limite de ${agentLimit} agent${agentLimit > 1 ? 's' : ''} atteinte`
                                 : t('emptyState.description')}
                         </span>
-                    </Link>
+                    </div>
                 </motion.div>
             </div>
 
