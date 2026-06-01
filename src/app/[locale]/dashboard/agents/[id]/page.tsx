@@ -309,7 +309,8 @@ export default function AgentWizardPage({
                 setRetryWithFreshQr(false)
             }
 
-            // Populate Form
+            // Populate Form — reset init flag so the next formData change doesn't falsely mark dirty
+            isInitializedRef.current = false
             setFormData({
                 name: agent.name || '',
                 description: agent.description || '',
@@ -724,7 +725,7 @@ export default function AgentWizardPage({
                                 </label>
                                 <input
                                     value={formData.escalation_phone}
-                                    onChange={e => setFormData({ ...formData, escalation_phone: sanitizeEscalationPhone(e.target.value) })}
+                                    onChange={e => { setFormData({ ...formData, escalation_phone: sanitizeEscalationPhone(e.target.value) }); setHighlightEscalation(false) }}
 
                                     placeholder="+225 07 XX XX XX XX"
                                     style={{

@@ -650,6 +650,7 @@ export default function DashboardLayout({
                                     const isActive = pathname === link.href || (link.href !== '/dashboard' && pathname.startsWith(link.href))
                                     const planHasApi = ['pro', 'business', 'scale'].includes(userPlan)
                                     const isApiLocked = profileLoaded && link.href === '/dashboard/developers' && (apiAccessEnabled === false || (!planHasApi && apiAccessEnabled !== true))
+                                    const isApiLockedByPlan = isApiLocked && apiAccessEnabled !== false
                                     if (isApiLocked) {
                                         return (
                                             <div
@@ -668,11 +669,13 @@ export default function DashboardLayout({
                                                 </div>
                                                 <span style={{
                                                     fontSize: 9, fontWeight: 700, padding: '2px 5px',
-                                                    borderRadius: 4, background: 'rgba(100,116,139,0.15)',
-                                                    color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em',
+                                                    borderRadius: 4,
+                                                    background: isApiLockedByPlan ? 'rgba(234,179,8,0.15)' : 'rgba(100,116,139,0.15)',
+                                                    color: isApiLockedByPlan ? '#ca8a04' : '#64748b',
+                                                    textTransform: 'uppercase', letterSpacing: '0.05em',
                                                     whiteSpace: 'nowrap'
                                                 }}>
-                                                    Off
+                                                    {isApiLockedByPlan ? 'Pro' : 'Off'}
                                                 </span>
                                             </div>
                                         )
@@ -790,11 +793,12 @@ export default function DashboardLayout({
                             const isActive = pathname === link.href || (link.href !== '/dashboard' && pathname.startsWith(link.href))
                             const planHasApi2 = ['pro', 'business', 'scale'].includes(userPlan)
                             const isApiLocked = profileLoaded && link.href === '/dashboard/developers' && (apiAccessEnabled === false || (!planHasApi2 && apiAccessEnabled !== true))
+                            const isApiLocked2ByPlan = isApiLocked && apiAccessEnabled !== false
                             if (isApiLocked) {
                                 return (
                                     <div
                                         key={link.href}
-                                        title={collapsed ? 'Accès désactivé' : undefined}
+                                        title={collapsed ? (isApiLocked2ByPlan ? 'Plan Pro requis' : 'Accès désactivé') : undefined}
                                         style={{
                                             display: 'flex', alignItems: 'center',
                                             gap: 10, padding: collapsed ? '6px' : '6px 10px',
@@ -810,11 +814,13 @@ export default function DashboardLayout({
                                         {!collapsed && (
                                             <span style={{
                                                 fontSize: 9, fontWeight: 700, padding: '2px 5px',
-                                                borderRadius: 4, background: 'rgba(100,116,139,0.15)',
-                                                color: '#64748b', textTransform: 'uppercase',
+                                                borderRadius: 4,
+                                                background: isApiLocked2ByPlan ? 'rgba(234,179,8,0.15)' : 'rgba(100,116,139,0.15)',
+                                                color: isApiLocked2ByPlan ? '#ca8a04' : '#64748b',
+                                                textTransform: 'uppercase',
                                                 letterSpacing: '0.05em', whiteSpace: 'nowrap'
                                             }}>
-                                                Off
+                                                {isApiLocked2ByPlan ? 'Pro' : 'Off'}
                                             </span>
                                         )}
                                     </div>
