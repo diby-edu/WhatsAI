@@ -465,6 +465,17 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
 
                     if (attempt > MAX_RECONNECT_ATTEMPTS) {
                         console.error(`🛑 [${agentName}] Reconnexion abandonnée après ${MAX_RECONNECT_ATTEMPTS} tentatives. Intervention manuelle requise.`)
+                        // ⭐ Purger les credentials : après 10 échecs, la session est considérée
+                        // invalide. Sans cette purge, l'utilisateur ne recevrait jamais de nouveau
+                        // QR car notre route /connect détecte des credentials existants et ne force
+                        // pas de fresh QR — laissant l'agent bloqué indéfiniment.
+                        try {
+                            await supabase.from('whatsapp_sessions').delete().eq('session_id', agentId)
+                            console.log(`🧹 [${agentName}] Credentials purgés après ${MAX_RECONNECT_ATTEMPTS} échecs — prochain /connect génèrera un nouveau QR`)
+                        } catch (cleanupErr) {
+                            console.warn(`⚠️ [${agentName}] Impossible de purger les credentials:`, cleanupErr.message)
+                        }
+                        if (context?.qrAttemptCounts) context.qrAttemptCounts.delete(agentId)
                         await supabase.from('agents').update({
                             whatsapp_connected: false,
                             whatsapp_status: 'disconnected',
