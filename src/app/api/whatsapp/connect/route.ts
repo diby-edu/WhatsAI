@@ -132,7 +132,22 @@ export async function POST(request: NextRequest) {
         const adminClient = createAdminClient()
         const forceFreshQr = body?.forceFreshQr === true
         const hasConnectedBefore = hasAgentConnectedBefore(agent)
-        const shouldForceFreshQr = forceFreshQr || !hasConnectedBefore
+        let shouldForceFreshQr = forceFreshQr || !hasConnectedBefore
+
+        // Si l'agent a déjà connecté mais plus de credentials en DB (session expirée/purgée après
+        // déconnexion prolongée), forcer un nouveau QR automatiquement — sans que l'utilisateur
+        // n'ait besoin de cliquer deux fois ou de supprimer l'agent.
+        if (!shouldForceFreshQr && hasConnectedBefore) {
+            const { data: storedCreds } = await adminClient
+                .from('whatsapp_sessions')
+                .select('key_id')
+                .eq('session_id', agentId)
+                .eq('key_id', 'creds')
+                .maybeSingle()
+            if (!storedCreds) {
+                shouldForceFreshQr = true
+            }
+        }
 
         if (shouldForceFreshQr) {
             // Fresh setup or explicit reset: clear stored credentials to force a new QR flow.

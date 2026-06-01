@@ -535,6 +535,13 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                         console.error(`⚠️ Failed to cleanup session for ${agentName}:`, cleanupErr.message)
                     }
 
+                    // Réinitialiser le compteur QR pour cet agent — sans ça, un compteur
+                    // accumulé lors de sessions précédentes empêcherait la génération d'un
+                    // nouveau QR lors de la prochaine tentative de reconnexion manuelle.
+                    if (context?.qrAttemptCounts) {
+                        context.qrAttemptCounts.delete(agentId)
+                    }
+
                     await supabase.from('agents').update({
                         whatsapp_connected: false,
                         whatsapp_qr_code: null,
