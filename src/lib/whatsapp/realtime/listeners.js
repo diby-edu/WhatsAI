@@ -148,10 +148,13 @@ function setupRealtimeListeners(context) {
 
                 if (pendingConnections.has(id)) return
 
+                // Utiliser reconnectAttempt=0 (connexion explicite) et non 99 (restauration
+                // silencieuse) : cela libère les connexions bloquées, ne compte pas dans
+                // qrAttemptCounts, et envoie une notification push à l'utilisateur sur succès.
                 if (typeof context.scheduleSessionInit === 'function') {
-                    context.scheduleSessionInit(context, { id, name, whatsapp_status }, 99)
+                    context.scheduleSessionInit(context, { id, name, whatsapp_status }, 0)
                 } else {
-                    initSession(context, id, name, 99)
+                    initSession(context, id, name, 0)
                 }
             }
         )
