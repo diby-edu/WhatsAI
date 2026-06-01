@@ -1,7 +1,9 @@
+import { randomBytes } from 'node:crypto'
 import { NextRequest } from 'next/server'
 import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
 import { getAIRuntimeSettings } from '@/lib/admin/settings'
 import { buildAccountLifecycleAccessState, getAccountLifecycleBlockMessage } from '@/lib/account-lifecycle'
+import { resolveAgentEcommerceMode } from '@/lib/agents/ecommerce-mode'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,13 +17,16 @@ const ALLOWED_IMPORT_FIELDS = new Set([
     'latitude', 'longitude', 'is_online_only',
     'agent_context', 'welcome_message',
     'lead_collection_enabled', 'lead_redirect_message', 'lead_collect_fields',
-    'fallback_contact_message', 'mission', 'ecommerce_mode', 'payment_mode',
+    'fallback_contact_message', 'mission', 'payment_mode',
     'mobile_money_orange', 'mobile_money_mtn', 'mobile_money_wave',
     'custom_payment_methods', 'escalation_phone',
     'live_query_url', 'live_query_secret', 'external_sync_reply_message',
     'restaurant_deposit_enabled', 'restaurant_deposit_mode',
     'restaurant_deposit_percentage', 'restaurant_deposit_fixed_amount_fcfa',
+    // ecommerce_mode est géré séparément via resolveAgentEcommerceMode
 ])
+
+const SUPPORTED_PROVIDERS = new Set(['shopify', 'woocommerce', 'chariow', 'maketou', 'generic'])
 
 export async function POST(request: NextRequest) {
     const supabase = await createApiClient()
@@ -46,6 +51,13 @@ export async function POST(request: NextRequest) {
     if (!imported.name || typeof imported.name !== 'string') {
         return errorResponse('Le champ "name" est requis dans la configuration importée.', 400)
     }
+
+    // Connexions webhook optionnelles
+    const importedConnections: any[] = Array.isArray(body.platform_connections)
+        ? body.platform_connections.filter((c: any) =>
+            c && typeof c.provider === 'string' && SUPPORTED_PROVIDERS.has(c.provider)
+          )
+        : []
 
     // Vérifier le quota d'agents du plan
     let { data: profile, error: profileError } = await supabase
@@ -89,19 +101,21 @@ export async function POST(request: NextRequest) {
     const adminClient = createAdminClient()
     const aiDefaults = await getAIRuntimeSettings(adminClient)
 
-    // Filtrer uniquement les champs autorisés
+    // Filtrer uniquement les champs autorisés (ecommerce_mode exclu — normalisé ci-dessous)
     const safeFields = Object.fromEntries(
         Object.entries(imported).filter(([key]) => ALLOWED_IMPORT_FIELDS.has(key))
     )
+
+    // Normaliser ecommerce_mode exactement comme la route de création d'agent
+    const ecommerceMode = resolveAgentEcommerceMode(imported.mission, imported.ecommerce_mode)
 
     const { data: agent, error } = await supabase
         .from('agents')
         .insert({
             user_id: user.id,
             ...safeFields,
-            // Nom avec suffixe pour distinguer de l'original
             name: `${imported.name} (copie)`,
-            // Valeurs par défaut pour les champs obligatoires
+            ecommerce_mode: ecommerceMode,
             model: imported.model || aiDefaults.openaiModel,
             temperature: imported.temperature ?? aiDefaults.temperatureDefault,
             max_tokens: imported.max_tokens ?? aiDefaults.maxTokensPerMessage,
@@ -114,7 +128,35 @@ export async function POST(request: NextRequest) {
         .select('id, name')
         .single()
 
-    if (error) return errorResponse('Erreur lors de la création de l\'agent', 500)
+    if (error) return errorResponse("Erreur lors de la création de l'agent", 500)
 
-    return successResponse({ agent }, 201)
+    // Recréer les connexions webhook avec de nouveaux tokens/secrets
+    let connectionsCreated = 0
+    for (const conn of importedConnections) {
+        const token = randomBytes(32).toString('hex')
+        const secret = randomBytes(32).toString('hex')
+        const { error: connError } = await adminClient
+            .from('api_platform_connections')
+            .insert({
+                user_id: user.id,
+                agent_id: agent!.id,
+                provider: conn.provider,
+                name: conn.name || conn.provider,
+                allowed_events: conn.allowed_events ?? null,
+                rate_limit_per_minute: conn.rate_limit_per_minute ?? 60,
+                metadata: conn.metadata ?? null,
+                webhook_token: token,
+                signing_secret: secret,
+                is_active: true,
+            })
+        if (!connError) connectionsCreated++
+    }
+
+    return successResponse({
+        agent,
+        connections_restored: connectionsCreated,
+        connections_note: connectionsCreated > 0
+            ? `${connectionsCreated} connexion(s) webhook recréée(s) avec de nouvelles URLs. Mettez à jour vos plateformes (Chariow Pulse, etc.) avec les nouvelles URLs webhook depuis le Mode Développeur.`
+            : null,
+    }, 201)
 }

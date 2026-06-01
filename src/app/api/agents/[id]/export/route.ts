@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createApiClient, getAuthUser, errorResponse } from '@/lib/api-utils'
+import { createApiClient, createAdminClient, getAuthUser, errorResponse } from '@/lib/api-utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,7 +30,9 @@ export async function GET(
 
     if (authError || !user) return errorResponse('Non autorisé', 401)
 
-    const { data: agent, error } = await supabase
+    const adminClient = createAdminClient()
+
+    const { data: agent, error } = await adminClient
         .from('agents')
         .select(EXPORT_FIELDS.join(', '))
         .eq('id', id)
@@ -39,12 +41,27 @@ export async function GET(
 
     if (error || !agent) return errorResponse('Agent non trouvé', 404)
 
+    // Exporter aussi les connexions API (sans webhook_token ni signing_secret — régénérés à l'import)
+    const { data: connections } = await adminClient
+        .from('api_platform_connections')
+        .select('provider, name, allowed_events, rate_limit_per_minute, metadata')
+        .eq('agent_id', id)
+        .eq('user_id', user.id)
+
     const exportData = {
         wazzapai_export: '1.0',
         exported_at: new Date().toISOString(),
         agent: Object.fromEntries(
             EXPORT_FIELDS.map(f => [f, (agent as any)[f] ?? null])
         ),
+        // Connexions webhook : provider/config préservés, URLs et secrets régénérés à l'import
+        platform_connections: (connections || []).map(c => ({
+            provider: c.provider,
+            name: c.name,
+            allowed_events: c.allowed_events ?? null,
+            rate_limit_per_minute: c.rate_limit_per_minute ?? null,
+            metadata: c.metadata ?? null,
+        })),
     }
 
     const filename = `agent-${(agent as any).name?.replace(/[^a-z0-9]/gi, '-').toLowerCase() || id}-config.json`
