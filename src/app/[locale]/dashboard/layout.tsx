@@ -173,14 +173,10 @@ export default function DashboardLayout({
     useEffect(() => {
         const checkApiAccess = async () => {
             try {
-                const supabase = createClient()
-                const { data: { user } } = await supabase.auth.getUser()
-                if (!user) return
-                const { data: profile } = await supabase
-                    .from('profiles')
-                    .select('api_access_enabled, app_banner_dismissed, phone_verified, phone, plan, credits')
-                    .eq('id', user.id)
-                    .single()
+                const res = await fetch('/api/profile', { cache: 'no-store' })
+                if (!res.ok) return
+                const json = await res.json()
+                const profile = json.data?.profile || json.profile || json.data || json
                 setApiAccessEnabled(profile?.api_access_enabled ?? null)
                 setAppBannerDismissed(profile?.app_banner_dismissed ?? false)
                 setPhoneVerified(profile?.phone_verified ?? false)
