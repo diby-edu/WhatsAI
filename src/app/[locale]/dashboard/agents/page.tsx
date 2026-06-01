@@ -16,7 +16,9 @@ import {
     Smartphone,
     Crown,
     BookOpen,
-    Users
+    Users,
+    Download,
+    Upload
 } from 'lucide-react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
@@ -155,7 +157,9 @@ export default function AgentsPage() {
         const agent = agents.find(a => a.id === id)
         const ok = await toast.confirm({
             title: 'Supprimer cet agent ?',
-            message: agent?.name ? `L'agent "${agent.name}" sera définitivement supprimé.` : t('card.deleteConfirm'),
+            message: agent?.name
+                ? `L'agent "${agent.name}" sera définitivement supprimé. Exportez sa configuration (bouton télécharger) avant de le supprimer si vous souhaitez le recréer facilement.`
+                : t('card.deleteConfirm'),
             confirmLabel: 'Supprimer',
             danger: true,
         })
@@ -178,6 +182,37 @@ export default function AgentsPage() {
             setActionLoading(null)
             setMenuOpen(null)
         }
+    }
+
+    const exportAgent = async (id: string) => {
+        try {
+            const res = await fetch(`/api/agents/${id}/export`)
+            if (!res.ok) { toast.error('Erreur lors de l\'export'); return }
+            const blob = await res.blob()
+            const cd = res.headers.get('Content-Disposition') || ''
+            const match = cd.match(/filename="([^"]+)"/)
+            const filename = match ? match[1] : `agent-${id}-config.json`
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url; a.download = filename; a.click()
+            URL.revokeObjectURL(url)
+        } catch { toast.error('Erreur réseau lors de l\'export') }
+    }
+
+    const importAgent = async (file: File) => {
+        try {
+            const text = await file.text()
+            const json = JSON.parse(text)
+            const res = await fetch('/api/agents/import', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(json),
+            })
+            const result = await res.json()
+            if (!res.ok) { toast.error(result.error || 'Erreur lors de l\'import'); return }
+            toast.success(`Agent "${result.data?.agent?.name}" importé avec succès`)
+            fetchAgents()
+        } catch { toast.error('Fichier invalide ou corrompu') }
     }
 
     const cardStyle = {
@@ -210,45 +245,52 @@ export default function AgentsPage() {
                             {activeAgents.length}/{agentLimit} agent{agentLimit > 1 ? 's' : ''}
                         </span>
                     )}
-                    {atLimit ? (
-                        <button
-                            onClick={() => openUpgradeModal('agent_limit')}
-                            style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 8,
-                                padding: '12px 24px',
-                                borderRadius: 12,
-                                background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-                                color: 'white',
-                                fontWeight: 600,
-                                border: 'none',
-                                cursor: 'pointer',
-                                fontSize: 14
-                            }}
-                        >
-                            <Plus style={{ width: 20, height: 20 }} />
-                            Passer au plan supérieur
-                        </button>
-                    ) : (
-                        <Link
-                            href="/dashboard/agents/new"
-                            style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 8,
-                                padding: '12px 24px',
-                                borderRadius: 12,
-                                background: 'linear-gradient(135deg, #10b981, #059669)',
-                                color: 'white',
-                                fontWeight: 600,
-                                textDecoration: 'none'
-                            }}
-                        >
-                            <Plus style={{ width: 20, height: 20 }} />
-                            {t('createButton')}
-                        </Link>
-                    )}
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        {/* Bouton Importer */}
+                        <label title="Importer une configuration d'agent" style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 6,
+                            padding: '10px 16px', borderRadius: 12, cursor: 'pointer',
+                            background: 'rgba(99, 102, 241, 0.15)',
+                            border: '1px solid rgba(99, 102, 241, 0.3)',
+                            color: '#818cf8', fontWeight: 600, fontSize: 14
+                        }}>
+                            <Upload style={{ width: 16, height: 16 }} />
+                            Importer
+                            <input
+                                type="file" accept=".json" style={{ display: 'none' }}
+                                onChange={e => { const f = e.target.files?.[0]; if (f) importAgent(f); e.target.value = '' }}
+                            />
+                        </label>
+
+                        {atLimit ? (
+                            <button
+                                onClick={() => openUpgradeModal('agent_limit')}
+                                style={{
+                                    display: 'inline-flex', alignItems: 'center', gap: 8,
+                                    padding: '12px 24px', borderRadius: 12,
+                                    background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                                    color: 'white', fontWeight: 600, border: 'none',
+                                    cursor: 'pointer', fontSize: 14
+                                }}
+                            >
+                                <Plus style={{ width: 20, height: 20 }} />
+                                Passer au plan supérieur
+                            </button>
+                        ) : (
+                            <Link
+                                href="/dashboard/agents/new"
+                                style={{
+                                    display: 'inline-flex', alignItems: 'center', gap: 8,
+                                    padding: '12px 24px', borderRadius: 12,
+                                    background: 'linear-gradient(135deg, #10b981, #059669)',
+                                    color: 'white', fontWeight: 600, textDecoration: 'none'
+                                }}
+                            >
+                                <Plus style={{ width: 20, height: 20 }} />
+                                {t('createButton')}
+                            </Link>
+                        )}
+                    </div>
                 </div>
             </div>
 
@@ -280,6 +322,23 @@ export default function AgentsPage() {
                     }}
                 />
             </div>
+
+            {/* Astuce export/import — visible uniquement quand il y a des agents */}
+            {agents.length > 0 && (
+                <div style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '10px 16px', borderRadius: 10,
+                    background: 'rgba(99, 102, 241, 0.08)',
+                    border: '1px solid rgba(99, 102, 241, 0.2)',
+                }}>
+                    <Download style={{ width: 15, height: 15, color: '#818cf8', flexShrink: 0 }} />
+                    <span style={{ fontSize: 13, color: '#94a3b8' }}>
+                        <span style={{ color: '#c7d2fe', fontWeight: 600 }}>Astuce :</span>{' '}
+                        Exportez la configuration d'un agent (bouton <span style={{ color: '#818cf8' }}>↓</span> sur la carte) avant de le supprimer.
+                        Vous pourrez la réimporter en un clic avec le bouton <span style={{ color: '#818cf8', fontWeight: 600 }}>Importer</span> ci-dessus — sans tout reconfigurer.
+                    </span>
+                </div>
+            )}
 
             {/* Agents Grid */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 24 }}>
@@ -458,6 +517,18 @@ export default function AgentsPage() {
                                     <Power style={{ width: 18, height: 18, color: agent.is_active ? '#fbbf24' : '#10b981' }} />
                                 </button>
                                 <span style={{ fontSize: 9, color: '#64748b', fontWeight: 500 }}>{agent.is_active ? 'Désactiver' : 'Activer'}</span>
+                            </div>
+
+                            {/* Exporter config */}
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                                <button onClick={() => exportAgent(agent.id)}
+                                    title="Exporter la configuration de cet agent"
+                                    style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: 'rgba(99, 102, 241, 0.15)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+                                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(99, 102, 241, 0.3)'; e.currentTarget.style.transform = 'scale(1.05)' }}
+                                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(99, 102, 241, 0.15)'; e.currentTarget.style.transform = 'scale(1)' }}>
+                                    <Download style={{ width: 18, height: 18, color: '#818cf8' }} />
+                                </button>
+                                <span style={{ fontSize: 9, color: '#64748b', fontWeight: 500 }}>Exporter</span>
                             </div>
 
                             {/* Supprimer */}
