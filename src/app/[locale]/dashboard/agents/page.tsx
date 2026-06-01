@@ -210,7 +210,8 @@ export default function AgentsPage() {
             })
             const result = await res.json()
             if (!res.ok) { toast.error(result.error || 'Erreur lors de l\'import'); return }
-            toast.success(`Agent "${result.data?.agent?.name}" importé avec succès`)
+            const note = result.data?.connections_note
+            toast.success(`Agent "${result.data?.agent?.name}" importé avec succès${note ? ` — ${note}` : ''}`)
             fetchAgents()
         } catch { toast.error('Fichier invalide ou corrompu') }
     }
