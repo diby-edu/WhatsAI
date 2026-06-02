@@ -460,7 +460,7 @@ export default function AdminPlansPage() {
                                         required
                                         min={0}
                                         value={formData.price_fcfa}
-                                        onChange={e => setFormData({ ...formData, price_fcfa: parseInt(e.target.value) || 0 })}
+                                        onChange={e => setFormData({ ...formData, price_fcfa: e.target.valueAsNumber })}
                                         style={{
                                             width: '100%',
                                             padding: 14,
