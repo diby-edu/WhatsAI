@@ -613,7 +613,7 @@ function EditUserModal({ user, onClose, onSave, onSetCredits, onAddCredits, onSu
                 <button onClick={onClose} style={{ position: 'absolute', top: 12, right: 12, background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', zIndex: 1 }}>
                     <X size={18} />
                 </button>
-                <div style={{ overflowY: 'auto', padding: 'clamp(16px, 4vw, 24px)', flex: 1 }}>
+                <div style={{ overflowY: 'auto', padding: 'clamp(16px, 4vw, 24px)', flex: 1, minHeight: 0 }}>
                 <h2 style={{ fontSize: 18, fontWeight: 700, color: 'white', marginBottom: 4 }}>Modifier l'utilisateur</h2>
                 <p style={{ fontSize: 13, color: '#64748b', marginBottom: 20 }}>{user.email}</p>
 
