@@ -298,7 +298,7 @@ export default function DevelopersPage() {
                     fetch('/api/public/runtime-config'),
                 ])
                 const profileJson = await profileRes.json()
-                const profile = profileJson.data || profileJson
+                const profile = profileJson.data?.profile || profileJson.data || profileJson
                 setUserPlan((profile.plan || 'free').toLowerCase())
                 setApiAccessEnabled(profile.api_access_enabled ?? null)
 
