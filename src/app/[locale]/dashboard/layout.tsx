@@ -641,7 +641,7 @@ export default function DashboardLayout({
                                     <span style={{ fontWeight: 700, color: 'white', fontSize: 20 }}>WazzapAI</span>
                                 </Link>
                             </div>
-                            <nav style={{ flex: 1, padding: 16, display: 'flex', flexDirection: 'column', gap: 4, overflowY: 'auto' }}>
+                            <nav style={{ flex: 1, minHeight: 0, padding: 16, display: 'flex', flexDirection: 'column', gap: 4, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
                                 {sidebarLinks.map((item, idx) => {
                                     if ('separator' in item) {
                                         return (

@@ -540,8 +540,8 @@ export default function AdminLayout({
                                 overflow: 'hidden'
                             }}
                         >
-                            <div style={{ padding: 24 }}>
-                                <Link href="/admin" style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 32, textDecoration: 'none' }}>
+                            <div style={{ padding: 24, display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+                                <Link href="/admin" style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 32, textDecoration: 'none', flexShrink: 0 }}>
                                     <div style={{
                                         width: 40,
                                         height: 40,
@@ -558,7 +558,7 @@ export default function AdminLayout({
                                         <div style={{ fontSize: 12, color: '#ef4444', fontWeight: 500 }}>SUPER ADMIN</div>
                                     </div>
                                 </Link>
-                                <nav style={{ display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto', flex: 1, WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
+                                <nav style={{ display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto', flex: 1, minHeight: 0, WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
                                     {adminGroups.map((group, groupIdx) => (
                                         <div key={groupIdx}>
                                             {groupIdx > 0 && (
