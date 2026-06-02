@@ -84,9 +84,16 @@ export async function POST(request: NextRequest) {
     const blockMessage = getAccountLifecycleBlockMessage(lifecycleAccess, 'agent_creation')
     if (blockMessage) return errorResponse(blockMessage, 403)
 
+    const { data: planData } = await supabase
+        .from('subscription_plans')
+        .select('max_agents')
+        .ilike('name', profile?.plan || 'free')
+        .single()
+
     const { PLANS } = await import('@/lib/plans')
     const planKey = ((profile?.plan || 'free') as string).toLowerCase()
-    const limit: number = (PLANS as any)[planKey]?.agents ?? 1
+    const fallbackLimit: number = (PLANS as any)[planKey]?.agents ?? 1
+    const limit: number = planData?.max_agents ?? fallbackLimit
 
     const { count: agentCount } = await supabase
         .from('agents')

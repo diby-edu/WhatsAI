@@ -612,7 +612,8 @@ export default function DashboardLayout({
                                 backdropFilter: 'blur(40px)',
                                 borderRight: '1px solid rgba(148, 163, 184, 0.1)',
                                 display: 'flex',
-                                flexDirection: 'column'
+                                flexDirection: 'column',
+                                overflow: 'hidden'
                             }}
                         >
                             <div style={{ padding: 20, borderBottom: '1px solid rgba(148, 163, 184, 0.1)' }}>
@@ -856,13 +857,13 @@ export default function DashboardLayout({
                 width: '100%',
                 minWidth: 0,
                 minHeight: '100vh',
-                height: '100vh',
+                height: isMobile ? 'auto' : '100vh',
                 marginLeft: isMobile ? 0 : sidebarWidth,
                 paddingTop: isMobile ? 64 : 0,
                 transition: 'margin-left 0.3s ease',
                 backgroundColor: '#0f172a',
                 overflowX: 'hidden',
-                overflowY: 'auto',
+                overflowY: isMobile ? 'visible' : 'auto',
                 WebkitOverflowScrolling: 'touch'
             }}>
                 {/* Desktop Top Bar with Notifications */}
