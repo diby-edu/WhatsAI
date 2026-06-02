@@ -155,6 +155,12 @@ export default function AdminLayout({
     const searchRef = useRef<HTMLDivElement>(null)
     const logoutInProgressRef = useRef(false)
 
+    // Lock body scroll when mobile menu is open (prevents background page scrolling)
+    useEffect(() => {
+        document.body.style.overflow = mobileMenuOpen ? 'hidden' : ''
+        return () => { document.body.style.overflow = '' }
+    }, [mobileMenuOpen])
+
     useEffect(() => {
         const checkMobile = () => setIsMobile(window.innerWidth < 1024)
         checkMobile()
@@ -346,7 +352,10 @@ export default function AdminLayout({
                     backgroundColor: 'rgba(15, 23, 42, 0.9)',
                     backdropFilter: 'blur(20px)',
                     borderBottom: '1px solid rgba(148, 163, 184, 0.1)',
-                    padding: '12px 16px',
+                    paddingTop: 'calc(12px + env(safe-area-inset-top, 0px))',
+                    paddingBottom: '12px',
+                    paddingLeft: '16px',
+                    paddingRight: '16px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between'
@@ -767,7 +776,7 @@ export default function AdminLayout({
                 minWidth: 0,
                 minHeight: '100vh',
                 marginLeft: isMobile ? 0 : sidebarWidth,
-                paddingTop: isMobile ? 64 : 0,
+                paddingTop: isMobile ? 'calc(64px + env(safe-area-inset-top, 0px))' : 0,
                 transition: 'margin-left 0.3s ease',
                 overflowX: 'hidden'
             }}>

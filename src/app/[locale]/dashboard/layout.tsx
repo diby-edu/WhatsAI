@@ -154,6 +154,12 @@ export default function DashboardLayout({
         return () => window.removeEventListener('resize', checkMobile)
     }, [])
 
+    // Lock body scroll when mobile menu is open (prevents background page scrolling)
+    useEffect(() => {
+        document.body.style.overflow = mobileMenuOpen ? 'hidden' : ''
+        return () => { document.body.style.overflow = '' }
+    }, [mobileMenuOpen])
+
     useEffect(() => {
         const loadRuntimeConfig = async () => {
             try {
@@ -396,7 +402,10 @@ export default function DashboardLayout({
                     backgroundColor: 'rgba(15, 23, 42, 0.95)',
                     backdropFilter: 'blur(20px)',
                     borderBottom: '1px solid rgba(148, 163, 184, 0.1)',
-                    padding: '12px 16px',
+                    paddingTop: 'calc(12px + env(safe-area-inset-top, 0px))',
+                    paddingBottom: '12px',
+                    paddingLeft: '16px',
+                    paddingRight: '16px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between'
@@ -859,7 +868,7 @@ export default function DashboardLayout({
                 minHeight: '100vh',
                 height: isMobile ? 'auto' : '100vh',
                 marginLeft: isMobile ? 0 : sidebarWidth,
-                paddingTop: isMobile ? 64 : 0,
+                paddingTop: isMobile ? 'calc(64px + env(safe-area-inset-top, 0px))' : 0,
                 transition: 'margin-left 0.3s ease',
                 backgroundColor: '#0f172a',
                 overflowX: 'hidden',
