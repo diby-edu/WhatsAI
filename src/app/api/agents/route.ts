@@ -130,10 +130,16 @@ export async function POST(request: NextRequest) {
             .eq('user_id', user!.id)
             .is('archived_at', null)
 
-        // Use plans.ts as single source of truth for agent limits
+        const { data: planData } = await supabase
+            .from('subscription_plans')
+            .select('max_agents')
+            .ilike('name', profile?.plan || 'free')
+            .single()
+
         const { PLANS } = await import('@/lib/plans')
         const planKey = ((profile?.plan || 'free') as string).toLowerCase()
-        const limit: number = (PLANS as any)[planKey]?.agents ?? 1
+        const fallbackLimit: number = (PLANS as any)[planKey]?.agents ?? 1
+        const limit: number = planData?.max_agents ?? fallbackLimit
 
         if (limit !== -1 && (agentCount || 0) >= limit) {
             notifyAdmins('agent_quota_exceeded', {
