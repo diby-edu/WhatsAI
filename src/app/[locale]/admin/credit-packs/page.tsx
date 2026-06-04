@@ -246,7 +246,7 @@ export default function AdminCreditPacksPage() {
                             <input
                                 type="number"
                                 value={newPack.credits}
-                                onChange={(e) => setNewPack({ ...newPack, credits: parseInt(e.target.value) || 0 })}
+                                onChange={(e) => setNewPack({ ...newPack, credits: e.target.valueAsNumber })}
                                 style={inputStyle}
                             />
                         </div>
@@ -255,7 +255,7 @@ export default function AdminCreditPacksPage() {
                             <input
                                 type="number"
                                 value={newPack.price}
-                                onChange={(e) => setNewPack({ ...newPack, price: parseInt(e.target.value) || 0 })}
+                                onChange={(e) => setNewPack({ ...newPack, price: e.target.valueAsNumber })}
                                 style={inputStyle}
                             />
                         </div>
@@ -264,7 +264,7 @@ export default function AdminCreditPacksPage() {
                             <input
                                 type="number"
                                 value={newPack.savings}
-                                onChange={(e) => setNewPack({ ...newPack, savings: parseInt(e.target.value) || 0 })}
+                                onChange={(e) => setNewPack({ ...newPack, savings: e.target.valueAsNumber })}
                                 style={inputStyle}
                             />
                         </div>
@@ -273,7 +273,7 @@ export default function AdminCreditPacksPage() {
                             <input
                                 type="number"
                                 value={newPack.display_order}
-                                onChange={(e) => setNewPack({ ...newPack, display_order: parseInt(e.target.value) || 0 })}
+                                onChange={(e) => setNewPack({ ...newPack, display_order: e.target.valueAsNumber })}
                                 style={inputStyle}
                             />
                         </div>
@@ -330,7 +330,7 @@ export default function AdminCreditPacksPage() {
                                             <input
                                                 type="number"
                                                 value={editData.credits || 0}
-                                                onChange={(e) => setEditData({ ...editData, credits: parseInt(e.target.value) || 0 })}
+                                                onChange={(e) => setEditData({ ...editData, credits: e.target.valueAsNumber })}
                                                 style={{ ...inputStyle, width: '80px' }}
                                             />
                                         </td>
@@ -338,7 +338,7 @@ export default function AdminCreditPacksPage() {
                                             <input
                                                 type="number"
                                                 value={editData.price || 0}
-                                                onChange={(e) => setEditData({ ...editData, price: parseInt(e.target.value) || 0 })}
+                                                onChange={(e) => setEditData({ ...editData, price: e.target.valueAsNumber })}
                                                 style={{ ...inputStyle, width: '100px' }}
                                             />
                                         </td>
@@ -346,7 +346,7 @@ export default function AdminCreditPacksPage() {
                                             <input
                                                 type="number"
                                                 value={editData.savings || 0}
-                                                onChange={(e) => setEditData({ ...editData, savings: parseInt(e.target.value) || 0 })}
+                                                onChange={(e) => setEditData({ ...editData, savings: e.target.valueAsNumber })}
                                                 style={{ ...inputStyle, width: '60px' }}
                                             />
                                         </td>

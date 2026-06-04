@@ -232,7 +232,9 @@ public class MainActivity extends BridgeActivity {
         if (webView != null) {
             WebSettings settings = webView.getSettings();
 
-            applySystemBarInsets(webView);
+            // Note: insets are handled via CSS env(safe-area-inset-*) — Capacitor reports them correctly.
+            // applySystemBarInsets is removed: its setInsets(NONE) was zeroing env() in CSS,
+            // preventing the fixed header from covering the status bar area properly.
             configureWebViewContainer(webView);
 
             // Enable smooth scrolling

@@ -504,7 +504,7 @@ export default function AdminSettingsPage() {
                                 className="admin-settings-small-input"
                                 type="number"
                                 value={settings.defaultCredits}
-                                onChange={(e) => setSettings({ ...settings, defaultCredits: parseInt(e.target.value) })}
+                                onChange={(e) => setSettings({ ...settings, defaultCredits: e.target.valueAsNumber })}
                                 style={{
                                     width: 150,
                                     padding: 14,
@@ -552,7 +552,7 @@ export default function AdminSettingsPage() {
                                 <input
                                     type="number"
                                     value={settings.maxTokensPerMessage}
-                                    onChange={(e) => setSettings({ ...settings, maxTokensPerMessage: parseInt(e.target.value) })}
+                                    onChange={(e) => setSettings({ ...settings, maxTokensPerMessage: e.target.valueAsNumber })}
                                     style={{
                                         width: '100%',
                                         padding: 14,
@@ -601,7 +601,7 @@ export default function AdminSettingsPage() {
                                     <input
                                         type="number"
                                         value={settings[item.key as keyof typeof settings] as number}
-                                        onChange={(e) => setSettings({ ...settings, [item.key]: parseInt(e.target.value) })}
+                                        onChange={(e) => setSettings({ ...settings, [item.key]: e.target.valueAsNumber })}
                                         style={{
                                             width: '100%',
                                             padding: 12,
@@ -827,7 +827,7 @@ export default function AdminSettingsPage() {
                                 className="admin-settings-small-input"
                                 type="number"
                                 value={settings.defaultCommissionRate}
-                                onChange={(e) => setSettings({ ...settings, defaultCommissionRate: parseInt(e.target.value) })}
+                                onChange={(e) => setSettings({ ...settings, defaultCommissionRate: e.target.valueAsNumber })}
                                 style={{
                                     width: 150,
                                     padding: 14,
@@ -883,7 +883,7 @@ export default function AdminSettingsPage() {
                                 <input
                                     type="number"
                                     value={settings.smtpPort}
-                                    onChange={(e) => setSettings({ ...settings, smtpPort: parseInt(e.target.value) })}
+                                    onChange={(e) => setSettings({ ...settings, smtpPort: e.target.valueAsNumber })}
                                     style={{
                                         width: '100%',
                                         padding: 14,
@@ -961,7 +961,7 @@ export default function AdminSettingsPage() {
                                 <input
                                     type="number"
                                     value={settings.sessionTimeout}
-                                    onChange={(e) => setSettings({ ...settings, sessionTimeout: parseInt(e.target.value) })}
+                                    onChange={(e) => setSettings({ ...settings, sessionTimeout: e.target.valueAsNumber })}
                                     style={{
                                         width: '100%',
                                         padding: 14,
@@ -979,7 +979,7 @@ export default function AdminSettingsPage() {
                                 <input
                                     type="number"
                                     value={settings.maxLoginAttempts}
-                                    onChange={(e) => setSettings({ ...settings, maxLoginAttempts: parseInt(e.target.value) })}
+                                    onChange={(e) => setSettings({ ...settings, maxLoginAttempts: e.target.valueAsNumber })}
                                     style={{
                                         width: '100%',
                                         padding: 14,
@@ -1081,7 +1081,7 @@ export default function AdminSettingsPage() {
                                 className="admin-settings-small-input"
                                 type="number"
                                 value={settings.apiRateLimit}
-                                onChange={(e) => setSettings({ ...settings, apiRateLimit: parseInt(e.target.value) })}
+                                onChange={(e) => setSettings({ ...settings, apiRateLimit: e.target.valueAsNumber })}
                                 style={{
                                     width: 150,
                                     padding: 14,

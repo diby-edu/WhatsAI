@@ -478,7 +478,7 @@ export default function AdminPlansPage() {
                                         required
                                         min={0}
                                         value={formData.credits_included}
-                                        onChange={e => setFormData({ ...formData, credits_included: parseInt(e.target.value) || 0 })}
+                                        onChange={e => setFormData({ ...formData, credits_included: e.target.valueAsNumber })}
                                         style={{
                                             width: '100%',
                                             padding: 14,
@@ -502,7 +502,7 @@ export default function AdminPlansPage() {
                                         required
                                         min={-1}
                                         value={formData.max_agents}
-                                        onChange={e => setFormData({ ...formData, max_agents: parseInt(e.target.value) || 1 })}
+                                        onChange={e => setFormData({ ...formData, max_agents: e.target.valueAsNumber })}
                                         style={{
                                             width: '100%',
                                             padding: 14,
@@ -520,7 +520,7 @@ export default function AdminPlansPage() {
                                         required
                                         min={1}
                                         value={formData.max_whatsapp_numbers}
-                                        onChange={e => setFormData({ ...formData, max_whatsapp_numbers: parseInt(e.target.value) || 1 })}
+                                        onChange={e => setFormData({ ...formData, max_whatsapp_numbers: e.target.valueAsNumber })}
                                         style={{
                                             width: '100%',
                                             padding: 14,

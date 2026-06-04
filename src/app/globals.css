@@ -100,7 +100,7 @@ body {
   color: #f1f5f9;
   line-height: 1.6;
   overflow-x: hidden;
-  overflow-y: auto !important;
+  overflow-y: auto;
   min-height: 100vh;
   height: auto !important;
   -webkit-font-smoothing: antialiased;
@@ -1319,11 +1319,6 @@ body {
   div {
     word-wrap: break-word !important;
     overflow-wrap: break-word !important;
-  }
-
-  /* Flex containers - allow wrapping */
-  [style*="display: flex"] {
-    flex-wrap: wrap;
   }
 
   /* Headers - responsive font size */
