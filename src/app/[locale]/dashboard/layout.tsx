@@ -139,7 +139,6 @@ export default function DashboardLayout({
         { href: '/dashboard/leads', label: 'Leads', icon: Target },
         { href: '/dashboard/orders', label: t('orders'), icon: ShoppingBag },
         { href: '/dashboard/analytics', label: t('analytics'), icon: TrendingUp },
-        { href: '/dashboard/notifications', label: 'Notifications', icon: Bell },
         // ── COMPTE ──────────────────────────────────────────────────
         { separator: true, label: 'Compte' },
         { href: '/dashboard/billing', label: t('billing'), icon: CreditCard },
@@ -763,19 +762,6 @@ export default function DashboardLayout({
                                         </Link>
                                     )
                                 })}
-                                <button
-                                    onClick={handleLogout}
-                                    style={{
-                                        display: 'flex', alignItems: 'center', gap: 12,
-                                        padding: '12px 14px', borderRadius: 12,
-                                        color: '#f87171', fontWeight: 500,
-                                        backgroundColor: 'transparent', border: 'none',
-                                        cursor: 'pointer', marginTop: 4
-                                    }}
-                                >
-                                    <LogOut style={{ width: 20, height: 20 }} />
-                                    <span>{t('logout')}</span>
-                                </button>
                             </nav>
                         </motion.div>
                     </>
