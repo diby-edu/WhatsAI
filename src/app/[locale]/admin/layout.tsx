@@ -157,8 +157,17 @@ export default function AdminLayout({
 
     // Lock body scroll when mobile menu is open (prevents background page scrolling)
     useEffect(() => {
-        document.body.style.overflow = mobileMenuOpen ? 'hidden' : ''
-        return () => { document.body.style.overflow = '' }
+        if (mobileMenuOpen) {
+            document.body.style.overflow = 'hidden'
+            document.body.style.touchAction = 'none'
+        } else {
+            document.body.style.overflow = ''
+            document.body.style.touchAction = ''
+        }
+        return () => {
+            document.body.style.overflow = ''
+            document.body.style.touchAction = ''
+        }
     }, [mobileMenuOpen])
 
     useEffect(() => {
@@ -357,10 +366,11 @@ export default function AdminLayout({
                     paddingLeft: '16px',
                     paddingRight: '16px',
                     display: 'flex',
+                    flexWrap: 'nowrap',
                     alignItems: 'center',
                     justifyContent: 'space-between'
                 }}>
-                    <Link href="/admin" style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
+                    <Link href="/admin" style={{ display: 'flex', flexWrap: 'nowrap', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
                         <div style={{
                             width: 36,
                             height: 36,
@@ -374,7 +384,7 @@ export default function AdminLayout({
                         </div>
                         <span style={{ fontWeight: 700, color: 'white' }}>Admin</span>
                     </Link>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ display: 'flex', flexWrap: 'nowrap', alignItems: 'center', gap: 8 }}>
                         <button
                             onClick={() => setShowNotifications(!showNotifications)}
                             style={{
@@ -515,9 +525,11 @@ export default function AdminLayout({
                                 inset: 0,
                                 zIndex: 40,
                                 backgroundColor: 'rgba(0, 0, 0, 0.6)',
-                                backdropFilter: 'blur(4px)'
+                                backdropFilter: 'blur(4px)',
+                                touchAction: 'none'
                             }}
                             onClick={() => setMobileMenuOpen(false)}
+                            onTouchMove={e => e.preventDefault()}
                         />
                         <motion.div
                             key="mobile-sidebar"
@@ -558,7 +570,7 @@ export default function AdminLayout({
                                         <div style={{ fontSize: 12, color: '#ef4444', fontWeight: 500 }}>SUPER ADMIN</div>
                                     </div>
                                 </Link>
-                                <nav style={{ display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto', flex: 1, minHeight: 0, WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
+                                <nav style={{ display: 'flex', flexDirection: 'column', flexWrap: 'nowrap', gap: 2, overflowY: 'auto', flex: 1, minHeight: 0, WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
                                     {adminGroups.map((group, groupIdx) => (
                                         <div key={groupIdx}>
                                             {groupIdx > 0 && (
@@ -776,7 +788,7 @@ export default function AdminLayout({
                 minWidth: 0,
                 minHeight: '100vh',
                 marginLeft: isMobile ? 0 : sidebarWidth,
-                paddingTop: isMobile ? 'calc(64px + env(safe-area-inset-top, 0px))' : 0,
+                paddingTop: isMobile ? '64px' : 0,
                 transition: 'margin-left 0.3s ease',
                 overflowX: 'hidden'
             }}>

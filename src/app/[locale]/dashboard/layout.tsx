@@ -156,8 +156,17 @@ export default function DashboardLayout({
 
     // Lock body scroll when mobile menu is open (prevents background page scrolling)
     useEffect(() => {
-        document.body.style.overflow = mobileMenuOpen ? 'hidden' : ''
-        return () => { document.body.style.overflow = '' }
+        if (mobileMenuOpen) {
+            document.body.style.overflow = 'hidden'
+            document.body.style.touchAction = 'none'
+        } else {
+            document.body.style.overflow = ''
+            document.body.style.touchAction = ''
+        }
+        return () => {
+            document.body.style.overflow = ''
+            document.body.style.touchAction = ''
+        }
     }, [mobileMenuOpen])
 
     useEffect(() => {
@@ -407,10 +416,11 @@ export default function DashboardLayout({
                     paddingLeft: '16px',
                     paddingRight: '16px',
                     display: 'flex',
+                    flexWrap: 'nowrap',
                     alignItems: 'center',
                     justifyContent: 'space-between'
                 }}>
-                    <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
+                    <Link href="/" style={{ display: 'flex', flexWrap: 'nowrap', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
                         <div style={{
                             width: 36,
                             height: 36,
@@ -424,7 +434,15 @@ export default function DashboardLayout({
                         </div>
                         <span style={{ fontWeight: 700, color: 'white', fontSize: 18 }}>WazzapAI</span>
                     </Link>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ display: 'flex', flexWrap: 'nowrap', alignItems: 'center', gap: 6 }}>
+                        {/* Parrainage */}
+                        <Link href="/dashboard/settings?tab=referral" title="Parrainage" style={{ textDecoration: 'none', flexShrink: 0 }}>
+                            <div style={{ padding: 8, borderRadius: 10, backgroundColor: 'rgba(51, 65, 85, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <Gift style={{ width: 20, height: 20, color: '#a855f7' }} />
+                            </div>
+                        </Link>
+
+                        {/* Notifications */}
                         <div ref={mobileNotifBtnRef} style={{ position: 'relative' }}>
                             <button
                                 onClick={() => setShowNotifications(!showNotifications)}
@@ -451,6 +469,42 @@ export default function DashboardLayout({
                                 )}
                             </button>
                         </div>
+
+                        {/* Aide */}
+                        <Link href="/dashboard/help" title="Aide" style={{ textDecoration: 'none', flexShrink: 0 }}>
+                            <div style={{ padding: 8, borderRadius: 10, backgroundColor: 'rgba(51, 65, 85, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <HelpCircle style={{ width: 20, height: 20, color: '#94a3b8' }} />
+                            </div>
+                        </Link>
+
+                        {/* Déconnexion */}
+                        <button
+                            onClick={handleLogout}
+                            title={t('logout')}
+                            style={{ padding: 8, borderRadius: 10, backgroundColor: 'rgba(51, 65, 85, 0.5)', border: 'none', cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        >
+                            <LogOut style={{ width: 20, height: 20, color: '#f87171' }} />
+                        </button>
+
+                        {/* Avatar */}
+                        <Link href="/dashboard/settings" style={{ textDecoration: 'none', flexShrink: 0 }}>
+                            <div style={{
+                                width: 34, height: 34, borderRadius: '50%',
+                                overflow: 'hidden',
+                                background: userAvatar ? 'transparent' : 'linear-gradient(135deg, #10b981, #059669)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                color: 'white', fontSize: 14, fontWeight: 600,
+                                border: '2px solid rgba(16, 185, 129, 0.3)',
+                                cursor: 'pointer'
+                            }}>
+                                {userAvatar
+                                    ? <img src={userAvatar} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                                    : (userName?.charAt(0)?.toUpperCase() || '?')
+                                }
+                            </div>
+                        </Link>
+
+                        {/* Hamburger */}
                         <button
                             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                             style={{
@@ -601,9 +655,11 @@ export default function DashboardLayout({
                                 inset: 0,
                                 zIndex: 40,
                                 backgroundColor: 'rgba(0, 0, 0, 0.6)',
-                                backdropFilter: 'blur(4px)'
+                                backdropFilter: 'blur(4px)',
+                                touchAction: 'none'
                             }}
                             onClick={() => setMobileMenuOpen(false)}
+                            onTouchMove={e => e.preventDefault()}
                         />
                         <motion.div
                             initial={{ x: '-100%' }}
@@ -641,7 +697,7 @@ export default function DashboardLayout({
                                     <span style={{ fontWeight: 700, color: 'white', fontSize: 20 }}>WazzapAI</span>
                                 </Link>
                             </div>
-                            <nav style={{ flex: 1, minHeight: 0, padding: 16, display: 'flex', flexDirection: 'column', gap: 4, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                            <nav style={{ flex: 1, minHeight: 0, padding: 16, display: 'flex', flexDirection: 'column', flexWrap: 'nowrap', gap: 4, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
                                 {sidebarLinks.map((item, idx) => {
                                     if ('separator' in item) {
                                         return (
@@ -868,7 +924,7 @@ export default function DashboardLayout({
                 minHeight: '100vh',
                 height: isMobile ? 'auto' : '100vh',
                 marginLeft: isMobile ? 0 : sidebarWidth,
-                paddingTop: isMobile ? 'calc(64px + env(safe-area-inset-top, 0px))' : 0,
+                paddingTop: isMobile ? '64px' : 0,
                 transition: 'margin-left 0.3s ease',
                 backgroundColor: '#0f172a',
                 overflowX: 'hidden',
