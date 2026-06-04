@@ -545,14 +545,14 @@ export default function AgentsPage() {
                             </div>
                         </div>
 
-                        {/* Alerte base de connaissances vide (pas pour les agents API externe) */}
-                        {agent.knowledge_count === 0 && agent.ecommerce_mode !== 'external_sync' && (
+                        {/* Alerte base de connaissances vide — uniquement pour les agents Support Client */}
+                        {agent.mission === 'support_client' && agent.knowledge_count === 0 && (
                             <Link href={`/dashboard/agents/${agent.id}/knowledge`}
-                                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', marginBottom: 12, borderRadius: 8, background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.25)', textDecoration: 'none' }}>
-                                <span style={{ fontSize: 14 }}>⚠️</span>
+                                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', marginBottom: 12, borderRadius: 10, background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.3)', textDecoration: 'none' }}>
+                                <span style={{ fontSize: 18, flexShrink: 0 }}>⚠️</span>
                                 <div>
-                                    <div style={{ color: '#f87171', fontSize: 11, fontWeight: 700 }}>Base de connaissances vide</div>
-                                    <div style={{ color: '#94a3b8', fontSize: 10 }}>Ajoutez des informations pour que votre agent réponde correctement</div>
+                                    <div style={{ color: '#f87171', fontSize: 12, fontWeight: 700, marginBottom: 2 }}>Base de connaissances vide — agent non fonctionnel</div>
+                                    <div style={{ color: '#94a3b8', fontSize: 11, lineHeight: 1.4 }}>Cet agent ne connaît rien de votre activité. Ajoutez vos informations (tarifs, services, FAQ…) pour qu'il puisse répondre à vos clients. → Cliquez pour alimenter</div>
                                 </div>
                             </Link>
                         )}

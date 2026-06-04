@@ -2586,58 +2586,64 @@ Regles:
 
             {/* Modal post-création agent Support Client */}
             {showSupportModal && createdAgent && (
-                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-                    <div style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 24, padding: 32, maxWidth: 540, width: '100%', display: 'flex', flexDirection: 'column', gap: 20 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <h2 style={{ color: 'white', fontWeight: 700, fontSize: 20, margin: 0 }}>Votre agent support est prêt</h2>
-                            <button onClick={() => setShowSupportModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 4 }}>
-                                <Check size={20} />
-                            </button>
-                        </div>
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+                    <div style={{ background: '#0f172a', border: '1px solid #ef4444', borderRadius: 24, padding: 32, maxWidth: 560, width: '100%', display: 'flex', flexDirection: 'column', gap: 24 }}>
 
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                                <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(16,185,129,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 18 }}>📚</div>
+                        {/* En-tête alerte */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                <div style={{ width: 48, height: 48, borderRadius: 14, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, flexShrink: 0 }}>⚠️</div>
                                 <div>
-                                    <div style={{ color: 'white', fontWeight: 600, fontSize: 14, marginBottom: 4 }}>Réponses par base de connaissance</div>
-                                    <div style={{ color: '#94a3b8', fontSize: 13 }}>Votre agent répond uniquement à partir des documents que vous ajoutez. Il ne peut pas inventer d'information.</div>
-                                </div>
-                            </div>
-                            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                                <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(99,102,241,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 18 }}>🖼️</div>
-                                <div>
-                                    <div style={{ color: 'white', fontWeight: 600, fontSize: 14, marginBottom: 4 }}>Documents avec ou sans image</div>
-                                    <div style={{ color: '#94a3b8', fontSize: 13 }}>Associez une image à un document (voiture, produit, lieu...) : l'agent pourra l'envoyer si le client la demande. Uploader ou coller une URL.</div>
-                                </div>
-                            </div>
-                            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                                <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(251,191,36,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 18 }}>📋</div>
-                                <div>
-                                    <div style={{ color: 'white', fontWeight: 600, fontSize: 14, marginBottom: 4 }}>Collecte de leads (optionnel)</div>
-                                    <div style={{ color: '#94a3b8', fontSize: 13 }}>Activez l'option dans les paramètres : l'agent collecte le nom et le contact des clients intéressés. Vous les retrouvez dans "Leads".</div>
-                                </div>
-                            </div>
-                            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                                <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(239,68,68,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 18 }}>🚫</div>
-                                <div>
-                                    <div style={{ color: 'white', fontWeight: 600, fontSize: 14, marginBottom: 4 }}>Aucun catalogue produits</div>
-                                    <div style={{ color: '#94a3b8', fontSize: 13 }}>Ce mode ne prend pas de commandes. Ajoutez uniquement des documents dans la base de connaissance.</div>
+                                    <div style={{ color: '#f87171', fontWeight: 700, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 2 }}>Action requise</div>
+                                    <h2 style={{ color: 'white', fontWeight: 700, fontSize: 20, margin: 0 }}>Votre agent ne peut pas encore répondre</h2>
                                 </div>
                             </div>
                         </div>
 
-                        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                        {/* Explication centrale */}
+                        <div style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 14, padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                            <div style={{ color: 'white', fontWeight: 600, fontSize: 15 }}>Qu'est-ce que la base de connaissances ?</div>
+                            <div style={{ color: '#cbd5e1', fontSize: 14, lineHeight: 1.6 }}>
+                                C'est le <strong style={{ color: 'white' }}>cerveau de votre agent</strong>. Vous y écrivez tout ce qu'il doit savoir sur votre activité : vos services, vos tarifs, vos horaires, votre FAQ, vos conditions...
+                            </div>
+                            <div style={{ color: '#cbd5e1', fontSize: 14, lineHeight: 1.6 }}>
+                                <strong style={{ color: '#f87171' }}>Sans base de connaissances, votre agent est vide.</strong> Il ne connaît rien de votre activité et sera incapable de répondre correctement à vos clients.
+                            </div>
+                        </div>
+
+                        {/* Exemples concrets */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                            <div style={{ color: '#94a3b8', fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Exemples de ce que vous pouvez ajouter</div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                                {[
+                                    { icon: '💰', text: 'Vos tarifs et offres' },
+                                    { icon: '🕐', text: 'Vos horaires d\'ouverture' },
+                                    { icon: '❓', text: 'Questions fréquentes (FAQ)' },
+                                    { icon: '📍', text: 'Localisation / contact' },
+                                    { icon: '🛠️', text: 'Description de vos services' },
+                                    { icon: '📋', text: 'Conditions et politiques' },
+                                ].map((item, i) => (
+                                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'rgba(255,255,255,0.03)', borderRadius: 8, border: '1px solid rgba(148,163,184,0.08)' }}>
+                                        <span style={{ fontSize: 16 }}>{item.icon}</span>
+                                        <span style={{ color: '#cbd5e1', fontSize: 13 }}>{item.text}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* CTAs */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                             <button
                                 onClick={() => { setShowSupportModal(false); router.push(`/dashboard/agents/${createdAgent.id}/knowledge`) }}
-                                style={{ flex: 1, padding: '14px 20px', background: '#10b981', color: 'white', border: 'none', borderRadius: 12, fontWeight: 600, cursor: 'pointer', fontSize: 14 }}
+                                style={{ width: '100%', padding: '16px 20px', background: 'linear-gradient(135deg, #10b981, #059669)', color: 'white', border: 'none', borderRadius: 12, fontWeight: 700, cursor: 'pointer', fontSize: 15 }}
                             >
-                                Aller à la base de connaissance
+                                Alimenter la base de connaissances maintenant
                             </button>
                             <button
-                                onClick={() => { setShowSupportModal(false); router.push('/dashboard') }}
-                                style={{ padding: '14px 20px', background: 'transparent', color: '#94a3b8', border: '1px solid #334155', borderRadius: 12, cursor: 'pointer', fontSize: 14 }}
+                                onClick={() => { setShowSupportModal(false); router.push('/dashboard/agents') }}
+                                style={{ width: '100%', padding: '10px', background: 'transparent', color: '#475569', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}
                             >
-                                Tableau de bord
+                                Je le ferai plus tard (l'agent ne fonctionnera pas)
                             </button>
                         </div>
                     </div>
