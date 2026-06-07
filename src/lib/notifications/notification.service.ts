@@ -48,6 +48,12 @@ export type NotificationType =
     | 'scale_renewal_bonus'
     // Leads
     | 'new_lead'
+    // Onboarding (push only)
+    | 'onboarding_no_agent'
+    | 'onboarding_no_whatsapp'
+    | 'onboarding_empty_kb'
+    | 'onboarding_no_products'
+    | 'onboarding_no_traffic'
 
 export interface NotificationData {
     // For credits
@@ -72,6 +78,7 @@ export interface NotificationData {
     bookingTime?: string
     // For agent
     agentName?: string
+    agentId?: string
     agentStatus?: 'connected' | 'disconnected'
     // For stock
     productName?: string
@@ -107,6 +114,11 @@ const PREF_MAP: Record<NotificationType, { push?: string; email?: string }> = {
     credits_expired: { push: 'push_credits_expired' },
     scale_renewal_bonus: { push: 'push_scale_renewal_bonus' },
     new_lead: { push: 'push_new_lead', email: 'email_new_lead' },
+    onboarding_no_agent:    { push: 'push_onboarding' },
+    onboarding_no_whatsapp: { push: 'push_onboarding' },
+    onboarding_empty_kb:    { push: 'push_onboarding' },
+    onboarding_no_products: { push: 'push_onboarding' },
+    onboarding_no_traffic:  { push: 'push_onboarding' },
 }
 
 // =============================================
@@ -222,6 +234,36 @@ function getPushContent(type: NotificationType, data: NotificationData): PushNot
                 title: '🎯 Nouveau lead qualifié !',
                 body: `${data.contactName || data.contactPhone || 'Un prospect'} a été capturé${data.agentName ? ` par l'agent "${data.agentName}"` : ''}.`,
                 data: { type: 'new_lead', route: '/dashboard/agents' }
+            }
+        case 'onboarding_no_agent':
+            return {
+                title: 'Votre agent vous attend',
+                body: 'Votre essai est actif — créez votre premier agent WhatsApp en 5 minutes.',
+                data: { type: 'onboarding', route: '/dashboard/agents/new' }
+            }
+        case 'onboarding_no_whatsapp':
+            return {
+                title: 'Connectez votre WhatsApp',
+                body: `L'agent "${data.agentName || 'votre agent'}" est prêt. Scannez le QR code pour l'activer.`,
+                data: { type: 'onboarding', route: `/dashboard/agents/${data.agentId || ''}?tab=whatsapp` }
+            }
+        case 'onboarding_empty_kb':
+            return {
+                title: 'Base de connaissances vide',
+                body: `"${data.agentName || 'Votre agent'}" ne connaît pas encore votre activité. Alimentez-le maintenant.`,
+                data: { type: 'onboarding', route: `/dashboard/agents/${data.agentId || ''}/knowledge` }
+            }
+        case 'onboarding_no_products':
+            return {
+                title: 'Catalogue vide',
+                body: `"${data.agentName || 'Votre agent'}" ne peut rien vendre sans produits. Ajoutez votre catalogue.`,
+                data: { type: 'onboarding', route: `/dashboard/agents/${data.agentId || ''}/products` }
+            }
+        case 'onboarding_no_traffic':
+            return {
+                title: 'Agent prêt — zéro client',
+                body: `"${data.agentName || 'Votre agent'}" est opérationnel mais n'a reçu aucun message. Partagez votre numéro.`,
+                data: { type: 'onboarding', route: '/dashboard' }
             }
     }
 }

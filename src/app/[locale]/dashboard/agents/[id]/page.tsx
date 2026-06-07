@@ -96,7 +96,7 @@ export default function AgentWizardPage({
     const [highlightEscalation, setHighlightEscalation] = useState(false)
     const [selectedMission, setSelectedMission] = useState('')
     const [isExternalSync, setIsExternalSync] = useState(false)
-    const isSupportClient = selectedMission === 'support_client'
+    const isSupportClient = selectedMission === 'support_client' || selectedMission === 'services'
 
     // Handle deep linking to tabs or focus fields
     useEffect(() => {
@@ -1584,20 +1584,33 @@ export default function AgentWizardPage({
                                 )}
                             </div>
 
-                            {/* Section Collecte de Leads (support client uniquement) */}
+                            {/* Section Collecte de Leads (support client + services) */}
                             {isSupportClient && (
                                 <div style={{ borderTop: '1px solid rgba(148,163,184,0.1)', paddingTop: 24, marginTop: 8 }}>
-                                    <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 12 }}>
-                                        Collecte de leads
-                                    </label>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                                        <label style={{ fontSize: 14, fontWeight: 600, color: '#e2e8f0' }}>
+                                            Collecte de leads
+                                        </label>
+                                        <span style={{ fontSize: 11, fontWeight: 700, color: '#10b981', background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 6, padding: '2px 8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                            Recommandé
+                                        </span>
+                                    </div>
+
+                                    {!formData.lead_collection_enabled && (
+                                        <div style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10, padding: '12px 14px', marginBottom: 14 }}>
+                                            <p style={{ color: '#f87171', fontWeight: 600, fontSize: 13, margin: '0 0 4px 0' }}>Les leads sont désactivés — vous perdez des prospects.</p>
+                                            <p style={{ color: '#94a3b8', fontSize: 12, margin: 0 }}>Chaque client qui contacte votre agent est un prospect. Sans collecte, vous ne saurez jamais qui a écrit.</p>
+                                        </div>
+                                    )}
+
                                     <div style={{
                                         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                        padding: 16, border: '1px solid rgba(148,163,184,0.1)', borderRadius: 12, background: 'rgba(30,41,59,0.5)', marginBottom: 16
+                                        padding: 16, border: `1px solid ${formData.lead_collection_enabled ? 'rgba(16,185,129,0.25)' : 'rgba(148,163,184,0.1)'}`, borderRadius: 12, background: formData.lead_collection_enabled ? 'rgba(16,185,129,0.06)' : 'rgba(30,41,59,0.5)', marginBottom: 16
                                     }}>
                                         <div>
-                                            <div style={{ fontWeight: 500, color: 'white', fontSize: 14 }}>Activer la collecte de leads</div>
+                                            <div style={{ fontWeight: 600, color: 'white', fontSize: 14 }}>Activer la collecte de leads</div>
                                             <div style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>
-                                                L'agent collecte le contact du client intéressé
+                                                L'agent récupère automatiquement le contact de chaque client intéressé
                                             </div>
                                         </div>
                                         <button type="button"
@@ -1615,7 +1628,7 @@ export default function AgentWizardPage({
                                                     Informations à collecter
                                                 </label>
                                                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                                                    {[{ key: 'name', label: 'Prénom/Nom' }, { key: 'phone', label: 'Téléphone' }, { key: 'email', label: 'Email' }].map(f => (
+                                                    {[{ key: 'name', label: 'Prénom/Nom' }, { key: 'phone', label: 'Téléphone' }, { key: 'email', label: 'Email' }, { key: 'location', label: 'Localisation' }, { key: 'company', label: 'Entreprise' }].map(f => (
                                                         <button key={f.key} type="button"
                                                             onClick={() => {
                                                                 const cur = formData.lead_collect_fields
@@ -1650,7 +1663,7 @@ export default function AgentWizardPage({
                                             </label>
                                             <input type="text" value={formData.lead_redirect_message}
                                                 onChange={e => setFormData({ ...formData, lead_redirect_message: e.target.value })}
-                                                placeholder="Ex: Pour commander, appelez le +225 07 00 00 00"
+                                                placeholder="Ex: Pour nous contacter, appelez le +225 07 00 00 00"
                                                 style={{ width: '100%', background: '#1e293b', border: '1px solid #334155', padding: 12, borderRadius: 12, color: 'white', outline: 'none', fontSize: 14 }}
                                             />
                                             <p style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>

@@ -218,9 +218,17 @@ export default function NewAgentPage() {
 
     const missionTemplates = [
         {
+            id: 'support_client',
+            title: 'Support Client',
+            description: 'Répond aux questions de vos clients via une base de connaissances. Pour coachs, formateurs, experts, consultants, écoles et prestataires de services.',
+            prompt: `Tu es l'assistant de ${'{name}'}.
+Ton rôle est de répondre aux questions des clients en te basant uniquement sur les informations que tu connais.
+Ne jamais inventer d'information. Si tu ne sais pas, collecte le contact du client et indique qu'un responsable le recontactera.`,
+        },
+        {
             id: 'ecommerce',
             title: t('Templates.ecommerce.title'),
-            description: t('Templates.ecommerce.description'),
+            description: 'Vend vos produits sur WhatsApp, prend les commandes et gère votre catalogue en ligne. Pour boutiques, commerces et dropshipping.',
             prompt: `Tu es l'assistant commercial de notre boutique en ligne.
 
 Ton rôle:
@@ -246,9 +254,33 @@ Règles:
 - N'invente jamais un mode de livraison ou de paiement contraire au catalogue`,
         },
         {
+            id: 'services',
+            title: '🔧 Services / Artisan',
+            description: 'Présente vos prestations, capte les demandes de devis et qualifie vos prospects. Pour artisans, techniciens, prestataires et indépendants.',
+            prompt: `Tu es l'assistant de ${'{name}'}.
+
+Ton rôle:
+- Répondre aux questions sur nos services, tarifs et disponibilités
+- Comprendre le besoin du client avant de proposer une intervention
+- Collecter les informations nécessaires pour un devis ou une intervention
+- Informer sur les délais et zones d'intervention
+
+Pour une demande d'intervention ou de devis, collecte:
+1. Nature du problème ou service demandé
+2. Adresse ou zone géographique
+3. Disponibilités du client
+4. Nom et numéro de téléphone
+
+Règles:
+- Base-toi uniquement sur les informations que tu connais (tarifs, services, zones)
+- Ne jamais inventer un prix ou une disponibilité
+- Si la demande sort de tes compétences, collecte le contact et indique qu'un responsable rappellera
+- Sois direct, professionnel et rassurant`,
+        },
+        {
             id: 'restaurant',
             title: t('Templates.restaurant.title'),
-            description: t('Templates.restaurant.description'),
+            description: 'Prend les commandes en ligne ou à livraison, gère les réservations de tables et présente votre menu en temps réel.',
             prompt: `Tu es l'assistant de notre restaurant.
 
 Ton rôle:
@@ -277,7 +309,7 @@ Règles:
         {
             id: 'hotel',
             title: t('Templates.hotel.title'),
-            description: t('Templates.hotel.description'),
+            description: 'Renseigne sur les chambres et tarifs, effectue des réservations et informe sur vos services hôteliers.',
             prompt: `Tu es le concierge virtuel de notre hôtel.
 
 Ton rôle:
@@ -303,7 +335,7 @@ Règles:
         {
             id: 'salon',
             title: t('Templates.salon.title'),
-            description: t('Templates.salon.description'),
+            description: 'Présente vos prestations beauté, prend les rendez-vous et gère votre planning. Pour salons de coiffure, esthétique et bien-être.',
             prompt: `Tu es l'assistant de notre salon de beauté/coiffure.
 
 Ton rôle:
@@ -323,45 +355,6 @@ Règles:
 - Propose des services complémentaires
 - Rappelle les consignes (arriver 10 min avant, etc.)
 - Confirme le rendez-vous et le tarif estimé`,
-        },
-        {
-            id: 'services',
-            title: t('Templates.services.title'),
-            description: t('Templates.services.description'),
-            prompt: `Tu es l'assistant de notre entreprise de services.
-
-Ton rôle:
-- Comprendre les besoins du client
-- Expliquer nos services et tarifs
-- Prendre les demandes d'intervention ou de devis
-- Fixer les rendez-vous
-
-Pour une intervention, collecte:
-1. Nature du problème ou service demandé
-2. Adresse complète
-3. Disponibilités du client
-4. Nom et téléphone
-5. Urgence (urgent ou peut attendre)
-
-Règles:
-- Pose des questions pour bien comprendre le besoin
-- Donne une fourchette de prix si possible
-- Propose un créneau de passage
-- Confirme tous les détails avant de valider`,
-        },
-        {
-            id: 'support_client',
-            title: 'Support Client',
-            description: 'Répondre aux questions via une base de connaissance. Idéal pour formateurs, experts, services.',
-            prompt: `Tu es l'assistant de ${'{name}'}.
-Ton rôle est de répondre aux questions des clients en te basant uniquement sur les informations que tu connais.
-Ne jamais inventer d'information. Si tu ne sais pas, renvoie vers le contact direct.`,
-        },
-        {
-            id: 'custom',
-            title: t('Templates.custom.title'),
-            description: t('Templates.custom.description'),
-            prompt: "Tu es un assistant virtuel professionnel et polyvalent. Ton rôle est d'accueillir les visiteurs, de répondre à leurs questions sur l'entreprise et de noter leurs coordonnées si nécessaire. Sois toujours courtois, bref et précis.",
         },
     ]
 
@@ -403,12 +396,18 @@ Regles:
 
     const selectMissionTemplate = (template: typeof missionTemplates[0]) => {
         const nextEcommerceMode = template.id === 'ecommerce' ? formData.ecommerce_mode : 'native'
+        const autoLeads = template.id === 'support_client' || template.id === 'services'
         setFormData(prev => ({
             ...prev,
             mission: template.id,
             ecommerce_mode: nextEcommerceMode,
             // Always force the secure template prompt, no manual override allowed
-            systemPrompt: getMissionPrompt(template.id, nextEcommerceMode)
+            systemPrompt: getMissionPrompt(template.id, nextEcommerceMode),
+            // Auto-enable lead collection for KB-based missions
+            lead_collection_enabled: autoLeads ? true : prev.lead_collection_enabled,
+            lead_collect_fields: autoLeads && (!prev.lead_collect_fields || prev.lead_collect_fields.length === 0)
+                ? ['name', 'phone']
+                : prev.lead_collect_fields,
         }))
         // Auto-advance to step 1 on mission selection
         setCurrentStep(1)
@@ -482,8 +481,7 @@ Regles:
                 body: JSON.stringify({
                     type: 'agent_description',
                     name: formData.name,
-                    context: formData.mission !== 'custom' ?
-                        missionTemplates.find(t => t.id === formData.mission)?.title : 'Assistant Polyvalent'
+                    context: missionTemplates.find(t => t.id === formData.mission)?.title || formData.mission
                 })
             })
             const data = await res.json()
@@ -899,7 +897,7 @@ Regles:
                                 >
                                     <h3 style={{ fontWeight: 600, color: 'white', marginBottom: 6 }}>Agent Conversationnel</h3>
                                     <p style={{ fontSize: 13, color: '#94a3b8' }}>
-                                        IA qui discute avec vos clients — e-commerce, restaurant, hôtel, SAV...
+                                        Votre IA répond à vos clients sur WhatsApp 24h/24 — prend des commandes, répond aux questions, capture des leads. Choisissez votre secteur à l&apos;étape suivante.
                                     </p>
                                 </button>
                                 <button
@@ -932,7 +930,7 @@ Regles:
                                         {!apiAccessEnabled && <span style={{ fontSize: 11, fontWeight: 400, color: '#f59e0b', marginLeft: 8 }}>Abonnement API requis</span>}
                                     </h3>
                                     <p style={{ fontSize: 13, color: '#94a3b8' }}>
-                                        Canal WhatsApp pour plateforme externe — Shopify, Chariow, WooCommerce...
+                                        Connectez votre boutique Shopify, WooCommerce ou autre plateforme pour envoyer automatiquement confirmations et mises à jour via WhatsApp. Nécessite un abonnement API.
                                     </p>
                                 </button>
                             </div>
@@ -1000,7 +998,7 @@ Regles:
                                 <div className="agent-grid-3">
                                     {missionTemplates.map((template) => {
                                         const flagKey = `agent_${template.id}`
-                                        const isEnabled = template.id === 'support_client' || Object.keys(featureFlags).length === 0 || featureFlags[flagKey] !== false
+                                        const isEnabled = template.id === 'support_client' || template.id === 'services' || Object.keys(featureFlags).length === 0 || featureFlags[flagKey] !== false
                                         return (
                                             <button
                                                 key={template.id}
@@ -2042,15 +2040,26 @@ Regles:
                             </div>
                         )}
 
-                        {/* Section Collecte de Leads (support client uniquement) */}
+                        {/* Section Collecte de Leads (support client + services) */}
                         {isSupportClient && (
                             <div style={{ borderTop: '1px solid rgba(148,163,184,0.1)', paddingTop: 24 }}>
-                                <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 12 }}>
-                                    Collecte de leads
-                                </label>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                                    <label style={{ fontSize: 14, fontWeight: 600, color: '#e2e8f0' }}>
+                                        Collecte de leads
+                                    </label>
+                                    <span style={{ fontSize: 11, fontWeight: 700, color: '#10b981', background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 6, padding: '2px 8px', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>
+                                        Recommandé
+                                    </span>
+                                </div>
+                                {!formData.lead_collection_enabled && (
+                                    <div style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10, padding: '12px 14px', marginBottom: 14 }}>
+                                        <p style={{ color: '#f87171', fontWeight: 600, fontSize: 13, margin: '0 0 4px 0' }}>Les leads sont désactivés — vous perdez des prospects.</p>
+                                        <p style={{ color: '#94a3b8', fontSize: 12, margin: 0 }}>Chaque client qui contacte votre agent est un prospect. Sans collecte, vous ne saurez jamais qui a écrit.</p>
+                                    </div>
+                                )}
                                 <div style={{
                                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                    padding: 16, border: '1px solid rgba(148,163,184,0.1)', borderRadius: 12, background: 'rgba(30,41,59,0.5)', marginBottom: 16
+                                    padding: 16, border: `1px solid ${formData.lead_collection_enabled ? 'rgba(16,185,129,0.25)' : 'rgba(148,163,184,0.1)'}`, borderRadius: 12, background: formData.lead_collection_enabled ? 'rgba(16,185,129,0.06)' : 'rgba(30,41,59,0.5)', marginBottom: 16
                                 }}>
                                     <div>
                                         <div style={{ fontWeight: 500, color: 'white', fontSize: 14 }}>Activer la collecte de leads</div>

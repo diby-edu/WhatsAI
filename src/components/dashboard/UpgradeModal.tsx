@@ -77,7 +77,7 @@ function PlanCard({ plan, featured, onClose }: { plan: typeof FALLBACK_PLANS[0];
             </div>
 
             <Link
-                href="/dashboard/billing"
+                href="/dashboard/billing#plans"
                 onClick={onClose}
                 style={{
                     display: 'block',
@@ -209,7 +209,7 @@ export default function UpgradeModal() {
                         Paiement sécurisé · Activation immédiate
                     </div>
                     <Link
-                        href="/dashboard/billing"
+                        href="/dashboard/billing#plans"
                         onClick={closeUpgradeModal}
                         style={{
                             color: '#10b981',

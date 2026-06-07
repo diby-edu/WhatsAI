@@ -1287,7 +1287,7 @@ function BillingContent() {
             )}
 
             {/* Subscription Plans */}
-            <div>
+            <div id="plans">
                 <h2 style={{ fontSize: 16, fontWeight: 600, color: 'white', marginBottom: 16 }}>{t('Plans.title')}</h2>
                 {plans.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: 32, color: '#64748b' }}>
