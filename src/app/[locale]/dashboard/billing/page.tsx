@@ -307,6 +307,14 @@ function BillingContent() {
     }, [feexPayCountry, feexPayNetwork, feexPayNetworks])
 
     useEffect(() => {
+        if (!plans.length) return
+        if (window.location.hash === '#plans') {
+            const el = document.getElementById('plans')
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
+    }, [plans])
+
+    useEffect(() => {
         if (!payments.length) return
 
         const now = Date.now()
