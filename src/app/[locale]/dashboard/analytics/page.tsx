@@ -5,7 +5,54 @@ import { motion } from 'framer-motion'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { DollarSign, ShoppingBag, MessageSquare, TrendingUp, Loader2, Package, Zap, Users, BarChart2 } from 'lucide-react'
 
+type PeriodKey = 'month' | 'last_month' | '3months' | '30d' | '60d' | '90d'
+
+const PERIODS: { key: PeriodKey; label: string }[] = [
+    { key: 'month',      label: 'Ce mois' },
+    { key: 'last_month', label: 'Mois dernier' },
+    { key: '3months',    label: '3 derniers mois' },
+    { key: '30d',        label: '30 jours' },
+    { key: '60d',        label: '60 jours' },
+    { key: '90d',        label: '90 jours' },
+]
+
+function getPeriodDates(key: PeriodKey): { from: Date; to: Date } {
+    const now = new Date()
+    const to = new Date(now)
+    let from: Date
+
+    switch (key) {
+        case 'month': {
+            from = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0)
+            break
+        }
+        case 'last_month': {
+            from = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0, 0)
+            to.setTime(new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999).getTime())
+            break
+        }
+        case '3months': {
+            from = new Date(now.getFullYear(), now.getMonth() - 2, 1, 0, 0, 0, 0)
+            break
+        }
+        case '30d': {
+            from = new Date(now); from.setDate(from.getDate() - 30); from.setHours(0, 0, 0, 0)
+            break
+        }
+        case '60d': {
+            from = new Date(now); from.setDate(from.getDate() - 60); from.setHours(0, 0, 0, 0)
+            break
+        }
+        case '90d': {
+            from = new Date(now); from.setDate(from.getDate() - 90); from.setHours(0, 0, 0, 0)
+            break
+        }
+    }
+    return { from, to }
+}
+
 export default function AnalyticsPage() {
+    const [period, setPeriod] = useState<PeriodKey>('month')
     const [data, setData] = useState({
         kpi: {
             totalSales: 0,
@@ -22,12 +69,15 @@ export default function AnalyticsPage() {
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
-        fetchAnalytics()
-    }, [])
+        fetchAnalytics(period)
+    }, [period])
 
-    const fetchAnalytics = async () => {
+    const fetchAnalytics = async (p: PeriodKey) => {
+        setLoading(true)
         try {
-            const res = await fetch('/api/analytics')
+            const { from, to } = getPeriodDates(p)
+            const url = `/api/analytics?from=${from.toISOString()}&to=${to.toISOString()}`
+            const res = await fetch(url)
             const result = await res.json()
             if (result.data) {
                 setData({
@@ -113,9 +163,32 @@ export default function AnalyticsPage() {
             <h1 style={{ fontSize: 'clamp(22px, 5vw, 32px)', fontWeight: 700, color: 'white', marginBottom: 8 }}>
                 Pilotage & Analytics 📈
             </h1>
-            <p style={{ color: '#94a3b8', marginBottom: 40 }}>
+            <p style={{ color: '#94a3b8', marginBottom: 24 }}>
                 Performance de votre force de vente IA en temps réel.
             </p>
+
+            {/* Filtres période */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 32 }}>
+                {PERIODS.map(p => (
+                    <button
+                        key={p.key}
+                        onClick={() => setPeriod(p.key)}
+                        style={{
+                            padding: '7px 16px',
+                            borderRadius: 20,
+                            border: period === p.key ? 'none' : '1px solid rgba(148,163,184,0.2)',
+                            background: period === p.key ? '#10b981' : 'rgba(30,41,59,0.6)',
+                            color: period === p.key ? 'white' : '#94a3b8',
+                            fontSize: 13,
+                            fontWeight: period === p.key ? 600 : 400,
+                            cursor: 'pointer',
+                            transition: 'all 0.15s',
+                        }}
+                    >
+                        {p.label}
+                    </button>
+                ))}
+            </div>
 
             {/* KPI Cards */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 24, marginBottom: 40 }}>
