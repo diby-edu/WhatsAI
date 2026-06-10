@@ -44,7 +44,8 @@ export default function AnalyticsPage() {
     }
 
     const formatFCFA = (value: number) => {
-        return `${value.toLocaleString('fr-FR')} FCFA`
+        const n = Math.round(Number(value) || 0)
+        return `${String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '\u00a0')} FCFA`
     }
 
     const cards = [
