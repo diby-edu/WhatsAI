@@ -39,8 +39,10 @@ export async function GET(request: Request) {
     const code = searchParams.get('code')
     const next = searchParams.get('next') ?? '/dashboard'
 
+    const forwardedHost = request.headers.get('x-forwarded-host')
+
     if (!code) {
-        return NextResponse.redirect(`${origin}/login?error=auth_failed`)
+        return NextResponse.redirect(buildRedirectUrl(origin, forwardedHost, '/login?error=auth_failed'))
     }
 
     const cookieStore = await cookies()
@@ -61,7 +63,7 @@ export async function GET(request: Request) {
 
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (error) {
-        return NextResponse.redirect(`${origin}/login?error=auth_failed`)
+        return NextResponse.redirect(buildRedirectUrl(origin, forwardedHost, '/login?error=auth_failed'))
     }
 
     // Appliquer le parrainage si un code était stocké avant l'OAuth
@@ -77,6 +79,5 @@ export async function GET(request: Request) {
     }
 
     const redirectPath = await resolveOnboardingPath(supabase, next)
-    const forwardedHost = request.headers.get('x-forwarded-host')
     return NextResponse.redirect(buildRedirectUrl(origin, forwardedHost, redirectPath))
 }
