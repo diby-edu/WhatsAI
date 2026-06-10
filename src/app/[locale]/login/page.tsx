@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { MessageCircle, Mail, Lock, Loader2, Eye, EyeOff, Sparkles, ArrowRight, Zap, Shield, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -86,6 +86,7 @@ function formatLockMessage(lockedUntil: number) {
 
 export default function LoginPage() {
     const router = useRouter()
+    const searchParams = useSearchParams()
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [showPassword, setShowPassword] = useState(false)
@@ -115,7 +116,11 @@ export default function LoginPage() {
         }
 
         loadRuntimeConfig()
-    }, [])
+
+        const err = searchParams.get('error')
+        if (err === 'confirm_other_device') setError('Votre email est confirmé. Connectez-vous pour accéder à votre compte.')
+        else if (err === 'auth_failed') setError('Le lien de connexion est invalide ou a expiré.')
+    }, [searchParams])
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault()
         setLoading(true)
