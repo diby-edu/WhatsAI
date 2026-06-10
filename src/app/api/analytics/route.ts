@@ -10,6 +10,27 @@ export async function GET(request: NextRequest) {
     }
 
     try {
+        // Période : from/to en query params, défaut = mois en cours
+        const { searchParams } = new URL(request.url)
+        let dateFrom: Date
+        let dateTo: Date = new Date()
+
+        const fromParam = searchParams.get('from')
+        const toParam = searchParams.get('to')
+
+        if (fromParam && toParam) {
+            dateFrom = new Date(fromParam)
+            dateTo = new Date(toParam)
+        } else {
+            // Défaut : mois en cours
+            dateFrom = new Date()
+            dateFrom.setDate(1)
+            dateFrom.setHours(0, 0, 0, 0)
+        }
+
+        const fromISO = dateFrom.toISOString()
+        const toISO = dateTo.toISOString()
+
         // Get User's Agents
         const { data: agents } = await supabase
             .from('agents')
@@ -18,42 +39,43 @@ export async function GET(request: NextRequest) {
 
         const agentIds = agents?.map(a => a.id) || []
 
-        // 1. Total Sales (Paid/Confirmed orders)
+        // 1. Total Sales (Paid/Confirmed orders) — sur la période
         const { data: salesData } = await supabase
             .from('orders')
             .select('total_fcfa')
             .eq('user_id', user.id)
             .in('status', ['paid', 'confirmed', 'delivered'])
+            .gte('created_at', fromISO)
+            .lte('created_at', toISO)
 
         const totalSales = salesData?.reduce((sum, order) => sum + (order.total_fcfa || 0), 0) || 0
         const totalOrders = salesData?.length || 0
 
-        // 2. Total Messages (AI Activity)
+        // 2. Total Messages (AI Activity) — sur la période
         let messageCount = 0
         if (agentIds.length > 0) {
             const { count } = await supabase
                 .from('messages')
                 .select('*', { count: 'exact', head: true })
                 .in('agent_id', agentIds)
+                .gte('created_at', fromISO)
+                .lte('created_at', toISO)
             messageCount = count || 0
         }
 
-        // 3b. Conversations ce mois
-        const startOfMonth = new Date()
-        startOfMonth.setDate(1)
-        startOfMonth.setHours(0, 0, 0, 0)
-
+        // 3b. Conversations — sur la période
         let conversationCount = 0
         if (agentIds.length > 0) {
             const { count } = await supabase
                 .from('conversations')
                 .select('*', { count: 'exact', head: true })
                 .in('agent_id', agentIds)
-                .gte('created_at', startOfMonth.toISOString())
+                .gte('created_at', fromISO)
+                .lte('created_at', toISO)
             conversationCount = count || 0
         }
 
-        // 3c. Crédits consommés ce mois (messages IA role=assistant)
+        // 3c. Crédits consommés (messages IA role=assistant) — sur la période
         let creditsConsumed = 0
         if (agentIds.length > 0) {
             const { count } = await supabase
@@ -61,19 +83,18 @@ export async function GET(request: NextRequest) {
                 .select('*', { count: 'exact', head: true })
                 .in('agent_id', agentIds)
                 .eq('role', 'assistant')
-                .gte('created_at', startOfMonth.toISOString())
+                .gte('created_at', fromISO)
+                .lte('created_at', toISO)
             creditsConsumed = count || 0
         }
 
-        // 3. Sales Over Time (Last 30 days)
-        const thirtyDaysAgo = new Date()
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-
+        // 3. Sales Over Time — sur la période
         const { data: recentOrders } = await supabase
             .from('orders')
             .select('created_at, total_fcfa')
             .eq('user_id', user.id)
-            .gte('created_at', thirtyDaysAgo.toISOString())
+            .gte('created_at', fromISO)
+            .lte('created_at', toISO)
             .order('created_at', { ascending: true })
 
         // Aggregate by date
