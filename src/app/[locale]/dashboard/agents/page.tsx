@@ -370,7 +370,12 @@ export default function AgentsPage() {
                     const operationalDetail = getAgentOperationalDetail(agent)
                     const operationalColors = getAgentOperationalColors(operationalStatus)
                     const StatusIcon = operationalStatus === 'qr_ready' ? MessageSquare : Smartphone
-                    const kbEmpty = agent.knowledge_count === 0 && agent.ecommerce_mode !== 'external_sync'
+                    const isExternalSync = agent.ecommerce_mode === 'external_sync'
+                    const isProductAgent = ['ecommerce', 'restaurant', 'hotel', 'salon'].includes(agent.mission || '')
+                    const isServiceAgent = ['support_client', 'services', 'salon'].includes(agent.mission || '')
+                    const isBookingAgent = ['restaurant', 'hotel', 'salon', 'services'].includes(agent.mission || '')
+                    // KB est critique pour support_client/services/salon/custom — pas pour les agents produits ni external_sync
+                    const kbEmpty = agent.knowledge_count === 0 && !isExternalSync && !isProductAgent
                     const missionCfg = (agent.mission && MISSION_CONFIG[agent.mission]) || MISSION_CONFIG['custom']
                     const MissionIcon = missionCfg.icon
 
@@ -493,8 +498,8 @@ export default function AgentsPage() {
                                     </div>
                                 </div>
                             )}
-                            {/* Colonne 3 : Leads (support/services) ou Messages (ecommerce/resto...) */}
-                            {(agent.mission === 'support_client' || agent.mission === 'services') ? (
+                            {/* Colonne 3 : Leads (support/services/salon) ou Messages (ecommerce/resto/hotel) */}
+                            {isServiceAgent ? (
                                 <div style={{ textAlign: 'center', padding: '10px 8px', background: 'rgba(51,65,85,0.3)', borderRadius: 10 }}>
                                     <div style={{ fontSize: 18, fontWeight: 700, color: '#8b5cf6' }}>{agent.lead_count || 0}</div>
                                     <div style={{ fontSize: 11, color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3 }}>
@@ -513,7 +518,7 @@ export default function AgentsPage() {
                         {/* Action buttons */}
                         <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
 
-                            {/* Modifier */}
+                            {/* Modifier — tous */}
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                                 <Link href={`/dashboard/agents/${agent.id}`} title={t('card.menu.edit')}
                                     style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: 'rgba(59, 130, 246, 0.15)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
@@ -524,24 +529,65 @@ export default function AgentsPage() {
                                 <span style={{ fontSize: 9, color: '#64748b', fontWeight: 500 }}>Modifier</span>
                             </div>
 
-                            {/* Connaissances */}
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                                <Link href={`/dashboard/agents/${agent.id}/knowledge`} title="Base de connaissances"
-                                    style={{ width: 40, height: 40, borderRadius: 10, position: 'relative', backgroundColor: kbEmpty ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)', border: kbEmpty ? '1px solid rgba(239, 68, 68, 0.4)' : 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
-                                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = kbEmpty ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)'; e.currentTarget.style.transform = 'scale(1.05)' }}
-                                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = kbEmpty ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)'; e.currentTarget.style.transform = 'scale(1)' }}>
-                                    <BookOpen style={{ width: 18, height: 18, color: kbEmpty ? '#f87171' : '#10b981' }} />
-                                    {kbEmpty && (
-                                        <span style={{ position: 'absolute', top: -4, right: -4, width: 14, height: 14, borderRadius: '50%', background: '#ef4444', color: 'white', fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px solid #0f172a' }}>!</span>
-                                    )}
-                                </Link>
-                                <span style={{ fontSize: 9, color: kbEmpty ? '#f87171' : '#64748b', fontWeight: kbEmpty ? 700 : 500 }}>
-                                    {kbEmpty ? 'Vide !' : 'Connaissances'}
-                                </span>
-                            </div>
+                            {/* Connaissances — caché pour external_sync */}
+                            {!isExternalSync && (
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                                    <Link href={`/dashboard/agents/${agent.id}/knowledge`} title="Base de connaissances"
+                                        style={{ width: 40, height: 40, borderRadius: 10, position: 'relative', backgroundColor: kbEmpty ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)', border: kbEmpty ? '1px solid rgba(239, 68, 68, 0.4)' : 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+                                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = kbEmpty ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)'; e.currentTarget.style.transform = 'scale(1.05)' }}
+                                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = kbEmpty ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)'; e.currentTarget.style.transform = 'scale(1)' }}>
+                                        <BookOpen style={{ width: 18, height: 18, color: kbEmpty ? '#f87171' : '#10b981' }} />
+                                        {kbEmpty && (
+                                            <span style={{ position: 'absolute', top: -4, right: -4, width: 14, height: 14, borderRadius: '50%', background: '#ef4444', color: 'white', fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px solid #0f172a' }}>!</span>
+                                        )}
+                                    </Link>
+                                    <span style={{ fontSize: 9, color: kbEmpty ? '#f87171' : '#64748b', fontWeight: kbEmpty ? 700 : 500 }}>
+                                        {kbEmpty ? 'Vide !' : 'Connaissances'}
+                                    </span>
+                                </div>
+                            )}
 
-                            {/* Leads */}
-                            {(agent.mission === 'support_client' || agent.mission === 'services' || agent.lead_collection_enabled || agent.agent_context || agent.fallback_contact_message || (agent.system_prompt || '').includes('en te basant uniquement')) && (
+                            {/* Produits — ecommerce / restaurant / hotel / salon */}
+                            {isProductAgent && (
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                                    <Link href={`/dashboard/products?agent=${agent.id}`} title="Produits & catalogue"
+                                        style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: 'rgba(245,158,11,0.15)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+                                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(245,158,11,0.3)'; e.currentTarget.style.transform = 'scale(1.05)' }}
+                                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(245,158,11,0.15)'; e.currentTarget.style.transform = 'scale(1)' }}>
+                                        <Package style={{ width: 18, height: 18, color: '#f59e0b' }} />
+                                    </Link>
+                                    <span style={{ fontSize: 9, color: '#64748b', fontWeight: 500 }}>Produits</span>
+                                </div>
+                            )}
+
+                            {/* Commandes — ecommerce uniquement */}
+                            {agent.mission === 'ecommerce' && (
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                                    <Link href="/dashboard/orders" title="Commandes"
+                                        style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: 'rgba(16,185,129,0.15)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+                                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(16,185,129,0.3)'; e.currentTarget.style.transform = 'scale(1.05)' }}
+                                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(16,185,129,0.15)'; e.currentTarget.style.transform = 'scale(1)' }}>
+                                        <ShoppingBag style={{ width: 18, height: 18, color: '#10b981' }} />
+                                    </Link>
+                                    <span style={{ fontSize: 9, color: '#64748b', fontWeight: 500 }}>Commandes</span>
+                                </div>
+                            )}
+
+                            {/* Réservations — restaurant / hotel / salon / services */}
+                            {isBookingAgent && (
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                                    <Link href="/dashboard/orders?tab=bookings" title="Réservations"
+                                        style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: 'rgba(14,165,233,0.15)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+                                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(14,165,233,0.3)'; e.currentTarget.style.transform = 'scale(1.05)' }}
+                                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(14,165,233,0.15)'; e.currentTarget.style.transform = 'scale(1)' }}>
+                                        <UserCheck style={{ width: 18, height: 18, color: '#0ea5e9' }} />
+                                    </Link>
+                                    <span style={{ fontSize: 9, color: '#64748b', fontWeight: 500 }}>Réservations</span>
+                                </div>
+                            )}
+
+                            {/* Leads — support_client / services / salon + lead_collection_enabled */}
+                            {(isServiceAgent || agent.lead_collection_enabled) && (
                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                                     <Link href={`/dashboard/agents/${agent.id}/leads`} title="Leads"
                                         style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: 'rgba(139, 92, 246, 0.15)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
@@ -553,7 +599,7 @@ export default function AgentsPage() {
                                 </div>
                             )}
 
-                            {/* Activer/Désactiver */}
+                            {/* Activer/Désactiver — tous */}
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                                 <button onClick={() => toggleAgentStatus(agent.id)} disabled={actionLoading === agent.id}
                                     title={agent.is_active ? t('card.menu.deactivate') : t('card.menu.activate')}
@@ -565,7 +611,7 @@ export default function AgentsPage() {
                                 <span style={{ fontSize: 9, color: '#64748b', fontWeight: 500 }}>{agent.is_active ? 'Désactiver' : 'Activer'}</span>
                             </div>
 
-                            {/* Exporter config */}
+                            {/* Exporter config — tous */}
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                                 <button onClick={() => exportAgent(agent.id)}
                                     title="Exporter la configuration de cet agent"
@@ -577,7 +623,7 @@ export default function AgentsPage() {
                                 <span style={{ fontSize: 9, color: '#64748b', fontWeight: 500 }}>Exporter</span>
                             </div>
 
-                            {/* Supprimer */}
+                            {/* Supprimer — tous */}
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                                 <button onClick={() => deleteAgent(agent.id)} disabled={actionLoading === agent.id}
                                     title={t('card.menu.delete')}
@@ -590,8 +636,8 @@ export default function AgentsPage() {
                             </div>
                         </div>
 
-                        {/* Alerte base de connaissances vide — uniquement pour les agents Support Client */}
-                        {agent.mission === 'support_client' && agent.knowledge_count === 0 && (
+                        {/* Alerte base de connaissances vide — agents service (support, services, salon) */}
+                        {isServiceAgent && agent.knowledge_count === 0 && (
                             <Link href={`/dashboard/agents/${agent.id}/knowledge`}
                                 style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', marginBottom: 12, borderRadius: 10, background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.3)', textDecoration: 'none' }}>
                                 <span style={{ fontSize: 18, flexShrink: 0 }}>⚠️</span>
