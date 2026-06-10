@@ -63,7 +63,7 @@ export async function GET(request: Request) {
 
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (error) {
-        return NextResponse.redirect(buildRedirectUrl(origin, forwardedHost, '/login?error=auth_failed'))
+        return NextResponse.redirect(buildRedirectUrl(origin, forwardedHost, '/login?error=confirm_other_device'))
     }
 
     // Appliquer le plan sélectionné avant l'OAuth (Google web)
