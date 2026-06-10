@@ -27,6 +27,7 @@ import {
     Scissors,
     Package,
     UserCheck,
+    RefreshCw,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
@@ -464,14 +465,20 @@ export default function AgentsPage() {
                         </div>
 
                         {/* Stats — KPIs contextuels par mission */}
+                        {agent.ecommerce_mode === 'external_sync' ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', marginBottom: 16, background: 'rgba(14,165,233,0.08)', border: '1px solid rgba(14,165,233,0.2)', borderRadius: 10 }}>
+                                <RefreshCw style={{ width: 14, height: 14, color: '#38bdf8', flexShrink: 0 }} />
+                                <span style={{ fontSize: 12, color: '#7dd3fc' }}>Canal de notifications — pas de réponses IA</span>
+                            </div>
+                        ) : (
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 16 }}>
                             {/* Colonne 1 : toujours Conversations */}
                             <div style={{ textAlign: 'center', padding: '10px 8px', background: 'rgba(51,65,85,0.3)', borderRadius: 10 }}>
                                 <div style={{ fontSize: 18, fontWeight: 700, color: 'white' }}>{agent.total_conversations || 0}</div>
                                 <div style={{ fontSize: 11, color: '#64748b' }}>Conversations</div>
                             </div>
-                            {/* Colonne 2 : KB (support/services) ou Produits (ecommerce/resto/hotel/salon) */}
-                            {(agent.mission === 'ecommerce' || agent.mission === 'restaurant' || agent.mission === 'hotel' || agent.mission === 'salon') && agent.ecommerce_mode !== 'external_sync' ? (
+                            {/* Colonne 2 : Produits (ecommerce local) ou KB (support/services/custom) */}
+                            {(agent.mission === 'ecommerce' || agent.mission === 'restaurant' || agent.mission === 'hotel' || agent.mission === 'salon') ? (
                                 <div style={{ textAlign: 'center', padding: '10px 8px', background: 'rgba(51,65,85,0.3)', borderRadius: 10 }}>
                                     <div style={{ fontSize: 18, fontWeight: 700, color: missionCfg.color }}>{agent.product_count || 0}</div>
                                     <div style={{ fontSize: 11, color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3 }}>
@@ -501,6 +508,7 @@ export default function AgentsPage() {
                                 </div>
                             )}
                         </div>
+                        )}
 
                         {/* Action buttons */}
                         <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
