@@ -78,7 +78,7 @@ function PlanCard({ plan, featured, onClose }: { plan: typeof FALLBACK_PLANS[0];
 
             <Link
                 href="/dashboard/billing#plans"
-                onClick={onClose}
+                onClick={() => { sessionStorage.setItem('billing_scroll', 'plans'); onClose() }}
                 style={{
                     display: 'block',
                     textAlign: 'center',
@@ -210,7 +210,7 @@ export default function UpgradeModal() {
                     </div>
                     <Link
                         href="/dashboard/billing#plans"
-                        onClick={closeUpgradeModal}
+                        onClick={() => { sessionStorage.setItem('billing_scroll', 'plans'); closeUpgradeModal() }}
                         style={{
                             color: '#10b981',
                             fontSize: 13,

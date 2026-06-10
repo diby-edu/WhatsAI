@@ -308,9 +308,17 @@ function BillingContent() {
 
     useEffect(() => {
         if (!plans.length) return
-        if (window.location.hash === '#plans') {
-            const el = document.getElementById('plans')
-            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        const shouldScroll =
+            window.location.hash === '#plans' ||
+            sessionStorage.getItem('billing_scroll') === 'plans'
+        if (shouldScroll) {
+            sessionStorage.removeItem('billing_scroll')
+            // Delay to let other async content render and settle
+            const timer = setTimeout(() => {
+                const el = document.getElementById('plans')
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            }, 350)
+            return () => clearTimeout(timer)
         }
     }, [plans])
 

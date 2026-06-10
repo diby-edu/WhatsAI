@@ -1,6 +1,6 @@
 ﻿'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import {
@@ -18,7 +18,15 @@ import {
     BookOpen,
     Users,
     Download,
-    Upload
+    Upload,
+    Headphones,
+    ShoppingBag,
+    Wrench,
+    Utensils,
+    Building2,
+    Scissors,
+    Package,
+    UserCheck,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
@@ -39,6 +47,16 @@ const MISSION_LABELS: Record<string, string> = {
     services: 'Services / Artisan',
     support_client: 'Support Client',
     custom: 'Personnalise',
+}
+
+const MISSION_CONFIG: Record<string, { color: string; bg: string; icon: React.ElementType }> = {
+    support_client: { color: '#8b5cf6', bg: 'rgba(139,92,246,0.15)',  icon: Headphones },
+    ecommerce:      { color: '#3b82f6', bg: 'rgba(59,130,246,0.15)',  icon: ShoppingBag },
+    services:       { color: '#f97316', bg: 'rgba(249,115,22,0.15)',  icon: Wrench },
+    restaurant:     { color: '#ef4444', bg: 'rgba(239,68,68,0.15)',   icon: Utensils },
+    hotel:          { color: '#06b6d4', bg: 'rgba(6,182,212,0.15)',   icon: Building2 },
+    salon:          { color: '#ec4899', bg: 'rgba(236,72,153,0.15)',  icon: Scissors },
+    custom:         { color: '#64748b', bg: 'rgba(100,116,139,0.15)', icon: Bot },
 }
 
 const PRODUCT_TYPE_LABELS: Record<string, string> = {
@@ -69,6 +87,8 @@ interface Agent {
     mission?: string | null
     product_types?: string[]
     knowledge_count?: number
+    lead_count?: number
+    product_count?: number
     ecommerce_mode?: string | null
 }
 
@@ -350,6 +370,8 @@ export default function AgentsPage() {
                     const operationalColors = getAgentOperationalColors(operationalStatus)
                     const StatusIcon = operationalStatus === 'qr_ready' ? MessageSquare : Smartphone
                     const kbEmpty = agent.knowledge_count === 0 && agent.ecommerce_mode !== 'external_sync'
+                    const missionCfg = (agent.mission && MISSION_CONFIG[agent.mission]) || MISSION_CONFIG['custom']
+                    const MissionIcon = missionCfg.icon
 
                     return (
                     <motion.div
@@ -357,7 +379,7 @@ export default function AgentsPage() {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: index * 0.1 }}
-                        style={{ ...cardStyle, position: 'relative' }}
+                        style={{ ...cardStyle, position: 'relative', borderLeft: `3px solid ${missionCfg.color}` }}
                     >
                         {/* Agent info */}
                         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 16 }}>
@@ -365,13 +387,14 @@ export default function AgentsPage() {
                                 width: 56,
                                 height: 56,
                                 borderRadius: 14,
-                                background: operationalColors.iconBg,
+                                background: missionCfg.bg,
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                flexShrink: 0
+                                flexShrink: 0,
+                                border: `1px solid ${missionCfg.color}40`,
                             }}>
-                                <Bot style={{ width: 28, height: 28, color: 'white' }} />
+                                <MissionIcon style={{ width: 28, height: 28, color: missionCfg.color }} />
                             </div>
                             <div style={{ minWidth: 0, flex: 1 }}>
                                 <h3 style={{ fontSize: 18, fontWeight: 600, color: 'white', marginBottom: 2 }}>
@@ -380,9 +403,10 @@ export default function AgentsPage() {
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 4 }}>
                                     {agent.mission && MISSION_LABELS[agent.mission] && (
                                         <span style={{
-                                            fontSize: 11, fontWeight: 500,
-                                            color: '#34d399', background: 'rgba(52,211,153,0.1)',
-                                            padding: '2px 6px', borderRadius: 4
+                                            fontSize: 11, fontWeight: 600,
+                                            color: missionCfg.color, background: missionCfg.bg,
+                                            padding: '2px 8px', borderRadius: 4,
+                                            border: `1px solid ${missionCfg.color}30`,
                                         }}>
                                             {MISSION_LABELS[agent.mission]}
                                         </span>
@@ -439,30 +463,43 @@ export default function AgentsPage() {
                             </span>
                         </div>
 
-                        {/* Stats */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-                            <div style={{
-                                textAlign: 'center',
-                                padding: 12,
-                                background: 'rgba(51, 65, 85, 0.3)',
-                                borderRadius: 10
-                            }}>
-                                <div style={{ fontSize: 20, fontWeight: 700, color: 'white' }}>
-                                    {agent.total_conversations || 0}
-                                </div>
-                                <div style={{ fontSize: 12, color: '#64748b' }}>{t('card.conversations')}</div>
+                        {/* Stats — KPIs contextuels par mission */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 16 }}>
+                            {/* Colonne 1 : toujours Conversations */}
+                            <div style={{ textAlign: 'center', padding: '10px 8px', background: 'rgba(51,65,85,0.3)', borderRadius: 10 }}>
+                                <div style={{ fontSize: 18, fontWeight: 700, color: 'white' }}>{agent.total_conversations || 0}</div>
+                                <div style={{ fontSize: 11, color: '#64748b' }}>Conversations</div>
                             </div>
-                            <div style={{
-                                textAlign: 'center',
-                                padding: 12,
-                                background: 'rgba(51, 65, 85, 0.3)',
-                                borderRadius: 10
-                            }}>
-                                <div style={{ fontSize: 20, fontWeight: 700, color: 'white' }}>
-                                    {agent.total_messages || 0}
+                            {/* Colonne 2 : KB (support/services) ou Produits (ecommerce/resto/hotel/salon) */}
+                            {(agent.mission === 'ecommerce' || agent.mission === 'restaurant' || agent.mission === 'hotel' || agent.mission === 'salon') ? (
+                                <div style={{ textAlign: 'center', padding: '10px 8px', background: 'rgba(51,65,85,0.3)', borderRadius: 10 }}>
+                                    <div style={{ fontSize: 18, fontWeight: 700, color: missionCfg.color }}>{agent.product_count || 0}</div>
+                                    <div style={{ fontSize: 11, color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3 }}>
+                                        <Package style={{ width: 10, height: 10 }} /> Produits
+                                    </div>
                                 </div>
-                                <div style={{ fontSize: 12, color: '#64748b' }}>{t('card.messages')}</div>
-                            </div>
+                            ) : (
+                                <div style={{ textAlign: 'center', padding: '10px 8px', background: 'rgba(51,65,85,0.3)', borderRadius: 10 }}>
+                                    <div style={{ fontSize: 18, fontWeight: 700, color: missionCfg.color }}>{agent.knowledge_count || 0}</div>
+                                    <div style={{ fontSize: 11, color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3 }}>
+                                        <BookOpen style={{ width: 10, height: 10 }} /> Articles KB
+                                    </div>
+                                </div>
+                            )}
+                            {/* Colonne 3 : Leads (support/services) ou Messages (ecommerce/resto...) */}
+                            {(agent.mission === 'support_client' || agent.mission === 'services') ? (
+                                <div style={{ textAlign: 'center', padding: '10px 8px', background: 'rgba(51,65,85,0.3)', borderRadius: 10 }}>
+                                    <div style={{ fontSize: 18, fontWeight: 700, color: '#8b5cf6' }}>{agent.lead_count || 0}</div>
+                                    <div style={{ fontSize: 11, color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3 }}>
+                                        <UserCheck style={{ width: 10, height: 10 }} /> Leads
+                                    </div>
+                                </div>
+                            ) : (
+                                <div style={{ textAlign: 'center', padding: '10px 8px', background: 'rgba(51,65,85,0.3)', borderRadius: 10 }}>
+                                    <div style={{ fontSize: 18, fontWeight: 700, color: 'white' }}>{agent.total_messages || 0}</div>
+                                    <div style={{ fontSize: 11, color: '#64748b' }}>Messages</div>
+                                </div>
+                            )}
                         </div>
 
                         {/* Action buttons */}
