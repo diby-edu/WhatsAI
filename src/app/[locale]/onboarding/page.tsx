@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { MessageCircle, ArrowRight, Loader2, Check, ChevronDown, Phone, RefreshCw, RotateCcw } from 'lucide-react'
+import { MessageCircle, ArrowRight, Loader2, Check, ChevronDown, Phone, RefreshCw, RotateCcw, LogOut } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { PHONE_COUNTRY_CODES, buildInternationalPhone } from '@/lib/profile-phone'
 
@@ -581,6 +581,25 @@ export default function OnboardingPage() {
                 <p style={{ textAlign: 'center', marginTop: 14, fontSize: 11, color: '#334155' }}>
                     Ces préférences sont modifiables à tout moment dans vos paramètres.
                 </p>
+
+                {/* Bouton annuler — déconnexion sans compléter l'onboarding */}
+                <button
+                    onClick={async () => {
+                        const supabase = createClient()
+                        await supabase.auth.signOut()
+                        router.push('/')
+                    }}
+                    style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                        width: '100%', marginTop: 16,
+                        background: 'none', border: 'none',
+                        color: '#475569', fontSize: 12, cursor: 'pointer',
+                        padding: '8px 0',
+                    }}
+                >
+                    <LogOut style={{ width: 13, height: 13 }} />
+                    Annuler et se déconnecter
+                </button>
             </motion.div>
 
             <style jsx global>{`
