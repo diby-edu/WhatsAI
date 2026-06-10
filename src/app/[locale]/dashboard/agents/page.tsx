@@ -471,7 +471,7 @@ export default function AgentsPage() {
                                 <div style={{ fontSize: 11, color: '#64748b' }}>Conversations</div>
                             </div>
                             {/* Colonne 2 : KB (support/services) ou Produits (ecommerce/resto/hotel/salon) */}
-                            {(agent.mission === 'ecommerce' || agent.mission === 'restaurant' || agent.mission === 'hotel' || agent.mission === 'salon') ? (
+                            {(agent.mission === 'ecommerce' || agent.mission === 'restaurant' || agent.mission === 'hotel' || agent.mission === 'salon') && agent.ecommerce_mode !== 'external_sync' ? (
                                 <div style={{ textAlign: 'center', padding: '10px 8px', background: 'rgba(51,65,85,0.3)', borderRadius: 10 }}>
                                     <div style={{ fontSize: 18, fontWeight: 700, color: missionCfg.color }}>{agent.product_count || 0}</div>
                                     <div style={{ fontSize: 11, color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3 }}>
@@ -533,7 +533,7 @@ export default function AgentsPage() {
                             </div>
 
                             {/* Leads */}
-                            {(agent.lead_collection_enabled || agent.agent_context || agent.fallback_contact_message || (agent.system_prompt || '').includes('en te basant uniquement')) && (
+                            {(agent.mission === 'support_client' || agent.mission === 'services' || agent.lead_collection_enabled || agent.agent_context || agent.fallback_contact_message || (agent.system_prompt || '').includes('en te basant uniquement')) && (
                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                                     <Link href={`/dashboard/agents/${agent.id}/leads`} title="Leads"
                                         style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: 'rgba(139, 92, 246, 0.15)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
