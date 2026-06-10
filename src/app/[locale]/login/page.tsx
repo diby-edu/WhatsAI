@@ -92,6 +92,9 @@ export default function LoginPage() {
     const [showPassword, setShowPassword] = useState(false)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [showResend, setShowResend] = useState(false)
+    const [resendLoading, setResendLoading] = useState(false)
+    const [resendSent, setResendSent] = useState(false)
     const [authPolicy, setAuthPolicy] = useState({
         requireEmailVerification: false,
         maxLoginAttempts: 5,
@@ -119,8 +122,20 @@ export default function LoginPage() {
 
         const err = searchParams.get('error')
         if (err === 'confirm_other_device') setError('Votre email est confirmé. Connectez-vous pour accéder à votre compte.')
-        else if (err === 'auth_failed') setError('Le lien de connexion est invalide ou a expiré.')
+        else if (err === 'auth_failed') { setError('Le lien de connexion est invalide ou a expiré.'); setShowResend(true) }
     }, [searchParams])
+    const handleResend = async () => {
+        if (!email) { setError('Entrez votre email pour renvoyer le lien de confirmation.'); return }
+        setResendLoading(true)
+        const supabase = createClient()
+        const { error } = await supabase.auth.resend({ type: 'signup', email })
+        setResendLoading(false)
+        if (error) { setError(error.message); return }
+        setResendSent(true)
+        setShowResend(false)
+        setError(null)
+    }
+
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault()
         setLoading(true)
@@ -150,6 +165,7 @@ export default function LoginPage() {
                     setError('Email ou mot de passe incorrect. Si vous venez de vous inscrire, verifiez que vous avez confirme votre email.')
                 } else if (error.message.includes('Email not confirmed')) {
                     setError('Veuillez confirmer votre email avant de vous connecter. Verifiez votre boite de reception.')
+                    setShowResend(true)
                 } else {
                     setError(error.message)
                 }
@@ -471,7 +487,7 @@ export default function LoginPage() {
                             initial={{ opacity: 0, y: -10 }}
                             animate={{ opacity: 1, y: 0 }}
                             style={{
-                                marginBottom: 24,
+                                marginBottom: showResend ? 8 : 24,
                                 padding: 16,
                                 background: 'rgba(239, 68, 68, 0.1)',
                                 border: '1px solid rgba(239, 68, 68, 0.2)',
@@ -481,6 +497,46 @@ export default function LoginPage() {
                             }}
                         >
                             {error}
+                        </motion.div>
+                    )}
+
+                    {/* Renvoyer email confirmation */}
+                    {showResend && (
+                        <motion.div
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            style={{ marginBottom: 24 }}
+                        >
+                            <button
+                                type="button"
+                                onClick={handleResend}
+                                disabled={resendLoading}
+                                style={{
+                                    width: '100%', padding: '10px 16px', borderRadius: 10,
+                                    background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)',
+                                    color: '#fbbf24', fontSize: 13, fontWeight: 600, cursor: resendLoading ? 'not-allowed' : 'pointer',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                                    opacity: resendLoading ? 0.7 : 1
+                                }}
+                            >
+                                {resendLoading ? <Loader2 style={{ width: 14, height: 14, animation: 'spin 1s linear infinite' }} /> : '📧'}
+                                {resendLoading ? 'Envoi en cours…' : 'Renvoyer l\'email de confirmation'}
+                            </button>
+                        </motion.div>
+                    )}
+
+                    {/* Succès renvoi */}
+                    {resendSent && (
+                        <motion.div
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            style={{
+                                marginBottom: 24, padding: 16,
+                                background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)',
+                                borderRadius: 14, color: '#34d399', fontSize: 14
+                            }}
+                        >
+                            Email de confirmation renvoyé ! Vérifiez votre boite de réception (lien valable 1 heure).
                         </motion.div>
                     )}
 
