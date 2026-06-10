@@ -182,6 +182,9 @@ function RegisterForm() {
             }
 
             storeRefCodeCookie()
+            if (selectedPlan) {
+                document.cookie = `selected_plan=${selectedPlan}; path=/; max-age=3600; samesite=lax`
+            }
             const { error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {

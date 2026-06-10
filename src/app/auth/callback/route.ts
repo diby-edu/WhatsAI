@@ -66,6 +66,16 @@ export async function GET(request: Request) {
         return NextResponse.redirect(buildRedirectUrl(origin, forwardedHost, '/login?error=auth_failed'))
     }
 
+    // Appliquer le plan sélectionné avant l'OAuth (Google web)
+    const selectedPlan = cookieStore.get('selected_plan')?.value
+    if (selectedPlan) {
+        const { data: { user: planUser } } = await supabase.auth.getUser()
+        if (planUser && !planUser.user_metadata?.selected_plan) {
+            await supabase.auth.updateUser({ data: { selected_plan: selectedPlan } }).catch(() => {})
+        }
+        cookieStore.delete('selected_plan')
+    }
+
     // Appliquer le parrainage si un code était stocké avant l'OAuth
     const refCode = cookieStore.get('referral_code')?.value
     if (refCode) {
