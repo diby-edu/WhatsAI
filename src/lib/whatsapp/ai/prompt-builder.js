@@ -182,17 +182,41 @@ RÈGLES DE SALUTATION :
             const fields = Array.isArray(agent.lead_collect_fields)
                 ? agent.lead_collect_fields
                 : (typeof agent.lead_collect_fields === 'string' ? JSON.parse(agent.lead_collect_fields) : ['name', 'phone'])
-            const fieldLabels = fields.map(f => f === 'name' ? 'prénom/nom' : f === 'phone' ? 'numéro de téléphone' : f === 'email' ? 'email' : f).join(', ')
+
+            const FIELD_LABELS = {
+                name: 'prénom/nom',
+                phone: 'numéro de téléphone',
+                email: 'email',
+                location: 'localisation/quartier',
+                company: 'entreprise',
+                preferred_date: 'date souhaitée',
+                preferred_time: 'heure souhaitée',
+                service_requested: 'service ou prestation souhaité',
+                notes: 'informations complémentaires',
+            }
+            const standardLabels = fields.map(f => FIELD_LABELS[f] || f)
+
+            // Champs personnalisés définis par le marchand
+            const customFields = Array.isArray(agent.lead_custom_fields)
+                ? agent.lead_custom_fields
+                : (typeof agent.lead_custom_fields === 'string' ? JSON.parse(agent.lead_custom_fields || '[]') : [])
+
+            const allFieldLabels = [...standardLabels, ...customFields].join(', ')
+
+            const customFieldsInstruction = customFields.length > 0
+                ? `\n5. Champs personnalisés à collecter : ${customFields.join(', ')} → stocke-les dans custom_fields`
+                : ''
+
             const redirectMsg = agent.lead_redirect_message || 'Merci ! Nos équipes vous recontacteront très bientôt.'
             leadSection = `
 
 📋 COLLECTE DE LEADS (ACTIF) :
-Si le client exprime un intérêt concret (achat, inscription, visite, commande, devis...) :
-1. Pose les questions une par une, naturellement : ${fieldLabels}
-2. Déduis aussi le sujet d'intérêt (ex: "Formation Excel", "Villa Cocody")
-3. Une fois toutes les infos collectées → appelle capture_lead
+Si le client exprime un intérêt concret (achat, inscription, visite, rendez-vous, devis, service...) :
+1. Pose les questions une par une, naturellement : ${allFieldLabels}
+2. Déduis aussi le sujet d'intérêt/service demandé
+3. Une fois toutes les infos collectées → appelle capture_lead${customFieldsInstruction}
 4. Après l'appel réussi, réponds EXACTEMENT : "${redirectMsg}"
-⛔ Ne collecte PAS si le client pose juste une question informative sans intention d'achat/inscription.
+⛔ Ne collecte PAS si le client pose juste une question informative sans intention concrète.
 ⛔ Ne collecte PAS les mêmes infos deux fois dans la même conversation.`
         } else if (agent.lead_redirect_message) {
             leadSection = `
