@@ -190,10 +190,10 @@ IMPORTANT - VARIANTES :
         function: {
             name: 'capture_lead',
             description: `Enregistrer les coordonnées d'un client intéressé (lead) pour un suivi commercial.
-Utiliser UNIQUEMENT en mode Support Client quand lead_collection_enabled est actif.
+Utiliser quand lead_collection_enabled est actif.
 Appeler APRÈS avoir collecté les informations demandées, une question à la fois.
 Ne jamais inventer des informations — collecter uniquement ce que le client a fourni.
-Ne pas appeler si le client pose juste une question simple sans intention d'achat/inscription.`,
+Ne pas appeler si le client pose juste une question simple sans intention d'achat/inscription/rendez-vous.`,
             parameters: {
                 type: 'object',
                 properties: {
@@ -219,7 +219,28 @@ Ne pas appeler si le client pose juste une question simple sans intention d'acha
                     },
                     interest: {
                         type: 'string',
-                        description: 'Ce que le client recherche — résumé court (ex: "Formation Excel", "Villa Cocody 4 chambres")'
+                        description: 'Ce que le client recherche — résumé court (ex: "Formation Excel", "Coupe homme", "Réparation plomberie")'
+                    },
+                    preferred_date: {
+                        type: 'string',
+                        description: 'Date souhaitée par le client (format libre : "lundi prochain", "15 juin", "2026-06-20")'
+                    },
+                    preferred_time: {
+                        type: 'string',
+                        description: 'Heure souhaitée par le client (ex: "10h", "14h30", "après-midi")'
+                    },
+                    service_requested: {
+                        type: 'string',
+                        description: 'Service ou prestation spécifique demandé (ex: "Coupe + barbe", "Consultation juridique", "Devis plomberie salle de bain")'
+                    },
+                    lead_notes: {
+                        type: 'string',
+                        description: 'Notes supplémentaires ou informations libres fournies par le client'
+                    },
+                    custom_fields: {
+                        type: 'object',
+                        description: 'Champs personnalisés définis par le marchand — collecter uniquement les champs demandés dans les instructions',
+                        additionalProperties: { type: 'string' }
                     }
                 },
                 required: []

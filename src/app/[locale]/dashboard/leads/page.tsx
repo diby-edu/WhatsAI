@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
     Users, Phone, Mail, Tag, Calendar, MapPin,
-    Building2, Trash2, Search, RefreshCw, Bot, Download, X
+    Building2, Trash2, Search, RefreshCw, Bot, Download, X,
+    Clock, Scissors, FileText
 } from 'lucide-react'
 import { useToast } from '@/components/ui/Toast'
 
@@ -18,6 +19,11 @@ interface Lead {
     lead_location: string | null
     lead_company: string | null
     interest: string | null
+    preferred_date: string | null
+    preferred_time: string | null
+    service_requested: string | null
+    lead_notes: string | null
+    custom_fields: Record<string, string> | null
     created_at: string
 }
 
@@ -59,7 +65,6 @@ export default function LeadsPage() {
         }
     }
 
-    // Agents uniques pour le filtre
     const agentOptions = Array.from(
         new Map(leads.map(l => [l.agent_id, l.agent_name])).entries()
     ).map(([id, name]) => ({ id, name }))
@@ -67,13 +72,16 @@ export default function LeadsPage() {
     const filtered = leads.filter(lead => {
         const matchAgent = agentFilter === 'all' || lead.agent_id === agentFilter
         const q = search.toLowerCase()
+        const customStr = lead.custom_fields ? Object.values(lead.custom_fields).join(' ').toLowerCase() : ''
         const matchSearch = !q ||
             (lead.lead_name || '').toLowerCase().includes(q) ||
             (lead.lead_phone || '').includes(q) ||
             (lead.lead_email || '').toLowerCase().includes(q) ||
             (lead.lead_company || '').toLowerCase().includes(q) ||
             (lead.interest || '').toLowerCase().includes(q) ||
-            (lead.customer_phone || '').includes(q)
+            (lead.service_requested || '').toLowerCase().includes(q) ||
+            (lead.customer_phone || '').includes(q) ||
+            customStr.includes(q)
         return matchAgent && matchSearch
     })
 
@@ -81,8 +89,13 @@ export default function LeadsPage() {
         new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 
     const exportCSV = () => {
+        // Collect all custom field keys across all leads
+        const allCustomKeys = Array.from(
+            new Set(leads.flatMap(l => l.custom_fields ? Object.keys(l.custom_fields) : []))
+        )
+        const headers = ['Nom', 'Téléphone', 'Email', 'Entreprise', 'Localisation', 'Intérêt', 'Service demandé', 'Date souhaitée', 'Heure souhaitée', 'Notes', ...allCustomKeys, 'Agent', 'Date']
         const rows = [
-            ['Nom', 'Téléphone', 'Email', 'Entreprise', 'Localisation', 'Intérêt', 'Agent', 'Date'],
+            headers,
             ...filtered.map(l => [
                 l.lead_name || '',
                 l.lead_phone || l.customer_phone || '',
@@ -90,6 +103,11 @@ export default function LeadsPage() {
                 l.lead_company || '',
                 l.lead_location || '',
                 l.interest || '',
+                l.service_requested || '',
+                l.preferred_date || '',
+                l.preferred_time || '',
+                l.lead_notes || '',
+                ...allCustomKeys.map(k => l.custom_fields?.[k] || ''),
                 l.agent_name,
                 formatDate(l.created_at),
             ])
@@ -147,7 +165,7 @@ export default function LeadsPage() {
                     <input
                         value={search}
                         onChange={e => setSearch(e.target.value)}
-                        placeholder="Rechercher par nom, téléphone, email, intérêt…"
+                        placeholder="Rechercher par nom, téléphone, email, service…"
                         style={{ width: '100%', padding: '10px 12px 10px 34px', borderRadius: 10, border: '1px solid rgba(148,163,184,0.12)', background: 'rgba(255,255,255,0.04)', color: '#e2e8f0', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
                     />
                     {search && (
@@ -168,7 +186,6 @@ export default function LeadsPage() {
                 )}
             </div>
 
-            {/* Compteur résultats filtrés */}
             {(search || agentFilter !== 'all') && !loading && (
                 <p style={{ fontSize: 12, color: '#475569', marginBottom: 12 }}>
                     {filtered.length} résultat{filtered.length !== 1 ? 's' : ''}
@@ -230,7 +247,7 @@ export default function LeadsPage() {
                                 </div>
 
                                 {/* Infos contact */}
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, fontSize: 12 }}>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, fontSize: 12, marginBottom: (lead.preferred_date || lead.preferred_time || lead.service_requested || lead.lead_notes || lead.custom_fields) ? 8 : 0 }}>
                                     {lead.lead_phone && (
                                         <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#94a3b8' }}>
                                             <Phone size={12} color="#10b981" /> {lead.lead_phone}
@@ -262,6 +279,43 @@ export default function LeadsPage() {
                                         </span>
                                     )}
                                 </div>
+
+                                {/* Champs enrichis : date/heure/service/notes */}
+                                {(lead.preferred_date || lead.preferred_time || lead.service_requested || lead.lead_notes) && (
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, fontSize: 12, marginBottom: lead.custom_fields ? 8 : 0, padding: '8px 10px', background: 'rgba(30,41,59,0.5)', borderRadius: 8 }}>
+                                        {lead.service_requested && (
+                                            <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#c4b5fd' }}>
+                                                <Scissors size={11} color="#a78bfa" /> {lead.service_requested}
+                                            </span>
+                                        )}
+                                        {lead.preferred_date && (
+                                            <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#93c5fd' }}>
+                                                <Calendar size={11} color="#60a5fa" /> {lead.preferred_date}
+                                            </span>
+                                        )}
+                                        {lead.preferred_time && (
+                                            <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#93c5fd' }}>
+                                                <Clock size={11} color="#60a5fa" /> {lead.preferred_time}
+                                            </span>
+                                        )}
+                                        {lead.lead_notes && (
+                                            <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#94a3b8' }}>
+                                                <FileText size={11} color="#64748b" /> {lead.lead_notes}
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Champs personnalisés */}
+                                {lead.custom_fields && Object.keys(lead.custom_fields).length > 0 && (
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, fontSize: 11 }}>
+                                        {Object.entries(lead.custom_fields).map(([key, value]) => (
+                                            <span key={key} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 20, background: 'rgba(168,85,247,0.08)', border: '1px solid rgba(168,85,247,0.2)', color: '#c4b5fd' }}>
+                                                <span style={{ color: '#7c3aed', fontWeight: 600 }}>{key} :</span> {value}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     ))}

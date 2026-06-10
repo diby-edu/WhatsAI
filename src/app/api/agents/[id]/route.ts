@@ -128,7 +128,7 @@ export async function PATCH(
             // Support Client
             'agent_context', 'welcome_message',
             // Leads
-            'lead_collection_enabled', 'lead_redirect_message', 'lead_collect_fields',
+            'lead_collection_enabled', 'lead_redirect_message', 'lead_collect_fields', 'lead_custom_fields',
             // Fallback contact
             'fallback_contact_message',
             // Live Query API
