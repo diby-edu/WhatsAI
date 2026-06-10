@@ -121,19 +121,41 @@ export default function LoginPage() {
         loadRuntimeConfig()
 
         const err = searchParams.get('error')
-        if (err === 'confirm_other_device') setError('Votre email est confirmé. Connectez-vous pour accéder à votre compte.')
-        else if (err === 'auth_failed') { setError('Le lien de connexion est invalide ou a expiré.'); setShowResend(true) }
+        if (err === 'confirm_other_device') {
+            setError('Le lien de confirmation a expiré ou a été ouvert depuis un autre appareil.')
+            setShowResend(true)
+        } else if (err === 'auth_failed') {
+            setError('Le lien de connexion est invalide ou a expiré.')
+            setShowResend(true)
+        }
     }, [searchParams])
     const handleResend = async () => {
         if (!email) { setError('Entrez votre email pour renvoyer le lien de confirmation.'); return }
         setResendLoading(true)
-        const supabase = createClient()
-        const { error } = await supabase.auth.resend({ type: 'signup', email })
-        setResendLoading(false)
-        if (error) { setError(error.message); return }
-        setResendSent(true)
-        setShowResend(false)
         setError(null)
+        try {
+            const res = await fetch('/api/auth/resend', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email }),
+            })
+            const json = await res.json()
+            if (!json.success) {
+                // Email already confirmed → go back to login form with helpful message
+                if (res.status === 409) {
+                    setShowResend(false)
+                    setError('Votre email est déjà confirmé. Connectez-vous directement.')
+                    return
+                }
+                setError(json.error || 'Une erreur est survenue.')
+                return
+            }
+            setResendSent(true)
+        } catch {
+            setError('Impossible de contacter le serveur. Vérifiez votre connexion.')
+        } finally {
+            setResendLoading(false)
+        }
     }
 
     const handleLogin = async (e: React.FormEvent) => {
@@ -484,69 +506,105 @@ export default function LoginPage() {
                     {/* Vue : Confirmer email (lien expiré / email non confirmé) */}
                     {showResend ? (
                         <motion.div key="resend-view" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-                            {/* Icône */}
-                            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
-                                <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 }}>
-                                    📧
-                                </div>
-                            </div>
 
-                            <h2 style={{ fontSize: 22, fontWeight: 700, color: 'white', textAlign: 'center', marginBottom: 8 }}>
-                                Confirmez votre email
-                            </h2>
-                            <p style={{ fontSize: 14, color: '#94a3b8', textAlign: 'center', marginBottom: 28, lineHeight: 1.5 }}>
-                                Entrez votre email pour recevoir<br />un nouveau lien de confirmation.
-                            </p>
-
-                            {/* Succès renvoi */}
                             {resendSent ? (
-                                <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-                                    style={{ padding: 20, background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 14, textAlign: 'center', marginBottom: 24 }}>
-                                    <div style={{ fontSize: 28, marginBottom: 8 }}>✅</div>
-                                    <div style={{ color: '#34d399', fontWeight: 600, marginBottom: 4 }}>Email envoyé !</div>
-                                    <div style={{ color: '#64748b', fontSize: 13 }}>Vérifiez votre boite de réception.<br />Le lien est valable 1 heure.</div>
-                                </motion.div>
-                            ) : (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
-                                    {/* Erreur resend */}
-                                    {error && (
-                                        <div style={{ padding: 12, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 12, color: '#f87171', fontSize: 13 }}>
-                                            {error}
+                                /* ——— Vue succès : style register ——— */
+                                <motion.div key="resend-success" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
+                                    {/* Checkmark */}
+                                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
+                                        <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'linear-gradient(135deg, #10b981, #059669)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 32px rgba(16,185,129,0.4)' }}>
+                                            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                                <polyline points="20 6 9 17 4 12" />
+                                            </svg>
                                         </div>
-                                    )}
-                                    {/* Champ email */}
-                                    <div style={{ position: 'relative' }}>
-                                        <Mail style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', width: 20, height: 20, color: '#64748b' }} />
-                                        <input
-                                            type="email"
-                                            value={email}
-                                            onChange={(e) => setEmail(e.target.value)}
-                                            placeholder="votre@email.com"
-                                            style={{ width: '100%', padding: '16px 16px 16px 52px', fontSize: 16, color: 'white', backgroundColor: 'rgba(30,41,59,0.5)', border: '1px solid rgba(148,163,184,0.1)', borderRadius: 14, outline: 'none' }}
-                                        />
                                     </div>
-                                    {/* Bouton renvoyer */}
+
+                                    <h2 style={{ fontSize: 24, fontWeight: 700, color: 'white', textAlign: 'center', marginBottom: 12 }}>
+                                        Vérifiez votre email !
+                                    </h2>
+                                    <p style={{ fontSize: 14, color: '#94a3b8', textAlign: 'center', marginBottom: 8, lineHeight: 1.6 }}>
+                                        Nous avons envoyé un lien de confirmation à
+                                    </p>
+                                    <p style={{ fontSize: 15, fontWeight: 600, color: '#34d399', textAlign: 'center', marginBottom: 28, wordBreak: 'break-all' }}>
+                                        {email}
+                                    </p>
+
+                                    {/* Bouton Se connecter */}
                                     <motion.button
                                         whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
                                         type="button"
-                                        onClick={handleResend}
-                                        disabled={resendLoading}
-                                        style={{ width: '100%', padding: '16px', borderRadius: 14, border: 'none', background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: 'white', fontSize: 16, fontWeight: 600, cursor: resendLoading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: resendLoading ? 0.7 : 1 }}
+                                        onClick={() => { setShowResend(false); setResendSent(false); setError(null) }}
+                                        style={{ width: '100%', padding: '16px', borderRadius: 14, border: 'none', background: 'linear-gradient(135deg, #10b981, #059669)', color: 'white', fontSize: 16, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: '0 8px 24px rgba(16,185,129,0.35)', marginBottom: 16 }}
                                     >
-                                        {resendLoading ? <Loader2 style={{ width: 18, height: 18, animation: 'spin 1s linear infinite' }} /> : null}
-                                        {resendLoading ? 'Envoi en cours…' : 'Envoyer le lien de confirmation'}
+                                        Se connecter
+                                        <ArrowRight style={{ width: 18, height: 18 }} />
                                     </motion.button>
-                                </div>
-                            )}
 
-                            {/* Retour */}
-                            <button
-                                type="button"
-                                onClick={() => { setShowResend(false); setError(null); setResendSent(false) }}
-                                style={{ width: '100%', background: 'none', border: 'none', color: '#64748b', fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 0' }}
-                            >
-                                ← Retour à la connexion
-                            </button>
+                                    <p style={{ fontSize: 13, color: '#64748b', textAlign: 'center', marginBottom: 20 }}>
+                                        Cliquez sur le lien dans l'email pour activer votre compte
+                                    </p>
+
+                                    {/* Info expiry */}
+                                    <div style={{ padding: 14, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 12 }}>
+                                        <p style={{ fontSize: 13, color: '#fbbf24', textAlign: 'center', lineHeight: 1.6, margin: 0 }}>
+                                            Le lien est valable <strong>1 heure</strong>. Si vous ne le trouvez pas, vérifiez vos spams.
+                                        </p>
+                                    </div>
+                                </motion.div>
+                            ) : (
+                                /* ——— Vue formulaire renvoi ——— */
+                                <>
+                                    {/* Icône */}
+                                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
+                                        <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <Mail style={{ width: 28, height: 28, color: '#f59e0b' }} />
+                                        </div>
+                                    </div>
+
+                                    <h2 style={{ fontSize: 22, fontWeight: 700, color: 'white', textAlign: 'center', marginBottom: 8 }}>
+                                        Confirmez votre email
+                                    </h2>
+                                    <p style={{ fontSize: 14, color: '#94a3b8', textAlign: 'center', marginBottom: 28, lineHeight: 1.5 }}>
+                                        Entrez votre email pour recevoir<br />un nouveau lien de confirmation.
+                                    </p>
+
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
+                                        {error && (
+                                            <div style={{ padding: 12, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 12, color: '#f87171', fontSize: 13 }}>
+                                                {error}
+                                            </div>
+                                        )}
+                                        <div style={{ position: 'relative' }}>
+                                            <Mail style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', width: 20, height: 20, color: '#64748b' }} />
+                                            <input
+                                                type="email"
+                                                value={email}
+                                                onChange={(e) => setEmail(e.target.value)}
+                                                placeholder="votre@email.com"
+                                                style={{ width: '100%', padding: '16px 16px 16px 52px', fontSize: 16, color: 'white', backgroundColor: 'rgba(30,41,59,0.5)', border: '1px solid rgba(148,163,184,0.1)', borderRadius: 14, outline: 'none' }}
+                                            />
+                                        </div>
+                                        <motion.button
+                                            whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                                            type="button"
+                                            onClick={handleResend}
+                                            disabled={resendLoading}
+                                            style={{ width: '100%', padding: '16px', borderRadius: 14, border: 'none', background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: 'white', fontSize: 16, fontWeight: 600, cursor: resendLoading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: resendLoading ? 0.7 : 1 }}
+                                        >
+                                            {resendLoading ? <Loader2 style={{ width: 18, height: 18, animation: 'spin 1s linear infinite' }} /> : null}
+                                            {resendLoading ? 'Envoi en cours…' : 'Envoyer le lien de confirmation'}
+                                        </motion.button>
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => { setShowResend(false); setError(null); setResendSent(false) }}
+                                        style={{ width: '100%', background: 'none', border: 'none', color: '#64748b', fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 0' }}
+                                    >
+                                        ← Retour à la connexion
+                                    </button>
+                                </>
+                            )}
                         </motion.div>
                     ) : (
                     <>
