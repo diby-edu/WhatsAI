@@ -50,6 +50,7 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
         ? `/${locale}/dashboard/agents/${id}?tab=whatsapp`
         : `/${locale}/dashboard/agents/${id}`
 
+    const [agentName, setAgentName] = useState<string>('')
     const [documents, setDocuments] = useState<Document[]>([])
     const [loading, setLoading] = useState(true)
     const [isAdding, setIsAdding] = useState(false)
@@ -167,7 +168,13 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
     const [loadingSegments, setLoadingSegments] = useState(false)
     const [expandedSegment, setExpandedSegment] = useState<number | null>(null)
 
-    useEffect(() => { fetchDocuments() }, [id])
+    useEffect(() => {
+        fetchDocuments()
+        fetch(`/api/agents/${id}`).then(r => r.json()).then(d => {
+            const name = d.data?.agent?.name || d.agent?.name
+            if (name) setAgentName(name)
+        }).catch(() => {})
+    }, [id])
 
     const fetchDocuments = async () => {
         setLoading(true)
@@ -371,7 +378,8 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
                 </Link>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
-                        <h1 style={{ fontSize: 32, fontWeight: 700, color: 'white', marginBottom: 8 }}>Base de Connaissances</h1>
+                        <h1 style={{ fontSize: 32, fontWeight: 700, color: 'white', marginBottom: 4 }}>Base de Connaissances</h1>
+                        {agentName && <p style={{ color: '#34d399', fontWeight: 600, fontSize: 15, marginBottom: 4 }}>{agentName}</p>}
                         <p style={{ color: '#94a3b8' }}>Apprenez à votre agent tout ce qu'il doit savoir — texte, PDF, ou page web.</p>
                     </div>
                     <button onClick={() => setIsAdding(true)} style={{ background: '#10b981', color: 'white', border: 'none', padding: '12px 24px', borderRadius: 12, fontWeight: 600, display: 'flex', alignItems: 'center', cursor: 'pointer', gap: 8 }}>
