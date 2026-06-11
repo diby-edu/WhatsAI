@@ -213,17 +213,27 @@ export default function NewAgentPage() {
         { id: 'whatsapp', title: t('Wizard.steps.whatsapp'), icon: Smartphone },
     ]
 
-    const isSupportClient = formData.mission === 'support_client'
+    const isSupportClient = formData.mission === 'support_client' || formData.mission === 'services' || formData.mission === 'salon'
     const isExternalSync = formData.mission === 'ecommerce' && formData.ecommerce_mode === 'external_sync'
 
     const missionTemplates = [
         {
             id: 'support_client',
             title: 'Support Client',
-            description: 'Répond aux questions de vos clients via une base de connaissances. Pour coachs, formateurs, experts, consultants, écoles et prestataires de services.',
+            description: 'Collecte des leads, les informations et prend des rendez-vous. Pour service client, artisans, coachs, consultants, salons, formateurs, experts. Pas de catalogue ni de panier.',
             prompt: `Tu es l'assistant de ${'{name}'}.
-Ton rôle est de répondre aux questions des clients en te basant uniquement sur les informations que tu connais.
-Ne jamais inventer d'information. Si tu ne sais pas, collecte le contact du client et indique qu'un responsable le recontactera.`,
+
+Ton rôle:
+- Répondre aux questions des clients sur les services, tarifs et disponibilités
+- Comprendre leur besoin et les conseiller
+- Collecter leurs informations de contact et les détails de leur demande
+- Prendre des rendez-vous si applicable
+
+Règles:
+- Base-toi uniquement sur les informations que tu connais
+- Ne jamais inventer un prix, un délai ou une disponibilité
+- Si tu ne sais pas répondre, collecte le contact du client et indique qu'un responsable le recontactera
+- Sois professionnel, chaleureux et rassurant`,
         },
         {
             id: 'ecommerce',
@@ -252,30 +262,6 @@ Règles:
 - Propose toujours des produits complémentaires
 - Confirme le total avant de valider la commande
 - N'invente jamais un mode de livraison ou de paiement contraire au catalogue`,
-        },
-        {
-            id: 'services',
-            title: '🔧 Services / Artisan',
-            description: 'Présente vos prestations, capte les demandes de devis et qualifie vos prospects. Pour artisans, techniciens, prestataires et indépendants.',
-            prompt: `Tu es l'assistant de ${'{name}'}.
-
-Ton rôle:
-- Répondre aux questions sur nos services, tarifs et disponibilités
-- Comprendre le besoin du client avant de proposer une intervention
-- Collecter les informations nécessaires pour un devis ou une intervention
-- Informer sur les délais et zones d'intervention
-
-Pour une demande d'intervention ou de devis, collecte:
-1. Nature du problème ou service demandé
-2. Adresse ou zone géographique
-3. Disponibilités du client
-4. Nom et numéro de téléphone
-
-Règles:
-- Base-toi uniquement sur les informations que tu connais (tarifs, services, zones)
-- Ne jamais inventer un prix ou une disponibilité
-- Si la demande sort de tes compétences, collecte le contact et indique qu'un responsable rappellera
-- Sois direct, professionnel et rassurant`,
         },
         {
             id: 'restaurant',
@@ -332,30 +318,6 @@ Règles:
 - Confirme le tarif total et les conditions d'annulation
 - Sois accueillant et professionnel`,
         },
-        {
-            id: 'salon',
-            title: t('Templates.salon.title'),
-            description: 'Présente vos prestations beauté, prend les rendez-vous et gère votre planning. Pour salons de coiffure, esthétique et bien-être.',
-            prompt: `Tu es l'assistant de notre salon de beauté/coiffure.
-
-Ton rôle:
-- Présenter nos services et tarifs
-- Prendre les rendez-vous
-- Conseiller sur les soins adaptés
-- Gérer les annulations et modifications
-
-Pour un rendez-vous, collecte:
-1. Le(s) service(s) souhaité(s)
-2. Date et heure préférées
-3. Coiffeur/esthéticien préféré (si applicable)
-4. Nom et numéro de téléphone
-
-Règles:
-- Indique la durée estimée des prestations
-- Propose des services complémentaires
-- Rappelle les consignes (arriver 10 min avant, etc.)
-- Confirme le rendez-vous et le tarif estimé`,
-        },
     ]
 
     const getMissionPrompt = (
@@ -396,7 +358,7 @@ Regles:
 
     const selectMissionTemplate = (template: typeof missionTemplates[0]) => {
         const nextEcommerceMode = template.id === 'ecommerce' ? formData.ecommerce_mode : 'native'
-        const autoLeads = template.id === 'support_client' || template.id === 'services'
+        const autoLeads = template.id === 'support_client'
         setFormData(prev => ({
             ...prev,
             mission: template.id,
@@ -998,7 +960,7 @@ Regles:
                                 <div className="agent-grid-3">
                                     {missionTemplates.map((template) => {
                                         const flagKey = `agent_${template.id}`
-                                        const isEnabled = template.id === 'support_client' || template.id === 'services' || Object.keys(featureFlags).length === 0 || featureFlags[flagKey] !== false
+                                        const isEnabled = template.id === 'support_client' || Object.keys(featureFlags).length === 0 || featureFlags[flagKey] !== false
                                         return (
                                             <button
                                                 key={template.id}
