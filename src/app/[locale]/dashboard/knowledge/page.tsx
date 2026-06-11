@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { Bot, BookOpen, ArrowRight, FileText } from 'lucide-react'
+import { useEffect, useState, useMemo } from 'react'
+import { Bot, BookOpen, ArrowRight, FileText, Search, ArrowUpDown } from 'lucide-react'
 import Link from 'next/link'
 import { useLocale } from 'next-intl'
 
@@ -16,6 +16,8 @@ export default function KnowledgePage() {
     const locale = useLocale()
     const [agents, setAgents] = useState<Agent[]>([])
     const [loading, setLoading] = useState(true)
+    const [search, setSearch] = useState('')
+    const [sort, setSort] = useState<'name' | 'docs'>('name')
 
     useEffect(() => {
         fetch('/api/agents')
@@ -40,6 +42,16 @@ export default function KnowledgePage() {
             .finally(() => setLoading(false))
     }, [])
 
+    const filtered = useMemo(() => {
+        const q = search.trim().toLowerCase()
+        const result = q ? agents.filter(a => a.name.toLowerCase().includes(q)) : [...agents]
+        return result.sort((a, b) =>
+            sort === 'docs'
+                ? (b.kb_count ?? 0) - (a.kb_count ?? 0)
+                : a.name.localeCompare(b.name)
+        )
+    }, [agents, search, sort])
+
     return (
         <div style={{ padding: 'clamp(16px, 4vw, 32px)', maxWidth: 900, margin: '0 auto' }}>
             {/* Header */}
@@ -62,6 +74,44 @@ export default function KnowledgePage() {
                     </div>
                 </div>
             </div>
+
+            {/* Search + Sort */}
+            {!loading && agents.length > 0 && (
+                <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
+                    <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
+                        <Search style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', width: 15, height: 15, color: '#64748b', pointerEvents: 'none' }} />
+                        <input
+                            type="text"
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                            placeholder="Rechercher un agent..."
+                            style={{
+                                width: '100%', boxSizing: 'border-box',
+                                padding: '10px 14px 10px 36px',
+                                background: 'rgba(30, 41, 59, 0.6)',
+                                border: '1px solid rgba(148, 163, 184, 0.15)',
+                                borderRadius: 10, color: 'white', fontSize: 14,
+                                outline: 'none',
+                            }}
+                            onFocus={e => (e.target.style.borderColor = 'rgba(52, 211, 153, 0.4)')}
+                            onBlur={e => (e.target.style.borderColor = 'rgba(148, 163, 184, 0.15)')}
+                        />
+                    </div>
+                    <button
+                        onClick={() => setSort(s => s === 'name' ? 'docs' : 'name')}
+                        style={{
+                            display: 'flex', alignItems: 'center', gap: 6,
+                            padding: '10px 14px', borderRadius: 10, cursor: 'pointer',
+                            background: 'rgba(30, 41, 59, 0.6)',
+                            border: '1px solid rgba(148, 163, 184, 0.15)',
+                            color: '#94a3b8', fontSize: 13, fontWeight: 500, flexShrink: 0
+                        }}
+                    >
+                        <ArrowUpDown style={{ width: 14, height: 14 }} />
+                        {sort === 'name' ? 'Nom A→Z' : 'Documents ↓'}
+                    </button>
+                </div>
+            )}
 
             {/* Agents list */}
             {loading ? (
@@ -95,9 +145,18 @@ export default function KnowledgePage() {
                         Créer un agent <ArrowRight style={{ width: 14, height: 14 }} />
                     </Link>
                 </div>
+            ) : filtered.length === 0 && search ? (
+                <div style={{
+                    textAlign: 'center', padding: '40px 24px',
+                    background: 'rgba(30, 41, 59, 0.4)',
+                    border: '1px solid rgba(148, 163, 184, 0.08)',
+                    borderRadius: 16, color: '#64748b', fontSize: 14
+                }}>
+                    Aucun agent ne correspond à &quot;{search}&quot;
+                </div>
             ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {agents.map(agent => (
+                    {filtered.map(agent => (
                         <Link
                             key={agent.id}
                             href={`/${locale}/dashboard/agents/${agent.id}/knowledge`}
