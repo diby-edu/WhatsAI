@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import { createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
+import { getAdminSupabase } from '@/lib/supabase/admin'
 
 export async function GET(request: NextRequest) {
     const supabase = await createApiClient()
@@ -50,8 +51,11 @@ export async function GET(request: NextRequest) {
             return successResponse({ conversations: [] })
         }
 
+        // Utilise le client admin pour bypasser le RLS sur messages
+        const supabaseAdmin = getAdminSupabase()
+
         // Batch query for message counts - single query for all conversations
-        const { data: messageCounts } = await supabase
+        const { data: messageCounts } = await supabaseAdmin
             .from('messages')
             .select('conversation_id')
             .in('conversation_id', conversationIds)
@@ -63,12 +67,12 @@ export async function GET(request: NextRequest) {
         })
 
         // Batch query for last messages - get recent messages for all conversations
-        const { data: recentMessages } = await supabase
+        const { data: recentMessages } = await supabaseAdmin
             .from('messages')
             .select('conversation_id, content, created_at')
             .in('conversation_id', conversationIds)
             .order('created_at', { ascending: false })
-            .limit(conversationIds.length)
+            .limit(conversationIds.length * 10)
 
         // Get last message per conversation
         const lastMessageMap: Record<string, { content: string; created_at: string }> = {}
