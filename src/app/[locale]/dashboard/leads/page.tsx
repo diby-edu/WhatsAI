@@ -123,7 +123,7 @@ export default function LeadsPage() {
     }
 
     return (
-        <div style={{ maxWidth: 900, margin: '0 auto', padding: '32px 16px' }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 16px' }}>
 
             {/* En-tête */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28, flexWrap: 'wrap', gap: 12 }}>
@@ -209,116 +209,113 @@ export default function LeadsPage() {
                 </div>
             ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {filtered.map(lead => (
-                        <div
-                            key={lead.id}
-                            style={{ background: 'rgba(15,23,42,0.7)', border: '1px solid rgba(30,41,59,0.8)', borderRadius: 14, padding: '16px 18px', display: 'flex', gap: 14, alignItems: 'flex-start' }}
-                        >
-                            {/* Avatar */}
-                            <div style={{ width: 38, height: 38, borderRadius: 10, background: 'rgba(16,185,129,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                <Users size={17} color="#10b981" />
-                            </div>
+                    {filtered.map(lead => {
+                        const hasExtra = !!(lead.custom_fields && Object.keys(lead.custom_fields).length > 0) || !!lead.lead_notes
+                        const hasDemande = !!(lead.service_requested || lead.preferred_date || lead.preferred_time || lead.interest)
+                        const cols = hasExtra ? '1fr 1fr 1fr' : hasDemande ? '1fr 1fr' : '1fr'
 
-                            {/* Contenu */}
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                                {/* Ligne titre */}
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                                        <span style={{ color: 'white', fontWeight: 600, fontSize: 14 }}>
-                                            {lead.lead_name || lead.customer_phone || 'Contact anonyme'}
-                                        </span>
-                                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 20, background: 'rgba(99,102,241,0.1)', color: '#a5b4fc', fontSize: 11 }}>
-                                            <Bot size={10} /> {lead.agent_name}
-                                        </span>
+                        return (
+                            <div key={lead.id} style={{ background: 'rgba(15,23,42,0.85)', border: '1px solid rgba(148,163,184,0.1)', borderRadius: 16, padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12, transition: 'border-color 0.2s' }}>
+
+                                {/* Ligne 1 : nom + agent + date + supprimer */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                                    <div style={{ width: 34, height: 34, borderRadius: 9, background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                        <Users size={16} color="#10b981" />
                                     </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                        <span style={{ color: '#475569', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>
-                                            <Calendar size={11} />
-                                            {formatDate(lead.created_at)}
-                                        </span>
-                                        <button
-                                            onClick={() => deleteLead(lead.id)}
-                                            disabled={deleting === lead.id}
-                                            style={{ background: 'rgba(239,68,68,0.08)', border: 'none', borderRadius: 8, padding: '5px 9px', color: '#f87171', cursor: 'pointer', opacity: deleting === lead.id ? 0.5 : 1 }}
-                                        >
-                                            <Trash2 size={13} />
-                                        </button>
-                                    </div>
+                                    <span style={{ color: 'white', fontWeight: 700, fontSize: 15 }}>
+                                        {lead.lead_name || lead.customer_phone || 'Contact anonyme'}
+                                    </span>
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 100, background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)', color: '#a78bfa', fontSize: 12, fontWeight: 500 }}>
+                                        <Bot size={10} /> {lead.agent_name}
+                                    </span>
+                                    <div style={{ flex: 1 }} />
+                                    <span style={{ color: '#475569', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                        <Calendar size={11} /> {formatDate(lead.created_at)}
+                                    </span>
+                                    <button
+                                        onClick={() => deleteLead(lead.id)}
+                                        disabled={deleting === lead.id}
+                                        style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', opacity: deleting === lead.id ? 0.5 : 1, flexShrink: 0 }}
+                                    >
+                                        <Trash2 size={13} />
+                                    </button>
                                 </div>
 
-                                {/* Infos contact */}
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, fontSize: 12, marginBottom: (lead.preferred_date || lead.preferred_time || lead.service_requested || lead.lead_notes || lead.custom_fields) ? 8 : 0 }}>
-                                    {lead.lead_phone && (
-                                        <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#94a3b8' }}>
-                                            <Phone size={12} color="#10b981" /> {lead.lead_phone}
-                                        </span>
+                                {/* Grille colonnes */}
+                                <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 10 }}>
+
+                                    {/* Col 1 : Contact */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 7, padding: '12px 14px', background: 'rgba(30,41,59,0.35)', borderRadius: 11, border: '1px solid rgba(148,163,184,0.06)' }}>
+                                        <div style={{ fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 2 }}>Contact</div>
+                                        {lead.lead_phone && (
+                                            <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#cbd5e1' }}>
+                                                <Phone size={13} color="#64748b" style={{ flexShrink: 0 }} /> {lead.lead_phone}
+                                            </span>
+                                        )}
+                                        {lead.customer_phone && lead.customer_phone !== lead.lead_phone && (
+                                            <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#cbd5e1' }}>
+                                                <Phone size={13} color="#f59e0b" style={{ flexShrink: 0 }} /> {lead.customer_phone}
+                                            </span>
+                                        )}
+                                        {lead.lead_email && (
+                                            <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#cbd5e1' }}>
+                                                <Mail size={13} color="#64748b" style={{ flexShrink: 0 }} /> {lead.lead_email}
+                                            </span>
+                                        )}
+                                        {lead.lead_company && (
+                                            <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#cbd5e1' }}>
+                                                <Building2 size={13} color="#64748b" style={{ flexShrink: 0 }} /> {lead.lead_company}
+                                            </span>
+                                        )}
+                                        {lead.lead_location && (
+                                            <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#cbd5e1' }}>
+                                                <MapPin size={13} color="#64748b" style={{ flexShrink: 0 }} /> {lead.lead_location}
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {/* Col 2 : Demande (si données) */}
+                                    {hasDemande && (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 7, padding: '12px 14px', background: 'rgba(30,41,59,0.35)', borderRadius: 11, border: '1px solid rgba(148,163,184,0.06)' }}>
+                                            <div style={{ fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 2 }}>Demande</div>
+                                            {(lead.service_requested || lead.interest) && (
+                                                <span style={{ display: 'inline-flex', alignItems: 'center', padding: '3px 10px', borderRadius: 100, background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.25)', color: '#34d399', fontSize: 12, fontWeight: 500, width: 'fit-content' }}>
+                                                    {lead.service_requested || lead.interest}
+                                                </span>
+                                            )}
+                                            {lead.preferred_date && (
+                                                <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#cbd5e1' }}>
+                                                    <Calendar size={13} color="#64748b" style={{ flexShrink: 0 }} /> {lead.preferred_date}
+                                                </span>
+                                            )}
+                                            {lead.preferred_time && (
+                                                <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#cbd5e1' }}>
+                                                    <Clock size={13} color="#64748b" style={{ flexShrink: 0 }} /> {lead.preferred_time}
+                                                </span>
+                                            )}
+                                        </div>
                                     )}
-                                    {lead.customer_phone && lead.customer_phone !== lead.lead_phone && (
-                                        <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#94a3b8' }}>
-                                            <Phone size={12} color="#f59e0b" /> WhatsApp : {lead.customer_phone}
-                                        </span>
-                                    )}
-                                    {lead.lead_email && (
-                                        <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#94a3b8' }}>
-                                            <Mail size={12} color="#6366f1" /> {lead.lead_email}
-                                        </span>
-                                    )}
-                                    {lead.lead_company && (
-                                        <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#94a3b8' }}>
-                                            <Building2 size={12} color="#a78bfa" /> {lead.lead_company}
-                                        </span>
-                                    )}
-                                    {lead.lead_location && (
-                                        <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#94a3b8' }}>
-                                            <MapPin size={12} color="#f59e0b" /> {lead.lead_location}
-                                        </span>
-                                    )}
-                                    {lead.interest && (
-                                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 10px', borderRadius: 20, background: 'rgba(16,185,129,0.08)', color: '#6ee7b7', fontSize: 11 }}>
-                                            <Tag size={10} /> {lead.interest}
-                                        </span>
+
+                                    {/* Col 3 : Infos supplémentaires (si données) */}
+                                    {hasExtra && (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 7, padding: '12px 14px', background: 'rgba(30,41,59,0.35)', borderRadius: 11, border: '1px solid rgba(148,163,184,0.06)' }}>
+                                            <div style={{ fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 2 }}>Infos supplémentaires</div>
+                                            {lead.custom_fields && Object.entries(lead.custom_fields).map(([key, value]) => (
+                                                <span key={key} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 100, background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.25)', color: '#c4b5fd', fontSize: 12, width: 'fit-content' }}>
+                                                    <span style={{ color: '#a78bfa', fontWeight: 700 }}>{key} :</span> {value}
+                                                </span>
+                                            ))}
+                                            {lead.lead_notes && (
+                                                <span style={{ fontSize: 13, color: '#e2e8f0', fontWeight: 600, lineHeight: 1.5 }}>
+                                                    "{lead.lead_notes}"
+                                                </span>
+                                            )}
+                                        </div>
                                     )}
                                 </div>
-
-                                {/* Champs enrichis : date/heure/service/notes */}
-                                {(lead.preferred_date || lead.preferred_time || lead.service_requested || lead.lead_notes) && (
-                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, fontSize: 12, marginBottom: lead.custom_fields ? 8 : 0, padding: '8px 10px', background: 'rgba(30,41,59,0.5)', borderRadius: 8 }}>
-                                        {lead.service_requested && (
-                                            <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#c4b5fd' }}>
-                                                <Scissors size={11} color="#a78bfa" /> {lead.service_requested}
-                                            </span>
-                                        )}
-                                        {lead.preferred_date && (
-                                            <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#93c5fd' }}>
-                                                <Calendar size={11} color="#60a5fa" /> {lead.preferred_date}
-                                            </span>
-                                        )}
-                                        {lead.preferred_time && (
-                                            <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#93c5fd' }}>
-                                                <Clock size={11} color="#60a5fa" /> {lead.preferred_time}
-                                            </span>
-                                        )}
-                                        {lead.lead_notes && (
-                                            <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#94a3b8' }}>
-                                                <FileText size={11} color="#64748b" /> {lead.lead_notes}
-                                            </span>
-                                        )}
-                                    </div>
-                                )}
-
-                                {/* Champs personnalisés */}
-                                {lead.custom_fields && Object.keys(lead.custom_fields).length > 0 && (
-                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, fontSize: 11 }}>
-                                        {Object.entries(lead.custom_fields).map(([key, value]) => (
-                                            <span key={key} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 20, background: 'rgba(168,85,247,0.08)', border: '1px solid rgba(168,85,247,0.2)', color: '#c4b5fd' }}>
-                                                <span style={{ color: '#7c3aed', fontWeight: 600 }}>{key} :</span> {value}
-                                            </span>
-                                        ))}
-                                    </div>
-                                )}
                             </div>
-                        </div>
-                    ))}
+                        )
+                    })}
                 </div>
             )}
         </div>
