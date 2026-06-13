@@ -99,6 +99,21 @@ export async function GET(request: NextRequest) {
             last_message_at: lastMessageMap[conv.id]?.created_at || conv.updated_at
         }))
 
+        // Mode debug temporaire : ?debug=1
+        if (url.searchParams.get('debug') === '1') {
+            return successResponse({
+                conversations: conversationsWithDetails,
+                _debug: {
+                    conversationIds,
+                    messagesRaw: messageCounts?.length ?? null,
+                    countError: countError?.message ?? null,
+                    lastMsgError: lastMsgError?.message ?? null,
+                    countMap,
+                    sampleMessages: messageCounts?.slice(0, 5) ?? null,
+                }
+            })
+        }
+
         return successResponse({ conversations: conversationsWithDetails })
     } catch (err) {
         console.error('Error in conversations API:', err)
