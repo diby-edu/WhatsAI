@@ -55,10 +55,15 @@ export async function GET(request: NextRequest) {
         const supabaseAdmin = getAdminSupabase()
 
         // Batch query for message counts - single query for all conversations
-        const { data: messageCounts } = await supabaseAdmin
+        const { data: messageCounts, error: countError } = await supabaseAdmin
             .from('messages')
             .select('conversation_id')
             .in('conversation_id', conversationIds)
+            .limit(100000)
+
+        if (countError) {
+            console.error('[conversations] messageCounts error:', countError)
+        }
 
         // Count messages per conversation
         const countMap: Record<string, number> = {}
@@ -67,12 +72,16 @@ export async function GET(request: NextRequest) {
         })
 
         // Batch query for last messages - get recent messages for all conversations
-        const { data: recentMessages } = await supabaseAdmin
+        const { data: recentMessages, error: lastMsgError } = await supabaseAdmin
             .from('messages')
             .select('conversation_id, content, created_at')
             .in('conversation_id', conversationIds)
             .order('created_at', { ascending: false })
-            .limit(conversationIds.length * 10)
+            .limit(Math.max(conversationIds.length * 20, 500))
+
+        if (lastMsgError) {
+            console.error('[conversations] recentMessages error:', lastMsgError)
+        }
 
         // Get last message per conversation
         const lastMessageMap: Record<string, { content: string; created_at: string }> = {}
