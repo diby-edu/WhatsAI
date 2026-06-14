@@ -44,75 +44,36 @@ export async function GET(request: NextRequest) {
             return errorResponse('Erreur serveur', 500)
         }
 
-        // Optimized: Get message counts and last messages in batch queries
-        const conversationIds = (conversations || []).map((c: any) => c.id)
-
-        if (conversationIds.length === 0) {
+        if ((conversations || []).length === 0) {
             return successResponse({ conversations: [] })
         }
 
-        // Utilise le client admin pour bypasser le RLS sur messages
+        // RPC : comptage et dernier message en une seule requête SQL côté serveur
+        // Évite le problème de limite URL avec .in() sur 400+ IDs
         const supabaseAdmin = getAdminSupabase()
+        const { data: stats, error: statsError } = await supabaseAdmin
+            .rpc('get_message_stats_for_user', { user_id_param: user.id })
 
-        // Batch query for message counts - single query for all conversations
-        const { data: messageCounts, error: countError } = await supabaseAdmin
-            .from('messages')
-            .select('conversation_id')
-            .in('conversation_id', conversationIds)
-            .limit(100000)
-
-        if (countError) {
-            console.error('[conversations] messageCounts error:', countError)
+        if (statsError) {
+            console.error('[conversations] get_message_stats_for_user error:', statsError)
         }
 
-        // Count messages per conversation
-        const countMap: Record<string, number> = {}
-        ;(messageCounts || []).forEach((m: any) => {
-            countMap[m.conversation_id] = (countMap[m.conversation_id] || 0) + 1
-        })
-
-        // Batch query for last messages - get recent messages for all conversations
-        const { data: recentMessages, error: lastMsgError } = await supabaseAdmin
-            .from('messages')
-            .select('conversation_id, content, created_at')
-            .in('conversation_id', conversationIds)
-            .order('created_at', { ascending: false })
-            .limit(Math.max(conversationIds.length * 20, 500))
-
-        if (lastMsgError) {
-            console.error('[conversations] recentMessages error:', lastMsgError)
-        }
-
-        // Get last message per conversation
-        const lastMessageMap: Record<string, { content: string; created_at: string }> = {}
-        ;(recentMessages || []).forEach((m: any) => {
-            if (!lastMessageMap[m.conversation_id]) {
-                lastMessageMap[m.conversation_id] = { content: m.content, created_at: m.created_at }
+        const statsMap: Record<string, { count: number; last_message: string; last_message_at: string }> = {}
+        ;(stats || []).forEach((s: any) => {
+            statsMap[s.conversation_id] = {
+                count: Number(s.message_count) || 0,
+                last_message: s.last_message || '',
+                last_message_at: s.last_message_at || '',
             }
         })
 
         // Combine data
         const conversationsWithDetails = (conversations || []).map((conv: any) => ({
             ...conv,
-            messages_count: countMap[conv.id] || 0,
-            last_message: lastMessageMap[conv.id]?.content || '',
-            last_message_at: lastMessageMap[conv.id]?.created_at || conv.updated_at
+            messages_count: statsMap[conv.id]?.count || 0,
+            last_message: statsMap[conv.id]?.last_message || '',
+            last_message_at: statsMap[conv.id]?.last_message_at || conv.updated_at,
         }))
-
-        // Mode debug temporaire : ?debug=1
-        if (url.searchParams.get('debug') === '1') {
-            return successResponse({
-                conversations: conversationsWithDetails,
-                _debug: {
-                    conversationIds,
-                    messagesRaw: messageCounts?.length ?? null,
-                    countError: countError?.message ?? null,
-                    lastMsgError: lastMsgError?.message ?? null,
-                    countMap,
-                    sampleMessages: messageCounts?.slice(0, 5) ?? null,
-                }
-            })
-        }
 
         return successResponse({ conversations: conversationsWithDetails })
     } catch (err) {
