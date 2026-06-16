@@ -48,12 +48,26 @@ export async function GET(
         .eq('agent_id', id)
         .eq('user_id', user.id)
 
+    // Exporter la base de connaissances (titre, contenu, type)
+    const { data: kbDocs } = await adminClient
+        .from('knowledge_base')
+        .select('title, content, content_type')
+        .eq('agent_id', id)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: true })
+
     const exportData = {
         wazzapai_export: '1.0',
         exported_at: new Date().toISOString(),
         agent: Object.fromEntries(
             EXPORT_FIELDS.map(f => [f, (agent as any)[f] ?? null])
         ),
+        // Base de connaissances complète
+        knowledge_base: (kbDocs || []).map(doc => ({
+            title: doc.title,
+            content: doc.content,
+            content_type: doc.content_type || 'text',
+        })),
         // Connexions webhook : provider/config préservés, URLs et secrets régénérés à l'import
         platform_connections: (connections || []).map(c => ({
             provider: c.provider,
