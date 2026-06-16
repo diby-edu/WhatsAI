@@ -10,8 +10,8 @@ import { useToast } from '@/components/ui/Toast'
 
 interface Lead {
     id: string
-    agent_id: string
-    agent_name: string
+    agent_id: string | null
+    agent_name: string | null
     customer_phone: string | null
     lead_name: string | null
     lead_phone: string | null
@@ -66,7 +66,7 @@ export default function LeadsPage() {
     }
 
     const agentOptions = Array.from(
-        new Map(leads.map(l => [l.agent_id, l.agent_name])).entries()
+        new Map(leads.filter(l => l.agent_id).map(l => [l.agent_id, l.agent_name])).entries()
     ).map(([id, name]) => ({ id, name }))
 
     const filtered = leads.filter(lead => {
@@ -181,7 +181,7 @@ export default function LeadsPage() {
                         style={{ padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(148,163,184,0.12)', background: 'rgba(15,23,42,0.8)', color: '#e2e8f0', fontSize: 13, outline: 'none', minWidth: 180 }}
                     >
                         <option value="all">Tous les agents</option>
-                        {agentOptions.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                        {agentOptions.map(a => <option key={a.id ?? ''} value={a.id ?? ''}>{a.name ?? ''}</option>)}
                     </select>
                 )}
             </div>
@@ -225,8 +225,8 @@ export default function LeadsPage() {
                                     <span style={{ color: 'white', fontWeight: 700, fontSize: 15 }}>
                                         {lead.lead_name || lead.customer_phone || 'Contact anonyme'}
                                     </span>
-                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 100, background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)', color: '#a78bfa', fontSize: 12, fontWeight: 500 }}>
-                                        <Bot size={10} /> {lead.agent_name}
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 100, background: lead.agent_id ? 'rgba(139,92,246,0.15)' : 'rgba(100,116,139,0.15)', border: `1px solid ${lead.agent_id ? 'rgba(139,92,246,0.3)' : 'rgba(100,116,139,0.3)'}`, color: lead.agent_id ? '#a78bfa' : '#64748b', fontSize: 12, fontWeight: 500 }}>
+                                        <Bot size={10} /> {lead.agent_name || 'Agent supprimé'}
                                     </span>
                                     <div style={{ flex: 1 }} />
                                     <span style={{ color: '#475569', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
