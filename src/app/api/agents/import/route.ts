@@ -137,6 +137,24 @@ export async function POST(request: NextRequest) {
 
     if (error) return errorResponse("Erreur lors de la création de l'agent", 500)
 
+    // Recréer la base de connaissances
+    let kbCreated = 0
+    const importedKb: any[] = Array.isArray(body.knowledge_base)
+        ? body.knowledge_base.filter((d: any) => d && typeof d.title === 'string' && typeof d.content === 'string')
+        : []
+
+    if (importedKb.length > 0) {
+        const kbRows = importedKb.map((doc: any) => ({
+            agent_id: agent!.id,
+            user_id: user.id,
+            title: String(doc.title).slice(0, 500),
+            content: String(doc.content),
+            content_type: ['text', 'faq', 'document', 'url'].includes(doc.content_type) ? doc.content_type : 'text',
+        }))
+        const { error: kbError } = await adminClient.from('knowledge_base').insert(kbRows)
+        if (!kbError) kbCreated = kbRows.length
+    }
+
     // Recréer les connexions webhook avec de nouveaux tokens/secrets
     let connectionsCreated = 0
     for (const conn of importedConnections) {
@@ -161,6 +179,7 @@ export async function POST(request: NextRequest) {
 
     return successResponse({
         agent,
+        knowledge_base_restored: kbCreated,
         connections_restored: connectionsCreated,
         connections_note: connectionsCreated > 0
             ? `${connectionsCreated} connexion(s) webhook recréée(s) avec de nouvelles URLs. Mettez à jour vos plateformes (Chariow Pulse, etc.) avec les nouvelles URLs webhook depuis le Mode Développeur.`
