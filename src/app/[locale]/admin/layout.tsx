@@ -789,8 +789,7 @@ export default function AdminLayout({
                 minHeight: '100vh',
                 marginLeft: isMobile ? 0 : sidebarWidth,
                 paddingTop: isMobile ? '64px' : 0,
-                transition: 'margin-left 0.3s ease',
-                overflowX: 'hidden'
+                transition: 'margin-left 0.3s ease'
             }}>
                 {/* Top Bar - Desktop only */}
                 {!isMobile && (
