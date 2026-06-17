@@ -1,11 +1,35 @@
 import { randomBytes } from 'node:crypto'
 import { NextRequest } from 'next/server'
 import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
+import { generateEmbedding } from '@/lib/ai/openai'
 import { getAIRuntimeSettings } from '@/lib/admin/settings'
 import { buildAccountLifecycleAccessState, getAccountLifecycleBlockMessage } from '@/lib/account-lifecycle'
 import { resolveAgentEcommerceMode } from '@/lib/agents/ecommerce-mode'
 
 export const dynamic = 'force-dynamic'
+
+function chunkText(text: string, maxChars = 800): string[] {
+    const trimmed = text.trim()
+    const sections = trimmed.split(/\n\s*---\s*\n/)
+    const result: string[] = []
+    for (const section of sections) {
+        const s = section.trim()
+        if (!s) continue
+        if (s.length <= maxChars) { result.push(s); continue }
+        const paragraphs = s.split(/\n{2,}/)
+        let current = ''
+        for (const para of paragraphs) {
+            if ((current + '\n\n' + para).length > maxChars && current.length > 0) {
+                result.push(current.trim())
+                current = para
+            } else {
+                current = current ? current + '\n\n' + para : para
+            }
+        }
+        if (current.trim()) result.push(current.trim())
+    }
+    return result.filter(c => c.trim().length >= 30)
+}
 
 // Champs autorisés à l'import (même liste que l'export, sans les champs système)
 const ALLOWED_IMPORT_FIELDS = new Set([
@@ -137,22 +161,37 @@ export async function POST(request: NextRequest) {
 
     if (error) return errorResponse("Erreur lors de la création de l'agent", 500)
 
-    // Recréer la base de connaissances
+    // Recréer la base de connaissances avec chunking + embeddings
     let kbCreated = 0
     const importedKb: any[] = Array.isArray(body.knowledge_base)
-        ? body.knowledge_base.filter((d: any) => d && typeof d.title === 'string' && typeof d.content === 'string')
+        ? body.knowledge_base.filter((d: any) => d && typeof d.title === 'string' && typeof d.content === 'string' && d.content.trim().length > 0)
         : []
 
-    if (importedKb.length > 0) {
-        const kbRows = importedKb.map((doc: any) => ({
-            agent_id: agent!.id,
-            user_id: user.id,
-            title: String(doc.title).slice(0, 500),
-            content: String(doc.content),
-            content_type: ['text', 'faq', 'document', 'url'].includes(doc.content_type) ? doc.content_type : 'text',
-        }))
-        const { error: kbError } = await adminClient.from('knowledge_base').insert(kbRows)
-        if (!kbError) kbCreated = kbRows.length
+    for (const doc of importedKb) {
+        try {
+            const title = String(doc.title).slice(0, 500)
+            const content = String(doc.content)
+            const contentType = ['text', 'faq', 'document', 'url'].includes(doc.content_type) ? doc.content_type : 'text'
+            const sourceId = crypto.randomUUID()
+            const chunks = chunkText(content)
+            if (chunks.length === 0) continue
+
+            const rows = await Promise.all(chunks.map(async (chunkContent, index) => {
+                const embedding = await generateEmbedding(chunkContent)
+                return {
+                    agent_id: agent!.id,
+                    user_id: user.id,
+                    title,
+                    content: chunkContent,
+                    content_type: contentType,
+                    source_id: sourceId,
+                    chunk_index: index,
+                    embedding,
+                }
+            }))
+            const { error: kbError } = await adminClient.from('knowledge_base').insert(rows)
+            if (!kbError) kbCreated++
+        } catch { /* skip doc on error */ }
     }
 
     // Recréer les connexions webhook avec de nouveaux tokens/secrets
