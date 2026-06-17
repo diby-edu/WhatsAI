@@ -296,7 +296,7 @@ export default function AdminUsersPage() {
                                     <th key={label}
                                         onClick={field ? () => toggleSort(field) : undefined}
                                         style={{
-                                            padding: '16px 16px', paddingRight: label === 'Actions' ? 24 : 16,
+                                            padding: '12px 8px', paddingRight: label === 'Actions' ? 16 : 8,
                                             textAlign: 'left', color: field && sortField === field ? '#e2e8f0' : '#64748b',
                                             fontWeight: 500, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em',
                                             cursor: field ? 'pointer' : 'default', userSelect: 'none',
@@ -322,12 +322,12 @@ export default function AdminUsersPage() {
                                         borderBottom: '1px solid rgba(148, 163, 184, 0.05)',
                                         background: selectedIds.includes(u.id) ? 'rgba(59, 130, 246, 0.05)' : 'transparent'
                                     }}>
-                                        <td style={{ padding: '12px 16px' }}>
+                                        <td style={{ padding: '10px 8px' }}>
                                             <button onClick={() => toggleSelectOne(u.id)} style={{ background: 'none', border: 'none', color: selectedIds.includes(u.id) ? '#3b82f6' : '#64748b', cursor: 'pointer', padding: 0 }}>
                                                 {selectedIds.includes(u.id) ? <CheckSquare size={18} /> : <Square size={18} />}
                                             </button>
                                         </td>
-                                        <td style={{ padding: '12px 16px' }}>
+                                        <td style={{ padding: '10px 8px' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                                                 <div style={{
                                                     width: 36, height: 36, borderRadius: 10,
@@ -346,7 +346,7 @@ export default function AdminUsersPage() {
                                                 </div>
                                             </div>
                                         </td>
-                                        <td style={{ padding: '12px 16px' }}>
+                                        <td style={{ padding: '10px 8px' }}>
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#e2e8f0' }}>
                                                     <Mail style={{ width: 12, height: 12, color: '#64748b' }} /> {u.email}
@@ -356,19 +356,19 @@ export default function AdminUsersPage() {
                                                 </div>
                                             </div>
                                         </td>
-                                        <td style={{ padding: '12px 16px' }}>
+                                        <td style={{ padding: '10px 8px' }}>
                                             <PlanBadge plan={u.plan} />
                                         </td>
-                                        <td style={{ padding: '12px 16px', color: '#e2e8f0', fontSize: 13, fontWeight: 600 }}>
+                                        <td style={{ padding: '10px 8px', color: '#e2e8f0', fontSize: 13, fontWeight: 600 }}>
                                             {(u.credits || 0).toLocaleString('fr-FR')}
                                         </td>
-                                        <td style={{ padding: '12px 16px' }}>
+                                        <td style={{ padding: '10px 8px' }}>
                                             <StatusBadge status={u.status} lifecycle={u.lifecycle} />
                                         </td>
-                                        <td style={{ padding: '12px 16px' }}>
+                                        <td style={{ padding: '10px 8px' }}>
                                             <ExpiryCell paidUntil={u.paid_until} graceUntil={u.grace_until} cleanupDeadline={u.cleanup_deadline} lifecycle={u.lifecycle} />
                                         </td>
-                                        <td style={{ padding: '12px 16px' }}>
+                                        <td style={{ padding: '10px 8px' }}>
                                             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 4, color: '#94a3b8', fontSize: 12 }}>
                                                 <Calendar style={{ width: 12, height: 12, marginTop: 2, flexShrink: 0 }} />
                                                 <div>
@@ -379,7 +379,7 @@ export default function AdminUsersPage() {
                                                 </div>
                                             </div>
                                         </td>
-                                        <td style={{ padding: '12px 16px 12px 16px', paddingRight: 24 }}>
+                                        <td style={{ padding: '10px 8px', paddingRight: 16 }}>
                                             <div style={{ display: 'flex', gap: 4 }}>
                                                 <ActionBtn icon={Edit} color="#f59e0b" bg="rgba(245, 158, 11, 0.1)" title="Modifier"
                                                     onClick={() => setEditUser(u)} loading={actionLoading === u.id} />
@@ -536,7 +536,7 @@ function ExpiryCell({ paidUntil, graceUntil, cleanupDeadline, lifecycle }: { pai
                     <div style={{ color: c, fontWeight: isUrgent || isExpired ? 700 : 400 }}>
                         {date.toLocaleDateString('fr-FR')}
                     </div>
-                    <div style={{ fontSize: 10, color: '#64748b' }}>
+                    <div style={{ fontSize: 10, color: '#64748b', whiteSpace: 'nowrap' }}>
                         {label} · {isExpired ? <span style={{ color: '#f87171' }}>Expiré</span> : `J-${daysLeft}`}
                     </div>
                 </div>
@@ -557,24 +557,24 @@ function PlanBadge({ plan }: { plan: string }) {
         Starter: { bg: 'rgba(245, 158, 11, 0.15)', text: '#fbbf24' },
     }
     const c = colors[plan] || { bg: 'rgba(100, 116, 139, 0.15)', text: '#94a3b8' }
-    return <span style={{ padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: c.bg, color: c.text }}>{plan}</span>
+    return <span style={{ padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: c.bg, color: c.text, whiteSpace: 'nowrap' }}>{plan}</span>
 }
 
 function StatusBadge({ status, lifecycle }: { status: string, lifecycle: string | null }) {
     // lifecycle prime sur is_active pour refléter la réalité abonnement
     if (lifecycle === 'frozen_grace') {
-        return <span style={{ padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: 'rgba(96,165,250,0.15)', color: '#60a5fa' }}>En grâce</span>
+        return <span style={{ padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: 'rgba(96,165,250,0.15)', color: '#60a5fa', whiteSpace: 'nowrap' }}>En grâce</span>
     }
     if (lifecycle === 'inactive') {
-        return <span style={{ padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: 'rgba(239,68,68,0.15)', color: '#f87171' }}>Inactif</span>
+        return <span style={{ padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: 'rgba(239,68,68,0.15)', color: '#f87171', whiteSpace: 'nowrap' }}>Inactif</span>
     }
     if (status !== 'active') {
-        return <span style={{ padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: 'rgba(239,68,68,0.15)', color: '#f87171' }}>Suspendu</span>
+        return <span style={{ padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: 'rgba(239,68,68,0.15)', color: '#f87171', whiteSpace: 'nowrap' }}>Suspendu</span>
     }
     if (lifecycle === 'test' || !lifecycle) {
-        return <span style={{ padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: 'rgba(148,163,184,0.15)', color: '#94a3b8' }}>Test</span>
+        return <span style={{ padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: 'rgba(148,163,184,0.15)', color: '#94a3b8', whiteSpace: 'nowrap' }}>Test</span>
     }
-    return <span style={{ padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: 'rgba(34,197,94,0.15)', color: '#4ade80' }}>Actif</span>
+    return <span style={{ padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: 'rgba(34,197,94,0.15)', color: '#4ade80', whiteSpace: 'nowrap' }}>Actif</span>
 }
 
 function EditUserModal({ user, onClose, onSave, onSetCredits, onAddCredits, onSubtractCredits, onChangeRole }: {
