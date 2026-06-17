@@ -33,8 +33,7 @@ export async function GET(request: NextRequest) {
             id, agent_id, user_id, customer_phone,
             lead_name, lead_phone, lead_email, interest,
             lead_location, lead_company, created_at,
-            agents(name),
-            profiles(email)
+            agents(name)
         `, { count: 'exact' })
         .order('created_at', { ascending: false })
         .range(from, to)
@@ -49,10 +48,23 @@ export async function GET(request: NextRequest) {
 
     if (error) return errorResponse(error.message, 500)
 
+    // Récupérer les emails via profiles (FK sur id, pas sur auth.users)
+    const userIds = [...new Set((data || []).map((l: any) => l.user_id).filter(Boolean))]
+    let emailMap: Record<string, string> = {}
+    if (userIds.length > 0) {
+        const { data: profilesData } = await adminSupabase
+            .from('profiles')
+            .select('id, email')
+            .in('id', userIds)
+        for (const p of profilesData || []) {
+            emailMap[p.id] = p.email
+        }
+    }
+
     const leads = (data || []).map((l: any) => ({
         ...l,
         agent_name: l.agents?.name || null,
-        owner_email: l.profiles?.email || null,
+        owner_email: emailMap[l.user_id] || null,
     }))
 
     return successResponse({ leads, total: count || 0, page, page_size: PAGE_SIZE })
