@@ -266,7 +266,7 @@ export default function AdminUsersPage() {
 
             {/* Users Table */}
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-                style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(148, 163, 184, 0.1)', borderRadius: 16, overflow: 'hidden' }}>
+                style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(148, 163, 184, 0.1)', borderRadius: 16, overflow: 'visible' }}>
                 <div className="admin-table-wrap" style={{ overflowX: 'auto' }}>
                     <table
                         className="admin-table"
@@ -382,7 +382,7 @@ export default function AdminUsersPage() {
                                         <td style={{ padding: '12px 16px' }}>
                                             <div style={{ display: 'flex', gap: 4 }}>
                                                 <ActionBtn icon={Edit} color="#f59e0b" bg="rgba(245, 158, 11, 0.1)" title="Modifier"
-                                                    onClick={() => { setEditUser(u); window.scrollTo({ top: 0, behavior: 'smooth' }) }} loading={actionLoading === u.id} />
+                                                    onClick={() => setEditUser(u)} loading={actionLoading === u.id} />
                                                 <ActionBtn icon={Zap} color="#60a5fa" bg="rgba(59, 130, 246, 0.1)" title="Reset"
                                                     onClick={() => { if (confirm(`Reset crédits de ${u.name} ?`)) handleAction(u.id, 'reset_credits') }}
                                                     loading={actionLoading === u.id} />
@@ -604,7 +604,7 @@ function EditUserModal({ user, onClose, onSave, onSetCredits, onAddCredits, onSu
             <motion.div
                 initial={{ opacity: 0, y: 20, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.95 }}
                 style={{
-                    position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                    position: 'fixed', top: '5vh', left: '50%', transform: 'translateX(-50%)',
                     zIndex: 101, width: 'min(460px, 92vw)', background: '#1e293b', border: '1px solid rgba(148, 163, 184, 0.15)',
                     borderRadius: 16, boxShadow: '0 20px 50px rgba(0,0,0,0.5)', maxHeight: '90vh',
                     display: 'flex', flexDirection: 'column', overflow: 'hidden'
