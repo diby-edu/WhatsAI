@@ -104,7 +104,7 @@ export default function AgentLeadsPage({ params }: { params: Promise<{ id: strin
                             <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
                                     <span style={{ color: 'white', fontWeight: 600, fontSize: 15 }}>
-                                        {lead.lead_name || lead.customer_phone || 'Client anonyme'}
+                                        {lead.lead_name || lead.lead_phone || (!lead.customer_phone?.includes('@lid') ? lead.customer_phone : null) || 'Client anonyme'}
                                     </span>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                         <span style={{ color: '#64748b', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -141,7 +141,7 @@ export default function AgentLeadsPage({ params }: { params: Promise<{ id: strin
                                             <Building2 size={13} color="#a78bfa" /> {lead.lead_company}
                                         </span>
                                     )}
-                                    {lead.customer_phone && lead.customer_phone !== lead.lead_phone && (
+                                    {lead.customer_phone && lead.customer_phone !== lead.lead_phone && !lead.customer_phone.includes('@lid') && (
                                         <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#94a3b8' }}>
                                             <Phone size={13} color="#f59e0b" /> WhatsApp : {lead.customer_phone}
                                         </span>

@@ -223,7 +223,7 @@ export default function LeadsPage() {
                                         <Users size={16} color="#10b981" />
                                     </div>
                                     <span style={{ color: 'white', fontWeight: 700, fontSize: 15 }}>
-                                        {lead.lead_name || lead.customer_phone || 'Contact anonyme'}
+                                        {lead.lead_name || lead.lead_phone || (!lead.customer_phone?.includes('@lid') ? lead.customer_phone : null) || 'Contact anonyme'}
                                     </span>
                                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 100, background: lead.agent_id ? 'rgba(139,92,246,0.15)' : 'rgba(100,116,139,0.15)', border: `1px solid ${lead.agent_id ? 'rgba(139,92,246,0.3)' : 'rgba(100,116,139,0.3)'}`, color: lead.agent_id ? '#a78bfa' : '#64748b', fontSize: 12, fontWeight: 500 }}>
                                         <Bot size={10} /> {lead.agent_name || 'Agent supprimé'}
@@ -252,7 +252,7 @@ export default function LeadsPage() {
                                                 <Phone size={13} color="#64748b" style={{ flexShrink: 0 }} /> {lead.lead_phone}
                                             </span>
                                         )}
-                                        {lead.customer_phone && lead.customer_phone !== lead.lead_phone && (
+                                        {lead.customer_phone && lead.customer_phone !== lead.lead_phone && !lead.customer_phone.includes('@lid') && (
                                             <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#cbd5e1' }}>
                                                 <Phone size={13} color="#f59e0b" style={{ flexShrink: 0 }} /> {lead.customer_phone}
                                             </span>
