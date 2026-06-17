@@ -784,12 +784,12 @@ export default function AdminLayout({
             {/* Main content */}
             <main style={{
                 flex: 1,
-                width: '100%',
+                width: isMobile ? '100%' : `calc(100% - ${sidebarWidth}px)`,
                 minWidth: 0,
                 minHeight: '100vh',
                 marginLeft: isMobile ? 0 : sidebarWidth,
                 paddingTop: isMobile ? '64px' : 0,
-                transition: 'margin-left 0.3s ease'
+                transition: 'margin-left 0.3s ease, width 0.3s ease'
             }}>
                 {/* Top Bar - Desktop only */}
                 {!isMobile && (
