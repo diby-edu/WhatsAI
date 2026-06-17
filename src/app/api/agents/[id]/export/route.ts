@@ -48,13 +48,25 @@ export async function GET(
         .eq('agent_id', id)
         .eq('user_id', user.id)
 
-    // Exporter la base de connaissances (titre, contenu, type)
-    const { data: kbDocs } = await adminClient
+    // Exporter la base de connaissances — reconstituer les documents complets depuis les chunks
+    const { data: allChunks } = await adminClient
         .from('knowledge_base')
-        .select('title, content, content_type')
+        .select('title, content, content_type, source_id, chunk_index')
         .eq('agent_id', id)
         .eq('user_id', user.id)
         .order('created_at', { ascending: true })
+        .order('chunk_index', { ascending: true })
+
+    // Regrouper les chunks par source_id pour reconstituer le document complet
+    const docMap = new Map<string, { title: string; chunks: string[]; content_type: string }>()
+    for (const chunk of allChunks || []) {
+        const key = chunk.source_id || `__solo__${chunk.title}`
+        if (!docMap.has(key)) {
+            docMap.set(key, { title: chunk.title, chunks: [chunk.content], content_type: chunk.content_type || 'text' })
+        } else {
+            docMap.get(key)!.chunks.push(chunk.content)
+        }
+    }
 
     const exportData = {
         wazzapai_export: '1.0',
@@ -62,11 +74,11 @@ export async function GET(
         agent: Object.fromEntries(
             EXPORT_FIELDS.map(f => [f, (agent as any)[f] ?? null])
         ),
-        // Base de connaissances complète
-        knowledge_base: (kbDocs || []).map(doc => ({
+        // Documents reconstitués (chunks réassemblés)
+        knowledge_base: Array.from(docMap.values()).map(doc => ({
             title: doc.title,
-            content: doc.content,
-            content_type: doc.content_type || 'text',
+            content: doc.chunks.join('\n\n'),
+            content_type: doc.content_type,
         })),
         // Connexions webhook : provider/config préservés, URLs et secrets régénérés à l'import
         platform_connections: (connections || []).map(c => ({
