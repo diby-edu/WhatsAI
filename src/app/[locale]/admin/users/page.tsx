@@ -296,7 +296,8 @@ export default function AdminUsersPage() {
                                     <th key={label}
                                         onClick={field ? () => toggleSort(field) : undefined}
                                         style={{
-                                            padding: '16px 16px', textAlign: 'left', color: field && sortField === field ? '#e2e8f0' : '#64748b',
+                                            padding: '16px 16px', paddingRight: label === 'Actions' ? 24 : 16,
+                                            textAlign: 'left', color: field && sortField === field ? '#e2e8f0' : '#64748b',
                                             fontWeight: 500, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em',
                                             cursor: field ? 'pointer' : 'default', userSelect: 'none',
                                             whiteSpace: 'nowrap'
@@ -378,7 +379,7 @@ export default function AdminUsersPage() {
                                                 </div>
                                             </div>
                                         </td>
-                                        <td style={{ padding: '12px 16px' }}>
+                                        <td style={{ padding: '12px 16px 12px 16px', paddingRight: 24 }}>
                                             <div style={{ display: 'flex', gap: 4 }}>
                                                 <ActionBtn icon={Edit} color="#f59e0b" bg="rgba(245, 158, 11, 0.1)" title="Modifier"
                                                     onClick={() => setEditUser(u)} loading={actionLoading === u.id} />
