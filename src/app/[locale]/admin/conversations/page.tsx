@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Bot, Eye, Loader2, MessageSquare, PauseCircle, Search, User, Users, X, Zap } from 'lucide-react'
+import { ArrowDown, ArrowUp, Bot, ChevronLeft, ChevronRight, Eye, Loader2, MessageSquare, PauseCircle, Search, User, Users, X, Zap } from 'lucide-react'
+
+const PAGE_SIZE = 50
 
 function formatContactPhone(raw: string | null): { display: string; isLid: boolean } {
     if (!raw) return { display: 'Inconnu', isLid: false }
@@ -114,14 +116,16 @@ export default function AdminConversationsPage() {
     })
     const [loading, setLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState('')
+    const [sortField, setSortField] = useState<'date' | 'messages'>('date')
+    const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc')
+    const [page, setPage] = useState(1)
     const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null)
     const [detail, setDetail] = useState<ConversationDetail | null>(null)
     const [detailLoading, setDetailLoading] = useState(false)
     const [detailError, setDetailError] = useState<string | null>(null)
 
-    useEffect(() => {
-        fetchConversations()
-    }, [])
+    useEffect(() => { fetchConversations() }, [])
+    useEffect(() => { setPage(1) }, [searchQuery, sortField, sortDir])
 
     async function fetchConversations() {
         try {
@@ -183,16 +187,29 @@ export default function AdminConversationsPage() {
         await fetchConversationDetail(id)
     }
 
-    const filteredConversations = useMemo(() => {
-        return conversations.filter((conversation) => {
-            const contact = formatContactPhone(conversation.contact_phone).display.toLowerCase()
-            const pushName = (conversation.contact_push_name || '').toLowerCase()
-            const agentName = (conversation.agent?.name || '').toLowerCase()
-            const lastMessage = (conversation.last_message || '').toLowerCase()
-            const query = searchQuery.toLowerCase()
-            return contact.includes(query) || pushName.includes(query) || agentName.includes(query) || lastMessage.includes(query)
+    const filteredAndSorted = useMemo(() => {
+        const q = searchQuery.toLowerCase()
+        const filtered = conversations.filter((c) => {
+            const contact = formatContactPhone(c.contact_phone).display.toLowerCase()
+            const pushName = (c.contact_push_name || '').toLowerCase()
+            const agentName = (c.agent?.name || '').toLowerCase()
+            const lastMessage = (c.last_message || '').toLowerCase()
+            return contact.includes(q) || pushName.includes(q) || agentName.includes(q) || lastMessage.includes(q)
         })
-    }, [conversations, searchQuery])
+        filtered.sort((a, b) => {
+            let cmp = 0
+            if (sortField === 'date') {
+                cmp = new Date(a.last_message_at || a.updated_at).getTime() - new Date(b.last_message_at || b.updated_at).getTime()
+            } else {
+                cmp = (a.messages_count || 0) - (b.messages_count || 0)
+            }
+            return sortDir === 'desc' ? -cmp : cmp
+        })
+        return filtered
+    }, [conversations, searchQuery, sortField, sortDir])
+
+    const totalPages = Math.ceil(filteredAndSorted.length / PAGE_SIZE)
+    const pagedConversations = filteredAndSorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
     const kpiCards = [
         {
@@ -260,8 +277,8 @@ export default function AdminConversationsPage() {
                 <div>
                     <h1 style={{ fontSize: 30, fontWeight: 700, color: 'white', marginBottom: 8 }}>Conversations</h1>
                     <p style={{ color: '#94a3b8' }}>
-                        {filteredConversations.length} conversation{filteredConversations.length === 1 ? '' : 's'}
-                        {searchQuery.trim() ? ` filtrees sur ${conversations.length}` : ' suivies'}
+                        {filteredAndSorted.length} conversation{filteredAndSorted.length === 1 ? '' : 's'}
+                        {searchQuery.trim() ? ` filtrées sur ${conversations.length}` : ' suivies'}
                     </p>
                 </div>
                 <div style={{ position: 'relative', minWidth: 280 }}>
@@ -449,32 +466,34 @@ export default function AdminConversationsPage() {
                 <table className="admin-table" style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
                     <thead>
                         <tr>
-                            {['Contact', 'Agent', 'Messages', 'Dernier message', 'Date', 'Action'].map((header) => (
-                                <th key={header} style={{
-                                    padding: '16px 24px',
-                                    textAlign: 'left',
-                                    fontSize: 12,
-                                    fontWeight: 600,
-                                    textTransform: 'uppercase',
-                                    letterSpacing: '0.05em',
-                                    color: '#64748b',
-                                    background: 'rgba(15, 23, 42, 0.5)',
-                                    borderBottom: '1px solid rgba(148, 163, 184, 0.1)',
-                                }}>
-                                    {header}
-                                </th>
+                            {(['Contact', 'Agent'] as const).map((h) => (
+                                <th key={h} style={{ padding: '14px 20px', textAlign: 'left', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', background: 'rgba(15,23,42,0.5)', borderBottom: '1px solid rgba(148,163,184,0.1)', whiteSpace: 'nowrap' }}>{h}</th>
                             ))}
+                            <th onClick={() => { setSortField('messages'); setSortDir(s => sortField === 'messages' ? (s === 'desc' ? 'asc' : 'desc') : 'desc') }}
+                                style={{ padding: '14px 20px', textAlign: 'left', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: sortField === 'messages' ? '#60a5fa' : '#64748b', background: 'rgba(15,23,42,0.5)', borderBottom: '1px solid rgba(148,163,184,0.1)', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                    Messages {sortField === 'messages' ? (sortDir === 'desc' ? <ArrowDown size={12} /> : <ArrowUp size={12} />) : null}
+                                </span>
+                            </th>
+                            <th style={{ padding: '14px 20px', textAlign: 'left', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', background: 'rgba(15,23,42,0.5)', borderBottom: '1px solid rgba(148,163,184,0.1)', whiteSpace: 'nowrap' }}>Dernier message</th>
+                            <th onClick={() => { setSortField('date'); setSortDir(s => sortField === 'date' ? (s === 'desc' ? 'asc' : 'desc') : 'desc') }}
+                                style={{ padding: '14px 20px', textAlign: 'left', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: sortField === 'date' ? '#60a5fa' : '#64748b', background: 'rgba(15,23,42,0.5)', borderBottom: '1px solid rgba(148,163,184,0.1)', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                    Date {sortField === 'date' ? (sortDir === 'desc' ? <ArrowDown size={12} /> : <ArrowUp size={12} />) : null}
+                                </span>
+                            </th>
+                            <th style={{ padding: '14px 20px', textAlign: 'left', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', background: 'rgba(15,23,42,0.5)', borderBottom: '1px solid rgba(148,163,184,0.1)', whiteSpace: 'nowrap' }}>Action</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {filteredConversations.length === 0 ? (
+                        {pagedConversations.length === 0 ? (
                             <tr>
                                 <td colSpan={6} style={{ padding: 32, textAlign: 'center', color: '#64748b' }}>
-                                    Aucune conversation trouvee
+                                    Aucune conversation trouvée
                                 </td>
                             </tr>
                         ) : (
-                            filteredConversations.map((conversation) => {
+                            pagedConversations.map((conversation) => {
                                 const { display, isLid } = formatContactPhone(conversation.contact_phone)
                                 return (
                                     <tr key={conversation.id} onClick={() => openConversation(conversation.id)} style={{ cursor: 'pointer' }} onMouseEnter={e => (e.currentTarget.style.background = 'rgba(148,163,184,0.04)')} onMouseLeave={e => (e.currentTarget.style.background = '')}>
@@ -558,6 +577,23 @@ export default function AdminConversationsPage() {
                     </tbody>
                 </table>
             </div>
+
+            {totalPages > 1 && (
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 16 }}>
+                    <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 9, background: 'rgba(30,41,59,0.5)', border: '1px solid rgba(148,163,184,0.12)', color: page === 1 ? '#475569' : '#e2e8f0', cursor: page === 1 ? 'not-allowed' : 'pointer', fontSize: 13 }}>
+                        <ChevronLeft size={15} /> Précédent
+                    </button>
+                    <span style={{ color: '#94a3b8', fontSize: 13 }}>
+                        Page <span style={{ color: 'white', fontWeight: 600 }}>{page}</span> / {totalPages}
+                        <span style={{ color: '#475569', marginLeft: 8 }}>({filteredAndSorted.length} conv.)</span>
+                    </span>
+                    <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 9, background: 'rgba(30,41,59,0.5)', border: '1px solid rgba(148,163,184,0.12)', color: page === totalPages ? '#475569' : '#e2e8f0', cursor: page === totalPages ? 'not-allowed' : 'pointer', fontSize: 13 }}>
+                        Suivant <ChevronRight size={15} />
+                    </button>
+                </div>
+            )}
 
             <AnimatePresence>
                 {selectedConversationId && (

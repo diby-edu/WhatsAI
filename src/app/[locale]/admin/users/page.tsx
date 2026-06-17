@@ -44,7 +44,7 @@ export default function AdminUsersPage() {
     const [isCompact, setIsCompact] = useState(false)
 
     useEffect(() => {
-        const onResize = () => setIsCompact(window.innerWidth < 900)
+        const onResize = () => setIsCompact(window.innerWidth < 640)
         onResize()
         window.addEventListener('resize', onResize)
         return () => window.removeEventListener('resize', onResize)
