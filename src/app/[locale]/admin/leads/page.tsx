@@ -46,35 +46,13 @@ export default function AdminLeadsPage() {
     const fetchLeads = async () => {
         setLoading(true)
         try {
-            const supabase = createClient()
-            const from = (page - 1) * PAGE_SIZE
-            const to = from + PAGE_SIZE - 1
-
-            let query = supabase
-                .from('leads')
-                .select(`
-                    id, agent_id, user_id, customer_phone,
-                    lead_name, lead_phone, lead_email, interest,
-                    lead_location, lead_company, created_at,
-                    agents(name),
-                    profiles(email)
-                `, { count: 'exact' })
-                .order('created_at', { ascending: false })
-                .range(from, to)
-
-            if (debouncedSearch) {
-                query = query.or(
-                    `lead_name.ilike.%${debouncedSearch}%,lead_email.ilike.%${debouncedSearch}%,lead_phone.ilike.%${debouncedSearch}%,interest.ilike.%${debouncedSearch}%,lead_company.ilike.%${debouncedSearch}%`
-                )
-            }
-
-            const { data, count } = await query
-            setLeads((data || []).map((l: any) => ({
-                ...l,
-                agent_name: l.agents?.name || null,
-                owner_email: l.profiles?.email || null,
-            })))
-            setTotal(count || 0)
+            const params = new URLSearchParams({ page: String(page) })
+            if (debouncedSearch) params.set('search', debouncedSearch)
+            const res = await fetch(`/api/admin/leads?${params}`)
+            const json = await res.json()
+            if (!res.ok) throw new Error(json.error || 'Erreur')
+            setLeads(json.data?.leads || [])
+            setTotal(json.data?.total || 0)
         } catch (err) {
             console.error('Error fetching leads:', err)
         } finally {

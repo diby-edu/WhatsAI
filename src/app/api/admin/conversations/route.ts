@@ -52,26 +52,38 @@ export async function GET() {
             return errorResponse(error.message, 500)
         }
 
-        // Add message counts for each conversation.
-        // IMPORTANT: use adminSupabase (bypasses RLS) — supabase client returns 0 due to RLS policies
-        const conversationsWithCounts = await Promise.all(conversations.map(async (conv) => {
-            const { count } = await adminSupabase
-                .from('messages')
-                .select('*', { count: 'exact', head: true })
-                .eq('conversation_id', conv.id)
+        // Batch message counts — chunk IDs by 100 to avoid URL length limits
+        // IMPORTANT: use adminSupabase (bypasses RLS)
+        const convIds = (conversations || []).map((c) => c.id)
+        const CHUNK = 100
+        const countMap = new Map<string, number>()
 
+        const chunks: string[][] = []
+        for (let i = 0; i < convIds.length; i += CHUNK) chunks.push(convIds.slice(i, i + CHUNK))
+
+        await Promise.all(chunks.map(async (chunk) => {
+            const { data: msgRows } = await adminSupabase
+                .from('messages')
+                .select('conversation_id')
+                .in('conversation_id', chunk)
+            for (const row of msgRows || []) {
+                const id = (row as any).conversation_id as string
+                countMap.set(id, (countMap.get(id) || 0) + 1)
+            }
+        }))
+
+        const conversationsWithCounts = (conversations || []).map((conv) => {
             const agent = pickRelation(conv.agent)
             const profile = pickRelation(conv.profile)
-
             return {
                 ...conv,
                 agent,
                 profile,
-                messages_count: count || 0,
+                messages_count: countMap.get(conv.id) || 0,
                 last_message: conv.last_message_text || '',
-                last_message_at: conv.last_message_at || conv.updated_at
+                last_message_at: conv.last_message_at || conv.updated_at,
             }
-        }))
+        })
 
         const now = Date.now()
         const dayAgo = now - 24 * 60 * 60 * 1000
