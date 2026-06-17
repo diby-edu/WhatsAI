@@ -116,7 +116,7 @@ export default function AdminConversationsPage() {
     })
     const [loading, setLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState('')
-    const [sortField, setSortField] = useState<'date' | 'messages'>('date')
+    const [sortField, setSortField] = useState<'date' | 'messages' | 'contact' | 'agent'>('date')
     const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc')
     const [page, setPage] = useState(1)
     const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null)
@@ -200,8 +200,14 @@ export default function AdminConversationsPage() {
             let cmp = 0
             if (sortField === 'date') {
                 cmp = new Date(a.last_message_at || a.updated_at).getTime() - new Date(b.last_message_at || b.updated_at).getTime()
-            } else {
+            } else if (sortField === 'messages') {
                 cmp = (a.messages_count || 0) - (b.messages_count || 0)
+            } else if (sortField === 'contact') {
+                const ca = formatContactPhone(a.contact_phone).display
+                const cb = formatContactPhone(b.contact_phone).display
+                cmp = ca.localeCompare(cb, 'fr')
+            } else if (sortField === 'agent') {
+                cmp = (a.agent?.name || '').localeCompare(b.agent?.name || '', 'fr')
             }
             return sortDir === 'desc' ? -cmp : cmp
         })
@@ -466,8 +472,13 @@ export default function AdminConversationsPage() {
                 <table className="admin-table" style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
                     <thead>
                         <tr>
-                            {(['Contact', 'Agent'] as const).map((h) => (
-                                <th key={h} style={{ padding: '14px 20px', textAlign: 'left', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', background: 'rgba(15,23,42,0.5)', borderBottom: '1px solid rgba(148,163,184,0.1)', whiteSpace: 'nowrap' }}>{h}</th>
+                            {([['Contact', 'contact'], ['Agent', 'agent']] as const).map(([label, field]) => (
+                                <th key={field} onClick={() => { setSortField(field); setSortDir(s => sortField === field ? (s === 'desc' ? 'asc' : 'desc') : 'asc') }}
+                                    style={{ padding: '14px 20px', textAlign: 'left', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: sortField === field ? '#60a5fa' : '#64748b', background: 'rgba(15,23,42,0.5)', borderBottom: '1px solid rgba(148,163,184,0.1)', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                        {label} {sortField === field ? (sortDir === 'desc' ? <ArrowDown size={12} /> : <ArrowUp size={12} />) : null}
+                                    </span>
+                                </th>
                             ))}
                             <th onClick={() => { setSortField('messages'); setSortDir(s => sortField === 'messages' ? (s === 'desc' ? 'asc' : 'desc') : 'desc') }}
                                 style={{ padding: '14px 20px', textAlign: 'left', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: sortField === 'messages' ? '#60a5fa' : '#64748b', background: 'rgba(15,23,42,0.5)', borderBottom: '1px solid rgba(148,163,184,0.1)', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
