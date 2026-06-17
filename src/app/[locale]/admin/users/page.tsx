@@ -267,14 +267,13 @@ export default function AdminUsersPage() {
             {/* Users Table */}
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
                 style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(148, 163, 184, 0.1)', borderRadius: 16, overflow: 'visible' }}>
-                <div className="admin-table-wrap" style={{ overflowX: 'auto' }}>
+                <div className="admin-table-wrap">
                     <table
                         className="admin-table"
                         style={{
                             width: '100%',
                             borderCollapse: 'collapse',
-                            minWidth: isCompact ? '100%' : 1000,
-                            tableLayout: isCompact ? 'fixed' : 'auto'
+                            tableLayout: 'auto'
                         }}
                     >
                         <thead>
