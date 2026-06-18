@@ -67,6 +67,11 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
     const [editingDoc, setEditingDoc] = useState<Document | null>(null)
     const [editData, setEditData] = useState({ title: '', content: '' })
 
+    // Image lors de la création
+    const [newDocImageUrl, setNewDocImageUrl] = useState<string>('')
+    const [newDocImageUploading, setNewDocImageUploading] = useState(false)
+    const newDocImageInputRef = useRef<HTMLInputElement>(null)
+
     // Images modal
     const [imageModalDoc, setImageModalDoc] = useState<Document | null>(null)
     const [imageModalData, setImageModalData] = useState({ image_url: '', image_label: '', extra_image_urls: [] as ExtraImage[] })
@@ -193,6 +198,7 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
         setIsAdding(false)
         setImportMode('text')
         setNewDoc({ title: '', content: '' })
+        setNewDocImageUrl('')
         setPdfFile(null)
         setPdfTitle('')
         setUrlInput('')
@@ -212,7 +218,8 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
                 body: JSON.stringify({
                     agentId: id,
                     title: newDoc.title,
-                    content: newDoc.content
+                    content: newDoc.content,
+                    ...(newDocImageUrl ? { image_url: newDocImageUrl } : {})
                 })
             })
             const data = await res.json()
@@ -574,12 +581,49 @@ export default function AgentKnowledgePage({ params, searchParams }: { params: P
                                     <div>
                                         <label style={{ display: 'block', color: '#94a3b8', marginBottom: 6, fontSize: 13 }}>Contenu *</label>
                                         <textarea required value={newDoc.content} onChange={e => setNewDoc({ ...newDoc, content: e.target.value })}
-                                            style={{ ...inputStyle, height: 260, resize: 'none' }}
+                                            style={{ ...inputStyle, height: 220, resize: 'none' }}
                                             placeholder="Sujet : Commandes et paiement&#10;Horaires support : Lun-Sam 8h-18h&#10;Delai de livraison : 24-48h&#10;Politique de retour : 7 jours&#10;..." />
                                         <p style={{ color: '#64748b', fontSize: 11, marginTop: 3 }}>
                                             {newDoc.content.length} caractères
                                             {newDoc.content.length > 2000 ? ` — sera découpé en ~${Math.ceil(newDoc.content.length / 1800)} segments` : ''}
                                         </p>
+                                    </div>
+
+                                    {/* Image du produit */}
+                                    <div>
+                                        <label style={{ display: 'block', color: '#94a3b8', marginBottom: 6, fontSize: 13 }}>
+                                            Image du produit <span style={{ color: '#475569' }}>(optionnel — JPG, PNG uniquement)</span>
+                                        </label>
+                                        <input ref={newDocImageInputRef} type="file" accept="image/jpeg,image/jpg,image/png,image/gif"
+                                            style={{ display: 'none' }}
+                                            onChange={async e => {
+                                                const file = e.target.files?.[0]
+                                                if (!file) return
+                                                setNewDocImageUploading(true)
+                                                const url = await uploadImage(file)
+                                                if (url) setNewDocImageUrl(url)
+                                                setNewDocImageUploading(false)
+                                            }}
+                                        />
+                                        {newDocImageUrl ? (
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.25)', borderRadius: 10 }}>
+                                                <img src={newDocImageUrl} alt="preview" style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 8, flexShrink: 0 }} />
+                                                <div style={{ flex: 1, minWidth: 0 }}>
+                                                    <p style={{ color: '#34d399', fontSize: 13, fontWeight: 500, margin: 0 }}>Image ajoutée</p>
+                                                    <p style={{ color: '#64748b', fontSize: 11, margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{newDocImageUrl.split('/').pop()}</p>
+                                                </div>
+                                                <button type="button" onClick={() => { setNewDocImageUrl(''); if (newDocImageInputRef.current) newDocImageInputRef.current.value = '' }}
+                                                    style={{ background: 'rgba(239,68,68,0.15)', border: 'none', borderRadius: 6, width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#f87171', flexShrink: 0 }}>
+                                                    <X size={14} />
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <button type="button" onClick={() => newDocImageInputRef.current?.click()} disabled={newDocImageUploading}
+                                                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', background: 'rgba(30,41,59,0.6)', border: '1px dashed #334155', borderRadius: 10, color: '#64748b', cursor: 'pointer', fontSize: 13 }}>
+                                                {newDocImageUploading ? <Loader2 size={15} className="animate-spin" /> : <ImageIcon size={15} />}
+                                                {newDocImageUploading ? 'Upload en cours…' : 'Ajouter une image'}
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                                 {importError && <p style={{ color: '#f87171', fontSize: 13, marginTop: 10 }}>{importError}</p>}
