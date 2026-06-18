@@ -24,8 +24,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
     const search = searchParams.get('search') || ''
+    const all = searchParams.get('all') === 'true'
     const from = (page - 1) * PAGE_SIZE
-    const to = from + PAGE_SIZE - 1
+    const to = from + (all ? 999 : PAGE_SIZE - 1)
 
     let query = adminSupabase
         .from('leads')
@@ -36,7 +37,7 @@ export async function GET(request: NextRequest) {
             agents(name)
         `, { count: 'exact' })
         .order('created_at', { ascending: false })
-        .range(from, to)
+        .range(0, all ? 999 : to)
 
     if (search) {
         query = query.or(
