@@ -986,6 +986,23 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             aiResponse.imageActions = [...preImageActions, ...(aiResponse.imageActions || [])]
         }
 
+        // Ajouter les images produits si l'IA mentionne un produit avec image (écommerce uniquement)
+        if (!isSupportClientMode && orderableProducts.length > 0 && aiResponse.content) {
+            const responseTextLower = aiResponse.content.toLowerCase()
+            const mentionedProductImages = orderableProducts
+                .filter(p => p.image_url && p.name && responseTextLower.includes(p.name.toLowerCase()))
+                .slice(0, 2)
+                .map(p => ({
+                    image_url: p.image_url,
+                    caption: `${p.name}${p.price ? ` — ${Number(p.price).toLocaleString('fr-FR')} FCFA` : ''}`,
+                    product_name: p.name
+                }))
+            if (mentionedProductImages.length > 0) {
+                aiResponse.imageActions = [...(aiResponse.imageActions || []), ...mentionedProductImages]
+                console.log(`🛍️ Product images auto-attached: ${mentionedProductImages.map(i => i.product_name).join(', ')}`)
+            }
+        }
+
         const shouldPersistTransactionalMetadata = shouldPersistTransactionalMetadataAfterResponse({
             pendingPaymentResolution,
             activeTunnelCancellation,
