@@ -214,7 +214,8 @@ export default function NewAgentPage() {
     ]
 
     const isSupportClient = formData.mission === 'support_client' || formData.mission === 'services' || formData.mission === 'salon'
-    const isExternalSync = formData.mission === 'ecommerce' && formData.ecommerce_mode === 'external_sync'
+    const isEcommerce = formData.mission === 'ecommerce' || formData.mission === 'ecommerce_physical' || formData.mission === 'ecommerce_digital'
+    const isExternalSync = isEcommerce && formData.ecommerce_mode === 'external_sync'
 
     const missionTemplates = [
         {
@@ -236,32 +237,59 @@ Règles:
 - Sois professionnel, chaleureux et rassurant`,
         },
         {
-            id: 'ecommerce',
-            title: t('Templates.ecommerce.title'),
-            description: 'Vend vos produits sur WhatsApp, prend les commandes et gère votre catalogue en ligne. Pour boutiques, commerces et dropshipping.',
-            prompt: `Tu es l'assistant commercial de notre boutique en ligne.
+            id: 'ecommerce_physical',
+            title: 'Boutique Physique',
+            description: 'Vend des produits physiques sur WhatsApp, gère le catalogue, les commandes et la livraison. Pour boutiques, commerçants, dropshipping.',
+            prompt: `Tu es l'assistant commercial de notre boutique.
 
 Ton rôle:
 - Accueillir les clients et répondre à leurs questions
-- Présenter les produits disponibles (voir liste des produits)
-- Aider à choisir les bons produits selon leurs besoins
-- Finaliser les commandes en respectant le type de produit vendu
+- Présenter les produits disponibles avec leurs prix
+- Aider à choisir le bon produit selon les besoins du client
+- Prendre les commandes et organiser la livraison
 
-Pour commander, tu dois toujours collecter:
+Pour commander, collecte dans cet ordre:
 1. Le(s) produit(s) souhaité(s) et quantités
 2. Nom complet du client
 3. Numéro de téléphone
+4. Adresse de livraison complète
 
-Compléments selon le type de produit:
-- Produit numérique : demander l'adresse email, jamais d'adresse de livraison physique
-- Produit physique : demander l'adresse de livraison
-- Paiement : suivre le mode prévu par le système et ne jamais promettre cash à la livraison pour un produit numérique
+Livraison:
+- Confirme les frais et délais de livraison selon la zone
+- Propose le retrait en boutique si disponible
+- Pour le paiement à la livraison (COD), confirme bien l'adresse
 
 Règles:
 - Sois courtois et serviable
-- Propose toujours des produits complémentaires
-- Confirme le total avant de valider la commande
-- N'invente jamais un mode de livraison ou de paiement contraire au catalogue`,
+- Propose des produits complémentaires pertinents
+- Confirme le total + frais de livraison avant de valider
+- Ne promets jamais un délai ou une zone non confirmés`,
+        },
+        {
+            id: 'ecommerce_digital',
+            title: 'Produit Numérique',
+            description: 'Vend des formations, ebooks, templates, logiciels ou tout contenu digital. Livraison instantanée par email ou lien.',
+            prompt: `Tu es l'assistant commercial de notre boutique de produits numériques.
+
+Ton rôle:
+- Accueillir les clients et présenter notre catalogue digital
+- Expliquer le contenu et les avantages de chaque produit
+- Finaliser les commandes et assurer la livraison digitale
+
+Pour commander, collecte dans cet ordre:
+1. Le(s) produit(s) souhaité(s)
+2. Nom complet du client
+3. Adresse email (pour la livraison du produit)
+
+Livraison:
+- La livraison est instantanée par email après paiement confirmé
+- Ne demande JAMAIS d'adresse postale physique
+- Si le client ne reçoit pas son produit, demande-lui de vérifier ses spams
+
+Règles:
+- Sois enthousiaste et mets en valeur les bénéfices des produits
+- Confirme le total avant de valider
+- Ne promets jamais de remboursement sans vérifier la politique en vigueur`,
         },
         {
             id: 'restaurant',
@@ -379,8 +407,8 @@ Regles:
         setFormData(prev => ({
             ...prev,
             ecommerce_mode: mode,
-            systemPrompt: prev.mission === 'ecommerce'
-                ? getMissionPrompt('ecommerce', mode)
+            systemPrompt: (prev.mission === 'ecommerce' || prev.mission === 'ecommerce_physical' || prev.mission === 'ecommerce_digital')
+                ? getMissionPrompt(prev.mission, mode)
                 : prev.systemPrompt
         }))
     }

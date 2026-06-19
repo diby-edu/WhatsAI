@@ -41,23 +41,27 @@ import {
 } from '@/lib/admin/agent-status'
 
 const MISSION_LABELS: Record<string, string> = {
-    ecommerce: 'E-commerce / Boutique',
-    restaurant: 'Restaurant / Fast-food',
-    hotel: 'Hotel / Hebergement',
-    salon: 'Support Client',
-    services: 'Support Client',
-    support_client: 'Support Client',
-    custom: 'Personnalise',
+    ecommerce:          'E-commerce / Boutique',
+    ecommerce_physical: 'Boutique Physique',
+    ecommerce_digital:  'Produit Numérique',
+    restaurant:         'Restaurant / Fast-food',
+    hotel:              'Hotel / Hebergement',
+    salon:              'Support Client',
+    services:           'Support Client',
+    support_client:     'Support Client',
+    custom:             'Personnalisé',
 }
 
 const MISSION_CONFIG: Record<string, { color: string; bg: string; icon: React.ElementType }> = {
-    support_client: { color: '#8b5cf6', bg: 'rgba(139,92,246,0.15)',  icon: Headphones },
-    ecommerce:      { color: '#3b82f6', bg: 'rgba(59,130,246,0.15)',  icon: ShoppingBag },
-    services:       { color: '#8b5cf6', bg: 'rgba(139,92,246,0.15)',  icon: Headphones },
-    restaurant:     { color: '#ef4444', bg: 'rgba(239,68,68,0.15)',   icon: Utensils },
-    hotel:          { color: '#06b6d4', bg: 'rgba(6,182,212,0.15)',   icon: Building2 },
-    salon:          { color: '#8b5cf6', bg: 'rgba(139,92,246,0.15)',  icon: Headphones },
-    custom:         { color: '#64748b', bg: 'rgba(100,116,139,0.15)', icon: Bot },
+    support_client:     { color: '#8b5cf6', bg: 'rgba(139,92,246,0.15)',  icon: Headphones },
+    ecommerce:          { color: '#3b82f6', bg: 'rgba(59,130,246,0.15)',  icon: ShoppingBag },
+    ecommerce_physical: { color: '#f59e0b', bg: 'rgba(245,158,11,0.15)',  icon: Package },
+    ecommerce_digital:  { color: '#10b981', bg: 'rgba(16,185,129,0.15)',  icon: ShoppingBag },
+    services:           { color: '#8b5cf6', bg: 'rgba(139,92,246,0.15)',  icon: Headphones },
+    restaurant:         { color: '#ef4444', bg: 'rgba(239,68,68,0.15)',   icon: Utensils },
+    hotel:              { color: '#06b6d4', bg: 'rgba(6,182,212,0.15)',   icon: Building2 },
+    salon:              { color: '#8b5cf6', bg: 'rgba(139,92,246,0.15)',  icon: Headphones },
+    custom:             { color: '#64748b', bg: 'rgba(100,116,139,0.15)', icon: Bot },
 }
 
 const PRODUCT_TYPE_LABELS: Record<string, string> = {
@@ -371,7 +375,7 @@ export default function AgentsPage() {
                     const operationalColors = getAgentOperationalColors(operationalStatus)
                     const StatusIcon = operationalStatus === 'qr_ready' ? MessageSquare : Smartphone
                     const isExternalSync = agent.ecommerce_mode === 'external_sync'
-                    const isProductAgent = ['ecommerce', 'restaurant', 'hotel', 'salon'].includes(agent.mission || '')
+                    const isProductAgent = ['ecommerce', 'ecommerce_physical', 'ecommerce_digital', 'restaurant', 'hotel', 'salon'].includes(agent.mission || '')
                     const isServiceAgent = ['support_client', 'services', 'salon'].includes(agent.mission || '')
                     const isBookingAgent = ['restaurant', 'hotel', 'salon', 'services'].includes(agent.mission || '')
                     // KB est critique pour support_client/services/salon/custom — pas pour les agents produits ni external_sync
