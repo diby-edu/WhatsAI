@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
     Settings, ToggleLeft, ToggleRight, Mic, Eye, Zap, Shield,
     Loader2, Save, AlertTriangle, CheckCircle, ArrowLeft, Globe,
-    ShoppingCart, UtensilsCrossed, Hotel, Scissors, Wrench, PenLine,
+    ShoppingCart, UtensilsCrossed, Hotel, PenLine,
     Laptop, Package, Briefcase, Users, Search, X, ChevronDown
 } from 'lucide-react'
 import Link from 'next/link'
@@ -41,12 +41,11 @@ const ALL_FEATURES: Omit<FeatureFlag, 'enabled'>[] = [
     { id: '6', name: 'Inscriptions Ouvertes', key: 'registrations_open', description: "Permet aux nouveaux utilisateurs de s'inscrire sur la plateforme", icon: Globe, category: 'Système' },
     { id: '7', name: 'Paiements', key: 'payments_enabled', description: 'Active les paiements pour les crédits et abonnements', icon: Shield, category: 'Système' },
     { id: '17', name: 'Bypass OTP WhatsApp', key: 'otp_bypass_enabled', description: "Désactive l'envoi du code OTP WhatsApp — le numéro est vérifié automatiquement (à utiliser uniquement si l'expéditeur OTP est bloqué)", icon: AlertTriangle, category: 'Système' },
-    { id: '8',  name: 'E-commerce / Boutique',  key: 'agent_ecommerce',  description: 'Mission E-commerce disponible à la création d\'agent', icon: ShoppingCart,    category: 'Missions' },
-    { id: '9',  name: 'Restaurant / Fast-food', key: 'agent_restaurant', description: 'Mission Restaurant disponible à la création d\'agent',   icon: UtensilsCrossed, category: 'Missions' },
-    { id: '10', name: 'Hôtel / Hébergement',    key: 'agent_hotel',     description: 'Mission Hôtel disponible à la création d\'agent',         icon: Hotel,           category: 'Missions' },
-    { id: '11', name: 'Salon / Beauté',          key: 'agent_salon',     description: 'Mission Salon disponible à la création d\'agent',         icon: Scissors,        category: 'Missions' },
-    { id: '12', name: 'Services / Artisan',      key: 'agent_services',  description: 'Mission Services disponible à la création d\'agent',      icon: Wrench,          category: 'Missions' },
-    { id: '13', name: 'Personnalisé',            key: 'agent_custom',    description: 'Mission Personnalisé disponible à la création d\'agent',  icon: PenLine,         category: 'Missions' },
+    { id: '8',  name: 'Produit Physique',        key: 'agent_ecommerce_physical', description: 'Mission Produit Physique disponible à la création d\'agent (livraison, catalogue)', icon: Package,         category: 'Missions' },
+    { id: '11', name: 'Produit Numérique',       key: 'agent_ecommerce_digital',  description: 'Mission Produit Numérique disponible à la création d\'agent (formations, ebooks, SaaS)', icon: Laptop,          category: 'Missions' },
+    { id: '9',  name: 'Restaurant / Fast-food',  key: 'agent_restaurant',         description: 'Mission Restaurant disponible à la création d\'agent',  icon: UtensilsCrossed, category: 'Missions' },
+    { id: '10', name: 'Hôtel / Hébergement',     key: 'agent_hotel',              description: 'Mission Hôtel disponible à la création d\'agent',        icon: Hotel,           category: 'Missions' },
+    { id: '13', name: 'Personnalisé',             key: 'agent_custom',             description: 'Mission Personnalisé disponible à la création d\'agent', icon: PenLine,         category: 'Missions' },
     { id: '14', name: 'Produit Numérique',  key: 'product_digital',   description: 'Type Numérique disponible à la création de produit',  icon: Laptop,    category: 'Produits' },
     { id: '15', name: 'Produit Physique',   key: 'product_physical',  description: 'Type Physique disponible à la création de produit',   icon: Package,   category: 'Produits' },
     { id: '16', name: 'Produit Service',    key: 'product_service',   description: 'Type Service disponible à la création de produit',    icon: Briefcase, category: 'Produits' },
@@ -86,7 +85,9 @@ export default function AdminFeaturesPage() {
             if (data.data?.features) {
                 setFeatures(ALL_FEATURES.map(f => {
                     const sf = data.data.features.find((s: any) => s.key === f.key)
-                    return { ...f, enabled: sf ? sf.enabled : f.key.startsWith('agent_ecommerce') || f.key === 'product_digital' || !f.key.startsWith('agent_') && !f.key.startsWith('product_') }
+                    const defaultEnabled = ['agent_ecommerce_physical', 'agent_ecommerce_digital', 'product_digital'].includes(f.key)
+                        || (!f.key.startsWith('agent_') && !f.key.startsWith('product_'))
+                    return { ...f, enabled: sf ? sf.enabled : defaultEnabled }
                 }))
             }
         } catch { } finally { setLoading(false) }
