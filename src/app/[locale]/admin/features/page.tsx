@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
     Settings, ToggleLeft, ToggleRight, Mic, Eye, Zap, Shield,
     Loader2, Save, AlertTriangle, CheckCircle, ArrowLeft, Globe,
-    ShoppingCart, UtensilsCrossed, Hotel, PenLine,
+    UtensilsCrossed, Hotel, PenLine, Headphones, Lock,
     Laptop, Package, Users, Search, X, ChevronDown
 } from 'lucide-react'
 import Link from 'next/link'
@@ -41,11 +41,12 @@ const ALL_FEATURES: Omit<FeatureFlag, 'enabled'>[] = [
     { id: '6', name: 'Inscriptions Ouvertes', key: 'registrations_open', description: "Permet aux nouveaux utilisateurs de s'inscrire sur la plateforme", icon: Globe, category: 'Système' },
     { id: '7', name: 'Paiements', key: 'payments_enabled', description: 'Active les paiements pour les crédits et abonnements', icon: Shield, category: 'Système' },
     { id: '17', name: 'Bypass OTP WhatsApp', key: 'otp_bypass_enabled', description: "Désactive l'envoi du code OTP WhatsApp — le numéro est vérifié automatiquement (à utiliser uniquement si l'expéditeur OTP est bloqué)", icon: AlertTriangle, category: 'Système' },
-    { id: '8',  name: 'Produit Physique',        key: 'agent_ecommerce_physical', description: 'Mission Produit Physique disponible à la création d\'agent (livraison, catalogue)', icon: Package,         category: 'Missions' },
-    { id: '11', name: 'Produit Numérique',       key: 'agent_ecommerce_digital',  description: 'Mission Produit Numérique disponible à la création d\'agent (formations, ebooks, SaaS)', icon: Laptop,          category: 'Missions' },
-    { id: '9',  name: 'Restaurant / Fast-food',  key: 'agent_restaurant',         description: 'Mission Restaurant disponible à la création d\'agent',  icon: UtensilsCrossed, category: 'Missions' },
-    { id: '10', name: 'Hôtel / Hébergement',     key: 'agent_hotel',              description: 'Mission Hôtel disponible à la création d\'agent',        icon: Hotel,           category: 'Missions' },
-    { id: '13', name: 'Personnalisé',             key: 'agent_custom',             description: 'Mission Personnalisé disponible à la création d\'agent', icon: PenLine,         category: 'Missions' },
+    { id: '18', name: 'Support Client',           key: 'agent_support_client',     description: 'Toujours actif — collecte de leads, FAQ, rendez-vous. Pour coachs, consultants, artisans, salons.', icon: Headphones,      category: 'Missions', readonly: true } as any,
+    { id: '8',  name: 'Produit Physique',         key: 'agent_ecommerce_physical', description: 'Vente de produits physiques sur WhatsApp — catalogue, commandes et livraison.', icon: Package,         category: 'Missions' },
+    { id: '11', name: 'Produit Numérique',        key: 'agent_ecommerce_digital',  description: 'Vente de formations, ebooks, templates ou tout contenu digital — livraison par email.', icon: Laptop,          category: 'Missions' },
+    { id: '9',  name: 'Restaurant / Fast-food',   key: 'agent_restaurant',         description: 'Commandes en ligne ou livraison, réservations de tables, menu en temps réel.', icon: UtensilsCrossed, category: 'Missions' },
+    { id: '10', name: 'Hôtel / Hébergement',      key: 'agent_hotel',              description: 'Réservations de chambres, tarifs et services hôteliers.',        icon: Hotel,           category: 'Missions' },
+    { id: '13', name: 'Personnalisé',              key: 'agent_custom',             description: 'Agent sur mesure sans template prédéfini.', icon: PenLine,         category: 'Missions' },
 ]
 
 const PLAN_COLORS: Record<string, string> = {
@@ -215,11 +216,18 @@ export default function AdminFeaturesPage() {
                                                 <div style={{ color: '#64748b', fontSize: 12, maxWidth: 420 }}>{feature.description}</div>
                                             </div>
                                         </div>
-                                        <button onClick={() => toggleFeature(feature.key)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
-                                            {feature.enabled
-                                                ? <ToggleRight size={34} style={{ color: '#34d399' }} />
-                                                : <ToggleLeft size={34} style={{ color: '#475569' }} />}
-                                        </button>
+                                        {(feature as any).readonly ? (
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 20, background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.2)' }}>
+                                                <Lock size={12} style={{ color: '#34d399' }} />
+                                                <span style={{ fontSize: 11, color: '#34d399', fontWeight: 600 }}>Toujours actif</span>
+                                            </div>
+                                        ) : (
+                                            <button onClick={() => toggleFeature(feature.key)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
+                                                {feature.enabled
+                                                    ? <ToggleRight size={34} style={{ color: '#34d399' }} />
+                                                    : <ToggleLeft size={34} style={{ color: '#475569' }} />}
+                                            </button>
+                                        )}
                                     </div>
                                 ))}
                             </div>
@@ -298,7 +306,7 @@ export default function AdminFeaturesPage() {
                                 Activez des fonctionnalités pour cet utilisateur même si le flag global est OFF.
                             </p>
 
-                            {missionProductFeatures.map(f => {
+                            {missionProductFeatures.filter(f => !(f as any).readonly).map(f => {
                                 const globalEnabled = features.find(gf => gf.key === f.key)?.enabled ?? false
                                 const userEnabled = userFlags[f.key] ?? false
                                 const effective = globalEnabled || userEnabled
