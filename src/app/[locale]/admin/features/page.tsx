@@ -6,7 +6,7 @@ import {
     Settings, ToggleLeft, ToggleRight, Mic, Eye, Zap, Shield,
     Loader2, Save, AlertTriangle, CheckCircle, ArrowLeft, Globe,
     ShoppingCart, UtensilsCrossed, Hotel, PenLine,
-    Laptop, Package, Briefcase, Users, Search, X, ChevronDown
+    Laptop, Package, Users, Search, X, ChevronDown
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -46,9 +46,6 @@ const ALL_FEATURES: Omit<FeatureFlag, 'enabled'>[] = [
     { id: '9',  name: 'Restaurant / Fast-food',  key: 'agent_restaurant',         description: 'Mission Restaurant disponible à la création d\'agent',  icon: UtensilsCrossed, category: 'Missions' },
     { id: '10', name: 'Hôtel / Hébergement',     key: 'agent_hotel',              description: 'Mission Hôtel disponible à la création d\'agent',        icon: Hotel,           category: 'Missions' },
     { id: '13', name: 'Personnalisé',             key: 'agent_custom',             description: 'Mission Personnalisé disponible à la création d\'agent', icon: PenLine,         category: 'Missions' },
-    { id: '14', name: 'Produit Numérique',  key: 'product_digital',   description: 'Type Numérique disponible à la création de produit',  icon: Laptop,    category: 'Produits' },
-    { id: '15', name: 'Produit Physique',   key: 'product_physical',  description: 'Type Physique disponible à la création de produit',   icon: Package,   category: 'Produits' },
-    { id: '16', name: 'Produit Service',    key: 'product_service',   description: 'Type Service disponible à la création de produit',    icon: Briefcase, category: 'Produits' },
 ]
 
 const PLAN_COLORS: Record<string, string> = {
@@ -85,7 +82,7 @@ export default function AdminFeaturesPage() {
             if (data.data?.features) {
                 setFeatures(ALL_FEATURES.map(f => {
                     const sf = data.data.features.find((s: any) => s.key === f.key)
-                    const defaultEnabled = ['agent_ecommerce_physical', 'agent_ecommerce_digital', 'product_digital'].includes(f.key)
+                    const defaultEnabled = ['agent_ecommerce_physical', 'agent_ecommerce_digital'].includes(f.key)
                         || (!f.key.startsWith('agent_') && !f.key.startsWith('product_'))
                     return { ...f, enabled: sf ? sf.enabled : defaultEnabled }
                 }))
@@ -120,7 +117,7 @@ export default function AdminFeaturesPage() {
         setUserFlagsSaving(true)
         try {
             const missionProductKeys = ALL_FEATURES
-                .filter(f => f.category === 'Missions' || f.category === 'Produits')
+                .filter(f => f.category === 'Missions')
                 .map(f => f.key)
             const features = missionProductKeys.map(key => ({ key, enabled: userFlags[key] ?? false }))
             await fetch('/api/admin/user-features', {
@@ -156,7 +153,7 @@ export default function AdminFeaturesPage() {
         u.full_name?.toLowerCase().includes(search.toLowerCase()) ||
         u.email?.toLowerCase().includes(search.toLowerCase())
     )
-    const missionProductFeatures = ALL_FEATURES.filter(f => f.category === 'Missions' || f.category === 'Produits')
+    const missionProductFeatures = ALL_FEATURES.filter(f => f.category === 'Missions')
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
