@@ -42,7 +42,7 @@ import {
 
 const MISSION_LABELS: Record<string, string> = {
     ecommerce:          'E-commerce / Boutique',
-    ecommerce_physical: 'Boutique Physique',
+    ecommerce_physical: 'Produit Physique',
     ecommerce_digital:  'Produit Numérique',
     restaurant:         'Restaurant / Fast-food',
     hotel:              'Hotel / Hebergement',

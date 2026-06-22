@@ -238,8 +238,8 @@ Règles:
         },
         {
             id: 'ecommerce_physical',
-            title: 'Boutique Physique',
-            description: 'Vend des produits physiques sur WhatsApp, gère le catalogue, les commandes et la livraison. Pour boutiques, commerçants, dropshipping.',
+            title: 'Produit Physique',
+            description: 'Vend des produits physiques sur WhatsApp, gère le catalogue, les commandes et la livraison. Pour commerçants en ligne, boutiques et dropshipping.',
             prompt: `Tu es l'assistant commercial de notre boutique.
 
 Ton rôle:
@@ -864,32 +864,52 @@ Regles:
             case 0: // TYPE D'AGENT
                 return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                        {/* Choix du type */}
+                        {/* Grille unifiée — tous les types d'agents */}
                         <div>
                             <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 16 }}>
                                 Quel type d&apos;agent souhaitez-vous créer ?
                             </label>
-                            <div className="agent-grid-2">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setAgentType('conversationnel')
-                                        setFormData(prev => ({ ...prev, mission: '', ecommerce_mode: 'native' }))
-                                    }}
-                                    style={{
-                                        padding: 20,
-                                        border: `2px solid ${agentType === 'conversationnel' ? '#10b981' : 'rgba(148, 163, 184, 0.1)'}`,
-                                        borderRadius: 12,
-                                        textAlign: 'left',
-                                        background: agentType === 'conversationnel' ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
-                                        cursor: 'pointer'
-                                    }}
-                                >
-                                    <h3 style={{ fontWeight: 600, color: 'white', marginBottom: 6 }}>Agent Conversationnel</h3>
-                                    <p style={{ fontSize: 13, color: '#94a3b8' }}>
-                                        Votre IA répond à vos clients sur WhatsApp 24h/24 — prend des commandes, répond aux questions, capture des leads. Choisissez votre secteur à l&apos;étape suivante.
-                                    </p>
-                                </button>
+                            <div className="agent-grid-3">
+                                {missionTemplates.map((template) => {
+                                    const flagKey = `agent_${template.id}`
+                                    const isEnabled = template.id === 'support_client' || Object.keys(featureFlags).length === 0 || featureFlags[flagKey] !== false
+                                    const isSelected = formData.mission === template.id && agentType === 'conversationnel'
+                                    return (
+                                        <button
+                                            key={template.id}
+                                            type="button"
+                                            onClick={() => {
+                                                if (!isEnabled) return
+                                                setAgentType('conversationnel')
+                                                selectMissionTemplate(template)
+                                            }}
+                                            disabled={!isEnabled}
+                                            style={{
+                                                padding: 16,
+                                                border: `2px solid ${isSelected ? '#10b981' : isEnabled ? 'rgba(148, 163, 184, 0.1)' : 'rgba(148, 163, 184, 0.05)'}`,
+                                                borderRadius: 12,
+                                                textAlign: 'left',
+                                                background: isSelected ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
+                                                cursor: isEnabled ? 'pointer' : 'not-allowed',
+                                                opacity: isEnabled ? 1 : 0.45,
+                                                position: 'relative' as const,
+                                                display: 'flex',
+                                                flexDirection: 'column' as const,
+                                                alignItems: 'flex-start'
+                                            }}
+                                        >
+                                            {!isEnabled && (
+                                                <span style={{ position: 'absolute', top: 8, right: 8, fontSize: 10, fontWeight: 700, color: '#64748b', background: 'rgba(100,116,139,0.15)', padding: '2px 7px', borderRadius: 20, letterSpacing: '0.05em' }}>
+                                                    BIENTÔT
+                                                </span>
+                                            )}
+                                            <h3 style={{ fontWeight: 600, color: isEnabled ? 'white' : '#64748b', marginBottom: 4, marginTop: 0 }}>{template.title}</h3>
+                                            <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>{template.description}</p>
+                                        </button>
+                                    )
+                                })}
+
+                                {/* Canal Notification API */}
                                 <button
                                     type="button"
                                     onClick={() => {
@@ -903,24 +923,26 @@ Regles:
                                         }))
                                     }}
                                     disabled={!apiAccessEnabled}
-                                    title={!apiAccessEnabled ? 'Nécessite un abonnement API' : undefined}
                                     style={{
-                                        padding: 20,
-                                        border: `2px solid ${!apiAccessEnabled ? 'rgba(148, 163, 184, 0.08)' : agentType === 'api' ? '#0ea5e9' : 'rgba(148, 163, 184, 0.1)'}`,
+                                        padding: 16,
+                                        border: `2px solid ${!apiAccessEnabled ? 'rgba(148, 163, 184, 0.05)' : agentType === 'api' ? '#0ea5e9' : 'rgba(148, 163, 184, 0.1)'}`,
                                         borderRadius: 12,
                                         textAlign: 'left',
                                         background: !apiAccessEnabled ? 'rgba(255,255,255,0.02)' : agentType === 'api' ? 'rgba(14, 165, 233, 0.12)' : 'transparent',
                                         cursor: apiAccessEnabled ? 'pointer' : 'not-allowed',
                                         opacity: apiAccessEnabled ? 1 : 0.45,
-                                        position: 'relative' as const
+                                        position: 'relative' as const,
+                                        display: 'flex',
+                                        flexDirection: 'column' as const,
+                                        alignItems: 'flex-start'
                                     }}
                                 >
-                                    <h3 style={{ fontWeight: 600, color: apiAccessEnabled ? 'white' : '#64748b', marginBottom: 6 }}>
-                                        Canal Notification API
-                                        {!apiAccessEnabled && <span style={{ fontSize: 11, fontWeight: 400, color: '#f59e0b', marginLeft: 8 }}>Abonnement API requis</span>}
-                                    </h3>
-                                    <p style={{ fontSize: 13, color: '#94a3b8' }}>
-                                        Connectez votre boutique Shopify, WooCommerce ou autre plateforme pour envoyer automatiquement confirmations et mises à jour via WhatsApp. Nécessite un abonnement API.
+                                    <span style={{ position: 'absolute', top: 8, right: 8, fontSize: 10, fontWeight: 700, color: '#f59e0b', background: 'rgba(245,158,11,0.1)', padding: '2px 7px', borderRadius: 20, letterSpacing: '0.05em' }}>
+                                        API
+                                    </span>
+                                    <h3 style={{ fontWeight: 600, color: apiAccessEnabled ? 'white' : '#64748b', marginBottom: 4, marginTop: 0 }}>Canal Notification API</h3>
+                                    <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>
+                                        Connectez Shopify, WooCommerce ou autre plateforme pour envoyer confirmations et mises à jour via WhatsApp.
                                     </p>
                                 </button>
                             </div>
@@ -934,34 +956,23 @@ Regles:
                                 </div>
                                 <div>
                                     <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                        Nom de l'agent *
+                                        Nom de l&apos;agent *
                                     </label>
-                                    <input
-                                        type="text"
-                                        value={formData.name}
-                                        onChange={(e) => updateFormData('name', e.target.value)}
-                                        placeholder="Ex: Boutique Chez Marie"
-                                        style={inputStyle}
-                                    />
+                                    <input type="text" value={formData.name} onChange={(e) => updateFormData('name', e.target.value)} placeholder="Ex: Boutique Chez Marie" style={inputStyle} />
                                 </div>
                                 <div>
                                     <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                        Numéro d'escalade / SAV * <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 400 }}>(format : +225XXXXXXXXX)</span>
+                                        Numéro d&apos;escalade / SAV * <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 400 }}>(format : +225XXXXXXXXX)</span>
                                     </label>
                                     <input
                                         type="text"
                                         value={formData.escalation_phone}
                                         onChange={(e) => updateFormData('escalation_phone', sanitizeEscalationPhone(e.target.value))}
                                         placeholder="+2250701010101"
-                                        style={{
-                                            ...inputStyle,
-                                            border: formData.escalation_phone && !isValidEscalationPhone(formData.escalation_phone) ? '1px solid #f87171' : inputStyle.border
-                                        }}
+                                        style={{ ...inputStyle, border: formData.escalation_phone && !isValidEscalationPhone(formData.escalation_phone) ? '1px solid #f87171' : inputStyle.border }}
                                     />
                                     {formData.escalation_phone && !isValidEscalationPhone(formData.escalation_phone) && (
-                                        <p style={{ fontSize: 11, color: '#f87171', marginTop: 4 }}>
-                                            Format invalide. Exemple : +2250701010101 (+ indicatif + numéro, chiffres uniquement)
-                                        </p>
+                                        <p style={{ fontSize: 11, color: '#f87171', marginTop: 4 }}>Format invalide. Exemple : +2250701010101 (+ indicatif + numéro, chiffres uniquement)</p>
                                     )}
                                 </div>
                                 <div>
@@ -975,46 +986,6 @@ Regles:
                                         rows={4}
                                         style={{ ...inputStyle, resize: 'vertical' as const }}
                                     />
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Grille des missions — conversationnel uniquement */}
-                        {agentType === 'conversationnel' && (
-                            <div>
-                                <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 16 }}>
-                                    {t('Form.mission.label')}
-                                </label>
-                                <div className="agent-grid-3">
-                                    {missionTemplates.map((template) => {
-                                        const flagKey = `agent_${template.id}`
-                                        const isEnabled = template.id === 'support_client' || Object.keys(featureFlags).length === 0 || featureFlags[flagKey] !== false
-                                        return (
-                                            <button
-                                                key={template.id}
-                                                onClick={() => isEnabled && selectMissionTemplate(template)}
-                                                disabled={!isEnabled}
-                                                style={{
-                                                    padding: 16,
-                                                    border: `2px solid ${formData.mission === template.id ? '#10b981' : isEnabled ? 'rgba(148, 163, 184, 0.1)' : 'rgba(148, 163, 184, 0.05)'}`,
-                                                    borderRadius: 12,
-                                                    textAlign: 'left',
-                                                    background: formData.mission === template.id ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
-                                                    cursor: isEnabled ? 'pointer' : 'not-allowed',
-                                                    opacity: isEnabled ? 1 : 0.45,
-                                                    position: 'relative' as const
-                                                }}
-                                            >
-                                                {!isEnabled && (
-                                                    <span style={{ position: 'absolute', top: 8, right: 8, fontSize: 10, fontWeight: 700, color: '#64748b', background: 'rgba(100,116,139,0.15)', padding: '2px 7px', borderRadius: 20, letterSpacing: '0.05em' }}>
-                                                        BIENTÔT
-                                                    </span>
-                                                )}
-                                                <h3 style={{ fontWeight: 600, color: isEnabled ? 'white' : '#64748b', marginBottom: 4 }}>{template.title}</h3>
-                                                <p style={{ fontSize: 13, color: '#64748b' }}>{template.description}</p>
-                                            </button>
-                                        )
-                                    })}
                                 </div>
                             </div>
                         )}
