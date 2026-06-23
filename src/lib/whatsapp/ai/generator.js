@@ -523,6 +523,14 @@ async function generateAIResponse(options, dependencies) {
         const activeServiceEngine = activeEngineHint || detectServiceEngine(products || [], userMessage || '')
         const isRestaurantMode = activeServiceEngine === 'RESTAURANT'
 
+        // Feature flags globaux — désactiver les tools si le flag est explicitement à false
+        const flagBooking = options.featureFlags?.ai_tools_booking !== false
+        const flagOrders = options.featureFlags?.ai_tools_orders !== false
+        const FLAG_DISABLED_TOOLS = [
+            ...(!flagBooking ? ['create_booking'] : []),
+            ...(!flagOrders ? ['create_order', 'create_restaurant_checkout', 'check_payment_status'] : []),
+        ]
+
         // En mode Support Client (KB-only), désactiver tous les tools transactionnels
         // send_image est conservé : l'agent support peut envoyer des images depuis la KB
         // capture_lead est conservé uniquement si lead_collection_enabled
@@ -531,12 +539,13 @@ async function generateAIResponse(options, dependencies) {
         const activeTools = isSupportClientMode
             ? TOOLS.filter(t => {
                 if (SUPPORT_CLIENT_DISABLED_TOOLS.includes(t.function?.name)) return false
+                if (FLAG_DISABLED_TOOLS.includes(t.function?.name)) return false
                 if (t.function?.name === 'capture_lead' && !agent.lead_collection_enabled) return false
                 return true
             })
             : isRestaurantMode
-                ? TOOLS.filter(t => !RESTAURANT_DISABLED_TOOLS.includes(t.function?.name))
-                : TOOLS.filter(t => t.function?.name !== 'capture_lead') // capture_lead uniquement en mode support
+                ? TOOLS.filter(t => !RESTAURANT_DISABLED_TOOLS.includes(t.function?.name) && !FLAG_DISABLED_TOOLS.includes(t.function?.name))
+                : TOOLS.filter(t => t.function?.name !== 'capture_lead' && !FLAG_DISABLED_TOOLS.includes(t.function?.name))
         const toolsConfig = activeTools.length > 0
             ? { tools: activeTools, tool_choice: 'auto' }
             : {}

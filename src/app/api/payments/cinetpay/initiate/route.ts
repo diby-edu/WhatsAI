@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
-import { createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
+import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
 
 const CinetPayInitiateSchema = z.object({
     amount: z.number().positive('Le montant doit être positif').max(10_000_000, 'Montant trop élevé'),
@@ -26,6 +26,17 @@ export async function POST(request: NextRequest) {
 
     if (!CINETPAY_API_KEY || !CINETPAY_SITE_ID) {
         return errorResponse('CinetPay non configuré', 500)
+    }
+
+    // Vérifier le feature flag payments_enabled
+    const adminSupabase = createAdminClient()
+    const { data: payFlag } = await adminSupabase
+        .from('feature_flags')
+        .select('enabled')
+        .eq('key', 'payments_enabled')
+        .maybeSingle()
+    if (payFlag?.enabled === false) {
+        return errorResponse('Les paiements sont temporairement désactivés', 503)
     }
 
     try {

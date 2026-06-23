@@ -377,6 +377,14 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             .single()
         const agentCurrency = userProfile?.currency || 'XOF'
 
+        // 1.2c Charger les feature flags globaux (une seule requête par message)
+        const { data: flagsData } = await supabase
+            .from('feature_flags')
+            .select('key, enabled')
+        const featureFlags = {}
+        for (const f of flagsData || []) featureFlags[f.key] = f.enabled
+        const getFlag = (key) => featureFlags[key] !== false
+
         // 1.3 Récupérer ou créer la conversation
         const conversation = await ConversationService.getOrCreate(
             supabase,
@@ -446,7 +454,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
         }
 
         // 2.3 Traiter image
-        if (message.imageMessage) {
+        if (message.imageMessage && getFlag('vision_enabled')) {
             console.log('📸 Processing image...')
             try {
                 const imageBase64 = await withMediaTimeout(
@@ -967,6 +975,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                     restaurantState: restaurantUpdate.state,
                     restaurantQuestionDetected: restaurantUpdate.questionDetected || false,
                     hasKnowledgeBase,
+                    featureFlags,
                     supabase,
                     activeSessions,
                     CinetPay
@@ -1096,7 +1105,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
 
         // 6.1 Synthèse vocale (si activée)
         // Déduire les 4 crédits voix AVANT d'envoyer. Si insuffisants → fallback texte.
-        if (agent.voice_enabled && aiResponse.content.length <= 500) {
+        if (agent.voice_enabled && getFlag('voice_responses') && aiResponse.content.length <= 500) {
             let voiceCreditsOk = false
             try {
                 await CreditsService.deduct(supabase, agent.user_id, 4)

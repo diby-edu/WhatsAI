@@ -48,6 +48,17 @@ export async function POST(request: NextRequest) {
         return rateLimitResponse(rateLimit.resetTime)
     }
 
+    // Vérifier le feature flag payments_enabled
+    const adminSupabase = createAdminClient()
+    const { data: payFlag } = await adminSupabase
+        .from('feature_flags')
+        .select('enabled')
+        .eq('key', 'payments_enabled')
+        .maybeSingle()
+    if (payFlag?.enabled === false) {
+        return errorResponse('Les paiements sont temporairement désactivés', 503)
+    }
+
     try {
         const rawBody = await request.json()
         const parsed = InitializePaymentSchema.safeParse(rawBody)
