@@ -77,8 +77,19 @@ function buildCatalogueSection(products, currency) {
         return carte
     }
 
-    // Standard : liste numérotée — détails affichés à la sélection
+    // Standard : liste numérotée — enrichie avec prix + description pour les produits numériques
+    const formatCatalogPrice = (priceFcfa) => {
+        if (!priceFcfa) return ''
+        if (currency === 'USD' || currency === 'EUR') return ` — ${Math.round(priceFcfa / 700)} ${currency}`
+        return ` — ${Number(priceFcfa).toLocaleString('fr-FR')} FCFA`
+    }
+
     const catalogueItems = products.map((p, index) => {
+        if (p.product_type === 'digital' || p.product_type === 'virtual') {
+            const price = formatCatalogPrice(p.price_fcfa)
+            const desc = p.description ? `\n   ${String(p.description).slice(0, 80)}` : ''
+            return `${index + 1}. 💻 ${p.name}${price}${desc}`
+        }
         return `${index + 1}. ${p.name}`
     }).join('\n')
 

@@ -1,4 +1,5 @@
 import { queueOutboundWhatsAppMessage } from '@/lib/whatsapp/outbound'
+import { sendDigitalDeliveryEmail } from '@/lib/notifications/email.service'
 const { ConversationService } = require('@/lib/whatsapp/services/conversation.service')
 
 interface LicenseKey {
@@ -36,11 +37,18 @@ export async function deliverDigitalProducts(
     try {
         const { data: order } = await supabase
             .from('orders')
-            .select('id, agent_id, customer_phone, conversation_id, created_at')
+            .select('id, agent_id, customer_phone, customer_email, customer_name, conversation_id, created_at')
             .eq('id', orderId)
             .single()
 
         if (!order?.customer_phone || !order?.agent_id) return
+
+        const { data: agentData } = await supabase
+            .from('agents')
+            .select('name')
+            .eq('id', order.agent_id)
+            .single()
+        const agentName: string = agentData?.name || 'Boutique'
 
         let recipient = order.customer_phone.replace(/^\+/, '')
 
@@ -83,6 +91,7 @@ export async function deliverDigitalProducts(
         let preparationAnnounced = false
         let deliverableItems = 0
         let queuedDeliveries = 0
+        const emailItems: { name: string; content: string; isFileUrl: boolean }[] = []
 
         for (const item of items) {
             const baseName = item.product_name.replace(/\s*\(.*\)\s*$/, '').trim()
@@ -135,6 +144,7 @@ export async function deliverDigitalProducts(
             deliverableItems += 1
 
             const isFileUrl = deliveryContent.includes('/storage/v1/object/public/digital-content/')
+            emailItems.push({ name: product.name, content: deliveryContent, isFileUrl })
             const formattedDeliveryContent = deliveredLicenseCount > 1 && !isFileUrl
                 ? `Voici vos ${deliveredLicenseCount} cles d'activation :\n${deliveryContent}`
                 : deliveryContent
@@ -172,6 +182,16 @@ export async function deliverDigitalProducts(
             } catch (sendErr) {
                 console.error('[Digital Delivery] Failed to queue WhatsApp delivery:', sendErr)
             }
+        }
+
+        // Envoi email de livraison (backup canal, non bloquant)
+        if (order.customer_email && emailItems.length > 0) {
+            void sendDigitalDeliveryEmail(
+                order.customer_email,
+                order.customer_name || 'Client',
+                agentName,
+                emailItems
+            )
         }
 
         if (deliverableItems > 0 && queuedDeliveries === deliverableItems) {

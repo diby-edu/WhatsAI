@@ -234,6 +234,65 @@ export async function sendAndroidAppLaunchEmail(toEmail: string, userName: strin
     }
 }
 
+function digitalDeliveryTemplate(customerName: string, agentName: string, items: { name: string; content: string; isFileUrl: boolean }[]): string {
+    const itemsHtml = items.map(item => {
+        if (item.isFileUrl) {
+            return `
+                <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 12px; padding: 20px; margin-bottom: 16px;">
+                    <p style="margin: 0 0 8px 0; font-weight: 600; color: #e2e8f0; font-size: 16px;">💻 ${item.name}</p>
+                    <a href="${item.content}"
+                       style="display: inline-block; background: linear-gradient(135deg, #10b981, #059669); color: white; text-decoration: none; padding: 10px 24px; border-radius: 8px; font-weight: 600; font-size: 14px; margin-top: 8px;">
+                        ⬇️ Télécharger
+                    </a>
+                </div>`
+        }
+        return `
+            <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 12px; padding: 20px; margin-bottom: 16px;">
+                <p style="margin: 0 0 8px 0; font-weight: 600; color: #e2e8f0; font-size: 16px;">💻 ${item.name}</p>
+                <div style="background: rgba(0,0,0,0.3); border-radius: 8px; padding: 12px; font-family: monospace; color: #10b981; font-size: 14px; word-break: break-all;">
+                    ${item.content.replace(/\n/g, '<br>')}
+                </div>
+            </div>`
+    }).join('')
+
+    return baseTemplate(`
+        <h2 style="color: #10b981; margin: 0 0 8px 0; font-size: 22px;">🎉 Votre commande est confirmée !</h2>
+        <p style="margin: 0 0 20px 0; color: #94a3b8; font-size: 14px;">Boutique : <strong style="color: #e2e8f0;">${agentName}</strong></p>
+        <p style="margin: 0 0 24px 0; font-size: 16px;">Bonjour <strong>${customerName}</strong>,</p>
+        <p style="margin: 0 0 24px 0; color: #94a3b8;">Merci pour votre achat ! Voici vos produits numériques :</p>
+        ${itemsHtml}
+        <p style="margin: 24px 0 0 0; color: #64748b; font-size: 13px;">
+            Ce contenu vous a également été envoyé sur WhatsApp.<br>
+            En cas de problème, contactez directement la boutique.
+        </p>
+    `)
+}
+
+export async function sendDigitalDeliveryEmail(
+    toEmail: string,
+    customerName: string,
+    agentName: string,
+    items: { name: string; content: string; isFileUrl: boolean }[]
+): Promise<boolean> {
+    if (!toEmail || items.length === 0) return false
+    const subject = `🎉 Votre commande numérique — ${agentName}`
+    try {
+        await transporter.sendMail({
+            from: `"${agentName}" <${FROM_EMAIL}>`,
+            to: toEmail,
+            subject,
+            html: digitalDeliveryTemplate(customerName, agentName, items),
+        })
+        console.log(`📧 Digital delivery email sent to ${toEmail}`)
+        void logEmail(undefined, toEmail, 'digital_delivery', subject, 'sent')
+        return true
+    } catch (error) {
+        console.error('[Email] Failed to send digital delivery email:', error)
+        void logEmail(undefined, toEmail, 'digital_delivery', subject, 'failed', String(error))
+        return false
+    }
+}
+
 export async function sendSubscriptionExpiringEmail(
     toEmail: string,
     userName: string,
