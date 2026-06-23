@@ -50,6 +50,7 @@ class AIService {
             bookingState: context.bookingState,
             restaurantState: context.restaurantState,
             hasKnowledgeBase: context.hasKnowledgeBase ?? false,
+            featureFlags: context.featureFlags || {},
             justOrdered // Signal pour le prompt builder
         }
 
