@@ -327,8 +327,8 @@ function buildCheckoutContext(cartState = {}, products = []) {
         .map(item => findProductById(products, item.product_id))
         .filter(Boolean)
 
-    const hasDigital = resolvedProducts.some(product => product.product_type === 'digital')
-    const hasPhysical = resolvedProducts.some(product => product.product_type === 'product')
+    const hasDigital = resolvedProducts.some(product => product.product_type === 'digital' || product.product_type === 'virtual')
+    const hasPhysical = resolvedProducts.some(product => product.product_type === 'product' || product.product_type === 'physical' || product.product_type === 'good')
 
     return {
         products: resolvedProducts,

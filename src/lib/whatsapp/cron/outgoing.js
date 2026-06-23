@@ -229,7 +229,13 @@ async function processOutboundMessage(supabase, activeSessions, agentStateCache,
 
         const session = activeSessions.get(msg.agent_id)
         if (!session?.socket || !session.socket.user) {
-            console.log(`Agent ${msg.agent_id} socket not ready (disconnected or QR pending), keeping in queue`)
+            const ageMs = Date.now() - new Date(msg.created_at).getTime()
+            if (ageMs > ONE_HOUR) {
+                await markOutboundFailed(supabase, msg.id, 'socket_not_ready_timeout_1h')
+                console.error(`[OUTBOUND] ${msg.id} abandonné après 1h (socket jamais prêt)`)
+            } else {
+                console.log(`Agent ${msg.agent_id} socket not ready (disconnected or QR pending), keeping in queue`)
+            }
             return
         }
 

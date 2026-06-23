@@ -1077,15 +1077,24 @@ export default function NewProductPage() {
                             <select
                                 value={formData.agent_id}
                                 onChange={e => {
+                                    const selectedAgent = agents.find(a => a.id === e.target.value)
                                     if (e.target.value) localStorage.setItem('product_last_agent_id', e.target.value)
-                                    setFormData({ ...formData, agent_id: e.target.value })
+                                    const missionTypeMap: Record<string, string> = {
+                                        ecommerce_digital: 'digital',
+                                        ecommerce_physical: 'product',
+                                    }
+                                    const autoType = selectedAgent?.mission ? missionTypeMap[selectedAgent.mission] : undefined
+                                    setFormData({ ...formData, agent_id: e.target.value, ...(autoType ? { product_type: autoType } : {}) })
                                 }}
                                 style={inputStyle}
                             >
                                 <option value="">Tous les agents</option>
                                 {agents.map(a => (
                                     <option key={a.id} value={a.id} disabled={!!getManualProductsBlockedReason(a)}>
-                                        {a.name}{a.mission === 'support_client' ? ' (Support — KB uniquement)' : ''}
+                                        {a.name}
+                                        {a.mission === 'support_client' ? ' (Support — KB uniquement)' : ''}
+                                        {a.mission === 'ecommerce_digital' ? ' (Numérique)' : ''}
+                                        {a.mission === 'ecommerce_physical' ? ' (Physique)' : ''}
                                         {a.mission === 'ecommerce' && a.ecommerce_mode === 'external_sync' ? ' (API externe uniquement)' : ''}
                                     </option>
                                 ))}

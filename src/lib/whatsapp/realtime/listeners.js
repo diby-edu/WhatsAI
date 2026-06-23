@@ -272,7 +272,11 @@ async function handleOutboundMessage(context, msg) {
         }
 
         const session = activeSessions.get(msg.agent_id)
-        if (!session?.socket || !session.socket.user) return
+        if (!session?.socket || !session.socket.user) {
+            // Session pas encore prête — la boucle adaptative retentera dans 5-30s
+            console.log(`[REALTIME] Agent ${msg.agent_id} socket not ready, outbound ${msg.id} will be retried by polling`)
+            return
+        }
 
         const target = await resolveCanonicalJid(session.socket, msg.recipient_phone)
         const jid = target.jid
