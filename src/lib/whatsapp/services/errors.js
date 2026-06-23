@@ -14,7 +14,12 @@ class AppError extends Error {
     }
 }
 
-const Sentry = require('@sentry/nextjs')
+let Sentry = null
+try {
+    Sentry = require('@sentry/nextjs')
+} catch (_) {
+    Sentry = { captureException: () => {} }
+}
 
 class ErrorHandler {
     /**

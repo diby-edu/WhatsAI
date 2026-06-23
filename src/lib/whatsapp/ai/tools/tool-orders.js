@@ -136,9 +136,9 @@ async function handleCreateOrder(args, agentId, products, conversationId, supaba
                 })
             }
 
-            const normalizedQuantity = isSingleDeliveryDigitalProduct(product)
-                ? 1
-                : item.quantity
+            // Les produits numériques avec digital_content respectent la quantité commandée.
+            // La livraison envoie le même contenu quel que soit la quantité (license_keys gèrent le multi-unités).
+            const normalizedQuantity = item.quantity
 
             if (product.product_type !== 'digital') {
                 hasPhysicalProduct = true
