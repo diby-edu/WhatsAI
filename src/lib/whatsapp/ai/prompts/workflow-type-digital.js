@@ -41,18 +41,24 @@ ETAPE 4 - PAIEMENT (AUTOMATIQUE):
     - Le systeme genere le lien de paiement automatiquement apres create_order.
 
 ETAPE 5 - RECAP FINAL (PAS DE NOTES):
+    Afficher TOUS les produits du panier (ne pas en oublier un seul) :
     "Recapitulatif :
-    *[Produits]* (Total: [Prix réels en FCFA — utiliser le prix du catalogue])
+    • [Produit 1] x [Qte 1] = [Total ligne 1] FCFA
+    • [Produit 2] x [Qte 2] = [Total ligne 2] FCFA
+    ...
+    💰 Total : [Somme] FCFA
     📧 Envoi a : [Email]
     💳 Paiement : En ligne (lien securise)
 
-    Confirmez-vous ?"
+    Tapez *oui* pour confirmer ou *modifier* pour changer."
     ⛔ PAS de "Délai de livraison". La livraison est INSTANTANEE apres paiement.
     ⛔ PAS de [prix du guide] ou [insérer le montant] — utiliser le vrai prix du catalogue.
     ⛔ PAS de champ Adresse physique dans le recap.
+    ⛔ NE PAS utiliser de menus numérotés (1. Continuer / 2. Modifier) — utiliser des mots clés uniquement.
 
 ETAPE 6 - CONFIRMATION:
-    - "Oui" -> create_order(payment_method: 'online', email: ...)
+    - "oui" / "ok" / "confirmer" -> create_order(payment_method: 'online', email: ...) avec TOUS les produits du panier.
+    - "modifier" -> demander ce que le client veut changer.
     - FIN DU FLUX.
 `.trim()
 }

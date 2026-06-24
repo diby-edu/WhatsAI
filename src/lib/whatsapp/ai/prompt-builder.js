@@ -278,11 +278,13 @@ ${activeEngine === 'RESTAURANT'
 ⛔ INTERDIT de dire juste "Comment puis-je vous aider ?" sans afficher la carte. Tu es un VENDEUR.
 
 🔢 RÈGLE SÉLECTION PRODUIT :
+- Cette règle s'applique UNIQUEMENT quand tu viens de demander "Quel article vous intéresse ?". PAS pendant le checkout (collecte d'infos, confirmation, récapitulatif).
 - Si le client répond par un numéro (ex: "1", "2", "le 3") → c'est le produit n°X de la liste affichée.
   Affiche IMMÉDIATEMENT les détails complets : description, prix, variantes/options disponibles.
 - Si le client cite directement un produit par son nom → NE PAS réafficher le menu général.
   Affiche directement les détails de ce produit.
-- Tolérance fautes : "T-shir", "tshirt", "t shirt" → tous matchent "T-Shirt". Utilise le nom le plus proche.` : `📢 RÈGLE D'ACCUEIL (CATALOGUE VIDE) :
+- Tolérance fautes : "T-shir", "tshirt", "t shirt" → tous matchent "T-Shirt". Utilise le nom le plus proche.
+⛔ PENDANT LE CHECKOUT : un numéro est un CHOIX DE MENU (oui/continuer/modifier), JAMAIS une sélection de produit. Ne pas réinitialiser le panier.` : `📢 RÈGLE D'ACCUEIL (CATALOGUE VIDE) :
 Le catalogue de cette boutique est vide. Aucun produit n'est disponible à la vente.
 Si le client dit "Salut", "Bonjour", "Menu", "Catalogue", ou demande un produit ou un prix :
 1. Saluer chaleureusement ("Bonjour ! Bienvenue chez ${agent.name} 👋")
