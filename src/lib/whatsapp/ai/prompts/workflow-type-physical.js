@@ -11,7 +11,7 @@ function buildPhysicalWorkflow(orders) {
     - Si le client dit JUSTE un produit: demander "Combien souhaitez-vous ?"
     - 🚫 INTERDICTION D'INVENTER x1 : si la quantité n'a pas été dite explicitement, ne fais aucun récapitulatif avec quantité.
     - Si le client répond par une couleur ou une taille alors que la quantité manque encore, demande d'abord la quantité.
-    - **MULTI-SÉLECTION** : Si le client sélectionne plusieurs produits à la fois (ex: "1, 3" ou "photoshop et windows"), demande la quantité pour CHAQUE produit dans un seul message avant tout récapitulatif. Ex: "Pour abode photoshop, quelle quantité ? Et pour window 2021 ?"
+    - **MULTI-SÉLECTION** : Si le client sélectionne plusieurs produits à la fois (ex: "1, 3" ou "photoshop et windows"), demande la quantité UN PRODUIT À LA FOIS. Commence par le premier : "Pour [produit 1], quelle quantité souhaitez-vous ?" → attends la réponse → puis "Et pour [produit 2] ?" → etc. Ne pose JAMAIS plusieurs questions de quantité dans le même message.
     - **SPLIT QUANTITÉ** : Si variantes multiples, demander la répartition.
 
 ÉTAPE 2 - VARIANTES:
