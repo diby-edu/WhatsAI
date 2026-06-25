@@ -895,6 +895,40 @@ function buildProductBlock(product, maxCombos = 8, currency = 'XOF') {
     }
 }
 
+// Distance de Levenshtein — pour le matching fuzzy de noms de produits
+function levenshtein(a, b) {
+    const m = a.length, n = b.length
+    if (m === 0) return n
+    if (n === 0) return m
+    const prev = Array.from({ length: n + 1 }, (_, j) => j)
+    for (let i = 1; i <= m; i++) {
+        const curr = [i]
+        for (let j = 1; j <= n; j++) {
+            curr[j] = a[i - 1] === b[j - 1]
+                ? prev[j - 1]
+                : 1 + Math.min(prev[j], curr[j - 1], prev[j - 1])
+        }
+        prev.splice(0, prev.length, ...curr)
+    }
+    return prev[n]
+}
+
+// Score fuzzy : chaque mot du segment matchant un token du nom produit (Levenshtein ≤ ceil(len/3))
+function fuzzyScoreProductMatch(segment, product) {
+    const productName = normalizeText(product.name)
+    const segWords = segment.split(' ').filter(w => w.length >= 3)
+    const prodTokens = productName.split(' ').filter(t => t.length >= 3)
+    if (segWords.length === 0 || prodTokens.length === 0) return 0
+    let matchCount = 0
+    for (const word of segWords) {
+        const threshold = Math.ceil(word.length / 3)
+        for (const token of prodTokens) {
+            if (levenshtein(word, token) <= threshold) { matchCount++; break }
+        }
+    }
+    return matchCount > 0 ? matchCount * 10 : 0
+}
+
 // Détecte plusieurs produits dans un message client (seuil abaissé à 15)
 // Les produits de type 'service' sont exclus (ils ont leur propre flux de réservation)
 function detectMultipleProducts(text, products) {
@@ -933,6 +967,13 @@ function detectMultipleProducts(text, products) {
                 score = terms.filter(t => productName.includes(t)).length * 15
             }
             if (score >= 15 && score > bestScore) { bestScore = score; best = product }
+        }
+        // Fallback fuzzy si aucun match exact (ex: "adobe" → "abode photoshop")
+        if (!best) {
+            for (const product of eligibleProducts) {
+                const fScore = fuzzyScoreProductMatch(segment, product)
+                if (fScore > 0 && fScore > bestScore) { bestScore = fScore; best = product }
+            }
         }
         if (best && !seen.has(best.id)) {
             seen.add(best.id)
@@ -1013,6 +1054,14 @@ function parseMultiProductBatchLines(products, text) {
             const score = terms.filter(t => segment.includes(t)).length * 20
                 + (segment.includes(productName) ? 50 : 0)
             if (score > bestScore) { bestScore = score; targetProduct = product }
+        }
+
+        // Fallback fuzzy si aucun match exact
+        if (!targetProduct || bestScore === 0) {
+            for (const product of eligibleProducts) {
+                const fScore = fuzzyScoreProductMatch(segment, product)
+                if (fScore > 0 && fScore > bestScore) { bestScore = fScore; targetProduct = product }
+            }
         }
 
         if (!targetProduct || bestScore === 0) {
@@ -1590,6 +1639,58 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
         }
     }
 
+    // Handler multi_product_sequential : quantités demandées UN PAR UN pour chaque produit
+    if (state.awaiting_field?.type === 'multi_product_sequential') {
+        const { product_ids, current_index } = state.awaiting_field
+        const currentProduct = findProductById(products, product_ids[current_index])
+
+        if (currentProduct) {
+            const rawQty = extractQuantityFromSegment(normalized) || (Number(normalized) > 0 ? Number(normalized) : null)
+            if (rawQty && rawQty > 0) {
+                const qty = normalizeQuantityForProduct(currentProduct, rawQty)
+                const draftItem = createDraftItem(currentProduct)
+                draftItem.quantity = qty
+                const completedItem = normalizeDraftItemForProduct(currentProduct, draftItem)
+                const lineResult = buildLineFromDraft(currentProduct, completedItem, (state.cart_items || []).length + 1)
+
+                if (!lineResult.error) {
+                    state.cart_items = mergeOrAppendCartLine(state.cart_items || [], lineResult.line, products)
+                    const nextIndex = current_index + 1
+
+                    if (nextIndex < product_ids.length) {
+                        const nextProduct = findProductById(products, product_ids[nextIndex])
+                        state.awaiting_field = { ...state.awaiting_field, current_index: nextIndex }
+                        return {
+                            state, capturedFields,
+                            stateChanged: true, shouldBypassAI: true,
+                            directReply: `Et pour ${nextProduct.name}, quelle quantité ?`,
+                        }
+                    }
+
+                    // Tous les produits ont leur quantité → RÉCAP 1
+                    state.draft_item = null
+                    state.stage = CART_STAGE.CART_RECAP
+                    state.awaiting_field = buildCartActionField()
+                    state.last_prompt_kind = CART_STAGE.CART_RECAP
+                    state.last_prompt_text = normalized
+                    return {
+                        state, capturedFields,
+                        stateChanged: true, shouldBypassAI: true,
+                        directReply: buildBatchCartReply(state, currency),
+                    }
+                }
+            }
+        }
+
+        // Quantité non reconnue → re-demander
+        const productForReask = findProductById(products, product_ids[current_index])
+        return {
+            state, capturedFields,
+            stateChanged: false, shouldBypassAI: true,
+            directReply: `Combien souhaitez-vous de "${productForReask?.name || 'cet article'}" ? (entrez un nombre)`,
+        }
+    }
+
     // Handler multi_product_combos : réponse client "2 Robe Noire XL, 1 Veste Rose S"
     // Supporte aussi les réponses ligne par ligne ou message par message.
     if (state.awaiting_field?.type === 'multi_product_combos') {
@@ -1690,12 +1791,12 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
             }
         }
 
-        const { prompt, overflow } = buildMultiProductPrompt(idleMultiProducts, currency)
+        // Quantités manquantes → demander une à une (séquentiel)
         state.stage = CART_STAGE.COLLECTING_ITEM
         state.awaiting_field = {
-            type: 'multi_product_combos',
+            type: 'multi_product_sequential',
             product_ids: idleMultiProducts.map(p => p.id),
-            overflow,
+            current_index: 0,
         }
         state.last_prompt_kind = CART_STAGE.COLLECTING_ITEM
         state.last_prompt_text = normalized
@@ -1705,7 +1806,7 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
             capturedFields,
             stateChanged: true,
             shouldBypassAI: true,
-            directReply: prompt,
+            directReply: `Pour ${idleMultiProducts[0].name}, quelle quantité souhaitez-vous ?`,
         }
     }
 
