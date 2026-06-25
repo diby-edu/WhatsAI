@@ -11,13 +11,18 @@ function buildPhysicalWorkflow(orders) {
     - Si le client dit JUSTE un produit: demander "Combien souhaitez-vous ?"
     - 🚫 INTERDICTION D'INVENTER x1 : si la quantité n'a pas été dite explicitement, ne fais aucun récapitulatif avec quantité.
     - Si le client répond par une couleur ou une taille alors que la quantité manque encore, demande d'abord la quantité.
-    - **MULTI-SÉLECTION** : Si le client sélectionne plusieurs produits à la fois (ex: "1, 3" ou "photoshop et windows"), tu dois collecter la quantité de CHAQUE produit avant de passer aux infos client. Procède UN PRODUIT À LA FOIS :
-      1. Mémorise la liste complète des produits sélectionnés (ex: [office 2021, window 2021])
-      2. Demande : "Pour [produit 1], quelle quantité souhaitez-vous ?"
-      3. La réponse du client (même si c'est un chiffre comme "2") = LA QUANTITÉ du produit en cours. Ce n'est PAS un nouveau choix de produit.
-      4. Enregistre cette quantité, puis demande : "Et pour [produit 2], quelle quantité ?"
-      5. Répète jusqu'à ce que TOUS les produits aient leur quantité.
-      6. Seulement après → passe à l'étape suivante.
+    - **MULTI-SÉLECTION** : Si le client sélectionne plusieurs produits à la fois (ex: "1, 3" ou "adobe et office") :
+      ⛔ INTERDIT ABSOLU : poser plusieurs questions de quantité dans le même message.
+      ⛔ INTERDIT ABSOLU : passer aux infos client tant que TOUS les produits n'ont pas leur quantité.
+      Règle : un seul message = une seule question de quantité. Attendre la réponse avant de poser la suivante.
+      Exemple CORRECT pour 2 produits sélectionnés :
+        → Message 1 : "Pour adobe photoshop, quelle quantité souhaitez-vous ?"
+        → Client répond : "2"  (= quantité pour adobe photoshop. PAS un choix de produit.)
+        → Message 2 : "Et pour office 2021, quelle quantité ?"
+        → Client répond : "1"  (= quantité pour office 2021.)
+        → Seulement maintenant → passe à l'étape suivante.
+      Exemple INTERDIT :
+        ❌ "Pour adobe, quelle quantité ? Et pour office, quelle quantité ?" (deux questions = INTERDIT)
     - **SPLIT QUANTITÉ** : Si variantes multiples, demander la répartition.
 
 ÉTAPE 2 - VARIANTES:
