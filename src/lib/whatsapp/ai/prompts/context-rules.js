@@ -126,19 +126,38 @@ const antiLoopRules = `
    11. Client : "Oui"
    12. Toi : → create_order
 
-📌 EXEMPLE DE FLUX CORRECT (💻 NUMÉRIQUE) :
+📌 EXEMPLE DE FLUX CORRECT (💻 NUMÉRIQUE — 1 PRODUIT) :
 
    1. Client : "Je veux Office 365"
-   2. Toi : RÉCAP 1 - "Voici votre commande : 1 Office 365 x 25,000 = 25,000 FCFA. On continue ?"
-   3. Client : "Oui"
-   4. Toi : "Pour finaliser, j'ai besoin de votre nom, téléphone et email."
-   5. Client : "Koli, +225 0789..., koli@email.com"
-   6. Toi : RÉCAP 2 - "Vos informations : • Nom : Koli • Tél : +225... • Email : koli@email.com • Paiement : En ligne (automatique). Souhaitez-vous ajouter une note ?"
+   2. Toi : "Combien souhaitez-vous en commander ?" ← TOUJOURS demander si quantité non dite
+   3. Client : "2"
+   4. Toi : RÉCAP 1 - "Voici votre commande : 2 Office 365 x 25,000 = 50,000 FCFA. On continue ?"
+   5. Client : "Oui"
+   6. Toi : "Pour finaliser, j'ai besoin de votre nom, téléphone et email."
+   7. Client : "Koli, +225 0789..., koli@email.com"
+   8. Toi : RÉCAP 2 - "Vos informations : • Nom : Koli • Tél : +225... • Email : koli@email.com • Paiement : En ligne (automatique). Souhaitez-vous ajouter une note ?"
       ⚠️ NOTE : PAS DE QUESTION DE PAIEMENT pour 💻 (toujours en ligne)
-   7. Client : "Non"
-   8. Toi : RÉCAP 3 FINAL - [Tout consolidé] "Confirmez-vous ?"
-   9. Client : "Oui"
-   10. Toi : → create_order (payment_method: "online")
+   9. Client : "Non"
+   10. Toi : RÉCAP 3 FINAL - [Tout consolidé] "Confirmez-vous ?"
+   11. Client : "Oui"
+   12. Toi : → create_order (payment_method: "online")
+
+📌 EXEMPLE DE FLUX CORRECT (💻 NUMÉRIQUE — PLUSIEURS PRODUITS) :
+
+   1. Client : "adobe et office" (ou "1 et 2" ou "les deux premiers")
+   2. Toi : "Pour adobe photoshop, quelle quantité souhaitez-vous ?" ← UN seul produit à la fois
+   3. Client : "2"  ← c'est LA QUANTITÉ pour adobe (pas un choix de produit)
+   4. Toi : "Et pour office 2021, quelle quantité ?"
+   5. Client : "1"
+   6. Toi : RÉCAP 1 - "Voici votre commande :
+      • adobe photoshop x 2 = 100 FCFA
+      • office 2021 x 1 = 75 FCFA
+      💰 Total : 175 FCFA. On continue ?"
+   7. Client : "Oui"
+   8. Toi : "Pour finaliser, j'ai besoin de votre nom, téléphone et email."
+   ... (suite identique)
+   ⛔ INTERDIT : poser plusieurs questions de quantité dans le même message
+   ⛔ INTERDIT : inventer qty=1 sans avoir demandé
 
 📌 EXEMPLE DE FLUX CORRECT (🛎️ SERVICE) :
 
@@ -188,9 +207,11 @@ const antiLoopRules = `
    - ✅ Le lien de paiement généré par create_order doit être envoyé au client
 
 🔢 QUANTITÉ:
-    - "100", "50", "20"(nombre seul) → C'est la quantité demandée
+    - Si le client mentionne un produit SANS quantité → demander "Combien souhaitez-vous ?" AVANT tout récap
+    - "100", "50", "20" (nombre seul pendant la collecte quantité) → C'est la quantité pour le produit en cours
         - "100 licence", "je veux 100", "oui 100" → Quantité = 100
-            - APRÈS avoir reçu un nombre → NE PLUS JAMAIS demander "combien ?"
+            - APRÈS avoir reçu un nombre → NE PLUS JAMAIS demander "combien ?" pour ce produit
+    - ⛔ INTERDIT D'INVENTER qty=1 si la quantité n'a pas été dite explicitement
 
 🏷️ VARIANTES:
     - Produits AVEC variantes(T-Shirt, Bougies) : demander couleur / taille
