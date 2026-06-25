@@ -1069,12 +1069,12 @@ function parseMultiProductBatchLines(products, text) {
         }
 
         // Quantité : extraction intelligente (début ou fin)
-        // Si absente et produit non-single-delivery → demander la quantité
+        // Si absente → toujours déclencher le flux séquentiel (même pour les produits digital_content)
         const rawQty = extractQuantityFromSegment(segment)
-        if (rawQty === null && !isSingleDeliveryDigitalProduct(targetProduct)) {
+        if (rawQty === null) {
             return { status: 'missing_quantities_multi', lines: [] }
         }
-        const quantity = normalizeQuantityForProduct(targetProduct, rawQty || 1)
+        const quantity = normalizeQuantityForProduct(targetProduct, rawQty)
 
         const draftItem = createDraftItem(targetProduct)
         draftItem.quantity = quantity
