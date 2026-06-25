@@ -903,7 +903,22 @@ function detectMultipleProducts(text, products) {
     const seen = new Set()
     const result = []
     for (const segment of segments) {
-        if (!segment || segment.length < 2) continue
+        if (!segment) continue
+
+        // Sélection par numéro d'index (ex: "1, 3" ou "1 et 3")
+        if (/^\d+$/.test(segment)) {
+            const idx = parseInt(segment, 10) - 1
+            if (idx >= 0 && idx < eligibleProducts.length) {
+                const product = eligibleProducts[idx]
+                if (!seen.has(product.id)) {
+                    seen.add(product.id)
+                    result.push(product)
+                }
+            }
+            continue
+        }
+
+        if (segment.length < 2) continue
         // findBestProduct avec seuil 15 au lieu de 30
         let best = null
         let bestScore = 0
@@ -1004,8 +1019,13 @@ function parseMultiProductBatchLines(products, text) {
             return { status: 'missing_product', segment, lines: [] }
         }
 
-        // Quantité : extraction intelligente (début ou fin), défaut = 1
-        const quantity = normalizeQuantityForProduct(targetProduct, extractQuantityFromSegment(segment) || 1)
+        // Quantité : extraction intelligente (début ou fin)
+        // Si absente et produit non-single-delivery → demander la quantité
+        const rawQty = extractQuantityFromSegment(segment)
+        if (rawQty === null && !isSingleDeliveryDigitalProduct(targetProduct)) {
+            return { status: 'missing_quantities_multi', lines: [] }
+        }
+        const quantity = normalizeQuantityForProduct(targetProduct, rawQty || 1)
 
         const draftItem = createDraftItem(targetProduct)
         draftItem.quantity = quantity
