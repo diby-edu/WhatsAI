@@ -1776,6 +1776,8 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
         ? detectMultipleProducts(normalized, products)
         : []
 
+    console.log(`[IDLE_MULTI] normalized="${normalized}" stage=${state.stage} draft=${!!state.draft_item} cartLen=${state.cart_items?.length||0} idleMultiProducts=[${idleMultiProducts.map(p=>p.name).join(',')}]`)
+
     if (idleMultiProducts.length >= 2) {
         const multiBatchParse = parseMultiProductBatchLines(idleMultiProducts, normalized)
 
