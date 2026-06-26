@@ -256,14 +256,12 @@ function isSingleDeliveryDigitalProduct(product = {}) {
 }
 
 function normalizeQuantityForProduct(product = {}, quantity) {
-    if (isSingleDeliveryDigitalProduct(product)) return 1
     return quantity
 }
 
 function normalizeDraftItemForProduct(product = {}, item = null) {
     if (!item) return item
-    if (!isSingleDeliveryDigitalProduct(product)) return item
-    return {
+    return item.quantity != null ? item : {
         ...item,
         quantity: 1,
     }
@@ -1264,13 +1262,7 @@ function getLineSignature(line) {
 
 function mergeOrAppendCartLine(cartItems = [], newLine, products = []) {
     const product = findProductById(products, newLine?.product_id)
-    const normalizedNewLine = isSingleDeliveryDigitalProduct(product)
-        ? {
-            ...cloneCartLine(newLine),
-            quantity: 1,
-            line_total: (newLine?.unit_price || 0),
-        }
-        : cloneCartLine(newLine)
+    const normalizedNewLine = cloneCartLine(newLine)
     const signature = getLineSignature(normalizedNewLine)
     let merged = false
 
@@ -1280,9 +1272,7 @@ function mergeOrAppendCartLine(cartItems = [], newLine, products = []) {
         }
 
         merged = true
-        const quantity = isSingleDeliveryDigitalProduct(product)
-            ? 1
-            : (item.quantity || 0) + (normalizedNewLine.quantity || 0)
+        const quantity = (item.quantity || 0) + (normalizedNewLine.quantity || 0)
         return {
             ...cloneCartLine(item),
             quantity,
