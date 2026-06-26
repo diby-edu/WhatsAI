@@ -914,7 +914,10 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                 tokensUsed: 0,
                 imageActions: []
             }
-            nextCartState = inferCartStateFromAssistantMessage(aiResponse.content, cartUpdate.state, orderableProducts, agentCurrency)
+            // Si le cart handler a produit le reply (shouldBypassAI), son état est déjà correct — ne pas réinférer
+            nextCartState = (cartUpdate.shouldBypassAI && cartUpdate.directReply)
+                ? cartUpdate.state
+                : inferCartStateFromAssistantMessage(aiResponse.content, cartUpdate.state, orderableProducts, agentCurrency)
             nextBookingState = inferBookingStateFromAssistantMessage(aiResponse.content, bookingUpdate.state, standardServiceProducts)
             nextRestaurantState = hasRestaurantCatalog
                 ? inferRestaurantStateFromAssistantMessage(aiResponse.content, restaurantUpdate.state)
