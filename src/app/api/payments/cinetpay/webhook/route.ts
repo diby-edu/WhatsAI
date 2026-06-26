@@ -268,7 +268,7 @@ async function handleCinetPayV2Webhook(body: {
                 )
                 const confirmationMessage = isRestaurantDepositPayment
                     ? `*Acompte recu !*\n\nMerci ! Votre acompte de ${paidAmount.toLocaleString('fr-FR')} FCFA pour la commande #${order.id.substring(0, 8)} a ete confirme.\n\nVotre commande est maintenant prise en charge.\n\nMerci pour votre confiance !`
-                    : `*Paiement recu !*\n\nMerci ! Votre paiement de *${paidAmount.toLocaleString('fr-FR')} FCFA* pour la commande #${order.id.substring(0, 8)} a ete confirme.\n\nVotre commande est maintenant en cours de traitement.\n\nMerci pour votre confiance !`
+                    : `*Paiement recu !*\n\nMerci ! Votre paiement de *${paidAmount.toLocaleString('fr-FR')} FCFA* pour la commande #${order.id.substring(0, 8)} a ete confirme.\n\nVotre commande est en cours de traitement. Vous recevrez une confirmation ici dans quelques secondes.\n\nMerci pour votre confiance !`
 
                 await queueAssistantMessage(order.agent_id, order.conversation_id, order.customer_phone, confirmationMessage)
 
@@ -569,7 +569,7 @@ export async function POST(request: NextRequest) {
                             )
                             const confirmationMessage = isRestaurantDepositPayment
                                 ? `*Acompte recu !*\n\nMerci ! Votre acompte de ${paidAmount.toLocaleString('fr-FR')} FCFA pour la commande #${order.id.substring(0, 8)} a ete confirme.\n\nVotre commande est maintenant prise en charge.\n\nMerci pour votre confiance !`
-                                : `*Paiement recu !*\n\nMerci ! Votre paiement de *${paidAmount.toLocaleString('fr-FR')} FCFA* pour la commande #${order.id.substring(0, 8)} a ete confirme.\n\nVotre commande est maintenant en cours de traitement.\n\nMerci pour votre confiance !`
+                                : `*Paiement recu !*\n\nMerci ! Votre paiement de *${paidAmount.toLocaleString('fr-FR')} FCFA* pour la commande #${order.id.substring(0, 8)} a ete confirme.\n\nVotre commande est en cours de traitement. Vous recevrez une confirmation ici dans quelques secondes.\n\nMerci pour votre confiance !`
 
                             // HYBRID ROUTING: Check for active conversation
                             // STRATEGY: 1. Try Hard Link (conversation_id) -> 2. Try Soft Link (agent + phone)

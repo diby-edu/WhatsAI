@@ -522,7 +522,7 @@ function buildOrderRecap(cartState = {}, checkoutState = {}, context) {
         return 'Recapitulatif :\n\nJe suis pret a finaliser votre commande. Confirmez-vous ?'
     }
 
-    const lines = ['Recapitulatif :', '']
+    const lines = ['Récapitulatif :', '']
     const total = cartItems.reduce((sum, item) => {
         if (Number.isFinite(Number(item.line_total))) return sum + Number(item.line_total)
 
@@ -598,9 +598,9 @@ function buildCapturedSummary(captured = []) {
         const entry = captured[0]
         switch (entry.type) {
             case 'customer_name': return `Super, ${entry.value} !`
-            case 'customer_phone': return 'Parfait !'
-            case 'email': return 'D\'accord !'
-            case 'delivery_address': return 'D\'accord !'
+            case 'customer_phone': return 'Bien noté !'
+            case 'email': return 'Email bien noté !'
+            case 'delivery_address': return 'Adresse notée !'
             case 'payment_method': return entry.value === 'cod' ? 'Paiement a la livraison, entendu !' : 'Paiement en ligne, entendu !'
             case 'notes': return entry.value === 'Aucune' ? 'Aucun probleme !' : 'Noté !'
             default: return 'D\'accord !'
