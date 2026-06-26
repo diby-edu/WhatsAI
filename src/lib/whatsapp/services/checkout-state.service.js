@@ -522,7 +522,6 @@ function buildOrderRecap(cartState = {}, checkoutState = {}, context) {
         return 'Recapitulatif :\n\nJe suis pret a finaliser votre commande. Confirmez-vous ?'
     }
 
-    const lines = ['Récapitulatif :', '']
     const total = cartItems.reduce((sum, item) => {
         if (Number.isFinite(Number(item.line_total))) return sum + Number(item.line_total)
 
@@ -537,6 +536,13 @@ function buildOrderRecap(cartState = {}, checkoutState = {}, context) {
         return sum + ((pricing.price || product.price_fcfa || 0) * (item.quantity || 0))
     }, 0)
 
+    const paymentLabel = checkoutState.collected.payment_method === 'cod' ? 'A la livraison' : 'En ligne'
+    const noteLabel = checkoutState.note_declined || !checkoutState.collected.notes
+        ? 'Aucune'
+        : checkoutState.collected.notes
+
+    const lines = ['*Récapitulatif de votre commande*', '', '🛒 *Produits*']
+
     cartItems.forEach(item => {
         const variants = Object.values(item.selected_variants || {}).filter(Boolean).join(', ')
         const variantSuffix = variants ? ` (${variants})` : ''
@@ -544,36 +550,29 @@ function buildOrderRecap(cartState = {}, checkoutState = {}, context) {
             ? Number(item.line_total)
             : ((Number(item.unit_price) || 0) * (item.quantity || 0))
 
-        lines.push(`- Produit : ${item.product_name}${variantSuffix} x ${item.quantity} = ${lineTotal.toLocaleString('fr-FR')} FCFA`)
+        lines.push(`• ${item.product_name}${variantSuffix} x ${item.quantity} = ${lineTotal.toLocaleString('fr-FR')} FCFA`)
     })
 
-    const paymentLabel = checkoutState.collected.payment_method === 'cod' ? 'A la livraison' : 'En ligne'
-    const noteLabel = checkoutState.note_declined || !checkoutState.collected.notes
-        ? 'Aucune'
-        : checkoutState.collected.notes
-
-    lines.push(
-        '',
-        `- Nom : ${checkoutState.collected.customer_name || 'Non renseigne'}`,
-        `- Tel : ${checkoutState.collected.customer_phone || 'Non renseigne'}`,
-    )
+    lines.push('', '👤 *Vos infos*')
+    lines.push(`• Nom : ${checkoutState.collected.customer_name || 'Non renseigne'}`)
+    lines.push(`• Tel : ${checkoutState.collected.customer_phone || 'Non renseigne'}`)
 
     if (context.requiresEmail) {
-        lines.push(`- Email : ${checkoutState.collected.email || 'Non renseignee'}`)
+        lines.push(`• Email : ${checkoutState.collected.email || 'Non renseignee'}`)
     }
 
     if (context.requiresAddress) {
-        lines.push(`- Adresse : ${checkoutState.collected.delivery_address || 'Non renseignee'}`)
+        lines.push(`• Adresse : ${checkoutState.collected.delivery_address || 'Non renseignee'}`)
     }
 
-    lines.push(`- Paiement : ${paymentLabel}`)
-    lines.push(`- *Total : ${total.toLocaleString('fr-FR')} FCFA*`)
+    lines.push(`• Paiement : ${paymentLabel}`)
 
     if (context.requiresNotes) {
-        lines.push(`- Note : ${noteLabel}`)
+        lines.push(`• Note : ${noteLabel}`)
     }
 
-    lines.push('', 'Confirmez-vous ? (oui / modifier infos / modifier panier)')
+    lines.push('', `*Total : ${total.toLocaleString('fr-FR')} FCFA*`)
+    lines.push('', 'Confirmez-vous ? Répondez *oui*, *modifier infos* ou *modifier sélection*')
 
     return lines.join('\n')
 }
