@@ -1096,6 +1096,9 @@ async function handlePaidAccountCleanup(): Promise<void> {
                 if (deleteError) {
                     failed += 1
                     console.error(`[CRON] Failed to delete expired paid account ${profile.email || profile.id}:`, deleteError.message)
+                    // Clear grace_until to stop infinite retry loop — requires manual admin intervention
+                    await supabase.from('profiles').update({ grace_until: null }).eq('id', profile.id)
+                    console.warn(`[CRON] grace_until cleared for ${profile.email || profile.id} — manual deletion required`)
                     await persistSystemDeletionAudit(supabase, {
                         profile,
                         reason: 'expired_paid_grace',
@@ -1103,7 +1106,7 @@ async function handlePaidAccountCleanup(): Promise<void> {
                         liveState,
                         beforeSnapshot: beforeSnapshot || buildEmptyDeletionSnapshot(),
                         failureMessage: deleteError.message,
-                        note: 'auth_delete_failed',
+                        note: 'auth_delete_failed_grace_cleared',
                     })
                     continue
                 }
