@@ -41,6 +41,7 @@ import WhatsAppButton from '@/components/landing/WhatsAppButton';
 import HomeButton from '@/components/HomeButton';
 import StatusBarInit from '@/components/StatusBarInit';
 import MotionProvider from '@/components/MotionProvider';
+import ChunkErrorReload from '@/components/ChunkErrorReload';
 
 export default async function RootLayout({
   children,
@@ -57,6 +58,7 @@ export default async function RootLayout({
       <body className={`${inter.variable} antialiased`}>
         <NextIntlClientProvider messages={messages} locale={locale} timeZone="Africa/Abidjan">
           <MotionProvider>
+            <ChunkErrorReload />
             <StatusBarInit />
             {children}
             <WhatsAppButton />
