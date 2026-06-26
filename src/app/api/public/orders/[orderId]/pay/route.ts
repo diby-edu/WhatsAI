@@ -214,7 +214,7 @@ export async function POST(
             customerName: order.customer_name || 'Client',
             customerEmail: order.customer_email || undefined,
             customerPhone: order.customer_phone || '',
-            returnUrl: `${baseUrl}/pay/${orderId}`,
+            returnUrl: `${baseUrl}/pay/${orderId}?status=success`,
             failedUrl: `${baseUrl}/pay/${orderId}?payment=cancelled`,
             notifyUrl: `${baseUrl}/api/payments/${paymentProvider}/webhook`,
             metadata,

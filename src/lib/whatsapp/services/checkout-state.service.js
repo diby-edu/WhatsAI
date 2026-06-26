@@ -215,7 +215,7 @@ function buildAwaitingFieldValidationReply(awaitingField, text) {
 
     if (fieldType === 'customer_phone') {
         if (looksLikeLocalPhoneWithoutCountryCode(text)) {
-            return "Votre numero doit inclure l'indicatif pays. Exemple : +2250700000000."
+            return "Votre numero doit inclure l'indicatif pays. Exemple : +2250554585927."
         }
 
         const digits = String(text || '').replace(/[^\d+]/g, '')
@@ -389,7 +389,7 @@ function buildAwaitingField(field, context) {
         customer_phone: {
             type: 'customer_phone',
             label: 'numero de telephone',
-            prompt: 'Quel est votre numero de telephone avec indicatif ? (ex : +2250700000000)'
+            prompt: 'Quel est votre numero de telephone avec indicatif ? (ex : +2250554585927)'
         },
         email: {
             type: 'email',
@@ -567,7 +567,7 @@ function buildOrderRecap(cartState = {}, checkoutState = {}, context) {
     }
 
     lines.push(`- Paiement : ${paymentLabel}`)
-    lines.push(`- Total : ${total.toLocaleString('fr-FR')} FCFA`)
+    lines.push(`- *Total : ${total.toLocaleString('fr-FR')} FCFA*`)
 
     if (context.requiresNotes) {
         lines.push(`- Note : ${noteLabel}`)
