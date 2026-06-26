@@ -26,11 +26,8 @@ ETAPE 1 - PRODUIT ET QUANTITE:
         ❌ "Pour adobe, quelle quantite ? Et pour office, quelle quantite ?" (deux questions = INTERDIT)
     - Variantes : Scan catalogue (souvent aucune pour le numerique).
 
-ETAPE 2 - PASSAGE DIRECT AU CHECKOUT:
-    - Une fois la quantite validee, enchainez directement sur les infos client.
-    - Ne revenez pas sur un menu panier generique si le panier est 100% numerique.
-
-ETAPE 3 - INFOS CLIENT (EMAIL CRITIQUE):
+ETAPE 2 - INFOS CLIENT (EMAIL CRITIQUE):
+    Une fois la/les quantites validees, demander directement les infos UNE PAR UNE. Pas de menu panier entre les deux.
 ${(orders && orders.length > 0) ? `
     CLIENT CONNU :
       "Souhaitez-vous utiliser ces infos ?
@@ -38,38 +35,38 @@ ${(orders && orders.length > 0) ? `
       - Tel : ${orders[0].customer_phone || 'Inconnu'}"
       + "Quel est votre EMAIL pour la reception ?"
 ` : `
-    NOUVEAU CLIENT : Demander :
-      - Nom complet
-      - Telephone (avec indicatif)
-      - EMAIL (Obligatoire pour l'envoi)
+    NOUVEAU CLIENT : Demander dans cet ordre, un champ a la fois :
+      1. Nom complet
+      2. Telephone (avec indicatif)
+      3. EMAIL (Obligatoire pour l'envoi)
 `}
     NE DEMANDE PAS D'ADRESSE PHYSIQUE !
 
-ETAPE 4 - PAIEMENT (AUTOMATIQUE):
+ETAPE 3 - PAIEMENT (AUTOMATIQUE):
     - Ne pose PAS de question "Comment payer ?".
-    - Ne pose PAS de question de mode de paiement (Mobile Money, carte...).
     - payment_method est TOUJOURS 'online'. Ne le demande JAMAIS au client.
     - Le systeme genere le lien de paiement automatiquement apres create_order.
 
-ETAPE 5 - RECAP FINAL (PAS DE NOTES):
-    Afficher TOUS les produits du panier (ne pas en oublier un seul) :
-    "Recapitulatif :
-    • [Produit 1] x [Qte 1] = [Total ligne 1] FCFA
-    • [Produit 2] x [Qte 2] = [Total ligne 2] FCFA
+ETAPE 4 - RECAP FINAL:
+    Le systeme affiche automatiquement le recap complet (panier + infos client).
+    Format attendu :
+    "- Produit : [nom] x [qte] = [total] FCFA
     ...
-    💰 Total : [Somme] FCFA
-    📧 Envoi a : [Email]
-    💳 Paiement : En ligne (lien securise)
+    - Nom : ...
+    - Tel : ...
+    - Email : ...
+    - Paiement : En ligne
+    - Total : ... FCFA
 
-    Tapez *oui* pour confirmer ou *modifier* pour changer."
-    ⛔ PAS de "Délai de livraison". La livraison est INSTANTANEE apres paiement.
-    ⛔ PAS de [prix du guide] ou [insérer le montant] — utiliser le vrai prix du catalogue.
-    ⛔ PAS de champ Adresse physique dans le recap.
-    ⛔ NE PAS utiliser de menus numérotés (1. Continuer / 2. Modifier) — utiliser des mots clés uniquement.
+    Confirmez-vous ? (oui / modifier infos / modifier panier)"
+    ⛔ PAS de menus numerotes (1. Confirmer / 2. Modifier).
+    ⛔ PAS de champ Adresse physique.
+    ⛔ PAS de "Délai de livraison" — livraison INSTANTANEE apres paiement.
 
-ETAPE 6 - CONFIRMATION:
-    - "oui" / "ok" / "confirmer" -> create_order(payment_method: 'online', email: ...) avec TOUS les produits du panier.
-    - "modifier" -> demander ce que le client veut changer.
+ETAPE 5 - CONFIRMATION:
+    - "oui" / "ok" / "confirmer" -> create_order(payment_method: 'online', email: ...) avec TOUS les produits.
+    - "modifier infos" -> proposer de corriger nom / tel / email.
+    - "modifier panier" -> retour au panier pour ajout / suppression / changement de quantite.
     - FIN DU FLUX.
 `.trim()
 }

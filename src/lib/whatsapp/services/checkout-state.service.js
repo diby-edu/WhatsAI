@@ -465,13 +465,6 @@ function recomputeCheckoutProgress(state, context) {
         return state
     }
 
-    if (!state.customer_recap_confirmed) {
-        state.stage = CHECKOUT_STAGE.CUSTOMER_RECAP
-        state.pending_fields = []
-        state.awaiting_field = buildAwaitingField('customer_recap', context)
-        return state
-    }
-
     if (context.requiresNotes && state.collected.notes === null && !state.note_declined) {
         state.stage = CHECKOUT_STAGE.NOTES
         state.pending_fields = ['notes']
@@ -580,7 +573,7 @@ function buildOrderRecap(cartState = {}, checkoutState = {}, context) {
         lines.push(`- Note : ${noteLabel}`)
     }
 
-    lines.push('', '1. Confirmer ma commande', '2. Modifier mes informations', '3. Modifier le panier')
+    lines.push('', 'Confirmez-vous ? (oui / modifier infos / modifier panier)')
 
     return lines.join('\n')
 }

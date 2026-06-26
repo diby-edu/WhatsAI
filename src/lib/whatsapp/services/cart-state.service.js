@@ -1445,7 +1445,6 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
         return { state, capturedFields, stateChanged, shouldBypassAI, directReply: null, questionDetected: false }
     }
 
-    console.log(`[DISPATCH] normalized="${normalized}" stage=${state.stage} draft=${!!state.draft_item} awaiting=${JSON.stringify(state.awaiting_field?.type || null)}`)
 
     const questionDetected = allowKnowledgeInterrupt && looksLikeKnowledgeQuestion(normalized)
     if (questionDetected && (state.stage !== CART_STAGE.IDLE || state.draft_item || state.cart_items.length > 0 || state.awaiting_field)) {
@@ -1634,30 +1633,23 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
     // Handler multi_product_sequential : quantités demandées UN PAR UN pour chaque produit
     if (state.awaiting_field?.type === 'multi_product_sequential') {
         const { product_ids, current_index } = state.awaiting_field
-        console.log(`[SEQ] handler reached. normalized="${normalized}" current_index=${current_index} product_ids=${JSON.stringify(product_ids)}`)
         const currentProduct = findProductById(products, product_ids[current_index])
-        console.log(`[SEQ] currentProduct=${currentProduct?.name} id=${currentProduct?.id}`)
 
         if (currentProduct) {
             const rawQty = extractQuantityFromSegment(normalized) || (Number(normalized) > 0 ? Number(normalized) : null)
-            console.log(`[SEQ] rawQty=${rawQty}`)
             if (rawQty && rawQty > 0) {
                 const qty = normalizeQuantityForProduct(currentProduct, rawQty)
-                console.log(`[SEQ] qty after normalize=${qty}`)
                 const draftItem = createDraftItem(currentProduct)
                 draftItem.quantity = qty
                 const completedItem = normalizeDraftItemForProduct(currentProduct, draftItem)
                 const lineResult = buildLineFromDraft(currentProduct, completedItem, (state.cart_items || []).length + 1)
-                console.log(`[SEQ] lineResult=${JSON.stringify(lineResult)}`)
 
                 if (!lineResult.error) {
                     state.cart_items = mergeOrAppendCartLine(state.cart_items || [], lineResult.line, products)
                     const nextIndex = current_index + 1
-                    console.log(`[SEQ] nextIndex=${nextIndex} product_ids.length=${product_ids.length}`)
 
                     if (nextIndex < product_ids.length) {
                         const nextProduct = findProductById(products, product_ids[nextIndex])
-                        console.log(`[SEQ] asking next: ${nextProduct?.name}`)
                         state.awaiting_field = { ...state.awaiting_field, current_index: nextIndex }
                         return {
                             state, capturedFields,
@@ -1666,16 +1658,21 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
                         }
                     }
 
-                    // Tous les produits ont leur quantité → RÉCAP 1
+                    // Tous les produits ont leur quantité → CHECKOUT direct (pas de RÉCAP 1)
                     state.draft_item = null
-                    state.stage = CART_STAGE.CART_RECAP
-                    state.awaiting_field = buildCartActionField()
-                    state.last_prompt_kind = CART_STAGE.CART_RECAP
+                    state.awaiting_field = null
+                    if (isDigitalOnlyCartItems(state.cart_items, products)) {
+                        state.stage = CART_STAGE.CHECKOUT
+                        state.last_prompt_kind = CART_STAGE.CHECKOUT
+                    } else {
+                        state.stage = CART_STAGE.CART_RECAP
+                        state.awaiting_field = buildCartActionField()
+                        state.last_prompt_kind = CART_STAGE.CART_RECAP
+                    }
                     state.last_prompt_text = normalized
                     return {
                         state, capturedFields,
-                        stateChanged: true, shouldBypassAI: true,
-                        directReply: buildBatchCartReply(state, currency),
+                        stateChanged: true, shouldBypassAI: false, directReply: null,
                     }
                 }
             }
@@ -1683,7 +1680,6 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
 
         // Quantité non reconnue → re-demander
         const productForReask = findProductById(products, product_ids[current_index])
-        console.log(`[SEQ] fallback re-demander for ${productForReask?.name}`)
         return {
             state, capturedFields,
             stateChanged: false, shouldBypassAI: true,
@@ -1768,7 +1764,6 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
         ? detectMultipleProducts(normalized, products)
         : []
 
-    console.log(`[IDLE_MULTI] normalized="${normalized}" stage=${state.stage} draft=${!!state.draft_item} cartLen=${state.cart_items?.length||0} idleMultiProducts=[${idleMultiProducts.map(p=>p.name).join(',')}]`)
 
     if (idleMultiProducts.length >= 2) {
         const multiBatchParse = parseMultiProductBatchLines(idleMultiProducts, normalized)
@@ -2468,9 +2463,19 @@ function resetCartToRecap(state, currency = 'XOF') {
         last_prompt_kind: CART_STAGE.CART_RECAP,
         draft_item: null,
     }
+    const lines = ['Votre panier actuel :']
+    let total = 0
+    for (const item of newState.cart_items || []) {
+        const lineTotal = Number(item.line_total) || 0
+        total += lineTotal
+        lines.push(`· ${item.product_name} x ${item.quantity} = ${lineTotal.toLocaleString('fr-FR')} ${currency}`)
+    }
+    lines.push(`\n💰 Total : ${total.toLocaleString('fr-FR')} ${currency}`)
+    lines.push('\nQue souhaitez-vous modifier ?')
+    lines.push('(quantité ex: "3 adobe" · supprimer ex: "supprimer window" · ajouter ex: "ajouter office" · ou tapez "ok" pour confirmer)')
     return {
         state: newState,
-        directReply: buildCartRecap(newState, currency),
+        directReply: lines.join('\n'),
     }
 }
 
