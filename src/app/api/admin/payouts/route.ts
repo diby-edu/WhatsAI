@@ -26,14 +26,13 @@ export async function GET(request: NextRequest) {
 
     try {
         if (view === 'balances') {
-            // Get all merchants who have completed order payments
-            const { data: orderPayments, error: paymentsError } = await adminSupabase
-                .from('payments')
-                .select('user_id, amount_fcfa')
-                .eq('status', 'completed')
-                .eq('payment_type', 'one_time')
+            // Get all paid orders with their agent (merchant) info
+            const { data: paidOrders, error: ordersError } = await adminSupabase
+                .from('orders')
+                .select('total_fcfa, agent_id, agents!orders_agent_id_fkey(user_id)')
+                .eq('status', 'paid')
 
-            if (paymentsError) throw paymentsError
+            if (ordersError) throw ordersError
 
             // Get all completed payouts
             const { data: completedPayouts, error: payoutsError } = await adminSupabase
@@ -43,8 +42,12 @@ export async function GET(request: NextRequest) {
 
             if (payoutsError) throw payoutsError
 
-            // Get merchant profiles
-            const merchantIds = [...new Set(orderPayments?.map(p => p.user_id) || [])]
+            // Extract merchant user_ids from orders via agents
+            const merchantIds = [...new Set(
+                (paidOrders || [])
+                    .map((o: any) => o.agents?.user_id)
+                    .filter(Boolean)
+            )]
 
             const { data: merchantProfiles } = await adminSupabase
                 .from('profiles')
@@ -53,9 +56,9 @@ export async function GET(request: NextRequest) {
 
             // Calculate balances per merchant
             const balances = merchantIds.map(userId => {
-                const totalCollected = (orderPayments || [])
-                    .filter(p => p.user_id === userId)
-                    .reduce((sum, p) => sum + (p.amount_fcfa || 0), 0)
+                const merchantOrders = (paidOrders || []).filter((o: any) => o.agents?.user_id === userId)
+
+                const totalCollected = merchantOrders.reduce((sum: number, o: any) => sum + (o.total_fcfa || 0), 0)
 
                 const totalPaidOut = (completedPayouts || [])
                     .filter(p => p.user_id === userId)
@@ -64,9 +67,6 @@ export async function GET(request: NextRequest) {
                 const totalCommission = (completedPayouts || [])
                     .filter(p => p.user_id === userId)
                     .reduce((sum, p) => sum + (p.commission_amount || 0), 0)
-
-                const ordersCount = (orderPayments || [])
-                    .filter(p => p.user_id === userId).length
 
                 const merchantProfile = merchantProfiles?.find(m => m.id === userId)
 
@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
                     total_paid_out: totalPaidOut,
                     total_commission: totalCommission,
                     balance_due: totalCollected - totalPaidOut - totalCommission,
-                    orders_count: ordersCount
+                    orders_count: merchantOrders.length
                 }
             }).sort((a, b) => b.balance_due - a.balance_due)
 
