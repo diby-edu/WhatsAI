@@ -296,39 +296,24 @@ async function handleCreateOrder(args, agentId, products, conversationId, supaba
             console.error('🔔 Notification error (non-blocking):', notifError)
         }
 
-        // Génération du résumé GROUPÉ (pour l'affichage Clean)
-        // Génération du résumé GROUPÉ et DÉTAILLÉ (Format v5: Qty X Unit = Total)
-        const groupedSummary = {}
-
-        // On itère sur orderItems pour avoir les prix validés
+        // Génération du résumé ligne par ligne
+        const itemLines = []
         orderItems.forEach(item => {
-            // Retrouver le Nom produit de base (sans variantes)
-            // item.product_name est "T-Shirt (Rouge)" ou juste "T-Shirt"
-
             let baseName = item.product_name
             let variantDetail = 'Standard'
 
             if (baseName.includes('(')) {
                 const part = baseName.split('(')
                 baseName = part[0].trim()
-                // Retirer la dernière parenthèse fermante
                 variantDetail = part[1].substring(0, part[1].length - 1).trim()
             }
 
-            if (!groupedSummary[baseName]) groupedSummary[baseName] = { lines: [], subTotal: 0 }
-
             const lineTotal = item.quantity * item.unit_price_fcfa
-            groupedSummary[baseName].subTotal += lineTotal
-
-            // Format: "- Rouge 2 X 15,000 = 30,000 FCFA"
-            // Ou "- Standard 2 X 15,000 = 30,000 FCFA"
-            const lineStr = `- ${variantDetail} ${item.quantity} X ${item.unit_price_fcfa.toLocaleString('fr-FR')} = ${lineTotal.toLocaleString('fr-FR')} FCFA`
-            groupedSummary[baseName].lines.push(lineStr)
+            const nameDisplay = variantDetail === 'Standard' ? baseName : `${baseName} (${variantDetail})`
+            itemLines.push(`*• ${nameDisplay}:*  ${item.quantity} X ${item.unit_price_fcfa.toLocaleString('fr-FR')} = ${lineTotal.toLocaleString('fr-FR')} FCFA`)
         })
 
-        const itemsSummary = Object.entries(groupedSummary).map(([name, data]) => {
-            return `*${name}* :\n${data.lines.join('\n')}\nSous-total = ${data.subTotal.toLocaleString('fr-FR')} FCFA`
-        }).join('\n\n')
+        const itemsSummary = itemLines.join('\n')
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://wazzapai.com'
 
         if (normalizedPaymentMethod === 'cod') {
@@ -364,9 +349,9 @@ async function handleCreateOrder(args, agentId, products, conversationId, supaba
             })
         }
 
-        // CinetPay
+        // Paiement en ligne
         const payLink = `${appUrl}/pay/${order.id}`
-        let msg = `✅ Commande créée ! Voici le lien de paiement sécurisé pour *${total} FCFA* :\n${payLink}`
+        let msg = `✅ Commande enregistrée !\n\n${itemsSummary}\n*Total : ${total} FCFA*\n\n💳 Lien de paiement sécurisé :\n${payLink}`
         if (agent.escalation_phone) msg += `\n\n📞 En cas de besoin, contactez le service client au ${agent.escalation_phone}.`
         return JSON.stringify({
             success: true, order_id: order.id, total: total, payment_method: 'online',
