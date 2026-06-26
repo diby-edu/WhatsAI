@@ -783,6 +783,21 @@ export async function checkWhatsAppService(): Promise<void> {
             clearTimeout(timeout)
         }
 
+        // Double-check après 20s pour ignorer les redémarrages courts (pm2 restart)
+        if (isDown) {
+            await new Promise(resolve => setTimeout(resolve, 20000))
+            const controller2 = new AbortController()
+            const timeout2 = setTimeout(() => controller2.abort(), 5000)
+            try {
+                const res2 = await fetch(`${botUrl}/health`, { signal: controller2.signal })
+                if (res2.ok) isDown = false
+            } catch {
+                // toujours down
+            } finally {
+                clearTimeout(timeout2)
+            }
+        }
+
         if (isDown) {
             const now = Date.now()
             const cooldown = 30 * 60 * 1000 // 30 minutes
