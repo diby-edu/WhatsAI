@@ -1455,6 +1455,8 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
         return { state, capturedFields, stateChanged, shouldBypassAI, directReply: null, questionDetected: false }
     }
 
+    console.log(`[DISPATCH] normalized="${normalized}" stage=${state.stage} draft=${!!state.draft_item} awaiting=${JSON.stringify(state.awaiting_field?.type || null)}`)
+
     const questionDetected = allowKnowledgeInterrupt && looksLikeKnowledgeQuestion(normalized)
     if (questionDetected && (state.stage !== CART_STAGE.IDLE || state.draft_item || state.cart_items.length > 0 || state.awaiting_field)) {
         return {
