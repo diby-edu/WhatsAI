@@ -952,9 +952,10 @@ function updateCheckoutStateFromUserMessage(previousState, text, options = {}) {
                 if (state.pending_fields.includes('customer_name') && !state.collected.customer_name) {
                     const name = extractCustomerName(segment)
                     if (name) {
-                        state.collected.customer_name = name
+                        const capitalizedName = name.split(' ').map(w => w ? w.charAt(0).toUpperCase() + w.slice(1) : w).join(' ')
+                        state.collected.customer_name = capitalizedName
                         removePendingField(state, 'customer_name')
-                        capturedFields.push({ type: 'customer_name', value: name })
+                        capturedFields.push({ type: 'customer_name', value: capitalizedName })
                         continue
                     }
                 }
@@ -984,9 +985,10 @@ function updateCheckoutStateFromUserMessage(previousState, text, options = {}) {
                 // Bot was asking for name (or anything else)
                 const name = extractCustomerName(segment, true) // lenient: accept 1 token
                 if (name && state.pending_fields.includes('customer_name') && !state.collected.customer_name) {
-                    state.collected.customer_name = name
+                    const capitalizedName = name.split(' ').map(w => w ? w.charAt(0).toUpperCase() + w.slice(1) : w).join(' ')
+                    state.collected.customer_name = capitalizedName
                     removePendingField(state, 'customer_name')
-                    capturedFields.push({ type: 'customer_name', value: name })
+                    capturedFields.push({ type: 'customer_name', value: capitalizedName })
                 } else if (context.requiresAddress && state.pending_fields.includes('delivery_address') && !state.collected.delivery_address) {
                     // Name extraction failed (too many tokens?) → try as address
                     const address = extractDeliveryAddress(segment)
