@@ -50,15 +50,24 @@ ETAPE 3 - PAIEMENT (AUTOMATIQUE):
 ETAPE 4 - RECAP FINAL:
     Le systeme affiche automatiquement le recap complet (panier + infos client).
     Format attendu :
-    "- Produit : [nom] x [qte] = [total] FCFA
-    ...
-    - Nom : ...
-    - Tel : ...
-    - Email : ...
-    - Paiement : En ligne
-    - Total : ... FCFA
+    "*Recapitulatif de votre commande*
 
-    Confirmez-vous ? (oui / modifier infos / modifier panier)"
+    🛒 *Produits*
+    • [nom] x [qte] = [total] FCFA
+    ...
+
+    👤 *Vos infos*
+    • Nom : ...
+    • Tel : ...
+    • Email : ...
+    • Paiement : En ligne
+
+    *Total : ... FCFA*
+
+    Confirmez-vous ?
+    → *oui* — confirmer la commande
+    → *modifier infos* — changer nom / tel / email
+    → *modifier produit* — changer les produits"
     ⛔ PAS de menus numerotes (1. Confirmer / 2. Modifier).
     ⛔ PAS de champ Adresse physique.
     ⛔ PAS de "Délai de livraison" — livraison INSTANTANEE apres paiement.
@@ -66,7 +75,7 @@ ETAPE 4 - RECAP FINAL:
 ETAPE 5 - CONFIRMATION:
     - "oui" / "ok" / "confirmer" -> create_order(payment_method: 'online', email: ...) avec TOUS les produits.
     - "modifier infos" -> proposer de corriger nom / tel / email.
-    - "modifier panier" -> retour au panier pour ajout / suppression / changement de quantite.
+    - "modifier produit" -> retour au panier pour ajout / suppression / changement de quantite.
     - FIN DU FLUX.
 `.trim()
 }

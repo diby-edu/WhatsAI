@@ -572,7 +572,7 @@ function buildOrderRecap(cartState = {}, checkoutState = {}, context) {
     }
 
     lines.push('', `*Total : ${total.toLocaleString('fr-FR')} FCFA*`)
-    lines.push('', 'Confirmez-vous ? Répondez *oui*, *modifier infos* ou *modifier sélection*')
+    lines.push('', 'Confirmez-vous ?', '→ *oui* — confirmer la commande', '→ *modifier infos* — changer nom / tél / email', '→ *modifier produit* — changer les produits')
 
     return lines.join('\n')
 }
@@ -744,7 +744,7 @@ function updateCheckoutStateFromUserMessage(previousState, text, options = {}) {
     }
 
     if (state.stage === CHECKOUT_STAGE.CONFIRMATION) {
-        const isReturnToCart = normalizedText === '3' || /panier|article/i.test(normalizedText)
+        const isReturnToCart = normalizedText === '3' || /panier|article|produit/i.test(normalizedText)
         const isConfirm = normalizedText === '1' || isPositiveReply(normalizedText)
         const isModify = normalizedText === '2' || isNegativeReply(normalizedText) || /modif/i.test(normalizedText)
 
