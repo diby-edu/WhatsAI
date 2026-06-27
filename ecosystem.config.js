@@ -3,8 +3,8 @@ module.exports = {
         {
             // Next.js Web Application
             name: 'whatsai-web',
-            script: 'npm',
-            args: 'start',
+            script: '/root/WhatsAI/node_modules/.bin/next',
+            args: 'start -p 3000',
             cwd: '/root/WhatsAI',
             env: {
                 NODE_ENV: 'production',
