@@ -17,7 +17,8 @@ import {
     XCircle,
     ExternalLink,
     Star,
-    Calendar
+    Calendar,
+    Wallet
 } from 'lucide-react'
 import { useTranslations, useFormatter } from 'next-intl'
 import { useCurrency } from '@/contexts/CurrencyContext'
@@ -110,6 +111,8 @@ function BillingContent() {
     const [lifecycleStatus, setLifecycleStatus] = useState<string | null>(null)
     const [payments, setPayments] = useState<Payment[]>([])
     const [subscriptionHistory, setSubscriptionHistory] = useState<any[]>([])
+    const [merchantBalance, setMerchantBalance] = useState<{ total_collected: number; total_paid_out: number; total_commission: number; balance_due: number; orders_count: number } | null>(null)
+    const [merchantPayouts, setMerchantPayouts] = useState<any[]>([])
     const [plans, setPlans] = useState<Plan[]>([])
     const [creditPacks, setCreditPacks] = useState<CreditPack[]>([])
     const [loading, setLoading] = useState(true)
@@ -158,7 +161,11 @@ function BillingContent() {
             ? payment.completed_at
             : payment.created_at
 
-        return format.dateTime(new Date(dateSource), {
+        if (!dateSource) return '—'
+        const d = new Date(dateSource)
+        if (isNaN(d.getTime()) || d.getFullYear() < 2000) return '—'
+
+        return format.dateTime(d, {
             year: 'numeric',
             month: 'long',
             day: 'numeric',
@@ -273,6 +280,7 @@ function BillingContent() {
         fetchPayments()
         fetchPaymentConfig()
         fetchSubscriptionHistory()
+        fetchMerchantPayouts()
     }, [])
 
     useEffect(() => {
@@ -451,6 +459,19 @@ function BillingContent() {
         } catch (err) {
             console.error('Error fetching payments:', err)
         }
+    }
+
+    const fetchMerchantPayouts = async () => {
+        try {
+            const res = await fetch('/api/dashboard/payouts')
+            if (res.ok) {
+                const data = await res.json()
+                if (data.data?.balance?.orders_count > 0) {
+                    setMerchantBalance(data.data.balance)
+                    setMerchantPayouts(data.data.payouts || [])
+                }
+            }
+        } catch { /* non-bloquant */ }
     }
 
     const fetchSubscriptionHistory = async () => {
@@ -1501,6 +1522,56 @@ function BillingContent() {
                     ))}
                 </div>
             </div>
+
+            {/* Reversements marchands */}
+            {merchantBalance && (
+                <div>
+                    <h2 style={{ fontSize: 16, fontWeight: 600, color: 'white', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <Wallet style={{ width: 18, height: 18, color: '#34d399' }} />
+                        Mes reversements
+                    </h2>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 16 }}>
+                        {[
+                            { label: 'Collecté', value: merchantBalance.total_collected, color: '#34d399' },
+                            { label: 'Commission', value: merchantBalance.total_commission, color: '#f59e0b' },
+                            { label: 'Reversé', value: merchantBalance.total_paid_out, color: '#60a5fa' },
+                            { label: 'Solde dû', value: merchantBalance.balance_due, color: '#a78bfa' },
+                        ].map(({ label, value, color }) => (
+                            <div key={label} style={{ background: 'rgba(51,65,85,0.5)', borderRadius: 10, padding: 14, border: '1px solid rgba(255,255,255,0.07)' }}>
+                                <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>{label}</div>
+                                <div style={{ fontSize: 18, fontWeight: 700, color }}>{value.toLocaleString('fr-FR')} F</div>
+                            </div>
+                        ))}
+                    </div>
+                    <div style={{ fontSize: 12, color: '#64748b', marginBottom: merchantPayouts.length > 0 ? 12 : 0 }}>
+                        {merchantBalance.orders_count} commande{merchantBalance.orders_count > 1 ? 's' : ''} payée{merchantBalance.orders_count > 1 ? 's' : ''}
+                    </div>
+                    {merchantPayouts.length > 0 && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                            {merchantPayouts.map((p: any) => (
+                                <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', borderRadius: 8, background: 'rgba(51,65,85,0.3)' }}>
+                                    <div>
+                                        <div style={{ fontSize: 13, color: 'white', fontWeight: 500 }}>
+                                            Reversement {p.period_start ? `— ${new Date(p.period_start).toLocaleDateString('fr-FR')}` : ''}
+                                        </div>
+                                        <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+                                            {p.payment_method || 'En attente'} {p.payment_reference ? `· ${p.payment_reference}` : ''}
+                                        </div>
+                                    </div>
+                                    <div style={{ textAlign: 'right' }}>
+                                        <div style={{ fontSize: 14, fontWeight: 600, color: p.status === 'completed' ? '#34d399' : '#f59e0b' }}>
+                                            {(p.net_amount || 0).toLocaleString('fr-FR')} F
+                                        </div>
+                                        <div style={{ fontSize: 11, color: p.status === 'completed' ? '#34d399' : '#f59e0b' }}>
+                                            {p.status === 'completed' ? 'Reçu' : 'En attente'}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Historique des paiements */}
             <div>

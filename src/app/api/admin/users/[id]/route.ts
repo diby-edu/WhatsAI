@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse, logAdminAction } from '@/lib/api-utils'
+import { resolvePaidUntilForPlanChange, resolveGraceUntilFromPaidUntil } from '@/lib/account-lifecycle'
 
 // PATCH /api/admin/users/[id] — Update user profile, plan, status, credits
 export async function PATCH(
@@ -152,6 +153,21 @@ export async function PATCH(
 
         if (Object.keys(cleanUpdate).length === 0) {
             return errorResponse('Aucun champ à mettre à jour', 400)
+        }
+
+        // Quand le plan change, mettre à jour paid_until/grace_until comme un vrai paiement
+        if (cleanUpdate.plan) {
+            const newPlan = cleanUpdate.plan
+            if (newPlan === 'free') {
+                cleanUpdate.paid_until = null
+                cleanUpdate.grace_until = null
+                cleanUpdate.account_lifecycle_status = 'inactive'
+            } else {
+                const paidUntil = resolvePaidUntilForPlanChange('monthly', Date.now())
+                cleanUpdate.paid_until = paidUntil
+                cleanUpdate.grace_until = resolveGraceUntilFromPaidUntil(paidUntil)
+                cleanUpdate.account_lifecycle_status = 'paid_active'
+            }
         }
 
         const { error } = await adminSupabase

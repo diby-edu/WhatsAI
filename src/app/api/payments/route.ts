@@ -68,12 +68,13 @@ export async function GET(_request: NextRequest) {
 
             if (profile?.plan && profile.plan !== 'free') {
                 const paidUntil = profile.paid_until ? new Date(profile.paid_until) : null
+                const syntheticDate = profile.paid_until || new Date().toISOString()
                 formattedPayments.unshift({
                     id: 'synthetic_sub',
                     amount_fcfa: 0,
                     description: paidUntil
                         ? `Abonnement ${profile.plan} — jusqu'au ${paidUntil.toLocaleDateString('fr-FR')}`
-                        : `Abonnement ${profile.plan} — illimité`,
+                        : `Abonnement ${profile.plan} — offert`,
                     status: 'completed',
                     payment_type: 'subscription',
                     source: 'manual',
@@ -82,8 +83,8 @@ export async function GET(_request: NextRequest) {
                     payment_channel_detail: null,
                     credits: null,
                     reference: null,
-                    created_at: null,
-                    completed_at: profile.paid_until,
+                    created_at: syntheticDate,
+                    completed_at: syntheticDate,
                 })
             }
         }
