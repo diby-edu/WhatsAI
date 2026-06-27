@@ -29,47 +29,10 @@ function verifySignature(payload: string, signature: string | null): boolean {
     }
 }
 
-export async function POST(request: NextRequest) {
-    try {
-        const payload = await request.text()
-        const signature = request.headers.get('x-hub-signature-256')
-
-        // Verify GitHub signature
-        if (!verifySignature(payload, signature)) {
-            console.log('❌ Invalid webhook signature')
-            return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
-        }
-
-        // Parse the payload
-        const data = JSON.parse(payload)
-
-        // Only deploy on push to master/main branch
-        const ref = data.ref || ''
-        if (!ref.includes('master') && !ref.includes('main')) {
-            console.log('⏭️ Skipping deployment - not master/main branch:', ref)
-            return NextResponse.json({ message: 'Skipped - not master/main' }, { status: 200 })
-        }
-
-        console.log('🚀 Starting automatic deployment...')
-        console.log('📝 Commit:', data.head_commit?.message || 'Unknown')
-
-        // nohup + redirection shell : le script survit au restart pm2 de ce process
-        // (le fd hérité de openSync était fermé quand pm2 tuait whatsai-web)
-        const child = spawn('/bin/bash', ['-c', 'nohup /root/WhatsAI/deploy.sh >> /root/WhatsAI/deploy-auto.log 2>&1 &'], {
-            detached: true,
-            stdio: 'ignore',
-        })
-        child.unref()
-
-        return NextResponse.json({
-            message: 'Deployment started',
-            commit: data.head_commit?.message || 'Unknown'
-        }, { status: 200 })
-
-    } catch (error) {
-        console.error('❌ Webhook error:', error)
-        return NextResponse.json({ error: 'Webhook processing failed' }, { status: 500 })
-    }
+export async function POST(_request: NextRequest) {
+    // Webhook désactivé — déploiements gérés manuellement via deploy.sh
+    console.log('⏭️ Webhook reçu mais désactivé (déploiement manuel)')
+    return NextResponse.json({ message: 'Webhook disabled - manual deployments only' }, { status: 200 })
 }
 
 // Allow GET for testing
