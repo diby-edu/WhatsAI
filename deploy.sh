@@ -19,6 +19,8 @@ OLD_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 echo ""
 echo "📥 [1/4] Récupération du code..."
 git fetch origin
+# Discarter les modifications locales de fichiers de config (éditées parfois directement sur VPS)
+git checkout -- deploy.sh ecosystem.config.js 2>/dev/null || true
 if ! git merge --ff-only origin/master; then
     echo "Fast-forward merge impossible (working tree not clean or divergent)."
     exit 1
