@@ -61,21 +61,25 @@ rm -f .next/lock
 # Augmenter mémoire Node et désactiver Lint pour éviter OOM crash sur VPS
 export NODE_OPTIONS="--max-old-space-size=2048"
 export NEXT_DISABLE_ESLINT=1
-npm run build
+node_modules/.bin/next build
 
 # Vérifier si build réussi
 if [ ! -f .next/BUILD_ID ]; then
     echo ""
-    echo "❌ BUILD ÉCHOUÉ - Auto-rollback..."
-    if ! git checkout "$OLD_COMMIT"; then
-        echo "Rollback automatique impossible: working tree non propre."
-        exit 1
+    echo "❌ BUILD ÉCHOUÉ - Rollback vers .next_old..."
+    if [ -d .next_old ]; then
+        rm -rf .next && mv .next_old .next
+        pm2 restart whatsai-web 2>/dev/null || true
+        echo "⏪ Rollback .next_old appliqué - site restauré"
+    else
+        echo "⚠️  Pas de .next_old disponible - site peut être down"
     fi
-    echo "⏪ Restauré à $OLD_COMMIT"
     exit 1
 fi
 
 echo "✅ Build réussi"
+# Backup pour rollback instantané si besoin
+rm -rf .next_old && cp -a .next .next_old
 
 # ═══════════════════════════════════════════════════════════
 # 4. RESTART RAPIDE (~10 secondes de micro-downtime)
