@@ -4,7 +4,6 @@ import { finalizePaymentByTransaction } from '@/lib/payments/finalization'
 import {
     extractFeexPayWebhookCallbackInfo,
     extractFeexPayWebhookReference,
-    extractFeexPayWebhookStatus,
     verifyFeexPayTransaction,
     verifyFeexPayWebhookSignature,
 } from '@/lib/payments/feexpay'
@@ -53,18 +52,29 @@ export async function POST(request: NextRequest) {
         const payload = JSON.parse(rawBody || '{}')
         const webhookReference = extractFeexPayWebhookReference(payload)
         const callbackInfo = extractFeexPayWebhookCallbackInfo(payload)
-        const fallbackStatus = extractFeexPayWebhookStatus(payload)
 
-        let providerStatus = fallbackStatus
-        let providerPayload: unknown = payload
-
-        if (webhookReference) {
-            const verified = await verifyFeexPayTransaction(webhookReference)
-            if (verified.success) {
-                providerStatus = verified.status
-                providerPayload = verified.raw || payload
-            }
+        // SÉCURITÉ : ne jamais finaliser un paiement sur le statut porté par le payload
+        // (entièrement contrôlé par l'appelant). On exige une re-vérification serveur
+        // de la transaction auprès de FeexPay. Sans référence vérifiable ou sur échec
+        // de vérification, on répond 200 neutre SANS finaliser.
+        if (!webhookReference) {
+            console.warn('[FeexPay Webhook] Missing provider reference — cannot verify, ignoring', {
+                callbackInfo,
+            })
+            return new Response('OK', { status: 200 })
         }
+
+        const verified = await verifyFeexPayTransaction(webhookReference)
+        if (!verified.success) {
+            console.warn('[FeexPay Webhook] Server-side verification failed — ignoring payload status', {
+                reference: webhookReference,
+                callbackInfo,
+            })
+            return new Response('OK', { status: 200 })
+        }
+
+        const providerStatus = verified.status
+        const providerPayload: unknown = verified.raw || payload
 
         const isTerminalProviderStatus = (
             providerStatus === 'ACCEPTED'

@@ -1,22 +1,13 @@
 import { NextRequest } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { requireAdminAccess } from '@/lib/admin/auth'
 
-// Use service role for admin operations
-function getSupabaseAdmin() {
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-        throw new Error('Supabase credentials missing')
-    }
-    return createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL,
-        process.env.SUPABASE_SERVICE_ROLE_KEY
-    )
-}
-
-// GET - List all credit packs
+// GET - List all credit packs (admin only)
 export async function GET() {
+    const { response, adminSupabase } = await requireAdminAccess()
+    if (response || !adminSupabase) return response!
+
     try {
-        const supabase = getSupabaseAdmin()
-        const { data: packs, error } = await supabase
+        const { data: packs, error } = await adminSupabase
             .from('credit_packs')
             .select('*')
             .order('display_order', { ascending: true })
@@ -30,8 +21,11 @@ export async function GET() {
     }
 }
 
-// POST - Create new credit pack
+// POST - Create new credit pack (admin only)
 export async function POST(request: NextRequest) {
+    const { response, adminSupabase } = await requireAdminAccess()
+    if (response || !adminSupabase) return response!
+
     try {
         const body = await request.json()
         const { name, credits, price, savings = 0, is_active = true, display_order = 0 } = body
@@ -40,8 +34,7 @@ export async function POST(request: NextRequest) {
             return Response.json({ error: 'Name, credits and price are required' }, { status: 400 })
         }
 
-        const supabase = getSupabaseAdmin()
-        const { data, error } = await supabase
+        const { data, error } = await adminSupabase
             .from('credit_packs')
             .insert({ name, credits, price, savings, is_active, display_order })
             .select()
@@ -56,8 +49,11 @@ export async function POST(request: NextRequest) {
     }
 }
 
-// PUT - Update credit pack
+// PUT - Update credit pack (admin only)
 export async function PUT(request: NextRequest) {
+    const { response, adminSupabase } = await requireAdminAccess()
+    if (response || !adminSupabase) return response!
+
     try {
         const body = await request.json()
         const { id, ...updates } = body
@@ -66,8 +62,7 @@ export async function PUT(request: NextRequest) {
             return Response.json({ error: 'Pack ID is required' }, { status: 400 })
         }
 
-        const supabase = getSupabaseAdmin()
-        const { data, error } = await supabase
+        const { data, error } = await adminSupabase
             .from('credit_packs')
             .update({ ...updates, updated_at: new Date().toISOString() })
             .eq('id', id)
@@ -83,8 +78,11 @@ export async function PUT(request: NextRequest) {
     }
 }
 
-// DELETE - Delete credit pack
+// DELETE - Delete credit pack (admin only)
 export async function DELETE(request: NextRequest) {
+    const { response, adminSupabase } = await requireAdminAccess()
+    if (response || !adminSupabase) return response!
+
     try {
         const { searchParams } = new URL(request.url)
         const id = searchParams.get('id')
@@ -93,8 +91,7 @@ export async function DELETE(request: NextRequest) {
             return Response.json({ error: 'Pack ID is required' }, { status: 400 })
         }
 
-        const supabase = getSupabaseAdmin()
-        const { error } = await supabase
+        const { error } = await adminSupabase
             .from('credit_packs')
             .delete()
             .eq('id', id)

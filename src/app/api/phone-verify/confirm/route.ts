@@ -1,7 +1,19 @@
 import { NextRequest } from 'next/server'
+import crypto from 'crypto'
 import { Redis } from '@upstash/redis'
 import { createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
 import { normalizeStoredPhone } from '@/lib/profile-phone'
+
+const MAX_OTP_ATTEMPTS = 5
+const OTP_TTL = 180 // doit rester aligné avec le TTL d'envoi (send/route.ts)
+
+// Comparaison à temps constant, tolérante aux longueurs différentes.
+function timingSafeEqualStr(a: string, b: string): boolean {
+    const ba = Buffer.from(a, 'utf8')
+    const bb = Buffer.from(b, 'utf8')
+    if (ba.length !== bb.length) return false
+    return crypto.timingSafeEqual(ba, bb)
+}
 
 export async function POST(req: NextRequest) {
     const supabase = await createApiClient()
@@ -29,14 +41,31 @@ export async function POST(req: NextRequest) {
     }
 
     if (parsed.userId !== user!.id) return errorResponse('Non autorisé', 401)
-    if (!parsed.bypass && parsed.code !== code.trim()) return errorResponse('Code incorrect', 400)
+
+    // Anti-brute-force : limiter les tentatives de vérification du code (hors bypass).
+    if (!parsed.bypass) {
+        const attemptsKey = `otp_try:${phone}`
+        const attempts = await redis.incr(attemptsKey)
+        if (attempts === 1) await redis.expire(attemptsKey, OTP_TTL)
+        if (attempts > MAX_OTP_ATTEMPTS) {
+            // Invalider l'OTP au dépassement : force la demande d'un nouveau code.
+            await redis.del(`otp:${phone}`)
+            await redis.del(attemptsKey)
+            return errorResponse('Trop de tentatives. Demandez un nouveau code.', 429)
+        }
+
+        if (!timingSafeEqualStr(parsed.code, String(code).trim())) {
+            return errorResponse('Code incorrect', 400)
+        }
+    }
 
     // Sauvegarder le numéro vérifié et marquer comme vérifié
     const normalizedPhone = normalizeStoredPhone(phone) || phone
     await supabase.from('profiles').update({ phone_verified: true, phone: normalizedPhone }).eq('id', user!.id)
 
-    // Supprimer le code OTP
+    // Supprimer le code OTP et le compteur de tentatives
     await redis.del(`otp:${phone}`)
+    await redis.del(`otp_try:${phone}`)
 
     return successResponse({ verified: true })
 }

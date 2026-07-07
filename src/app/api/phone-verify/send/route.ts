@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server'
+import crypto from 'crypto'
 import { z } from 'zod'
 import { Redis } from '@upstash/redis'
 import { createClient } from '@supabase/supabase-js'
@@ -13,7 +14,8 @@ const OTP_AGENT_NAME = '__otp_sender__'
 const INTERNAL_WS_URL = `http://127.0.0.1:${process.env.HEALTH_PORT || 3001}/send`
 
 function generateOtp(): string {
-    return Math.floor(100000 + Math.random() * 900000).toString()
+    // PRNG cryptographique (au lieu de Math.random, prévisible) — code à 6 chiffres.
+    return crypto.randomInt(100000, 1000000).toString()
 }
 
 async function sendViaInternalService(agentId: string, jid: string, message: string): Promise<{ success: boolean; error?: string }> {
@@ -76,6 +78,7 @@ export async function POST(req: NextRequest) {
     // Mode bypass : stocker marqueur et retourner succès sans envoyer de message
     if (otpBypass) {
         await redis!.set(`otp:${phone}`, JSON.stringify({ code: 'BYPASS', userId: user!.id, bypass: true }), { ex: OTP_TTL })
+        await redis!.del(`otp_try:${phone}`) // réinitialiser le compteur d'essais pour ce nouveau code
         return successResponse({ sent: true, expiresIn: OTP_TTL, bypass: true })
     }
 
@@ -95,6 +98,7 @@ export async function POST(req: NextRequest) {
 
     // Stocker en Redis avec TTL
     await redis!.set(`otp:${phone}`, JSON.stringify({ code, userId: user!.id }), { ex: OTP_TTL })
+    await redis!.del(`otp_try:${phone}`) // réinitialiser le compteur d'essais pour ce nouveau code
 
     // Envoyer via WhatsApp — passer le numéro brut (sans @) pour que le service fasse le lookup WA
     const recipient = phone.replace(/^\+/, '') // ex: 225747094746
