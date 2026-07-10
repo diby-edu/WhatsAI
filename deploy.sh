@@ -112,7 +112,7 @@ main() {
     WEB_HTTP="000"
     for i in $(seq 1 12); do
         sleep 5
-        WEB_HTTP=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 http://localhost:3000 2>/dev/null || echo "000")
+        WEB_HTTP=$(curl -s -o /dev/null -w "%{http_code}" -L --max-time 8 http://localhost:3000 2>/dev/null || echo "000")
         if [ "$WEB_HTTP" = "200" ]; then break; fi
         echo "    tentative $i/12 : HTTP $WEB_HTTP..."
     done
@@ -126,7 +126,7 @@ main() {
             cp -a .next_old .next
             pm2 restart whatsai-web 2>/dev/null || true
             sleep 8
-            ROLLBACK_HTTP=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 http://localhost:3000 2>/dev/null || echo "000")
+            ROLLBACK_HTTP=$(curl -s -o /dev/null -w "%{http_code}" -L --max-time 8 http://localhost:3000 2>/dev/null || echo "000")
             echo "⏪ Rollback appliqué — healthcheck post-rollback : HTTP $ROLLBACK_HTTP"
         else
             echo "⚠️  Pas de .next_old disponible — intervention manuelle requise."

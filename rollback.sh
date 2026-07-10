@@ -69,7 +69,7 @@ main() {
     WEB_HTTP="000"
     for i in $(seq 1 10); do
         sleep 5
-        WEB_HTTP=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 http://localhost:3000 2>/dev/null || echo "000")
+        WEB_HTTP=$(curl -s -o /dev/null -w "%{http_code}" -L --max-time 8 http://localhost:3000 2>/dev/null || echo "000")
         if [ "$WEB_HTTP" = "200" ]; then break; fi
         echo "    tentative $i/10 : HTTP $WEB_HTTP..."
     done
