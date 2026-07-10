@@ -15,6 +15,8 @@
 
 # next.js
 /.next/
+/.next_new/
+/.next_old/
 /out/
 
 # production
@@ -52,3 +54,23 @@ android/app/google-services.json
 /FONCTIONNALITE/GUIDE_DEMARRAGE_WIP_2026-03-24/
 
 Package Complet Fourni 6 FICHIERS/
+
+# Binaires — jamais sur le repo
+*.apk
+
+# Audits internes et rapports (cartes de vulnérabilités) — JAMAIS sur le repo public
+AUDIT_*.md
+RAPPORT_AUDIT_*.md
+PLAN_ACTION*.md
+CONTRE_EXPERTISE*.md
+
+# Dossiers de travail / notes internes
+ANALYSE DE L'AURE EXPERT/
+ANALYSE EXPERT AMELIORER/
+Nouveau dossier/
+PACK FIX/
+PACK FIX 1/
+PACKAGE AUDI COMPLET/
+PACKAGE COMPLET  REFACTORING/
+package complet MESSAGE FALLBACK D'ERREUR/
+RESOLUTION PROBLEME/

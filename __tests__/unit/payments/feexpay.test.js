@@ -142,13 +142,13 @@ describe('feexpay helpers', () => {
         })
     })
 
-    test('keeps webhook verification disabled when no secret is configured', () => {
+    test('rejects webhook when no secret is configured (fail-closed)', () => {
         process.env.FEEXPAY_WEBHOOK_SECRET = ''
         const { verifyFeexPayWebhookSignature } = require('@/lib/payments/feexpay')
 
         expect(verifyFeexPayWebhookSignature('{"a":1}', createHeaders())).toEqual({
-            ok: true,
-            mode: 'disabled',
+            ok: false,
+            mode: 'missing-secret',
         })
     })
 })

@@ -633,7 +633,10 @@ export function extractFeexPayWebhookCallbackInfo(payload: unknown) {
 
 export function verifyFeexPayWebhookSignature(rawBody: string, headers: Headers) {
     if (!FEEXPAY_WEBHOOK_SECRET) {
-        return { ok: true, mode: 'disabled' as const }
+        // Fail-closed : sans secret configuré, aucun webhook n'est accepté
+        // (aligné sur CinetPay/Paystack). La finalisation des paiements reste
+        // possible via la route de statut client + réconciliation cron.
+        return { ok: false, mode: 'missing-secret' as const }
     }
 
     let signature = ''
