@@ -4,6 +4,10 @@ import type { NextConfig } from "next";
 const withNextIntl = createNextIntlPlugin();
 
 const nextConfig: NextConfig = {
+  // Répertoire de build paramétrable : deploy.sh construit dans .next_new
+  // pendant que le serveur continue de servir .next (zero-downtime réel).
+  // Au runtime (next start), NEXT_DIST_DIR n'est pas défini → '.next'.
+  distDir: process.env.NEXT_DIST_DIR || '.next',
   reactCompiler: true,
   // Baileys requires Node.js specific features - server only
   serverExternalPackages: ['@whiskeysockets/baileys', 'pino', 'pino-pretty', 'pdf-parse', 'pdfjs-dist', 'word-extractor', 'yauzl'],
