@@ -63,22 +63,43 @@ export async function POST(req: NextRequest) {
         .maybeSingle()
     const otpBypass = bypassFlag?.enabled === true
 
-    // Rate limit : max 3 envois par numéro par heure
+    // LM-6 : le bypass court-circuite l'OTP — tracer chaque usage bruyamment
+    // (visible en logs/Sentry) pour qu'il ne reste jamais actif silencieusement.
+    // Non bloqué en dur par NODE_ENV : au 2026-07-10 ce flag est le seul chemin
+    // d'inscription tant que l'agent WhatsApp OTP (__otp_sender__) est déconnecté.
+    // À restreindre au non-prod dès que l'agent est réappairé.
+    if (otpBypass) {
+        console.warn('[SECURITY][OTP_BYPASS_USED]', {
+            userId: user!.id,
+            phoneLast4: phone.slice(-4),
+            env: process.env.NODE_ENV,
+            timestamp: new Date().toISOString(),
+        })
+    }
+
     let redis: Redis | null = null
     try {
         redis = Redis.fromEnv()
-        const rateLimitKey = `otp_limit:${phone}`
-        const attempts = await redis.incr(rateLimitKey)
-        if (attempts === 1) await redis.expire(rateLimitKey, 3600)
-        if (attempts > 3) return errorResponse('Trop de tentatives. Réessayez dans 1 heure.', 429)
     } catch {
         return errorResponse('Erreur de configuration Redis', 503)
     }
 
+    // LM-12 : rate limit par utilisateur (pas seulement par numéro, qui peut
+    // être partagé/réutilisé pour contourner la limite) : max 3 envois/heure.
+    const consumeRateLimit = async () => {
+        const rateLimitKey = `otp_limit:${user!.id}`
+        const attempts = await redis!.incr(rateLimitKey)
+        if (attempts === 1) await redis!.expire(rateLimitKey, 3600)
+        return attempts <= 3
+    }
+
     // Mode bypass : stocker marqueur et retourner succès sans envoyer de message
     if (otpBypass) {
-        await redis!.set(`otp:${phone}`, JSON.stringify({ code: 'BYPASS', userId: user!.id, bypass: true }), { ex: OTP_TTL })
-        await redis!.del(`otp_try:${phone}`) // réinitialiser le compteur d'essais pour ce nouveau code
+        if (!(await consumeRateLimit())) {
+            return errorResponse('Trop de tentatives. Réessayez dans 1 heure.', 429)
+        }
+        await redis.set(`otp:${phone}`, JSON.stringify({ code: 'BYPASS', userId: user!.id, bypass: true }), { ex: OTP_TTL })
+        await redis.del(`otp_try:${phone}`) // réinitialiser le compteur d'essais pour ce nouveau code
         return successResponse({ sent: true, expiresIn: OTP_TTL, bypass: true })
     }
 
@@ -90,9 +111,14 @@ export async function POST(req: NextRequest) {
 
     const isReady = otpAgent?.whatsapp_connected || otpAgent?.whatsapp_status === 'connected'
     if (!isReady) {
+        // Service indisponible : ne consomme pas le quota de tentatives de l'utilisateur.
         return errorResponse('Service de vérification WhatsApp non disponible', 503)
     }
     const agentId = otpAgent.id
+
+    if (!(await consumeRateLimit())) {
+        return errorResponse('Trop de tentatives. Réessayez dans 1 heure.', 429)
+    }
 
     const code = generateOtp()
 

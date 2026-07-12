@@ -1,8 +1,12 @@
-import { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import * as Sentry from "@sentry/nextjs"
+import { requireAdminAccess } from '@/lib/admin/auth'
 
-export async function GET(request: NextRequest) {
+// M6 : route de diagnostic — réservée aux admins (exposait NODE_ENV sans auth)
+export async function GET() {
+    const { response } = await requireAdminAccess()
+    if (response) return response
+
     try {
         // 1. Capture a message
         Sentry.captureMessage("Test Diagnostic Message from WazzapAI Admin")

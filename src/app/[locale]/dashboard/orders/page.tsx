@@ -81,6 +81,8 @@ export default function OrdersPage() {
     const [activeTab, setActiveTab] = useState<'orders' | 'mobile_money' | 'bookings'>('orders')
     const [verifyingId, setVerifyingId] = useState<string | null>(null)
     const [screenshotModal, setScreenshotModal] = useState<string | null>(null)
+    const [screenshotSignedUrl, setScreenshotSignedUrl] = useState<string | null>(null)
+    const [screenshotLoading, setScreenshotLoading] = useState(false)
     const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null)
     const { formatFromFcfa } = useCurrency()
     const toast = useToast()
@@ -654,8 +656,21 @@ export default function OrdersPage() {
 
     const formatPrice = formatFromFcfa
 
-    const getScreenshotUrl = (path: string) => {
-        return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/verification-images/${path}`
+    const openScreenshotModal = async (orderId: string) => {
+        setScreenshotModal(orderId)
+        setScreenshotSignedUrl(null)
+        setScreenshotLoading(true)
+        try {
+            const res = await fetch(`/api/orders/${orderId}/screenshot-url`)
+            const json = await res.json()
+            if (res.ok && json?.data?.url) {
+                setScreenshotSignedUrl(json.data.url)
+            }
+        } catch {
+            // le rendu affiche déjà un état de chargement figé si l'appel échoue
+        } finally {
+            setScreenshotLoading(false)
+        }
     }
 
     if (loading) {
@@ -1056,7 +1071,7 @@ export default function OrdersPage() {
                                 {order.payment_verification_status === 'awaiting_verification' && order.payment_screenshot_url && (
                                     <div style={{ display: 'flex', gap: 8 }}>
                                         <button
-                                            onClick={() => setScreenshotModal(order.payment_screenshot_url!)}
+                                            onClick={() => openScreenshotModal(order.id)}
                                             style={{
                                                 padding: '10px 14px',
                                                 borderRadius: 10,
@@ -1413,7 +1428,7 @@ export default function OrdersPage() {
             {/* Screenshot Modal */}
             {screenshotModal && (
                 <div
-                    onClick={() => setScreenshotModal(null)}
+                    onClick={() => { setScreenshotModal(null); setScreenshotSignedUrl(null) }}
                     style={{
                         position: 'fixed',
                         inset: 0,
@@ -1426,17 +1441,23 @@ export default function OrdersPage() {
                     }}
                 >
                     <div onClick={e => e.stopPropagation()} style={{ maxWidth: '90vw', maxHeight: '90vh' }}>
-                        <Image
-                            src={getScreenshotUrl(screenshotModal)}
-                            width={1200}
-                            height={1600}
-                            unoptimized
-                            alt="Capture d'écran paiement"
-                            style={{ maxWidth: '100%', height: 'auto', maxHeight: '85vh', borderRadius: 12 }}
-                        />
+                        {screenshotLoading || !screenshotSignedUrl ? (
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 300, height: 300 }}>
+                                <Loader2 style={{ width: 32, height: 32, color: '#34d399', animation: 'spin 1s linear infinite' }} />
+                            </div>
+                        ) : (
+                            <Image
+                                src={screenshotSignedUrl}
+                                width={1200}
+                                height={1600}
+                                unoptimized
+                                alt="Capture d'écran paiement"
+                                style={{ maxWidth: '100%', height: 'auto', maxHeight: '85vh', borderRadius: 12 }}
+                            />
+                        )}
                         <div style={{ textAlign: 'center', marginTop: 16 }}>
                             <button
-                                onClick={() => setScreenshotModal(null)}
+                                onClick={() => { setScreenshotModal(null); setScreenshotSignedUrl(null) }}
                                 style={{
                                     padding: '12px 24px',
                                     borderRadius: 10,

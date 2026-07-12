@@ -81,9 +81,11 @@ export default function OnboardingPage() {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) { router.push('/login'); return }
 
+        // phone_verified est déjà positionné côté serveur par /api/phone-verify/confirm
+        // (LM-7 : protégé par trigger, non modifiable depuis le client).
         const { error: profileError } = await supabase
             .from('profiles')
-            .update({ currency, language, onboarding_completed: true, phone: fullPhone, phone_verified: true })
+            .update({ currency, language, onboarding_completed: true, phone: fullPhone })
             .eq('id', user.id)
 
         if (profileError) {

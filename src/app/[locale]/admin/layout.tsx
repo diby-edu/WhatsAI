@@ -193,17 +193,35 @@ export default function AdminLayout({
         loadRuntimeConfig()
     }, [])
 
-    // Fetch admin email
+    // Fetch admin email + CSEC-3 : 2e ligne de défense côté client. Le middleware
+    // (src/proxy.ts) protège déjà les routes en environnement Next serveur, mais
+    // cette page peut aussi tourner en export statique / app native Capacitor où
+    // le middleware ne s'exécute jamais — ce garde devient alors la seule barrière.
     useEffect(() => {
-        const fetchAdminEmail = async () => {
+        let cancelled = false
+        const fetchAdminEmailAndCheckRole = async () => {
             const supabase = createClient()
             const { data: { user } } = await supabase.auth.getUser()
-            if (user?.email) {
+            if (!user) {
+                if (!cancelled) router.replace('/login')
+                return
+            }
+            if (user.email && !cancelled) {
                 setAdminEmail(user.email)
             }
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', user.id)
+                .single()
+            const role = String(profile?.role || '').toLowerCase()
+            if (!cancelled && role !== 'admin' && role !== 'support') {
+                router.replace('/dashboard')
+            }
         }
-        fetchAdminEmail()
-    }, [])
+        fetchAdminEmailAndCheckRole()
+        return () => { cancelled = true }
+    }, [router])
 
     // Fetch real notifications
     const formatTimeAgo = (date: Date) => {
