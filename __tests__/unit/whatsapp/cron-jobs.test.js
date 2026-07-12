@@ -88,7 +88,7 @@ describe('whatsapp cron jobs', () => {
                     eq: jest.fn(() => ({
                         eq: jest.fn(() => ({
                             lt: jest.fn(() => ({
-                                is: jest.fn(async () => ({
+                                or: jest.fn(async () => ({
                                     data: table === 'orders'
                                         ? [{
                                             id: 'order_1',

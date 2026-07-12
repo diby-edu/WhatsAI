@@ -55,6 +55,34 @@ async function checkPendingPayments(supabase) {
     }
 }
 
+// Re-vérification du statut réel côté provider avant annulation.
+// La route de statut publique re-vérifie la transaction auprès du provider
+// et FINALISE la commande si elle est payée (webhook perdu → rattrapage).
+// Retourne true si la commande peut être annulée sans risque.
+async function isSafeToCancelOrder(order) {
+    const txId = order.transaction_id || order.provider_transaction_id
+    if (!txId) return true // aucun paiement initié → annulation sans risque
+
+    const webBaseUrl = process.env.INTERNAL_WEB_URL || 'http://127.0.0.1:3000'
+    try {
+        const res = await fetch(
+            `${webBaseUrl}/api/payments/cinetpay/status?transaction_id=${encodeURIComponent(txId)}`,
+            { signal: AbortSignal.timeout(20000) }
+        )
+        const data = await res.json()
+        if (data && data.status === 'ACCEPTED') {
+            // Payée : la route de statut vient de la finaliser — ne PAS annuler.
+            console.log('Order actually paid at provider, finalized instead of cancelled:', order.id)
+            return false
+        }
+        return true
+    } catch (error) {
+        // Provider/web injoignable : ne pas annuler à l'aveugle, on retentera au prochain run.
+        console.error('Provider status check failed, skipping cancellation this run:', order.id, error?.message)
+        return false
+    }
+}
+
 // 2. ORDER EXPIRATION
 async function cancelExpiredOrders(supabase) {
     try {
@@ -62,12 +90,14 @@ async function cancelExpiredOrders(supabase) {
 
         const { data: expiredOrders } = await supabase
             .from('orders')
-            .select('id, agent_id, customer_phone')
+            .select('id, agent_id, customer_phone, transaction_id, provider_transaction_id')
             .eq('status', 'pending')
             .eq('payment_method', 'online')
             .lt('created_at', oneHourAgo)
 
         for (const order of expiredOrders || []) {
+            if (!(await isSafeToCancelOrder(order))) continue
+
             console.log('Cancelling expired order:', order.id)
 
             const { data: updatedOrder, error: updateError } = await supabase
@@ -105,7 +135,7 @@ async function cancelExpiredBookingDeposits(supabase) {
 
         const { data: expiredBookings } = await supabase
             .from('bookings')
-            .select('id, agent_id, customer_phone, customer_name, service_name, start_time, conversation_id')
+            .select('id, agent_id, customer_phone, customer_name, service_name, start_time, conversation_id, transaction_id, provider_transaction_id')
             .eq('booking_source', 'restaurant')
             .eq('status', 'pending')
             .eq('deposit_required', true)
@@ -113,6 +143,10 @@ async function cancelExpiredBookingDeposits(supabase) {
             .lt('created_at', twentyFourHoursAgo)
 
         for (const booking of expiredBookings || []) {
+            // Même garde que pour les commandes : un acompte réellement payé
+            // (webhook perdu) est finalisé par la re-vérification, pas expiré.
+            if (!(await isSafeToCancelOrder(booking))) continue
+
             console.log('Expiring pending restaurant deposit:', booking.id)
 
             const { data: updatedBooking, error: updateError } = await supabase

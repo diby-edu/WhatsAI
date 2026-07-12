@@ -116,6 +116,7 @@ export async function POST(request: NextRequest) {
             }
         }
 
+        let hadTransientFailure = false
         for (const reference of references) {
             const finalized = await finalizePaymentByTransaction(
                 getSupabase(),
@@ -125,7 +126,10 @@ export async function POST(request: NextRequest) {
             )
 
             if (!finalized.ok && finalized.state !== 'not_found') {
-                console.error('[PayDunya Webhook] Account finalization failed', {
+                // Échec transitoire : on renverra un 5xx après la boucle pour
+                // forcer le retry provider (finalisation idempotente côté LM-2).
+                hadTransientFailure = true
+                console.error('[PayDunya Webhook] Account finalization failed (will retry)', {
                     reference,
                     providerStatus,
                     message: finalized.message,
@@ -145,10 +149,14 @@ export async function POST(request: NextRequest) {
             }
         }
 
+        if (hadTransientFailure) {
+            return new Response('Finalization failed, retry later', { status: 503 })
+        }
+
         return new Response('OK', { status: 200 })
     } catch (error) {
-        console.error('[PayDunya Webhook] Unexpected error:', error)
-        return new Response('OK', { status: 200 })
+        console.error('[PayDunya Webhook] Unexpected error (will retry):', error)
+        return new Response('Webhook error, retry later', { status: 500 })
     }
 }
 

@@ -222,6 +222,34 @@ async function notifyMerchantOrderPayment(
     }
 }
 
+// LM-4 : le transaction_id est régénéré à chaque tentative de paiement
+// (ORD_<id8>_<timestamp>) et la colonne orders/bookings ne garde que la
+// dernière tentative. Un webhook portant une tentative antérieure est résolu
+// par le préfixe stable <TYPE>_<id8>_, puis vérifié contre l'id de la ligne.
+function extractCheckoutReferenceIdPrefix(reference: string): string | null {
+    const match = /^(?:ORD|BKG)[_-]([0-9a-fA-F]{8})[_-]/.exec(String(reference || '').trim())
+    return match ? match[1] : null
+}
+
+async function findRowByReferencePrefix(
+    supabase: SupabaseClientLike,
+    table: 'orders' | 'bookings',
+    txPrefix: 'ORD' | 'BKG',
+    reference: string
+) {
+    const idPrefix = extractCheckoutReferenceIdPrefix(reference)
+    if (!idPrefix) return null
+
+    const { data: candidates } = await supabase
+        .from(table)
+        .select('*')
+        .like('transaction_id', `${txPrefix}_${idPrefix}_%`)
+        .limit(2)
+
+    const matching = (candidates || []).filter((row: any) => String(row.id || '').startsWith(idPrefix.toLowerCase()) || String(row.id || '').startsWith(idPrefix))
+    return matching.length === 1 ? matching[0] : null
+}
+
 export function isOrderTransactionId(transactionId: string) {
     return transactionId.startsWith('ORD_') || transactionId.startsWith('ORD-')
 }
@@ -252,6 +280,10 @@ export async function finalizeHostedOrderPayment(
             .eq('provider_transaction_id', reference)
             .maybeSingle()
         order = lookupByProviderTx.data || null
+    }
+
+    if (!order) {
+        order = await findRowByReferencePrefix(supabase, 'orders', 'ORD', reference)
     }
 
     if (!order) {
@@ -386,6 +418,10 @@ export async function finalizeHostedBookingPayment(
             .eq('provider_transaction_id', reference)
             .maybeSingle()
         booking = lookupByProviderTx.data || null
+    }
+
+    if (!booking) {
+        booking = await findRowByReferencePrefix(supabase, 'bookings', 'BKG', reference)
     }
 
     if (!booking) {

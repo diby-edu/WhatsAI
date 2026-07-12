@@ -1,11 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getOpenAIClient } from '@/lib/ai/openai'
+import { createApiClient, getAuthUser } from '@/lib/api-utils'
+import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 
-// Initialize OpenAI lazily inside the handler
-
+// I2 — proxy OpenAI : réservé aux utilisateurs authentifiés (appelé depuis les
+// pages dashboard agents) + rate-limit "ai" par utilisateur (DoS financier).
 
 export async function POST(request: NextRequest) {
     try {
+        const supabase = await createApiClient()
+        const { user, error: authError } = await getAuthUser(supabase)
+        if (authError || !user) {
+            return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+        }
+
+        const rateLimit = await checkRateLimit(`analyze-conflict:${user.id}`, RATE_LIMITS.ai)
+        if (!rateLimit.success) {
+            return rateLimitResponse(rateLimit.resetTime)
+        }
+
         const body = await request.json()
         // Support both naming conventions to be safe
         const structuredData = body.structuredData || body.structured_data
@@ -17,13 +30,13 @@ export async function POST(request: NextRequest) {
 
         const prompt = `
             Tu es un EXPERT EN VÉRIFICATION DE COHÉRENCE.
-            
+
             TA MISSION : Détecter si le "TEXTE HUMAIN" contredit les "DONNÉES OFFICIELLES".
-            
+
             ---
             1. DONNÉES OFFICIELLES (La Vérité) :
             ${JSON.stringify(structuredData, null, 2)}
-            
+
             2. TEXTE HUMAIN (Suspect) :
             "${customRules}"
             ---
@@ -56,6 +69,6 @@ export async function POST(request: NextRequest) {
 
     } catch (error: any) {
         console.error('Analyze Conflict Error:', error)
-        return NextResponse.json({ error: error.message }, { status: 500 })
+        return NextResponse.json({ error: 'Analyse impossible' }, { status: 500 })
     }
 }

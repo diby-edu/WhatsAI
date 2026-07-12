@@ -49,8 +49,8 @@ function createSupabaseMock(options = {}) {
         supabase: {
             from: jest.fn((table) => ({
                 select: jest.fn(() => ({
-                    eq: jest.fn((column, value) => ({
-                        single: jest.fn(async () => {
+                    eq: jest.fn((column, value) => {
+                        const resolveRow = async () => {
                             if (table === 'orders' && column === 'transaction_id' && value === 'ORD_order_1') {
                                 return { data: order, error: null }
                             }
@@ -64,7 +64,18 @@ function createSupabaseMock(options = {}) {
                                 return { data: { phone: null }, error: null }
                             }
                             return { data: null, error: { message: 'not found' } }
-                        }),
+                        }
+                        return {
+                            single: jest.fn(resolveRow),
+                            // maybeSingle : pas d'erreur quand la ligne n'existe pas
+                            maybeSingle: jest.fn(async () => {
+                                const result = await resolveRow()
+                                return result.error ? { data: null, error: null } : result
+                            }),
+                        }
+                    }),
+                    like: jest.fn(() => ({
+                        limit: jest.fn(async () => ({ data: [], error: null })),
                     })),
                 })),
                 update: jest.fn((payload) => {
@@ -135,7 +146,7 @@ describe('hosted-checkout-finalization', () => {
             expect.objectContaining({
                 agentId: 'agent_1',
                 to: '123456789012345@lid',
-                message: expect.stringContaining('Votre commande numerique est en preparation'),
+                message: expect.stringContaining('Votre produit numerique va vous etre envoye'),
             })
         )
 

@@ -1,25 +1,4 @@
-const { TextDecoder, TextEncoder } = require('util')
-const { ReadableStream, WritableStream, TransformStream } = require('stream/web')
-const { Blob, File } = require('buffer')
-const { MessageChannel, MessagePort } = require('worker_threads')
-
-global.TextDecoder = TextDecoder
-global.TextEncoder = TextEncoder
-global.ReadableStream = ReadableStream
-global.WritableStream = WritableStream
-global.TransformStream = TransformStream
-global.Blob = Blob
-global.File = File
-global.MessageChannel = MessageChannel
-global.MessagePort = MessagePort
-
-const { Request, Response, Headers, FormData } = require('undici')
-
-global.Request = Request
-global.Response = Response
-global.Headers = Headers
-global.FormData = FormData
-
+// Polyfills Web API (Request/Response/...) fournis globalement par jest.setup.ts (E#8)
 const { NextRequest } = require('next/server')
 
 const mockCreateApiClient = jest.fn()
@@ -70,7 +49,8 @@ describe('GET /api/payments/cinetpay/status', () => {
             from: jest.fn(() => ({
                 select: jest.fn(() => ({
                     eq: jest.fn(() => ({
-                        single: jest.fn(async () => ({ data: null }))
+                        single: jest.fn(async () => ({ data: null })),
+                        maybeSingle: jest.fn(async () => ({ data: null, error: null }))
                     }))
                 }))
             }))
@@ -113,7 +93,8 @@ describe('GET /api/payments/cinetpay/status', () => {
             from: jest.fn(() => ({
                 select: jest.fn(() => ({
                     eq: jest.fn(() => ({
-                        single: jest.fn(async () => ({ data: { payment_provider: 'paystack', payment_provider_version: 'v1' } }))
+                        single: jest.fn(async () => ({ data: { payment_provider: 'paystack', payment_provider_version: 'v1' } })),
+                        maybeSingle: jest.fn(async () => ({ data: { payment_provider: 'paystack', payment_provider_version: 'v1' }, error: null }))
                     }))
                 }))
             }))

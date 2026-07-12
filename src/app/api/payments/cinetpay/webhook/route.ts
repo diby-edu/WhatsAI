@@ -17,6 +17,15 @@ function verifySignature(payload: string, signature: string): boolean {
     return verifyWebhookSignature(payload, signature)
 }
 
+// M4 : comparaison en temps constant des tokens (hachage préalable pour
+// neutraliser la différence de longueur avant timingSafeEqual).
+function timingSafeEqualToken(a: string, b: string): boolean {
+    const crypto = require('crypto') as typeof import('crypto')
+    const ha = crypto.createHash('sha256').update(String(a)).digest()
+    const hb = crypto.createHash('sha256').update(String(b)).digest()
+    return crypto.timingSafeEqual(ha, hb)
+}
+
 type NormalizedCinetPayStatus = 'ACCEPTED' | 'REFUSED' | 'PENDING' | 'CANCELLED' | 'UNKNOWN'
 
 function normalizeCinetPayV2Status(status: unknown): NormalizedCinetPayStatus {
@@ -228,7 +237,7 @@ async function handleCinetPayV2Webhook(body: {
             return new Response('Version mismatch', { status: 400 })
         }
 
-        if (!order.provider_notify_token || order.provider_notify_token !== notifyToken) {
+        if (!order.provider_notify_token || !timingSafeEqualToken(order.provider_notify_token, notifyToken)) {
             return new Response('Invalid notify token', { status: 403 })
         }
 
@@ -330,7 +339,7 @@ async function handleCinetPayV2Webhook(body: {
             return new Response('Version mismatch', { status: 400 })
         }
 
-        if (!booking.provider_notify_token || booking.provider_notify_token !== notifyToken) {
+        if (!booking.provider_notify_token || !timingSafeEqualToken(booking.provider_notify_token, notifyToken)) {
             return new Response('Invalid notify token', { status: 403 })
         }
 
@@ -537,6 +546,29 @@ export async function POST(request: NextRequest) {
 
                 if (cinetpayStatus.status === 'ACCEPTED') {
                     const isRestaurantDepositPayment = order.deposit_required && order.deposit_status === 'pending'
+
+                    // LM-5 : contrôle du montant réellement payé (tolérance 1 FCFA),
+                    // même règle que finalizePaymentRecord pour les crédits.
+                    const expectedOrderAmountFcfa = Math.round(Number(
+                        isRestaurantDepositPayment ? order.deposit_amount_fcfa : order.total_fcfa
+                    ) || 0)
+                    const paidOrderAmountFcfa = (cinetpayStatus.amount === null || cinetpayStatus.amount === undefined)
+                        ? null
+                        : Math.round(Number(cinetpayStatus.amount))
+                    if (
+                        expectedOrderAmountFcfa > 0
+                        && paidOrderAmountFcfa !== null
+                        && paidOrderAmountFcfa + 1 < expectedOrderAmountFcfa
+                    ) {
+                        console.error('[Webhook] ORDER AMOUNT MISMATCH — finalisation refusée', {
+                            orderId: order.id,
+                            transaction_id: cpm_trans_id,
+                            expectedOrderAmountFcfa,
+                            paidOrderAmountFcfa,
+                        })
+                        return new Response('OK', { status: 200 })
+                    }
+
                     const nextStatus = isRestaurantDepositPayment
                         ? (order.fulfillment_mode === 'delivery' ? 'pending_delivery' : 'pending_pickup')
                         : 'paid'
@@ -766,6 +798,25 @@ export async function POST(request: NextRequest) {
                 const cinetpayStatus = await checkPaymentStatus(cpm_trans_id)
 
                 if (cinetpayStatus.status === 'ACCEPTED') {
+                    // LM-5 : contrôle du montant réellement payé (tolérance 1 FCFA)
+                    const expectedBookingAmountFcfa = Math.round(Number(booking.deposit_amount_fcfa) || 0)
+                    const paidBookingAmountFcfa = (cinetpayStatus.amount === null || cinetpayStatus.amount === undefined)
+                        ? null
+                        : Math.round(Number(cinetpayStatus.amount))
+                    if (
+                        expectedBookingAmountFcfa > 0
+                        && paidBookingAmountFcfa !== null
+                        && paidBookingAmountFcfa + 1 < expectedBookingAmountFcfa
+                    ) {
+                        console.error('[Webhook] BOOKING AMOUNT MISMATCH — finalisation refusée', {
+                            bookingId: booking.id,
+                            transaction_id: cpm_trans_id,
+                            expectedBookingAmountFcfa,
+                            paidBookingAmountFcfa,
+                        })
+                        return new Response('OK', { status: 200 })
+                    }
+
                     const { error: updateError } = await getSupabase()
                         .from('bookings')
                         .update({
@@ -830,8 +881,13 @@ export async function POST(request: NextRequest) {
         const cinetpayStatus = await checkPaymentStatus(cpm_trans_id)
 
         if (!cinetpayStatus.success) {
-            console.error('[Webhook] Failed to verify with CinetPay:', cinetpayStatus.message)
-            return new Response('OK', { status: 200 }) // Return OK to stop retries
+            // Erreur transitoire (API CinetPay injoignable) : 503 pour forcer le retry
+            // provider — un 200 ici perdrait définitivement la notification.
+            console.error('[Webhook] Failed to verify with CinetPay (will retry):', {
+                transaction_id: cpm_trans_id,
+                message: cinetpayStatus.message,
+            })
+            return new Response('Verification failed, retry later', { status: 503 })
         }
 
         const finalized = await finalizePaymentByTransaction(
@@ -859,14 +915,22 @@ export async function POST(request: NextRequest) {
         )
 
         if (!finalized.ok && finalized.state !== 'not_found') {
-            console.error('[Webhook] Finalization failed:', finalized.message)
+            // Échec de finalisation (DB/crédits) : 500 pour obtenir un retry provider.
+            // La finalisation est idempotente (revendication atomique) : un retry
+            // ne peut pas créditer deux fois.
+            console.error('[Webhook] Finalization failed (will retry):', {
+                transaction_id: cpm_trans_id,
+                payment_state: finalized.state,
+                message: finalized.message,
+            })
+            return new Response('Finalization failed, retry later', { status: 500 })
         }
 
-        return new Response('OK', { status: 200 }) // Return OK to stop retries
+        return new Response('OK', { status: 200 })
 
     } catch (err) {
-        console.error('[Webhook] Webhook error:', err)
-        return new Response('OK', { status: 200 }) // Return OK to stop retries
+        console.error('[Webhook] Webhook error (will retry):', err)
+        return new Response('Webhook error, retry later', { status: 500 })
     }
 }
 

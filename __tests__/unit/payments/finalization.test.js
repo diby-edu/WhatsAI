@@ -96,13 +96,32 @@ function createAgentsTable() {
 }
 
 function createPaymentsTable(paymentUpdates) {
+    // Chaîne thenable : supporte update().eq() (await direct),
+    // update().eq().neq().select() (revendication atomique LM-2)
+    // et update().eq().eq() (libération de revendication).
     return {
-        update: jest.fn((payload) => ({
-            eq: jest.fn(async () => {
-                paymentUpdates.push(payload)
-                return { error: null }
-            }),
-        })),
+        update: jest.fn((payload) => {
+            let recorded = false
+            const record = () => {
+                if (!recorded) {
+                    recorded = true
+                    paymentUpdates.push(payload)
+                }
+            }
+            const chain = {
+                eq: jest.fn(() => chain),
+                neq: jest.fn(() => chain),
+                select: jest.fn(async () => {
+                    record()
+                    return { data: [{ id: 'payment-claimed' }], error: null }
+                }),
+                then: (resolve, reject) => {
+                    record()
+                    return Promise.resolve({ error: null }).then(resolve, reject)
+                },
+            }
+            return chain
+        }),
     }
 }
 
@@ -187,6 +206,7 @@ describe('payment finalization', () => {
             id: 'payment_1',
             user_id: 'user_1',
             status: 'processing',
+            webhook_received: true,
             payment_type: 'credits',
             payment_provider: 'paystack',
             amount_fcfa: 100,
@@ -248,6 +268,7 @@ describe('payment finalization', () => {
             id: 'payment_sub_same_plan',
             user_id: 'user_sub_same_plan',
             status: 'processing',
+            webhook_received: true,
             payment_type: 'subscription',
             payment_provider: 'cinetpay',
             amount_fcfa: 6900,
@@ -301,6 +322,7 @@ describe('payment finalization', () => {
             id: 'payment_sub_plan_change',
             user_id: 'user_sub_plan_change',
             status: 'processing',
+            webhook_received: true,
             payment_type: 'subscription',
             payment_provider: 'cinetpay',
             amount_fcfa: 19900,
@@ -344,6 +366,7 @@ describe('payment finalization', () => {
             id: 'payment_credits_active_window',
             user_id: 'user_credits_active_window',
             status: 'processing',
+            webhook_received: true,
             payment_type: 'credits',
             payment_provider: 'paystack',
             amount_fcfa: 3000,
@@ -355,12 +378,11 @@ describe('payment finalization', () => {
 
         expect(finalized.ok).toBe(true)
         expect(finalized.newBalance).toBe(620)
-        expect(profileUpdates).toContainEqual(expect.objectContaining({
-            paid_until: '2026-08-14T00:00:00.000Z',
-            grace_until: null,
-            account_lifecycle_status: 'paid_active',
-            credits_frozen_at: null,
-            credits_expire_at: null,
-        }))
+        // Un achat de crédits est du carburant : il ne touche PAS au cycle de vie
+        // (paid_until / grace_until / account_lifecycle_status inchangés).
+        // Seul un abonnement modifie le profil.
+        expect(profileUpdates.filter(u =>
+            'paid_until' in u || 'grace_until' in u || 'account_lifecycle_status' in u
+        )).toHaveLength(0)
     })
 })

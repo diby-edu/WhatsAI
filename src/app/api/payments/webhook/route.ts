@@ -3,8 +3,10 @@ import { createAdminClient } from '@/lib/api-utils'
 import { checkPaymentStatus, verifyWebhookSignature } from '@/lib/payments/cinetpay'
 import { finalizePaymentByTransaction } from '@/lib/payments/finalization'
 
-// Legacy webhook endpoint kept for compatibility.
-// Finalization is delegated to the shared payment finalizer.
+// LM-17 — Route LEGACY conservée uniquement pour les transactions anciennes
+// dont le notify_url CinetPay pointe encore ici. La route ACTIVE est
+// /api/payments/cinetpay/webhook (cf. notifyUrl des routes d'initiation).
+// Sûre : signature fail-closed + re-vérification provider + finaliseur partagé.
 export async function POST(request: NextRequest) {
     try {
         const body = await request.text()

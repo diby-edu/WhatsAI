@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
+import crypto from 'crypto'
 import { createClient } from '@supabase/supabase-js'
 import { queueOutboundWhatsAppMessage } from '@/lib/whatsapp/outbound'
+
+// M4 : comparaison en temps constant (les deux valeurs sont hachées pour
+// neutraliser la différence de longueur avant timingSafeEqual).
+function timingSafeEqualStr(a: string, b: string): boolean {
+    const ha = crypto.createHash('sha256').update(String(a)).digest()
+    const hb = crypto.createHash('sha256').update(String(b)).digest()
+    return crypto.timingSafeEqual(ha, hb)
+}
 
 // Internal API to send WhatsApp messages (used by webhook)
 // Protected by secret key check
@@ -20,7 +29,7 @@ export async function POST(request: NextRequest) {
         const { agentId, to, message, secretKey } = body
 
         const expectedSecret = process.env.INTERNAL_API_SECRET
-        if (!expectedSecret || secretKey !== expectedSecret) {
+        if (!expectedSecret || !timingSafeEqualStr(String(secretKey || ''), expectedSecret)) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 

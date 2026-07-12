@@ -539,20 +539,78 @@ export async function finalizePaymentRecord(
         const currentProfile = await fetchProfileForPaymentLifecycle(adminSupabase, payment.user_id)
         const currentPlanSlug = String(currentProfile?.plan || 'free').trim().toLowerCase()
 
-        if (isSubscription) {
-            const plan = await resolveSubscriptionPlan(adminSupabase, payment)
-            if (!plan) {
-                return {
-                    ok: false,
-                    state: 'error',
-                    payment,
-                    providerStatus,
-                    creditsAdded: 0,
-                    newBalance: null,
-                    planUpdated: false,
-                    message: 'Plan abonnement introuvable pour finalisation',
-                }
+        // Résolu AVANT la revendication : si le plan est introuvable on sort
+        // sans avoir touché au statut du paiement (rejouable).
+        const subscriptionPlan = isSubscription ? await resolveSubscriptionPlan(adminSupabase, payment) : null
+        if (isSubscription && !subscriptionPlan) {
+            return {
+                ok: false,
+                state: 'error',
+                payment,
+                providerStatus,
+                creditsAdded: 0,
+                newBalance: null,
+                planUpdated: false,
+                message: 'Plan abonnement introuvable pour finalisation',
             }
+        }
+
+        // Revendication atomique AVANT tout crédit : un seul processus concurrent
+        // peut faire passer le paiement à 'completed' (UPDATE conditionnel), les
+        // autres voient 0 ligne mise à jour et sortent en 'already_completed'.
+        const { data: claimedRows, error: claimError } = await adminSupabase
+            .from('payments')
+            .update({
+                status: 'completed',
+                completed_at: new Date().toISOString(),
+                ...buildPaymentProviderUpdate(payment, providerPayload),
+            })
+            .eq('id', payment.id)
+            .neq('status', 'completed')
+            .select('id')
+
+        if (claimError) {
+            console.error('Failed to claim payment for finalization:', claimError)
+            return {
+                ok: false,
+                state: 'error',
+                payment,
+                providerStatus,
+                creditsAdded: 0,
+                newBalance: null,
+                planUpdated: false,
+                message: 'Echec mise a jour paiement',
+            }
+        }
+
+        if (!claimedRows || claimedRows.length === 0) {
+            // Course perdue : un autre webhook/verify concurrent a déjà finalisé.
+            try {
+                await markUserAsQualified(adminSupabase, payment.user_id)
+            } catch (qualificationError) {
+                console.error('Failed to clear test-account deadline for already completed payment:', qualificationError)
+            }
+
+            return {
+                ok: true,
+                state: 'already_completed',
+                payment: { ...payment, status: 'completed' },
+                providerStatus,
+                creditsAdded: payment.credits_purchased || 0,
+                newBalance: null,
+                planUpdated: false,
+                message: 'Paiement deja traite',
+            }
+        }
+
+        // Le paiement est déjà revendiqué ('completed') : toute exception non
+        // prévue ici doit relâcher la revendication plutôt que de laisser le
+        // paiement 'completed' sans que l'abonnement/les crédits soient
+        // réellement appliqués (sinon un retry le prendrait pour un doublon
+        // déjà traité et sauterait la logique silencieusement).
+        try {
+        if (isSubscription) {
+            const plan = subscriptionPlan!
 
             const periodStart = new Date(nowMs)
 
@@ -665,6 +723,13 @@ export async function finalizePaymentRecord(
 
                 if (creditError) {
                     console.error('add_credits error:', creditError)
+                    // Libérer la revendication : le paiement redevient rejouable
+                    // (un retry webhook/verify pourra re-tenter le crédit).
+                    await adminSupabase
+                        .from('payments')
+                        .update({ status: payment.status || 'processing', completed_at: null })
+                        .eq('id', payment.id)
+                        .eq('status', 'completed')
                     return {
                         ok: false,
                         state: 'error',
@@ -682,19 +747,13 @@ export async function finalizePaymentRecord(
             // Pas de mise à jour lifecycle : paid_until, grace_until, account_lifecycle_status
             // et paid_until restent inchangés. Les agents ne sont pas réactivés.
         }
-
-        const { error: updatePaymentError } = await adminSupabase
-            .from('payments')
-            .update({
-                status: 'completed',
-                credits_purchased: creditsAdded > 0 ? creditsAdded : payment.credits_purchased,
-                completed_at: new Date().toISOString(),
-                ...buildPaymentProviderUpdate(payment, providerPayload),
-            })
-            .eq('id', payment.id)
-
-        if (updatePaymentError) {
-            console.error('Failed to update payment:', updatePaymentError)
+        } catch (applyError) {
+            console.error('[finalization] Uncaught error applying subscription/credits, releasing claim:', applyError)
+            await adminSupabase
+                .from('payments')
+                .update({ status: payment.status || 'processing', completed_at: null })
+                .eq('id', payment.id)
+                .eq('status', 'completed')
             return {
                 ok: false,
                 state: 'error',
@@ -703,7 +762,20 @@ export async function finalizePaymentRecord(
                 creditsAdded: 0,
                 newBalance: null,
                 planUpdated: false,
-                message: 'Echec mise a jour paiement',
+                message: 'Echec application abonnement/credits',
+            }
+        }
+
+        // Le statut est déjà 'completed' (revendication atomique ci-dessus) ;
+        // il ne reste qu'à consigner les crédits effectivement ajoutés.
+        if (creditsAdded > 0 && creditsAdded !== payment.credits_purchased) {
+            const { error: updatePaymentError } = await adminSupabase
+                .from('payments')
+                .update({ credits_purchased: creditsAdded })
+                .eq('id', payment.id)
+
+            if (updatePaymentError) {
+                console.error('Failed to record credits_purchased on payment:', updatePaymentError)
             }
         }
 
@@ -747,6 +819,7 @@ export async function finalizePaymentRecord(
 
     if (providerStatus === 'REFUSED' || providerStatus === 'CANCELLED') {
         if (payment.status !== 'failed') {
+            // .neq garde-fou : un REFUSED tardif ne doit jamais écraser un paiement finalisé
             await adminSupabase
                 .from('payments')
                 .update({
@@ -754,6 +827,7 @@ export async function finalizePaymentRecord(
                     ...buildPaymentProviderUpdate(payment, providerPayload),
                 })
                 .eq('id', payment.id)
+                .neq('status', 'completed')
 
             // Notify admins of failed payment
             notifyAdmins('payment_failed', {
