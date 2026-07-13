@@ -2,14 +2,6 @@
 const { normalizePhoneNumber, checkStock, productHasRealVariants, findMatchingOption, getOptionValue, getOptionPrice } = require('./tool-helpers')
 const { validateCreateOrderArgs } = require('./tool-validators')
 
-function combinationMatches(attributes = {}, expected = {}) {
-    const attributeKeys = Object.keys(attributes)
-    const expectedKeys = Object.keys(expected)
-
-    if (attributeKeys.length !== expectedKeys.length) return false
-    return expectedKeys.every(key => attributes[key] === expected[key])
-}
-
 function hasLicenseKeyInventory(product = {}) {
     return Array.isArray(product?.license_keys) && product.license_keys.length > 0
 }
@@ -237,63 +229,43 @@ async function handleCreateOrder(args, agentId, products, conversationId, supaba
                 customerName: trimmedCustomerName || 'Client',
                 totalAmount: total
             })
+        } catch (notifyError) {
+            console.error('🔔 new_order notification error (non-blocking):', notifyError)
+        }
 
-            // Décrémenter le stock via les IDs résolus (garantis — pas item.product_id de l'IA)
-            for (const resolved of resolvedProducts) {
-                const { data: prod } = await supabase
-                    .from('products')
-                    .select('stock_quantity, name, combinations')
-                    .eq('id', resolved.id)
-                    .single()
+        // PERF-1 ≡ LM-8 : décrément de stock ATOMIQUE via RPC (UPDATE...SET x = f(x)),
+        // via les IDs résolus (garantis — pas item.product_id de l'IA). Les erreurs de
+        // décrément sont journalisées explicitement (ne plus les avaler silencieusement).
+        for (const resolved of resolvedProducts) {
+            try {
+                const { data: rows, error: stockError } = await supabase.rpc('decrement_product_stock', {
+                    p_product_id: resolved.id,
+                    p_quantity: resolved.quantity,
+                    p_combination_attributes: resolved.combinationAttributes || null
+                })
 
-                if (!prod) continue
+                if (stockError) {
+                    console.error(`❌ Stock decrement failed for product ${resolved.id} (order ${order.id}):`, stockError)
+                    continue
+                }
 
-                if (resolved.combinationAttributes && Array.isArray(prod.combinations)) {
-                    let combinationUpdated = false
-                    const nextCombinations = prod.combinations.map(combo => {
-                        if (!combinationMatches(combo.attributes || {}, resolved.combinationAttributes)) {
-                            return combo
-                        }
+                const result = rows?.[0]
+                if (!result) continue
 
-                        if (combo.stock === null || combo.stock === undefined || combo.stock < 0) {
-                            combinationUpdated = true
-                            return combo
-                        }
+                const { notify } = require('../../../notifications/notify')
 
-                        const nextStock = Math.max(0, combo.stock - resolved.quantity)
-                        combinationUpdated = true
-                        return {
-                            ...combo,
-                            stock: nextStock,
-                            available: nextStock > 0 ? combo.available !== false : false
-                        }
+                if (resolved.combinationAttributes && result.new_combination_stock === 0) {
+                    notify(agent.user_id, 'stock_out', {
+                        productName: resolved.variantLabel ? `${result.product_name} (${resolved.variantLabel})` : result.product_name
                     })
-
-                    if (combinationUpdated) {
-                        await supabase.from('products').update({ combinations: nextCombinations }).eq('id', resolved.id)
-
-                        const updatedCombo = nextCombinations.find(combo =>
-                            combinationMatches(combo.attributes || {}, resolved.combinationAttributes)
-                        )
-
-                        if (updatedCombo && updatedCombo.stock === 0) {
-                            notify(agent.user_id, 'stock_out', {
-                                productName: resolved.variantLabel ? `${prod.name} (${resolved.variantLabel})` : prod.name
-                            })
-                        }
-                    }
                 }
 
-                if (prod.stock_quantity !== -1 && prod.stock_quantity !== null) {
-                    const newStock = prod.stock_quantity - resolved.quantity
-                    await supabase.from('products').update({ stock_quantity: Math.max(0, newStock) }).eq('id', resolved.id)
-                    if (newStock <= 0) {
-                        notify(agent.user_id, 'stock_out', { productName: prod.name })
-                    }
+                if (!resolved.combinationAttributes && result.new_stock_quantity !== null && result.new_stock_quantity <= 0) {
+                    notify(agent.user_id, 'stock_out', { productName: result.product_name })
                 }
+            } catch (stockDecrementError) {
+                console.error(`❌ Uncaught stock decrement error for product ${resolved.id} (order ${order.id}):`, stockDecrementError)
             }
-        } catch (notifError) {
-            console.error('🔔 Notification error (non-blocking):', notifError)
         }
 
         // Génération du résumé ligne par ligne

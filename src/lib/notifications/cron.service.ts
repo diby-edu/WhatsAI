@@ -1290,9 +1290,34 @@ async function handleTestAccountCleanup(): Promise<void> {
  * Auto-sync external catalogues (Woo/Shopify) for external_sync agents.
  * Runs every 5 minutes and retries failed syncs with backoff.
  */
+// CRON-1 : verrou global léger anti-chevauchement, réutilise cron_run_logs
+// (pas de nouvelle table). Si un run 'catalog_sync' a démarré il y a moins de
+// 10 minutes (> l'intervalle */5) sans avoir encore écrit de statut final,
+// on considère qu'il tourne toujours et on saute ce tick.
+async function isCatalogSyncAlreadyRunning(supabase: ReturnType<typeof getAdminSupabase>): Promise<boolean> {
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString()
+    const { data: recentRuns, error } = await supabase
+        .from('cron_run_logs')
+        .select('status, created_at')
+        .eq('task_key', 'catalog_sync')
+        .gte('created_at', tenMinutesAgo)
+        .order('created_at', { ascending: false })
+        .limit(1)
+
+    if (error || !recentRuns || recentRuns.length === 0) return false
+    return recentRuns[0].status === 'running'
+}
+
 async function handlePlatformCatalogAutoSync(): Promise<void> {
     try {
         const supabase = getAdminSupabase()
+
+        if (await isCatalogSyncAlreadyRunning(supabase)) {
+            console.log('[CRON] Skipping platform catalogue auto-sync: previous run still in progress.')
+            return
+        }
+        await supabase.from('cron_run_logs').insert({ task_key: 'catalog_sync', status: 'running', duration_ms: 0 })
+
         const { data: connections, error } = await supabase
             .from('api_platform_sync_connections')
             .select('id, user_id, agent_id, provider, is_active, auto_sync_enabled, sync_interval_minutes, retry_count, next_retry_at, last_synced_at, last_sync_status, last_sync_started_at, credentials_encrypted')
