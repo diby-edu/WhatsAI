@@ -61,7 +61,7 @@ export const initializePushNotifications = async (): Promise<string | null> => {
 const setupPushNotificationListeners = () => {
     // On successful registration
     PushNotifications.addListener('registration', async (token: Token) => {
-        console.log('Push registration success, token:', token.value);
+        console.log('Push registration success'); // CSEC-5 : ne jamais logger le token en clair
         pushToken = token.value;
         try {
             localStorage.setItem('fcm_token', token.value);

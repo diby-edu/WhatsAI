@@ -6,6 +6,7 @@ import {
     RefreshCw, Search, Power, ChevronDown, ChevronUp,
     BarChart3, Globe, TrendingUp, Shield, Clock, Zap, Database
 } from 'lucide-react'
+import { useToast } from '@/components/ui/Toast'
 
 interface Stats {
     overview: {
@@ -78,6 +79,7 @@ const ALL_PLATFORMS = [
 const DEFAULT_ENABLED = ['chariow', 'generic', 'api_key']
 
 export default function ApiMonitoringPage() {
+    const toast = useToast()
     const [tab, setTab] = useState<Tab>('overview')
     const [stats, setStats] = useState<Stats | null>(null)
     const [users, setUsers] = useState<UserAccess[]>([])
@@ -98,12 +100,15 @@ export default function ApiMonitoringPage() {
         setLoading(true)
         try {
             const res = await fetch('/api/admin/api-stats')
+            if (!res.ok) throw new Error(`HTTP ${res.status}`)
             const result = await res.json()
             if (result.data) setStats(result.data)
+        } catch {
+            toast.error('Impossible de charger les statistiques')
         } finally {
             setLoading(false)
         }
-    }, [])
+    }, [toast])
 
     const fetchUsers = useCallback(async () => {
         setLoading(true)
@@ -112,64 +117,82 @@ export default function ApiMonitoringPage() {
             if (search) params.set('search', search)
             if (accessFilter !== 'all') params.set('access', accessFilter)
             const res = await fetch(`/api/admin/api-users-access?${params}`)
+            if (!res.ok) throw new Error(`HTTP ${res.status}`)
             const result = await res.json()
             setUsers(result.data?.data || [])
+        } catch {
+            toast.error('Impossible de charger les accès utilisateurs')
         } finally {
             setLoading(false)
         }
-    }, [search, accessFilter])
+    }, [search, accessFilter, toast])
 
     const fetchKeys = useCallback(async () => {
         setLoading(true)
         try {
             const res = await fetch('/api/admin/api-keys-admin?limit=100')
+            if (!res.ok) throw new Error(`HTTP ${res.status}`)
             const result = await res.json()
             setKeys(result.data?.data || [])
+        } catch {
+            toast.error('Impossible de charger les clés API')
         } finally {
             setLoading(false)
         }
-    }, [])
+    }, [toast])
 
     const fetchLogs = useCallback(async () => {
         setLoading(true)
         try {
             const res = await fetch('/api/admin/api-logs-admin?limit=100')
+            if (!res.ok) throw new Error(`HTTP ${res.status}`)
             const result = await res.json()
             setLogs(result.data?.data || [])
+        } catch {
+            toast.error('Impossible de charger les logs')
         } finally {
             setLoading(false)
         }
-    }, [])
+    }, [toast])
 
     const fetchGlobalFlag = useCallback(async () => {
         try {
             const res = await fetch('/api/admin/features')
+            if (!res.ok) throw new Error(`HTTP ${res.status}`)
             const result = await res.json()
             const features = result.data?.features || []
             const flag = features.find((f: any) => f.key === 'api_public_enabled')
             setGlobalEnabled(flag?.enabled ?? false)
-        } catch (_) {}
-    }, [])
+        } catch {
+            toast.error('Impossible de charger le statut de l\'API publique')
+        }
+    }, [toast])
 
     const fetchEnabledPlatforms = useCallback(async () => {
         try {
             const res = await fetch('/api/admin/platforms')
+            if (!res.ok) throw new Error(`HTTP ${res.status}`)
             const result = await res.json()
             if (Array.isArray(result.data?.enabledPlatforms)) {
                 setEnabledPlatforms(result.data.enabledPlatforms)
             }
-        } catch (_) {}
-    }, [])
+        } catch {
+            toast.error('Impossible de charger les plateformes')
+        }
+    }, [toast])
 
     const savePlatforms = async (platforms: string[]) => {
         setSavingPlatforms(true)
         try {
-            await fetch('/api/admin/platforms', {
+            const res = await fetch('/api/admin/platforms', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ enabledPlatforms: platforms })
             })
+            if (!res.ok) throw new Error(`HTTP ${res.status}`)
             setEnabledPlatforms(platforms)
+        } catch {
+            toast.error('Échec de la sauvegarde des plateformes')
         } finally { setSavingPlatforms(false) }
     }
 
@@ -206,7 +229,13 @@ export default function ApiMonitoringPage() {
                     features: [{ key: 'api_public_enabled', enabled: newVal }]
                 })
             })
-            if (res.ok) setGlobalEnabled(newVal)
+            if (res.ok) {
+                setGlobalEnabled(newVal)
+            } else {
+                toast.error('Échec du changement de statut de l\'API publique')
+            }
+        } catch {
+            toast.error('Erreur réseau')
         } finally {
             setSavingGlobal(false)
         }
@@ -225,7 +254,11 @@ export default function ApiMonitoringPage() {
                 setUsers(prev => prev.map(u =>
                     u.id === userId ? { ...u, api_access_enabled: newValue } : u
                 ))
+            } else {
+                toast.error('Échec de la mise à jour de l\'accès')
             }
+        } catch {
+            toast.error('Erreur réseau')
         } finally {
             setTogglingId(null)
         }
@@ -234,16 +267,22 @@ export default function ApiMonitoringPage() {
     const toggleBulkAccess = async (enable: boolean) => {
         if (selectedUsers.size === 0) return
         const ids = Array.from(selectedUsers)
-        const res = await fetch('/api/admin/api-users-access', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user_ids: ids, api_access_enabled: enable })
-        })
-        if (res.ok) {
-            setUsers(prev => prev.map(u =>
-                ids.includes(u.id) ? { ...u, api_access_enabled: enable } : u
-            ))
-            setSelectedUsers(new Set())
+        try {
+            const res = await fetch('/api/admin/api-users-access', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_ids: ids, api_access_enabled: enable })
+            })
+            if (res.ok) {
+                setUsers(prev => prev.map(u =>
+                    ids.includes(u.id) ? { ...u, api_access_enabled: enable } : u
+                ))
+                setSelectedUsers(new Set())
+            } else {
+                toast.error('Échec de la mise à jour groupée')
+            }
+        } catch {
+            toast.error('Erreur réseau')
         }
     }
 
@@ -259,7 +298,11 @@ export default function ApiMonitoringPage() {
                 setKeys(prev => prev.map(k =>
                     k.id === key.id ? { ...k, is_active: !key.is_active } : k
                 ))
+            } else {
+                toast.error('Échec de la mise à jour de la clé')
             }
+        } catch {
+            toast.error('Erreur réseau')
         } finally {
             setTogglingId(null)
         }
@@ -622,10 +665,10 @@ export default function ApiMonitoringPage() {
                     <div style={{
                         background: 'var(--card-bg, #1a1a2e)',
                         border: '1px solid var(--border, #2a2a3e)',
-                        borderRadius: 14, overflow: 'hidden'
+                        borderRadius: 14, overflowX: 'auto', overflowY: 'hidden'
                     }}>
                         <div style={{
-                            display: 'grid', gridTemplateColumns: '40px 1fr 1fr 100px 100px 80px',
+                            display: 'grid', gridTemplateColumns: '40px 1fr 1fr 100px 100px 80px', minWidth: 620,
                             padding: '10px 16px', borderBottom: '1px solid var(--border, #2a2a3e)',
                             fontSize: 11, fontWeight: 600, color: 'var(--text-secondary, #9ca3af)',
                             textTransform: 'uppercase', letterSpacing: '0.05em'
@@ -646,7 +689,7 @@ export default function ApiMonitoringPage() {
                             <div
                                 key={u.id}
                                 style={{
-                                    display: 'grid', gridTemplateColumns: '40px 1fr 1fr 100px 100px 80px',
+                                    display: 'grid', gridTemplateColumns: '40px 1fr 1fr 100px 100px 80px', minWidth: 620,
                                     padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.04)',
                                     alignItems: 'center',
                                     background: selectedUsers.has(u.id) ? 'rgba(37,211,102,0.04)' : 'transparent'
@@ -715,10 +758,10 @@ export default function ApiMonitoringPage() {
                 <div style={{
                     background: 'var(--card-bg, #1a1a2e)',
                     border: '1px solid var(--border, #2a2a3e)',
-                    borderRadius: 14, overflow: 'hidden'
+                    borderRadius: 14, overflowX: 'auto', overflowY: 'hidden'
                 }}>
                     <div style={{
-                        display: 'grid', gridTemplateColumns: '1fr 1fr 80px 100px 100px 80px',
+                        display: 'grid', gridTemplateColumns: '1fr 1fr 80px 100px 100px 80px', minWidth: 660,
                         padding: '10px 16px', borderBottom: '1px solid var(--border, #2a2a3e)',
                         fontSize: 11, fontWeight: 600, color: 'var(--text-secondary, #9ca3af)',
                         textTransform: 'uppercase', letterSpacing: '0.05em'
@@ -739,7 +782,7 @@ export default function ApiMonitoringPage() {
                         <div
                             key={k.id}
                             style={{
-                                display: 'grid', gridTemplateColumns: '1fr 1fr 80px 100px 100px 80px',
+                                display: 'grid', gridTemplateColumns: '1fr 1fr 80px 100px 100px 80px', minWidth: 660,
                                 padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.04)',
                                 alignItems: 'center', opacity: k.is_active ? 1 : 0.5
                             }}
@@ -791,10 +834,10 @@ export default function ApiMonitoringPage() {
                 <div style={{
                     background: 'var(--card-bg, #1a1a2e)',
                     border: '1px solid var(--border, #2a2a3e)',
-                    borderRadius: 14, overflow: 'hidden'
+                    borderRadius: 14, overflowX: 'auto', overflowY: 'hidden'
                 }}>
                     <div style={{
-                        display: 'grid', gridTemplateColumns: '70px 1fr 80px 80px auto',
+                        display: 'grid', gridTemplateColumns: '70px 1fr 80px 80px auto', minWidth: 460,
                         padding: '10px 16px', borderBottom: '1px solid var(--border, #2a2a3e)',
                         fontSize: 11, fontWeight: 600, color: 'var(--text-secondary, #9ca3af)',
                         textTransform: 'uppercase', letterSpacing: '0.05em'
@@ -814,7 +857,7 @@ export default function ApiMonitoringPage() {
                         <div
                             key={log.id}
                             style={{
-                                display: 'grid', gridTemplateColumns: '70px 1fr 80px 80px auto',
+                                display: 'grid', gridTemplateColumns: '70px 1fr 80px 80px auto', minWidth: 460,
                                 padding: '9px 16px', borderBottom: '1px solid rgba(255,255,255,0.04)',
                                 alignItems: 'center', fontSize: 12
                             }}

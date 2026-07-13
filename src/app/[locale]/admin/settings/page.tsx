@@ -93,6 +93,11 @@ export default function AdminSettingsPage() {
     const [activeTab, setActiveTab] = useState<TabId>('general')
     const [saving, setSaving] = useState(false)
     const [saved, setSaved] = useState(false)
+    // LOAD-2 : tant que le fetch initial des params prod n'a pas reussi, `settings`
+    // ne contient que des valeurs par defaut codees en dur — Sauvegarder doit
+    // rester desactive pour ne pas les ecraser silencieusement.
+    const [settingsLoaded, setSettingsLoaded] = useState(false)
+    const [settingsLoadError, setSettingsLoadError] = useState<string | null>(null)
 
     // OTP WhatsApp
     const [otpStatus, setOtpStatus] = useState<'not_configured' | 'connecting' | 'qr_ready' | 'connected' | 'disconnected'>('not_configured')
@@ -326,8 +331,10 @@ export default function AdminSettingsPage() {
     }
 
     const fetchSettings = async () => {
+        setSettingsLoadError(null)
         try {
             const res = await fetch('/api/admin/settings')
+            if (!res.ok) throw new Error(`HTTP ${res.status}`)
             const data = await res.json()
             if (data.data?.settings) {
                 const fetchedSettings = { ...data.data.settings }
@@ -347,8 +354,10 @@ export default function AdminSettingsPage() {
             if (data.data?.providerReadiness) {
                 setProviderReadiness(data.data.providerReadiness)
             }
+            setSettingsLoaded(true)
         } catch (err) {
             console.error('Error fetching admin settings:', err)
+            setSettingsLoadError('Impossible de charger les paramètres actuels. Sauvegarder est désactivé pour éviter d\'écraser la configuration en production.')
         }
     }
 
@@ -1446,34 +1455,56 @@ export default function AdminSettingsPage() {
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={activeTab === 'notifications' ? handleSaveNotifications : handleSave}
-                        disabled={saving}
+                        disabled={saving || !settingsLoaded}
+                        title={!settingsLoaded ? 'Chargement des paramètres en cours...' : undefined}
                         style={{
                             padding: '14px 24px',
                             borderRadius: 12,
-                            background: saved ? '#22c55e' : saveError ? '#ef4444' : 'linear-gradient(135deg, #10b981, #059669)',
+                            background: !settingsLoaded ? 'rgba(100,116,139,0.4)' : saved ? '#22c55e' : saveError ? '#ef4444' : 'linear-gradient(135deg, #10b981, #059669)',
                             border: 'none',
                             color: 'white',
                             fontWeight: 600,
-                            cursor: saving ? 'wait' : 'pointer',
+                            cursor: saving || !settingsLoaded ? 'not-allowed' : 'pointer',
+                            opacity: !settingsLoaded ? 0.6 : 1,
                             display: 'flex',
                             alignItems: 'center',
                             gap: 8
                         }}
                     >
-                        {saving ? (
+                        {saving || !settingsLoaded ? (
                             <Loader2 style={{ width: 18, height: 18, animation: 'spin 1s linear infinite' }} />
                         ) : saved ? (
                             <CheckCircle style={{ width: 18, height: 18 }} />
                         ) : (
                             <Save style={{ width: 18, height: 18 }} />
                         )}
-                        {saved ? 'Sauvegardé !' : 'Sauvegarder'}
+                        {!settingsLoaded ? 'Chargement...' : saved ? 'Sauvegardé !' : 'Sauvegarder'}
                     </motion.button>
                     {saveError && (
                         <span style={{ fontSize: 12, color: '#f87171' }}>{saveError}</span>
                     )}
                 </div>
             </div>
+
+            {settingsLoadError && (
+                <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+                    padding: '14px 18px', marginBottom: 24, borderRadius: 12,
+                    background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
+                }}>
+                    <span style={{ color: '#fecaca', fontSize: 14 }}>{settingsLoadError}</span>
+                    <button
+                        onClick={fetchSettings}
+                        style={{
+                            padding: '8px 16px', borderRadius: 8, border: 'none',
+                            background: '#ef4444', color: 'white', fontWeight: 600,
+                            fontSize: 13, cursor: 'pointer', flexShrink: 0,
+                        }}
+                    >
+                        Réessayer
+                    </button>
+                </div>
+            )}
 
             {/* Tabs */}
             <div className="admin-settings-tabs" style={{

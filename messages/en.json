@@ -270,6 +270,10 @@
             "cta": "Contact Team"
         },
         "loading": "Loading...",
+        "errors": {
+            "payment": "Payment error",
+            "network": "Network error. Please try again."
+        },
         "plans": {
             "free": {
                 "name": "Free",

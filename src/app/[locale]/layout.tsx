@@ -42,6 +42,7 @@ import HomeButton from '@/components/HomeButton';
 import StatusBarInit from '@/components/StatusBarInit';
 import MotionProvider from '@/components/MotionProvider';
 import ChunkErrorReload from '@/components/ChunkErrorReload';
+import { ToastProvider } from '@/components/ui/Toast';
 
 export default async function RootLayout({
   children,
@@ -60,7 +61,9 @@ export default async function RootLayout({
           <MotionProvider>
             <ChunkErrorReload />
             <StatusBarInit />
-            {children}
+            <ToastProvider>
+              {children}
+            </ToastProvider>
             <WhatsAppButton />
             <HomeButton />
           </MotionProvider>

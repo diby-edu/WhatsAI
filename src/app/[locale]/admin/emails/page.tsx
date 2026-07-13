@@ -183,10 +183,10 @@ export default function AdminEmailsPage() {
             <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                style={{ background: 'rgba(30, 41, 59, 0.4)', border: '1px solid rgba(148, 163, 184, 0.1)', borderRadius: 24, overflow: 'hidden' }}
+                style={{ background: 'rgba(30, 41, 59, 0.4)', border: '1px solid rgba(148, 163, 184, 0.1)', borderRadius: 24, overflowX: 'auto', overflowY: 'hidden' }}
             >
                 {/* Table header */}
-                <div style={{ padding: '16px 24px', borderBottom: '1px solid rgba(148, 163, 184, 0.1)', display: 'grid', gridTemplateColumns: '180px 1fr 160px 120px 80px', gap: 16, alignItems: 'center' }}>
+                <div style={{ padding: '16px 24px', borderBottom: '1px solid rgba(148, 163, 184, 0.1)', display: 'grid', gridTemplateColumns: '180px 1fr 160px 120px 80px', minWidth: 700, gap: 16, alignItems: 'center' }}>
                     {['DESTINATAIRE', 'SUJET', 'TYPE', 'STATUT', 'DATE'].map(col => (
                         <span key={col} style={{ color: '#64748b', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{col}</span>
                     ))}
@@ -213,7 +213,7 @@ export default function AdminEmailsPage() {
                                 initial={{ opacity: 0, x: -8 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{ delay: i * 0.02 }}
-                                style={{ padding: '14px 24px', borderBottom: '1px solid rgba(148, 163, 184, 0.05)', display: 'grid', gridTemplateColumns: '180px 1fr 160px 120px 80px', gap: 16, alignItems: 'center' }}
+                                style={{ padding: '14px 24px', borderBottom: '1px solid rgba(148, 163, 184, 0.05)', display: 'grid', gridTemplateColumns: '180px 1fr 160px 120px 80px', minWidth: 700, gap: 16, alignItems: 'center' }}
                                 title={log.failure_reason ?? undefined}
                             >
                                 {/* Destinataire */}

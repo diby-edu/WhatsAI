@@ -120,6 +120,7 @@ export default function PayDunyaCheckoutPage() {
             if (providerStatus === 'REFUSED' || providerStatus === 'CANCELLED' || currentStatus === 'failed') {
                 setPhase('failed')
                 setErrorMessage(providerError || 'Paiement refusé ou annulé.')
+                clearContext(transactionId)
                 return 'failed'
             }
 

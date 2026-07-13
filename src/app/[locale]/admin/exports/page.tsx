@@ -6,8 +6,10 @@ import {
     Download, FileText, Users, CreditCard, History,
     Bot, Calendar, Package, ChevronRight, Loader2, CheckCircle2
 } from 'lucide-react'
+import { useToast } from '@/components/ui/Toast'
 
 export default function AdminExportsPage() {
+    const toast = useToast()
     const [exporting, setExporting] = useState<string | null>(null)
     const [done, setDone] = useState<string | null>(null)
 
@@ -42,7 +44,7 @@ export default function AdminExportsPage() {
                 case 'payments': data = json.data?.payments || []; break
                 default: data = Array.isArray(json.data) ? json.data : []
             }
-            if (!data || data.length === 0) { alert('Aucune donnée à exporter'); setExporting(null); return }
+            if (!data || data.length === 0) { toast.warning('Aucune donnée à exporter'); setExporting(null); return }
 
             const headers = Object.keys(data[0]).filter(h => typeof data[0][h] !== 'object' || data[0][h] === null)
             const rows = data.map(row => headers.map(h => {
@@ -52,7 +54,7 @@ export default function AdminExportsPage() {
             }))
 
             const printWin = window.open('', '_blank')
-            if (!printWin) { alert('Autorisez les popups pour exporter en PDF'); setExporting(null); return }
+            if (!printWin) { toast.warning('Autorisez les popups pour exporter en PDF'); setExporting(null); return }
             const date = new Date().toLocaleDateString('fr-FR')
             printWin.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
 <title>Export ${label} — ${date}</title>
@@ -75,7 +77,7 @@ export default function AdminExportsPage() {
             printWin.onload = () => { printWin.print() }
             setDone(id); setTimeout(() => setDone(null), 3000)
         } catch (err) {
-            console.error('PDF export failed:', err); alert('Erreur lors de l\'export PDF')
+            console.error('PDF export failed:', err); toast.error('Erreur lors de l\'export PDF')
         } finally { setExporting(null) }
     }
 
@@ -119,7 +121,7 @@ export default function AdminExportsPage() {
             }
 
             if (!data || data.length === 0) {
-                alert('Aucune donnée à exporter')
+                toast.warning('Aucune donnée à exporter')
                 setExporting(null)
                 return
             }
@@ -158,7 +160,7 @@ export default function AdminExportsPage() {
             setTimeout(() => setDone(null), 3000)
         } catch (err) {
             console.error('Export failed:', err)
-            alert('Erreur lors de l\'export')
+            toast.error('Erreur lors de l\'export')
         } finally {
             setExporting(null)
         }

@@ -8,8 +8,10 @@ import {
     ChevronLeft, ChevronRight, CheckSquare, Square, Timer
 } from 'lucide-react'
 import { TableSkeleton } from '@/components/admin/AdminSkeletons'
+import { useToast } from '@/components/ui/Toast'
 
 export default function AdminUsersPage() {
+    const toast = useToast()
     const [users, setUsers] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState('')
@@ -131,11 +133,12 @@ export default function AdminUsersPage() {
             if (data.success) {
                 await fetchUsers()
                 setEditUser(null)
+                toast.success('Action effectuée')
             } else {
-                alert(data.error || 'Erreur')
+                toast.error(data.error || 'Erreur')
             }
         } catch {
-            alert('Erreur réseau')
+            toast.error('Erreur réseau')
         } finally {
             setActionLoading(null)
         }
@@ -143,7 +146,11 @@ export default function AdminUsersPage() {
 
     const handleBulkAction = async (action: string, data?: any) => {
         if (selectedIds.length === 0) return
-        if (!confirm(`Confirmer l'action sur ${selectedIds.length} utilisateurs ?`)) return
+        const confirmed = await toast.confirm({
+            title: `Confirmer l'action sur ${selectedIds.length} utilisateurs ?`,
+            danger: true,
+        })
+        if (!confirmed) return
 
         setIsBulkLoading(true)
         try {
@@ -156,11 +163,12 @@ export default function AdminUsersPage() {
             if (result.success) {
                 setSelectedIds([])
                 fetchUsers()
+                toast.success('Action groupée effectuée')
             } else {
-                alert(result.error || 'Erreur lors de l\'action groupée')
+                toast.error(result.error || 'Erreur lors de l\'action groupée')
             }
         } catch (err) {
-            alert('Erreur réseau')
+            toast.error('Erreur réseau')
         } finally {
             setIsBulkLoading(false)
         }

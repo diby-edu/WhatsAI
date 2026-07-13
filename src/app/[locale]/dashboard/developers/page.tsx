@@ -2524,11 +2524,13 @@ export default function DevelopersPage() {
                         <div style={{
                             border: '1px solid var(--border, #2a2a3e)',
                             borderRadius: 14,
-                            overflow: 'hidden',
+                            overflowX: 'auto',
+                            overflowY: 'hidden',
                         }}>
                             <div style={{
                                 display: 'grid',
                                 gridTemplateColumns: '80px 1fr 90px 90px auto',
+                                minWidth: 490,
                                 padding: '10px 16px',
                                 borderBottom: '1px solid var(--border, #2a2a3e)',
                                 fontSize: 11,
@@ -2562,6 +2564,7 @@ export default function DevelopersPage() {
                                             style={{
                                                 display: 'grid',
                                                 gridTemplateColumns: '80px 1fr 90px 90px auto',
+                                                minWidth: 490,
                                                 padding: '10px 16px',
                                                 fontSize: 13,
                                                 alignItems: 'center',

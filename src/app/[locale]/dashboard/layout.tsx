@@ -51,7 +51,6 @@ import { TestAccountCountdownBanner } from '@/components/dashboard/TestAccountCo
 import AppDownloadBanner from '@/components/dashboard/AppDownloadBanner'
 import PhoneVerifyModal from '@/components/dashboard/PhoneVerifyModal'
 import MobileAppPrompt from '@/components/dashboard/MobileAppPrompt'
-import { ToastProvider } from '@/components/ui/Toast'
 import { UpgradeModalProvider, useUpgradeModal } from '@/contexts/UpgradeModalContext'
 import UpgradeModal from '@/components/dashboard/UpgradeModal'
 
@@ -1217,9 +1216,7 @@ export default function DashboardLayout({
                         <UpgradeModal />
                         <CurrencyProvider>
                             <BiometricLock>
-                                <ToastProvider>
-                                    {children}
-                                </ToastProvider>
+                                {children}
                             </BiometricLock>
                         </CurrencyProvider>
                     </UpgradeModalProvider>

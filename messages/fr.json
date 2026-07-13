@@ -270,6 +270,10 @@
       "cta": "Contacter l'équipe"
     },
     "loading": "Chargement...",
+    "errors": {
+      "payment": "Erreur lors du paiement",
+      "network": "Erreur réseau. Veuillez réessayer."
+    },
     "plans": {
       "free": {
         "name": "Gratuit",

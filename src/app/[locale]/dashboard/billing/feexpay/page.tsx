@@ -161,6 +161,8 @@ export default function FeexPayCheckoutPage() {
             if (providerStatus === 'REFUSED' || providerStatus === 'CANCELLED' || currentStatus === 'failed') {
                 setPhase('failed')
                 setErrorMessage(providerError || 'Paiement refuse ou annule. Aucun credit n a ete ajoute.')
+                // CSEC-6 : nettoyer le PII (telephone) du storage meme sur echec/annulation
+                clearCheckoutContext(transactionId)
                 return 'failed'
             }
 

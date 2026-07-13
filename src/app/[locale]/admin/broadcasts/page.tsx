@@ -7,6 +7,7 @@ import {
     Sparkles, SpellCheck, Bold, Italic, Link2, History, Trash2
 } from 'lucide-react'
 import Link from 'next/link'
+import { useToast } from '@/components/ui/Toast'
 
 interface Agent {
     id: string
@@ -71,6 +72,7 @@ function getSegmentHint(value: string) {
 }
 
 export default function AdminBroadcastsPage() {
+    const toast = useToast()
     const [activeTab, setActiveTab] = useState<TabId>('whatsapp')
 
     // WhatsApp state
@@ -375,9 +377,12 @@ export default function AdminBroadcastsPage() {
                     setBroadcastProgress({ total: data.data.recipientCount, sent: 0, failed: 0, pending: data.data.recipientCount })
                 }
                 setTimeout(() => setWaSent(false), 5000)
+            } else {
+                toast.error(data.error || 'Échec de l\'envoi du broadcast WhatsApp')
             }
         } catch (err) {
             console.error('Error sending wa broadcast:', err)
+            toast.error('Erreur réseau — le broadcast n\'a pas été envoyé')
         } finally {
             setWaSending(false)
         }

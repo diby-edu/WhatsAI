@@ -8,6 +8,7 @@ import { createBrowserClient } from '@supabase/ssr'
 import { useTranslations, useLocale } from 'next-intl'
 import { formatPriceFromFcfa } from '@/lib/currency'
 import { usePlans, type Plan } from '@/hooks/usePlans'
+import { useToast } from '@/components/ui/Toast'
 
 type Currency = 'FCFA' | 'USD' | 'EUR'
 
@@ -34,6 +35,7 @@ export default function Pricing() {
     const t = useTranslations('Pricing')
     const locale = useLocale()
     const router = useRouter()
+    const toast = useToast()
 
     const COMMON_FEATURES = [
         t('commonFeature0'),
@@ -503,11 +505,11 @@ export default function Pricing() {
                                             if (data.data?.paymentUrl) {
                                                 window.location.href = data.data.paymentUrl
                                             } else {
-                                                alert(data.error || 'Erreur lors du paiement')
+                                                toast.error(data.error || t('errors.payment'))
                                                 setLoadingPlan(null)
                                             }
                                         } catch {
-                                            alert('Erreur réseau')
+                                            toast.error(t('errors.network'))
                                             setLoadingPlan(null)
                                         }
                                     }}

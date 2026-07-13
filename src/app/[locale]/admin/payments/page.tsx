@@ -6,6 +6,7 @@ import {
     CreditCard, Users, TrendingUp, FileText, Loader2, RefreshCw,
     DollarSign, Edit, XCircle, Zap, X, Download, Search, Package, Eye
 } from 'lucide-react'
+import { useToast } from '@/components/ui/Toast'
 
 interface Subscription {
     id: string
@@ -32,6 +33,7 @@ interface Stats {
 }
 
 export default function AdminSubscriptionsPage() {
+    const toast = useToast()
     const [activeTab, setActiveTab] = useState<'subscriptions' | 'credits' | 'verify'>('subscriptions')
     const [subscriptions, setSubscriptions] = useState<Subscription[]>([])
     const [creditPayments, setCreditPayments] = useState<any[]>([])
@@ -103,11 +105,12 @@ export default function AdminSubscriptionsPage() {
             if (data.success) {
                 await fetchData()
                 setEditSub(null)
+                toast.success('Action effectuée')
             } else {
-                alert(data.error || 'Erreur')
+                toast.error(data.error || 'Erreur')
             }
         } catch {
-            alert('Erreur réseau')
+            toast.error('Erreur réseau')
         } finally {
             setActionLoading(null)
         }

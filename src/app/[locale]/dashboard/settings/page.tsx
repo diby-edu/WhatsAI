@@ -320,9 +320,13 @@ export default function SettingsPage() {
                 setTimeout(() => setSaved(false), 3000)
                 // Sync la devise dans le contexte global pour mise à jour immédiate
                 if (profile.currency) setCurrency(profile.currency)
+            } else {
+                const data = await res.json().catch(() => ({}))
+                toast.error(data.error || 'Erreur lors de la sauvegarde du profil')
             }
         } catch (err) {
             console.error('Error:', err)
+            toast.error('Erreur réseau — le profil n\'a pas été sauvegardé')
         } finally {
             setSaving(false)
         }
@@ -339,9 +343,13 @@ export default function SettingsPage() {
             if (res.ok) {
                 setSaved(true)
                 setTimeout(() => setSaved(false), 3000)
+            } else {
+                const data = await res.json().catch(() => ({}))
+                toast.error(data.error || 'Erreur lors de la sauvegarde des notifications')
             }
         } catch (err) {
             console.error('Error saving notification preferences:', err)
+            toast.error('Erreur réseau — les préférences n\'ont pas été sauvegardées')
         } finally {
             setSaving(false)
         }
