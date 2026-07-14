@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import dynamic from 'next/dynamic'
 import { motion } from 'framer-motion'
 import {
     AlertCircle,
@@ -11,18 +12,12 @@ import {
     TrendingUp,
     Users,
 } from 'lucide-react'
-import {
-    Area,
-    AreaChart,
-    Bar,
-    BarChart,
-    Legend,
-    ResponsiveContainer,
-    Tooltip,
-    XAxis,
-    YAxis,
-} from 'recharts'
 import { CardSkeleton, ChartSkeleton } from '@/components/admin/AdminSkeletons'
+
+// BUNDLE-2 : recharts chargé uniquement côté client, hors du bundle initial de la page.
+const RevenueAreaChart = dynamic(() => import('@/components/admin/AnalyticsCharts').then(m => m.RevenueAreaChart), { ssr: false, loading: () => <ChartSkeleton /> })
+const UsersBarChart = dynamic(() => import('@/components/admin/AnalyticsCharts').then(m => m.UsersBarChart), { ssr: false, loading: () => <ChartSkeleton /> })
+const MessagesAreaChart = dynamic(() => import('@/components/admin/AnalyticsCharts').then(m => m.MessagesAreaChart), { ssr: false, loading: () => <ChartSkeleton /> })
 
 type PeriodType = '7d' | '14d' | '30d' | '90d' | '12m'
 
@@ -254,26 +249,7 @@ export default function AdminAnalyticsPage() {
                         </div>
                     </div>
                     <div style={{ width: '100%', height: 300 }}>
-                        <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={revenueData}>
-                                <defs>
-                                    <linearGradient id="colorPlatform" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#34d399" stopOpacity={0.3} />
-                                        <stop offset="95%" stopColor="#34d399" stopOpacity={0} />
-                                    </linearGradient>
-                                    <linearGradient id="colorMerchant" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#60a5fa" stopOpacity={0.3} />
-                                        <stop offset="95%" stopColor="#60a5fa" stopOpacity={0} />
-                                    </linearGradient>
-                                </defs>
-                                <XAxis dataKey="date" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
-                                <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${Math.round(value / 1000)}k`} />
-                                <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(148, 163, 184, 0.2)', borderRadius: 12, color: 'white' }} />
-                                <Legend verticalAlign="top" height={36} align="right" />
-                                <Area type="monotone" dataKey="Plateforme" stroke="#34d399" strokeWidth={3} fillOpacity={1} fill="url(#colorPlatform)" />
-                                <Area type="monotone" dataKey="Marchands" stroke="#60a5fa" strokeWidth={3} fillOpacity={1} fill="url(#colorMerchant)" />
-                            </AreaChart>
-                        </ResponsiveContainer>
+                        <RevenueAreaChart data={revenueData} />
                     </div>
                 </motion.div>
 
@@ -296,14 +272,7 @@ export default function AdminAnalyticsPage() {
                         </div>
                     </div>
                     <div style={{ width: '100%', height: 300 }}>
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={userData}>
-                                <XAxis dataKey="date" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
-                                <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
-                                <Tooltip cursor={{ fill: 'rgba(148, 163, 184, 0.05)' }} contentStyle={{ background: '#1e293b', border: '1px solid rgba(148, 163, 184, 0.2)', borderRadius: 12 }} />
-                                <Bar dataKey="Utilisateurs" fill="#a78bfa" radius={[6, 6, 0, 0]} />
-                            </BarChart>
-                        </ResponsiveContainer>
+                        <UsersBarChart data={userData} />
                     </div>
                 </motion.div>
 
@@ -324,14 +293,7 @@ export default function AdminAnalyticsPage() {
                         <MessageCircle size={20} color="#fb7185" />
                     </div>
                     <div style={{ width: '100%', height: 300 }}>
-                        <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={messageData}>
-                                <XAxis dataKey="day" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
-                                <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
-                                <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(148, 163, 184, 0.2)', borderRadius: 12 }} />
-                                <Area type="stepAfter" dataKey="Messages" stroke="#fb7185" strokeWidth={3} fill="rgba(251, 113, 133, 0.1)" />
-                            </AreaChart>
-                        </ResponsiveContainer>
+                        <MessagesAreaChart data={messageData} />
                     </div>
                 </motion.div>
 
