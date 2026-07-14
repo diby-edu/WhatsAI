@@ -69,6 +69,11 @@ async function isSafeToCancelOrder(order) {
             `${webBaseUrl}/api/payments/cinetpay/status?transaction_id=${encodeURIComponent(txId)}`,
             { signal: AbortSignal.timeout(20000) }
         )
+        if (!res.ok) {
+            // Route de statut en erreur : ne pas interpréter comme "non payé".
+            console.error('Provider status check returned non-OK, skipping cancellation this run:', order.id, res.status)
+            return false
+        }
         const data = await res.json()
         if (data && data.status === 'ACCEPTED') {
             // Payée : la route de statut vient de la finaliser — ne PAS annuler.

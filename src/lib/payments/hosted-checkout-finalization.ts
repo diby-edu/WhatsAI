@@ -231,7 +231,7 @@ function extractCheckoutReferenceIdPrefix(reference: string): string | null {
     return match ? match[1] : null
 }
 
-async function findRowByReferencePrefix(
+export async function findRowByReferencePrefix(
     supabase: SupabaseClientLike,
     table: 'orders' | 'bookings',
     txPrefix: 'ORD' | 'BKG',
@@ -296,6 +296,35 @@ export async function finalizeHostedOrderPayment(
 
     const provider = normalizePaymentProvider(options.provider)
     const isRestaurantDepositPayment = order.deposit_required && order.deposit_status === 'pending'
+
+    // LM-5 : contrôle du montant réellement payé (tolérance 1 FCFA) avant de
+    // marquer la commande payée. Ce chemin partagé est utilisé par FeexPay,
+    // PayDunya, Paystack et la route de statut publique — sans ce contrôle,
+    // un paiement partiel y était accepté comme complet.
+    const expectedOrderAmountFcfa = Math.round(Number(
+        isRestaurantDepositPayment ? order.deposit_amount_fcfa : order.total_fcfa
+    ) || 0)
+    const paidOrderAmountFcfa = (options.amount === null || options.amount === undefined)
+        ? null
+        : Math.round(Number(options.amount))
+    const orderAmountIsInvalid = paidOrderAmountFcfa !== null && !Number.isFinite(paidOrderAmountFcfa)
+    if (
+        expectedOrderAmountFcfa > 0
+        && (
+            orderAmountIsInvalid
+            || (paidOrderAmountFcfa !== null && paidOrderAmountFcfa + 1 < expectedOrderAmountFcfa)
+        )
+    ) {
+        console.error('[Hosted Checkout Finalization] ORDER AMOUNT MISMATCH — finalisation refusée', {
+            orderId: order.id,
+            reference,
+            provider,
+            expectedOrderAmountFcfa,
+            paidOrderAmountFcfa,
+        })
+        return { ok: false, kind: 'order', state: 'amount_mismatch' as const }
+    }
+
     const nextStatus = isRestaurantDepositPayment
         ? (order.fulfillment_mode === 'delivery' ? 'pending_delivery' : 'pending_pickup')
         : 'paid'
@@ -436,6 +465,31 @@ export async function finalizeHostedBookingPayment(
     }
 
     const provider = normalizePaymentProvider(options.provider)
+
+    // LM-5 : contrôle du montant réellement payé (tolérance 1 FCFA), même
+    // raisonnement que finalizeHostedOrderPayment.
+    const expectedBookingAmountFcfa = Math.round(Number(booking.deposit_amount_fcfa) || 0)
+    const paidBookingAmountFcfa = (options.amount === null || options.amount === undefined)
+        ? null
+        : Math.round(Number(options.amount))
+    const bookingAmountIsInvalid = paidBookingAmountFcfa !== null && !Number.isFinite(paidBookingAmountFcfa)
+    if (
+        expectedBookingAmountFcfa > 0
+        && (
+            bookingAmountIsInvalid
+            || (paidBookingAmountFcfa !== null && paidBookingAmountFcfa + 1 < expectedBookingAmountFcfa)
+        )
+    ) {
+        console.error('[Hosted Checkout Finalization] BOOKING AMOUNT MISMATCH — finalisation refusée', {
+            bookingId: booking.id,
+            reference,
+            provider,
+            expectedBookingAmountFcfa,
+            paidBookingAmountFcfa,
+        })
+        return { ok: false, kind: 'booking', state: 'amount_mismatch' as const }
+    }
+
     const resolvedProviderTxId = resolveProviderTransactionId(provider, reference, options.providerPayload)
     const bookingUpdate: Record<string, unknown> = {
         deposit_status: 'paid',

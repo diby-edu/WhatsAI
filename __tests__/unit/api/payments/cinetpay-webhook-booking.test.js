@@ -83,6 +83,17 @@ function createSupabaseMock({ booking, linkedConversation = { id: 'conv_1' }, up
                                 : { data: null, error: { message: 'not found' } }
                         }
                         return { data: null, error: { message: 'not found' } }
+                    }),
+                    maybeSingle: jest.fn(async () => {
+                        if (table === 'bookings' && firstColumn === 'transaction_id' && firstValue === booking.transaction_id) {
+                            return { data: booking, error: null }
+                        }
+                        if (table === 'conversations' && firstColumn === 'id' && firstValue === booking.conversation_id) {
+                            return linkedConversation
+                                ? { data: linkedConversation, error: null }
+                                : { data: null, error: { message: 'not found' } }
+                        }
+                        return { data: null, error: null }
                     })
                 }))
             })),
@@ -128,7 +139,7 @@ describe('POST /api/payments/cinetpay/webhook for BKG_*', () => {
         const inserts = []
 
         mockCreateClient.mockReturnValue(createSupabaseMock({ booking, updates, inserts }))
-        mockCheckPaymentStatus.mockResolvedValue({ status: 'ACCEPTED', amount: 5000 })
+        mockCheckPaymentStatus.mockResolvedValue({ success: true, status: 'ACCEPTED', amount: 5000 })
 
         const response = await POST(makeWebhookRequest({
             cpm_site_id: 'site_123',
@@ -190,7 +201,7 @@ describe('POST /api/payments/cinetpay/webhook for BKG_*', () => {
         const inserts = []
 
         mockCreateClient.mockReturnValue(createSupabaseMock({ booking, updates, inserts }))
-        mockCheckPaymentStatus.mockResolvedValue({ status: 'REFUSED' })
+        mockCheckPaymentStatus.mockResolvedValue({ success: true, status: 'REFUSED' })
 
         const response = await POST(makeWebhookRequest({
             cpm_site_id: 'site_123',

@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import crypto from 'crypto'
 import { Redis } from '@upstash/redis'
-import { createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
+import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
 import { normalizeStoredPhone } from '@/lib/profile-phone'
 
 const MAX_OTP_ATTEMPTS = 5
@@ -59,9 +59,21 @@ export async function POST(req: NextRequest) {
         }
     }
 
-    // Sauvegarder le numéro vérifié et marquer comme vérifié
+    // Sauvegarder le numéro vérifié et marquer comme vérifié.
+    // LM-7 : phone_verified est protégé par un trigger Postgres qui n'autorise
+    // que le service_role — createApiClient() (clé anon + session) s'exécute en
+    // rôle 'authenticated' et se ferait silencieusement ignorer par le trigger.
     const normalizedPhone = normalizeStoredPhone(phone) || phone
-    await supabase.from('profiles').update({ phone_verified: true, phone: normalizedPhone }).eq('id', user!.id)
+    const adminSupabase = createAdminClient()
+    const { error: updateError } = await adminSupabase
+        .from('profiles')
+        .update({ phone_verified: true, phone: normalizedPhone })
+        .eq('id', user!.id)
+
+    if (updateError) {
+        console.error('[phone-verify/confirm] Failed to persist phone_verified:', updateError)
+        return errorResponse('Échec de l\'enregistrement de la vérification', 500)
+    }
 
     // Supprimer le code OTP et le compteur de tentatives
     await redis.del(`otp:${phone}`)

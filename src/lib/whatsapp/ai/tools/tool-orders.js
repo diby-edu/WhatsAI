@@ -260,7 +260,9 @@ async function handleCreateOrder(args, agentId, products, conversationId, supaba
                     })
                 }
 
-                if (!resolved.combinationAttributes && result.new_stock_quantity !== null && result.new_stock_quantity <= 0) {
+                // Stock global : notifié quel que soit le type de commande (variante ou
+                // non), comme avant. -1 = illimité, jamais considéré comme épuisé.
+                if (result.new_stock_quantity !== null && result.new_stock_quantity !== -1 && result.new_stock_quantity <= 0) {
                     notify(agent.user_id, 'stock_out', { productName: result.product_name })
                 }
             } catch (stockDecrementError) {

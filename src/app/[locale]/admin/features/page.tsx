@@ -61,6 +61,11 @@ export default function AdminFeaturesPage() {
     const [loading, setLoading] = useState(false)
     const [saving, setSaving] = useState(false)
     const [saved, setSaved] = useState(false)
+    // Même classe de bug que LOAD-2 (admin/settings) : tant que le fetch initial
+    // n'a pas réussi, `features` ne contient que des valeurs par défaut codées en
+    // dur (dont otp_bypass_enabled à true) — Enregistrer doit rester désactivé.
+    const [featuresLoaded, setFeaturesLoaded] = useState(false)
+    const [featuresLoadError, setFeaturesLoadError] = useState<string | null>(null)
 
     // Onglet utilisateurs
     const [users, setUsers] = useState<UserProfile[]>([])
@@ -77,8 +82,10 @@ export default function AdminFeaturesPage() {
 
     const fetchFeatures = async () => {
         setLoading(true)
+        setFeaturesLoadError(null)
         try {
             const res = await fetch('/api/admin/features')
+            if (!res.ok) throw new Error(`HTTP ${res.status}`)
             const data = await res.json()
             if (data.data?.features) {
                 setFeatures(ALL_FEATURES.map(f => {
@@ -88,7 +95,10 @@ export default function AdminFeaturesPage() {
                     return { ...f, enabled: sf ? sf.enabled : defaultEnabled }
                 }))
             }
-        } catch { } finally { setLoading(false) }
+            setFeaturesLoaded(true)
+        } catch {
+            setFeaturesLoadError('Impossible de charger les fonctionnalités actuelles. Enregistrer est désactivé pour éviter d\'écraser la configuration en production.')
+        } finally { setLoading(false) }
     }
 
     const fetchUsers = async () => {
@@ -168,18 +178,38 @@ export default function AdminFeaturesPage() {
                     </div>
                 </div>
                 {activeTab === 'global' && (
-                    <button onClick={saveFeatures} disabled={saving} style={{
+                    <button onClick={saveFeatures} disabled={saving || !featuresLoaded} title={!featuresLoaded ? 'Chargement des fonctionnalités en cours...' : undefined} style={{
                         display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px',
-                        background: saved ? 'rgba(34,197,94,0.2)' : 'linear-gradient(135deg,#10b981,#059669)',
-                        border: 'none', borderRadius: 10, color: 'white', cursor: 'pointer', fontSize: 14, fontWeight: 600,
-                        opacity: saving ? 0.7 : 1
+                        background: !featuresLoaded ? 'rgba(100,116,139,0.4)' : saved ? 'rgba(34,197,94,0.2)' : 'linear-gradient(135deg,#10b981,#059669)',
+                        border: 'none', borderRadius: 10, color: 'white', cursor: (saving || !featuresLoaded) ? 'not-allowed' : 'pointer', fontSize: 14, fontWeight: 600,
+                        opacity: (saving || !featuresLoaded) ? 0.7 : 1
                     }}>
-                        {saving ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
+                        {saving || !featuresLoaded ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
                             : saved ? <CheckCircle size={16} /> : <Save size={16} />}
-                        {saved ? 'Enregistré !' : 'Enregistrer'}
+                        {!featuresLoaded ? 'Chargement...' : saved ? 'Enregistré !' : 'Enregistrer'}
                     </button>
                 )}
             </div>
+
+            {featuresLoadError && (
+                <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+                    padding: '14px 18px', borderRadius: 12,
+                    background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
+                }}>
+                    <span style={{ color: '#fecaca', fontSize: 14 }}>{featuresLoadError}</span>
+                    <button
+                        onClick={fetchFeatures}
+                        style={{
+                            padding: '8px 16px', borderRadius: 8, border: 'none',
+                            background: '#ef4444', color: 'white', fontWeight: 600,
+                            fontSize: 13, cursor: 'pointer', flexShrink: 0,
+                        }}
+                    >
+                        Réessayer
+                    </button>
+                </div>
+            )}
 
             {/* Tabs */}
             <div style={{ display: 'flex', gap: 4, background: 'rgba(15,23,42,0.6)', borderRadius: 10, padding: 4, width: 'fit-content' }}>

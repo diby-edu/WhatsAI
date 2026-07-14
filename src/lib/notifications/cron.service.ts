@@ -1298,10 +1298,10 @@ async function isCatalogSyncAlreadyRunning(supabase: ReturnType<typeof getAdminS
     const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString()
     const { data: recentRuns, error } = await supabase
         .from('cron_run_logs')
-        .select('status, created_at')
+        .select('status, started_at')
         .eq('task_key', 'catalog_sync')
-        .gte('created_at', tenMinutesAgo)
-        .order('created_at', { ascending: false })
+        .gte('started_at', tenMinutesAgo)
+        .order('started_at', { ascending: false })
         .limit(1)
 
     if (error || !recentRuns || recentRuns.length === 0) return false

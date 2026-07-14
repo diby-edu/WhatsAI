@@ -35,17 +35,32 @@ main() {
         fi
 
         echo ""
-        echo "🔨 Recompilation dans .next_new..."
         export NODE_OPTIONS="--max-old-space-size=2048"
         export NEXT_DISABLE_ESLINT=1
-        rm -rf .next_new
-        if ! NEXT_DIST_DIR=.next_new node_modules/.bin/next build || [ ! -f .next_new/BUILD_ID ]; then
-            echo "❌ Build de la version restaurée échoué — .next actuel inchangé."
-            exit 1
+        rm -f .next/lock
+
+        if grep -q "NEXT_DIST_DIR" next.config.ts 2>/dev/null; then
+            # Le commit restauré supporte le build isolé (zero-downtime).
+            echo "🔨 Recompilation dans .next_new..."
+            rm -rf .next_new
+            if ! NEXT_DIST_DIR=.next_new node_modules/.bin/next build || [ ! -f .next_new/BUILD_ID ]; then
+                echo "❌ Build de la version restaurée échoué — .next actuel inchangé."
+                exit 1
+            fi
+            rm -rf .next_old
+            if [ -d .next ]; then mv .next .next_old; fi
+            mv .next_new .next
+        else
+            # Commit antérieur à la prise en charge de NEXT_DIST_DIR : ce next.config.ts
+            # ignorerait la variable et builderait directement dans .next servi.
+            # On construit donc directement, avec une brève fenêtre de downtime
+            # assumée, plutôt que de corrompre le build en cours de service.
+            echo "⚠️  Ce commit ne supporte pas le build isolé — compilation directe dans .next (downtime bref pendant le build)."
+            if ! node_modules/.bin/next build; then
+                echo "❌ Build de la version restaurée échoué."
+                exit 1
+            fi
         fi
-        rm -rf .next_old
-        if [ -d .next ]; then mv .next .next_old; fi
-        mv .next_new .next
     else
         # ── Rollback instantané des artefacts (défaut) ──
         if [ ! -d .next_old ]; then
@@ -56,6 +71,12 @@ main() {
         rm -rf .next
         # cp -a (et non mv) : préserve .next_old pour rollbacks futurs
         cp -a .next_old .next
+        echo ""
+        echo "⚠️  Ce mode ne restaure QUE le build web (.next). whatsai-bot exécute"
+        echo "   son code JS directement depuis l'arbre git et ne sera PAS reverté :"
+        echo "   son redémarrage ci-dessous relance le même code qu'avant ce rollback."
+        echo "   Si le bug suspecté touche le bot (stock, cron, messages WhatsApp),"
+        echo "   utilisez : bash rollback.sh --code"
     fi
 
     echo ""

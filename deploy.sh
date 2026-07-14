@@ -124,10 +124,23 @@ main() {
             rm -rf .next
             # cp -a (et non mv) : préserve .next_old pour rollbacks futurs
             cp -a .next_old .next
+
+            # whatsai-bot exécute son code JS directement depuis l'arbre git (pas
+            # depuis .next) : sans revenir aussi au commit précédent, le rollback
+            # "réussi" laisserait le bot tourner sur le commit cassé.
+            if [ "$OLD_COMMIT" != "unknown" ] && [ "$OLD_COMMIT" != "$NEW_COMMIT" ]; then
+                if git checkout "$OLD_COMMIT" 2>&1; then
+                    echo "⏪ Code source revenu au commit $OLD_COMMIT"
+                else
+                    echo "⚠️  git checkout vers $OLD_COMMIT a échoué — bot potentiellement toujours sur le commit cassé."
+                fi
+            fi
+
             pm2 restart whatsai-web 2>/dev/null || true
+            pm2 restart whatsai-bot 2>/dev/null || true
             sleep 8
             ROLLBACK_HTTP=$(curl -s -o /dev/null -w "%{http_code}" -L --max-time 8 http://localhost:3000 2>/dev/null || echo "000")
-            echo "⏪ Rollback appliqué — healthcheck post-rollback : HTTP $ROLLBACK_HTTP"
+            echo "⏪ Rollback appliqué (web + bot) — healthcheck post-rollback : HTTP $ROLLBACK_HTTP"
         else
             echo "⚠️  Pas de .next_old disponible — intervention manuelle requise."
         fi

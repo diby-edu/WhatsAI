@@ -88,6 +88,7 @@ export async function POST(request: NextRequest) {
         }
 
         if (providerStatus === 'ACCEPTED') {
+            let hadHostedTransientFailure = false
             for (const reference of references) {
                 const hostedFinalization = await finalizeHostedCheckoutTransaction(getSupabase(), reference, {
                     provider: 'paydunya',
@@ -95,7 +96,7 @@ export async function POST(request: NextRequest) {
                     providerPayload,
                 })
 
-                if (hostedFinalization.state !== 'not_found') {
+                if (hostedFinalization.ok) {
                     console.info('[PayDunya Webhook] Hosted checkout finalized', {
                         reference,
                         providerStatus,
@@ -103,6 +104,21 @@ export async function POST(request: NextRequest) {
                     })
                     return new Response('OK', { status: 200 })
                 }
+
+                if (hostedFinalization.state !== 'not_found') {
+                    // ok:false et state !== 'not_found' => échec réel de finalisation
+                    // (pas juste "cette référence ne correspond à rien"). Forcer le retry.
+                    hadHostedTransientFailure = true
+                    console.error('[PayDunya Webhook] Hosted checkout finalization failed (will retry)', {
+                        reference,
+                        providerStatus,
+                        state: hostedFinalization.state,
+                    })
+                }
+            }
+
+            if (hadHostedTransientFailure) {
+                return new Response('Finalization failed, retry later', { status: 503 })
             }
         } else {
             for (const reference of references) {

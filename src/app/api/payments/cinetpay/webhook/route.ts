@@ -4,6 +4,7 @@ import { checkPaymentStatus, checkPaymentStatusV2Runtime, verifyWebhookSignature
 import { isCinetPayV2WebhookPayload } from '@/lib/payments/cinetpay-v2'
 import { notify } from '@/lib/notifications/notification.service'
 import { finalizePaymentByTransaction } from '@/lib/payments/finalization'
+import { findRowByReferencePrefix } from '@/lib/payments/hosted-checkout-finalization'
 
 // Use service role for webhook (no user auth)
 // Helper for lazy init
@@ -529,11 +530,18 @@ export async function POST(request: NextRequest) {
         // First, check if this is an ORDER payment (transaction_id starts with ORD_)
         if (cpm_trans_id.startsWith('ORD_')) {
 
-            const { data: order, error: _orderError } = await getSupabase()
+            let { data: order } = await getSupabase()
                 .from('orders')
                 .select('*')
                 .eq('transaction_id', cpm_trans_id)
-                .single()
+                .maybeSingle()
+
+            if (!order) {
+                // LM-4 : le transaction_id est régénéré à chaque tentative — si le
+                // webhook porte une tentative antérieure, retrouver la commande par
+                // le préfixe stable <id8> avant de conclure "introuvable".
+                order = await findRowByReferencePrefix(getSupabase(), 'orders', 'ORD', cpm_trans_id)
+            }
 
             if (order) {
                 // IDEMPOTENCY CHECK: If already paid, stop here
@@ -543,6 +551,16 @@ export async function POST(request: NextRequest) {
 
                 // Verify with CinetPay API
                 const cinetpayStatus = await checkPaymentStatus(cpm_trans_id)
+
+                if (!cinetpayStatus.success) {
+                    // Échec transitoire de vérification : 503 pour forcer le retry CinetPay
+                    // (un 200 ici perdrait la notification définitivement si le paiement est réel).
+                    console.error('[Webhook] Order status verification failed (will retry):', {
+                        transaction_id: cpm_trans_id,
+                        message: cinetpayStatus.message,
+                    })
+                    return new Response('Verification failed, retry later', { status: 503 })
+                }
 
                 if (cinetpayStatus.status === 'ACCEPTED') {
                     const isRestaurantDepositPayment = order.deposit_required && order.deposit_status === 'pending'
@@ -555,10 +573,15 @@ export async function POST(request: NextRequest) {
                     const paidOrderAmountFcfa = (cinetpayStatus.amount === null || cinetpayStatus.amount === undefined)
                         ? null
                         : Math.round(Number(cinetpayStatus.amount))
+                    // Un montant fourni mais non numérique (NaN) doit être traité comme
+                    // suspect (fail-closed), pas silencieusement laissé passer.
+                    const orderAmountIsInvalid = paidOrderAmountFcfa !== null && !Number.isFinite(paidOrderAmountFcfa)
                     if (
                         expectedOrderAmountFcfa > 0
-                        && paidOrderAmountFcfa !== null
-                        && paidOrderAmountFcfa + 1 < expectedOrderAmountFcfa
+                        && (
+                            orderAmountIsInvalid
+                            || (paidOrderAmountFcfa !== null && paidOrderAmountFcfa + 1 < expectedOrderAmountFcfa)
+                        )
                     ) {
                         console.error('[Webhook] ORDER AMOUNT MISMATCH — finalisation refusée', {
                             orderId: order.id,
@@ -781,11 +804,16 @@ export async function POST(request: NextRequest) {
         }
 
         if (cpm_trans_id.startsWith('BKG_')) {
-            const { data: booking } = await getSupabase()
+            let { data: booking } = await getSupabase()
                 .from('bookings')
                 .select('*')
                 .eq('transaction_id', cpm_trans_id)
-                .single()
+                .maybeSingle()
+
+            if (!booking) {
+                // LM-4 : même rattrapage par préfixe que pour les commandes.
+                booking = await findRowByReferencePrefix(getSupabase(), 'bookings', 'BKG', cpm_trans_id)
+            }
 
             if (booking) {
                 const isTerminalDepositState = ['paid', 'waived', 'expired'].includes(booking.deposit_status)
@@ -797,16 +825,27 @@ export async function POST(request: NextRequest) {
 
                 const cinetpayStatus = await checkPaymentStatus(cpm_trans_id)
 
+                if (!cinetpayStatus.success) {
+                    console.error('[Webhook] Booking status verification failed (will retry):', {
+                        transaction_id: cpm_trans_id,
+                        message: cinetpayStatus.message,
+                    })
+                    return new Response('Verification failed, retry later', { status: 503 })
+                }
+
                 if (cinetpayStatus.status === 'ACCEPTED') {
                     // LM-5 : contrôle du montant réellement payé (tolérance 1 FCFA)
                     const expectedBookingAmountFcfa = Math.round(Number(booking.deposit_amount_fcfa) || 0)
                     const paidBookingAmountFcfa = (cinetpayStatus.amount === null || cinetpayStatus.amount === undefined)
                         ? null
                         : Math.round(Number(cinetpayStatus.amount))
+                    const bookingAmountIsInvalid = paidBookingAmountFcfa !== null && !Number.isFinite(paidBookingAmountFcfa)
                     if (
                         expectedBookingAmountFcfa > 0
-                        && paidBookingAmountFcfa !== null
-                        && paidBookingAmountFcfa + 1 < expectedBookingAmountFcfa
+                        && (
+                            bookingAmountIsInvalid
+                            || (paidBookingAmountFcfa !== null && paidBookingAmountFcfa + 1 < expectedBookingAmountFcfa)
+                        )
                     ) {
                         console.error('[Webhook] BOOKING AMOUNT MISMATCH — finalisation refusée', {
                             bookingId: booking.id,

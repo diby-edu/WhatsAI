@@ -508,6 +508,8 @@ export async function finalizePaymentRecord(
             }
 
             if (payment.status !== 'failed') {
+                // .neq garde-fou : une évaluation tardive/racée ne doit jamais écraser
+                // un paiement déjà finalisé (même garde que la branche REFUSED/CANCELLED).
                 await adminSupabase
                     .from('payments')
                     .update({
@@ -515,6 +517,7 @@ export async function finalizePaymentRecord(
                         ...buildPaymentProviderUpdate(payment, mismatchPayload),
                     })
                     .eq('id', payment.id)
+                    .neq('status', 'completed')
             }
 
             return {
@@ -697,7 +700,16 @@ export async function finalizePaymentRecord(
                 console.error('[finalization] Profile full update failed:', profileUpdateError.message, profileUpdateError.code)
             }
 
-            await reactivateArchivedAgentsForPlan(adminSupabase, payment.user_id, planSlug)
+            // Effet secondaire non critique, exécuté APRÈS la mutation critique
+            // (updateProfileAfterPayment) : isolé dans son propre try/catch pour
+            // qu'un échec ici ne déclenche pas la libération de la revendication
+            // du paiement (qui provoquerait un retry ré-appliquant les crédits/
+            // paid_until une seconde fois sur un profil déjà mis à jour).
+            try {
+                await reactivateArchivedAgentsForPlan(adminSupabase, payment.user_id, planSlug)
+            } catch (reactivationError) {
+                console.error('[finalization] reactivateArchivedAgentsForPlan failed (non-blocking):', reactivationError)
+            }
 
             // Notify Scale users of their rollover bonus
             if (planSlug === 'scale' && rolloverAmount > 0) {

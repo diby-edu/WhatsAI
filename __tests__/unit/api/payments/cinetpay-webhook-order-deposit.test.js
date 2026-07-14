@@ -116,6 +116,21 @@ function createSupabaseMock({ order, updates = [], messageInserts = [], outbound
                         }
                         return { data: null, error: { message: 'not found' } }
                     }),
+                    maybeSingle: jest.fn(async () => {
+                        if (table === 'orders' && firstColumn === 'transaction_id' && firstValue === order.transaction_id) {
+                            return { data: order, error: null }
+                        }
+                        if (table === 'conversations' && firstColumn === 'id' && firstValue === order.conversation_id) {
+                            return { data: conversationRow, error: null }
+                        }
+                        if (table === 'agents' && firstColumn === 'id' && firstValue === order.agent_id) {
+                            return { data: { user_id: 'user_1' }, error: null }
+                        }
+                        if (table === 'profiles' && firstColumn === 'id' && firstValue === 'user_1') {
+                            return { data: { phone: '+2250102030405' }, error: null }
+                        }
+                        return { data: null, error: { message: 'not found' } }
+                    }),
                     then: undefined
                 })),
                 order: jest.fn(() => ({
@@ -175,7 +190,7 @@ describe('POST /api/payments/cinetpay/webhook for ORD_* restaurant deposits', ()
             messageInserts,
             outboundInserts
         }))
-        mockCheckPaymentStatus.mockResolvedValue({ status: 'ACCEPTED', amount: 6000 })
+        mockCheckPaymentStatus.mockResolvedValue({ success: true, status: 'ACCEPTED', amount: 6000 })
 
         const response = await POST(makeWebhookRequest({
             cpm_site_id: 'site_123',
