@@ -491,10 +491,50 @@
             "google": "Continue with Google",
             "noAccount": "Don't have an account?",
             "createAccount": "Create an account",
+            "emailPlaceholder": "you@email.com",
+            "meta": {
+                "title": "Login — WazzapAI",
+                "description": "Log in to your WazzapAI account to manage your WhatsApp AI agents, conversations and sales."
+            },
+            "hero": {
+                "badge": "Powered by GPT-4o",
+                "titlePart1": "Automate",
+                "titleHighlight1": "WhatsApp",
+                "titleConnector": " with ",
+                "titleHighlight2": "AI",
+                "subtitle": "Reply to your customers 24/7, qualify your leads and boost your sales automatically.",
+                "features": {
+                    "instant": { "title": "Instant replies", "desc": "AI responds in under 10 seconds" },
+                    "secure": { "title": "Secure", "desc": "Your data is encrypted" },
+                    "trust": { "title": "+5000 businesses", "desc": "Trust WazzapAI" }
+                }
+            },
             "error": {
                 "invalidCredentials": "Invalid email or password.",
                 "notConfirmed": "Please confirm your email before logging in.",
-                "generic": "An error occurred. Please try again."
+                "generic": "An error occurred. Please try again.",
+                "invalidCredentialsExtended": "Invalid email or password. If you just signed up, check that you confirmed your email.",
+                "notConfirmedExtended": "Please confirm your email before logging in. Check your inbox.",
+                "tooManyAttempts": "Too many login attempts. Try again in {minutes} min.",
+                "confirmOtherDevice": "The confirmation link has expired or was opened on another device.",
+                "authFailed": "The sign-in link is invalid or has expired.",
+                "networkError": "Could not reach the server. Check your connection.",
+                "verificationRequired": "Email verification is required before signing in.",
+                "googleTokenFailed": "Could not retrieve the Google token.",
+                "googleMobileError": "Error signing in with Google on mobile. Make sure you're connected to the internet."
+            },
+            "resend": {
+                "missingEmail": "Enter your email to resend the confirmation link.",
+                "alreadyConfirmed": "Your email is already confirmed. Sign in directly.",
+                "successTitle": "Check your email!",
+                "successSentTo": "We've sent a confirmation link to",
+                "successHint": "Click the link in the email to activate your account",
+                "expiryNotice": "The link is valid for <strong>1 hour</strong>. If you can't find it, check your spam folder.",
+                "title": "Confirm your email",
+                "subtitle": "Enter your email to receive<br/>a new confirmation link.",
+                "sendButton": "Send confirmation link",
+                "sending": "Sending…",
+                "backToLogin": "← Back to sign in"
             }
         },
         "register": {
@@ -1207,5 +1247,140 @@
         "countdownHours": "Hours",
         "countdownMinutes": "Minutes",
         "countdownSeconds": "Seconds"
+    },
+    "Onboarding": {
+        "title": "Welcome to WazzapAI!",
+        "subtitle": "Set up your account in a few seconds.",
+        "trialNotice": "Important information: your account is in a 7-day trial period. Without subscribing to a plan or buying credits before the deadline, your account will be permanently deleted. A countdown is shown in your dashboard.",
+        "section1Label": "Your working currency",
+        "section2Label": "Interface language",
+        "section3Label": "Your business WhatsApp number",
+        "whatsappHint": "We may contact you directly on WhatsApp for support.",
+        "dialSearchPlaceholder": "+225 or Ivory Coast",
+        "phonePlaceholder": "0712345678",
+        "footerNote": "These preferences can be changed at any time in your settings.",
+        "cancelAndLogout": "Cancel and sign out",
+        "sendCodeLoading": "Sending code…",
+        "sendCodeButton": "Receive my WhatsApp code",
+        "currencies": {
+            "XOF": { "label": "CFA Franc", "description": "West Africa", "example": "7,000 FCFA / month" },
+            "USD": { "label": "US Dollar", "description": "United States", "example": "$10 / month" },
+            "EUR": { "label": "Euro", "description": "Europe", "example": "€10 / month" }
+        },
+        "otp": {
+            "sentTo": "Code sent to",
+            "codePlaceholder": "6-digit code",
+            "verifying": "Verifying…",
+            "verifyButton": "Verify code",
+            "expiresIn": "Code expires in",
+            "resend": "Resend code",
+            "changeNumber": "Change number",
+            "error": {
+                "tooShort": "Enter the 6-digit code.",
+                "incorrect": "Incorrect code."
+            }
+        },
+        "error": {
+            "saveFailed": "Error saving. Please try again.",
+            "phoneRequired": "A valid phone number is required.",
+            "sendFailed": "Error sending the code.",
+            "generic": "An error occurred. Please try again."
+        }
+    },
+    "Pay": {
+        "error": {
+            "refusedOrCancelled": "The payment was refused or cancelled.",
+            "cancelled": "The payment was cancelled.",
+            "orderNotFound": "Order not found.",
+            "orderFetchFailed": "Order not found",
+            "selectCountryNetwork": "Choose the payment country and network before continuing.",
+            "initFailed": "Failed to initiate payment",
+            "noPaymentUrl": "No payment URL returned",
+            "paymentFailed": "Payment error"
+        },
+        "notice": {
+            "confirmOnPhone": "Request sent. Confirm the payment on your phone...",
+            "pendingRefresh": "Payment pending. Confirm on your phone then refresh this page.",
+            "pendingConfirmation": "Payment awaiting confirmation...",
+            "processingDefault": "Payment initiated. Confirm the request on your phone. This page updates the status automatically."
+        },
+        "errorScreen": {
+            "title": "Oops!",
+            "unknownError": "Unknown error"
+        },
+        "success": {
+            "title": "Payment successful!",
+            "depositMessage": "Your deposit has been confirmed.",
+            "orderMessage": "Thank you for your order.",
+            "orderLabel": "Order",
+            "depositLabel": "Deposit",
+            "totalLabel": "Total",
+            "orderTotalLabel": "Order total",
+            "whatsappNotice": "You will receive a confirmation on WhatsApp",
+            "closeButton": "Close this page"
+        },
+        "summary": {
+            "title": "Order summary",
+            "depositDue": "Deposit due",
+            "totalDue": "Total due",
+            "orderTotal": "Order total: {amount} FCFA",
+            "itemsHeading": "Items",
+            "quantityLabel": "Quantity:",
+            "pickupLabel": "Pickup",
+            "deliveryLabel": "Delivery",
+            "pickupScheduledAt": "Pickup scheduled at {time}",
+            "pickupOnSite": "On-site pickup",
+            "noAddressSpecified": "No address specified"
+        },
+        "feexpay": {
+            "heading": "Mobile money payment",
+            "countryLabel": "Country",
+            "selectCountryPlaceholder": "Select a country",
+            "networkLabel": "Network",
+            "selectNetworkPlaceholder": "Select a network",
+            "otpWarning": "This network may require operator OTP validation."
+        },
+        "payButton": {
+            "deposit": "Pay deposit",
+            "full": "Pay now"
+        }
+    },
+    "PaymentSuccess": {
+        "heading": {
+            "loading": "Verifying...",
+            "pending": "Processing...",
+            "success": "Payment successful!",
+            "failed": "Payment failed"
+        },
+        "message": {
+            "success": {
+                "booking": "Your deposit has been confirmed. You will receive the booking confirmation on WhatsApp.",
+                "order": "Your payment has been confirmed. The order is now being processed.",
+                "account": "Your payment has been confirmed and your credits have been added!"
+            },
+            "failed": {
+                "booking": "The deposit payment was refused or cancelled.",
+                "default": "The payment was refused or cancelled."
+            },
+            "pendingCheck": {
+                "booking": "Verifying your deposit...",
+                "default": "Verifying payment..."
+            },
+            "pendingFinal": {
+                "booking": "Your deposit is being confirmed. You will receive the confirmation on WhatsApp.",
+                "order": "Your payment is being confirmed. You will receive a confirmation shortly.",
+                "account": "The payment is being processed. You will receive your credits shortly."
+            },
+            "verifyError": "Error verifying payment.",
+            "fallbackSuccess": "Your payment was processed successfully.",
+            "fallbackCancelled": "The payment was cancelled.",
+            "fallbackNotFound": "No transaction found."
+        },
+        "creditsAdded": "+{count} credits added",
+        "button": {
+            "backToDashboard": "Back to dashboard",
+            "retryPayment": "Retry payment",
+            "closePage": "Close this page"
+        }
     }
 }

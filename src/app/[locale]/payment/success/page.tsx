@@ -3,10 +3,12 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import { motion } from 'framer-motion'
 import { CheckCircle2, XCircle, Loader2, ArrowRight, CreditCard, RefreshCw } from 'lucide-react'
 
 function PaymentSuccessContent() {
+    const t = useTranslations('PaymentSuccess')
     const searchParams = useSearchParams()
     const transactionId = searchParams.get('transaction_id') || searchParams.get('reference') || searchParams.get('trxref')
     const transactionKind = transactionId?.startsWith('BKG_')
@@ -52,10 +54,10 @@ function PaymentSuccessContent() {
                     setCreditsAdded(data.credits_added || 0)
                     setMessage(
                         txnId.startsWith('BKG_')
-                            ? 'Votre acompte a ete confirme. Vous recevrez la confirmation de reservation sur WhatsApp.'
+                            ? t('message.success.booking')
                             : txnId.startsWith('ORD_')
-                                ? 'Votre paiement a ete confirme. La commande continue son traitement.'
-                                : 'Votre paiement a ete confirme et vos credits ont ete ajoutes !'
+                                ? t('message.success.order')
+                                : t('message.success.account')
                     )
                     return
                 }
@@ -64,8 +66,8 @@ function PaymentSuccessContent() {
                     setStatus('failed')
                     setMessage(
                         txnId.startsWith('BKG_')
-                            ? 'Le paiement de l acompte a ete refuse ou annule.'
-                            : 'Le paiement a ete refuse ou annule.'
+                            ? t('message.failed.booking')
+                            : t('message.failed.default')
                     )
                     return
                 }
@@ -74,8 +76,8 @@ function PaymentSuccessContent() {
                     setStatus('pending')
                     setMessage(
                         txnId.startsWith('BKG_')
-                            ? 'Verification de votre acompte en cours...'
-                            : 'Verification du paiement en cours...'
+                            ? t('message.pendingCheck.booking')
+                            : t('message.pendingCheck.default')
                     )
                     currentRetry += 1
                     setRetryCount(currentRetry)
@@ -86,16 +88,16 @@ function PaymentSuccessContent() {
                 setStatus('pending')
                 setMessage(
                     txnId.startsWith('BKG_')
-                        ? 'Votre acompte est en cours de confirmation. Vous recevrez la confirmation sur WhatsApp.'
+                        ? t('message.pendingFinal.booking')
                         : txnId.startsWith('ORD_')
-                            ? 'Votre paiement est en cours de confirmation. Vous recevrez une confirmation sous peu.'
-                            : 'Le paiement est en cours de traitement. Vous recevrez vos credits sous peu.'
+                            ? t('message.pendingFinal.order')
+                            : t('message.pendingFinal.account')
                 )
             } catch (err) {
                 if (isMounted) {
                     console.error('Error verifying payment:', err)
                     setStatus('failed')
-                    setMessage('Erreur lors de la verification du paiement.')
+                    setMessage(t('message.verifyError'))
                 }
             }
         }
@@ -109,13 +111,13 @@ function PaymentSuccessContent() {
                 const paymentParam = searchParams.get('payment')
                 if (paymentParam === 'success') {
                     setStatus('success')
-                    setMessage('Votre paiement a ete traite avec succes.')
+                    setMessage(t('message.fallbackSuccess'))
                 } else if (paymentParam === 'cancelled') {
                     setStatus('failed')
-                    setMessage('Le paiement a ete annule.')
+                    setMessage(t('message.fallbackCancelled'))
                 } else {
                     setStatus('failed')
-                    setMessage('Aucune transaction trouvee.')
+                    setMessage(t('message.fallbackNotFound'))
                 }
             }, 0)
         }
@@ -200,10 +202,10 @@ function PaymentSuccessContent() {
                     color: 'white',
                     marginBottom: 12
                 }}>
-                    {status === 'loading' && 'Verification...'}
-                    {status === 'pending' && 'Traitement en cours...'}
-                    {status === 'success' && 'Paiement reussi !'}
-                    {status === 'failed' && 'Paiement echoue'}
+                    {status === 'loading' && t('heading.loading')}
+                    {status === 'pending' && t('heading.pending')}
+                    {status === 'success' && t('heading.success')}
+                    {status === 'failed' && t('heading.failed')}
                 </h1>
 
                 <p style={{
@@ -228,7 +230,7 @@ function PaymentSuccessContent() {
                     }}>
                         <CreditCard style={{ width: 20, height: 20, color: '#34d399' }} />
                         <span style={{ fontSize: 16, fontWeight: 600, color: '#34d399' }}>
-                            +{creditsAdded} credits ajoutes
+                            {t('creditsAdded', { count: creditsAdded })}
                         </span>
                     </div>
                 )}
@@ -253,7 +255,7 @@ function PaymentSuccessContent() {
                                         boxShadow: '0 8px 32px rgba(16, 185, 129, 0.3)'
                                     }}
                                 >
-                                    Retour au tableau de bord
+                                    {t('button.backToDashboard')}
                                     <ArrowRight style={{ width: 18, height: 18 }} />
                                 </Link>
 
@@ -274,7 +276,7 @@ function PaymentSuccessContent() {
                                             textDecoration: 'none'
                                         }}
                                     >
-                                        Reessayer le paiement
+                                        {t('button.retryPayment')}
                                     </Link>
                                 )}
                             </>
@@ -296,7 +298,7 @@ function PaymentSuccessContent() {
                                     boxShadow: '0 8px 32px rgba(16, 185, 129, 0.3)'
                                 }}
                             >
-                                Fermer cette page
+                                {t('button.closePage')}
                             </button>
                         )}
                     </div>

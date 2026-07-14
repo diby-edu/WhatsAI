@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
+import { useTranslations, useFormatter } from 'next-intl'
 import { Loader2, CheckCircle, CreditCard, ShoppingBag } from 'lucide-react'
 import { motion } from 'framer-motion'
 
@@ -20,6 +21,8 @@ type FeexPayCountryOption = {
 }
 
 export default function OrderPaymentPage() {
+    const t = useTranslations('Pay')
+    const format = useFormatter()
     const params = useParams()
     const searchParams = useSearchParams()
     const [loading, setLoading] = useState(true)
@@ -50,12 +53,12 @@ export default function OrderPaymentPage() {
                 return 'ACCEPTED'
             } else if (data.status === 'REFUSED' || data.status === 'CANCELLED') {
                 setStatus('error')
-                setError('Le paiement a ete refuse ou annule.')
+                setError(t('error.refusedOrCancelled'))
                 setNotice('')
                 return String(data.status || 'UNKNOWN')
             } else if (data.status === 'PENDING') {
                 setStatus('processing')
-                setNotice('Demande envoyee. Confirmez le paiement sur votre telephone...')
+                setNotice(t('notice.confirmOnPhone'))
                 return 'PENDING'
             }
         } catch (err) {
@@ -72,7 +75,7 @@ export default function OrderPaymentPage() {
 
         pollingRef.current = true
         setStatus('processing')
-        setNotice('Demande envoyee. Confirmez le paiement sur votre telephone...')
+        setNotice(t('notice.confirmOnPhone'))
 
         try {
             for (let attempt = 0; attempt < 18; attempt += 1) {
@@ -84,7 +87,7 @@ export default function OrderPaymentPage() {
             }
 
             setStatus('processing')
-            setNotice('Paiement en attente. Validez sur votre telephone puis actualisez cette page.')
+            setNotice(t('notice.pendingRefresh'))
         } finally {
             pollingRef.current = false
         }
@@ -96,7 +99,7 @@ export default function OrderPaymentPage() {
             const data = await res.json()
 
             if (!res.ok || data.error) {
-                throw new Error(data.error || 'Order not found')
+                throw new Error(data.error || t('error.orderNotFound'))
             }
 
             setOrder(data.order)
@@ -130,7 +133,7 @@ export default function OrderPaymentPage() {
                 setNotice('')
             } else if (paymentMarker === 'cancelled') {
                 setStatus('error')
-                setError('Le paiement a ete annule.')
+                setError(t('error.cancelled'))
                 setNotice('')
             } else if (paymentMarker === 'pending') {
                 const pendingTx = provider === 'feexpay'
@@ -141,7 +144,7 @@ export default function OrderPaymentPage() {
                     await waitForPaymentSettlement(pendingTx)
                 } else {
                     setStatus('processing')
-                    setNotice('Paiement en attente de confirmation...')
+                    setNotice(t('notice.pendingConfirmation'))
                 }
             } else if (provider === 'paystack' && paystackReference) {
                 await verifyReturnPayment(String(paystackReference))
@@ -155,7 +158,7 @@ export default function OrderPaymentPage() {
             }
         } catch (err: any) {
             console.error('Error fetching order:', err)
-            setError(err.message || 'Commande introuvable')
+            setError(err.message || t('error.orderFetchFailed'))
             setStatus('error')
         } finally {
             setLoading(false)
@@ -168,7 +171,7 @@ export default function OrderPaymentPage() {
 
         if ((order?.payment_provider || '').toLowerCase() === 'feexpay') {
             if (!selectedCountry || !selectedNetwork) {
-                setError('Choisissez le pays et le reseau de paiement avant de continuer.')
+                setError(t('error.selectCountryNetwork'))
                 setStatus('error')
                 return
             }
@@ -195,12 +198,12 @@ export default function OrderPaymentPage() {
             const data = await res.json()
 
             if (!res.ok || !data.payment_url) {
-                throw new Error(data.error || 'Echec de l initialisation du paiement')
+                throw new Error(data.error || t('error.initFailed'))
             }
 
             const paymentUrl = String(data.payment_url || '').trim()
             if (!paymentUrl) {
-                throw new Error('Aucune URL de paiement retournee')
+                throw new Error(t('error.noPaymentUrl'))
             }
 
             const isInlinePendingReturn = (() => {
@@ -227,7 +230,7 @@ export default function OrderPaymentPage() {
             window.location.href = paymentUrl
         } catch (err: any) {
             console.error('Payment failed:', err)
-            setError(err.message || 'Erreur de paiement')
+            setError(err.message || t('error.paymentFailed'))
             setStatus('error')
         }
     }
@@ -244,8 +247,8 @@ export default function OrderPaymentPage() {
         return (
             <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white p-4">
                 <div className="text-center">
-                    <h1 className="text-2xl font-bold mb-2">Oups !</h1>
-                    <p className="text-slate-400">{error || 'Erreur inconnue'}</p>
+                    <h1 className="text-2xl font-bold mb-2">{t('errorScreen.title')}</h1>
+                    <p className="text-slate-400">{error || t('errorScreen.unknownError')}</p>
                 </div>
             </div>
         )
@@ -265,30 +268,30 @@ export default function OrderPaymentPage() {
                     className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-8 text-center"
                 >
                     <CheckCircle className="w-16 h-16 text-emerald-500 mx-auto mb-6" />
-                    <h1 className="text-2xl font-bold mb-2">Paiement reussi !</h1>
+                    <h1 className="text-2xl font-bold mb-2">{t('success.title')}</h1>
                     <p className="text-slate-400 mb-6">
-                        {isDepositPayment ? 'Votre acompte a ete confirme.' : 'Merci pour votre commande.'}
+                        {isDepositPayment ? t('success.depositMessage') : t('success.orderMessage')}
                     </p>
                     <div className="bg-slate-950/50 rounded-xl p-4 mb-6 text-left">
                         <div className="flex justify-between text-sm mb-2">
-                            <span className="text-slate-400">Commande</span>
+                            <span className="text-slate-400">{t('success.orderLabel')}</span>
                             <span className="font-mono">#{order.id.substring(0, 8)}</span>
                         </div>
                         <div className="flex justify-between text-sm mb-2">
-                            <span className="text-slate-400">{isDepositPayment ? 'Acompte' : 'Total'}</span>
-                            <span className="font-semibold">{payableAmount.toLocaleString('fr-FR')} FCFA</span>
+                            <span className="text-slate-400">{isDepositPayment ? t('success.depositLabel') : t('success.totalLabel')}</span>
+                            <span className="font-semibold">{format.number(payableAmount)} FCFA</span>
                         </div>
                         {isDepositPayment && (
                             <div className="flex justify-between text-sm">
-                                <span className="text-slate-400">Commande totale</span>
-                                <span>{Number(order.total_fcfa || 0).toLocaleString('fr-FR')} FCFA</span>
+                                <span className="text-slate-400">{t('success.orderTotalLabel')}</span>
+                                <span>{format.number(Number(order.total_fcfa || 0))} FCFA</span>
                             </div>
                         )}
                     </div>
 
                     <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 mb-6">
                         <p className="text-emerald-400 text-sm">
-                            Vous allez recevoir une confirmation sur WhatsApp
+                            {t('success.whatsappNotice')}
                         </p>
                     </div>
 
@@ -296,7 +299,7 @@ export default function OrderPaymentPage() {
                         onClick={() => window.close()}
                         className="inline-flex items-center justify-center w-full py-4 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold transition-colors"
                     >
-                        Fermer cette page
+                        {t('success.closeButton')}
                     </button>
                 </motion.div>
             </div >
@@ -314,31 +317,31 @@ export default function OrderPaymentPage() {
                     <div className="w-16 h-16 bg-blue-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
                         <ShoppingBag className="w-8 h-8 text-blue-500" />
                     </div>
-                    <h1 className="text-2xl font-bold">Resume de la commande</h1>
-                    <p className="text-slate-400">{isDepositPayment ? 'Acompte a payer' : 'Total a payer'}</p>
+                    <h1 className="text-2xl font-bold">{t('summary.title')}</h1>
+                    <p className="text-slate-400">{isDepositPayment ? t('summary.depositDue') : t('summary.totalDue')}</p>
                     <div className="text-4xl font-bold text-white mt-2">
-                        {payableAmount.toLocaleString('fr-FR')} <span className="text-lg text-slate-500">FCFA</span>
+                        {format.number(payableAmount)} <span className="text-lg text-slate-500">FCFA</span>
                     </div>
                     {isDepositPayment && (
                         <p className="text-sm text-slate-500 mt-2">
-                            Total commande: {Number(order.total_fcfa || 0).toLocaleString('fr-FR')} FCFA
+                            {t('summary.orderTotal', { amount: format.number(Number(order.total_fcfa || 0)) })}
                         </p>
                     )}
                 </div>
 
                 <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden mb-6">
                     <div className="p-4 border-b border-slate-800 bg-slate-900/50">
-                        <h3 className="font-semibold text-sm text-slate-400 uppercase tracking-wider">Articles</h3>
+                        <h3 className="font-semibold text-sm text-slate-400 uppercase tracking-wider">{t('summary.itemsHeading')}</h3>
                     </div>
                     <div className="divide-y divide-slate-800">
                         {items.map((item: any, i: number) => (
                             <div key={i} className="p-4 flex justify-between items-center">
                                 <div>
                                     <div className="font-medium">{item.product_name}</div>
-                                    <div className="text-sm text-slate-500">Quantite: {item.quantity}</div>
+                                    <div className="text-sm text-slate-500">{t('summary.quantityLabel')} {item.quantity}</div>
                                 </div>
                                 <div className="text-right">
-                                    {(item.unit_price_fcfa * item.quantity).toLocaleString('fr-FR')} FCFA
+                                    {format.number(item.unit_price_fcfa * item.quantity)} FCFA
                                 </div>
                             </div>
                         ))}
@@ -347,12 +350,12 @@ export default function OrderPaymentPage() {
 
                 <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-8">
                     <h3 className="font-semibold text-sm text-slate-400 uppercase tracking-wider mb-2">
-                        {order.fulfillment_mode === 'takeaway' ? 'Retrait' : 'Livraison'}
+                        {order.fulfillment_mode === 'takeaway' ? t('summary.pickupLabel') : t('summary.deliveryLabel')}
                     </h3>
                     <p>
                         {order.fulfillment_mode === 'takeaway'
-                            ? (order.pickup_at ? `Retrait prevu a ${order.pickup_at}` : 'Retrait sur place')
-                            : (order.delivery_address || 'Pas d adresse specifiee')
+                            ? (order.pickup_at ? t('summary.pickupScheduledAt', { time: order.pickup_at }) : t('summary.pickupOnSite'))
+                            : (order.delivery_address || t('summary.noAddressSpecified'))
                         }
                     </p>
                 </div>
@@ -360,7 +363,7 @@ export default function OrderPaymentPage() {
                 {status === 'processing' && (
                     <div className="bg-blue-500/10 border border-blue-500/30 rounded-2xl p-4 mb-6">
                         <p className="text-sm text-blue-200">
-                            {notice || 'Paiement initie. Confirmez la demande sur votre telephone. Cette page met a jour le statut automatiquement.'}
+                            {notice || t('notice.processingDefault')}
                         </p>
                     </div>
                 )}
@@ -368,11 +371,11 @@ export default function OrderPaymentPage() {
                 {isFeexPay && (
                     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-6">
                         <h3 className="font-semibold text-sm text-slate-400 uppercase tracking-wider mb-3">
-                            Paiement mobile money
+                            {t('feexpay.heading')}
                         </h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             <label className="flex flex-col gap-2">
-                                <span className="text-xs text-slate-400">Pays</span>
+                                <span className="text-xs text-slate-400">{t('feexpay.countryLabel')}</span>
                                 <select
                                     value={selectedCountry}
                                     onChange={(event) => {
@@ -383,7 +386,7 @@ export default function OrderPaymentPage() {
                                     }}
                                     className="w-full rounded-xl border border-slate-700 bg-slate-950 text-white p-3"
                                 >
-                                    <option value="" disabled>Selectionner un pays</option>
+                                    <option value="" disabled>{t('feexpay.selectCountryPlaceholder')}</option>
                                     {feexPayCountries.map((country) => (
                                         <option key={country.code} value={country.code}>
                                             {country.name} (+{country.dialCode})
@@ -393,14 +396,14 @@ export default function OrderPaymentPage() {
                             </label>
 
                             <label className="flex flex-col gap-2">
-                                <span className="text-xs text-slate-400">Reseau</span>
+                                <span className="text-xs text-slate-400">{t('feexpay.networkLabel')}</span>
                                 <select
                                     value={selectedNetwork}
                                     onChange={(event) => setSelectedNetwork(event.target.value)}
                                     className="w-full rounded-xl border border-slate-700 bg-slate-950 text-white p-3"
                                     disabled={!selectedCountry}
                                 >
-                                    <option value="" disabled>Selectionner un reseau</option>
+                                    <option value="" disabled>{t('feexpay.selectNetworkPlaceholder')}</option>
                                     {networksForSelectedCountry.map((network) => (
                                         <option key={network.code} value={network.code}>
                                             {network.label}
@@ -411,7 +414,7 @@ export default function OrderPaymentPage() {
                         </div>
                         {selectedNetwork && networksForSelectedCountry.find((network) => network.code === selectedNetwork)?.requiresOtp && (
                             <p className="mt-3 text-xs text-amber-300">
-                                Ce reseau peut demander une validation OTP operateur.
+                                {t('feexpay.otpWarning')}
                             </p>
                         )}
                     </div>
@@ -427,7 +430,7 @@ export default function OrderPaymentPage() {
                     ) : (
                         <>
                             <CreditCard className="w-6 h-6" />
-                            {isDepositPayment ? 'Payer l acompte' : 'Payer maintenant'}
+                            {isDepositPayment ? t('payButton.deposit') : t('payButton.full')}
                         </>
                     )}
                 </button>

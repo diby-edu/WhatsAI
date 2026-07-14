@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
+import { useTranslations } from 'next-intl'
 import { MessageCircle, Mail, Lock, Loader2, Eye, EyeOff, Sparkles, ArrowRight, Zap, Shield, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { resolvePostAuthPath } from '@/lib/auth/post-auth'
@@ -78,13 +79,14 @@ function registerLoginFailure(key: string, maxLoginAttempts: number) {
     return { lockedUntil: null, remaining: Math.max(0, maxLoginAttempts - nextCount) }
 }
 
-function formatLockMessage(lockedUntil: number) {
+function formatLockMessage(lockedUntil: number, t: ReturnType<typeof useTranslations>) {
     const remainingMs = lockedUntil - Date.now()
     const remainingMinutes = Math.max(1, Math.ceil(remainingMs / 60000))
-    return `Trop de tentatives de connexion. Reessayez dans ${remainingMinutes} min.`
+    return t('error.tooManyAttempts', { minutes: remainingMinutes })
 }
 
 export default function LoginPage() {
+    const t = useTranslations('Auth.login')
     const router = useRouter()
     const searchParams = useSearchParams()
     const [email, setEmail] = useState('')
@@ -122,15 +124,15 @@ export default function LoginPage() {
 
         const err = searchParams.get('error')
         if (err === 'confirm_other_device') {
-            setError('Le lien de confirmation a expiré ou a été ouvert depuis un autre appareil.')
+            setError(t('error.confirmOtherDevice'))
             setShowResend(true)
         } else if (err === 'auth_failed') {
-            setError('Le lien de connexion est invalide ou a expiré.')
+            setError(t('error.authFailed'))
             setShowResend(true)
         }
-    }, [searchParams])
+    }, [searchParams, t])
     const handleResend = async () => {
-        if (!email) { setError('Entrez votre email pour renvoyer le lien de confirmation.'); return }
+        if (!email) { setError(t('resend.missingEmail')); return }
         setResendLoading(true)
         setError(null)
         try {
@@ -144,15 +146,15 @@ export default function LoginPage() {
                 // Email already confirmed → go back to login form with helpful message
                 if (res.status === 409) {
                     setShowResend(false)
-                    setError('Votre email est déjà confirmé. Connectez-vous directement.')
+                    setError(t('resend.alreadyConfirmed'))
                     return
                 }
-                setError(json.error || 'Une erreur est survenue.')
+                setError(json.error || t('error.generic'))
                 return
             }
             setResendSent(true)
         } catch {
-            setError('Impossible de contacter le serveur. Vérifiez votre connexion.')
+            setError(t('error.networkError'))
         } finally {
             setResendLoading(false)
         }
@@ -169,7 +171,7 @@ export default function LoginPage() {
             const lockedUntil = getLockState(attemptKey)
 
             if (lockedUntil) {
-                setError(formatLockMessage(lockedUntil))
+                setError(formatLockMessage(lockedUntil, t))
                 return
             }
 
@@ -182,11 +184,11 @@ export default function LoginPage() {
                 const failureState = registerLoginFailure(attemptKey, authPolicy.maxLoginAttempts)
 
                 if (failureState.lockedUntil) {
-                    setError(formatLockMessage(failureState.lockedUntil))
+                    setError(formatLockMessage(failureState.lockedUntil, t))
                 } else if (error.message.includes('Invalid login credentials')) {
-                    setError('Email ou mot de passe incorrect. Si vous venez de vous inscrire, verifiez que vous avez confirme votre email.')
+                    setError(t('error.invalidCredentialsExtended'))
                 } else if (error.message.includes('Email not confirmed')) {
-                    setError('Veuillez confirmer votre email avant de vous connecter. Verifiez votre boite de reception.')
+                    setError(t('error.notConfirmedExtended'))
                     setShowResend(true)
                 } else {
                     setError(error.message)
@@ -195,7 +197,7 @@ export default function LoginPage() {
                 const { data: { user } } = await supabase.auth.getUser()
                 if (authPolicy.requireEmailVerification && !user?.email_confirmed_at) {
                     await supabase.auth.signOut()
-                    setError('La verification email est obligatoire avant connexion.')
+                    setError(t('error.verificationRequired'))
                     return
                 }
 
@@ -205,7 +207,7 @@ export default function LoginPage() {
                 router.refresh()
             }
         } catch {
-            setError('Une erreur est survenue. Veuillez reessayer.')
+            setError(t('error.generic'))
         } finally {
             setLoading(false)
         }
@@ -218,7 +220,7 @@ export default function LoginPage() {
         const attemptKey = getAttemptKey(`google:${email || 'oauth'}`)
         const lockedUntil = getLockState(attemptKey)
         if (lockedUntil) {
-            setError(formatLockMessage(lockedUntil))
+            setError(formatLockMessage(lockedUntil, t))
             setLoading(false)
             return
         }
@@ -244,7 +246,7 @@ export default function LoginPage() {
                 const googleUser = await GoogleAuth.signIn()
 
                 if (!googleUser?.authentication?.idToken) {
-                    setError('Impossible de recuperer le token Google.')
+                    setError(t('error.googleTokenFailed'))
                     return
                 }
 
@@ -258,7 +260,7 @@ export default function LoginPage() {
                 const { data: { user } } = await supabase.auth.getUser()
                 if (authPolicy.requireEmailVerification && !user?.email_confirmed_at) {
                     await supabase.auth.signOut()
-                    setError('La verification email est obligatoire avant connexion.')
+                    setError(t('error.verificationRequired'))
                     return
                 }
 
@@ -270,9 +272,9 @@ export default function LoginPage() {
                 console.error('Google Auth Native Error:', err)
                 const failureState = registerLoginFailure(attemptKey, authPolicy.maxLoginAttempts)
                 if (failureState.lockedUntil) {
-                    setError(formatLockMessage(failureState.lockedUntil))
+                    setError(formatLockMessage(failureState.lockedUntil, t))
                 } else {
-                    setError('Erreur lors de la connexion Google sur mobile. Assurez-vous d etre connecte a internet.')
+                    setError(t('error.googleMobileError'))
                 }
             } finally {
                 setLoading(false)
@@ -288,7 +290,7 @@ export default function LoginPage() {
             if (error) {
                 const failureState = registerLoginFailure(attemptKey, authPolicy.maxLoginAttempts)
                 if (failureState.lockedUntil) {
-                    setError(formatLockMessage(failureState.lockedUntil))
+                    setError(formatLockMessage(failureState.lockedUntil, t))
                 } else {
                     setError(error.message)
                 }
@@ -378,7 +380,7 @@ export default function LoginPage() {
                         >
                             <Sparkles style={{ width: 16, height: 16, color: '#34d399' }} />
                             <span style={{ fontSize: 14, fontWeight: 500, color: '#34d399' }}>
-                                Propulsé par GPT-4o
+                                {t('hero.badge')}
                             </span>
                         </motion.div>
 
@@ -388,36 +390,36 @@ export default function LoginPage() {
                             lineHeight: 1.1,
                             marginBottom: 20
                         }}>
-                            <span style={{ color: 'white' }}>Automatisez</span>
+                            <span style={{ color: 'white' }}>{t('hero.titlePart1')}</span>
                             <br />
                             <span style={{
                                 background: 'linear-gradient(135deg, #10b981 0%, #059669 50%, #047857 100%)',
                                 WebkitBackgroundClip: 'text',
                                 WebkitTextFillColor: 'transparent',
                                 backgroundClip: 'text'
-                            }}>WhatsApp</span>
-                            <span style={{ color: 'white' }}> avec l'</span>
+                            }}>{t('hero.titleHighlight1')}</span>
+                            <span style={{ color: 'white' }}>{t('hero.titleConnector')}</span>
                             <span style={{
                                 background: 'linear-gradient(135deg, #a855f7 0%, #6366f1 100%)',
                                 WebkitBackgroundClip: 'text',
                                 WebkitTextFillColor: 'transparent',
                                 backgroundClip: 'text'
-                            }}>IA</span>
+                            }}>{t('hero.titleHighlight2')}</span>
                         </h1>
                         <p style={{ fontSize: 18, color: '#94a3b8', lineHeight: 1.6, maxWidth: 400 }}>
-                            Répondez à vos clients 24/7, qualifiez vos leads et boostez vos ventes automatiquement.
+                            {t('hero.subtitle')}
                         </p>
                     </div>
 
                     {/* Feature Cards */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                         {[
-                            { icon: Zap, title: 'Réponses instantanées', desc: 'IA répond en moins de 10 secondes' },
-                            { icon: Shield, title: 'Sécurisé', desc: 'Vos données sont cryptées' },
-                            { icon: Users, title: '+5000 entreprises', desc: 'Font confiance à WazzapAI' },
+                            { icon: Zap, key: 'instant' as const },
+                            { icon: Shield, key: 'secure' as const },
+                            { icon: Users, key: 'trust' as const },
                         ].map((feature, i) => (
                             <motion.div
-                                key={feature.title}
+                                key={feature.key}
                                 initial={{ opacity: 0, x: -20 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{ delay: 0.5 + i * 0.1 }}
@@ -443,8 +445,8 @@ export default function LoginPage() {
                                     <feature.icon style={{ width: 24, height: 24, color: '#34d399' }} />
                                 </div>
                                 <div>
-                                    <div style={{ fontWeight: 600, color: 'white', marginBottom: 2 }}>{feature.title}</div>
-                                    <div style={{ fontSize: 14, color: '#64748b' }}>{feature.desc}</div>
+                                    <div style={{ fontWeight: 600, color: 'white', marginBottom: 2 }}>{t(`hero.features.${feature.key}.title`)}</div>
+                                    <div style={{ fontSize: 14, color: '#64748b' }}>{t(`hero.features.${feature.key}.desc`)}</div>
                                 </div>
                             </motion.div>
                         ))}
@@ -497,10 +499,10 @@ export default function LoginPage() {
                     </Link>
 
                     <h1 style={{ fontSize: 32, fontWeight: 700, color: 'white', marginBottom: 8 }}>
-                        Bon retour ! 👋
+                        {t('title')}
                     </h1>
                     <p style={{ fontSize: 16, color: '#94a3b8', marginBottom: 32 }}>
-                        Connectez-vous pour accéder à votre dashboard
+                        {t('subtitle')}
                     </p>
 
                     {/* Vue : Confirmer email (lien expiré / email non confirmé) */}
@@ -520,10 +522,10 @@ export default function LoginPage() {
                                     </div>
 
                                     <h2 style={{ fontSize: 24, fontWeight: 700, color: 'white', textAlign: 'center', marginBottom: 12 }}>
-                                        Vérifiez votre email !
+                                        {t('resend.successTitle')}
                                     </h2>
                                     <p style={{ fontSize: 14, color: '#94a3b8', textAlign: 'center', marginBottom: 8, lineHeight: 1.6 }}>
-                                        Nous avons envoyé un lien de confirmation à
+                                        {t('resend.successSentTo')}
                                     </p>
                                     <p style={{ fontSize: 15, fontWeight: 600, color: '#34d399', textAlign: 'center', marginBottom: 28, wordBreak: 'break-all' }}>
                                         {email}
@@ -536,18 +538,18 @@ export default function LoginPage() {
                                         onClick={() => { setShowResend(false); setResendSent(false); setError(null) }}
                                         style={{ width: '100%', padding: '16px', borderRadius: 14, border: 'none', background: 'linear-gradient(135deg, #10b981, #059669)', color: 'white', fontSize: 16, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: '0 8px 24px rgba(16,185,129,0.35)', marginBottom: 16 }}
                                     >
-                                        Se connecter
+                                        {t('submit')}
                                         <ArrowRight style={{ width: 18, height: 18 }} />
                                     </motion.button>
 
                                     <p style={{ fontSize: 13, color: '#64748b', textAlign: 'center', marginBottom: 20 }}>
-                                        Cliquez sur le lien dans l'email pour activer votre compte
+                                        {t('resend.successHint')}
                                     </p>
 
                                     {/* Info expiry */}
                                     <div style={{ padding: 14, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 12 }}>
                                         <p style={{ fontSize: 13, color: '#fbbf24', textAlign: 'center', lineHeight: 1.6, margin: 0 }}>
-                                            Le lien est valable <strong>1 heure</strong>. Si vous ne le trouvez pas, vérifiez vos spams.
+                                            {t.rich('resend.expiryNotice', { strong: (chunks) => <strong>{chunks}</strong> })}
                                         </p>
                                     </div>
                                 </motion.div>
@@ -562,10 +564,10 @@ export default function LoginPage() {
                                     </div>
 
                                     <h2 style={{ fontSize: 22, fontWeight: 700, color: 'white', textAlign: 'center', marginBottom: 8 }}>
-                                        Confirmez votre email
+                                        {t('resend.title')}
                                     </h2>
                                     <p style={{ fontSize: 14, color: '#94a3b8', textAlign: 'center', marginBottom: 28, lineHeight: 1.5 }}>
-                                        Entrez votre email pour recevoir<br />un nouveau lien de confirmation.
+                                        {t.rich('resend.subtitle', { br: () => <br /> })}
                                     </p>
 
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
@@ -580,7 +582,7 @@ export default function LoginPage() {
                                                 type="email"
                                                 value={email}
                                                 onChange={(e) => setEmail(e.target.value)}
-                                                placeholder="votre@email.com"
+                                                placeholder={t('emailPlaceholder')}
                                                 style={{ width: '100%', padding: '16px 16px 16px 52px', fontSize: 16, color: 'white', backgroundColor: 'rgba(30,41,59,0.5)', border: '1px solid rgba(148,163,184,0.1)', borderRadius: 14, outline: 'none' }}
                                             />
                                         </div>
@@ -592,7 +594,7 @@ export default function LoginPage() {
                                             style={{ width: '100%', padding: '16px', borderRadius: 14, border: 'none', background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: 'white', fontSize: 16, fontWeight: 600, cursor: resendLoading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: resendLoading ? 0.7 : 1 }}
                                         >
                                             {resendLoading ? <Loader2 style={{ width: 18, height: 18, animation: 'spin 1s linear infinite' }} /> : null}
-                                            {resendLoading ? 'Envoi en cours…' : 'Envoyer le lien de confirmation'}
+                                            {resendLoading ? t('resend.sending') : t('resend.sendButton')}
                                         </motion.button>
                                     </div>
 
@@ -601,7 +603,7 @@ export default function LoginPage() {
                                         onClick={() => { setShowResend(false); setError(null); setResendSent(false) }}
                                         style={{ width: '100%', background: 'none', border: 'none', color: '#64748b', fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 0' }}
                                     >
-                                        ← Retour à la connexion
+                                        {t('resend.backToLogin')}
                                     </button>
                                 </>
                             )}
@@ -623,7 +625,7 @@ export default function LoginPage() {
                     <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                         <div>
                             <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                Email
+                                {t('emailLabel')}
                             </label>
                             <div style={{ position: 'relative' }}>
                                 <Mail style={{
@@ -639,7 +641,7 @@ export default function LoginPage() {
                                     type="email"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    placeholder="votre@email.com"
+                                    placeholder={t('emailPlaceholder')}
                                     required
                                     style={{
                                         width: '100%',
@@ -659,10 +661,10 @@ export default function LoginPage() {
                         <div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                                 <label style={{ fontSize: 14, fontWeight: 500, color: '#e2e8f0' }}>
-                                    Mot de passe
+                                    {t('passwordLabel')}
                                 </label>
                                 <Link href="/forgot-password" style={{ fontSize: 13, color: '#34d399', textDecoration: 'none' }}>
-                                    Mot de passe oublié ?
+                                    {t('forgotPassword')}
                                 </Link>
                             </div>
                             <div style={{ position: 'relative' }}>
@@ -740,11 +742,11 @@ export default function LoginPage() {
                             {loading ? (
                                 <>
                                     <Loader2 style={{ width: 20, height: 20, animation: 'spin 1s linear infinite' }} />
-                                    Connexion...
+                                    {t('loading')}
                                 </>
                             ) : (
                                 <>
-                                    Se connecter
+                                    {t('submit')}
                                     <ArrowRight style={{ width: 20, height: 20 }} />
                                 </>
                             )}
@@ -754,7 +756,7 @@ export default function LoginPage() {
                     {/* Divider */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 16, margin: '28px 0' }}>
                         <div style={{ flex: 1, height: 1, background: 'rgba(148, 163, 184, 0.1)' }} />
-                        <span style={{ fontSize: 13, color: '#64748b' }}>ou continuer avec</span>
+                        <span style={{ fontSize: 13, color: '#64748b' }}>{t('orContinueWith')}</span>
                         <div style={{ flex: 1, height: 1, background: 'rgba(148, 163, 184, 0.1)' }} />
                     </div>
 
@@ -786,14 +788,14 @@ export default function LoginPage() {
                             <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
                             <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
                         </svg>
-                        Continuer avec Google
+                        {t('google')}
                     </motion.button>
 
                     {/* Sign up link */}
                     <p style={{ textAlign: 'center', marginTop: 28, fontSize: 15, color: '#94a3b8' }}>
-                        Pas encore de compte ?{' '}
+                        {t('noAccount')}{' '}
                         <Link href="/register" style={{ color: '#34d399', fontWeight: 600, textDecoration: 'none' }}>
-                            Créer un compte
+                            {t('createAccount')}
                         </Link>
                     </p>
                     </>

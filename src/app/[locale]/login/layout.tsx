@@ -1,9 +1,13 @@
 import type { Metadata } from 'next'
+import { getTranslations } from 'next-intl/server'
 
-export const metadata: Metadata = {
-    title: 'Connexion — WazzapAI',
-    description: 'Connectez-vous à votre compte WazzapAI pour gérer vos agents IA WhatsApp, vos conversations et vos ventes.',
-    robots: { index: false, follow: false },
+export async function generateMetadata(): Promise<Metadata> {
+    const t = await getTranslations('Auth.login.meta')
+    return {
+        title: t('title'),
+        description: t('description'),
+        robots: { index: false, follow: false },
+    }
 }
 
 export default function LoginLayout({ children }: { children: React.ReactNode }) {

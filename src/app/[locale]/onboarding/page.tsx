@@ -2,15 +2,16 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MessageCircle, ArrowRight, Loader2, Check, ChevronDown, Phone, RefreshCw, RotateCcw, LogOut } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { PHONE_COUNTRY_CODES, buildInternationalPhone } from '@/lib/profile-phone'
 
 const currencies = [
-    { code: 'XOF', label: 'Franc CFA', symbol: 'FCFA', flag: '🌍', description: 'Afrique de l\'Ouest', example: '7 000 FCFA / mois' },
-    { code: 'USD', label: 'Dollar américain', symbol: '$', flag: '🇺🇸', description: 'États-Unis', example: '$10 / mois' },
-    { code: 'EUR', label: 'Euro', symbol: '€', flag: '🇪🇺', description: 'Europe', example: '€10 / mois' },
+    { code: 'XOF' as const, symbol: 'FCFA', flag: '🌍' },
+    { code: 'USD' as const, symbol: '$', flag: '🇺🇸' },
+    { code: 'EUR' as const, symbol: '€', flag: '🇪🇺' },
 ]
 
 const languages = [
@@ -22,6 +23,7 @@ const languages = [
 
 export default function OnboardingPage() {
     const router = useRouter()
+    const t = useTranslations('Onboarding')
     const dropdownRef = useRef<HTMLDivElement>(null)
 
     const [currency, setCurrency] = useState<string | null>(null)
@@ -89,7 +91,7 @@ export default function OnboardingPage() {
             .eq('id', user.id)
 
         if (profileError) {
-            setOtpError('Erreur lors de la sauvegarde. Réessayez.')
+            setOtpError(t('error.saveFailed'))
             setVerifyingOtp(false)
             return
         }
@@ -100,7 +102,7 @@ export default function OnboardingPage() {
         const fullPhone = buildInternationalPhone(selectedCountry.dial, phoneNumber)
         if (!currency) return
         if (!fullPhone) {
-            setError('Le numéro de téléphone est obligatoire et doit être valide.')
+            setError(t('error.phoneRequired'))
             return
         }
         setLoading(true)
@@ -113,7 +115,7 @@ export default function OnboardingPage() {
             })
             const data = await res.json()
             if (!res.ok) {
-                setError(data.error || 'Erreur lors de l\'envoi du code.')
+                setError(data.error || t('error.sendFailed'))
                 setLoading(false)
                 return
             }
@@ -135,7 +137,7 @@ export default function OnboardingPage() {
             setOtp('')
             setOtpError(null)
         } catch {
-            setError('Une erreur est survenue. Réessayez.')
+            setError(t('error.generic'))
         }
         setLoading(false)
     }
@@ -158,7 +160,7 @@ export default function OnboardingPage() {
 
     const handleVerifyOtp = async () => {
         const fullPhone = buildInternationalPhone(selectedCountry.dial, phoneNumber)
-        if (!otp || otp.length < 6) { setOtpError('Entrez le code à 6 chiffres.'); return }
+        if (!otp || otp.length < 6) { setOtpError(t('otp.error.tooShort')); return }
         setVerifyingOtp(true)
         setOtpError(null)
         try {
@@ -169,13 +171,13 @@ export default function OnboardingPage() {
             })
             const data = await res.json()
             if (!res.ok) {
-                setOtpError(data.error || 'Code incorrect.')
+                setOtpError(data.error || t('otp.error.incorrect'))
                 setVerifyingOtp(false)
                 return
             }
             await saveProfileAndRedirect(fullPhone!)
         } catch {
-            setOtpError('Une erreur est survenue. Réessayez.')
+            setOtpError(t('error.generic'))
             setVerifyingOtp(false)
         }
     }
@@ -242,10 +244,10 @@ export default function OnboardingPage() {
                     <div style={{ textAlign: 'center', marginBottom: 32 }}>
                         <div style={{ fontSize: 34, marginBottom: 10 }}>👋</div>
                         <h1 style={{ fontSize: 22, fontWeight: 700, color: 'white', marginBottom: 6 }}>
-                            Bienvenue sur WazzapAI !
+                            {t('title')}
                         </h1>
                         <p style={{ fontSize: 13, color: '#64748b', lineHeight: 1.6 }}>
-                            Configurez votre compte en quelques secondes.
+                            {t('subtitle')}
                         </p>
                     </div>
 
@@ -260,10 +262,10 @@ export default function OnboardingPage() {
                         fontSize: 13,
                         lineHeight: 1.6
                     }}>
-                        Information importante : votre compte est en période d'essai de 7 jours. Sans souscription à un abonnement ou achat de crédits avant la date limite, votre compte sera définitivement supprimé. Un compte à rebours est affiché dans votre dashboard.
+                        {t('trialNotice')}
                     </div>
 
-                    {sectionLabel(1, 'Votre devise de travail')}
+                    {sectionLabel(1, t('section1Label'))}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 28 }}>
                         {currencies.map((c) => {
                             const isSel = currency === c.code
@@ -282,10 +284,10 @@ export default function OnboardingPage() {
                                     <span style={{ fontSize: 26 }}>{c.flag}</span>
                                     <div style={{ flex: 1 }}>
                                         <div style={{ fontSize: 14, fontWeight: 600, color: isSel ? '#25D366' : 'white', marginBottom: 1 }}>
-                                            {c.symbol} — {c.label}
+                                            {c.symbol} — {t(`currencies.${c.code}.label`)}
                                         </div>
                                         <div style={{ fontSize: 12, color: '#64748b' }}>
-                                            {c.description} · ex: {c.example}
+                                            {t(`currencies.${c.code}.description`)} · ex: {t(`currencies.${c.code}.example`)}
                                         </div>
                                     </div>
                                     {isSel && (
@@ -302,7 +304,7 @@ export default function OnboardingPage() {
                     </div>
 
                     {/* ── Section 2 : Langue ── */}
-                    {sectionLabel(2, 'Langue de l\'interface')}
+                    {sectionLabel(2, t('section2Label'))}
                     <div style={{ display: 'flex', gap: 10, marginBottom: 28 }}>
                         {languages.map((lang) => {
                             const isSel = language === lang.code
@@ -337,9 +339,9 @@ export default function OnboardingPage() {
                     </div>
 
                     {/* ── Section 3 : WhatsApp business ── */}
-                    {sectionLabel(3, 'Numero WhatsApp de votre entreprise')}
+                    {sectionLabel(3, t('section3Label'))}
                     <p style={{ fontSize: 12, color: '#475569', marginBottom: 10, marginTop: -6 }}>
-                        Nous pourrons vous contacter directement sur WhatsApp pour le support.
+                        {t('whatsappHint')}
                     </p>
                     <div style={{ display: 'flex', gap: 8, marginBottom: 28 }}>
                         {/* Country code selector */}
@@ -381,7 +383,7 @@ export default function OnboardingPage() {
                                             <input
                                                 autoFocus
                                                 type="text"
-                                                placeholder="+225 ou Côte d'Ivoire"
+                                                placeholder={t('dialSearchPlaceholder')}
                                                 value={dialSearch}
                                                 onChange={e => setDialSearch(e.target.value)}
                                                 style={{
@@ -438,7 +440,7 @@ export default function OnboardingPage() {
                             }} />
                             <input
                                 type="tel"
-                                placeholder="0712345678"
+                                placeholder={t('phonePlaceholder')}
                                 value={phoneNumber}
                                 onChange={e => { setPhoneNumber(e.target.value.replace(/\D/g, '')); if (error) setError(null) }}
                                 style={{
@@ -467,13 +469,13 @@ export default function OnboardingPage() {
                     {otpStep ? (
                         <div>
                             <p style={{ fontSize: 13, color: '#94a3b8', textAlign: 'center', marginBottom: 16 }}>
-                                Code envoyé au <strong style={{ color: 'white' }}>{buildInternationalPhone(selectedCountry.dial, phoneNumber)}</strong>
+                                {t('otp.sentTo')} <strong style={{ color: 'white' }}>{buildInternationalPhone(selectedCountry.dial, phoneNumber)}</strong>
                             </p>
 
                             {/* Champ code */}
                             <input
                                 type="number"
-                                placeholder="Code à 6 chiffres"
+                                placeholder={t('otp.codePlaceholder')}
                                 value={otp}
                                 maxLength={6}
                                 onChange={e => { setOtp(e.target.value.slice(0, 6)); setOtpError(null) }}
@@ -511,15 +513,15 @@ export default function OnboardingPage() {
                                 }}
                             >
                                 {verifyingOtp
-                                    ? <><Loader2 style={{ width: 18, height: 18, animation: 'spin 1s linear infinite' }} /> Vérification…</>
-                                    : <><Check style={{ width: 18, height: 18 }} /> Vérifier le code</>
+                                    ? <><Loader2 style={{ width: 18, height: 18, animation: 'spin 1s linear infinite' }} /> {t('otp.verifying')}</>
+                                    : <><Check style={{ width: 18, height: 18 }} /> {t('otp.verifyButton')}</>
                                 }
                             </motion.button>
 
                             {/* Countdown + actions */}
                             {!otpExpired ? (
                                 <p style={{ textAlign: 'center', color: '#475569', fontSize: 13 }}>
-                                    Code expiré dans{' '}
+                                    {t('otp.expiresIn')}{' '}
                                     <span style={{ color: '#94a3b8', fontWeight: 600 }}>
                                         {Math.floor(otpCountdown / 60)}:{String(otpCountdown % 60).padStart(2, '0')}
                                     </span>
@@ -536,7 +538,7 @@ export default function OnboardingPage() {
                                             cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                                         }}
                                     >
-                                        <RefreshCw size={14} /> Renvoyer le code
+                                        <RefreshCw size={14} /> {t('otp.resend')}
                                     </button>
                                     <button
                                         onClick={() => { setOtpStep(false); setOtp(''); setOtpError(null) }}
@@ -548,7 +550,7 @@ export default function OnboardingPage() {
                                             cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                                         }}
                                     >
-                                        <RotateCcw size={14} /> Changer de numéro
+                                        <RotateCcw size={14} /> {t('otp.changeNumber')}
                                     </button>
                                 </div>
                             )}
@@ -573,15 +575,15 @@ export default function OnboardingPage() {
                             }}
                         >
                             {loading
-                                ? <><Loader2 style={{ width: 18, height: 18, animation: 'spin 1s linear infinite' }} /> Envoi du code…</>
-                                : <>Recevoir mon code WhatsApp <ArrowRight style={{ width: 18, height: 18 }} /></>
+                                ? <><Loader2 style={{ width: 18, height: 18, animation: 'spin 1s linear infinite' }} /> {t('sendCodeLoading')}</>
+                                : <>{t('sendCodeButton')} <ArrowRight style={{ width: 18, height: 18 }} /></>
                             }
                         </motion.button>
                     )}
                 </div>
 
                 <p style={{ textAlign: 'center', marginTop: 14, fontSize: 11, color: '#334155' }}>
-                    Ces préférences sont modifiables à tout moment dans vos paramètres.
+                    {t('footerNote')}
                 </p>
 
                 {/* Bouton annuler — déconnexion sans compléter l'onboarding */}
@@ -600,7 +602,7 @@ export default function OnboardingPage() {
                     }}
                 >
                     <LogOut style={{ width: 13, height: 13 }} />
-                    Annuler et se déconnecter
+                    {t('cancelAndLogout')}
                 </button>
             </motion.div>
 
