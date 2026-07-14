@@ -112,6 +112,8 @@ export default function AdminOrdersPage() {
             case 'cancelled': return { bg: 'rgba(239, 68, 68, 0.15)', color: '#f87171' }
             case 'shipped': return { bg: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa' }
             case 'delivered': return { bg: 'rgba(16, 185, 129, 0.15)', color: '#34d399' }
+            case 'completed': return { bg: 'rgba(16, 185, 129, 0.15)', color: '#34d399' }
+            case 'refunded': return { bg: 'rgba(249, 115, 22, 0.15)', color: '#fb923c' }
             default: return { bg: 'rgba(100, 116, 139, 0.15)', color: '#94a3b8' }
         }
     }

@@ -446,7 +446,9 @@ export default function OrdersPage() {
             case 'processing': return '#60a5fa'
             case 'shipped': return '#a78bfa'
             case 'delivered': return '#10b981'
+            case 'completed': return '#10b981'
             case 'cancelled': return '#f87171'
+            case 'refunded': return '#fb923c'
             default: return '#94a3b8'
         }
     }
@@ -461,13 +463,14 @@ export default function OrdersPage() {
             case 'processing': return <Loader2 size={16} />
             case 'shipped': return <Truck size={16} />
             case 'delivered': return <Package size={16} />
+            case 'completed': return <CheckCircle size={16} />
             case 'cancelled': return <XCircle size={16} />
+            case 'refunded': return <XCircle size={16} />
             default: return <Clock size={16} />
         }
     }
 
     const getStatusLabel = (status: string) => {
-        if (status === 'pending_pickup') return 'Prête pour retrait'
         try {
             return tStatus(status as never)
         } catch {

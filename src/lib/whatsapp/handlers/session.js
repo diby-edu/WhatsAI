@@ -154,6 +154,7 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
             pairingPhone,
             pairingCodeRequested: false,
             pairingCode: null,
+            lastEventAt: Date.now(),
         }
         activeSessions.set(agentId, session)
 
@@ -161,8 +162,15 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
         // WhatsApp ferme les connexions inactives après ~30 minutes sans activité
         let keepAliveInterval = null
 
+        // 🐕 WATCHDOG: détecte une socket "zombie" (status=connected mais plus aucun
+        // évènement WhatsApp reçu). Le keepalive envoie une présence sortante toutes les
+        // 14 min mais ne prouve pas que la socket reçoit encore des frames entrantes.
+        let watchdogInterval = null
+        const WATCHDOG_STALE_THRESHOLD_MS = 20 * 60 * 1000
+
         // Handle connection updates
         socket.ev.on('connection.update', async (update) => {
+            session.lastEventAt = Date.now()
             const { connection, lastDisconnect, qr, isNewLogin, receivedPendingNotifications, isOnline } = update
 
             if (typeof receivedPendingNotifications !== 'undefined' && (VERBOSE_WHATSAPP_TRACE || receivedPendingNotifications === true)) {
@@ -372,6 +380,17 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                     }
                 }, 14 * 60 * 1000)
 
+                // 🐕 Démarrer le watchdog (vérifie toutes les 5 min l'absence prolongée d'évènements)
+                if (watchdogInterval) clearInterval(watchdogInterval)
+                watchdogInterval = setInterval(() => {
+                    if (session.status !== 'connected') return
+                    const silentForMs = Date.now() - (session.lastEventAt || 0)
+                    if (silentForMs > WATCHDOG_STALE_THRESHOLD_MS) {
+                        console.warn(`🐕 [${agentName}] Aucun évènement WhatsApp depuis ${Math.round(silentForMs / 60000)} min — socket probablement zombie, force reconnexion`)
+                        try { socket.end(new Error('watchdog: socket inactive trop longtemps')) } catch (_) { }
+                    }
+                }, 5 * 60 * 1000)
+
                 // 🔔 NOTIFICATION: Uniquement à la première connexion (pas sur reconnexion auto)
                 // reconnectAttempt === 0 = première connexion réelle (scan QR ou démarrage initial)
                 // reconnectAttempt > 0  = reconnexion automatique après coupure → pas de notification
@@ -402,10 +421,14 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                 console.log(`❌ ${agentName} disconnected, code: ${statusCode}, reconnect: ${shouldReconnect}`)
                 pendingConnections.delete(agentId)
 
-                // Arrêter le keepalive lors de la déconnexion
+                // Arrêter le keepalive et le watchdog lors de la déconnexion
                 if (keepAliveInterval) {
                     clearInterval(keepAliveInterval)
                     keepAliveInterval = null
+                }
+                if (watchdogInterval) {
+                    clearInterval(watchdogInterval)
+                    watchdogInterval = null
                 }
 
                 if (isServiceShuttingDown) {
@@ -587,6 +610,7 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
         })
 
         socket.ev.on('messages.upsert', async ({ messages: msgs, type }) => {
+            session.lastEventAt = Date.now()
             const actionableMessages = msgs.filter(msg => shouldProcessUpsertMessage(type, msg))
 
             const processableMessages = actionableMessages.filter(msg => !isIgnorableIncomingMessage(msg))
@@ -651,6 +675,9 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
 
         if (typeof socket.ws?.on === 'function') {
             socket.ws.on('CB:message', (node) => {
+                // Toute frame brute reçue de WhatsApp (accusés de réception, présence, etc.)
+                // prouve que la socket est vivante, même sans message utilisateur direct.
+                session.lastEventAt = Date.now()
                 const from = node?.attrs?.from || ''
                 if (!isDirectUserChatJid(from)) {
                     return

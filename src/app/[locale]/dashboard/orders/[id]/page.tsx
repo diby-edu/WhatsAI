@@ -194,13 +194,14 @@ export default function OrderDetailsPage() {
             case 'processing': return '#60a5fa'
             case 'shipped': return '#a78bfa'
             case 'delivered': return '#10b981'
+            case 'completed': return '#10b981'
             case 'cancelled': return '#f87171'
+            case 'refunded': return '#fb923c'
             default: return '#94a3b8'
         }
     }
 
     const getStatusLabel = (status: string) => {
-        if (status === 'pending_pickup') return 'Prête pour retrait'
         try {
             return tStatus(status as any)
         } catch {

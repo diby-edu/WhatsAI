@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import { convertFromFcfa } from '@/lib/currency'
+import { formatPriceFromFcfa } from '@/lib/currency'
 
 interface CurrencyContextType {
     currency: string
@@ -45,7 +45,7 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
     }
 
     const formatFromFcfa = (priceFcfa: number): string => {
-        return format(convertFromFcfa(priceFcfa, currency))
+        return formatPriceFromFcfa(priceFcfa, currency)
     }
 
     const formatFromUsd = (priceUsd: number): string => {

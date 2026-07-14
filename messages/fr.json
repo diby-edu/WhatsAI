@@ -1199,12 +1199,15 @@
     "Status": {
       "pending": "En attente",
       "pending_delivery": "Livraison en attente",
+      "pending_pickup": "Prête pour retrait",
       "paid": "Paiement validé",
       "confirmed": "Confirmée",
       "processing": "En cours",
       "shipped": "Expédiée",
       "delivered": "Livrée",
-      "cancelled": "Annulée"
+      "completed": "Terminée",
+      "cancelled": "Annulée",
+      "refunded": "Remboursée"
     }
   },
   "TestAccountBanner": {

@@ -1,10 +1,10 @@
 'use client'
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { formatPriceFromFcfa } from '@/lib/currency'
 
 function formatFCFA(value: number) {
-    const n = Math.round(Number(value) || 0)
-    return `${String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} FCFA`
+    return formatPriceFromFcfa(Math.round(Number(value) || 0), 'XOF')
 }
 
 export default function SalesBarChart({ chartData }: { chartData: { date: string; sales: number }[] }) {

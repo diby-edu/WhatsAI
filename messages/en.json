@@ -1199,12 +1199,15 @@
         "Status": {
             "pending": "Pending",
             "pending_delivery": "Pending Delivery",
+            "pending_pickup": "Ready for Pickup",
             "paid": "Payment Validated",
             "confirmed": "Confirmed",
             "processing": "Processing",
             "shipped": "Shipped",
             "delivered": "Delivered",
-            "cancelled": "Cancelled"
+            "completed": "Completed",
+            "cancelled": "Cancelled",
+            "refunded": "Refunded"
         }
     },
     "TestAccountBanner": {

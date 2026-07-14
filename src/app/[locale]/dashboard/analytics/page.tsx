@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import { motion } from 'framer-motion'
 import { DollarSign, ShoppingBag, MessageSquare, TrendingUp, Loader2, Package, Zap, Users, BarChart2 } from 'lucide-react'
+import { formatPriceFromFcfa } from '@/lib/currency'
 
 // BUNDLE-2 : recharts (~100 Ko) chargé uniquement côté client, hors du bundle initial.
 const SalesBarChart = dynamic(() => import('@/components/dashboard/SalesBarChart'), {
@@ -100,8 +101,7 @@ export default function AnalyticsPage() {
     }
 
     const formatFCFA = (value: number) => {
-        const n = Math.round(Number(value) || 0)
-        return `${String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '\u00a0')} FCFA`
+        return formatPriceFromFcfa(Math.round(Number(value) || 0), 'XOF')
     }
 
     const cards = [

@@ -8,7 +8,8 @@ module.exports = {
             cwd: '/root/WhatsAI',
             env: {
                 NODE_ENV: 'production',
-                PORT: 3000
+                PORT: 3000,
+                TZ: 'Africa/Abidjan'
             },
             // Fork mode — plus stable avec npm start
             instances: 1,
@@ -27,7 +28,8 @@ module.exports = {
             script: 'whatsapp-service.js',
             cwd: '/root/WhatsAI',
             env: {
-                NODE_ENV: 'production'
+                NODE_ENV: 'production',
+                TZ: 'Africa/Abidjan'
             },
             // ⚠️ JAMAIS de cluster mode pour Baileys (sessions uniques)
             instances: 1,
