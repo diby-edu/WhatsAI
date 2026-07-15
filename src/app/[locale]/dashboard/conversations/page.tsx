@@ -162,8 +162,8 @@ export default function DashboardConversationsPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24, padding: "0 0 100px 0" }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
                 <div>
-                    <h1 style={{ fontSize: 'clamp(20px, 5vw, 28px)', fontWeight: 700, color: 'white', marginBottom: 8 }}>Centre de Contrôle 🚨</h1>
-                    <p style={{ color: '#94a3b8' }}>Gérez les interventions humaines et surveillez l'IA.</p>
+                    <h1 style={{ fontSize: 'clamp(20px, 5vw, 28px)', fontWeight: 700, color: 'white', marginBottom: 8 }}>{t('controlCenterTitle')}</h1>
+                    <p style={{ color: '#94a3b8' }}>{t('controlCenterSubtitle')}</p>
                 </div>
 
                 {/* Search */}
@@ -200,7 +200,7 @@ export default function DashboardConversationsPage() {
                     }}
                 >
                     <AlertTriangle size={16} />
-                    Urgent (Escaladé)
+                    {t('tabs.urgent')}
                 </button>
                 <button
                     onClick={() => setActiveTab('auto')}
@@ -213,7 +213,7 @@ export default function DashboardConversationsPage() {
                     }}
                 >
                     <Bot size={16} />
-                    Auto (IA Active)
+                    {t('tabs.auto')}
                 </button>
                 <button
                     onClick={() => setActiveTab('all')}
@@ -225,7 +225,7 @@ export default function DashboardConversationsPage() {
                         cursor: 'pointer'
                     }}
                 >
-                    Tout
+                    {t('tabs.all')}
                 </button>
             </div>
 

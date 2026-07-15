@@ -146,7 +146,7 @@ function BillingContent() {
         if (normalized === 'processing' || normalized === 'pending') {
             return {
                 color: '#fbbf24',
-                label: 'En cours',
+                label: t('History.status.processing'),
             }
         }
 
@@ -574,11 +574,11 @@ function BillingContent() {
                 GA.paymentInitiated('subscription', planId)
                 window.location.href = data.data.paymentUrl
             } else {
-                toast.error(data.error || "Erreur lors de l'initialisation du paiement")
+                toast.error(data.error || t('Errors.paymentInitFailed'))
             }
         } catch (err) {
             console.error(err)
-            toast.error('Erreur réseau')
+            toast.error(t('Errors.networkError'))
         } finally {
             setIsLoading(null)
         }
@@ -598,11 +598,11 @@ function BillingContent() {
                 GA.paymentInitiated('credits', packId)
                 window.location.href = data.data.paymentUrl
             } else {
-                toast.error(data.error || "Erreur lors de l'initialisation du paiement")
+                toast.error(data.error || t('Errors.paymentInitFailed'))
             }
         } catch (err) {
             console.error(err)
-            toast.error('Erreur réseau')
+            toast.error(t('Errors.networkError'))
         } finally {
             setIsLoading(null)
         }
@@ -646,14 +646,14 @@ function BillingContent() {
             const data = await res.json()
 
             if (!res.ok) {
-                throw new Error(data?.error || 'Erreur lors de l initialisation du paiement')
+                throw new Error(data?.error || t('Errors.paymentInitFailed'))
             }
 
             const paymentUrl = String(data?.data?.paymentUrl || '').trim()
             const transactionId = String(data?.data?.transactionId || '').trim()
 
             if (!paymentUrl) {
-                throw new Error('URL de paiement manquante')
+                throw new Error(t('Errors.missingPaymentUrl'))
             }
 
             const isPendingFallbackUrl = paymentUrl.includes('/dashboard/billing') && paymentUrl.includes('payment=pending')
@@ -727,23 +727,23 @@ function BillingContent() {
         if (!feexPayIntent) return
 
         if (!feexPayCountry || !feexPayNetwork) {
-            setFeexPayError('Veuillez choisir un pays et un reseau')
+            setFeexPayError(t('FeexPay.selectCountryNetwork'))
             return
         }
 
         const normalizedPhone = feexPayPhone.replace(/\s+/g, '')
         if (!normalizedPhone) {
-            setFeexPayError('Le numero payeur est obligatoire')
+            setFeexPayError(t('FeexPay.phoneRequired'))
             return
         }
 
         if (!normalizedPhone.startsWith('+')) {
-            setFeexPayError('Le numero payeur doit etre au format international (ex: +225...)')
+            setFeexPayError(t('FeexPay.phoneFormat'))
             return
         }
 
         if (feexPayNeedsOtp && !String(feexPayOtp || '').trim()) {
-            setFeexPayError('OTP requis pour ce reseau')
+            setFeexPayError(t('FeexPay.otpRequired'))
             return
         }
 
@@ -780,7 +780,7 @@ function BillingContent() {
             if (targetWindow && !targetWindow.closed) {
                 targetWindow.close()
             }
-            const message = String(err?.message || 'Erreur reseau')
+            const message = String(err?.message || t('Errors.networkError'))
             setFeexPayError(message)
             toast.error(message)
         }
@@ -795,7 +795,7 @@ function BillingContent() {
         try {
             await initializePaymentV2({ type: 'subscription', planId }, planId)
         } catch (err: any) {
-            toast.error(String(err?.message || 'Erreur reseau'))
+            toast.error(String(err?.message || t('Errors.networkError')))
         }
     }
 
@@ -808,7 +808,7 @@ function BillingContent() {
         try {
             await initializePaymentV2({ type: 'credits', packId }, packId)
         } catch (err: any) {
-            toast.error(String(err?.message || 'Erreur reseau'))
+            toast.error(String(err?.message || t('Errors.networkError')))
         }
     }
 
@@ -1066,7 +1066,7 @@ function BillingContent() {
                                     cursor: 'pointer',
                                 }}
                             >
-                                Annuler
+                                {t('FeexPay.cancel')}
                             </button>
                             <button
                                 type="button"
@@ -1088,9 +1088,9 @@ function BillingContent() {
                                 {isLoading ? (
                                     <>
                                         <Loader2 style={{ width: 14, height: 14, animation: 'spin 1s linear infinite' }} />
-                                        Initialisation...
+                                        {t('FeexPay.initializing')}
                                     </>
-                                ) : 'Continuer'}
+                                ) : t('FeexPay.continue')}
                             </button>
                         </div>
                     </div>
@@ -1116,12 +1116,13 @@ function BillingContent() {
                     <AlertCircle style={{ width: 20, height: 20, color: '#f59e0b', flexShrink: 0 }} />
                     <div>
                         <div style={{ fontWeight: 600, color: '#f59e0b', fontSize: 14 }}>
-                            🛡️ Crédits sécurisés (Sursis)
+                            {t('Overview.frozenBanner.title')}
                         </div>
                         <div style={{ fontSize: 12, color: 'rgba(245, 158, 11, 0.8)', marginTop: 2 }}>
-                            Vos {creditsBalance.toLocaleString()} crédits sont sécurisés
-                            {creditsExpireAt && ` jusqu'au ${new Date(creditsExpireAt).toLocaleDateString('fr-FR')}`}.
-                            Renouvelez votre abonnement pour les réactiver.
+                            {t('Overview.frozenBanner.message', {
+                                count: creditsBalance,
+                                expiry: creditsExpireAt ? t('Overview.frozenBanner.expirySuffix', { date: format.dateTime(new Date(creditsExpireAt)) }) : '',
+                            })}
                         </div>
                     </div>
                 </motion.div>
@@ -1193,18 +1194,18 @@ function BillingContent() {
                             <Calendar style={{ width: 20, height: 20, color: '#fbbf24' }} />
                         </div>
                         <div>
-                            <div style={{ fontSize: 12, color: '#64748b' }}>Échéance</div>
+                            <div style={{ fontSize: 12, color: '#64748b' }}>{t('Overview.dueDate')}</div>
                             {(() => {
                                 const dateStr = subscriptionEnd || profilePaidUntil
                                 return (
                                     <div style={{ fontSize: 18, fontWeight: 700, color: dateStr ? 'white' : '#94a3b8' }}>
                                         {dateStr
-                                            ? new Date(dateStr).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                                            ? format.dateTime(new Date(dateStr), { day: '2-digit', month: '2-digit', year: 'numeric' })
                                             : lifecycleStatus === 'frozen_grace'
-                                                ? 'En période de grâce'
+                                                ? t('Overview.gracePeriod')
                                                 : lifecycleStatus === 'inactive'
-                                                    ? 'Compte suspendu'
-                                                    : 'Illimité'}
+                                                    ? t('Overview.suspendedAccount')
+                                                    : t('Overview.unlimited')}
                                     </div>
                                 )
                             })()}
@@ -1226,9 +1227,9 @@ function BillingContent() {
                     }}
                 >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                        <span style={{ fontSize: 13, color: '#94a3b8' }}>Solde disponible</span>
+                        <span style={{ fontSize: 13, color: '#94a3b8' }}>{t('Overview.availableBalance')}</span>
                         <span style={{ fontSize: 15, fontWeight: 700, color: '#34d399' }}>
-                            {creditsBalance.toLocaleString()} crédits
+                            {creditsBalance.toLocaleString()} {t('Credits.unit')}
                         </span>
                     </div>
                     <div style={{ height: 8, borderRadius: 4, background: 'rgba(148, 163, 184, 0.15)', overflow: 'hidden' }}>
@@ -1242,18 +1243,20 @@ function BillingContent() {
                     </div>
                     <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                         <span style={{ fontSize: 12, color: '#64748b' }}>
-                            {creditsUsed.toLocaleString()} / {creditsIncluded.toLocaleString()} utilisés ce mois ({usagePct}%)
+                            {t('Overview.usedThisMonthDetail', { used: creditsUsed.toLocaleString(), included: creditsIncluded.toLocaleString(), pct: usagePct })}
                         </span>
                         {boostCredits > 0 && (
                             <span style={{ fontSize: 12, color: '#fbbf24', fontWeight: 600 }}>
-                                · dont {boostCredits.toLocaleString()} crédits Boost
+                                {t('Overview.boostCredits', { count: boostCredits.toLocaleString() })}
                             </span>
                         )}
                     </div>
                     {usagePct >= 85 && !isScalePlan && (
                         <div style={{ marginTop: 8, fontSize: 12, color: '#ef4444', display: 'flex', alignItems: 'center', gap: 6 }}>
                             <AlertCircle style={{ width: 14, height: 14 }} />
-                            85% atteint — <a href="/dashboard/billing" style={{ color: '#ef4444', textDecoration: 'underline' }}>Passez au plan supérieur</a>
+                            {t.rich('Overview.limitWarning', {
+                                link: (chunks) => <a href="/dashboard/billing" style={{ color: '#ef4444', textDecoration: 'underline' }}>{chunks}</a>,
+                            })}
                         </div>
                     )}
                 </motion.div>
@@ -1273,25 +1276,28 @@ function BillingContent() {
                 >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
                         <Crown style={{ width: 20, height: 20, color: '#f59e0b' }} />
-                        <span style={{ fontSize: 15, fontWeight: 700, color: '#f59e0b' }}>Avantages Scale</span>
+                        <span style={{ fontSize: 15, fontWeight: 700, color: '#f59e0b' }}>{t('Overview.scaleAdvantages.title')}</span>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <Sparkles style={{ width: 16, height: 16, color: '#fbbf24', flexShrink: 0 }} />
                             <span style={{ fontSize: 13, color: '#cbd5e1' }}>
-                                <strong style={{ color: 'white' }}>Rollover 20%</strong> — crédits non utilisés reportés au prochain cycle
+                                {t.rich('Overview.scaleAdvantages.rollover', { strong: (chunks) => <strong style={{ color: 'white' }}>{chunks}</strong> })}
                             </span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <Zap style={{ width: 16, height: 16, color: '#fbbf24', flexShrink: 0 }} />
                             <span style={{ fontSize: 13, color: '#cbd5e1' }}>
-                                <strong style={{ color: 'white' }}>+2 000 crédits bonus</strong> automatiques à chaque renouvellement
+                                {t.rich('Overview.scaleAdvantages.bonus', { strong: (chunks) => <strong style={{ color: 'white' }}>{chunks}</strong> })}
                             </span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <Calendar style={{ width: 16, height: 16, color: '#fbbf24', flexShrink: 0 }} />
                             <span style={{ fontSize: 13, color: '#cbd5e1' }}>
-                                Prochain renouvellement le <strong style={{ color: 'white' }}>{new Date(subscriptionEnd).toLocaleDateString('fr-FR')}</strong>
+                                {t.rich('Overview.scaleAdvantages.nextRenewal', {
+                                    strong: (chunks) => <strong style={{ color: 'white' }}>{chunks}</strong>,
+                                    date: format.dateTime(new Date(subscriptionEnd)),
+                                })}
                             </span>
                         </div>
                     </div>
@@ -1317,7 +1323,7 @@ function BillingContent() {
                     <div>
                         <div style={{ fontWeight: 500, color: '#facc15', fontSize: 14 }}>{t('Overview.lowCredits.title')}</div>
                         <div style={{ fontSize: 12, color: 'rgba(250, 204, 21, 0.7)' }}>
-                            Il vous reste {creditsBalance} crédit{creditsBalance > 1 ? 's' : ''}.
+                            {t('Overview.lowCredits.remaining', { count: creditsBalance, plural: creditsBalance > 1 ? 's' : '' })}
                         </div>
                     </div>
                 </motion.div>
@@ -1429,7 +1435,7 @@ function BillingContent() {
                                                 {t('Plans.loading')}
                                             </>
                                         ) : isCurrentDisplayedPlan ? (
-                                            'Renouveler ce plan'
+                                            t('Plans.renewThisPlan')
                                         ) : (
                                             <>
                                                 {t('Plans.choose')}
@@ -1439,7 +1445,7 @@ function BillingContent() {
                                     </motion.button>
                                     {isCurrentDisplayedPlan && subscriptionEnd && new Date(subscriptionEnd) > new Date() && (
                                         <div style={{ marginTop: 8, fontSize: 11, color: '#93c5fd' }}>
-                                            Plan actif. Renouvellement anticipé autorisé.
+                                            {t('Plans.activePlanNotice')}
                                         </div>
                                     )}
                                 </motion.div>
@@ -1528,23 +1534,23 @@ function BillingContent() {
                 <div>
                     <h2 style={{ fontSize: 16, fontWeight: 600, color: 'white', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
                         <Wallet style={{ width: 18, height: 18, color: '#34d399' }} />
-                        Mes reversements
+                        {t('Merchant.title')}
                     </h2>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 16 }}>
                         {[
-                            { label: 'Collecté', value: merchantBalance.total_collected, color: '#34d399' },
-                            { label: 'Commission', value: merchantBalance.total_commission, color: '#f59e0b' },
-                            { label: 'Reversé', value: merchantBalance.total_paid_out, color: '#60a5fa' },
-                            { label: 'Solde dû', value: merchantBalance.balance_due, color: '#a78bfa' },
+                            { label: t('Merchant.collected'), value: merchantBalance.total_collected, color: '#34d399' },
+                            { label: t('Merchant.commission'), value: merchantBalance.total_commission, color: '#f59e0b' },
+                            { label: t('Merchant.paidOut'), value: merchantBalance.total_paid_out, color: '#60a5fa' },
+                            { label: t('Merchant.balanceDue'), value: merchantBalance.balance_due, color: '#a78bfa' },
                         ].map(({ label, value, color }) => (
                             <div key={label} style={{ background: 'rgba(51,65,85,0.5)', borderRadius: 10, padding: 14, border: '1px solid rgba(255,255,255,0.07)' }}>
                                 <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>{label}</div>
-                                <div style={{ fontSize: 18, fontWeight: 700, color }}>{value.toLocaleString('fr-FR')} F</div>
+                                <div style={{ fontSize: 18, fontWeight: 700, color }}>{format.number(value)} F</div>
                             </div>
                         ))}
                     </div>
                     <div style={{ fontSize: 12, color: '#64748b', marginBottom: merchantPayouts.length > 0 ? 12 : 0 }}>
-                        {merchantBalance.orders_count} commande{merchantBalance.orders_count > 1 ? 's' : ''} payée{merchantBalance.orders_count > 1 ? 's' : ''}
+                        {t('Merchant.ordersPaid', { count: merchantBalance.orders_count, plural: merchantBalance.orders_count > 1 ? 's' : '' })}
                     </div>
                     {merchantPayouts.length > 0 && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -1552,18 +1558,18 @@ function BillingContent() {
                                 <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', borderRadius: 8, background: 'rgba(51,65,85,0.3)' }}>
                                     <div>
                                         <div style={{ fontSize: 13, color: 'white', fontWeight: 500 }}>
-                                            Reversement {p.period_start ? `— ${new Date(p.period_start).toLocaleDateString('fr-FR')}` : ''}
+                                            {t('Merchant.payoutLabel', { period: p.period_start ? ` — ${format.dateTime(new Date(p.period_start))}` : '' })}
                                         </div>
                                         <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
-                                            {p.payment_method || 'En attente'} {p.payment_reference ? `· ${p.payment_reference}` : ''}
+                                            {p.payment_method || t('Merchant.pending')} {p.payment_reference ? `· ${p.payment_reference}` : ''}
                                         </div>
                                     </div>
                                     <div style={{ textAlign: 'right' }}>
                                         <div style={{ fontSize: 14, fontWeight: 600, color: p.status === 'completed' ? '#34d399' : '#f59e0b' }}>
-                                            {(p.net_amount || 0).toLocaleString('fr-FR')} F
+                                            {format.number(p.net_amount || 0)} F
                                         </div>
                                         <div style={{ fontSize: 11, color: p.status === 'completed' ? '#34d399' : '#f59e0b' }}>
-                                            {p.status === 'completed' ? 'Reçu' : 'En attente'}
+                                            {p.status === 'completed' ? t('Merchant.received') : t('Merchant.pending')}
                                         </div>
                                     </div>
                                 </div>
@@ -1607,19 +1613,19 @@ function BillingContent() {
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
                                                     {(payment as any).payment_type === 'subscription' && (
                                                         <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 4, background: 'rgba(52,211,153,0.12)', color: '#34d399' }}>
-                                                            Abonnement
+                                                            {t('History.subscriptionBadge')}
                                                         </span>
                                                     )}
                                                     {(payment as any).payment_type === 'credits' && (
                                                         <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 4, background: 'rgba(167,139,250,0.12)', color: '#a78bfa' }}>
-                                                            Crédits
+                                                            {t('History.creditsBadge')}
                                                         </span>
                                                     )}
                                                     <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 4,
                                                         background: (payment as any).source === 'manual' ? 'rgba(251,191,36,0.1)' : 'rgba(52,211,153,0.1)',
                                                         color: (payment as any).source === 'manual' ? '#fbbf24' : '#34d399'
                                                     }}>
-                                                        {(payment as any).source === 'manual' ? 'Manuel' : 'Auto'}
+                                                        {(payment as any).source === 'manual' ? t('History.manual') : t('History.auto')}
                                                     </span>
                                                 </div>
                                                 <div style={{ fontWeight: 500, color: 'white', fontSize: 14 }}>{payment.description}</div>
@@ -1628,7 +1634,7 @@ function BillingContent() {
                                                 </div>
                                                 {payment.reference && (
                                                     <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
-                                                        Ref: {payment.reference}
+                                                        {t('History.refPrefix', { reference: payment.reference })}
                                                     </div>
                                                 )}
                                             </div>
@@ -1637,9 +1643,9 @@ function BillingContent() {
                                             <div style={{ fontWeight: 600, fontSize: 14, color: payment.payment_provider === 'admin' ? (payment.credits != null && payment.credits < 0 ? '#f87171' : '#a855f7') : 'white' }}>
                                                 {payment.payment_provider === 'admin'
                                                     ? payment.credits != null && payment.credits < 0
-                                                        ? `${payment.credits} crédits`
-                                                        : 'Offert'
-                                                    : new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF', maximumFractionDigits: 0 }).format(payment.amount_fcfa)
+                                                        ? t('History.creditsAmount', { count: payment.credits })
+                                                        : t('History.gifted')
+                                                    : format.number(payment.amount_fcfa, { style: 'currency', currency: 'XOF', maximumFractionDigits: 0 })
                                                 }
                                             </div>
                                             <div style={{ fontSize: 11, color: statusMeta.color }}>

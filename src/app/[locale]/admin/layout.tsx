@@ -52,6 +52,7 @@ import { useAndroidBackButton } from '@/hooks/useAndroidBackButton'
 import { useSessionTimeout } from '@/hooks/useSessionTimeout'
 import { useNativeDeviceTokenSync } from '@/hooks/useNativeDeviceTokenSync'
 import { unregisterCurrentDeviceToken } from '@/lib/notifications/device-token-client'
+import LocaleSwitcher from '@/components/LocaleSwitcher'
 
 interface AdminNavItem { href: string; label: string; icon: ElementType }
 interface AdminGroup { label?: string; items: AdminNavItem[] }
@@ -403,6 +404,7 @@ export default function AdminLayout({
                         <span style={{ fontWeight: 700, color: 'white' }}>Admin</span>
                     </Link>
                     <div style={{ display: 'flex', flexWrap: 'nowrap', alignItems: 'center', gap: 8 }}>
+                        <LocaleSwitcher compact />
                         <button
                             onClick={() => setShowNotifications(!showNotifications)}
                             style={{
@@ -910,6 +912,9 @@ export default function AdminLayout({
                         </div>
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                            {/* Langue */}
+                            <LocaleSwitcher />
+
                             {/* Notifications Bell */}
                             <div ref={notifRef} style={{ position: 'relative' }}>
                                 <button

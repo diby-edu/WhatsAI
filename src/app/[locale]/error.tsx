@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import { useTranslations } from 'next-intl'
 import { RefreshCw, Home, AlertTriangle } from 'lucide-react'
 import Link from 'next/link'
 
@@ -11,6 +12,7 @@ export default function Error({
     error: Error & { digest?: string }
     reset: () => void
 }) {
+    const t = useTranslations('ErrorPage')
     useEffect(() => {
         // Log error to Sentry or monitoring service
         console.error('Application error:', error)
@@ -46,7 +48,7 @@ export default function Error({
                 color: 'white',
                 marginBottom: 12
             }}>
-                Une erreur est survenue
+                {t('title')}
             </h1>
 
             <p style={{
@@ -55,7 +57,7 @@ export default function Error({
                 marginBottom: 8,
                 maxWidth: 400
             }}>
-                Nous nous excusons pour la gêne occasionnée. Notre équipe a été notifiée.
+                {t('description')}
             </p>
 
             {error.digest && (
@@ -65,7 +67,7 @@ export default function Error({
                     marginBottom: 32,
                     fontFamily: 'monospace'
                 }}>
-                    Code erreur: {error.digest}
+                    {t('errorCode', { digest: error.digest })}
                 </p>
             )}
 
@@ -87,7 +89,7 @@ export default function Error({
                     }}
                 >
                     <RefreshCw style={{ width: 18, height: 18 }} />
-                    Réessayer
+                    {t('retryButton')}
                 </button>
 
                 <Link
@@ -107,7 +109,7 @@ export default function Error({
                     }}
                 >
                     <Home style={{ width: 18, height: 18 }} />
-                    Accueil
+                    {t('homeButton')}
                 </Link>
             </div>
         </div>

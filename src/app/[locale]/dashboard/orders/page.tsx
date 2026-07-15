@@ -178,7 +178,7 @@ export default function OrdersPage() {
                 fetchBookings()
             } else {
                 const data = await res.json()
-                toast.error(data.error || 'Erreur lors de la mise à jour du paiement')
+                toast.error(data.error || t('errors.paymentUpdateFailed'))
             }
         } catch (err) {
             console.error('Booking deposit status change error:', err)
@@ -198,75 +198,75 @@ export default function OrdersPage() {
             case 'pending':
                 if (isCOD) {
                     if (isPickupOrder) return [
-                        { value: 'pending_pickup', label: '🛍️ Prêt retrait' },
-                        { value: 'cancelled', label: '❌ Annuler' },
+                        { value: 'pending_pickup', label: t('actions.readyForPickup') },
+                        { value: 'cancelled', label: t('actions.cancel') },
                     ]
                     if (isService) return [
-                        { value: 'confirmed', label: '✅ Confirmer' },
-                        { value: 'delivered', label: '🎉 Terminé' },
-                        { value: 'cancelled', label: '❌ Annuler' },
+                        { value: 'confirmed', label: t('actions.confirm') },
+                        { value: 'delivered', label: t('actions.finished') },
+                        { value: 'cancelled', label: t('actions.cancel') },
                     ]
                     return [
-                        { value: 'shipped', label: '📦 Expédier' },
-                        { value: 'delivered', label: '✅ Livré' },
-                        { value: 'cancelled', label: '❌ Annuler' },
+                        { value: 'shipped', label: t('actions.ship') },
+                        { value: 'delivered', label: t('actions.delivered') },
+                        { value: 'cancelled', label: t('actions.cancel') },
                     ]
                 }
                 // Mobile Money Direct : paiement obligatoire avant livraison
                 if (order.payment_method === 'mobile_money_direct')
-                    return [{ value: 'paid', label: '✅ Valider paiement' }, { value: 'cancelled', label: '❌ Annuler' }]
+                    return [{ value: 'paid', label: t('actions.validatePayment') }, { value: 'cancelled', label: t('actions.cancel') }]
                 // CinetPay ('online') : validé automatiquement par webhook
-                return [{ value: 'cancelled', label: '❌ Annuler' }]
+                return [{ value: 'cancelled', label: t('actions.cancel') }]
             case 'pending_pickup':
                 return [
-                    { value: 'confirmed', label: '✅ Confirmer' },
-                    { value: 'delivered', label: '🎉 Retirée' },
+                    { value: 'confirmed', label: t('actions.confirm') },
+                    { value: 'delivered', label: t('actions.pickedUp') },
                 ]
             case 'pending_delivery':
                 if (isService) return [
-                    { value: 'confirmed', label: '✅ Confirmer' },
-                    { value: 'delivered', label: '🎉 Terminé' },
+                    { value: 'confirmed', label: t('actions.confirm') },
+                    { value: 'delivered', label: t('actions.finished') },
                 ]
                 return [
-                    { value: 'shipped', label: '📦 Expédier' },
-                    { value: 'delivered', label: '✅ Livré' },
+                    { value: 'shipped', label: t('actions.ship') },
+                    { value: 'delivered', label: t('actions.delivered') },
                 ]
             case 'paid':
                 if (orderType === 'digital') return [] // Auto-delivered after payment
                 if (isPickupOrder) return [
-                    { value: 'confirmed', label: '✅ Confirmer' },
-                    { value: 'delivered', label: '🎉 Retirée' },
+                    { value: 'confirmed', label: t('actions.confirm') },
+                    { value: 'delivered', label: t('actions.pickedUp') },
                 ]
                 if (isService) return [
-                    { value: 'confirmed', label: '✅ Confirmer' },
-                    { value: 'delivered', label: '🎉 Terminé' },
+                    { value: 'confirmed', label: t('actions.confirm') },
+                    { value: 'delivered', label: t('actions.finished') },
                 ]
                 return [
-                    { value: 'shipped', label: '📦 Expédier' },
-                    { value: 'delivered', label: '✅ Livré' },
+                    { value: 'shipped', label: t('actions.ship') },
+                    { value: 'delivered', label: t('actions.delivered') },
                 ]
             case 'confirmed':
-                if (isPickupOrder) return [{ value: 'delivered', label: '🎉 Retirée' }]
-                if (isService) return [{ value: 'delivered', label: '🎉 Marquer terminé' }]
+                if (isPickupOrder) return [{ value: 'delivered', label: t('actions.pickedUp') }]
+                if (isService) return [{ value: 'delivered', label: t('actions.markFinished') }]
                 return [
-                    { value: 'shipped', label: '📦 Expédier' },
-                    { value: 'delivered', label: '✅ Livré' },
+                    { value: 'shipped', label: t('actions.ship') },
+                    { value: 'delivered', label: t('actions.delivered') },
                 ]
             case 'processing':
                 if (isPickupOrder) return [
-                    { value: 'confirmed', label: '✅ Confirmer' },
-                    { value: 'delivered', label: '🎉 Retirée' },
+                    { value: 'confirmed', label: t('actions.confirm') },
+                    { value: 'delivered', label: t('actions.pickedUp') },
                 ]
                 if (isService) return [
-                    { value: 'confirmed', label: '✅ Confirmer' },
-                    { value: 'delivered', label: '🎉 Terminé' },
+                    { value: 'confirmed', label: t('actions.confirm') },
+                    { value: 'delivered', label: t('actions.finished') },
                 ]
                 return [
-                    { value: 'shipped', label: '📦 Expédier' },
-                    { value: 'delivered', label: '✅ Livré' },
+                    { value: 'shipped', label: t('actions.ship') },
+                    { value: 'delivered', label: t('actions.delivered') },
                 ]
             case 'shipped':
-                return [{ value: 'delivered', label: '✅ Livré' }]
+                return [{ value: 'delivered', label: t('actions.delivered') }]
             default:
                 return []
         }
@@ -277,18 +277,18 @@ export default function OrdersPage() {
         switch (booking.status) {
             case 'pending':
                 return [
-                    { value: 'confirmed', label: '✅ Confirmer' },
-                    { value: 'cancelled', label: '❌ Annuler' }
+                    { value: 'confirmed', label: t('actions.confirm') },
+                    { value: 'cancelled', label: t('actions.cancel') }
                 ]
             case 'inscription_pending':
                 return [
-                    { value: 'confirmed', label: '✅ Paiement reçu — Confirmer' },
-                    { value: 'cancelled', label: '❌ Annuler' }
+                    { value: 'confirmed', label: t('actions.paymentReceivedConfirm') },
+                    { value: 'cancelled', label: t('actions.cancel') }
                 ]
             case 'confirmed':
                 return [
-                    { value: 'completed', label: booking.booking_source === 'restaurant' ? '🍽️ Client servi' : '🎉 Terminé' },
-                    { value: 'cancelled', label: '❌ Annuler' }
+                    { value: 'completed', label: booking.booking_source === 'restaurant' ? t('actions.customerServed') : t('actions.finished') },
+                    { value: 'cancelled', label: t('actions.cancel') }
                 ]
             default:
                 return []
@@ -306,11 +306,11 @@ export default function OrdersPage() {
 
     const getBookingKindLabel = (booking: Booking) => {
         switch (getBookingKind(booking)) {
-            case 'restaurant': return 'Restaurant'
-            case 'stay': return 'Hebergement'
-            case 'slot': return 'Service'
-            case 'inscription': return 'Inscription'
-            case 'table': return 'Table / Event'
+            case 'restaurant': return t('bookingKindLabel.restaurant')
+            case 'stay': return t('bookingKindLabel.stay')
+            case 'slot': return t('bookingKindLabel.slot')
+            case 'inscription': return t('bookingKindLabel.inscription')
+            case 'table': return t('bookingKindLabel.table')
             default: return booking.booking_type
         }
     }
@@ -329,12 +329,12 @@ export default function OrdersPage() {
 
     const getBookingPaymentLabel = (booking: Booking) => {
         switch (getBookingPaymentCategory(booking)) {
-            case 'online': return 'En ligne'
-            case 'mobile_money_direct': return 'Mobile Money'
-            case 'delivery': return 'A la livraison'
-            case 'pickup': return 'Au retrait'
-            case 'onsite': return 'Sur place'
-            default: return 'Non defini'
+            case 'online': return t('paymentLabel.online')
+            case 'mobile_money_direct': return t('paymentLabel.mobileMoneyDirect')
+            case 'delivery': return t('paymentLabel.delivery')
+            case 'pickup': return t('paymentLabel.pickup')
+            case 'onsite': return t('paymentLabel.onsite')
+            default: return t('paymentLabel.undefined')
         }
     }
 
@@ -348,36 +348,36 @@ export default function OrdersPage() {
     }
 
     const getBookingDepositLabel = (booking: Booking) => {
-        const paymentLabel = isFullBookingPayment(booking) ? 'Paiement' : 'Acompte'
+        const paymentLabel = isFullBookingPayment(booking) ? t('depositLabel.payment') : t('depositLabel.deposit')
         switch (booking.deposit_status) {
-            case 'paid': return `${paymentLabel} paye`
-            case 'pending': return `${paymentLabel} en attente`
-            case 'waived': return isFullBookingPayment(booking) ? 'Paiement leve' : 'Acompte leve'
-            case 'expired': return `${paymentLabel} expire`
+            case 'paid': return t('depositLabel.paid', { label: paymentLabel })
+            case 'pending': return t('depositLabel.pending', { label: paymentLabel })
+            case 'waived': return isFullBookingPayment(booking) ? t('depositLabel.waivedPayment') : t('depositLabel.waivedDeposit')
+            case 'expired': return t('depositLabel.expired', { label: paymentLabel })
             default: return booking.deposit_required
-                ? (isFullBookingPayment(booking) ? 'Paiement requis' : 'Acompte requis')
-                : (isFullBookingPayment(booking) ? 'Sans paiement en ligne' : 'Sans acompte')
+                ? (isFullBookingPayment(booking) ? t('depositLabel.requiredPayment') : t('depositLabel.requiredDeposit'))
+                : (isFullBookingPayment(booking) ? t('depositLabel.noOnlinePayment') : t('depositLabel.noDeposit'))
         }
     }
 
     const getBookingModeLabel = (booking: Booking) => {
         switch (booking.fulfillment_mode) {
-            case 'dine_in': return 'Sur place'
-            case 'booking_only': return 'Reservation simple'
-            case 'takeaway': return 'A emporter'
-            case 'delivery': return 'Livraison'
+            case 'dine_in': return t('modeLabel.onsite')
+            case 'booking_only': return t('modeLabel.bookingOnly')
+            case 'takeaway': return t('modeLabel.takeaway')
+            case 'delivery': return t('modeLabel.delivery')
             default: return null
         }
     }
 
     const getBookingStatusBadgeLabel = (booking: Booking) => {
-        if (booking.status === 'pending') return '🟡 En attente'
-        if (booking.status === 'inscription_pending') return '📚 Inscription'
-        if (booking.status === 'confirmed') return '✅ Confirmé'
+        if (booking.status === 'pending') return t('bookingStatusBadge.pending')
+        if (booking.status === 'inscription_pending') return t('bookingStatusBadge.inscriptionPending')
+        if (booking.status === 'confirmed') return t('bookingStatusBadge.confirmed')
         if (booking.status === 'completed') {
-            return booking.booking_source === 'restaurant' ? '🍽️ Honorée' : '🎉 Terminé'
+            return booking.booking_source === 'restaurant' ? t('bookingStatusBadge.honored') : t('bookingStatusBadge.finished')
         }
-        if (booking.status === 'cancelled') return '❌ Annulé'
+        if (booking.status === 'cancelled') return t('bookingStatusBadge.cancelled')
         return booking.status
     }
 
@@ -394,12 +394,12 @@ export default function OrdersPage() {
 
     const getOrderPaymentLabel = (order: Order) => {
         switch (getOrderPaymentCategory(order)) {
-            case 'online': return 'En ligne'
-            case 'mobile_money_direct': return 'Mobile Money'
-            case 'delivery': return 'A la livraison'
-            case 'pickup': return 'Au retrait'
-            case 'onsite': return 'Sur place'
-            default: return 'Non defini'
+            case 'online': return t('paymentLabel.online')
+            case 'mobile_money_direct': return t('paymentLabel.mobileMoneyDirect')
+            case 'delivery': return t('paymentLabel.delivery')
+            case 'pickup': return t('paymentLabel.pickup')
+            case 'onsite': return t('paymentLabel.onsite')
+            default: return t('paymentLabel.undefined')
         }
     }
 
@@ -426,11 +426,11 @@ export default function OrdersPage() {
                 fetchOrders()
             } else {
                 const data = await res.json()
-                toast.error(data.error || 'Erreur lors de la vérification')
+                toast.error(data.error || t('errors.verificationFailed'))
             }
         } catch (err) {
             console.error('Verify error:', err)
-            toast.error('Erreur réseau')
+            toast.error(t('errors.networkError'))
         } finally {
             setVerifyingId(null)
         }
@@ -530,10 +530,10 @@ export default function OrdersPage() {
 
     const getTypeLabel = (type: string) => {
         switch (type) {
-            case 'physical': return 'Physique'
-            case 'digital': return 'Numérique'
-            case 'service': return 'Service'
-            case 'mixed': return 'Mixte'
+            case 'physical': return t('typeLabel.physical')
+            case 'digital': return t('typeLabel.digital')
+            case 'service': return t('typeLabel.service')
+            case 'mixed': return t('typeLabel.mixed')
             default: return ''
         }
     }
@@ -598,63 +598,63 @@ export default function OrdersPage() {
     const statusOptions = activeTab === 'bookings'
         ? [
             { value: '', label: t('filter.all') },
-            { value: 'pending', label: 'En attente' },
-            { value: 'inscription_pending', label: 'Inscription' },
-            { value: 'confirmed', label: 'Confirmé' },
-            { value: 'completed', label: 'Terminée / honorée' },
-            { value: 'cancelled', label: 'Annulée' },
+            { value: 'pending', label: t('bookingStatusBadge.pending').replace(/^[^\s]+\s/, '') },
+            { value: 'inscription_pending', label: t('filterStatus.inscriptionPending') },
+            { value: 'confirmed', label: t('filterStatus.confirmed') },
+            { value: 'completed', label: t('filterStatus.completedHonored') },
+            { value: 'cancelled', label: t('filterStatus.cancelledBooking') },
         ]
         : [
             { value: '', label: t('filter.all') },
             { value: 'pending', label: t('filter.pending') },
             { value: 'pending_delivery', label: t('filter.pending_delivery') },
-            { value: 'pending_pickup', label: 'Prête pour retrait' },
+            { value: 'pending_pickup', label: t('filterStatus.pendingPickup') },
             { value: 'paid', label: t('filter.paid') },
             { value: 'delivered', label: t('filter.delivered') },
             { value: 'cancelled', label: t('filter.cancelled') },
         ]
     const countLabel = activeTab === 'bookings'
-        ? `${filteredBookings.length} réservation${filteredBookings.length > 1 ? 's' : ''}`
-        : `${filteredOrders.length} commande${filteredOrders.length > 1 ? 's' : ''}`
+        ? t('countBookings', { count: filteredBookings.length })
+        : t('count', { count: filteredOrders.length })
 
     const typeOptions = activeTab === 'bookings'
         ? [
-            { value: '', label: 'Tous les types' },
-            { value: 'restaurant', label: 'Restaurant' },
-            { value: 'stay', label: 'Hebergement' },
-            { value: 'slot', label: 'Service' },
-            { value: 'inscription', label: 'Inscription' },
-            { value: 'table', label: 'Table / Event' },
+            { value: '', label: t('filterType.all') },
+            { value: 'restaurant', label: t('bookingKindLabel.restaurant') },
+            { value: 'stay', label: t('bookingKindLabel.stay') },
+            { value: 'slot', label: t('bookingKindLabel.slot') },
+            { value: 'inscription', label: t('bookingKindLabel.inscription') },
+            { value: 'table', label: t('bookingKindLabel.table') },
         ]
         : [
-            { value: '', label: 'Tous les types' },
-            { value: 'physical', label: 'Physique' },
-            { value: 'digital', label: 'Numerique' },
-            { value: 'service', label: 'Service' },
-            { value: 'mixed', label: 'Mixte' },
-            { value: 'unknown', label: 'Autre' },
+            { value: '', label: t('filterType.all') },
+            { value: 'physical', label: t('typeLabel.physical') },
+            { value: 'digital', label: t('typeLabel.digital') },
+            { value: 'service', label: t('typeLabel.service') },
+            { value: 'mixed', label: t('typeLabel.mixed') },
+            { value: 'unknown', label: t('typeLabel.unknown') },
         ]
 
     const paymentOptions = activeTab === 'bookings'
         ? [
-            { value: '', label: 'Tous les paiements' },
-            { value: 'online', label: 'En ligne' },
-            { value: 'mobile_money_direct', label: 'Mobile Money' },
-            { value: 'onsite', label: 'Sur place' },
-            { value: 'pickup', label: 'Au retrait' },
-            { value: 'delivery', label: 'A la livraison' },
+            { value: '', label: t('filterPayment.all') },
+            { value: 'online', label: t('paymentLabel.online') },
+            { value: 'mobile_money_direct', label: t('paymentLabel.mobileMoneyDirect') },
+            { value: 'onsite', label: t('paymentLabel.onsite') },
+            { value: 'pickup', label: t('paymentLabel.pickup') },
+            { value: 'delivery', label: t('paymentLabel.delivery') },
         ]
         : activeTab === 'mobile_money'
             ? [
-                { value: '', label: 'Tous les paiements' },
-                { value: 'mobile_money_direct', label: 'Mobile Money' },
+                { value: '', label: t('filterPayment.all') },
+                { value: 'mobile_money_direct', label: t('paymentLabel.mobileMoneyDirect') },
             ]
             : [
-                { value: '', label: 'Tous les paiements' },
-                { value: 'online', label: 'En ligne' },
-                { value: 'onsite', label: 'Sur place' },
-                { value: 'pickup', label: 'Au retrait' },
-                { value: 'delivery', label: 'A la livraison' },
+                { value: '', label: t('filterPayment.all') },
+                { value: 'online', label: t('paymentLabel.online') },
+                { value: 'onsite', label: t('paymentLabel.onsite') },
+                { value: 'pickup', label: t('paymentLabel.pickup') },
+                { value: 'delivery', label: t('paymentLabel.delivery') },
             ]
 
     const formatPrice = formatFromFcfa
@@ -732,7 +732,7 @@ export default function OrdersPage() {
                             <option value="">{t('filter.all')}</option>
                             <option value="pending">{t('filter.pending')}</option>
                             <option value="pending_delivery">{t('filter.pending_delivery')}</option>
-                            <option value="pending_pickup">Prête pour retrait</option>
+                            <option value="pending_pickup">{t('filterStatus.pendingPickup')}</option>
                             <option value="paid">{t('filter.paid')}</option>
                             <option value="delivered">{t('filter.delivered')}</option>
                             <option value="cancelled">{t('filter.cancelled')}</option>
@@ -833,7 +833,7 @@ export default function OrdersPage() {
                         gap: 8
                     }}
                 >
-                    🧾 Commandes ({regularOrders.length})
+                    {t('tabs.orders', { count: regularOrders.length })}
                 </button>
                 <button
                     onClick={() => setActiveTab('mobile_money')}
@@ -850,7 +850,7 @@ export default function OrdersPage() {
                         gap: 8
                     }}
                 >
-                    📱 Mobile Money
+                    {t('tabs.mobileMoney')}
                     {pendingVerificationCount > 0 && (
                         <span style={{
                             background: '#ef4444',
@@ -879,7 +879,7 @@ export default function OrdersPage() {
                         gap: 8
                     }}
                 >
-                    🛎️ Réservations ({bookings.length})
+                    {t('tabs.bookings', { count: bookings.length })}
                     {pendingBookingsCount > 0 && (
                         <span style={{
                             background: '#8b5cf6',
@@ -909,10 +909,10 @@ export default function OrdersPage() {
                     <span style={{ fontSize: 24 }}>🔔</span>
                     <div>
                         <div style={{ color: '#f59e0b', fontWeight: 600 }}>
-                            {pendingVerificationCount} paiement(s) en attente de vérification
+                            {t('mobileMoneyAlert.pendingCount', { count: pendingVerificationCount })}
                         </div>
                         <div style={{ color: '#94a3b8', fontSize: 14 }}>
-                            Vérifiez les captures d'écran et confirmez ou rejetez les paiements.
+                            {t('mobileMoneyAlert.instructions')}
                         </div>
                     </div>
                 </div>
@@ -931,8 +931,8 @@ export default function OrdersPage() {
                     <h3 style={{ color: 'white', fontWeight: 600, marginBottom: 8 }}>{t('empty.title')}</h3>
                     <p style={{ color: '#64748b', fontSize: 14 }}>
                         {activeTab === 'mobile_money'
-                            ? "Aucune commande Mobile Money pour le moment."
-                            : 'Aucune commande pour le moment.'}
+                            ? t('empty.mobileMoneyMessage')
+                            : t('empty.noOrdersMessage')}
                     </p>
                 </div>
             ) : (
@@ -1012,7 +1012,7 @@ export default function OrdersPage() {
                                                 background: order.fulfillment_mode === 'takeaway' ? 'rgba(249, 115, 22, 0.18)' : 'rgba(59, 130, 246, 0.18)',
                                                 color: order.fulfillment_mode === 'takeaway' ? '#fb923c' : '#60a5fa'
                                             }}>
-                                                {order.fulfillment_mode === 'takeaway' ? 'À emporter' : 'Livraison'}
+                                                {order.fulfillment_mode === 'takeaway' ? t('fulfillmentBadge.takeaway') : t('fulfillmentBadge.delivery')}
                                             </span>
                                         )}
                                         {/* Mobile Money Status Badge */}
@@ -1037,11 +1037,11 @@ export default function OrdersPage() {
                                                             ? '#ef4444'
                                                             : '#94a3b8'
                                             }}>
-                                                {order.payment_verification_status === 'awaiting_screenshot' && '📷 En attente capture'}
-                                                {order.payment_verification_status === 'awaiting_verification' && '🔍 À vérifier'}
-                                                {order.payment_verification_status === 'verified' && '✅ Vérifié'}
-                                                {order.payment_verification_status === 'rejected' && '❌ Rejeté'}
-                                                {order.payment_verification_status === 'expired' && '⏰ Expiré'}
+                                                {order.payment_verification_status === 'awaiting_screenshot' && t('verifyBadge.awaitingScreenshot')}
+                                                {order.payment_verification_status === 'awaiting_verification' && t('verifyBadge.awaitingVerification')}
+                                                {order.payment_verification_status === 'verified' && t('verifyBadge.verified')}
+                                                {order.payment_verification_status === 'rejected' && t('verifyBadge.rejected')}
+                                                {order.payment_verification_status === 'expired' && t('verifyBadge.expired')}
                                             </span>
                                         )}
                                     </div>
@@ -1057,14 +1057,14 @@ export default function OrdersPage() {
                                         {formatPrice(order.total_fcfa || order.total_amount)}
                                     </div>
                                     <div style={{ color: '#64748b', fontSize: 13 }}>
-                                        {order.items_count} articles
+                                        {t('card.itemsCountLabel', { count: order.items_count })}
                                     </div>
                                     <div style={{ color: '#94a3b8', fontSize: 12, marginTop: 4 }}>
-                                        Paiement: {getOrderPaymentLabel(order)}
+                                        {t('card.paymentPrefix', { label: getOrderPaymentLabel(order) })}
                                     </div>
                                     {order.deposit_required && (
                                         <div style={{ color: '#94a3b8', fontSize: 12, marginTop: 4 }}>
-                                            Acompte: {formatPrice(order.deposit_amount_fcfa || 0)}
+                                            {t('card.depositPrefix', { amount: formatPrice(order.deposit_amount_fcfa || 0) })}
                                             {order.deposit_status ? ` • ${order.deposit_status}` : ''}
                                         </div>
                                     )}
@@ -1088,7 +1088,7 @@ export default function OrdersPage() {
                                                 gap: 6
                                             }}
                                         >
-                                            <ImageIcon size={16} /> Voir
+                                            <ImageIcon size={16} /> {t('card.viewButton')}
                                         </button>
                                         <button
                                             onClick={() => handleVerify(order.id, 'verify')}
@@ -1107,7 +1107,7 @@ export default function OrdersPage() {
                                                 opacity: verifyingId === order.id ? 0.5 : 1
                                             }}
                                         >
-                                            <Check size={16} /> Confirmer
+                                            <Check size={16} /> {t('card.confirmButton')}
                                         </button>
                                         <button
                                             onClick={() => handleVerify(order.id, 'reject')}
@@ -1126,7 +1126,7 @@ export default function OrdersPage() {
                                                 opacity: verifyingId === order.id ? 0.5 : 1
                                             }}
                                         >
-                                            <X size={16} /> Rejeter
+                                            <X size={16} /> {t('card.rejectButton')}
                                         </button>
                                     </div>
                                 )}
@@ -1201,9 +1201,9 @@ export default function OrdersPage() {
                         textAlign: 'center'
                     }}>
                         <CalendarCheck style={{ width: 48, height: 48, color: '#64748b', margin: '0 auto 16px' }} />
-                        <h3 style={{ color: 'white', fontWeight: 600, marginBottom: 8 }}>Aucune réservation</h3>
+                        <h3 style={{ color: 'white', fontWeight: 600, marginBottom: 8 }}>{t('empty.noBookingsTitle')}</h3>
                         <p style={{ color: '#64748b', fontSize: 14 }}>
-                            Les réservations de services (hôtel, restaurant, coiffeur...) apparaîtront ici.
+                            {t('empty.noBookingsMessage')}
                         </p>
                     </div>
                 ) : (
@@ -1287,21 +1287,21 @@ export default function OrdersPage() {
                                             )}
                                             {booking.start_time
                                                 ? <span>📅 {format.dateTime(new Date(booking.start_time), { dateStyle: 'medium', timeStyle: 'short' })}</span>
-                                                : <span style={{ color: '#a78bfa' }}>📚 Inscription</span>
+                                                : <span style={{ color: '#a78bfa' }}>{t('bookingStatusBadge.inscriptionPending')}</span>
                                             }
                                         </p>
                                         <div style={{ color: '#64748b', fontSize: 12, marginTop: 6, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                                            <span>Paiement: {getBookingPaymentLabel(booking)}</span>
+                                            <span>{t('card.paymentPrefix', { label: getBookingPaymentLabel(booking) })}</span>
                                             {booking.deposit_required ? (
                                                 <span>
                                                     {getBookingDepositLabel(booking)}
                                                     {booking.deposit_amount_fcfa ? ` • ${formatPrice(booking.deposit_amount_fcfa)}` : ''}
                                                 </span>
                                             ) : (
-                                                <span>{isFullBookingPayment(booking) ? 'Sans paiement en ligne' : 'Sans acompte'}</span>
+                                                <span>{isFullBookingPayment(booking) ? t('depositLabel.noOnlinePayment') : t('depositLabel.noDeposit')}</span>
                                             )}
                                             {typeof booking.items_count === 'number' && booking.items_count > 0 && (
-                                                <span>{booking.items_count} article{booking.items_count > 1 ? 's' : ''} precommande{booking.items_count > 1 ? 's' : ''}</span>
+                                                <span>{t('card.itemsPrecommande', { count: booking.items_count, plural: booking.items_count > 1 ? 's' : '' })}</span>
                                             )}
                                         </div>
                                         {booking.location && (
@@ -1338,9 +1338,9 @@ export default function OrdersPage() {
                                                         cursor: 'pointer',
                                                         opacity: updatingStatusId === booking.id ? 0.5 : 1
                                                     }}
-                                                    title={booking.transaction_id ? `Ouvrir le lien ${booking.transaction_id}` : 'Ouvrir le lien de paiement'}
+                                                    title={booking.transaction_id ? t('card.openLinkTitle', { transactionId: booking.transaction_id }) : t('card.openPaymentLinkTitle')}
                                                 >
-                                                    Ouvrir lien
+                                                    {t('card.openLink')}
                                                 </button>
                                             )}
                                             <button
@@ -1357,7 +1357,7 @@ export default function OrdersPage() {
                                                     cursor: 'pointer',
                                                     opacity: updatingStatusId === booking.id ? 0.5 : 1
                                                 }}
-                                                title={isFullBookingPayment(booking) ? 'Marquer paiement paye' : 'Marquer acompte paye'}
+                                                title={isFullBookingPayment(booking) ? t('card.markPaidPaymentTitle') : t('card.markPaidDepositTitle')}
                                             >
                                                 ✓
                                             </button>
@@ -1374,9 +1374,9 @@ export default function OrdersPage() {
                                                     cursor: 'pointer',
                                                     opacity: updatingStatusId === booking.id ? 0.5 : 1
                                                 }}
-                                                title={isFullBookingPayment(booking) ? 'Lever le paiement' : 'Lever l acompte'}
+                                                title={isFullBookingPayment(booking) ? t('card.waivePaymentTitle') : t('card.waiveDepositTitle')}
                                             >
-                                                {isFullBookingPayment(booking) ? 'Sans paiement' : 'Sans acompte'}
+                                                {isFullBookingPayment(booking) ? t('card.waivedPaymentShort') : t('depositLabel.noDeposit')}
                                             </button>
                                             <button
                                                 onClick={() => handleBookingDepositStatusChange(booking.id, 'expired')}
@@ -1392,7 +1392,7 @@ export default function OrdersPage() {
                                                     cursor: 'pointer',
                                                     opacity: updatingStatusId === booking.id ? 0.5 : 1
                                                 }}
-                                                title={isFullBookingPayment(booking) ? 'Marquer paiement expire' : 'Marquer acompte expire'}
+                                                title={isFullBookingPayment(booking) ? t('card.markExpiredPaymentTitle') : t('card.markExpiredDepositTitle')}
                                             >
                                                 !
                                             </button>
@@ -1454,7 +1454,7 @@ export default function OrdersPage() {
                                 width={1200}
                                 height={1600}
                                 unoptimized
-                                alt="Capture d'écran paiement"
+                                alt={t('screenshotAlt')}
                                 style={{ maxWidth: '100%', height: 'auto', maxHeight: '85vh', borderRadius: 12 }}
                             />
                         )}
@@ -1471,7 +1471,7 @@ export default function OrdersPage() {
                                     cursor: 'pointer'
                                 }}
                             >
-                                Fermer
+                                {t('card.close')}
                             </button>
                         </div>
                     </div>

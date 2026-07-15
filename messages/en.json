@@ -589,7 +589,8 @@
                 "agents": "Active Agents",
                 "conversations": "Conversations",
                 "credits": "Remaining Credits",
-                "currentPlan": "Current Plan"
+                "currentPlan": "Current Plan",
+                "dueDate": "Due date: {date}"
             },
             "recentConversations": "Recent Conversations",
             "viewAll": "View all",
@@ -601,11 +602,20 @@
                 "createAgent": "Create an agent",
                 "testChatbot": "Test chatbot",
                 "viewConversations": "View conversations",
-                "buyCredits": "Buy credits"
+                "buyCredits": "Buy credits",
+                "knowledgeBase": "Knowledge base",
+                "addProduct": "Add a product"
             },
             "agentStatus": {
                 "online": "Online",
                 "offline": "Offline"
+            },
+            "greeting": "Hi {name}! Here's an overview of your activity.",
+            "details": "Details",
+            "escalationAlert": {
+                "title": "Missing support configuration",
+                "description": "Set up your customer service number (Escalation Phone) to reassure your customers whenever they need help.",
+                "configureButton": "Configure now →"
             }
         }
     },
@@ -641,6 +651,75 @@
                     "delete": "Delete"
                 },
                 "deleteConfirm": "Are you sure you want to delete this agent?"
+            },
+            "deleteConfirmTitle": "Delete this agent?",
+            "deleteConfirmMessage": "The agent \"{name}\" will be permanently deleted. Export its configuration (download button) before deleting it if you want to easily recreate it.",
+            "toast": {
+                "deleted": "Agent deleted.",
+                "deleteFailed": "Deletion failed. Please try again.",
+                "networkError": "Network error. Please try again.",
+                "exportFailed": "Error exporting",
+                "exportNetworkError": "Network error while exporting",
+                "importFailed": "Error importing",
+                "importSuccess": "Agent \"{name}\" imported successfully{note}",
+                "invalidFile": "Invalid or corrupted file"
+            },
+            "importButton": {
+                "title": "Import an agent configuration",
+                "label": "Import"
+            },
+            "upgradeButton": "Upgrade plan",
+            "tip": {
+                "label": "Tip:",
+                "text": "Export an agent's configuration (<arrow>↓</arrow> button on the card) before deleting it. You can re-import it in one click with the <importWord>Import</importWord> button above — without reconfiguring everything."
+            },
+            "syncChannelNotice": "Notification channel — no AI replies",
+            "stats": {
+                "products": "Products",
+                "kbArticles": "KB Articles",
+                "leads": "Leads"
+            },
+            "actions": {
+                "knowledgeBaseTitle": "Knowledge base",
+                "kbEmpty": "Empty!",
+                "knowledgeLabel": "Knowledge",
+                "productsTitle": "Products & catalog",
+                "productsLabel": "Products",
+                "ordersTitle": "Orders",
+                "ordersLabel": "Orders",
+                "bookingsTitle": "Bookings",
+                "bookingsLabel": "Bookings",
+                "leadsTitle": "Leads",
+                "exportTitle": "Export this agent's configuration",
+                "exportLabel": "Export",
+                "deleteLabel": "Delete"
+            },
+            "kbAlert": {
+                "title": "Empty knowledge base — agent not functional",
+                "description": "This agent doesn't know anything about your business. Add your information (pricing, services, FAQ…) so it can answer your customers. → Click to fill it in"
+            },
+            "limitReached": "Limit of {limit} agent{plural} reached",
+            "archived": {
+                "sectionTitle": "Disabled agents ({count})",
+                "badge": "⏸ Disabled",
+                "deletionWarning": "⚠️ Permanent deletion on {date}",
+                "reactivateButton": "Reactivate — Renew your subscription"
+            },
+            "missionLabels": {
+                "ecommerce": "E-commerce / Store",
+                "ecommerce_physical": "Physical Product",
+                "ecommerce_digital": "Digital Product",
+                "restaurant": "Restaurant / Fast-food",
+                "hotel": "Hotel / Accommodation",
+                "salon": "Customer Support",
+                "services": "Customer Support",
+                "support_client": "Customer Support",
+                "custom": "Custom"
+            },
+            "productTypeLabels": {
+                "physical": "Physical",
+                "digital": "Digital",
+                "service": "Service"
             }
         },
         "Wizard": {
@@ -809,8 +888,15 @@
     "Conversations": {
         "List": {
             "title": "My Conversations",
+            "controlCenterTitle": "Control Center 🚨",
+            "controlCenterSubtitle": "Manage human interventions and monitor the AI.",
             "subtitle": "{count} active conversations",
             "searchPlaceholder": "Search...",
+            "tabs": {
+                "urgent": "Urgent (Escalated)",
+                "auto": "Auto (AI Active)",
+                "all": "All"
+            },
             "empty": {
                 "title": "No conversations",
                 "description": "WhatsApp conversations will appear here",
@@ -992,9 +1078,29 @@
             "currentPlan": "Current Plan",
             "remainingCredits": "Remaining Credits",
             "usedThisMonth": "Used This Month",
+            "dueDate": "Due date",
+            "gracePeriod": "In grace period",
+            "suspendedAccount": "Account suspended",
+            "unlimited": "Unlimited",
+            "availableBalance": "Available balance",
+            "usedThisMonthDetail": "{used} / {included} used this month ({pct}%)",
+            "boostCredits": "· incl. {count} Boost credits",
+            "limitWarning": "85% reached — <link>Upgrade your plan</link>",
+            "frozenBanner": {
+                "title": "🛡️ Credits secured (Grace period)",
+                "message": "Your {count} credits are secured{expiry}. Renew your subscription to reactivate them.",
+                "expirySuffix": " until {date}"
+            },
             "lowCredits": {
                 "title": "Low Credits Warning",
-                "message": "You have less than 50 credits remaining."
+                "message": "You have less than 50 credits remaining.",
+                "remaining": "You have {count} credit{plural} left."
+            },
+            "scaleAdvantages": {
+                "title": "Scale Advantages",
+                "rollover": "<strong>20% Rollover</strong> — unused credits carried over to the next cycle",
+                "bonus": "<strong>+2,000 bonus credits</strong> automatically on every renewal",
+                "nextRenewal": "Next renewal on <strong>{date}</strong>"
             }
         },
         "Plans": {
@@ -1005,7 +1111,9 @@
             "current": "Current Plan",
             "choose": "Select",
             "price_unit": "$/mo",
-            "period": "month"
+            "period": "month",
+            "renewThisPlan": "Renew this plan",
+            "activePlanNotice": "Active plan. Early renewal allowed."
         },
         "Credits": {
             "title": "Buy Credits",
@@ -1016,10 +1124,43 @@
             "title": "Payment History",
             "empty": "No payments yet",
             "reference": "Reference",
+            "refPrefix": "Ref: {reference}",
             "status": {
                 "completed": "Success",
-                "failed": "Failed"
-            }
+                "failed": "Failed",
+                "processing": "Processing"
+            },
+            "subscriptionBadge": "Subscription",
+            "creditsBadge": "Credits",
+            "manual": "Manual",
+            "auto": "Auto",
+            "gifted": "Gifted",
+            "creditsAmount": "{count} credits"
+        },
+        "Merchant": {
+            "title": "My Payouts",
+            "collected": "Collected",
+            "commission": "Commission",
+            "paidOut": "Paid Out",
+            "balanceDue": "Balance Due",
+            "ordersPaid": "{count} order{plural} paid",
+            "payoutLabel": "Payout{period}",
+            "pending": "Pending",
+            "received": "Received"
+        },
+        "Errors": {
+            "paymentInitFailed": "Error initializing payment",
+            "networkError": "Network error",
+            "missingPaymentUrl": "Missing payment URL"
+        },
+        "FeexPay": {
+            "selectCountryNetwork": "Please choose a country and a network",
+            "phoneRequired": "The payer's number is required",
+            "phoneFormat": "The payer's number must be in international format (e.g: +225...)",
+            "otpRequired": "OTP required for this network",
+            "cancel": "Cancel",
+            "continue": "Continue",
+            "initializing": "Initializing..."
         }
     },
     "Products": {
@@ -1151,6 +1292,7 @@
         "List": {
             "title": "Orders",
             "count": "{count} orders",
+            "countBookings": "{count} bookings",
             "search": "Search...",
             "filter": {
                 "all": "All Statuses",
@@ -1162,11 +1304,134 @@
             },
             "empty": {
                 "title": "No orders",
-                "message": "Orders created by the bot will appear here."
+                "message": "Orders created by the bot will appear here.",
+                "mobileMoneyMessage": "No Mobile Money orders yet.",
+                "noOrdersMessage": "No orders yet.",
+                "noBookingsTitle": "No bookings",
+                "noBookingsMessage": "Service bookings (hotel, restaurant, salon...) will appear here."
             },
             "card": {
                 "details": "Details",
-                "items_more": "+{count} more items"
+                "items_more": "+{count} more items",
+                "itemsCountLabel": "{count} items",
+                "itemsPrecommande": "{count} pre-ordered item{plural}",
+                "viewButton": "View",
+                "confirmButton": "Confirm",
+                "rejectButton": "Reject",
+                "paymentPrefix": "Payment: {label}",
+                "depositPrefix": "Deposit: {amount}",
+                "openLink": "Open link",
+                "openLinkTitle": "Open link {transactionId}",
+                "openPaymentLinkTitle": "Open payment link",
+                "markPaidPaymentTitle": "Mark payment paid",
+                "markPaidDepositTitle": "Mark deposit paid",
+                "waivePaymentTitle": "Waive payment",
+                "waiveDepositTitle": "Waive deposit",
+                "markExpiredPaymentTitle": "Mark payment expired",
+                "markExpiredDepositTitle": "Mark deposit expired",
+                "waivedPaymentShort": "No payment",
+                "close": "Close"
+            },
+            "actions": {
+                "readyForPickup": "🛍️ Ready for pickup",
+                "cancel": "❌ Cancel",
+                "confirm": "✅ Confirm",
+                "finished": "🎉 Finished",
+                "ship": "📦 Ship",
+                "delivered": "✅ Delivered",
+                "validatePayment": "✅ Validate payment",
+                "pickedUp": "🎉 Picked up",
+                "markFinished": "🎉 Mark finished",
+                "paymentReceivedConfirm": "✅ Payment received — Confirm",
+                "customerServed": "🍽️ Customer served"
+            },
+            "bookingStatusBadge": {
+                "pending": "🟡 Pending",
+                "inscriptionPending": "📚 Registration",
+                "confirmed": "✅ Confirmed",
+                "honored": "🍽️ Honored",
+                "finished": "🎉 Finished",
+                "cancelled": "❌ Cancelled"
+            },
+            "paymentLabel": {
+                "online": "Online",
+                "mobileMoneyDirect": "Mobile Money",
+                "delivery": "On delivery",
+                "pickup": "On pickup",
+                "onsite": "On-site",
+                "undefined": "Undefined"
+            },
+            "typeLabel": {
+                "physical": "Physical",
+                "digital": "Digital",
+                "service": "Service",
+                "mixed": "Mixed",
+                "unknown": "Other"
+            },
+            "bookingKindLabel": {
+                "restaurant": "Restaurant",
+                "stay": "Accommodation",
+                "slot": "Service",
+                "inscription": "Registration",
+                "table": "Table / Event"
+            },
+            "depositLabel": {
+                "payment": "Payment",
+                "deposit": "Deposit",
+                "paid": "{label} paid",
+                "pending": "{label} pending",
+                "waivedPayment": "Payment waived",
+                "waivedDeposit": "Deposit waived",
+                "expired": "{label} expired",
+                "requiredPayment": "Payment required",
+                "requiredDeposit": "Deposit required",
+                "noOnlinePayment": "No online payment",
+                "noDeposit": "No deposit"
+            },
+            "modeLabel": {
+                "onsite": "On-site",
+                "bookingOnly": "Booking only",
+                "takeaway": "Takeaway",
+                "delivery": "Delivery"
+            },
+            "filterStatus": {
+                "pendingPickup": "Ready for pickup",
+                "inscriptionPending": "Registration",
+                "confirmed": "Confirmed",
+                "completedHonored": "Completed / honored",
+                "cancelledBooking": "Cancelled"
+            },
+            "filterType": {
+                "all": "All types"
+            },
+            "filterPayment": {
+                "all": "All payments"
+            },
+            "tabs": {
+                "orders": "🧾 Orders ({count})",
+                "mobileMoney": "📱 Mobile Money",
+                "bookings": "🛎️ Bookings ({count})"
+            },
+            "mobileMoneyAlert": {
+                "pendingCount": "{count} payment(s) awaiting verification",
+                "instructions": "Check the screenshots and confirm or reject the payments."
+            },
+            "verifyBadge": {
+                "awaitingScreenshot": "📷 Awaiting screenshot",
+                "awaitingVerification": "🔍 To verify",
+                "verified": "✅ Verified",
+                "rejected": "❌ Rejected",
+                "expired": "⏰ Expired"
+            },
+            "fulfillmentBadge": {
+                "takeaway": "Pickup",
+                "delivery": "Delivery"
+            },
+            "screenshotAlt": "Payment screenshot",
+            "errors": {
+                "paymentUpdateFailed": "Error updating payment",
+                "verificationFailed": "Error during verification",
+                "networkError": "Network error"
             }
         },
         "Detail": {
@@ -1385,5 +1650,18 @@
             "retryPayment": "Retry payment",
             "closePage": "Close this page"
         }
+    },
+    "NotFound": {
+        "title": "Page not found",
+        "description": "The page you are looking for doesn't exist or has been moved.",
+        "dashboardButton": "Dashboard",
+        "backButton": "Back"
+    },
+    "ErrorPage": {
+        "title": "Something went wrong",
+        "description": "We apologize for the inconvenience. Our team has been notified.",
+        "errorCode": "Error code: {digest}",
+        "retryButton": "Try again",
+        "homeButton": "Home"
     }
 }

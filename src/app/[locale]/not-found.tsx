@@ -1,9 +1,11 @@
 'use client'
 
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import { Home, ArrowLeft } from 'lucide-react'
 
 export default function NotFound() {
+    const t = useTranslations('NotFound')
     return (
         <div style={{
             minHeight: '100vh',
@@ -44,7 +46,7 @@ export default function NotFound() {
                 color: 'white',
                 marginBottom: 12
             }}>
-                Page non trouvée
+                {t('title')}
             </h2>
 
             <p style={{
@@ -53,7 +55,7 @@ export default function NotFound() {
                 marginBottom: 32,
                 maxWidth: 400
             }}>
-                La page que vous recherchez n'existe pas ou a été déplacée.
+                {t('description')}
             </p>
 
             <div style={{ display: 'flex', gap: 12 }}>
@@ -73,7 +75,7 @@ export default function NotFound() {
                     }}
                 >
                     <Home style={{ width: 18, height: 18 }} />
-                    Tableau de bord
+                    {t('dashboardButton')}
                 </Link>
 
                 <button
@@ -93,7 +95,7 @@ export default function NotFound() {
                     }}
                 >
                     <ArrowLeft style={{ width: 18, height: 18 }} />
-                    Retour
+                    {t('backButton')}
                 </button>
             </div>
         </div>

@@ -53,6 +53,7 @@ import PhoneVerifyModal from '@/components/dashboard/PhoneVerifyModal'
 import MobileAppPrompt from '@/components/dashboard/MobileAppPrompt'
 import { UpgradeModalProvider, useUpgradeModal } from '@/contexts/UpgradeModalContext'
 import UpgradeModal from '@/components/dashboard/UpgradeModal'
+import LocaleSwitcher from '@/components/LocaleSwitcher'
 
 type TestAccountBannerState = {
     bannerMode: 'test' | 'frozen_grace' | 'inactive' | null
@@ -467,6 +468,9 @@ export default function DashboardLayout({
                                 )}
                             </button>
                         </div>
+
+                        {/* Langue */}
+                        <LocaleSwitcher compact />
 
                         {/* Aide */}
                         <Link href="/dashboard/help" title="Aide" style={{ textDecoration: 'none', flexShrink: 0 }}>
@@ -1122,6 +1126,9 @@ export default function DashboardLayout({
                                 )}
                             </AnimatePresence>
                         </div>
+
+                        {/* Langue */}
+                        <LocaleSwitcher />
 
                         {/* Aide */}
                         <Link href="/dashboard/help" title={t('help')} style={{ textDecoration: 'none', flexShrink: 0 }}>

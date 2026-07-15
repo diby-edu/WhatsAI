@@ -95,7 +95,7 @@ export default function DashboardPage() {
                         value = (s.plan || 'Free').toUpperCase()
                         if (s.subscriptionExpiry) {
                             const date = new Date(s.subscriptionExpiry)
-                            change = `Échéance : ${date.toLocaleDateString('fr-FR')}`
+                            change = t('stats.dueDate', { date: date.toLocaleDateString() })
                             positive = true
                         }
                     }
@@ -170,10 +170,10 @@ export default function DashboardPage() {
                     gap: 16
                 }}>
                     {[
-                        { href: '/dashboard/agents/new', icon: Bot, label: 'Créer un agent', color: '#10b981' },
-                        { href: '/dashboard/knowledge', icon: BookOpen, label: 'Base de connaissance', color: '#3b82f6' },
-                        { href: '/dashboard/products/new', icon: Package, label: 'Ajouter un produit', color: '#a855f7' },
-                        { href: '/dashboard/billing', icon: Zap, label: 'Acheter des crédits', color: '#f97316' },
+                        { href: '/dashboard/agents/new', icon: Bot, label: t('actions.createAgent'), color: '#10b981' },
+                        { href: '/dashboard/knowledge', icon: BookOpen, label: t('actions.knowledgeBase'), color: '#3b82f6' },
+                        { href: '/dashboard/products/new', icon: Package, label: t('actions.addProduct'), color: '#a855f7' },
+                        { href: '/dashboard/billing', icon: Zap, label: t('actions.buyCredits'), color: '#f97316' },
                     ].map((action) => (
                         <a
                             key={action.href}
@@ -200,7 +200,7 @@ export default function DashboardPage() {
                 <div>
                     <h1 style={{ fontSize: 'clamp(20px, 5vw, 28px)', fontWeight: 700, color: 'white', marginBottom: 8 }}>{t('title')}</h1>
                     <p style={{ fontSize: 16, color: '#94a3b8' }}>
-                        {userName ? `Bonjour ${userName} ! Voici un aperçu de votre activité.` : t('subtitle')}
+                        {userName ? t('greeting', { name: userName }) : t('subtitle')}
                     </p>
                 </div>
             </div>
@@ -239,10 +239,10 @@ export default function DashboardPage() {
                             </div>
                             <div>
                                 <h3 style={{ fontSize: 18, fontWeight: 600, color: '#fbbf24', marginBottom: 4 }}>
-                                    Configuration SAV manquante
+                                    {t('escalationAlert.title')}
                                 </h3>
                                 <p style={{ fontSize: 14, color: '#d1d5db', margin: 0 }}>
-                                    Configurez votre numéro de service client (Escalation Phone) pour rassurer vos clients en cas de besoin.
+                                    {t('escalationAlert.description')}
                                 </p>
                             </div>
                         </div>
@@ -259,7 +259,7 @@ export default function DashboardPage() {
                                 transition: 'opacity 0.2s'
                             }}
                         >
-                            Configurer maintenant →
+                            {t('escalationAlert.configureButton')}
                         </Link>
                     </motion.div>
                 )
@@ -432,7 +432,7 @@ export default function DashboardPage() {
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 14, color: '#94a3b8' }}>
                                     <span>{agent.conversations} {t('stats.conversations').toLowerCase()}</span>
                                     <Link href={`/dashboard/agents/${agent.id}`} style={{ color: '#34d399', textDecoration: 'none' }}>
-                                        Détails
+                                        {t('details')}
                                     </Link>
                                 </div>
                             </div>

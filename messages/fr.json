@@ -589,7 +589,8 @@
         "agents": "Agents actifs",
         "conversations": "Conversations",
         "credits": "Crédits restants",
-        "currentPlan": "Plan actuel"
+        "currentPlan": "Plan actuel",
+        "dueDate": "Échéance : {date}"
       },
       "recentConversations": "Conversations récentes",
       "viewAll": "Voir tout",
@@ -601,11 +602,20 @@
         "createAgent": "Créer un agent",
         "testChatbot": "Tester le chatbot",
         "viewConversations": "Voir conversations",
-        "buyCredits": "Acheter des crédits"
+        "buyCredits": "Acheter des crédits",
+        "knowledgeBase": "Base de connaissance",
+        "addProduct": "Ajouter un produit"
       },
       "agentStatus": {
         "online": "En ligne",
         "offline": "Hors ligne"
+      },
+      "greeting": "Bonjour {name} ! Voici un aperçu de votre activité.",
+      "details": "Détails",
+      "escalationAlert": {
+        "title": "Configuration SAV manquante",
+        "description": "Configurez votre numéro de service client (Escalation Phone) pour rassurer vos clients en cas de besoin.",
+        "configureButton": "Configurer maintenant →"
       }
     }
   },
@@ -641,6 +651,75 @@
           "delete": "Supprimer"
         },
         "deleteConfirm": "Êtes-vous sûr de vouloir supprimer cet agent ?"
+      },
+      "deleteConfirmTitle": "Supprimer cet agent ?",
+      "deleteConfirmMessage": "L'agent \"{name}\" sera définitivement supprimé. Exportez sa configuration (bouton télécharger) avant de le supprimer si vous souhaitez le recréer facilement.",
+      "toast": {
+        "deleted": "Agent supprimé.",
+        "deleteFailed": "Suppression échouée. Veuillez réessayer.",
+        "networkError": "Erreur réseau. Veuillez réessayer.",
+        "exportFailed": "Erreur lors de l'export",
+        "exportNetworkError": "Erreur réseau lors de l'export",
+        "importFailed": "Erreur lors de l'import",
+        "importSuccess": "Agent \"{name}\" importé avec succès{note}",
+        "invalidFile": "Fichier invalide ou corrompu"
+      },
+      "importButton": {
+        "title": "Importer une configuration d'agent",
+        "label": "Importer"
+      },
+      "upgradeButton": "Passer au plan supérieur",
+      "tip": {
+        "label": "Astuce :",
+        "text": "Exportez la configuration d'un agent (bouton <arrow>↓</arrow> sur la carte) avant de le supprimer. Vous pourrez la réimporter en un clic avec le bouton <importWord>Importer</importWord> ci-dessus — sans tout reconfigurer."
+      },
+      "syncChannelNotice": "Canal de notifications — pas de réponses IA",
+      "stats": {
+        "products": "Produits",
+        "kbArticles": "Articles KB",
+        "leads": "Leads"
+      },
+      "actions": {
+        "knowledgeBaseTitle": "Base de connaissances",
+        "kbEmpty": "Vide !",
+        "knowledgeLabel": "Connaissances",
+        "productsTitle": "Produits & catalogue",
+        "productsLabel": "Produits",
+        "ordersTitle": "Commandes",
+        "ordersLabel": "Commandes",
+        "bookingsTitle": "Réservations",
+        "bookingsLabel": "Réservations",
+        "leadsTitle": "Leads",
+        "exportTitle": "Exporter la configuration de cet agent",
+        "exportLabel": "Exporter",
+        "deleteLabel": "Supprimer"
+      },
+      "kbAlert": {
+        "title": "Base de connaissances vide — agent non fonctionnel",
+        "description": "Cet agent ne connaît rien de votre activité. Ajoutez vos informations (tarifs, services, FAQ…) pour qu'il puisse répondre à vos clients. → Cliquez pour alimenter"
+      },
+      "limitReached": "Limite de {limit} agent{plural} atteinte",
+      "archived": {
+        "sectionTitle": "Agents désactivés ({count})",
+        "badge": "⏸ Désactivé",
+        "deletionWarning": "⚠️ Suppression définitive le {date}",
+        "reactivateButton": "Réactiver — Renouvelez votre abonnement"
+      },
+      "missionLabels": {
+        "ecommerce": "E-commerce / Boutique",
+        "ecommerce_physical": "Produit Physique",
+        "ecommerce_digital": "Produit Numérique",
+        "restaurant": "Restaurant / Fast-food",
+        "hotel": "Hotel / Hebergement",
+        "salon": "Support Client",
+        "services": "Support Client",
+        "support_client": "Support Client",
+        "custom": "Personnalisé"
+      },
+      "productTypeLabels": {
+        "physical": "Physique",
+        "digital": "Numerique",
+        "service": "Service"
       }
     },
     "Wizard": {
@@ -809,8 +888,15 @@
   "Conversations": {
     "List": {
       "title": "Mes conversations",
+      "controlCenterTitle": "Centre de Contrôle 🚨",
+      "controlCenterSubtitle": "Gérez les interventions humaines et surveillez l'IA.",
       "subtitle": "{count} conversations actives",
       "searchPlaceholder": "Rechercher...",
+      "tabs": {
+        "urgent": "Urgent (Escaladé)",
+        "auto": "Auto (IA Active)",
+        "all": "Tout"
+      },
       "empty": {
         "title": "Aucune conversation",
         "description": "Les conversations WhatsApp apparaîtront ici",
@@ -992,9 +1078,29 @@
       "currentPlan": "Plan actuel",
       "remainingCredits": "Crédits restants",
       "usedThisMonth": "Utilisés ce mois",
+      "dueDate": "Échéance",
+      "gracePeriod": "En période de grâce",
+      "suspendedAccount": "Compte suspendu",
+      "unlimited": "Illimité",
+      "availableBalance": "Solde disponible",
+      "usedThisMonthDetail": "{used} / {included} utilisés ce mois ({pct}%)",
+      "boostCredits": "· dont {count} crédits Boost",
+      "limitWarning": "85% atteint — <link>Passez au plan supérieur</link>",
+      "frozenBanner": {
+        "title": "🛡️ Crédits sécurisés (Sursis)",
+        "message": "Vos {count} crédits sont sécurisés{expiry}. Renouvelez votre abonnement pour les réactiver.",
+        "expirySuffix": " jusqu'au {date}"
+      },
       "lowCredits": {
         "title": "Crédits bientôt épuisés",
-        "message": "Il vous reste moins de 50 crédits."
+        "message": "Il vous reste moins de 50 crédits.",
+        "remaining": "Il vous reste {count} crédit{plural}."
+      },
+      "scaleAdvantages": {
+        "title": "Avantages Scale",
+        "rollover": "<strong>Rollover 20%</strong> — crédits non utilisés reportés au prochain cycle",
+        "bonus": "<strong>+2 000 crédits bonus</strong> automatiques à chaque renouvellement",
+        "nextRenewal": "Prochain renouvellement le <strong>{date}</strong>"
       }
     },
     "Plans": {
@@ -1005,7 +1111,9 @@
       "current": "Plan actuel",
       "choose": "Choisir",
       "price_unit": "$/mois",
-      "period": "mois"
+      "period": "mois",
+      "renewThisPlan": "Renouveler ce plan",
+      "activePlanNotice": "Plan actif. Renouvellement anticipé autorisé."
     },
     "Credits": {
       "title": "Acheter des crédits",
@@ -1016,10 +1124,43 @@
       "title": "Historique des paiements",
       "empty": "Aucun paiement pour le moment",
       "reference": "Référence",
+      "refPrefix": "Ref : {reference}",
       "status": {
         "completed": "Réussi",
-        "failed": "Échoué"
-      }
+        "failed": "Échoué",
+        "processing": "En cours"
+      },
+      "subscriptionBadge": "Abonnement",
+      "creditsBadge": "Crédits",
+      "manual": "Manuel",
+      "auto": "Auto",
+      "gifted": "Offert",
+      "creditsAmount": "{count} crédits"
+    },
+    "Merchant": {
+      "title": "Mes reversements",
+      "collected": "Collecté",
+      "commission": "Commission",
+      "paidOut": "Reversé",
+      "balanceDue": "Solde dû",
+      "ordersPaid": "{count} commande{plural} payée{plural}",
+      "payoutLabel": "Reversement{period}",
+      "pending": "En attente",
+      "received": "Reçu"
+    },
+    "Errors": {
+      "paymentInitFailed": "Erreur lors de l'initialisation du paiement",
+      "networkError": "Erreur réseau",
+      "missingPaymentUrl": "URL de paiement manquante"
+    },
+    "FeexPay": {
+      "selectCountryNetwork": "Veuillez choisir un pays et un réseau",
+      "phoneRequired": "Le numéro payeur est obligatoire",
+      "phoneFormat": "Le numéro payeur doit être au format international (ex: +225...)",
+      "otpRequired": "OTP requis pour ce réseau",
+      "cancel": "Annuler",
+      "continue": "Continuer",
+      "initializing": "Initialisation..."
     }
   },
   "Products": {
@@ -1151,6 +1292,7 @@
     "List": {
       "title": "Commandes",
       "count": "{count} commandes",
+      "countBookings": "{count} réservations",
       "search": "Rechercher...",
       "filter": {
         "all": "Tous les statuts",
@@ -1162,11 +1304,134 @@
       },
       "empty": {
         "title": "Aucune commande",
-        "message": "Les commandes créées par le bot apparaîtront ici."
+        "message": "Les commandes créées par le bot apparaîtront ici.",
+        "mobileMoneyMessage": "Aucune commande Mobile Money pour le moment.",
+        "noOrdersMessage": "Aucune commande pour le moment.",
+        "noBookingsTitle": "Aucune réservation",
+        "noBookingsMessage": "Les réservations de services (hôtel, restaurant, coiffeur...) apparaîtront ici."
       },
       "card": {
         "details": "Détails",
-        "items_more": "+{count} autres articles"
+        "items_more": "+{count} autres articles",
+        "itemsCountLabel": "{count} articles",
+        "itemsPrecommande": "{count} article{plural} précommandé{plural}",
+        "viewButton": "Voir",
+        "confirmButton": "Confirmer",
+        "rejectButton": "Rejeter",
+        "paymentPrefix": "Paiement : {label}",
+        "depositPrefix": "Acompte : {amount}",
+        "openLink": "Ouvrir lien",
+        "openLinkTitle": "Ouvrir le lien {transactionId}",
+        "openPaymentLinkTitle": "Ouvrir le lien de paiement",
+        "markPaidPaymentTitle": "Marquer paiement payé",
+        "markPaidDepositTitle": "Marquer acompte payé",
+        "waivePaymentTitle": "Lever le paiement",
+        "waiveDepositTitle": "Lever l'acompte",
+        "markExpiredPaymentTitle": "Marquer paiement expiré",
+        "markExpiredDepositTitle": "Marquer acompte expiré",
+        "waivedPaymentShort": "Sans paiement",
+        "close": "Fermer"
+      },
+      "actions": {
+        "readyForPickup": "🛍️ Prêt retrait",
+        "cancel": "❌ Annuler",
+        "confirm": "✅ Confirmer",
+        "finished": "🎉 Terminé",
+        "ship": "📦 Expédier",
+        "delivered": "✅ Livré",
+        "validatePayment": "✅ Valider paiement",
+        "pickedUp": "🎉 Retirée",
+        "markFinished": "🎉 Marquer terminé",
+        "paymentReceivedConfirm": "✅ Paiement reçu — Confirmer",
+        "customerServed": "🍽️ Client servi"
+      },
+      "bookingStatusBadge": {
+        "pending": "🟡 En attente",
+        "inscriptionPending": "📚 Inscription",
+        "confirmed": "✅ Confirmé",
+        "honored": "🍽️ Honorée",
+        "finished": "🎉 Terminé",
+        "cancelled": "❌ Annulé"
+      },
+      "paymentLabel": {
+        "online": "En ligne",
+        "mobileMoneyDirect": "Mobile Money",
+        "delivery": "À la livraison",
+        "pickup": "Au retrait",
+        "onsite": "Sur place",
+        "undefined": "Non défini"
+      },
+      "typeLabel": {
+        "physical": "Physique",
+        "digital": "Numérique",
+        "service": "Service",
+        "mixed": "Mixte",
+        "unknown": "Autre"
+      },
+      "bookingKindLabel": {
+        "restaurant": "Restaurant",
+        "stay": "Hébergement",
+        "slot": "Service",
+        "inscription": "Inscription",
+        "table": "Table / Event"
+      },
+      "depositLabel": {
+        "payment": "Paiement",
+        "deposit": "Acompte",
+        "paid": "{label} payé",
+        "pending": "{label} en attente",
+        "waivedPayment": "Paiement levé",
+        "waivedDeposit": "Acompte levé",
+        "expired": "{label} expiré",
+        "requiredPayment": "Paiement requis",
+        "requiredDeposit": "Acompte requis",
+        "noOnlinePayment": "Sans paiement en ligne",
+        "noDeposit": "Sans acompte"
+      },
+      "modeLabel": {
+        "onsite": "Sur place",
+        "bookingOnly": "Réservation simple",
+        "takeaway": "À emporter",
+        "delivery": "Livraison"
+      },
+      "filterStatus": {
+        "pendingPickup": "Prête pour retrait",
+        "inscriptionPending": "Inscription",
+        "confirmed": "Confirmé",
+        "completedHonored": "Terminée / honorée",
+        "cancelledBooking": "Annulée"
+      },
+      "filterType": {
+        "all": "Tous les types"
+      },
+      "filterPayment": {
+        "all": "Tous les paiements"
+      },
+      "tabs": {
+        "orders": "🧾 Commandes ({count})",
+        "mobileMoney": "📱 Mobile Money",
+        "bookings": "🛎️ Réservations ({count})"
+      },
+      "mobileMoneyAlert": {
+        "pendingCount": "{count} paiement(s) en attente de vérification",
+        "instructions": "Vérifiez les captures d'écran et confirmez ou rejetez les paiements."
+      },
+      "verifyBadge": {
+        "awaitingScreenshot": "📷 En attente capture",
+        "awaitingVerification": "🔍 À vérifier",
+        "verified": "✅ Vérifié",
+        "rejected": "❌ Rejeté",
+        "expired": "⏰ Expiré"
+      },
+      "fulfillmentBadge": {
+        "takeaway": "À emporter",
+        "delivery": "Livraison"
+      },
+      "screenshotAlt": "Capture d'écran paiement",
+      "errors": {
+        "paymentUpdateFailed": "Erreur lors de la mise à jour du paiement",
+        "verificationFailed": "Erreur lors de la vérification",
+        "networkError": "Erreur réseau"
       }
     },
     "Detail": {
@@ -1385,5 +1650,18 @@
       "retryPayment": "Réessayer le paiement",
       "closePage": "Fermer cette page"
     }
+  },
+  "NotFound": {
+    "title": "Page non trouvée",
+    "description": "La page que vous recherchez n'existe pas ou a été déplacée.",
+    "dashboardButton": "Tableau de bord",
+    "backButton": "Retour"
+  },
+  "ErrorPage": {
+    "title": "Une erreur est survenue",
+    "description": "Nous nous excusons pour la gêne occasionnée. Notre équipe a été notifiée.",
+    "errorCode": "Code erreur : {digest}",
+    "retryButton": "Réessayer",
+    "homeButton": "Accueil"
   }
 }

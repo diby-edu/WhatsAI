@@ -30,7 +30,7 @@ import {
     RefreshCw,
 } from 'lucide-react'
 import Link from 'next/link'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import { useUpgradeModal } from '@/contexts/UpgradeModalContext'
 import { useToast } from '@/components/ui/Toast'
 import {
@@ -39,18 +39,6 @@ import {
     getAgentOperationalLabel,
     getAgentOperationalStatus,
 } from '@/lib/admin/agent-status'
-
-const MISSION_LABELS: Record<string, string> = {
-    ecommerce:          'E-commerce / Boutique',
-    ecommerce_physical: 'Produit Physique',
-    ecommerce_digital:  'Produit Numérique',
-    restaurant:         'Restaurant / Fast-food',
-    hotel:              'Hotel / Hebergement',
-    salon:              'Support Client',
-    services:           'Support Client',
-    support_client:     'Support Client',
-    custom:             'Personnalisé',
-}
 
 const MISSION_CONFIG: Record<string, { color: string; bg: string; icon: React.ElementType }> = {
     support_client:     { color: '#8b5cf6', bg: 'rgba(139,92,246,0.15)',  icon: Headphones },
@@ -62,12 +50,6 @@ const MISSION_CONFIG: Record<string, { color: string; bg: string; icon: React.El
     hotel:              { color: '#06b6d4', bg: 'rgba(6,182,212,0.15)',   icon: Building2 },
     salon:              { color: '#8b5cf6', bg: 'rgba(139,92,246,0.15)',  icon: Headphones },
     custom:             { color: '#64748b', bg: 'rgba(100,116,139,0.15)', icon: Bot },
-}
-
-const PRODUCT_TYPE_LABELS: Record<string, string> = {
-    physical: 'Physique',
-    digital: 'Numerique',
-    service: 'Service',
 }
 
 interface Agent {
@@ -99,8 +81,27 @@ interface Agent {
 
 export default function AgentsPage() {
     const t = useTranslations('Agents.Page')
+    const locale = useLocale()
     const toast = useToast()
     const router = useRouter()
+
+    const MISSION_LABELS: Record<string, string> = {
+        ecommerce: t('missionLabels.ecommerce'),
+        ecommerce_physical: t('missionLabels.ecommerce_physical'),
+        ecommerce_digital: t('missionLabels.ecommerce_digital'),
+        restaurant: t('missionLabels.restaurant'),
+        hotel: t('missionLabels.hotel'),
+        salon: t('missionLabels.salon'),
+        services: t('missionLabels.services'),
+        support_client: t('missionLabels.support_client'),
+        custom: t('missionLabels.custom'),
+    }
+
+    const PRODUCT_TYPE_LABELS: Record<string, string> = {
+        physical: t('productTypeLabels.physical'),
+        digital: t('productTypeLabels.digital'),
+        service: t('productTypeLabels.service'),
+    }
     const { openUpgradeModal } = useUpgradeModal()
     const [agents, setAgents] = useState<Agent[]>([])
     const [loading, setLoading] = useState(true)
@@ -181,11 +182,11 @@ export default function AgentsPage() {
     const deleteAgent = async (id: string) => {
         const agent = agents.find(a => a.id === id)
         const ok = await toast.confirm({
-            title: 'Supprimer cet agent ?',
+            title: t('deleteConfirmTitle'),
             message: agent?.name
-                ? `L'agent "${agent.name}" sera définitivement supprimé. Exportez sa configuration (bouton télécharger) avant de le supprimer si vous souhaitez le recréer facilement.`
+                ? t('deleteConfirmMessage', { name: agent.name })
                 : t('card.deleteConfirm'),
-            confirmLabel: 'Supprimer',
+            confirmLabel: t('actions.deleteLabel'),
             danger: true,
         })
         if (!ok) { setMenuOpen(null); return }
@@ -195,14 +196,14 @@ export default function AgentsPage() {
             const res = await fetch(`/api/agents/${id}`, { method: 'DELETE' })
             if (res.ok) {
                 setAgents(agents.filter(a => a.id !== id))
-                toast.success('Agent supprimé.')
+                toast.success(t('toast.deleted'))
             } else {
                 const data = await res.json().catch(() => ({}))
-                toast.error(data.error || 'Suppression échouée. Veuillez réessayer.')
+                toast.error(data.error || t('toast.deleteFailed'))
             }
         } catch (err) {
             console.error('Error deleting agent:', err)
-            toast.error('Erreur réseau. Veuillez réessayer.')
+            toast.error(t('toast.networkError'))
         } finally {
             setActionLoading(null)
             setMenuOpen(null)
@@ -212,7 +213,7 @@ export default function AgentsPage() {
     const exportAgent = async (id: string) => {
         try {
             const res = await fetch(`/api/agents/${id}/export`)
-            if (!res.ok) { toast.error('Erreur lors de l\'export'); return }
+            if (!res.ok) { toast.error(t('toast.exportFailed')); return }
             const blob = await res.blob()
             const cd = res.headers.get('Content-Disposition') || ''
             const match = cd.match(/filename="([^"]+)"/)
@@ -221,7 +222,7 @@ export default function AgentsPage() {
             const a = document.createElement('a')
             a.href = url; a.download = filename; a.click()
             URL.revokeObjectURL(url)
-        } catch { toast.error('Erreur réseau lors de l\'export') }
+        } catch { toast.error(t('toast.exportNetworkError')) }
     }
 
     const importAgent = async (file: File) => {
@@ -234,11 +235,11 @@ export default function AgentsPage() {
                 body: JSON.stringify(json),
             })
             const result = await res.json()
-            if (!res.ok) { toast.error(result.error || 'Erreur lors de l\'import'); return }
+            if (!res.ok) { toast.error(result.error || t('toast.importFailed')); return }
             const note = result.data?.connections_note
-            toast.success(`Agent "${result.data?.agent?.name}" importé avec succès${note ? ` — ${note}` : ''}`)
+            toast.success(t('toast.importSuccess', { name: result.data?.agent?.name, note: note ? ` — ${note}` : '' }))
             fetchAgents()
-        } catch { toast.error('Fichier invalide ou corrompu') }
+        } catch { toast.error(t('toast.invalidFile')) }
     }
 
     const cardStyle = {
@@ -273,7 +274,7 @@ export default function AgentsPage() {
                     )}
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                         {/* Bouton Importer */}
-                        <label title="Importer une configuration d'agent" style={{
+                        <label title={t('importButton.title')} style={{
                             display: 'inline-flex', alignItems: 'center', gap: 6,
                             padding: '10px 16px', borderRadius: 12, cursor: 'pointer',
                             background: 'rgba(99, 102, 241, 0.15)',
@@ -281,7 +282,7 @@ export default function AgentsPage() {
                             color: '#818cf8', fontWeight: 600, fontSize: 14
                         }}>
                             <Upload style={{ width: 16, height: 16 }} />
-                            Importer
+                            {t('importButton.label')}
                             <input
                                 type="file" accept=".json" style={{ display: 'none' }}
                                 onChange={e => { const f = e.target.files?.[0]; if (f) importAgent(f); e.target.value = '' }}
@@ -300,7 +301,7 @@ export default function AgentsPage() {
                                 }}
                             >
                                 <Plus style={{ width: 20, height: 20 }} />
-                                Passer au plan supérieur
+                                {t('upgradeButton')}
                             </button>
                         ) : (
                             <Link
@@ -359,9 +360,11 @@ export default function AgentsPage() {
                 }}>
                     <Download style={{ width: 15, height: 15, color: '#818cf8', flexShrink: 0 }} />
                     <span style={{ fontSize: 13, color: '#94a3b8' }}>
-                        <span style={{ color: '#c7d2fe', fontWeight: 600 }}>Astuce :</span>{' '}
-                        Exportez la configuration d'un agent (bouton <span style={{ color: '#818cf8' }}>↓</span> sur la carte) avant de le supprimer.
-                        Vous pourrez la réimporter en un clic avec le bouton <span style={{ color: '#818cf8', fontWeight: 600 }}>Importer</span> ci-dessus — sans tout reconfigurer.
+                        <span style={{ color: '#c7d2fe', fontWeight: 600 }}>{t('tip.label')}</span>{' '}
+                        {t.rich('tip.text', {
+                            arrow: (chunks) => <span style={{ color: '#818cf8' }}>{chunks}</span>,
+                            importWord: (chunks) => <span style={{ color: '#818cf8', fontWeight: 600 }}>{chunks}</span>,
+                        })}
                     </span>
                 </div>
             )}
@@ -477,28 +480,28 @@ export default function AgentsPage() {
                         {agent.ecommerce_mode === 'external_sync' ? (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', marginBottom: 16, background: 'rgba(14,165,233,0.08)', border: '1px solid rgba(14,165,233,0.2)', borderRadius: 10 }}>
                                 <RefreshCw style={{ width: 14, height: 14, color: '#38bdf8', flexShrink: 0 }} />
-                                <span style={{ fontSize: 12, color: '#7dd3fc' }}>Canal de notifications — pas de réponses IA</span>
+                                <span style={{ fontSize: 12, color: '#7dd3fc' }}>{t('syncChannelNotice')}</span>
                             </div>
                         ) : (
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 16 }}>
                             {/* Colonne 1 : toujours Conversations */}
                             <div style={{ textAlign: 'center', padding: '10px 8px', background: 'rgba(51,65,85,0.3)', borderRadius: 10 }}>
                                 <div style={{ fontSize: 18, fontWeight: 700, color: 'white' }}>{agent.total_conversations || 0}</div>
-                                <div style={{ fontSize: 11, color: '#64748b' }}>Conversations</div>
+                                <div style={{ fontSize: 11, color: '#64748b' }}>{t('card.conversations')}</div>
                             </div>
                             {/* Colonne 2 : Produits (ecommerce local) ou KB (support/services/custom) */}
                             {(agent.mission === 'ecommerce' || agent.mission === 'restaurant' || agent.mission === 'hotel' || agent.mission === 'salon') ? (
                                 <div style={{ textAlign: 'center', padding: '10px 8px', background: 'rgba(51,65,85,0.3)', borderRadius: 10 }}>
                                     <div style={{ fontSize: 18, fontWeight: 700, color: missionCfg.color }}>{agent.product_count || 0}</div>
                                     <div style={{ fontSize: 11, color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3 }}>
-                                        <Package style={{ width: 10, height: 10 }} /> Produits
+                                        <Package style={{ width: 10, height: 10 }} /> {t('stats.products')}
                                     </div>
                                 </div>
                             ) : (
                                 <div style={{ textAlign: 'center', padding: '10px 8px', background: 'rgba(51,65,85,0.3)', borderRadius: 10 }}>
                                     <div style={{ fontSize: 18, fontWeight: 700, color: missionCfg.color }}>{agent.knowledge_count || 0}</div>
                                     <div style={{ fontSize: 11, color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3 }}>
-                                        <BookOpen style={{ width: 10, height: 10 }} /> Articles KB
+                                        <BookOpen style={{ width: 10, height: 10 }} /> {t('stats.kbArticles')}
                                     </div>
                                 </div>
                             )}
@@ -507,13 +510,13 @@ export default function AgentsPage() {
                                 <div style={{ textAlign: 'center', padding: '10px 8px', background: 'rgba(51,65,85,0.3)', borderRadius: 10 }}>
                                     <div style={{ fontSize: 18, fontWeight: 700, color: '#8b5cf6' }}>{agent.lead_count || 0}</div>
                                     <div style={{ fontSize: 11, color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3 }}>
-                                        <UserCheck style={{ width: 10, height: 10 }} /> Leads
+                                        <UserCheck style={{ width: 10, height: 10 }} /> {t('stats.leads')}
                                     </div>
                                 </div>
                             ) : (
                                 <div style={{ textAlign: 'center', padding: '10px 8px', background: 'rgba(51,65,85,0.3)', borderRadius: 10 }}>
                                     <div style={{ fontSize: 18, fontWeight: 700, color: 'white' }}>{agent.total_messages || 0}</div>
-                                    <div style={{ fontSize: 11, color: '#64748b' }}>Messages</div>
+                                    <div style={{ fontSize: 11, color: '#64748b' }}>{t('card.messages')}</div>
                                 </div>
                             )}
                         </div>
@@ -530,13 +533,13 @@ export default function AgentsPage() {
                                     onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.15)'; e.currentTarget.style.transform = 'scale(1)' }}>
                                     <Edit style={{ width: 18, height: 18, color: '#3b82f6' }} />
                                 </Link>
-                                <span style={{ fontSize: 9, color: '#64748b', fontWeight: 500 }}>Modifier</span>
+                                <span style={{ fontSize: 9, color: '#64748b', fontWeight: 500 }}>{t('card.menu.edit')}</span>
                             </div>
 
                             {/* Connaissances — caché pour external_sync */}
                             {!isExternalSync && (
                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                                    <Link href={`/dashboard/agents/${agent.id}/knowledge`} title="Base de connaissances"
+                                    <Link href={`/dashboard/agents/${agent.id}/knowledge`} title={t('actions.knowledgeBaseTitle')}
                                         style={{ width: 40, height: 40, borderRadius: 10, position: 'relative', backgroundColor: kbEmpty ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)', border: kbEmpty ? '1px solid rgba(239, 68, 68, 0.4)' : 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
                                         onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = kbEmpty ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)'; e.currentTarget.style.transform = 'scale(1.05)' }}
                                         onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = kbEmpty ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)'; e.currentTarget.style.transform = 'scale(1)' }}>
@@ -546,7 +549,7 @@ export default function AgentsPage() {
                                         )}
                                     </Link>
                                     <span style={{ fontSize: 9, color: kbEmpty ? '#f87171' : '#64748b', fontWeight: kbEmpty ? 700 : 500 }}>
-                                        {kbEmpty ? 'Vide !' : 'Connaissances'}
+                                        {kbEmpty ? t('actions.kbEmpty') : t('actions.knowledgeLabel')}
                                     </span>
                                 </div>
                             )}
@@ -554,52 +557,52 @@ export default function AgentsPage() {
                             {/* Produits — ecommerce / restaurant / hotel / salon */}
                             {isProductAgent && (
                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                                    <Link href={`/dashboard/products?agent=${agent.id}`} title="Produits & catalogue"
+                                    <Link href={`/dashboard/products?agent=${agent.id}`} title={t('actions.productsTitle')}
                                         style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: 'rgba(245,158,11,0.15)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
                                         onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(245,158,11,0.3)'; e.currentTarget.style.transform = 'scale(1.05)' }}
                                         onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(245,158,11,0.15)'; e.currentTarget.style.transform = 'scale(1)' }}>
                                         <Package style={{ width: 18, height: 18, color: '#f59e0b' }} />
                                     </Link>
-                                    <span style={{ fontSize: 9, color: '#64748b', fontWeight: 500 }}>Produits</span>
+                                    <span style={{ fontSize: 9, color: '#64748b', fontWeight: 500 }}>{t('actions.productsLabel')}</span>
                                 </div>
                             )}
 
                             {/* Commandes — ecommerce uniquement */}
                             {agent.mission === 'ecommerce' && (
                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                                    <Link href="/dashboard/orders" title="Commandes"
+                                    <Link href="/dashboard/orders" title={t('actions.ordersTitle')}
                                         style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: 'rgba(16,185,129,0.15)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
                                         onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(16,185,129,0.3)'; e.currentTarget.style.transform = 'scale(1.05)' }}
                                         onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(16,185,129,0.15)'; e.currentTarget.style.transform = 'scale(1)' }}>
                                         <ShoppingBag style={{ width: 18, height: 18, color: '#10b981' }} />
                                     </Link>
-                                    <span style={{ fontSize: 9, color: '#64748b', fontWeight: 500 }}>Commandes</span>
+                                    <span style={{ fontSize: 9, color: '#64748b', fontWeight: 500 }}>{t('actions.ordersLabel')}</span>
                                 </div>
                             )}
 
                             {/* Réservations — restaurant / hotel / salon / services */}
                             {isBookingAgent && (
                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                                    <Link href="/dashboard/orders?tab=bookings" title="Réservations"
+                                    <Link href="/dashboard/orders?tab=bookings" title={t('actions.bookingsTitle')}
                                         style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: 'rgba(14,165,233,0.15)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
                                         onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(14,165,233,0.3)'; e.currentTarget.style.transform = 'scale(1.05)' }}
                                         onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(14,165,233,0.15)'; e.currentTarget.style.transform = 'scale(1)' }}>
                                         <UserCheck style={{ width: 18, height: 18, color: '#0ea5e9' }} />
                                     </Link>
-                                    <span style={{ fontSize: 9, color: '#64748b', fontWeight: 500 }}>Réservations</span>
+                                    <span style={{ fontSize: 9, color: '#64748b', fontWeight: 500 }}>{t('actions.bookingsLabel')}</span>
                                 </div>
                             )}
 
                             {/* Leads — support_client / services / salon + lead_collection_enabled */}
                             {(isServiceAgent || agent.lead_collection_enabled) && (
                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                                    <Link href={`/dashboard/agents/${agent.id}/leads`} title="Leads"
+                                    <Link href={`/dashboard/agents/${agent.id}/leads`} title={t('actions.leadsTitle')}
                                         style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: 'rgba(139, 92, 246, 0.15)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
                                         onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(139, 92, 246, 0.3)'; e.currentTarget.style.transform = 'scale(1.05)' }}
                                         onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(139, 92, 246, 0.15)'; e.currentTarget.style.transform = 'scale(1)' }}>
                                         <Users style={{ width: 18, height: 18, color: '#8b5cf6' }} />
                                     </Link>
-                                    <span style={{ fontSize: 9, color: '#64748b', fontWeight: 500 }}>Leads</span>
+                                    <span style={{ fontSize: 9, color: '#64748b', fontWeight: 500 }}>{t('stats.leads')}</span>
                                 </div>
                             )}
 
@@ -612,19 +615,19 @@ export default function AgentsPage() {
                                     onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = agent.is_active ? 'rgba(251, 191, 36, 0.15)' : 'rgba(16, 185, 129, 0.15)'; e.currentTarget.style.transform = 'scale(1)' }}>
                                     <Power style={{ width: 18, height: 18, color: agent.is_active ? '#fbbf24' : '#10b981' }} />
                                 </button>
-                                <span style={{ fontSize: 9, color: '#64748b', fontWeight: 500 }}>{agent.is_active ? 'Désactiver' : 'Activer'}</span>
+                                <span style={{ fontSize: 9, color: '#64748b', fontWeight: 500 }}>{agent.is_active ? t('card.menu.deactivate') : t('card.menu.activate')}</span>
                             </div>
 
                             {/* Exporter config — tous */}
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                                 <button onClick={() => exportAgent(agent.id)}
-                                    title="Exporter la configuration de cet agent"
+                                    title={t('actions.exportTitle')}
                                     style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: 'rgba(99, 102, 241, 0.15)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
                                     onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(99, 102, 241, 0.3)'; e.currentTarget.style.transform = 'scale(1.05)' }}
                                     onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(99, 102, 241, 0.15)'; e.currentTarget.style.transform = 'scale(1)' }}>
                                     <Download style={{ width: 18, height: 18, color: '#818cf8' }} />
                                 </button>
-                                <span style={{ fontSize: 9, color: '#64748b', fontWeight: 500 }}>Exporter</span>
+                                <span style={{ fontSize: 9, color: '#64748b', fontWeight: 500 }}>{t('actions.exportLabel')}</span>
                             </div>
 
                             {/* Supprimer — tous */}
@@ -636,7 +639,7 @@ export default function AgentsPage() {
                                     onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.15)'; e.currentTarget.style.transform = 'scale(1)' }}>
                                     <Trash2 style={{ width: 18, height: 18, color: '#ef4444' }} />
                                 </button>
-                                <span style={{ fontSize: 9, color: '#64748b', fontWeight: 500 }}>Supprimer</span>
+                                <span style={{ fontSize: 9, color: '#64748b', fontWeight: 500 }}>{t('actions.deleteLabel')}</span>
                             </div>
                         </div>
 
@@ -646,8 +649,8 @@ export default function AgentsPage() {
                                 style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', marginBottom: 12, borderRadius: 10, background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.3)', textDecoration: 'none' }}>
                                 <span style={{ fontSize: 18, flexShrink: 0 }}>⚠️</span>
                                 <div>
-                                    <div style={{ color: '#f87171', fontSize: 12, fontWeight: 700, marginBottom: 2 }}>Base de connaissances vide — agent non fonctionnel</div>
-                                    <div style={{ color: '#94a3b8', fontSize: 11, lineHeight: 1.4 }}>Cet agent ne connaît rien de votre activité. Ajoutez vos informations (tarifs, services, FAQ…) pour qu'il puisse répondre à vos clients. → Cliquez pour alimenter</div>
+                                    <div style={{ color: '#f87171', fontSize: 12, fontWeight: 700, marginBottom: 2 }}>{t('kbAlert.title')}</div>
+                                    <div style={{ color: '#94a3b8', fontSize: 11, lineHeight: 1.4 }}>{t('kbAlert.description')}</div>
                                 </div>
                             </Link>
                         )}
@@ -714,11 +717,11 @@ export default function AgentsPage() {
                                 : <Plus style={{ width: 32, height: 32, color: '#64748b' }} />}
                         </div>
                         <span style={{ fontSize: 18, fontWeight: 500, color: atLimit ? '#f59e0b' : '#94a3b8' }}>
-                            {atLimit ? 'Passer au plan supérieur' : t('emptyState.button')}
+                            {atLimit ? t('upgradeButton') : t('emptyState.button')}
                         </span>
                         <span style={{ fontSize: 14, color: '#64748b', marginTop: 4 }}>
                             {atLimit
-                                ? `Limite de ${agentLimit} agent${agentLimit > 1 ? 's' : ''} atteinte`
+                                ? t('limitReached', { limit: agentLimit, plural: agentLimit > 1 ? 's' : '' })
                                 : t('emptyState.description')}
                         </span>
                     </div>
@@ -737,13 +740,13 @@ export default function AgentsPage() {
                             <Crown style={{ width: 12, height: 12, color: '#64748b' }} />
                         </div>
                         <h2 style={{ fontSize: 15, fontWeight: 600, color: '#64748b', margin: 0 }}>
-                            Agents dÃ©sactivÃ©s ({archivedAgents.length})
+                            {t('archived.sectionTitle', { count: archivedAgents.length })}
                         </h2>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
                         {archivedAgents.map((agent) => {
                             const deleteDate = agent.archived_at
-                                ? new Date(new Date(agent.archived_at).getTime() + 7 * 24 * 3600000).toLocaleDateString('fr-FR')
+                                ? new Date(new Date(agent.archived_at).getTime() + 7 * 24 * 3600000).toLocaleDateString(locale)
                                 : null
                             return (
                                 <div
@@ -770,7 +773,7 @@ export default function AgentsPage() {
                                             background: 'rgba(100, 116, 139, 0.2)',
                                             color: '#64748b'
                                         }}>
-                                            â¸ DÃ©sactivÃ©
+                                            {t('archived.badge')}
                                         </span>
                                     </div>
 
@@ -787,7 +790,7 @@ export default function AgentsPage() {
                                             <div style={{ fontSize: 15, fontWeight: 600, color: '#94a3b8' }}>{agent.name}</div>
                                             {agent.description && (
                                                 <div style={{ fontSize: 12, color: '#475569', marginTop: 2 }}>
-                                                    {agent.description.substring(0, 60)}{agent.description.length > 60 ? 'â€¦' : ''}
+                                                    {agent.description.substring(0, 60)}{agent.description.length > 60 ? '…' : ''}
                                                 </div>
                                             )}
                                         </div>
@@ -798,7 +801,7 @@ export default function AgentsPage() {
                                             fontSize: 11, color: '#ef4444', marginBottom: 12,
                                             display: 'flex', alignItems: 'center', gap: 4
                                         }}>
-                                            âš ï¸ Suppression dÃ©finitive le {deleteDate}
+                                            {t('archived.deletionWarning', { date: deleteDate })}
                                         </div>
                                     )}
 
@@ -820,7 +823,7 @@ export default function AgentsPage() {
                                         }}
                                     >
                                         <Crown style={{ width: 14, height: 14 }} />
-                                        RÃ©activer â€” Renouvelez votre abonnement
+                                        {t('archived.reactivateButton')}
                                     </Link>
                                 </div>
                             )
