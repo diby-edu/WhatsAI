@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState, type CSSProperties, type Dispatch, type SetStateAction } from 'react'
+import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react'
 import {
     Activity,
     AlertCircle,
@@ -21,266 +21,37 @@ import {
     Trash2
 } from 'lucide-react'
 import { useToast } from '@/components/ui/Toast'
-
-type TabId = 'platform_connections' | 'webhooks' | 'logs' | 'documentation' | 'tests'
-type ScopeMode = 'all' | 'selected'
-
-interface AgentSummary {
-    id: string
-    name: string
-    mission?: string | null
-    is_active?: boolean
-    archived_at?: string | null
-    ecommerce_mode?: string | null
-}
-
-interface ApiKey {
-    id: string
-    name: string
-    key_prefix: string
-    environment: 'live' | 'test'
-    is_active: boolean
-    rate_limit_per_minute: number
-    allowed_agent_ids: string[] | null
-    last_used_at: string | null
-    created_at: string
-    expires_at: string | null
-    raw_key?: string
-}
-
-interface UsageLog {
-    id: string
-    api_key_id: string
-    agent_id: string | null
-    endpoint: string
-    method: string
-    status_code: number
-    response_ms: number
-    ip_address: string | null
-    request_body: Record<string, unknown> | null
-    created_at: string
-}
-
-interface WebhookItem {
-    id: string
-    url: string
-    events: string[]
-    is_active: boolean
-    created_at: string
-    description: string | null
-    secret?: string
-}
-
-interface PlatformConnectionItem {
-    id: string
-    name: string
-    provider: 'shopify' | 'woocommerce' | 'chariow' | 'maketou' | 'generic'
-    agent_id: string
-    allowed_events: string[] | null
-    rate_limit_per_minute: number
-    is_active: boolean
-    last_received_at: string | null
-    last_status_code: number | null
-    last_error: string | null
-    metadata?: Record<string, any> | null
-    created_at: string
-    updated_at: string
-    webhook_url: string
-    webhook_token_preview?: string | null
-    signing_secret?: string
-    signing_secret_masked?: string
-}
-
-type PlatformProvider = PlatformConnectionItem['provider']
-type FormProvider = PlatformProvider | 'api_key'
-type PlatformEventOption = { value: string; label: string }
-
-interface PlatformSyncConnectionItem {
-    id: string
-    name: string
-    provider: 'woocommerce' | 'shopify' | 'chariow'
-    agent_id: string
-    is_active: boolean
-    auto_sync_enabled: boolean
-    sync_interval_minutes: number
-    retry_count: number
-    next_retry_at: string | null
-    credentials_hint: Record<string, any> | null
-    last_tested_at: string | null
-    last_test_status_code: number | null
-    last_test_error: string | null
-    last_synced_at: string | null
-    last_sync_started_at: string | null
-    last_sync_finished_at: string | null
-    last_sync_status: 'idle' | 'success' | 'failed' | 'running'
-    last_sync_error: string | null
-    last_sync_count: number
-    metadata?: Record<string, any> | null
-    created_at: string
-    updated_at: string
-}
-
-interface PlatformSyncRunItem {
-    id: string
-    trigger_source: 'manual' | 'cron'
-    status: 'success' | 'failed'
-    fetched_count: number
-    synced_count: number
-    has_more: boolean
-    error: string | null
-    started_at: string
-    finished_at: string
-    created_at: string
-}
-
-interface SyncedProduct {
-    id: string
-    agent_id: string
-    external_id: string
-    data: {
-        name?: string | null
-        description?: string | null
-        price?: number | null
-        original_price?: number | null
-        currency?: string | null
-        availability?: string | null
-        url?: string | null
-        image_url?: string | null
-        categories?: string[]
-        category?: string | null
-        type?: string | null
-        stock?: number | null
-        provider?: string | null
-        raw_status?: string | null
-        synced_at?: string | null
-        [key: string]: unknown
-    }
-    created_at: string
-    updated_at: string | null
-}
-
-const WEBHOOK_EVENTS = [
-    'message.received',
-    'message.sent',
-    'conversation.started',
-    'conversation.ended',
-    'lead.collected',
-] as const
-
-const PLATFORM_PROVIDERS = [
-    { value: 'shopify',    label: 'Shopify',    group: 'ecommerce' },
-    { value: 'woocommerce',label: 'WooCommerce',group: 'ecommerce' },
-    { value: 'chariow',   label: 'Chariow',    group: 'ecommerce' },
-    { value: 'maketou',   label: 'Maketou',    group: 'ecommerce' },
-    { value: 'generic',   label: 'Webhook générique (ta plateforme → WazzapAI)', group: 'advanced' },
-    { value: 'api_key',   label: 'Code personnalisé (ton code → WazzapAI)',      group: 'advanced' },
-] as const
-
-const PROVIDER_PLACEHOLDERS: Record<string, string> = {
-    shopify:     'Ex: Boutique Shopify principale',
-    woocommerce: 'Ex: Boutique WooCommerce principale',
-    chariow:     'Ex: Boutique Chariow',
-    maketou:     'Ex: Ma boutique Maketou',
-    generic:     'Ex: Ma plateforme custom',
-    api_key:     'Ex: Ma clé API principale',
-}
-
-const PROVIDER_DESCRIPTIONS: Record<string, string> = {
-    shopify:     "Collez l'URL générée dans les paramètres webhook de votre boutique Shopify.",
-    woocommerce: "Collez l'URL générée dans WooCommerce → Extensions → Webhooks.",
-    chariow:     "Collez l'URL générée dans Chariow Pulse.",
-    maketou:     "Collez l'URL générée dans les paramètres de votre boutique Maketou.",
-    generic:     "Collez l'URL générée dans les paramètres webhook de votre plateforme. Aucun code requis.",
-    api_key:     "Utilisez la clé générée dans votre code pour appeler WazzapAI. Nécessite un développeur.",
-}
-
-const PLATFORM_SYNC_PROVIDERS = [
-    { value: 'woocommerce', label: 'WooCommerce' },
-    { value: 'shopify', label: 'Shopify' },
-    { value: 'chariow', label: 'Chariow' },
-] as const
-
-const PLATFORM_SYNC_INTERVAL_OPTIONS = [5, 10, 15, 30, 60, 180, 360, 720, 1440] as const
-
-const PLATFORM_EVENT_OPTIONS: Record<PlatformProvider, PlatformEventOption[]> = {
-    shopify: [
-        { value: 'orders/create', label: 'Commande creee (orders/create)' },
-        { value: 'orders/paid', label: 'Commande payee (orders/paid)' },
-        { value: 'orders/fulfilled', label: 'Commande expediee (orders/fulfilled)' },
-        { value: 'orders/updated', label: 'Commande mise a jour (orders/updated)' },
-        { value: 'checkouts/update', label: 'Checkout mis a jour (checkouts/update)' },
-        { value: 'carts/update', label: 'Panier mis a jour (carts/update)' },
-    ],
-    woocommerce: [
-        { value: 'order.created', label: 'Commande creee (order.created)' },
-        { value: 'order.updated', label: 'Commande mise a jour (order.updated)' },
-        { value: 'order.failed', label: 'Paiement echoue (order.failed)' },
-        { value: 'order.pending', label: 'Paiement en attente (order.pending)' },
-        { value: 'order.deleted', label: 'Commande supprimee (order.deleted)' },
-    ],
-    chariow: [
-        { value: 'payment_confirmed', label: 'Vente reussie' },
-        { value: 'cart_abandoned', label: 'Panier abandonne' },
-        { value: 'payment_failed', label: 'Paiement echoue' },
-    ],
-    maketou: [
-        { value: 'order_created', label: 'Commande creee (order_created)' },
-        { value: 'order_paid', label: 'Commande payee (order_paid)' },
-        { value: 'cart_abandoned', label: 'Panier abandonne (cart_abandoned)' },
-        { value: 'payment_failed', label: 'Paiement echoue (payment_failed)' },
-    ],
-    generic: [
-        { value: 'order_created', label: 'Commande creee (order_created)' },
-        { value: 'order_shipped', label: 'Commande expediee (order_shipped)' },
-        { value: 'cart_abandoned', label: 'Panier abandonne (cart_abandoned)' },
-        { value: 'payment_failed', label: 'Paiement echoue (payment_failed)' },
-        { value: 'custom', label: 'Evenement personnalise (custom)' },
-    ],
-}
-
-const sectionStyle: CSSProperties = {
-    background: 'var(--card-bg, #1a1a2e)',
-    border: '1px solid var(--border, #2a2a3e)',
-    borderRadius: 16,
-    padding: 24,
-}
-
-const inputStyle: CSSProperties = {
-    width: '100%',
-    padding: '10px 14px',
-    background: 'var(--input-bg, #0f0f1a)',
-    border: '1px solid var(--border, #2a2a3e)',
-    borderRadius: 8,
-    color: 'var(--text-primary, #fff)',
-    fontSize: 14,
-    outline: 'none',
-    boxSizing: 'border-box',
-}
-
-const secondaryButtonStyle: CSSProperties = {
-    padding: '10px 14px',
-    background: 'transparent',
-    border: '1px solid var(--border, #2a2a3e)',
-    borderRadius: 8,
-    color: 'var(--text-secondary, #9ca3af)',
-    cursor: 'pointer',
-    fontSize: 13,
-}
-
-const primaryButtonStyle: CSSProperties = {
-    padding: '10px 16px',
-    background: '#25d366',
-    border: 'none',
-    borderRadius: 8,
-    color: '#fff',
-    cursor: 'pointer',
-    fontSize: 13,
-    fontWeight: 600,
-}
-
-function normalizeScopeMode(allowedAgentIds: string[] | null | undefined): ScopeMode {
-    return allowedAgentIds && allowedAgentIds.length > 0 ? 'selected' : 'all'
-}
+import type {
+    TabId,
+    ScopeMode,
+    AgentSummary,
+    ApiKey,
+    UsageLog,
+    WebhookItem,
+    PlatformConnectionItem,
+    PlatformProvider,
+    FormProvider,
+    PlatformEventOption,
+    PlatformSyncConnectionItem,
+    PlatformSyncRunItem,
+    SyncedProduct,
+} from './types'
+import {
+    WEBHOOK_EVENTS,
+    PLATFORM_PROVIDERS,
+    PROVIDER_PLACEHOLDERS,
+    PROVIDER_DESCRIPTIONS,
+    PLATFORM_SYNC_PROVIDERS,
+    PLATFORM_SYNC_INTERVAL_OPTIONS,
+    PLATFORM_EVENT_OPTIONS,
+} from './constants'
+import {
+    sectionStyle,
+    inputStyle,
+    secondaryButtonStyle,
+    primaryButtonStyle,
+    normalizeScopeMode,
+} from './styles'
 
 export default function DevelopersPage() {
     const toast = useToast()
