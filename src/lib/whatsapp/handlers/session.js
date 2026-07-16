@@ -67,6 +67,7 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
         console.log(`⚠️ [${agentName}] Releasing stuck pending connection for fresh retry`)
         const staleSession = activeSessions.get(agentId)
         if (staleSession?.socket) {
+            try { staleSession.socket.ev.removeAllListeners() } catch (_) { }
             try { staleSession.socket.end() } catch (_) { }
         }
         pendingConnections.delete(agentId)
@@ -207,6 +208,7 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                         context.qrAttemptCounts.delete(agentId)
                         pendingConnections.delete(agentId)
                         clearTimeout(pendingTimeout)
+                        try { socket.ev.removeAllListeners() } catch (_) {}
                         try { socket.end() } catch (_) {}
                         await supabase.from('agents').update({
                             whatsapp_connected: false,
@@ -339,6 +341,7 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                     console.error(`❌ [${agentName}] Failed to mark connected in DB:`, dbError.message)
                     session.status = 'error'
                     if (keepAliveInterval) clearInterval(keepAliveInterval)
+                    try { socket.ev.removeAllListeners() } catch (_) { }
                     try { socket.end() } catch (_) { }
                     return
                 }

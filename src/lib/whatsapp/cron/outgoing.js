@@ -261,7 +261,7 @@ async function checkOutboundMessages(context) {
     try {
         const { data: messages, error } = await supabase
             .from('outbound_messages')
-            .select('*')
+            .select('id, agent_id, created_at, recipient_phone, media_url, media_type, message_content')
             .eq('status', 'pending')
             .limit(10)
 

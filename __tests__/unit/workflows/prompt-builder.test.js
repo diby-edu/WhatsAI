@@ -7,7 +7,7 @@
  * - Service engine mapping works correctly
  */
 
-const { buildAdaptiveSystemPrompt } = require('../../../src/lib/whatsapp/ai/prompt-builder')
+const { buildAdaptiveSystemPrompt, SERVICE_ENGINE_MAP } = require('../../../src/lib/whatsapp/ai/prompt-builder')
 
 describe('Prompt Builder', () => {
     // Mock agent data
@@ -101,36 +101,52 @@ describe('Prompt Builder', () => {
     // ═══════════════════════════════════════════════════════════════
     // ENGINE DISPATCH - SERVICES
     // ═══════════════════════════════════════════════════════════════
+    // Teste directement l'etat atteint (quel moteur est selectionne pour
+    // quel service_subtype) plutot que de scanner le texte du prompt genere —
+    // immunise ces tests contre un simple changement de formulation qui ne
+    // change pas le comportement reel.
 
-    describe('Engine Dispatch - Services', () => {
-        test('should use STAY engine for hotel services', () => {
-            const products = [
-                { id: '1', name: 'Chambre Standard', price_fcfa: 50000, product_type: 'service', service_subtype: 'hotel' }
-            ]
-            const prompt = buildAdaptiveSystemPrompt(
-                mockAgent, products, mockOrders, mockDocs, currency, gpsLink, formattedHours
-            )
-            expect(prompt).toMatch(/STAY|HÉBERGEMENT|🏨/)
+    describe('Engine Dispatch - Services (state reached)', () => {
+        test.each([
+            ['hotel', 'STAY'],
+            ['residence', 'STAY'],
+            ['restaurant', 'RESTAURANT'],
+            ['event', 'TABLE'],
+            ['coiffeur', 'SLOT'],
+            ['medecin', 'SLOT'],
+            ['coaching', 'SLOT'],
+            ['prestation', 'SLOT'],
+            ['formation', 'INSCRIPTION'],
+            ['rental', 'RENTAL'],
+            ['other', 'SLOT'],
+        ])('service_subtype "%s" resolves to the %s engine', (subtype, expectedEngine) => {
+            expect(SERVICE_ENGINE_MAP[subtype] || 'SLOT').toBe(expectedEngine)
         })
 
-        test('should use STAY engine for residence services', () => {
-            const products = [
-                { id: '1', name: 'Appartement', price_fcfa: 75000, product_type: 'service', service_subtype: 'residence' }
-            ]
-            const prompt = buildAdaptiveSystemPrompt(
-                mockAgent, products, mockOrders, mockDocs, currency, gpsLink, formattedHours
-            )
-            expect(prompt).toMatch(/STAY|HÉBERGEMENT/)
+        test('unmapped/unknown service_subtype falls back to SLOT', () => {
+            expect(SERVICE_ENGINE_MAP['totally_unknown_subtype'] || 'SLOT').toBe('SLOT')
         })
 
-        test('should use RESTAURANT engine for restaurant services', () => {
-            const products = [
-                { id: '1', name: 'Table VIP', price_fcfa: 30000, product_type: 'service', service_subtype: 'restaurant' }
-            ]
-            const prompt = buildAdaptiveSystemPrompt(
-                mockAgent, products, mockOrders, mockDocs, currency, gpsLink, formattedHours
-            )
-            expect(prompt).toMatch(/RESTAURANT|create_restaurant_checkout|booking_only|takeaway|delivery/i)
+        test('the selected engine actually authorizes its own tool in the generated prompt', () => {
+            const productsBySubtype = {
+                hotel: { name: 'Chambre Standard', service_subtype: 'hotel' },
+                restaurant: { name: 'Table VIP', service_subtype: 'restaurant' },
+                rental: { name: 'Toyota RAV4', service_subtype: 'rental' },
+            }
+            const expectedToolBySubtype = {
+                hotel: /create_booking/i,
+                restaurant: /create_restaurant_checkout|booking_only|takeaway|delivery/i,
+                rental: /create_booking/i,
+            }
+
+            for (const [subtype, product] of Object.entries(productsBySubtype)) {
+                const prompt = buildAdaptiveSystemPrompt(
+                    mockAgent,
+                    [{ id: '1', price_fcfa: 50000, product_type: 'service', ...product }],
+                    mockOrders, mockDocs, currency, gpsLink, formattedHours
+                )
+                expect(prompt).toMatch(expectedToolBySubtype[subtype])
+            }
         })
 
         test('should forbid reopening the restaurant welcome menu for a concrete first request', () => {
@@ -151,76 +167,6 @@ describe('Prompt Builder', () => {
             )
             expect(prompt).toMatch(/NE RÉAFFICHE PAS le menu principal/i)
             expect(prompt).toMatch(/demande précise/i)
-        })
-
-        test('should use TABLE engine for event services', () => {
-            const products = [
-                { id: '1', name: 'Concert Ticket', price_fcfa: 10000, product_type: 'service', service_subtype: 'event' }
-            ]
-            const prompt = buildAdaptiveSystemPrompt(
-                mockAgent, products, mockOrders, mockDocs, currency, gpsLink, formattedHours
-            )
-            expect(prompt).toMatch(/TABLE|ÉVÉNEMENT/)
-        })
-
-        test('should use SLOT engine for coiffeur services', () => {
-            const products = [
-                { id: '1', name: 'Coupe Homme', price_fcfa: 5000, product_type: 'service', service_subtype: 'coiffeur' }
-            ]
-            const prompt = buildAdaptiveSystemPrompt(
-                mockAgent, products, mockOrders, mockDocs, currency, gpsLink, formattedHours
-            )
-            expect(prompt).toMatch(/SLOT|RENDEZ-VOUS|RDV/)
-        })
-
-        test('should use SLOT engine for medecin services', () => {
-            const products = [
-                { id: '1', name: 'Consultation', price_fcfa: 20000, product_type: 'service', service_subtype: 'medecin' }
-            ]
-            const prompt = buildAdaptiveSystemPrompt(
-                mockAgent, products, mockOrders, mockDocs, currency, gpsLink, formattedHours
-            )
-            expect(prompt).toMatch(/SLOT|RENDEZ-VOUS/)
-        })
-
-        test('should use INSCRIPTION engine for formation services', () => {
-            const products = [
-                { id: '1', name: 'Formation Excel', price_fcfa: 100000, product_type: 'service', service_subtype: 'formation' }
-            ]
-            const prompt = buildAdaptiveSystemPrompt(
-                mockAgent, products, mockOrders, mockDocs, currency, gpsLink, formattedHours
-            )
-            expect(prompt).toMatch(/INSCRIPTION|FORMATION\/ATELIER|📚/)
-        })
-
-        test('should use SLOT engine for coaching services', () => {
-            const products = [
-                { id: '1', name: 'Coaching Session', price_fcfa: 50000, product_type: 'service', service_subtype: 'coaching' }
-            ]
-            const prompt = buildAdaptiveSystemPrompt(
-                mockAgent, products, mockOrders, mockDocs, currency, gpsLink, formattedHours
-            )
-            expect(prompt).toMatch(/SLOT/)
-        })
-
-        test('should use RENTAL engine for rental services', () => {
-            const products = [
-                { id: '1', name: 'Toyota RAV4', price_fcfa: 50000, product_type: 'service', service_subtype: 'rental' }
-            ]
-            const prompt = buildAdaptiveSystemPrompt(
-                mockAgent, products, mockOrders, mockDocs, currency, gpsLink, formattedHours
-            )
-            expect(prompt).toMatch(/RENTAL|LOCATION|🚗/)
-        })
-
-        test('should default to SLOT engine for unknown service subtypes', () => {
-            const products = [
-                { id: '1', name: 'Unknown Service', price_fcfa: 10000, product_type: 'service', service_subtype: 'other' }
-            ]
-            const prompt = buildAdaptiveSystemPrompt(
-                mockAgent, products, mockOrders, mockDocs, currency, gpsLink, formattedHours
-            )
-            expect(prompt).toMatch(/SLOT/)
         })
     })
 

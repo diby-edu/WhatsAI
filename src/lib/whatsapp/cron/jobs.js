@@ -210,18 +210,19 @@ async function requestFeedback(supabase) {
             .lt('delivered_at', threeDaysAgo)
             .gt('delivered_at', fourDaysAgo)
 
-        for (const order of deliveredOrders || []) {
-            await supabase.from('outbound_messages').insert({
+        if (deliveredOrders?.length) {
+            const outboundRows = deliveredOrders.map(order => ({
                 agent_id: order.agent_id,
                 recipient_phone: order.customer_phone,
                 message_content: `😊 *Livraison effectuee ?*\n\nPouvez-vous nous donner votre avis sur votre commande #${order.id.substring(0, 8)} ?\n\nRepondez simplement:\n1. Tres satisfait 🌟\n2. Satisfait 🙂\n3. Decu 😞\n\nMerci !`,
                 status: 'pending'
-            })
+            }))
+            await supabase.from('outbound_messages').insert(outboundRows)
 
             await supabase.from('orders').update({
                 feedback_requested: true,
                 feedback_requested_at: new Date().toISOString()
-            }).eq('id', order.id)
+            }).in('id', deliveredOrders.map(order => order.id))
         }
     } catch (error) {
         console.error('Error requesting feedback:', error)

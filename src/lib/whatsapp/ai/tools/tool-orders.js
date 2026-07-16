@@ -348,7 +348,7 @@ async function handleCheckPaymentStatus(args, supabase) {
 
         const { data: order, error } = await supabase
             .from('orders')
-            .select('*')
+            .select('id, total_fcfa, status')
             .eq('id', order_id)
             .single()
 

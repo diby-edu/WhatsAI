@@ -404,4 +404,4 @@ ${paymentSection}
 ${productsCatalogSection}`.trim()
 }
 
-module.exports = { buildAdaptiveSystemPrompt }
+module.exports = { buildAdaptiveSystemPrompt, SERVICE_ENGINE_MAP }

@@ -336,6 +336,57 @@ async function reconcileSessions() {
     } catch (err) {
         console.error('[RECONCILE] Erreur:', err.message)
     }
+
+    await cleanupOrphanedAgentState()
+}
+
+// Purge les structures en mémoire (sessions + Maps de suivi) pour les agents
+// supprimés en base pendant que le bot tournait. La suppression d'un agent
+// (DELETE /api/agents/[id]) est une opération DB pure, sans notification au
+// process bot — sans ce balayage périodique, un socket WhatsApp et ses entrées
+// dans activeSessions/qrAttemptCounts/recentlyProcessed/setupPhaseObservedAt
+// restent orphelins indéfiniment après suppression de l'agent.
+async function cleanupOrphanedAgentState() {
+    try {
+        const trackedIds = new Set([
+            ...activeSessions.keys(),
+            ...pendingConnections,
+            ...scheduledConnections,
+            ...qrAttemptCounts.keys(),
+            ...recentlyProcessed.keys(),
+            ...setupPhaseObservedAt.keys(),
+        ])
+
+        if (trackedIds.size === 0) return
+
+        const { data: existingAgents } = await supabase
+            .from('agents')
+            .select('id')
+            .in('id', Array.from(trackedIds))
+
+        const existingIds = new Set((existingAgents || []).map(a => a.id))
+        const orphanIds = Array.from(trackedIds).filter(id => !existingIds.has(id))
+
+        if (orphanIds.length === 0) return
+
+        console.warn(`🧹 [ORPHAN] ${orphanIds.length} agent(s) supprimé(s) en DB mais encore tracké(s) en mémoire — purge`)
+        for (const agentId of orphanIds) {
+            const session = activeSessions.get(agentId)
+            if (session?.socket) {
+                try { session.socket.end() } catch (_) { }
+            }
+            activeSessions.delete(agentId)
+            pendingConnections.delete(agentId)
+            scheduledConnections.delete(agentId)
+            clearScheduledInit(agentId)
+            qrAttemptCounts.delete(agentId)
+            recentlyProcessed.delete(agentId)
+            setupPhaseObservedAt.delete(agentId)
+        }
+        console.log(`✅ [ORPHAN] Purgé ${orphanIds.length} agent(s) supprimé(s)`)
+    } catch (err) {
+        console.error('[ORPHAN] Erreur:', err.message)
+    }
 }
 
 // Handle graceful shutdown

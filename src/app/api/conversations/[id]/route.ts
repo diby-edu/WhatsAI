@@ -21,7 +21,7 @@ export async function GET(
         const { data: conversation, error } = await supabase
             .from('conversations')
             .select(`
-                *,
+                id, contact_phone, contact_push_name, bot_paused, created_at, updated_at, status,
                 agent:agents(id, name)
             `)
             .eq('id', conversationId)
@@ -36,7 +36,7 @@ export async function GET(
         // Fetch messages for this conversation
         const { data: messages, error: messagesError } = await supabase
             .from('messages')
-            .select('*')
+            .select('id, role, content, created_at, message_type, status')
             .eq('conversation_id', conversationId)
             .order('created_at', { ascending: true })
 

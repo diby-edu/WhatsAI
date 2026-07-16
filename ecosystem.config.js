@@ -11,7 +11,11 @@ module.exports = {
                 PORT: 3000,
                 TZ: 'Africa/Abidjan'
             },
-            // Fork mode — plus stable avec npm start
+            // Fork mode — plus stable avec npm start. Si un cron/polling interne
+            // (setInterval) est ajouté un jour à ce process, appliquer la même
+            // règle que whatsai-bot ci-dessous : jamais de cluster/instances > 1
+            // sans verrou distribué (pg_try_advisory_lock), sous peine de doubles
+            // exécutions.
             instances: 1,
             exec_mode: 'fork',
             autorestart: true,
@@ -31,7 +35,16 @@ module.exports = {
                 NODE_ENV: 'production',
                 TZ: 'Africa/Abidjan'
             },
-            // ⚠️ JAMAIS de cluster mode pour Baileys (sessions uniques)
+            // ⚠️ JAMAIS de cluster mode ni instances > 1 pour ce process :
+            // (1) Baileys exige une session WhatsApp unique par agent (socket en mémoire,
+            //     un doublon casserait le pairing/l'état de connexion) ;
+            // (2) les jobs cron internes (checkPendingPayments, cancelExpiredOrders,
+            //     cancelExpiredBookingDeposits, requestFeedback, checkAgents,
+            //     reconcileSessions) tournent en setInterval sans verrou distribué
+            //     (pas de pg_try_advisory_lock) — plusieurs instances les exécuteraient
+            //     en double (double annulation, double envoi WhatsApp, etc.).
+            // Si un jour le clustering est nécessaire, ajouter un lock distribué
+            // (ex: pg_try_advisory_lock) autour de chaque job avant d'augmenter `instances`.
             instances: 1,
             autorestart: true,
             watch: false,
