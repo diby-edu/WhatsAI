@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
@@ -549,23 +549,26 @@ export default function OrdersPage() {
     }
 
     // Filter orders by tab
-    const mobileMoneyOrders = orders.filter(o =>
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const mobileMoneyOrders = useMemo(() => orders.filter(o =>
         o.payment_verification_status &&
         ['awaiting_screenshot', 'awaiting_verification', 'verified', 'rejected', 'expired'].includes(o.payment_verification_status)
-    )
-    const regularOrders = orders.filter(o => !o.payment_verification_status)
+    ), [orders])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const regularOrders = useMemo(() => orders.filter(o => !o.payment_verification_status), [orders])
 
-    const pendingVerificationCount = mobileMoneyOrders.filter(
+    const pendingVerificationCount = useMemo(() => mobileMoneyOrders.filter(
         o => o.payment_verification_status === 'awaiting_verification'
-    ).length
+    ).length, [mobileMoneyOrders])
 
-    const pendingBookingsCount = bookings.filter(
+    const pendingBookingsCount = useMemo(() => bookings.filter(
         b => b.status === 'pending' || b.status === 'inscription_pending'
-    ).length
+    ).length, [bookings])
 
     const displayOrders = activeTab === 'mobile_money' ? mobileMoneyOrders : regularOrders
 
-    const filteredOrders = displayOrders.filter(order => {
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const filteredOrders = useMemo(() => displayOrders.filter(order => {
         const orderType = getOrderType(order)
         const orderPaymentCategory = getOrderPaymentCategory(order)
         const normalizedSearch = searchTerm.toLowerCase()
@@ -579,8 +582,10 @@ export default function OrdersPage() {
         const matchesPayment = !filterPayment || orderPaymentCategory === filterPayment
 
         return matchesSearch && matchesStatus && matchesType && matchesPayment
-    })
-    const filteredBookings = bookings.filter(booking => {
+    }), [displayOrders, searchTerm, filterStatus, filterType, filterPayment])
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const filteredBookings = useMemo(() => bookings.filter(booking => {
         const bookingKind = getBookingKind(booking)
         const bookingPaymentCategory = getBookingPaymentCategory(booking)
         const normalizedSearch = searchTerm.toLowerCase()
@@ -594,7 +599,7 @@ export default function OrdersPage() {
         const matchesPayment = !filterPayment || bookingPaymentCategory === filterPayment
 
         return matchesSearch && matchesStatus && matchesType && matchesPayment
-    })
+    }), [bookings, searchTerm, filterStatus, filterType, filterPayment])
     const statusOptions = activeTab === 'bookings'
         ? [
             { value: '', label: t('filter.all') },
@@ -937,7 +942,9 @@ export default function OrdersPage() {
                 </div>
             ) : (
                 <div style={{ display: 'grid', gap: 16 }}>
-                    {filteredOrders.map((order, i) => (
+                    {filteredOrders.map((order, i) => {
+                        const nextStatusOptions = getNextStatusOptions(order)
+                        return (
                         <motion.div
                             key={order.id}
                             initial={{ opacity: 0, y: 10 }}
@@ -1132,9 +1139,9 @@ export default function OrdersPage() {
                                 )}
 
                                 {/* Inline Status Buttons */}
-                                {getNextStatusOptions(order).length > 0 && (
+                                {nextStatusOptions.length > 0 && (
                                     <div style={{ display: 'flex', gap: 6 }}>
-                                        {getNextStatusOptions(order).map(opt => (
+                                        {nextStatusOptions.map(opt => (
                                             <button
                                                 key={opt.value}
                                                 onClick={() => handleStatusChange(order.id, opt.value)}
@@ -1186,7 +1193,8 @@ export default function OrdersPage() {
                                 </button>
                             </div>
                         </motion.div>
-                    ))}
+                        )
+                    })}
                 </div>
             ))}
 

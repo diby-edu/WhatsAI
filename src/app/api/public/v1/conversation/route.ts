@@ -9,6 +9,26 @@ export const dynamic = 'force-dynamic'
 
 const supabaseAdmin = createAdminClient()
 
+interface PublicMessage {
+    id: string
+    role: string
+    content: string | null
+    created_at: string
+    status: string | null
+    whatsapp_message_id: string | null
+}
+
+interface CreateConversationRequestBody {
+    agent_id?: string
+    customer_phone?: string
+    metadata?: Record<string, unknown> | null
+}
+
+interface UpdateConversationRequestBody {
+    conversation_id?: string
+    status?: string
+}
+
 // GET /api/public/v1/conversation?conversation_id=xxx
 // Retourne le détail d'une conversation + ses messages
 export async function GET(request: NextRequest) {
@@ -57,7 +77,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Conversation not authorized for this API key', code: 'UNAUTHORIZED_AGENT' }, { status: 403 })
     }
 
-    let messages: any[] = []
+    let messages: PublicMessage[] = []
     if (withMessages) {
         const { data: msgs } = await supabaseAdmin
             .from('messages')
@@ -105,7 +125,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: rateCheck.reason, code: 'RATE_LIMIT' }, { status: 429, headers: rateCheck.headers })
     }
 
-    let body: any
+    let body: CreateConversationRequestBody
     try { body = await request.json() } catch {
         return NextResponse.json({ error: 'Invalid JSON body', code: 'BAD_REQUEST' }, { status: 400 })
     }
@@ -194,7 +214,7 @@ export async function PATCH(request: NextRequest) {
     }
     const { apiKey, userId } = auth
 
-    let body: any
+    let body: UpdateConversationRequestBody
     try { body = await request.json() } catch {
         return NextResponse.json({ error: 'Invalid JSON body', code: 'BAD_REQUEST' }, { status: 400 })
     }

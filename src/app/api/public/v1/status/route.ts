@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Agent not found', code: 'AGENT_NOT_FOUND' }, { status: 404 })
     }
 
-    if (!isAgentAllowed(agent.user_id || userId!, userId!, agentId, apiKey!.allowed_agent_ids ?? null)) {
+    if (!isAgentAllowed(agent.user_id, userId!, agentId, apiKey!.allowed_agent_ids ?? null)) {
         return NextResponse.json({ error: 'Agent not authorized for this API key', code: 'UNAUTHORIZED_AGENT' }, { status: 403 })
     }
 

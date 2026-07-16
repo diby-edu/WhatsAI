@@ -10,6 +10,19 @@ const supabaseAdmin = createAdminClient()
 const VALID_TYPES = ['product', 'customer', 'catalog', 'faq', 'custom'] as const
 type DataType = typeof VALID_TYPES[number]
 
+type SyncItem = { id?: unknown, [key: string]: unknown }
+
+interface SyncRequestBody {
+    agent_id?: string
+    type?: string
+    items?: SyncItem[]
+}
+
+interface DeleteSyncRequestBody {
+    agent_id?: string
+    type?: string
+}
+
 /**
  * POST /api/public/v1/sync
  *
@@ -50,7 +63,7 @@ export async function POST(request: NextRequest) {
     const { apiKey, userId } = auth
 
     // ── Parse body ────────────────────────────────────────────────────────
-    let body: any
+    let body: SyncRequestBody
     try {
         body = await request.json()
     } catch {
@@ -82,7 +95,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Vérifier que tous les items ont un id
-    const missingId = items.findIndex((item: any) => !item?.id)
+    const missingId = items.findIndex((item) => !item?.id)
     if (missingId !== -1) {
         return NextResponse.json({
             error: `Item at index ${missingId} is missing required field "id"`,
@@ -106,7 +119,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Upsert les données ────────────────────────────────────────────────
-    const rows = items.map((item: any) => {
+    const rows = items.map((item) => {
         const { id: externalId, ...rest } = item
         return {
             agent_id,
@@ -163,7 +176,7 @@ export async function DELETE(request: NextRequest) {
     }
     const { apiKey, userId } = auth
 
-    let body: any
+    let body: DeleteSyncRequestBody
     try { body = await request.json() } catch {
         return NextResponse.json({ error: 'Invalid JSON body', code: 'BAD_REQUEST' }, { status: 400 })
     }

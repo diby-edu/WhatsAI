@@ -3,7 +3,7 @@ import { createApiClient, createAdminClient, getAuthUser, errorResponse, success
 
 export const dynamic = 'force-dynamic'
 
-async function verifyAdmin(adminSupabase: any, userId: string) {
+async function verifyAdmin(adminSupabase: ReturnType<typeof createAdminClient>, userId: string) {
     const { data: profile } = await adminSupabase
         .from('profiles')
         .select('role')
@@ -83,14 +83,14 @@ export async function GET(request: NextRequest) {
         const successRate = 100 - errorRate
 
         // Latence moyenne
-        const latencies = (latencyData || []).map((r: any) => r.response_ms).filter((v: number) => v > 0)
+        const latencies = (latencyData || []).map((r: { response_ms: number }) => r.response_ms).filter((v: number) => v > 0)
         const avgResponseMs = latencies.length > 0
             ? Math.round(latencies.reduce((a: number, b: number) => a + b, 0) / latencies.length)
             : 0
 
         // Top endpoints
         const endpointCounts: Record<string, number> = {}
-        ;(endpointData || []).forEach((row: any) => {
+        ;(endpointData || []).forEach((row: { endpoint: string | null }) => {
             const ep = row.endpoint || 'unknown'
             endpointCounts[ep] = (endpointCounts[ep] || 0) + 1
         })
@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
 
         // Top utilisateurs
         const userCounts: Record<string, number> = {}
-        ;(topUsers || []).forEach((row: any) => {
+        ;(topUsers || []).forEach((row: { user_id: string }) => {
             userCounts[row.user_id] = (userCounts[row.user_id] || 0) + 1
         })
         const topUsersRanked = Object.entries(userCounts)
@@ -115,7 +115,7 @@ export async function GET(request: NextRequest) {
 
         // Volume par jour
         const byDay: Record<string, { total: number; errors: number }> = {}
-        ;(dailyData || []).forEach((row: any) => {
+        ;(dailyData || []).forEach((row: { created_at: string; status_code: number }) => {
             const day = row.created_at.slice(0, 10)
             if (!byDay[day]) byDay[day] = { total: 0, errors: 0 }
             byDay[day].total++

@@ -12,6 +12,12 @@ export const dynamic = 'force-dynamic'
 
 const supabaseAdmin = createAdminClient()
 
+interface TriggerRequestBody extends Partial<TriggerContext> {
+    agent_id?: string
+    idempotency_key?: string
+    metadata?: unknown
+}
+
 export async function POST(request: NextRequest) {
     const startTime = Date.now()
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || null
@@ -22,7 +28,7 @@ export async function POST(request: NextRequest) {
     }
     const { apiKey, userId } = auth
 
-    let body: any
+    let body: TriggerRequestBody
     try {
         body = await request.json()
     } catch {

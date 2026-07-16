@@ -3,13 +3,36 @@ import { Redis } from '@upstash/redis'
 import { withAdminAuth, successResponse, errorResponse } from '@/lib/api-utils'
 import { NextRequest } from 'next/server'
 
+function errorMessage(err: unknown): string {
+    return err instanceof Error ? err.message : String(err)
+}
+
+interface OtpDebugAgent {
+    id: string
+    name: string
+    whatsapp_connected: boolean | null
+    whatsapp_status: string | null
+    whatsapp_phone: string | null
+}
+
+interface InternalSession {
+    id: string
+    status: string
+    [key: string]: unknown
+}
+
+interface InternalSessionsResponse {
+    activeSessions?: InternalSession[]
+    [key: string]: unknown
+}
+
 export const GET = withAdminAuth(async (req: NextRequest) => {
     const HEALTH_PORT = process.env.HEALTH_PORT || 3001
     const trace: string[] = []
 
     // 1. DB state
     trace.push('1. Lecture agent OTP en DB...')
-    let dbAgent: any = null
+    let dbAgent: OtpDebugAgent | null = null
     try {
         const serviceClient = createClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -22,29 +45,29 @@ export const GET = withAdminAuth(async (req: NextRequest) => {
             .single()
         if (error) trace.push('  ERREUR DB: ' + error.message)
         else { dbAgent = data; trace.push(`  OK: id=${data?.id}, connected=${data?.whatsapp_connected}, status=${data?.whatsapp_status}`) }
-    } catch (err: any) { trace.push('  EXCEPTION: ' + err.message) }
+    } catch (err: unknown) { trace.push('  EXCEPTION: ' + errorMessage(err)) }
 
     // 2. Sessions en mémoire
     trace.push(`2. Appel service interne http://127.0.0.1:${HEALTH_PORT}/sessions ...`)
-    let internalSessions: any = null
+    let internalSessions: InternalSessionsResponse | null = null
     let internalError: string | null = null
     try {
         const res = await fetch(`http://127.0.0.1:${HEALTH_PORT}/sessions`, { signal: AbortSignal.timeout(3000) })
         internalSessions = await res.json()
         trace.push(`  OK: ${internalSessions?.activeSessions?.length ?? 0} session(s) active(s)`)
-        internalSessions?.activeSessions?.forEach((s: any) => trace.push(`  - session: id=${s.id} status=${s.status}`))
-    } catch (err: any) {
-        internalError = err?.message || 'unreachable'
+        internalSessions?.activeSessions?.forEach((s) => trace.push(`  - session: id=${s.id} status=${s.status}`))
+    } catch (err: unknown) {
+        internalError = errorMessage(err) || 'unreachable'
         trace.push('  ERREUR: ' + internalError)
     }
 
     const otpInMemory = dbAgent && internalSessions?.activeSessions
-        ? internalSessions.activeSessions.find((s: any) => s.id === dbAgent.id)
+        ? internalSessions.activeSessions.find((s) => s.id === dbAgent!.id)
         : null
 
     // 3. Test d'envoi si ?testsend=NUMERO fourni
     const testPhone = new URL(req.url).searchParams.get('testsend')
-    let sendResult: any = null
+    let sendResult: unknown = null
     if (testPhone && dbAgent) {
         trace.push(`3. Test envoi vers ${testPhone} via service interne...`)
         const recipient = testPhone.replace(/^\+/, '')
@@ -60,9 +83,9 @@ export const GET = withAdminAuth(async (req: NextRequest) => {
             const raw = await res.text()
             trace.push(`  HTTP ${res.status}: ${raw}`)
             try { sendResult = JSON.parse(raw) } catch { sendResult = { raw } }
-        } catch (err: any) {
-            trace.push('  EXCEPTION envoi: ' + err.message)
-            sendResult = { error: err.message }
+        } catch (err: unknown) {
+            trace.push('  EXCEPTION envoi: ' + errorMessage(err))
+            sendResult = { error: errorMessage(err) }
         }
     }
 
@@ -90,7 +113,7 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
         const keys = [`otp_limit:+${cleaned}`, `otp_limit:${cleaned}`]
         await Promise.all(keys.map((k: string) => redis.del(k)))
         return successResponse({ reset: true, phone })
-    } catch (err: any) {
-        return errorResponse(err.message, 500)
+    } catch (err: unknown) {
+        return errorResponse(errorMessage(err), 500)
     }
 })

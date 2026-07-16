@@ -14,6 +14,40 @@ function formatBytes(bytes: number): string {
     return `${Math.round(bytes / Math.pow(1024, index))} ${sizes[index]}`
 }
 
+type HealthStatus = 'ok' | 'warning' | 'critical' | 'not_available'
+
+interface HealthReport {
+    timestamp: string
+    uptime: number
+    nodeVersion: string
+    platform: string
+    memory: {
+        total: string
+        used: string
+        free: string
+        percent: number
+        heapUsed: string
+        heapTotal: string
+        status: HealthStatus
+    }
+    cpu: {
+        cores: number
+        model: string
+        loadAverage: { '1min': string; '5min': string; '15min': string }
+        status: HealthStatus
+    }
+    disk: {
+        status: HealthStatus
+        message?: string
+        total?: string
+        used?: string
+        available?: string
+        percent?: number
+    }
+    uptimeFormatted?: string
+    overallStatus?: HealthStatus
+}
+
 export async function GET(request: NextRequest) {
     const { response } = await requireAdminAccess()
     if (response) return response
@@ -27,7 +61,7 @@ export async function GET(request: NextRequest) {
         const cpus = os.cpus()
         const loadAvg = os.loadavg()
 
-        const health: any = {
+        const health: HealthReport = {
             timestamp: new Date().toISOString(),
             uptime: process.uptime(),
             nodeVersion: process.version,
@@ -81,8 +115,9 @@ export async function GET(request: NextRequest) {
         health.overallStatus = statuses.includes('critical') ? 'critical' : statuses.includes('warning') ? 'warning' : 'ok'
 
         return successResponse(health)
-    } catch (err: any) {
+    } catch (err: unknown) {
         console.error('Health check error:', err)
-        return errorResponse(err.message || 'Erreur health check', 500)
+        const message = err instanceof Error ? err.message : 'Erreur health check'
+        return errorResponse(message, 500)
     }
 }
