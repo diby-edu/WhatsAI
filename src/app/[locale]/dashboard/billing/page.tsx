@@ -3,7 +3,6 @@
 import { useState, useEffect, Suspense, useRef } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { createPortal } from 'react-dom'
 import {
     CreditCard,
     Sparkles,
@@ -33,53 +32,18 @@ import {
     type FeexPayCountryCode,
     type FeexPayNetworkCode,
 } from '@/lib/payments/feexpay-networks'
+import { FeexPayModal } from './components/FeexPayModal'
 
-interface Plan {
-    id: string
-    name: string
-    price: number
-    credits: number
-    features: string[]
-    is_popular: boolean
-}
-
-interface CreditPack {
-    id: string
-    name?: string
-    credits: number
-    price: number
-    savings: number
-}
-
-interface UserData {
-    plan: string
-    credits_balance: number
-    credits_used_this_month: number
-    subscription_end: string | null
-}
-
-interface Payment {
-    id: string
-    amount_fcfa: number
-    description: string
-    status: string
-    payment_provider?: string | null
-    payment_channel?: string | null
-    payment_channel_detail?: string | null
-    reference?: string | null
-    credits?: number | null
-    created_at: string
-    completed_at?: string | null
-}
-
-type SupportedPaymentProvider = 'cinetpay' | 'paystack' | 'feexpay' | 'paydunya'
-
-type FeexPayPaymentIntent = {
-    type: 'subscription' | 'credits'
-    targetId: string
-}
-
-const FEEXPAY_CHECKOUT_SESSION_KEY = 'wazzapai_feexpay_checkout_context'
+import type {
+    Plan,
+    CreditPack,
+    UserData,
+    Payment,
+    SupportedPaymentProvider,
+    FeexPayPaymentIntent,
+} from './types'
+import { FEEXPAY_CHECKOUT_SESSION_KEY } from './types'
+import { formatHistoryProvider, formatHistoryChannel, getHistoryProviderLine } from './helpers'
 
 export default function BillingPage() {
     return (
@@ -917,186 +881,26 @@ function BillingContent() {
 
             <ManualPaymentFallbackCard />
 
-            {isBrowser && showFeexPayModal && createPortal(
-                <div
-                    style={{
-                        position: 'fixed',
-                        inset: 0,
-                        background: 'rgba(2, 6, 23, 0.72)',
-                        backdropFilter: 'blur(4px)',
-                        zIndex: 9999,
-                        display: 'flex',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        padding: 16,
-                    }}
-                >
-                    <div
-                        style={{
-                            width: '100%',
-                            maxWidth: 520,
-                            background: 'rgba(15, 23, 42, 0.98)',
-                            border: '1px solid rgba(148, 163, 184, 0.24)',
-                            borderRadius: 14,
-                            padding: 20,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: 12,
-                        }}
-                    >
-                        <div style={{ color: 'white', fontWeight: 700, fontSize: 17 }}>
-                            Paiement FeexPay
-                        </div>
-                        <div style={{ color: '#94a3b8', fontSize: 13, lineHeight: 1.4 }}>
-                            Choisissez le pays, le reseau et le numero payeur Mobile Money.
-                        </div>
-
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                            <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, color: '#cbd5e1' }}>
-                                Pays
-                                <select
-                                    value={feexPayCountry}
-                                    onChange={(event) => setFeexPayCountry(event.target.value as FeexPayCountryCode)}
-                                    disabled={Boolean(isLoading)}
-                                    style={{
-                                        height: 40,
-                                        borderRadius: 8,
-                                        border: '1px solid rgba(148, 163, 184, 0.25)',
-                                        background: 'rgba(15, 23, 42, 0.85)',
-                                        color: 'white',
-                                        padding: '0 10px',
-                                    }}
-                                >
-                                    {feexPayCountries.map((country) => (
-                                        <option key={country.code} value={country.code}>
-                                            {country.name} (+{country.dialCode})
-                                        </option>
-                                    ))}
-                                </select>
-                            </label>
-
-                            <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, color: '#cbd5e1' }}>
-                                Reseau
-                                <select
-                                    value={feexPayNetwork}
-                                    onChange={(event) => setFeexPayNetwork(event.target.value as FeexPayNetworkCode)}
-                                    disabled={Boolean(isLoading)}
-                                    style={{
-                                        height: 40,
-                                        borderRadius: 8,
-                                        border: '1px solid rgba(148, 163, 184, 0.25)',
-                                        background: 'rgba(15, 23, 42, 0.85)',
-                                        color: 'white',
-                                        padding: '0 10px',
-                                    }}
-                                >
-                                    {feexPayNetworks.map((network) => (
-                                        <option key={network.code} value={network.code}>
-                                            {network.label}
-                                        </option>
-                                    ))}
-                                </select>
-                            </label>
-                        </div>
-
-                        <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, color: '#cbd5e1' }}>
-                            Numero payeur (format international)
-                            <input
-                                type="tel"
-                                value={feexPayPhone}
-                                onChange={(event) => setFeexPayPhone(event.target.value)}
-                                placeholder="+2250700000000"
-                                disabled={Boolean(isLoading)}
-                                style={{
-                                    height: 40,
-                                    borderRadius: 8,
-                                    border: '1px solid rgba(148, 163, 184, 0.25)',
-                                    background: 'rgba(15, 23, 42, 0.85)',
-                                    color: 'white',
-                                    padding: '0 10px',
-                                }}
-                            />
-                        </label>
-
-                        {feexPayNeedsOtp && (
-                            <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, color: '#cbd5e1' }}>
-                                OTP
-                                <input
-                                    type="text"
-                                    value={feexPayOtp}
-                                    onChange={(event) => setFeexPayOtp(event.target.value)}
-                                    placeholder="Code OTP"
-                                    disabled={Boolean(isLoading)}
-                                    style={{
-                                        height: 40,
-                                        borderRadius: 8,
-                                        border: '1px solid rgba(148, 163, 184, 0.25)',
-                                        background: 'rgba(15, 23, 42, 0.85)',
-                                        color: 'white',
-                                        padding: '0 10px',
-                                    }}
-                                />
-                            </label>
-                        )}
-
-                        {selectedFeexPayNetwork && (
-                            <div style={{ fontSize: 12, color: '#94a3b8' }}>
-                                Canal: {selectedFeexPayNetwork.label} ({selectedFeexPayNetwork.supportsHostedRedirect ? 'redirection web' : 'confirmation mobile'})
-                            </div>
-                        )}
-
-                        {feexPayError && (
-                            <div style={{ color: '#f87171', fontSize: 12 }}>
-                                {feexPayError}
-                            </div>
-                        )}
-
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 6 }}>
-                            <button
-                                type="button"
-                                onClick={closeFeexPayModal}
-                                disabled={Boolean(isLoading)}
-                                style={{
-                                    height: 38,
-                                    borderRadius: 8,
-                                    border: '1px solid rgba(148, 163, 184, 0.3)',
-                                    background: 'rgba(51, 65, 85, 0.5)',
-                                    color: 'white',
-                                    padding: '0 14px',
-                                    cursor: 'pointer',
-                                }}
-                            >
-                                {t('FeexPay.cancel')}
-                            </button>
-                            <button
-                                type="button"
-                                onClick={submitFeexPayModal}
-                                disabled={Boolean(isLoading)}
-                                style={{
-                                    height: 38,
-                                    borderRadius: 8,
-                                    border: 'none',
-                                    background: 'linear-gradient(135deg, #10b981, #059669)',
-                                    color: 'white',
-                                    padding: '0 14px',
-                                    cursor: 'pointer',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: 8,
-                                }}
-                            >
-                                {isLoading ? (
-                                    <>
-                                        <Loader2 style={{ width: 14, height: 14, animation: 'spin 1s linear infinite' }} />
-                                        {t('FeexPay.initializing')}
-                                    </>
-                                ) : t('FeexPay.continue')}
-                            </button>
-                        </div>
-                    </div>
-                </div>,
-                document.body
-            )}
+            <FeexPayModal
+                isBrowser={isBrowser}
+                showFeexPayModal={showFeexPayModal}
+                isLoading={isLoading}
+                feexPayCountry={feexPayCountry}
+                setFeexPayCountry={setFeexPayCountry}
+                feexPayCountries={feexPayCountries}
+                feexPayNetwork={feexPayNetwork}
+                setFeexPayNetwork={setFeexPayNetwork}
+                feexPayNetworks={feexPayNetworks}
+                feexPayPhone={feexPayPhone}
+                setFeexPayPhone={setFeexPayPhone}
+                feexPayNeedsOtp={feexPayNeedsOtp}
+                feexPayOtp={feexPayOtp}
+                setFeexPayOtp={setFeexPayOtp}
+                selectedFeexPayNetwork={selectedFeexPayNetwork}
+                feexPayError={feexPayError}
+                closeFeexPayModal={closeFeexPayModal}
+                submitFeexPayModal={submitFeexPayModal}
+            />
 
             {/* Frozen credits banner */}
             {creditsFrozenAt && (
