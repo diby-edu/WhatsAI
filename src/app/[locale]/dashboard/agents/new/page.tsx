@@ -24,7 +24,7 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { useToast } from '@/components/ui/Toast'
 import { GA } from '@/lib/analytics'
-import { Clock, Shield, MapPin, Globe } from 'lucide-react'
+import { Clock, Shield, Globe } from 'lucide-react'
 import {
     type AgentPaymentMode,
     AUTOMATIC_PAYMENT_MODE_DESCRIPTION,
@@ -35,18 +35,14 @@ import {
     MANUAL_PAYMENT_MODE_HINT,
     MANUAL_PAYMENT_MODE_LABEL,
 } from '@/lib/payments/payment-mode-display'
+import type { NewAgentFormData } from './types'
+import { isValidEscalationPhone } from './helpers'
+import { StepMission } from './components/StepMission'
+import { StepInfo } from './components/StepInfo'
+import { StepHours } from './components/StepHours'
+import { StepPersonality } from './components/StepPersonality'
 
 const QR_CONNECTION_ERROR_MESSAGE = 'Le scan a echoue avant la fin de la connexion. Generez un nouveau QR code puis rescanez depuis WhatsApp.'
-
-function isValidEscalationPhone(value: string): boolean {
-    return /^\+\d{6,15}$/.test((value || '').trim())
-}
-
-function sanitizeEscalationPhone(value: string): string {
-    const raw = value || ''
-    const digits = raw.replace(/[^\d]/g, '')
-    return raw.startsWith('+') ? '+' + digits : digits
-}
 
 function normalizePairingPhoneInput(value: string): string | null {
     const trimmed = (value || '').trim()
@@ -149,7 +145,7 @@ export default function NewAgentPage() {
     const [conflictReason, setConflictReason] = useState('')
 
     // Form state
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState<NewAgentFormData>({
         name: '',
         description: '',
         mission: '',
@@ -863,561 +859,35 @@ Regles:
         switch (currentStep) {
             case 0: // TYPE D'AGENT
                 return (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                        {/* Grille unifiée — tous les types d'agents */}
-                        <div>
-                            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 16 }}>
-                                Quel type d&apos;agent souhaitez-vous créer ?
-                            </label>
-                            <div className="agent-grid-3">
-                                {missionTemplates.map((template) => {
-                                    const flagKey = `agent_${template.id}`
-                                    const isEnabled = template.id === 'support_client' || Object.keys(featureFlags).length === 0 || featureFlags[flagKey] !== false
-                                    const isSelected = formData.mission === template.id && agentType === 'conversationnel'
-                                    return (
-                                        <button
-                                            key={template.id}
-                                            type="button"
-                                            onClick={() => {
-                                                if (!isEnabled) return
-                                                setAgentType('conversationnel')
-                                                selectMissionTemplate(template)
-                                            }}
-                                            disabled={!isEnabled}
-                                            style={{
-                                                padding: 16,
-                                                border: `2px solid ${isSelected ? '#10b981' : isEnabled ? 'rgba(148, 163, 184, 0.1)' : 'rgba(148, 163, 184, 0.05)'}`,
-                                                borderRadius: 12,
-                                                textAlign: 'left',
-                                                background: isSelected ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
-                                                cursor: isEnabled ? 'pointer' : 'not-allowed',
-                                                opacity: isEnabled ? 1 : 0.45,
-                                                position: 'relative' as const,
-                                                display: 'flex',
-                                                flexDirection: 'column' as const,
-                                                alignItems: 'flex-start'
-                                            }}
-                                        >
-                                            {!isEnabled && (
-                                                <span style={{ position: 'absolute', top: 8, right: 8, fontSize: 10, fontWeight: 700, color: '#64748b', background: 'rgba(100,116,139,0.15)', padding: '2px 7px', borderRadius: 20, letterSpacing: '0.05em' }}>
-                                                    BIENTÔT
-                                                </span>
-                                            )}
-                                            <h3 style={{ fontWeight: 600, color: isEnabled ? 'white' : '#64748b', marginBottom: 4, marginTop: 0 }}>{template.title}</h3>
-                                            <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>{template.description}</p>
-                                        </button>
-                                    )
-                                })}
-
-                                {/* Canal Notification API */}
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        if (!apiAccessEnabled) return
-                                        setAgentType('api')
-                                        setFormData(prev => ({
-                                            ...prev,
-                                            mission: 'ecommerce',
-                                            ecommerce_mode: 'external_sync',
-                                            systemPrompt: getMissionPrompt('ecommerce', 'external_sync')
-                                        }))
-                                    }}
-                                    disabled={!apiAccessEnabled}
-                                    style={{
-                                        padding: 16,
-                                        border: `2px solid ${!apiAccessEnabled ? 'rgba(148, 163, 184, 0.05)' : agentType === 'api' ? '#0ea5e9' : 'rgba(148, 163, 184, 0.1)'}`,
-                                        borderRadius: 12,
-                                        textAlign: 'left',
-                                        background: !apiAccessEnabled ? 'rgba(255,255,255,0.02)' : agentType === 'api' ? 'rgba(14, 165, 233, 0.12)' : 'transparent',
-                                        cursor: apiAccessEnabled ? 'pointer' : 'not-allowed',
-                                        opacity: apiAccessEnabled ? 1 : 0.45,
-                                        position: 'relative' as const,
-                                        display: 'flex',
-                                        flexDirection: 'column' as const,
-                                        alignItems: 'flex-start'
-                                    }}
-                                >
-                                    <span style={{ position: 'absolute', top: 8, right: 8, fontSize: 10, fontWeight: 700, color: '#f59e0b', background: 'rgba(245,158,11,0.1)', padding: '2px 7px', borderRadius: 20, letterSpacing: '0.05em' }}>
-                                        API
-                                    </span>
-                                    <h3 style={{ fontWeight: 600, color: apiAccessEnabled ? 'white' : '#64748b', marginBottom: 4, marginTop: 0 }}>Canal Notification API</h3>
-                                    <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>
-                                        Connectez Shopify, WooCommerce ou autre plateforme pour envoyer confirmations et mises à jour via WhatsApp.
-                                    </p>
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Champs inline — agent API */}
-                        {agentType === 'api' && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                                <div style={{ padding: 14, background: 'rgba(14, 165, 233, 0.08)', border: '1px solid rgba(14, 165, 233, 0.25)', borderRadius: 12, color: '#bae6fd', fontSize: 13, lineHeight: 1.6 }}>
-                                    Votre agent servira uniquement de canal de notification WhatsApp. Les commandes et paiements restent gérés sur votre plateforme (Chariow, Shopify, WooCommerce...).
-                                </div>
-                                <div>
-                                    <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                        Nom de l&apos;agent *
-                                    </label>
-                                    <input type="text" value={formData.name} onChange={(e) => updateFormData('name', e.target.value)} placeholder="Ex: Boutique Chez Marie" style={inputStyle} />
-                                </div>
-                                <div>
-                                    <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                        Numéro d&apos;escalade / SAV * <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 400 }}>(format : +225XXXXXXXXX)</span>
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={formData.escalation_phone}
-                                        onChange={(e) => updateFormData('escalation_phone', sanitizeEscalationPhone(e.target.value))}
-                                        placeholder="+2250701010101"
-                                        style={{ ...inputStyle, border: formData.escalation_phone && !isValidEscalationPhone(formData.escalation_phone) ? '1px solid #f87171' : inputStyle.border }}
-                                    />
-                                    {formData.escalation_phone && !isValidEscalationPhone(formData.escalation_phone) && (
-                                        <p style={{ fontSize: 11, color: '#f87171', marginTop: 4 }}>Format invalide. Exemple : +2250701010101 (+ indicatif + numéro, chiffres uniquement)</p>
-                                    )}
-                                </div>
-                                <div>
-                                    <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                        Message de redirection * <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 400 }}>(envoyé quand un client vous répond)</span>
-                                    </label>
-                                    <textarea
-                                        value={formData.external_sync_reply_message}
-                                        onChange={(e) => updateFormData('external_sync_reply_message', e.target.value)}
-                                        placeholder={`Merci pour votre message. Pour toute assistance, contactez notre équipe au ${formData.escalation_phone || '+225XXXXXXXXX'}.`}
-                                        rows={4}
-                                        style={{ ...inputStyle, resize: 'vertical' as const }}
-                                    />
-                                </div>
-                            </div>
-                        )}
-
-                        {formData.mission && agentType === 'conversationnel' && (
-                            <div style={{
-                                padding: 16,
-                                background: 'rgba(16, 185, 129, 0.05)',
-                                border: '1px solid rgba(16, 185, 129, 0.2)',
-                                borderRadius: 12,
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 12
-                            }}>
-                                <Shield size={20} color="#34d399" />
-                                <div>
-                                    <h4 style={{ color: '#34d399', fontWeight: 600, fontSize: 14 }}>Mode Sécurisé Activé</h4>
-                                    <p style={{ color: '#94a3b8', fontSize: 13 }}>
-                                        L&apos;IA est maintenant configurée pour suivre strictement le scénario <strong>{missionTemplates.find(tmpl => tmpl.id === formData.mission)?.title}</strong>.
-                                    </p>
-                                </div>
-                            </div>
-                        )}
-
-                        {isSupportClient && (
-                            <div>
-                                <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                    Contexte supplémentaire (optionnel)
-                                </label>
-                                <textarea
-                                    value={formData.agent_context}
-                                    onChange={(e) => updateFormData('agent_context', e.target.value)}
-                                    placeholder="Informations complémentaires sur votre activité, produits ou politiques que l'IA doit connaître..."
-                                    rows={4}
-                                    style={{
-                                        width: '100%',
-                                        padding: 16,
-                                        borderRadius: 12,
-                                        border: '1px solid rgba(99, 102, 241, 0.3)',
-                                        background: 'rgba(99, 102, 241, 0.05)',
-                                        color: 'white',
-                                        outline: 'none',
-                                        resize: 'vertical',
-                                        fontFamily: 'inherit',
-                                        fontSize: 13,
-                                        lineHeight: 1.6,
-                                    }}
-                                />
-                                <p style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
-                                    Ce contexte est injecté dans chaque réponse du mode Support Client.
-                                </p>
-                            </div>
-                        )}
-                        {isSupportClient && (
-                            <div>
-                                <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                    Message d&apos;accueil (optionnel)
-                                </label>
-                                <textarea
-                                    value={formData.welcome_message}
-                                    onChange={(e) => updateFormData('welcome_message', e.target.value)}
-                                    placeholder="Ex: Je peux vous renseigner sur nos formations, les tarifs et le processus d'inscription."
-                                    rows={3}
-                                    style={{
-                                        width: '100%',
-                                        padding: 16,
-                                        borderRadius: 12,
-                                        border: '1px solid rgba(16, 185, 129, 0.3)',
-                                        background: 'rgba(16, 185, 129, 0.05)',
-                                        color: 'white',
-                                        outline: 'none',
-                                        resize: 'vertical',
-                                        fontFamily: 'inherit',
-                                        fontSize: 13,
-                                        lineHeight: 1.6,
-                                    }}
-                                />
-                                <p style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
-                                    Affiché après le nom de l&apos;agent lors du premier message.
-                                </p>
-                            </div>
-                        )}
-                        {isSupportClient && (
-                            <div>
-                                <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                    Message de redirection (optionnel)
-                                </label>
-                                <input
-                                    type="text"
-                                    value={formData.fallback_contact_message}
-                                    onChange={(e) => updateFormData('fallback_contact_message', e.target.value)}
-                                    placeholder="Ex: Pour plus de détails, appelez le +225 07 00 00 00 ou visitez notre site."
-                                    style={{ width: '100%', background: '#1e293b', border: '1px solid #334155', padding: 12, borderRadius: 12, color: 'white', outline: 'none', fontSize: 14 }}
-                                />
-                                <p style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
-                                    Phrase ajoutée automatiquement quand l&apos;agent n&apos;a pas l&apos;information. Laissez vide pour un comportement par défaut.
-                                </p>
-                            </div>
-                        )}
-                    </div>
+                    <StepMission
+                        missionTemplates={missionTemplates}
+                        featureFlags={featureFlags}
+                        formData={formData}
+                        setFormData={setFormData}
+                        updateFormData={updateFormData}
+                        agentType={agentType}
+                        setAgentType={setAgentType}
+                        selectMissionTemplate={selectMissionTemplate}
+                        apiAccessEnabled={apiAccessEnabled}
+                        getMissionPrompt={getMissionPrompt}
+                        isSupportClient={isSupportClient}
+                        inputStyle={inputStyle}
+                    />
                 )
 
             case 1: // INFO
                 return (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                        {isExternalSync && (
-                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px', background: 'rgba(14, 165, 233, 0.08)', border: '1px solid rgba(14, 165, 233, 0.2)', borderRadius: 10, fontSize: 13, color: '#bae6fd' }}>
-                                <span>ℹ️</span>
-                                <span>Définissez ici l&apos;identité de votre agent. Il servira de canal de notification WhatsApp pour votre plateforme.</span>
-                            </div>
-                        )}
-                        {isSupportClient && (
-                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px', background: 'rgba(99, 102, 241, 0.08)', border: '1px solid rgba(99, 102, 241, 0.2)', borderRadius: 10, fontSize: 13, color: '#a5b4fc' }}>
-                                <span>ℹ️</span>
-                                <span>En mode Support Client, la description et l'adresse s'activent automatiquement si vous ajoutez des produits à cet agent.</span>
-                            </div>
-                        )}
-                        <div>
-                            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                {t('Form.name.label')} *
-                            </label>
-                            <input
-                                type="text"
-                                value={formData.name}
-                                onChange={(e) => updateFormData('name', e.target.value)}
-                                placeholder={t('Form.name.placeholder')}
-                                style={inputStyle}
-                            />
-                        </div>
-
-                        {!isExternalSync && (
-                        <div>
-                            <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                {t('Form.description.label')}
-                                <button
-                                    type="button"
-                                    onClick={handleGenerate}
-                                    disabled={generating}
-                                    style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 6,
-                                        fontSize: 12,
-                                        color: '#10b981',
-                                        background: 'rgba(16, 185, 129, 0.1)',
-                                        padding: '4px 8px',
-                                        borderRadius: 6,
-                                        border: '1px solid rgba(16, 185, 129, 0.2)',
-                                        cursor: 'pointer'
-                                    }}
-                                >
-                                    {generating ? <Loader2 className="animate-spin" size={12} /> : <Sparkles size={12} />}
-                                    Générer (1 crédit)
-                                </button>
-                            </label>
-                            <textarea
-                                value={formData.description}
-                                onChange={(e) => updateFormData('description', e.target.value)}
-                                placeholder={t('Form.description.placeholder')}
-                                rows={3}
-                                style={{ ...inputStyle, resize: 'none' }}
-                            />
-                            <div style={{ marginTop: 8, fontSize: 12, color: '#94a3b8', background: 'rgba(30, 41, 59, 0.3)', padding: 12, borderRadius: 8 }}>
-                                <p style={{ fontWeight: 600, marginBottom: 4 }}>Dites-moi qui je suis ! Exemples :</p>
-                                <ul style={{ listStyle: 'disc', paddingLeft: 16, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                                    <li>"Assistant chaleureux pour une pizzeria, je tutoie les clients et je propose toujours le supplément fromage."</li>
-                                    <li>"Réceptionniste d'hôtel de luxe, poli et distingué, je demande toujours les dates de séjour."</li>
-                                    <li>"Vendeur expert en smartphone, technique mais accessible, je pousse à l'achat."</li>
-                                </ul>
-                            </div>
-                        </div>
-                        )}
-
-                        {/* Toggle boutique en ligne */}
-                        {!isExternalSync && <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: 'rgba(99, 102, 241, 0.08)', border: '1px solid rgba(99, 102, 241, 0.2)', borderRadius: 10 }}>
-                            <input
-                                type="checkbox"
-                                id="is_online_only"
-                                checked={formData.is_online_only}
-                                onChange={(e) => updateFormData('is_online_only', e.target.checked)}
-                                style={{ width: 16, height: 16, cursor: 'pointer', accentColor: '#818cf8' }}
-                            />
-                            <label htmlFor="is_online_only" style={{ cursor: 'pointer', color: '#e2e8f0', fontSize: 14 }}>
-                                Boutique 100% en ligne (pas d'adresse physique)
-                                <span style={{ display: 'block', fontSize: 11, color: '#64748b', marginTop: 2 }}>L'IA ne mentionnera jamais d'adresse physique.</span>
-                            </label>
-                        </div>}
-
-                        {/* NEW FIELDS: Address & Contact */}
-                        {!isExternalSync && <div style={{ display: formData.is_online_only ? 'none' : undefined }}>
-                            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                Adresse Physique
-                            </label>
-                            <div style={{ position: 'relative' }}>
-                                <input
-                                    type="text"
-                                    value={formData.business_address}
-                                    onChange={(e) => updateFormData('business_address', e.target.value)}
-                                    placeholder="Ex: Abidjan, Cocody..."
-                                    style={inputStyle}
-                                />
-                                <MapPin size={16} style={{ position: 'absolute', right: 12, top: 12, color: '#94a3b8' }} />
-                            </div>
-                        </div>}
-
-                        {!isExternalSync && <div className="agent-grid-2" style={{ display: formData.is_online_only ? 'none' : undefined }}>
-                            <div>
-                                <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                    Latitude
-                                </label>
-                                <input
-                                    type="number"
-                                    value={formData.latitude}
-                                    onChange={(e) => updateFormData('latitude', e.target.value)}
-                                    placeholder="0.0000"
-                                    style={inputStyle}
-                                />
-                            </div>
-                            <div>
-                                <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                    Longitude
-                                    <span onClick={getLocation} style={{ color: '#10b981', cursor: 'pointer', fontSize: 12 }}>Ma position</span>
-                                </label>
-                                <input
-                                    type="number"
-                                    value={formData.longitude}
-                                    onChange={(e) => updateFormData('longitude', e.target.value)}
-                                    placeholder="0.0000"
-                                    style={inputStyle}
-                                />
-                            </div>
-                        </div>}
-
-                        <div className="agent-grid-2">
-                            <div>
-                                <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                    Numéro d'Escalade / SAV * <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 400 }}>(+indicatif)</span>
-                                </label>
-                                <input
-                                    type="text"
-                                    value={formData.escalation_phone}
-                                    onChange={(e) => updateFormData('escalation_phone', e.target.value)}
-                                    placeholder="+2250701010101"
-                                    style={{
-                                        ...inputStyle,
-                                        border: !isValidEscalationPhone(formData.escalation_phone) ? '1px solid #f87171' : inputStyle.border
-                                    }}
-                                />
-                                <p style={{ fontSize: 11, color: '#f87171', marginTop: 4 }}>
-                                    {!isValidEscalationPhone(formData.escalation_phone) ? 'Format : +225XXXXXXXXX (+ indicatif obligatoire, chiffres uniquement)' : ''}
-                                </p>
-                            </div>
-                            {!isExternalSync && (
-                            <div>
-                                <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                    Site Web
-                                </label>
-                                <input
-                                    type="text"
-                                    value={formData.site_url}
-                                    onChange={(e) => updateFormData('site_url', e.target.value)}
-                                    placeholder="https://"
-                                    style={inputStyle}
-                                />
-                            </div>
-                            )}
-                        </div>
-                    </div>
+                    <StepInfo t={t} formData={formData} updateFormData={updateFormData} inputStyle={inputStyle} isExternalSync={isExternalSync} isSupportClient={isSupportClient} generating={generating} handleGenerate={handleGenerate} getLocation={getLocation} />
                 )
 
             case 2: // HOURS
-                const set24_7 = () => {
-                    const allOpen: typeof formData.business_hours = {
-                        monday: { open: '00:00', close: '23:59', closed: false },
-                        tuesday: { open: '00:00', close: '23:59', closed: false },
-                        wednesday: { open: '00:00', close: '23:59', closed: false },
-                        thursday: { open: '00:00', close: '23:59', closed: false },
-                        friday: { open: '00:00', close: '23:59', closed: false },
-                        saturday: { open: '00:00', close: '23:59', closed: false },
-                        sunday: { open: '00:00', close: '23:59', closed: false }
-                    }
-                    setFormData({ ...formData, business_hours: allOpen })
-                }
-
                 return (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                        {/* Notice Support Client */}
-                        {isSupportClient && (
-                            <div style={{ padding: 14, background: 'rgba(99, 102, 241, 0.1)', border: '1px solid rgba(99, 102, 241, 0.3)', borderRadius: 12, fontSize: 13, color: '#a5b4fc' }}>
-                                ℹ️ Les horaires ne s'appliquent pas au mode Support Client. Vous pouvez ignorer cette étape.
-                            </div>
-                        )}
-                        {/* 24/7 Quick Toggle */}
-                        <div className="agent-hours-banner" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 16, background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: 12, marginBottom: 8 }}>
-                            <div>
-                                <span style={{ fontWeight: 600, color: '#10b981' }}>🌐 Ouvert 24h/24, 7j/7</span>
-                                <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>Service disponible en permanence</p>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={set24_7}
-                                style={{
-                                    padding: '8px 16px',
-                                    background: '#10b981',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: 8,
-                                    fontWeight: 600,
-                                    cursor: 'pointer'
-                                }}
-                            >
-                                Appliquer
-                            </button>
-                        </div>
-
-                        {Object.entries(formData.business_hours).map(([day, hours]) => (
-                            <div className="agent-hours-row" key={day} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 12, background: 'rgba(30, 41, 59, 0.3)', borderRadius: 8 }}>
-                                <span className="agent-hours-day" style={{ textTransform: 'capitalize', color: 'white', width: 100 }}>{t(`WeekDays.${day}`)}</span>
-                                <div className="agent-hours-controls" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                    <input
-                                        type="checkbox"
-                                        checked={!hours.closed}
-                                        onChange={e => setFormData({
-                                            ...formData,
-                                            business_hours: { ...formData.business_hours, [day]: { ...hours, closed: !e.target.checked } }
-                                        })}
-                                        style={{ accentColor: '#10b981', width: 16, height: 16 }}
-                                    />
-                                    {!hours.closed ? (
-                                        <>
-                                            <input
-                                                type="time"
-                                                value={hours.open}
-                                                onChange={e => setFormData({
-                                                    ...formData,
-                                                    business_hours: { ...formData.business_hours, [day]: { ...hours, open: e.target.value } }
-                                                })}
-                                                className="agent-hours-time"
-                                                style={{ ...inputStyle, padding: '4px 8px', width: 100 }}
-                                            />
-                                            <span style={{ color: '#94a3b8' }}>-</span>
-                                            <input
-                                                type="time"
-                                                value={hours.close}
-                                                onChange={e => setFormData({
-                                                    ...formData,
-                                                    business_hours: { ...formData.business_hours, [day]: { ...hours, close: e.target.value } }
-                                                })}
-                                                className="agent-hours-time"
-                                                style={{ ...inputStyle, padding: '4px 8px', width: 100 }}
-                                            />
-                                        </>
-                                    ) : (
-                                        <span className="agent-hours-closed" style={{ color: '#64748b', fontStyle: 'italic', width: 216, textAlign: 'center' }}>Fermé</span>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+                    <StepHours t={t} formData={formData} setFormData={setFormData} isSupportClient={isSupportClient} inputStyle={inputStyle} />
                 )
-
 
             case 3: // PERSONALITY
                 return (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                        {!isSupportClient && (
-                            <>
-                                <div>
-                                    <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 16 }}>
-                                        {t('Form.personality.label')}
-                                    </label>
-                                    <div className="agent-grid-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
-                                        {personalities.map((p) => (
-                                            <button
-                                                key={p.id}
-                                                onClick={() => updateFormData('personality', p.id)}
-                                                style={{
-                                                    padding: 20,
-                                                    border: `2px solid ${formData.personality === p.id ? '#10b981' : 'rgba(148, 163, 184, 0.1)'}`,
-                                                    borderRadius: 12,
-                                                    textAlign: 'center',
-                                                    background: formData.personality === p.id ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
-                                                    cursor: 'pointer'
-                                                }}
-                                            >
-                                                <div style={{ fontSize: 32, marginBottom: 8 }}>{p.emoji}</div>
-                                                <h3 style={{ fontWeight: 600, color: 'white' }}>{p.name}</h3>
-                                                <p style={{ fontSize: 12, color: '#64748b' }}>{p.description}</p>
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <div style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'space-between',
-                                    padding: 16,
-                                    border: '1px solid rgba(148, 163, 184, 0.1)',
-                                    borderRadius: 12
-                                }}>
-                                    <div>
-                                        <h3 style={{ fontWeight: 500, color: 'white' }}>{t('Form.personality.emojis')}</h3>
-                                        <p style={{ fontSize: 13, color: '#64748b' }}>{t('Form.personality.emojisHint')}</p>
-                                    </div>
-                                    <button
-                                        onClick={() => updateFormData('useEmojis', !formData.useEmojis)}
-                                        style={{
-                                            width: 48,
-                                            height: 28,
-                                            borderRadius: 14,
-                                            background: formData.useEmojis ? '#10b981' : '#334155',
-                                            border: 'none',
-                                            cursor: 'pointer',
-                                            position: 'relative'
-                                        }}
-                                    >
-                                        <div style={{
-                                            width: 22,
-                                            height: 22,
-                                            borderRadius: '50%',
-                                            background: 'white',
-                                            position: 'absolute',
-                                            top: 3,
-                                            left: formData.useEmojis ? 23 : 3,
-                                            transition: 'left 0.2s'
-                                        }} />
-                                    </button>
-                                </div>
-                            </>
-                        )}
-                    </div>
+                    <StepPersonality t={t} formData={formData} updateFormData={updateFormData} isSupportClient={isSupportClient} personalities={personalities} />
                 )
 
             case 4: // RULES
