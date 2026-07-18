@@ -11,23 +11,17 @@ import {
     Shield,
     AlertTriangle,
     Loader2,
-    Check,
-    Lock,
-    Eye,
-    EyeOff,
-    Trash2,
-    Fingerprint,
-    Gift,
-    Copy,
-    Star
+    Gift
 } from 'lucide-react'
 import { useBiometricAuth } from '@/hooks/useBiometricAuth'
 import { useTranslations } from 'next-intl'
 import { useCurrency } from '@/contexts/CurrencyContext'
 import { useToast } from '@/components/ui/Toast'
-import { InputField, ToggleOption, SaveButton } from './components/fields'
 import { ProfileTab } from './components/ProfileTab'
 import { NotificationsTab } from './components/NotificationsTab'
+import { SecurityTab } from './components/SecurityTab'
+import { ReferralTab } from './components/ReferralTab'
+import { DangerTab } from './components/DangerTab'
 import type { Profile, NotificationSettings } from './types'
 
 export default function SettingsPage() {
@@ -520,350 +514,39 @@ export default function SettingsPage() {
 
                         {/* Security Tab */}
                         {activeTab === 'security' && (
-                            <motion.div
-                                key="security"
-                                initial={{ opacity: 0, x: 20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: -20 }}
-                            >
-                                <h2 style={{ fontSize: 20, fontWeight: 600, color: 'white', marginBottom: 24 }}>
-                                    {t('Security.title')}
-                                </h2>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                                    <h3 style={{ color: '#94a3b8', fontSize: 14, fontWeight: 500 }}>{t('Security.changePassword')}</h3>
-                                    <InputField
-                                        label={t('Security.form.current')}
-                                        icon={Lock}
-                                        type={showPassword ? 'text' : 'password'}
-                                        value={passwords.current}
-                                        onChange={(v) => setPasswords({ ...passwords, current: v })}
-                                        placeholder="••••••••"
-                                        autoComplete="current-password"
-                                        suffix={
-                                            <button
-                                                onClick={() => setShowPassword(!showPassword)}
-                                                style={{ background: 'none', border: 'none', cursor: 'pointer' }}
-                                            >
-                                                {showPassword ?
-                                                    <EyeOff style={{ width: 18, height: 18, color: '#64748b' }} /> :
-                                                    <Eye style={{ width: 18, height: 18, color: '#64748b' }} />
-                                                }
-                                            </button>
-                                        }
-                                    />
-                                    <InputField
-                                        label={t('Security.form.new')}
-                                        icon={Lock}
-                                        type={showPassword ? 'text' : 'password'}
-                                        value={passwords.new}
-                                        onChange={(v) => setPasswords({ ...passwords, new: v })}
-                                        placeholder="••••••••"
-                                        autoComplete="new-password"
-                                    />
-                                    <InputField
-                                        label={t('Security.form.confirm')}
-                                        icon={Lock}
-                                        type={showPassword ? 'text' : 'password'}
-                                        value={passwords.confirm}
-                                        onChange={(v) => setPasswords({ ...passwords, confirm: v })}
-                                        placeholder="••••••••"
-                                        autoComplete="new-password"
-                                    />
-                                </div>
-                                <SaveButton
-                                    saving={saving}
-                                    saved={saved}
-                                    onClick={handleChangePassword}
-                                    label={t('Security.update')}
-                                    messages={{ save: t('Profile.save'), saving: t('Profile.saving'), saved: t('Profile.saved') }}
-                                />
-
-                                {/* Biometric Authentication - Only show on mobile */}
-                                {biometricAvailable && (
-                                    <div style={{ marginTop: 32 }}>
-                                        <h3 style={{ color: '#94a3b8', fontSize: 14, fontWeight: 500, marginBottom: 16 }}>
-                                            Authentification biométrique
-                                        </h3>
-                                        <div style={{
-                                            background: 'rgba(30, 41, 59, 0.5)',
-                                            border: '1px solid rgba(148, 163, 184, 0.1)',
-                                            borderRadius: 12,
-                                            padding: 20
-                                        }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                                    <div style={{
-                                                        width: 44,
-                                                        height: 44,
-                                                        borderRadius: 12,
-                                                        background: biometricEnabled ? 'rgba(16, 185, 129, 0.15)' : 'rgba(148, 163, 184, 0.1)',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center'
-                                                    }}>
-                                                        <Fingerprint style={{
-                                                            width: 24,
-                                                            height: 24,
-                                                            color: biometricEnabled ? '#10b981' : '#64748b'
-                                                        }} />
-                                                    </div>
-                                                    <div>
-                                                        <div style={{ fontWeight: 600, color: 'white', marginBottom: 2 }}>
-                                                            {getBiometricLabel()}
-                                                        </div>
-                                                        <div style={{ fontSize: 13, color: '#64748b' }}>
-                                                            {biometricEnabled
-                                                                ? 'Activé - Déverrouillage rapide'
-                                                                : 'Désactivé - Activer pour plus de sécurité'}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <button
-                                                    onClick={async () => {
-                                                        if (biometricEnabled) {
-                                                            disableBiometric()
-                                                        } else {
-                                                            setEnablingBiometric(true)
-                                                            await enableBiometric()
-                                                            setEnablingBiometric(false)
-                                                        }
-                                                    }}
-                                                    disabled={enablingBiometric || biometricLoading}
-                                                    style={{
-                                                        width: 52,
-                                                        height: 28,
-                                                        borderRadius: 14,
-                                                        border: 'none',
-                                                        cursor: 'pointer',
-                                                        position: 'relative',
-                                                        background: biometricEnabled
-                                                            ? 'linear-gradient(135deg, #10b981, #059669)'
-                                                            : 'rgba(100, 116, 139, 0.3)',
-                                                        transition: 'all 0.3s ease'
-                                                    }}
-                                                >
-                                                    <div style={{
-                                                        position: 'absolute',
-                                                        top: 2,
-                                                        left: biometricEnabled ? 26 : 2,
-                                                        width: 24,
-                                                        height: 24,
-                                                        borderRadius: 12,
-                                                        background: 'white',
-                                                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                                                        transition: 'left 0.3s ease'
-                                                    }} />
-                                                </button>
-                                            </div>
-                                            {biometricEnabled && (
-                                                <div style={{
-                                                    marginTop: 16,
-                                                    padding: '12px 16px',
-                                                    background: 'rgba(16, 185, 129, 0.1)',
-                                                    borderRadius: 8,
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: 10
-                                                }}>
-                                                    <Check style={{ width: 16, height: 16, color: '#10b981' }} />
-                                                    <span style={{ fontSize: 13, color: '#10b981' }}>
-                                                        L'app sera verrouillée à chaque ouverture
-                                                    </span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                )}
-                            </motion.div>
+                            <SecurityTab
+                                t={t}
+                                showPassword={showPassword}
+                                setShowPassword={setShowPassword}
+                                passwords={passwords}
+                                setPasswords={setPasswords}
+                                saving={saving}
+                                saved={saved}
+                                handleChangePassword={handleChangePassword}
+                                biometricAvailable={biometricAvailable}
+                                biometricEnabled={biometricEnabled}
+                                disableBiometric={disableBiometric}
+                                enableBiometric={enableBiometric}
+                                setEnablingBiometric={setEnablingBiometric}
+                                enablingBiometric={enablingBiometric}
+                                biometricLoading={biometricLoading}
+                                getBiometricLabel={getBiometricLabel}
+                            />
                         )}
 
                         {/* Referral Tab */}
                         {activeTab === 'referral' && (
-                            <motion.div
-                                key="referral"
-                                initial={{ opacity: 0, x: 20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: -20 }}
-                            >
-                                <h2 style={{ fontSize: 20, fontWeight: 600, color: 'white', marginBottom: 24 }}>Parrainage</h2>
-
-                                {referralLoading ? (
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 0' }}>
-                                        <Loader2 style={{ width: 24, height: 24, color: '#34d399' }} className="animate-spin" />
-                                    </div>
-                                ) : referralData ? (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-
-                                        {/* Bonus info */}
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: -4 }}>
-                                            <Gift style={{ width: 20, height: 20, color: '#34d399' }} />
-                                            <h3 style={{ color: '#94a3b8', fontSize: 14, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, margin: 0 }}>
-                                                Programme de parrainage
-                                            </h3>
-                                        </div>
-                                        <div style={{
-                                            background: 'rgba(16, 185, 129, 0.08)',
-                                            border: '1px solid rgba(16, 185, 129, 0.2)',
-                                            borderRadius: 12,
-                                            padding: '14px 16px',
-                                            display: 'flex',
-                                            alignItems: 'flex-start',
-                                            gap: 12
-                                        }}>
-                                            <div>
-                                                <p style={{ color: '#6ee7b7', fontWeight: 500, fontSize: 14, margin: 0, marginBottom: 4 }}>+10 crédits pour vous et votre filleul</p>
-                                                <p style={{ color: '#94a3b8', fontSize: 12, margin: 0 }}>Les crédits sont offerts après le premier paiement validé de votre filleul.</p>
-                                            </div>
-                                        </div>
-
-                                        {/* Referral link */}
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: -4 }}>
-                                            <h3 style={{ color: '#94a3b8', fontSize: 14, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, margin: 0 }}>
-                                                Votre lien de parrainage
-                                            </h3>
-                                        </div>
-                                        <div>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                                                <div style={{
-                                                    flex: 1,
-                                                    background: 'rgba(15, 23, 42, 0.8)',
-                                                    border: '1px solid rgba(148, 163, 184, 0.15)',
-                                                    borderRadius: 8,
-                                                    padding: '10px 12px',
-                                                    fontSize: 13,
-                                                    color: '#cbd5e1',
-                                                    fontFamily: 'monospace',
-                                                    overflow: 'hidden',
-                                                    textOverflow: 'ellipsis',
-                                                    whiteSpace: 'nowrap'
-                                                }}>
-                                                    {`${typeof window !== 'undefined' ? window.location.origin : ''}/fr/register?ref=${referralData.referral_code}`}
-                                                </div>
-                                                <button
-                                                    onClick={handleCopyReferralLink}
-                                                    style={{
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: 8,
-                                                        padding: '10px 16px',
-                                                        background: copiedRef ? 'rgba(16, 185, 129, 0.2)' : 'rgba(51, 65, 85, 0.5)',
-                                                        border: `1px solid ${copiedRef ? 'rgba(16, 185, 129, 0.3)' : 'rgba(148, 163, 184, 0.2)'}`,
-                                                        borderRadius: 8,
-                                                        color: copiedRef ? '#34d399' : '#94a3b8',
-                                                        fontSize: 13,
-                                                        cursor: 'pointer',
-                                                        flexShrink: 0,
-                                                        transition: 'all 0.2s'
-                                                    }}
-                                                >
-                                                    {copiedRef ? <Check style={{ width: 16, height: 16 }} /> : <Copy style={{ width: 16, height: 16 }} />}
-                                                    {copiedRef ? 'Copié' : 'Copier'}
-                                                </button>
-                                            </div>
-                                            <p style={{ color: '#64748b', fontSize: 12, margin: 0 }}>
-                                                Code : <span style={{ color: '#cbd5e1', fontFamily: 'monospace', fontWeight: 600 }}>{referralData.referral_code}</span>
-                                            </p>
-                                        </div>
-
-                                        {/* Stats */}
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: -4 }}>
-                                            <h3 style={{ color: '#94a3b8', fontSize: 14, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, margin: 0 }}>
-                                                Statistiques
-                                            </h3>
-                                        </div>
-                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 12 }}>
-                                            <div style={{
-                                                border: '1px solid rgba(148, 163, 184, 0.1)',
-                                                borderRadius: 12,
-                                                padding: 16,
-                                                textAlign: 'center'
-                                            }}>
-                                                <p style={{ fontSize: 28, fontWeight: 700, color: 'white', marginBottom: 4 }}>{referralData.total_referrals}</p>
-                                                <p style={{ color: '#94a3b8', fontSize: 12, margin: 0 }}>Filleuls invités</p>
-                                            </div>
-                                            <div style={{
-                                                border: '1px solid rgba(148, 163, 184, 0.1)',
-                                                borderRadius: 12,
-                                                padding: 16,
-                                                textAlign: 'center'
-                                            }}>
-                                                <p style={{ fontSize: 28, fontWeight: 700, color: '#34d399', marginBottom: 4 }}>{referralData.confirmed}</p>
-                                                <p style={{ color: '#94a3b8', fontSize: 12, margin: 0 }}>Confirmés</p>
-                                            </div>
-                                            <div style={{
-                                                border: '1px solid rgba(148, 163, 184, 0.1)',
-                                                borderRadius: 12,
-                                                padding: 16,
-                                                textAlign: 'center'
-                                            }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, marginBottom: 4 }}>
-                                                    <Star style={{ width: 16, height: 16, color: '#fbbf24' }} />
-                                                    <p style={{ fontSize: 28, fontWeight: 700, color: '#fbbf24', margin: 0 }}>{referralData.credits_earned}</p>
-                                                </div>
-                                                <p style={{ color: '#94a3b8', fontSize: 12, margin: 0 }}>Crédits gagnés</p>
-                                            </div>
-                                        </div>
-
-                                        {referralData.pending > 0 && (
-                                            <p style={{ color: '#64748b', fontSize: 12, textAlign: 'center', margin: 0 }}>
-                                                {referralData.pending} parrainage{referralData.pending > 1 ? 's' : ''} en attente de premier paiement
-                                            </p>
-                                        )}
-                                    </div>
-                                ) : (
-                                    <div style={{ textAlign: 'center', padding: '48px 0', color: '#64748b', fontSize: 14 }}>
-                                        Impossible de charger les données de parrainage.
-                                    </div>
-                                )}
-                            </motion.div>
+                            <ReferralTab
+                                referralLoading={referralLoading}
+                                referralData={referralData}
+                                handleCopyReferralLink={handleCopyReferralLink}
+                                copiedRef={copiedRef}
+                            />
                         )}
 
                         {/* Danger Zone Tab */}
                         {activeTab === 'danger' && (
-                            <motion.div
-                                key="danger"
-                                initial={{ opacity: 0, x: 20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: -20 }}
-                            >
-                                <h2 style={{ fontSize: 20, fontWeight: 600, color: '#f87171', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 10 }}>
-                                    <AlertTriangle style={{ width: 24, height: 24 }} />
-                                    {t('Danger.title')}
-                                </h2>
-                                <div style={{
-                                    background: 'rgba(239, 68, 68, 0.1)',
-                                    border: '1px solid rgba(239, 68, 68, 0.2)',
-                                    borderRadius: 12,
-                                    padding: 24
-                                }}>
-                                    <h3 style={{ color: 'white', fontWeight: 600, marginBottom: 8 }}>{t('Danger.deleteAccount.title')}</h3>
-                                    <p style={{ color: '#94a3b8', fontSize: 14, marginBottom: 16 }}>
-                                        {t('Danger.deleteAccount.description')}
-                                    </p>
-                                    <button
-                                        style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: 8,
-                                            padding: '12px 20px',
-                                            background: 'rgba(239, 68, 68, 0.2)',
-                                            border: '1px solid rgba(239, 68, 68, 0.4)',
-                                            borderRadius: 10,
-                                            color: '#f87171',
-                                            fontWeight: 600,
-                                            cursor: 'pointer',
-                                            transition: 'all 0.2s'
-                                        }}
-                                        onClick={async () => {
-                                            const ok = await toast.confirm({ title: t('Danger.deleteAccount.confirm'), confirmLabel: 'Supprimer', danger: true })
-                                            if (ok) toast.info(t('Danger.deleteAccount.support'))
-                                        }}
-                                    >
-                                        <Trash2 style={{ width: 18, height: 18 }} />
-                                        {t('Danger.deleteAccount.button')}
-                                    </button>
-                                </div>
-                            </motion.div>
+                            <DangerTab t={t} toast={toast} />
                         )}
                     </AnimatePresence>
                 </div>
