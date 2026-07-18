@@ -4,7 +4,8 @@ import { checkPaymentStatus, checkPaymentStatusV2Runtime, verifyWebhookSignature
 import { isCinetPayV2WebhookPayload } from '@/lib/payments/cinetpay-v2'
 import { notify } from '@/lib/notifications/notification.service'
 import { finalizePaymentByTransaction } from '@/lib/payments/finalization'
-import { findRowByReferencePrefix } from '@/lib/payments/hosted-checkout-finalization'
+import { findRowByReferencePrefix, isFullServiceBookingPayment } from '@/lib/payments/hosted-checkout-finalization'
+import { clearRestaurantConversationState as clearRestaurantConversationStateShared } from '@/lib/services/booking-status.service'
 
 // Use service role for webhook (no user auth)
 // Helper for lazy init
@@ -48,16 +49,6 @@ function isOrderTransactionId(transactionId: string) {
 
 function isBookingTransactionId(transactionId: string) {
     return transactionId.startsWith('BKG_') || transactionId.startsWith('BKG-')
-}
-
-function isFullServiceBookingPayment(booking: any) {
-    const total = Number(booking?.price_fcfa || 0)
-    const charged = Number(booking?.deposit_amount_fcfa || 0)
-
-    return (booking?.booking_source || '') !== 'restaurant'
-        && String(booking?.payment_method || '').trim().toLowerCase() === 'online'
-        && total > 0
-        && charged >= total
 }
 
 async function queueAssistantMessage(
@@ -132,29 +123,7 @@ async function queueAssistantMessage(
 }
 
 async function clearRestaurantConversationState(conversationId: string | null | undefined) {
-    if (!conversationId) {
-        return
-    }
-
-    const { data: conversation } = await getSupabase()
-        .from('conversations')
-        .select('metadata')
-        .eq('id', conversationId)
-        .single()
-
-    if (!conversation?.metadata?.restaurant) {
-        return
-    }
-
-    await getSupabase()
-        .from('conversations')
-        .update({
-            metadata: {
-                ...conversation.metadata,
-                restaurant: null,
-            }
-        })
-        .eq('id', conversationId)
+    return clearRestaurantConversationStateShared(getSupabase(), conversationId)
 }
 
 async function notifyMerchantOrderPayment(order: any) {

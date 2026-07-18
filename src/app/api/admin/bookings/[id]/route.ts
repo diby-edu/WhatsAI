@@ -1,32 +1,13 @@
 import { NextRequest } from 'next/server'
-import { errorResponse, successResponse, createAdminClient } from '@/lib/api-utils'
+import { errorResponse, successResponse } from '@/lib/api-utils'
 import { requireAdminAccess } from '@/lib/admin/auth'
 import { queueOutboundWhatsAppMessage } from '@/lib/whatsapp/outbound'
-
-async function clearRestaurantConversationState(
-    adminSupabase: ReturnType<typeof createAdminClient>,
-    conversationId: string | null | undefined
-) {
-    if (!conversationId) return
-
-    const { data: conversation } = await adminSupabase
-        .from('conversations')
-        .select('metadata')
-        .eq('id', conversationId)
-        .single()
-
-    if (!conversation?.metadata?.restaurant) return
-
-    await adminSupabase
-        .from('conversations')
-        .update({
-            metadata: {
-                ...conversation.metadata,
-                restaurant: null,
-            },
-        })
-        .eq('id', conversationId)
-}
+import {
+    isValidDepositTransition,
+    buildBookingStatusUpdate,
+    buildBookingConfirmationMessage,
+    clearRestaurantConversationState,
+} from '@/lib/services/booking-status.service'
 
 // PATCH - Update booking status (admin only)
 export async function PATCH(
@@ -65,16 +46,9 @@ export async function PATCH(
             return errorResponse('Booking not found', 404)
         }
 
-        if (depositStatus) {
-            const currentDepositStatus = existingBooking.deposit_status || 'not_required'
-            const sameDepositStatus = depositStatus === currentDepositStatus
-            const validDepositTransition =
-                currentDepositStatus === 'pending' &&
-                ['paid', 'waived', 'expired'].includes(depositStatus)
-
-            if (!sameDepositStatus && !validDepositTransition) {
-                return errorResponse('Invalid deposit status transition', 400)
-            }
+        const currentDepositStatus = existingBooking.deposit_status || 'not_required'
+        if (depositStatus && !isValidDepositTransition(currentDepositStatus, depositStatus)) {
+            return errorResponse('Invalid deposit status transition', 400)
         }
 
         const requiresDepositConfirmation =
@@ -85,21 +59,11 @@ export async function PATCH(
             return errorResponse('Deposit still pending - confirm payment or waive deposit first', 400)
         }
 
-        const updatePayload: Record<string, string> = {
-            updated_at: new Date().toISOString(),
-        }
-
-        if (status) {
-            updatePayload.status = status
-        }
-
-        if (depositStatus) {
-            updatePayload.deposit_status = depositStatus
-
-            if ((depositStatus === 'paid' || depositStatus === 'waived') && existingBooking.status === 'pending' && !status) {
-                updatePayload.status = 'confirmed'
-            }
-        }
+        const updatePayload = buildBookingStatusUpdate({
+            status,
+            depositStatus,
+            currentBookingStatus: existingBooking.status,
+        })
 
         const { error } = await adminSupabase
             .from('bookings')
@@ -112,23 +76,7 @@ export async function PATCH(
         const statusChanged = finalStatus !== existingBooking.status
         if (statusChanged && (finalStatus === 'confirmed' || finalStatus === 'completed') && existingBooking.customer_phone) {
             try {
-                const serviceName = existingBooking.service_name || 'votre reservation'
-                const dateStr = existingBooking.start_time
-                    ? new Date(existingBooking.start_time).toLocaleDateString('fr-FR', {
-                        weekday: 'long',
-                        day: 'numeric',
-                        month: 'long',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                    })
-                    : null
-
-                let msg = ''
-                if (finalStatus === 'confirmed') {
-                    msg = `Reservation confirmee !\n\nBonjour ${existingBooking.customer_name || ''} !\n\nVotre reservation pour *${serviceName}*${dateStr ? ` le ${dateStr}` : ''} est confirmee.\n\nMerci pour votre confiance !`
-                } else {
-                    msg = `Merci de votre visite !\n\nBonjour ${existingBooking.customer_name || ''} !\n\nNous esperons que vous avez apprecie *${serviceName}*.\n\nN'hesitez pas a reserver a nouveau !`
-                }
+                const msg = buildBookingConfirmationMessage(finalStatus, existingBooking)
 
                 await queueOutboundWhatsAppMessage(adminSupabase, {
                     agentId: existingBooking.agent_id,

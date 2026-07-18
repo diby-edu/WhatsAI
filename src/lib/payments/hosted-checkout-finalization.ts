@@ -5,7 +5,7 @@ import { queueOutboundWhatsAppMessage } from '@/lib/whatsapp/outbound'
 
 type SupabaseClientLike = any
 
-function isFullServiceBookingPayment(booking: any) {
+export function isFullServiceBookingPayment(booking: any) {
     const total = Number(booking?.price_fcfa || 0)
     const charged = Number(booking?.deposit_amount_fcfa || 0)
 
