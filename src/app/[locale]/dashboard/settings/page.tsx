@@ -12,15 +12,10 @@ import {
     AlertTriangle,
     Loader2,
     Check,
-    Mail,
-    Phone,
-    Building,
     Lock,
     Eye,
     EyeOff,
     Trash2,
-    Smartphone,
-    Camera,
     Fingerprint,
     Gift,
     Copy,
@@ -31,50 +26,9 @@ import { useTranslations } from 'next-intl'
 import { useCurrency } from '@/contexts/CurrencyContext'
 import { useToast } from '@/components/ui/Toast'
 import { InputField, ToggleOption, SaveButton } from './components/fields'
-
-interface Profile {
-    id: string
-    email: string
-    full_name: string
-    phone: string
-    company: string
-    currency?: string
-    avatar_url?: string
-    phone_verified?: boolean
-}
-
-interface NotificationSettings {
-    // Email - Existing
-    email_new_conversation: boolean
-    email_daily_summary: boolean
-    email_low_credits: boolean
-    email_new_order: boolean
-    email_agent_status_change: boolean
-    // Email - Extended
-    email_order_cancelled: boolean
-    email_escalation: boolean
-    email_credits_depleted: boolean
-    email_subscription_expiring: boolean
-    email_stock_out: boolean
-    email_payment_received: boolean
-    // Push - Existing
-    push_enabled: boolean
-    push_new_conversation: boolean
-    push_new_order: boolean
-    push_low_credits: boolean
-    push_agent_status_change: boolean
-    // Push - Extended
-    push_order_cancelled: boolean
-    push_escalation: boolean
-    push_credits_depleted: boolean
-    push_subscription_expiring: boolean
-    push_stock_out: boolean
-    push_payment_received: boolean
-    push_new_booking: boolean
-    // Leads
-    push_new_lead: boolean
-    email_new_lead: boolean
-}
+import { ProfileTab } from './components/ProfileTab'
+import { NotificationsTab } from './components/NotificationsTab'
+import type { Profile, NotificationSettings } from './types'
 
 export default function SettingsPage() {
     const t = useTranslations('Settings')
@@ -530,467 +484,38 @@ export default function SettingsPage() {
                     <AnimatePresence mode="wait">
                         {/* Profile Tab */}
                         {activeTab === 'profile' && (
-                            <motion.div
-                                key="profile"
-                                initial={{ opacity: 0, x: 20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: -20 }}
-                            >
-                                <h2 style={{ fontSize: 20, fontWeight: 600, color: 'white', marginBottom: 24 }}>
-                                    {t('Profile.title')}
-                                </h2>
-
-                                {/* Avatar Upload */}
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 28 }}>
-                                    <div
-                                        onClick={() => avatarInputRef.current?.click()}
-                                        style={{
-                                            position: 'relative',
-                                            width: 80,
-                                            height: 80,
-                                            borderRadius: '50%',
-                                            cursor: 'pointer',
-                                            flexShrink: 0
-                                        }}
-                                    >
-                                        <div style={{
-                                            width: 80,
-                                            height: 80,
-                                            borderRadius: '50%',
-                                            overflow: 'hidden',
-                                            background: profile.avatar_url ? 'transparent' : 'linear-gradient(135deg, #10b981, #059669)',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            color: 'white',
-                                            fontSize: 28,
-                                            fontWeight: 600,
-                                            border: '3px solid rgba(16, 185, 129, 0.3)',
-                                            flexShrink: 0
-                                        }}>
-                                            {profile.avatar_url
-                                                ? <img src={profile.avatar_url} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                                                : profile.full_name?.charAt(0)?.toUpperCase()
-                                            }
-                                        </div>
-                                        <div style={{
-                                            position: 'absolute',
-                                            inset: 0,
-                                            borderRadius: '50%',
-                                            background: 'rgba(0,0,0,0.4)',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            opacity: 0,
-                                            transition: 'opacity 0.2s'
-                                        }}
-                                            onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
-                                            onMouseLeave={(e) => (e.currentTarget.style.opacity = '0')}
-                                        >
-                                            <Camera style={{ width: 22, height: 22, color: 'white' }} />
-                                        </div>
-                                    </div>
-                                    <input
-                                        type="file"
-                                        ref={avatarInputRef}
-                                        accept="image/*"
-                                        hidden
-                                        onChange={handleAvatarFileSelect}
-                                    />
-                                    <div>
-                                        <button
-                                            onClick={() => avatarInputRef.current?.click()}
-                                            disabled={uploadingAvatar}
-                                            style={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: 8,
-                                                padding: '10px 16px',
-                                                background: 'rgba(30, 41, 59, 0.8)',
-                                                border: '1px solid rgba(148, 163, 184, 0.2)',
-                                                borderRadius: 10,
-                                                color: 'white',
-                                                cursor: uploadingAvatar ? 'wait' : 'pointer',
-                                                transition: 'all 0.2s'
-                                            }}
-                                        >
-                                            {uploadingAvatar ? (
-                                                <Loader2 style={{ width: 18, height: 18, animation: 'spin 1s linear infinite' }} />
-                                            ) : (
-                                                <Camera style={{ width: 18, height: 18 }} />
-                                            )}
-                                            {uploadingAvatar ? 'Upload...' : 'Changer photo'}
-                                        </button>
-                                        <p style={{ color: '#64748b', fontSize: 12, marginTop: 6 }}>JPG, PNG. Max 2MB</p>
-                                    </div>
-                                </div>
-
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 20 }}>
-                                    <InputField
-                                        label={t('Profile.form.fullName')}
-                                        icon={User}
-                                        value={profile.full_name}
-                                        onChange={(v) => setProfile({ ...profile, full_name: v })}
-                                        placeholder="Votre nom"
-                                    />
-                                    <InputField
-                                        label={t('Profile.form.email')}
-                                        icon={Mail}
-                                        value={profile.email}
-                                        disabled
-                                        placeholder="email@exemple.com"
-                                    />
-                                    <InputField
-                                        label={t('Profile.form.phone')}
-                                        icon={Phone}
-                                        value={profile.phone}
-                                        onChange={(v) => { setProfile({ ...profile, phone: v }); setOtpStep('idle') }}
-                                        placeholder="+225 XX XX XX XX"
-                                    />
-                                    {/* Vérification WhatsApp */}
-                                    {profile.phone_verified ? (
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#34d399' }}>
-                                            <Check size={14} /> Numéro WhatsApp vérifié
-                                        </div>
-                                    ) : (
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                                <span style={{ fontSize: 13, color: '#f59e0b' }}>Numéro non vérifié</span>
-                                                {otpStep === 'idle' && (
-                                                    <button
-                                                        onClick={handleSendPhoneOtp}
-                                                        style={{ fontSize: 12, padding: '4px 12px', borderRadius: 6, border: 'none', background: 'rgba(16,185,129,0.15)', color: '#34d399', cursor: 'pointer', fontWeight: 600 }}
-                                                    >
-                                                        Vérifier via WhatsApp
-                                                    </button>
-                                                )}
-                                                {otpStep === 'sending' && <Loader2 size={14} style={{ animation: 'spin 1s linear infinite', color: '#64748b' }} />}
-                                            </div>
-                                            {otpStep === 'verify' && (
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                                    <div style={{ fontSize: 12, color: '#94a3b8' }}>
-                                                        Code envoyé au <strong style={{ color: 'white' }}>{profile.phone}</strong>
-                                                        {otpCountdown > 0 && <span> — expire dans {Math.floor(otpCountdown/60)}:{String(otpCountdown%60).padStart(2,'0')}</span>}
-                                                    </div>
-                                                    <div style={{ display: 'flex', gap: 8 }}>
-                                                        <input
-                                                            type="text"
-                                                            maxLength={6}
-                                                            value={otpCode}
-                                                            onChange={e => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                                                            placeholder="Code à 6 chiffres"
-                                                            style={{ flex: 1, padding: '8px 12px', borderRadius: 8, background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(100,116,139,0.3)', color: 'white', fontSize: 14, letterSpacing: 4 }}
-                                                        />
-                                                        <button
-                                                            onClick={handleConfirmPhoneOtp}
-                                                            disabled={otpCode.length < 6 || otpVerifying}
-                                                            style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: otpCode.length === 6 ? '#10b981' : 'rgba(100,116,139,0.2)', color: 'white', fontWeight: 600, fontSize: 13, cursor: otpCode.length === 6 ? 'pointer' : 'not-allowed' }}
-                                                        >
-                                                            {otpVerifying ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : 'Valider'}
-                                                        </button>
-                                                    </div>
-                                                    {otpCountdown === 0 && (
-                                                        <button onClick={handleSendPhoneOtp} style={{ fontSize: 12, color: '#60a5fa', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
-                                                            Renvoyer le code
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            )}
-                                            {otpError && <div style={{ fontSize: 12, color: '#f87171' }}>{otpError}</div>}
-                                        </div>
-                                    )}
-                                    <InputField
-                                        label={t('Profile.form.company')}
-                                        icon={Building}
-                                        value={profile.company}
-                                        onChange={(v) => setProfile({ ...profile, company: v })}
-                                        placeholder="Nom de l'entreprise"
-                                    />
-                                    <div style={{}}>
-                                        <label style={{ display: 'block', color: '#94a3b8', fontSize: 13, marginBottom: 8 }}>Devise</label>
-                                        <div style={{ position: 'relative' }}>
-                                            <Building style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', width: 18, height: 18, color: '#64748b' }} />
-                                            <select
-                                                value={profile.currency || 'USD'}
-                                                onChange={(e) => setProfile({ ...profile, currency: e.target.value })}
-                                                style={{
-                                                    width: '100%',
-                                                    padding: '12px 12px 12px 44px',
-                                                    background: 'rgba(30, 41, 59, 0.8)',
-                                                    border: '1px solid rgba(148, 163, 184, 0.15)',
-                                                    borderRadius: 10,
-                                                    color: 'white',
-                                                    fontSize: 14,
-                                                    appearance: 'none',
-                                                    cursor: 'pointer'
-                                                }}
-                                            >
-                                                <option value="USD">USD ($)</option>
-                                                <option value="EUR">EUR (€)</option>
-                                                <option value="XOF">FCFA (XOF)</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-                                <SaveButton
-                                    saving={saving}
-                                    saved={saved}
-                                    onClick={handleSaveProfile}
-                                    messages={{ save: t('Profile.save'), saving: t('Profile.saving'), saved: t('Profile.saved') }}
-                                />
-                            </motion.div>
+                            <ProfileTab
+                                t={t}
+                                profile={profile}
+                                setProfile={setProfile}
+                                avatarInputRef={avatarInputRef}
+                                uploadingAvatar={uploadingAvatar}
+                                handleAvatarFileSelect={handleAvatarFileSelect}
+                                otpStep={otpStep}
+                                setOtpStep={setOtpStep}
+                                handleSendPhoneOtp={handleSendPhoneOtp}
+                                otpCountdown={otpCountdown}
+                                otpCode={otpCode}
+                                setOtpCode={setOtpCode}
+                                handleConfirmPhoneOtp={handleConfirmPhoneOtp}
+                                otpVerifying={otpVerifying}
+                                otpError={otpError}
+                                saving={saving}
+                                saved={saved}
+                                handleSaveProfile={handleSaveProfile}
+                            />
                         )}
 
                         {/* Notifications Tab */}
                         {activeTab === 'notifications' && (
-                            <motion.div
-                                key="notifications"
-                                initial={{ opacity: 0, x: 20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: -20 }}
-                            >
-                                <h2 style={{ fontSize: 20, fontWeight: 600, color: 'white', marginBottom: 24 }}>
-                                    {t('Notifications.title')}
-                                </h2>
-
-                                {/* Email Notifications Section */}
-                                <div style={{ marginBottom: 32 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                                        <Mail style={{ width: 20, height: 20, color: '#3b82f6' }} />
-                                        <h3 style={{ color: '#94a3b8', fontSize: 14, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>
-                                            {t('Notifications.emailSection') || 'Notifications Email'}
-                                        </h3>
-                                    </div>
-
-                                    {/* Commandes */}
-                                    <p style={{ color: '#64748b', fontSize: 12, marginBottom: 8, marginTop: 16 }}>Commandes</p>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                        <ToggleOption
-                                            label={t('Notifications.newOrder.label')}
-                                            description={t('Notifications.newOrder.description')}
-                                            checked={notifications.email_new_order}
-                                            onChange={(v) => setNotifications({ ...notifications, email_new_order: v })}
-                                        />
-                                        <ToggleOption
-                                            label={t('Notifications.orderCancelled.label') || 'Commande annulée'}
-                                            description={t('Notifications.orderCancelled.description') || 'Notification quand une commande est annulée'}
-                                            checked={notifications.email_order_cancelled}
-                                            onChange={(v) => setNotifications({ ...notifications, email_order_cancelled: v })}
-                                        />
-                                        <ToggleOption
-                                            label={'Paiement reçu'}
-                                            description={'Email quand un client paie une commande'}
-                                            checked={notifications.email_payment_received}
-                                            onChange={(v) => setNotifications({ ...notifications, email_payment_received: v })}
-                                        />
-                                    </div>
-
-                                    {/* Conversations */}
-                                    <p style={{ color: '#64748b', fontSize: 12, marginBottom: 8, marginTop: 16 }}>Conversations</p>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                        <ToggleOption
-                                            label={t('Notifications.newConversation.label')}
-                                            description={t('Notifications.newConversation.description')}
-                                            checked={notifications.email_new_conversation}
-                                            onChange={(v) => setNotifications({ ...notifications, email_new_conversation: v })}
-                                        />
-                                        <ToggleOption
-                                            label={t('Notifications.escalation.label') || 'Escalade demandée'}
-                                            description={t('Notifications.escalation.description') || 'Le client veut parler à un humain'}
-                                            checked={notifications.email_escalation}
-                                            onChange={(v) => setNotifications({ ...notifications, email_escalation: v })}
-                                        />
-                                    </div>
-
-                                    {/* Agent */}
-                                    <p style={{ color: '#64748b', fontSize: 12, marginBottom: 8, marginTop: 16 }}>Agent IA</p>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                        <ToggleOption
-                                            label={t('Notifications.agentStatus.label')}
-                                            description={t('Notifications.agentStatus.description')}
-                                            checked={notifications.email_agent_status_change}
-                                            onChange={(v) => setNotifications({ ...notifications, email_agent_status_change: v })}
-                                        />
-                                    </div>
-
-                                    {/* Crédits & Facturation */}
-                                    <p style={{ color: '#64748b', fontSize: 12, marginBottom: 8, marginTop: 16 }}>Crédits & Facturation</p>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                        <ToggleOption
-                                            label={t('Notifications.lowCredits.label')}
-                                            description={t('Notifications.lowCredits.description')}
-                                            checked={notifications.email_low_credits}
-                                            onChange={(v) => setNotifications({ ...notifications, email_low_credits: v })}
-                                        />
-                                        <ToggleOption
-                                            label={t('Notifications.creditsDepleted.label') || 'Crédits épuisés'}
-                                            description={t('Notifications.creditsDepleted.description') || 'Alerte quand vos crédits atteignent zéro'}
-                                            checked={notifications.email_credits_depleted}
-                                            onChange={(v) => setNotifications({ ...notifications, email_credits_depleted: v })}
-                                        />
-                                        <ToggleOption
-                                            label={t('Notifications.subscriptionExpiring.label') || 'Abonnement expire bientôt'}
-                                            description={t('Notifications.subscriptionExpiring.description') || 'Rappel 7 jours avant expiration'}
-                                            checked={notifications.email_subscription_expiring}
-                                            onChange={(v) => setNotifications({ ...notifications, email_subscription_expiring: v })}
-                                        />
-                                    </div>
-
-                                    {/* Produits */}
-                                    <p style={{ color: '#64748b', fontSize: 12, marginBottom: 8, marginTop: 16 }}>Produits</p>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                        <ToggleOption
-                                            label={t('Notifications.stockOut.label') || 'Stock épuisé'}
-                                            description={t('Notifications.stockOut.description') || 'Alerte quand un produit est en rupture'}
-                                            checked={notifications.email_stock_out}
-                                            onChange={(v) => setNotifications({ ...notifications, email_stock_out: v })}
-                                        />
-                                    </div>
-
-                                    {/* Leads */}
-                                    <p style={{ color: '#64748b', fontSize: 12, marginBottom: 8, marginTop: 16 }}>Leads</p>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                        <ToggleOption
-                                            label={'Nouveau lead qualifié'}
-                                            description={'Email quand un prospect est capturé par votre agent WhatsApp'}
-                                            checked={notifications.email_new_lead}
-                                            onChange={(v) => setNotifications({ ...notifications, email_new_lead: v })}
-                                        />
-                                    </div>
-
-                                    {/* Rapports */}
-                                    <p style={{ color: '#64748b', fontSize: 12, marginBottom: 8, marginTop: 16 }}>Rapports</p>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                        <ToggleOption
-                                            label={t('Notifications.dailySummary.label')}
-                                            description={t('Notifications.dailySummary.description')}
-                                            checked={notifications.email_daily_summary}
-                                            onChange={(v) => setNotifications({ ...notifications, email_daily_summary: v })}
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Push Notifications Section */}
-                                <div style={{ marginBottom: 24 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                                        <Smartphone style={{ width: 20, height: 20, color: '#10b981' }} />
-                                        <h3 style={{ color: '#94a3b8', fontSize: 14, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>
-                                            {t('Notifications.pushSection') || 'Notifications Push (Mobile)'}
-                                        </h3>
-                                    </div>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                        <ToggleOption
-                                            label={t('Notifications.pushEnabled.label') || 'Activer les notifications push'}
-                                            description={t('Notifications.pushEnabled.description') || 'Recevoir des notifications sur votre téléphone'}
-                                            checked={notifications.push_enabled}
-                                            onChange={(v) => setNotifications({ ...notifications, push_enabled: v })}
-                                        />
-                                        {notifications.push_enabled && (
-                                            <>
-                                                {/* Commandes */}
-                                                <p style={{ color: '#64748b', fontSize: 12, marginBottom: 4, marginTop: 12 }}>Commandes</p>
-                                                <ToggleOption
-                                                    label={t('Notifications.pushNewOrder.label') || 'Nouvelle commande'}
-                                                    description={t('Notifications.pushNewOrder.description') || 'Notification quand une commande est passée'}
-                                                    checked={notifications.push_new_order}
-                                                    onChange={(v) => setNotifications({ ...notifications, push_new_order: v })}
-                                                />
-                                                <ToggleOption
-                                                    label={t('Notifications.pushOrderCancelled.label') || 'Commande annulée'}
-                                                    description={t('Notifications.pushOrderCancelled.description') || 'Notification quand une commande est annulée'}
-                                                    checked={notifications.push_order_cancelled}
-                                                    onChange={(v) => setNotifications({ ...notifications, push_order_cancelled: v })}
-                                                />
-                                                <ToggleOption
-                                                    label={'Paiement reçu'}
-                                                    description={'Notification quand un client paie une commande'}
-                                                    checked={notifications.push_payment_received}
-                                                    onChange={(v) => setNotifications({ ...notifications, push_payment_received: v })}
-                                                />
-
-                                                {/* Conversations */}
-                                                <p style={{ color: '#64748b', fontSize: 12, marginBottom: 4, marginTop: 12 }}>Conversations</p>
-                                                <ToggleOption
-                                                    label={t('Notifications.pushNewConversation.label') || 'Nouvelle conversation'}
-                                                    description={t('Notifications.pushNewConversation.description') || 'Notification quand un nouveau client vous contacte'}
-                                                    checked={notifications.push_new_conversation}
-                                                    onChange={(v) => setNotifications({ ...notifications, push_new_conversation: v })}
-                                                />
-                                                <ToggleOption
-                                                    label={t('Notifications.pushEscalation.label') || 'Escalade demandée'}
-                                                    description={t('Notifications.pushEscalation.description') || 'Le client veut parler à un humain'}
-                                                    checked={notifications.push_escalation}
-                                                    onChange={(v) => setNotifications({ ...notifications, push_escalation: v })}
-                                                />
-
-                                                {/* Agent */}
-                                                <p style={{ color: '#64748b', fontSize: 12, marginBottom: 4, marginTop: 12 }}>Agent IA</p>
-                                                <ToggleOption
-                                                    label={t('Notifications.pushAgentStatus.label') || "Statut de l'agent"}
-                                                    description={t('Notifications.pushAgentStatus.description') || "Notification quand votre agent change de statut"}
-                                                    checked={notifications.push_agent_status_change}
-                                                    onChange={(v) => setNotifications({ ...notifications, push_agent_status_change: v })}
-                                                />
-
-                                                {/* Crédits */}
-                                                <p style={{ color: '#64748b', fontSize: 12, marginBottom: 4, marginTop: 12 }}>Crédits</p>
-                                                <ToggleOption
-                                                    label={t('Notifications.pushLowCredits.label') || 'Crédits faibles'}
-                                                    description={t('Notifications.pushLowCredits.description') || 'Alerte quand vos crédits sont bas'}
-                                                    checked={notifications.push_low_credits}
-                                                    onChange={(v) => setNotifications({ ...notifications, push_low_credits: v })}
-                                                />
-                                                <ToggleOption
-                                                    label={t('Notifications.pushCreditsDepleted.label') || 'Crédits épuisés'}
-                                                    description={t('Notifications.pushCreditsDepleted.description') || 'Alerte critique quand crédits = 0'}
-                                                    checked={notifications.push_credits_depleted}
-                                                    onChange={(v) => setNotifications({ ...notifications, push_credits_depleted: v })}
-                                                />
-                                                <ToggleOption
-                                                    label={t('Notifications.pushSubscriptionExpiring.label') || 'Abonnement expire'}
-                                                    description={t('Notifications.pushSubscriptionExpiring.description') || 'Rappel avant expiration'}
-                                                    checked={notifications.push_subscription_expiring}
-                                                    onChange={(v) => setNotifications({ ...notifications, push_subscription_expiring: v })}
-                                                />
-
-                                                {/* Produits */}
-                                                <p style={{ color: '#64748b', fontSize: 12, marginBottom: 4, marginTop: 12 }}>Produits</p>
-                                                <ToggleOption
-                                                    label={t('Notifications.pushStockOut.label') || 'Stock épuisé'}
-                                                    description={t('Notifications.pushStockOut.description') || 'Alerte rupture de stock'}
-                                                    checked={notifications.push_stock_out}
-                                                    onChange={(v) => setNotifications({ ...notifications, push_stock_out: v })}
-                                                />
-
-                                                {/* Réservations */}
-                                                <p style={{ color: '#64748b', fontSize: 12, marginBottom: 4, marginTop: 12 }}>Réservations</p>
-                                                <ToggleOption
-                                                    label={'Nouvelle réservation'}
-                                                    description={'Notification quand un client réserve un service'}
-                                                    checked={notifications.push_new_booking}
-                                                    onChange={(v) => setNotifications({ ...notifications, push_new_booking: v })}
-                                                />
-
-                                                {/* Leads */}
-                                                <p style={{ color: '#64748b', fontSize: 12, marginBottom: 4, marginTop: 12 }}>Leads</p>
-                                                <ToggleOption
-                                                    label={'Nouveau lead qualifié'}
-                                                    description={'Notification push quand un prospect est capturé par votre agent'}
-                                                    checked={notifications.push_new_lead}
-                                                    onChange={(v) => setNotifications({ ...notifications, push_new_lead: v })}
-                                                />
-                                            </>
-                                        )}
-                                    </div>
-                                </div>
-
-                                <SaveButton
-                                    saving={saving}
-                                    saved={saved}
-                                    onClick={handleSaveNotifications}
-                                    messages={{ save: t('Profile.save'), saving: t('Profile.saving'), saved: t('Profile.saved') }}
-                                />
-                            </motion.div>
+                            <NotificationsTab
+                                t={t}
+                                notifications={notifications}
+                                setNotifications={setNotifications}
+                                saving={saving}
+                                saved={saved}
+                                handleSaveNotifications={handleSaveNotifications}
+                            />
                         )}
 
                         {/* Security Tab */}
